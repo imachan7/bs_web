@@ -2,7 +2,7 @@
 
 ## 1. システム構成（推奨）
 
-- **Frontend:** HTML / JavaScript (Vanilla or React/Vue)
+- **Frontend:** HTML / TypeScript (Vanilla or React/Vue)
 - **Backend:** Node.js + Socket.io (リアルタイム双方向通信)
 - **Communication:** JSONオブジェクトを用いたメッセージパッシング
 
