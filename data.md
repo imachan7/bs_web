@@ -171,3 +171,46 @@
 - それ以外（将来弾専用の特殊タイミングや高度な例外処理）は後続で追加する
 
 この方針により、初期弾の実装速度を維持しながら、後続弾追加時の破綻を防ぐ。
+
+---
+
+## 8. ファイル構成と役割（TypeScript）
+
+### 8.1 データ層
+
+| ファイル | 役割 |
+| :-- | :-- |
+| `data/cards.json` | カードマスターデータ本体（初期弾のカード定義） |
+| `data/constants.ts` | フェーズ名、色、種別などの共通定数定義 |
+| `data.md` | データ構造・実装方針の仕様書（本書） |
+
+### 8.2 サーバー層
+
+| ファイル | 役割 |
+| :-- | :-- |
+| `server/src/index.ts` | サーバー起動、Socket.io初期化、接続イベントの入口 |
+| `server/src/roomManager.ts` | 対戦ルーム生成・参加・破棄の管理 |
+| `server/src/logic/GameState.ts` | `GameState` / `PlayerState` の状態生成・更新の土台 |
+| `server/src/logic/PhaseManager.ts` | ターン進行・フェーズ遷移の制御 |
+| `server/src/logic/RuleValidator.ts` | 行動可否判定（召喚条件、コスト支払い可否など） |
+| `server/src/logic/GameEngine.ts` | 召喚/アタック等のアクション実行とイベント発火の統括 |
+| `server/src/logic/EffectModules.ts` | キーワード効果・個別効果ハンドラの集約と実行 |
+
+### 8.3 クライアント層
+
+| ファイル | 役割 |
+| :-- | :-- |
+| `public/index.html` | 画面の土台となるHTML |
+| `public/css/style.css` | 画面表示のスタイル定義 |
+| `public/src/main.ts` | サーバー通信、ユーザー操作の受付、状態購読 |
+| `public/src/renderer.ts` | 受け取った状態をDOMへ反映する描画処理 |
+
+### 8.4 実装順の推奨
+
+1. `GameState.ts`（型と状態管理）
+2. `PhaseManager.ts`（進行）
+3. `RuleValidator.ts`（判定）
+4. `GameEngine.ts`（実行）
+5. `EffectModules.ts`（効果）
+6. `index.ts` / `roomManager.ts`（通信）
+7. `main.ts` / `renderer.ts`（UI）
