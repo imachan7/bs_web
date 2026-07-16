@@ -108,6 +108,7 @@ export type Keyword =
     | "awaken" // 覚醒：フラッシュタイミングで自分のスピリットのコアを集められる
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
+    | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
 
 // 常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
 export type AuraCounter =
@@ -161,6 +162,7 @@ export type EffectDef =
           kind: "keyword"
           keyword: Keyword
           levels: number[] | null
+          colors?: Color[] // 装甲用: この色の相手効果を受けない
       }
     | {
           id: string

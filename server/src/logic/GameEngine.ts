@@ -3,6 +3,7 @@ import type { GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     createInstance,
+    currentLevel,
     findSpirit,
     getCard,
     log,
@@ -12,10 +13,12 @@ import {
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import {
     destroySpirit,
+    effectActiveAtLevel,
     effectiveBp,
     fireBattleWonTriggers,
     fireFieldEventTriggers,
     fireTrigger,
+    hasArmorAgainst,
     resolveAction,
     resolveMagic,
 } from "./EffectModules"
@@ -500,6 +503,36 @@ function resolveBattle(state: GameState): void {
     } else {
         destroySpirit(state, defenderPid, blocker.instanceId)
         destroySpirit(state, attackerPid, attacker.instanceId)
+    }
+
+    // 【呪撃】：アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
+    // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
+    // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
+    // destroySpirit 後も cardId・cores は読み取れる）。
+    const attackerLevel = currentLevel(attacker).level
+    const hasJugeki = getCard(attacker.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "jugeki" &&
+            effectActiveAtLevel(e.levels, attackerLevel),
+    )
+    if (hasJugeki) {
+        const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
+        if (stillOnField) {
+            const attackerColor = getCard(attacker.cardId).color
+            if (hasArmorAgainst(stillOnField, attackerColor)) {
+                log(
+                    state,
+                    `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`,
+                )
+            } else {
+                log(
+                    state,
+                    `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
+                )
+                destroySpirit(state, defenderPid, blocker.instanceId)
+            }
+        }
     }
 
     clearBattle(state)

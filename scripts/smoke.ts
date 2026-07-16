@@ -3445,6 +3445,110 @@ console.log("=== 先攻1ターン目はアタック不可 ===")
     )
 }
 
+console.log("=== 装甲：色（BS02-040 ロブスターク） ===")
+{
+    // --- 赤マジックの単体破壊：装甲：赤持ちのみだと対象が取れず破壊されない ---
+    const s = createGame(
+        "armor-destroy-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s)
+    const rob = createInstance("BS02-040", s.turn, 1) // ロブスターク Lv1（装甲：赤）
+    s.players.p2.field.spirits.push(rob)
+    s.players.p1.hand[0] = "BS01-121" // フレイムダンス（赤・destroy maxBp4000）
+    s.players.p1.reserve = 10
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "フレイムダンスを使用")
+    assert(s.players.p2.field.spirits.length === 1, "装甲：赤持ちは赤の破壊効果の対象にならず生存")
+
+    // --- 赤マジックの範囲破壊：装甲：赤持ちだけ生き残り、無装甲は破壊される ---
+    const s2 = createGame(
+        "armor-destroyall-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s2)
+    const rob2 = createInstance("BS02-040", s2.turn, 1) // ロブスターク Lv1（装甲：赤）
+    const plain = createInstance("BS01-001", s2.turn, 1) // ゴラドン（無装甲）
+    s2.players.p2.field.spirits.push(rob2, plain)
+    s2.players.p1.hand[0] = "BS01-122" // フレイムテンペスト（赤・destroyAll maxBp3000）
+    s2.players.p1.reserve = 10
+    assert(act(s2, "p1", { type: "castMagic", handIndex: 0 }) === null, "フレイムテンペストを使用")
+    assert(s2.players.p2.field.spirits.includes(rob2), "装甲：赤持ちは範囲破壊でも生存")
+    assert(!s2.players.p2.field.spirits.includes(plain), "無装甲のゴラドンは範囲破壊で破壊される")
+
+    // --- 紫ソースの効果は装甲：赤を貫通する ---
+    const s3 = createGame(
+        "armor-pierce-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "white" },
+    )
+    runTurnStart(s3)
+    const rob3 = createInstance("BS02-040", s3.turn, 2) // ロブスターク Lv1（コア2）
+    s3.players.p2.field.spirits.push(rob3)
+    s3.players.p1.hand[0] = "BS01-129" // ポイズンシュート（紫・coreRemove count1）
+    s3.players.p1.reserve = 10
+    assert(
+        act(s3, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: rob3.instanceId }) === null,
+        "ポイズンシュートを使用（紫は装甲：赤を貫通）",
+    )
+    assert(rob3.cores === 1, "装甲：赤は紫の効果を防げず、コアが1個減る")
+
+    // --- レベル不足（維持コア未満）なら装甲は働かない ---
+    const s4 = createGame(
+        "armor-level-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s4)
+    const rob4 = createInstance("BS02-040", s4.turn, 0) // コア0＝Lv0（装甲の levels [1,2] 対象外）
+    s4.players.p2.field.spirits.push(rob4)
+    s4.players.p1.hand[0] = "BS01-121" // フレイムダンス
+    s4.players.p1.reserve = 10
+    assert(act(s4, "p1", { type: "castMagic", handIndex: 0 }) === null, "フレイムダンスを使用")
+    assert(s4.players.p2.field.spirits.length === 0, "Lv条件外では装甲が働かず破壊される")
+}
+
+console.log("=== 呪撃（BS02-015 ハンプダンプ） ===")
+{
+    // --- アタック→ブロック→双方パスで、BP比較の勝敗に関わらずブロッカーが破壊される ---
+    const s = createGame(
+        "jugeki-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "green" },
+    )
+    runTurnStart(s)
+    const hampdump = createInstance("BS02-015", s.turn, 3) // ハンプダンプ Lv2（呪撃）BP4000
+    s.players.p1.field.spirits.push(hampdump)
+    const leewolf = createInstance("BS01-053", s.turn, 6) // リーヴォルフ Lv3 BP5000（BP比較なら勝つ）
+    s.players.p2.field.spirits.push(leewolf)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: hampdump.instanceId }) === null, "ハンプダンプでアタック")
+    assert(act(s, "p2", { type: "block", instanceId: leewolf.instanceId }) === null, "リーヴォルフでブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
+    assert(s.players.p1.field.spirits.length === 0, "BP負けのハンプダンプはBP比較で破壊される")
+    assert(s.players.p2.field.spirits.length === 0, "BP比較で勝ったリーヴォルフも【呪撃】で破壊される")
+
+    // --- ブロックされなければ何も起きない ---
+    const s2 = createGame(
+        "jugeki-noblock-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "green" },
+    )
+    runTurnStart(s2)
+    const hampdump2 = createInstance("BS02-015", s2.turn, 3) // ハンプダンプ Lv2（呪撃）
+    s2.players.p1.field.spirits.push(hampdump2)
+    assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(
+        act(s2, "p1", { type: "attack", instanceId: hampdump2.instanceId }) === null,
+        "ハンプダンプでアタック（ブロッカーなし）",
+    )
+    assert(act(s2, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける")
+    assert(s2.players.p1.field.spirits.length === 1, "ブロックされなければ【呪撃】は発動せずアタッカーは生存")
+    assert(s2.battle === null, "バトル終了")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

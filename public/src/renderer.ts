@@ -5,6 +5,7 @@ import type {
     AuraDef,
     CardData,
     CardInstance,
+    Color,
     ConstraintDef,
     GameView,
     GlobalConstraintDef,
@@ -193,6 +194,19 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
     if (inst.immuneToOpponentThisTurn) return true
     return activeConstraints(inst).some(
         (c) => c.type === "untargetableByOpponent",
+    )
+}
+
+// 【装甲：色】：inst が sourceColor の相手効果を受けないか（サーバー hasArmorAgainst のミラー）
+export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
+    if (sourceColor === undefined) return false
+    const { level } = levelOf(inst)
+    return master(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "armor" &&
+            (e.levels === null || e.levels.includes(level)) &&
+            (e.colors?.includes(sourceColor) ?? false),
     )
 }
 
@@ -705,9 +719,14 @@ function fieldCardEl(
             }
             return el
         }
-        // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）は選択不可
+        // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
+        // 使用中マジックの色に対する装甲持ちは選択不可
         if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
-            el.classList.add("targetable", "clickable")
+            const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
+            const usingColor = usingCardId ? master(usingCardId).color : undefined
+            if (!hasArmorAgainst(inst, usingColor)) {
+                el.classList.add("targetable", "clickable")
+            }
         }
     }
 

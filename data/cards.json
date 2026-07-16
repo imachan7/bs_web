@@ -6649,7 +6649,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-015-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-016",
@@ -6839,7 +6848,29 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2･Lv3【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv3『このスピリットの破壊時』\nこのスピリットを自分の手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-020-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS02-020-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "returnSelfToHand"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-021",
@@ -7552,7 +7583,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-040-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-041",
@@ -7694,7 +7738,33 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-044-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   },
+   {
+    "id": "BS02-044-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-045",
@@ -7729,7 +7799,32 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1【装甲：紫】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2【装甲：赤/紫/緑】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-045-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1
+    ],
+    "colors": [
+     "purple"
+    ]
+   },
+   {
+    "id": "BS02-045-e2",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "red",
+     "purple",
+     "green"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-046",

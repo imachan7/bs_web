@@ -45,6 +45,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     awaken: { id: "awaken", label: "覚醒" },
     clash: { id: "clash", label: "激突" },
     armor: { id: "armor", label: "装甲" },
+    jugeki: { id: "jugeki", label: "呪撃" },
 }
 
 // 指定カードがそのキーワードを持つか。
@@ -223,6 +224,20 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 // ワルキューレの untargetable は範囲には無力なので、こちらは immuneToOpponentThisTurn のみ。
 function isImmuneToArea(inst: CardInstance): boolean {
     return inst.immuneToOpponentThisTurn
+}
+
+// 【装甲：色】：inst が sourceColor の相手効果を受けないか（対象・範囲の両方から参照する）。
+// sourceColor が不明（undefined）な場合は装甲を判定できないため false（＝防がない）とする。
+export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
+    if (sourceColor === undefined) return false
+    const level = currentLevel(inst).level
+    return getCard(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "armor" &&
+            effectActiveAtLevel(e.levels, level) &&
+            (e.colors?.includes(sourceColor) ?? false),
+    )
 }
 
 // このスピリットに効果でコアが置かれるときの追加数（グラーバの coreBonus）。
@@ -444,17 +459,20 @@ export function removeCoresToTrash(
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
 // 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
+// sourceColor: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
 function pickEnemyByBp(
     state: GameState,
     targetPid: PlayerId,
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
+    sourceColor?: Color,
 ): CardInstance | null {
     const candidates = state.players[targetPid].field.spirits.filter(
-        // targetPid はアクターの相手フィールド。免疫スピリットは対象選択から除外する
+        // targetPid はアクターの相手フィールド。免疫スピリット・装甲該当は対象選択から除外する
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isUntargetableByOpponent(s) &&
+            !hasArmorAgainst(s, sourceColor) &&
             extraPredicate(s),
     )
     if (candidates.length === 0) return null
@@ -510,15 +528,18 @@ function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
 
 // 効果アクションを実行する。
 //   owner = 効果の使用者、self = 効果の発生源スピリット（マジックは null）
+//   sourceColor = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
 export function resolveAction(
     state: GameState,
     owner: PlayerId,
     self: CardInstance | null,
     action: EffectAction,
     targetInstanceId?: string,
+    sourceColor?: Color,
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
+    const srcColor = sourceColor ?? (self ? getCard(self.cardId).color : undefined)
 
     switch (action.type) {
         case "draw": {
@@ -536,6 +557,7 @@ export function resolveAction(
                     (s) =>
                         action.keywordFilter === undefined ||
                         hasKeyword(s.cardId, action.keywordFilter),
+                    srcColor,
                 )
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
@@ -548,9 +570,12 @@ export function resolveAction(
 
         case "destroyAll": {
             // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
-            // 全効果免疫（フェザーバリア）のスピリットは除外する
+            // 全効果免疫（フェザーバリア）・装甲該当のスピリットは除外する
             const targets = state.players[opp].field.spirits.filter(
-                (s) => effectiveBp(state, opp, s) <= action.maxBp && !isImmuneToArea(s),
+                (s) =>
+                    effectiveBp(state, opp, s) <= action.maxBp &&
+                    !isImmuneToArea(s) &&
+                    !hasArmorAgainst(s, srcColor),
             )
             if (targets.length === 0) {
                 log(state, `${sourceName}：対象がいなかった。`)
@@ -657,11 +682,16 @@ export function resolveAction(
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
                 : (() => {
-                      const t = pickEnemyByBp(state, opp, Infinity)
+                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
                       return t ? { pid: opp, inst: t } : null
                   })()
             if (!found) {
                 log(state, `${sourceName}のコア除去：対象がいなかった。`)
+                return
+            }
+            // 明示ターゲットが相手側かつ装甲該当なら効果を受けない
+            if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
+                log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
                 return
             }
             // 維持コア割れの消滅処理は removeCores が担う
@@ -712,6 +742,10 @@ export function resolveAction(
                     log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                     return
                 }
+                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
+                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                    return
+                }
                 if (found.inst.isRested) {
                     log(
                         state,
@@ -730,6 +764,7 @@ export function resolveAction(
                     opp,
                     Infinity,
                     (s) => !s.isRested,
+                    srcColor,
                 )
                 if (!target) {
                     log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -749,6 +784,10 @@ export function resolveAction(
                     log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
                     return
                 }
+                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
+                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                    return
+                }
                 if (!found.inst.isRested) {
                     log(
                         state,
@@ -766,6 +805,7 @@ export function resolveAction(
                     opp,
                     Infinity,
                     (s) => s.isRested,
+                    srcColor,
                 )
                 if (!target) {
                     log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
@@ -838,12 +878,16 @@ export function resolveAction(
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     return
                 }
+                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
+                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                    return
+                }
                 returnSpiritToHand(state, found.pid, found.inst)
                 return
             }
             // 未指定時は相手フィールドのBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
-                const target = pickEnemyByBp(state, opp, Infinity)
+                const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
@@ -857,11 +901,19 @@ export function resolveAction(
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
                 : (() => {
-                      const t = pickEnemyByBp(state, opp, Infinity)
+                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
                       return t ? { pid: opp, inst: t } : null
                   })()
             if (!found) {
                 log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
+                return
+            }
+            if (
+                targetInstanceId &&
+                found.pid !== owner &&
+                hasArmorAgainst(found.inst, srcColor)
+            ) {
+                log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
                 return
             }
             returnSpiritToDeckTop(state, found.pid, found.inst)
@@ -985,6 +1037,8 @@ export function resolveAction(
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 for (const s of state.players[pid].field.spirits) {
                     if (getCard(s.cardId).color !== chosen) continue
+                    // 装甲は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
+                    if (pid !== owner && hasArmorAgainst(s, srcColor)) continue
                     s.isRested = true
                     exhausted++
                 }
@@ -1309,6 +1363,7 @@ export function resolveAction(
                     opp,
                     Infinity,
                     (s) => !processed.has(s.instanceId),
+                    srcColor,
                 )
                 if (!target) {
                     log(state, `${sourceName}のコア圧縮：対象がいなかった。`)
@@ -1593,6 +1648,7 @@ export function resolveMagic(
     const card = getCard(cardId)
     for (const effect of card.effects) {
         if (effect.kind !== "magic" || effect.timing !== timing) continue
-        resolveAction(state, owner, null, effect.action, targetInstanceId)
+        // self が null（マジック）のため、装甲判定用のカード色を明示的に渡す
+        resolveAction(state, owner, null, effect.action, targetInstanceId, card.color)
     }
 }
