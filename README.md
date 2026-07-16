@@ -34,3 +34,4 @@ npm run dev     # サーバーとクライアントを同時起動
 
 開発中（WIP）。カードデータは [バトスピ Wiki](https://batspi.com/) のカードリストを基にした非公式の実装で、
 ファンによる学習目的のプロジェクトです。
+https://bs-web.azurewebsites.net/
