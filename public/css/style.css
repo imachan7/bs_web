@@ -228,6 +228,29 @@ button:hover {
     overflow: hidden;
 }
 
+/* 効果全文のツールチップ（PC: ホバー / スマホ: 長押し。renderer の setupEffectTooltip が生成） */
+#effect-tooltip {
+    position: fixed;
+    z-index: 1000;
+    max-width: 300px;
+    padding: 8px 10px;
+    background: #1a1d2b;
+    border: 1px solid #6a71a0;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #dfe3f5;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    white-space: pre-wrap;
+}
+
+#effect-tooltip .tooltip-name {
+    font-weight: bold;
+    color: #ffd968;
+    margin-bottom: 4px;
+}
+
 .card.color-red {
     border-color: #d4564a;
 }

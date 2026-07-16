@@ -8,6 +8,7 @@ import {
     matchesDirectedAttackFilter,
     render,
     setCardDb,
+    setupEffectTooltip,
     showToast,
     showWaiting,
     type UiState,
@@ -357,6 +358,7 @@ async function init(): Promise<void> {
     const cards = (await (await fetch("/data/cards.json")).json()) as CardData[]
     setCardDb(cards)
     populateCustomDecks()
+    setupEffectTooltip()
 
     byId("join-btn").addEventListener("click", () => {
         const name =

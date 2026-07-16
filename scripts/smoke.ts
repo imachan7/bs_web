@@ -9,7 +9,16 @@ import {
     validateDeckCards,
     viewFor,
 } from "../server/src/logic/GameState"
-import { runTurnStart } from "../server/src/logic/PhaseManager"
+import { runTurnStart as engineRunTurnStart } from "../server/src/logic/PhaseManager"
+
+// テスト用ラッパー: 「先攻1ターン目はアタック不可」ルールの影響を受けずに
+// 既存テストを動かすため、ターン開始処理の後にターン数を3（先攻の2ターン目相当）へ進める。
+// 1ターン目固有の挙動（初回ドローなし等）は engineRunTurnStart 内で処理済みのため影響しない。
+// 1ターン目そのものを検証するテストは engineRunTurnStart を直接使う
+function runTurnStart(s: GameState): void {
+    engineRunTurnStart(s)
+    s.turn = 3
+}
 import { handleAction } from "../server/src/logic/GameEngine"
 import { destroySpirit, effectiveBp, resolveAction } from "../server/src/logic/EffectModules"
 import { effectiveCost } from "../server/src/logic/RuleValidator"
@@ -105,7 +114,7 @@ assert(state.battle === null, "バトル終了")
 console.log("=== ターン終了 → p2のターン ===")
 assert(act(state, "p1", { type: "endTurn" }) === null, "ターン終了できる")
 assert(state.turnPlayer === "p2", "ターンプレイヤーがp2に交代")
-assert(state.turn === 2, "ターン2")
+assert(state.turn === 4, "ターン数が進む（テスト用に開始を3としているため4）")
 assert(state.players.p2.hand.length === 5, "p2はドローして手札5枚")
 assert(state.phase === "main", "メインステップから開始")
 
@@ -2366,13 +2375,16 @@ console.log("=== ステップ誘発の条件：主無き古城 e2（BS01-102 Lv2
     console.log("--- 手札同数：スタートステップに1ドロー ---")
     s.players.p1.hand = ["BS01-001", "BS01-001"]
     s.players.p2.hand = ["BS01-001", "BS01-001"]
-    // p1のターンを再度スタートステップから起こす（turn===1のためドローステップはスキップされる）
-    runTurnStart(s)
+    // p1のターンを再度スタートステップから起こす（turn===1に戻して通常ドローをスキップさせ、
+    // 古城のドローだけを観測する）
+    s.turn = 1
+    engineRunTurnStart(s)
     assert(s.players.p1.hand.length === 3, "手札同数なら古城Lv2で1ドロー")
 
     console.log("--- 自分の手札が多いときはドローなし ---")
     // 直前のドローで p1:3枚 > p2:2枚 になっている
-    runTurnStart(s)
+    s.turn = 1
+    engineRunTurnStart(s)
     assert(s.players.p1.hand.length === 3, "自分の手札が多いときはドローしない")
 }
 
@@ -3382,6 +3394,33 @@ console.log("=== 山札公開（スワロウアイヴィー）・起動能力（
     assert(s4.battle === null, "起動能力(endBattle)でバトルが終了する")
     assert(s4.players.p1.reserve === reserveBefore - 1, "リザーブのコアが1個減る")
     assert(s4.players.p1.trashCores === trashBefore + 1, "払ったコアがトラッシュへ")
+}
+
+console.log("=== 先攻1ターン目はアタック不可 ===")
+{
+    const s = createGame(
+        "first-turn-attack-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    engineRunTurnStart(s) // ラッパーを使わず、実際のターン1のまま検証する
+    assert(s.turn === 1, "開始直後はターン1")
+    const sp = createInstance("BS01-001", s.turn, 1)
+    s.players.p1.field.spirits.push(sp)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへは移行できる")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: sp.instanceId }) !== null,
+        "先攻1ターン目のアタックは拒否される",
+    )
+    assert(act(s, "p1", { type: "endTurn" }) === null, "ターン終了はできる")
+    // ターン2（後攻p2）はアタックできる
+    const sp2 = createInstance("BS01-001", s.turn, 1)
+    s.players.p2.field.spirits.push(sp2)
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
+    assert(
+        act(s, "p2", { type: "attack", instanceId: sp2.instanceId }) === null,
+        "ターン2（後攻）はアタックできる",
+    )
 }
 
 console.log("")

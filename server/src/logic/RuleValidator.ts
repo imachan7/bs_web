@@ -303,6 +303,7 @@ export function validateAttack(
 ): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
     if (state.phase !== "attack") return "アタックステップではありません"
+    if (state.turn === 1) return "先攻1ターン目はアタックできません"
     if (state.battle) return "バトルの解決中です"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
@@ -424,6 +425,9 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         return "ターンを終了できるステップではありません"
     }
     if (state.battle) return "バトルの解決中です"
+
+    // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
+    if (state.turn === 1) return null
 
     const player = state.players[pid]
     for (const inst of player.field.spirits) {

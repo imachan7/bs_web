@@ -659,10 +659,11 @@ function fieldCardEl(
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
         const singleCoreLocked =
             inst.cores === 1 && hasGlobalConstraint(view, "singleCoreCantAct")
-        // アタック可能
+        // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
             view.phase === "attack" &&
+            view.turn !== 1 &&
             !view.battle &&
             !inst.isRested &&
             !inst.cantAttackThisTurn &&
@@ -852,4 +853,87 @@ export function showToast(message: string): void {
     toast.textContent = message
     toast.classList.remove("hidden")
     window.setTimeout(() => toast.classList.add("hidden"), 2500)
+}
+
+// ---- 効果テキストのツールチップ（PC: ホバー / スマホ: 長押し） ----
+// カード内の .effect-text は高さ制限で見切れるため、カード全体にカーソルを合わせると
+// カード名＋効果全文をカードの上（入らなければ下）に重ねて表示する。
+// カードは再描画のたびに作り直されるため、document への委譲で拾う。
+
+export function setupEffectTooltip(): void {
+    const tip = document.createElement("div")
+    tip.id = "effect-tooltip"
+    tip.classList.add("hidden")
+    document.body.appendChild(tip)
+
+    const showFor = (card: HTMLElement): void => {
+        const effect = card.querySelector(".effect-text")?.textContent
+        if (!effect) return
+        const name = card.querySelector(".name")?.textContent ?? ""
+        tip.innerHTML = ""
+        const title = document.createElement("div")
+        title.className = "tooltip-name"
+        title.textContent = name
+        tip.appendChild(title)
+        tip.appendChild(document.createTextNode(effect))
+        tip.classList.remove("hidden")
+        // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
+        const rect = card.getBoundingClientRect()
+        const tipRect = tip.getBoundingClientRect()
+        let top = rect.top - tipRect.height - 8
+        if (top < 4) top = rect.bottom + 8
+        let left = rect.left + rect.width / 2 - tipRect.width / 2
+        left = Math.max(4, Math.min(left, window.innerWidth - tipRect.width - 4))
+        tip.style.top = `${top}px`
+        tip.style.left = `${left}px`
+    }
+
+    const hide = (): void => tip.classList.add("hidden")
+
+    // PC: ホバーで表示・カードから離れたら消す
+    document.addEventListener("mouseover", (e) => {
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        if (card) showFor(card)
+    })
+    document.addEventListener("mouseout", (e) => {
+        const from = (e.target as HTMLElement).closest(".card")
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card")
+        if (from && from !== to) hide()
+    })
+
+    // スマホ: 長押し（500ms）で表示。指を離しても表示は残し、次のタップで消す。
+    // 長押し後のタップがカードの操作（アタック等）として誤発火しないよう、直後のクリックを1回握りつぶす
+    let pressTimer = 0
+    let longPressed = false
+    document.addEventListener("pointerdown", (e) => {
+        if (e.pointerType !== "touch") return
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        window.clearTimeout(pressTimer)
+        if (!card) {
+            hide()
+            return
+        }
+        pressTimer = window.setTimeout(() => {
+            longPressed = true
+            showFor(card)
+        }, 500)
+    })
+    const cancelPress = (): void => window.clearTimeout(pressTimer)
+    document.addEventListener("pointermove", cancelPress)
+    document.addEventListener("pointercancel", cancelPress)
+    document.addEventListener("pointerup", cancelPress)
+    document.addEventListener(
+        "click",
+        (e) => {
+            if (!longPressed) return
+            longPressed = false
+            e.preventDefault()
+            e.stopPropagation()
+        },
+        true,
+    )
+    // 長押しでOSのコンテキストメニュー（テキスト選択等）が出るのを抑止
+    document.addEventListener("contextmenu", (e) => {
+        if (longPressed) e.preventDefault()
+    })
 }
