@@ -1,29 +1,36 @@
 # bs-web
 
-# ディレクトリ構造
+バトルスピリッツの第一弾（BS01）を、ブラウザ上で2人対戦できるWebアプリです。
+サーバーでゲーム状態を一元管理し、Socket.io でリアルタイムに同期します。
 
+## 特徴
+
+- 第一弾の全 **135枚**（赤・紫・緑・白の4色 + Xレア）を収録
+- 赤・紫・緑・白の単色40枚デッキで対戦可能
+- 召喚・コア配置・アタック/ブロック・バトル・ライフ、神速召喚などの基本ルールを実装
+
+## 動かす
+
+```bash
+npm install
+npm run dev     # サーバーとクライアントを同時起動
 ```
-bs_web/
-├── data/               # カードデータや定数
-│   ├── cards.json      # data.mdをJSON化したマスターデータ
-│   └── constants.ts    # フェーズ名や色の定義など
-├── server/             # サーバーサイド（Node.js / Socket.io）
-│   └── src/
-│       ├── index.ts          # エントリポイント（サーバー起動、Socket接続）
-│       ├── roomManager.ts    # 対戦部屋の管理
-│       └── logic/            # ゲームエンジン（心臓部）
-│           ├── GameState.ts      # ゲームの状態管理クラス
-│           ├── GameEngine.ts     # アクション実行・効果発動の統括
-│           ├── EffectModules.ts  # 個別の効果（ドロー、破壊など）の部品
-│           ├── RuleValidator.ts  # ルールチェック（コスト計算など）
-│           └── PhaseManager.ts   # ターンの進行管理
-├── public/             # クライアントサイド（ブラウザで表示するもの）
-│   ├── index.html      # メイン画面（簡易UI）
-│   ├── css/
-│   │   └── style.css   # スタイル
-│   └── src/
-│       ├── main.ts     # サーバーとの通信、イベント購読
-│       └── renderer.ts # データの画面反映（DOM操作）
-├── package.json        # 依存ライブラリ管理
-└── README.md
-```
+
+ブラウザで `http://localhost:3000` を2つ開き、同じルームIDで入室すると対戦が始まります
+（1人目が先攻 p1、2人目が後攻 p2）。
+
+## 技術スタック
+
+- サーバー: Node.js / TypeScript / Socket.io
+- クライアント: TypeScript（esbuildでバンドル）/ Vanilla DOM
+- 開発実行: tsx
+
+## ドキュメント
+
+- [data.md](./data.md) — データ構造・設計方針の仕様書
+- [SPEC.md](./SPEC.md) — 実装状況・カード/効果の対応・今後の課題（開発メモ）
+
+## ステータス
+
+開発中（WIP）。カードデータは [バトスピ Wiki](https://batspi.com/) のカードリストを基にした非公式の実装で、
+ファンによる学習目的のプロジェクトです。

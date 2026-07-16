@@ -1,0 +1,392 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #1a1d2b;
+    color: #e8e8f0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ---- ロビー ---- */
+
+#lobby {
+    max-width: 420px;
+    margin: 80px auto;
+    padding: 24px;
+    background: #242838;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.lobby-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lobby-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.lobby-form input,
+.lobby-form select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1d2b;
+    color: #e8e8f0;
+}
+
+button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #4a6cd4;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background: #5d7de0;
+}
+
+#waiting-message {
+    margin-top: 16px;
+    color: #ffd968;
+}
+
+/* デッキビルダーへの導線リンク */
+#deck-builder-link {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #8fb0ff;
+}
+
+#deck-builder-link:hover {
+    color: #b8ceff;
+}
+
+/* 40枚ちょうどでないカスタムデッキの選択肢 */
+#deck-select option:disabled {
+    color: #777;
+}
+
+/* ---- ステータスバー ---- */
+
+#status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: #242838;
+    font-size: 14px;
+}
+
+#phase-info {
+    color: #ffd968;
+    font-weight: bold;
+}
+
+#targeting-info {
+    color: #ff8888;
+    font-weight: bold;
+}
+
+#action-buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+}
+
+#btn-take-life {
+    background: #d44a4a;
+}
+
+/* ---- 盤面 ---- */
+
+#board {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 46px);
+}
+
+.player-area {
+    padding: 8px 16px;
+}
+
+.player-info {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    padding: 4px 0;
+    color: #b8bdd4;
+}
+
+.player-info .life {
+    color: #ff8888;
+    font-weight: bold;
+}
+
+.player-info .turn-mark {
+    color: #ffd968;
+}
+
+.field-row {
+    display: flex;
+    gap: 16px;
+    min-height: 110px;
+    align-items: center;
+}
+
+.spirit-zone,
+.nexus-zone {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.nexus-zone {
+    min-width: 120px;
+}
+
+#center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 16px;
+    min-height: 0;
+}
+
+#battle-info {
+    padding: 8px 12px;
+    background: #4a2838;
+    border: 1px solid #d44a8a;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+#log {
+    flex: 1;
+    overflow-y: auto;
+    background: #14161f;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #a8aec4;
+}
+
+/* ---- カード ---- */
+
+.card {
+    width: 104px;
+    min-height: 96px;
+    border-radius: 8px;
+    padding: 6px;
+    font-size: 11px;
+    background: #2c3044;
+    border: 2px solid #555;
+    cursor: default;
+    position: relative;
+    transition: transform 0.1s;
+}
+
+.card .name {
+    font-weight: bold;
+    font-size: 11px;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card .stats {
+    color: #cdd2e8;
+}
+
+.card .cores {
+    color: #7fd4ff;
+}
+
+.card .effect-text {
+    margin-top: 2px;
+    font-size: 9px;
+    color: #9aa0b8;
+    max-height: 40px;
+    overflow: hidden;
+}
+
+.card.color-red {
+    border-color: #d4564a;
+}
+
+.card.color-purple {
+    border-color: #9a4ad4;
+}
+
+.card.rested {
+    transform: rotate(8deg);
+    filter: grayscale(0.6) brightness(0.8);
+}
+
+.card.clickable {
+    cursor: pointer;
+}
+
+.card.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.card.rested.clickable:hover {
+    transform: rotate(8deg) translateY(-4px);
+}
+
+.card.usable {
+    box-shadow: 0 0 8px 2px rgba(255, 217, 104, 0.55);
+}
+
+.card.targetable {
+    box-shadow: 0 0 8px 2px rgba(255, 100, 100, 0.8);
+}
+
+/* 覚醒モード：コアの移動先スピリットの強調 */
+.card.awaken-target {
+    box-shadow: 0 0 10px 3px rgba(255, 170, 60, 0.9);
+}
+
+/* 覚醒可能バッジ（クリックで覚醒モード開始） */
+.awaken-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    border-radius: 4px;
+    background: #d4762a;
+}
+
+.awaken-badge:hover {
+    background: #e88c3f;
+}
+
+/* 起動能力バッジ（覚醒バッジと同じ配置・区別のため青緑系） */
+.activate-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    border-radius: 4px;
+    background: #2a9d8f;
+}
+
+.activate-badge:hover {
+    background: #38b8a8;
+}
+
+/* 支払いモード：スピリットへの割り当て済みコア数バッジ */
+.pay-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    border-radius: 4px;
+    background: #2a7ad4;
+    color: #fff;
+}
+
+.card.attacker-mark {
+    box-shadow: 0 0 10px 3px rgba(255, 80, 80, 0.9);
+}
+
+/* 指定アタックの対象選択モード：対象を選んでいるアタッカー自身の強調 */
+.card.directed-attacker {
+    box-shadow: 0 0 10px 3px rgba(80, 160, 255, 0.9);
+}
+
+/* このターンアタック不可バッジ（ピュアエリクサー等で回復した個体） */
+.cant-attack-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    border-radius: 4px;
+    background: #666a7a;
+    color: #ddd;
+}
+
+.core-buttons {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+}
+
+.core-buttons button {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1;
+    background: #3a4060;
+}
+
+/* ---- 手札 ---- */
+
+#hand {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+    flex-wrap: wrap;
+}
+
+/* ---- 結果表示・トースト ---- */
+
+#result-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+#result-message {
+    font-size: 36px;
+    font-weight: bold;
+    color: #ffd968;
+}
+
+#toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #d44a4a;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 200;
+}

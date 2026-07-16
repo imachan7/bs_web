@@ -1,0 +1,66 @@
+name: Azure App Service へデプロイ
+
+# main ブランチへの push で自動デプロイする
+# typecheck / smoke が失敗した場合はデプロイしない
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+# Azure 側の Web App 名。ポータルで作成した Web App の名前に置き換えること
+env:
+  AZURE_WEBAPP_NAME: "bs-web"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: クライアントをビルド
+        run: npm run build
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: スモークテスト（エンジン単体）
+        run: npm run smoke
+
+      - name: E2Eテスト（サーバー起動 → 疎通確認）
+        run: |
+          PORT=3100 npx tsx server/src/index.ts &
+          SERVER_PID=$!
+          # サーバー起動待ち（/health が 200 を返すまで待機）
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:3100/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          PORT=3100 npx tsx scripts/e2e.ts
+          kill $SERVER_PID
+
+      # 発行プロファイルは Azure ポータルの Web App > 概要 >
+      # 「発行プロファイルの取得」からダウンロードし、
+      # 中身をそのまま GitHub リポジトリの
+      # Settings > Secrets and variables > Actions > New repository secret で
+      # 「AZURE_WEBAPP_PUBLISH_PROFILE」という名前で登録すること
+      - name: Azure App Service へデプロイ
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
