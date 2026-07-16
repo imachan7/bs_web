@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>バトスピWeb対戦</title>
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+    <!-- ロビー画面 -->
+    <div id="lobby">
+        <h1>バトスピWeb対戦</h1>
+        <div class="lobby-form">
+            <label>
+                名前
+                <input id="name-input" type="text" placeholder="プレイヤー" />
+            </label>
+            <label>
+                ルームID
+                <input id="room-input" type="text" value="room1" />
+            </label>
+            <label>
+                デッキ
+                <select id="deck-select">
+                    <option value="red">赤デッキ（低コストスピリット中心）</option>
+                    <option value="purple">紫デッキ（低コストスピリット中心）</option>
+                    <option value="green">緑デッキ（低コストスピリット中心）</option>
+                    <option value="white">白デッキ（低コストスピリット中心）</option>
+                </select>
+            </label>
+            <button id="join-btn">対戦ルームに入る</button>
+            <a id="deck-builder-link" href="/deck.html">デッキ構築（デッキビルダーを開く）</a>
+        </div>
+        <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="game" class="hidden">
+        <div id="status-bar">
+            <span id="turn-info"></span>
+            <span id="phase-info"></span>
+            <span id="flash-info" class="hidden"></span>
+            <span id="targeting-info" class="hidden"></span>
+            <div id="action-buttons">
+                <button id="btn-attack-phase" class="hidden">アタックステップへ</button>
+                <button id="btn-end-turn" class="hidden">ターン終了</button>
+                <button id="btn-take-life" class="hidden">ライフで受ける</button>
+                <button id="btn-pass" class="hidden">パス</button>
+                <button id="btn-attack-player" class="hidden">プレイヤーへアタック</button>
+                <button id="btn-cancel-target" class="hidden">対象選択をやめる</button>
+            </div>
+        </div>
+
+        <div id="board">
+            <div id="opponent-area" class="player-area">
+                <div id="opp-info" class="player-info"></div>
+                <div class="field-row">
+                    <div id="opp-nexuses" class="nexus-zone"></div>
+                    <div id="opp-spirits" class="spirit-zone"></div>
+                </div>
+            </div>
+
+            <div id="center">
+                <div id="battle-info" class="hidden"></div>
+                <div id="log"></div>
+            </div>
+
+            <div id="player-area" class="player-area">
+                <div class="field-row">
+                    <div id="my-nexuses" class="nexus-zone"></div>
+                    <div id="my-spirits" class="spirit-zone"></div>
+                </div>
+                <div id="my-info" class="player-info"></div>
+                <div id="hand"></div>
+            </div>
+        </div>
+
+        <div id="result-overlay" class="hidden">
+            <div id="result-message"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/dist/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // Environment Settings
+    "module": "nodenext",
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["node"],
+
+    // Other Outputs
+    "noEmit": true,
+    "sourceMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Recommended Options
+    "strict": true,
+    // CommonJS構成（package.json "type": "commonjs"）では import/export 構文と
+    // 両立しないため verbatimModuleSyntax は無効化している
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ["server/**/*.ts", "public/src/**/*.ts", "data/**/*.ts", "scripts/**/*.ts"]
+}

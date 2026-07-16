@@ -1,0 +1,355 @@
+# 実装仕様・開発メモ
+
+このファイルは bs-web の仕様・実装状況・今後の課題をまとめる開発用ドキュメント。
+仕様が固まったり実装が進むたびにここへ追記していく。
+（データ構造そのものの定義は [data.md](./data.md)、公開用の紹介は [README.md](./README.md)）
+
+---
+
+## 1. カードプール
+
+`data/cards.json` に第一弾の全 **135枚** を収録。
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 赤 | 25 | 2 | 7 | 39 |
+| 紫 | 20 | 2 | 7 | 30 |
+| 緑 | 21 | 2 | 7 | 38 |（※ 緑は欠番込みで集計）
+| 白 | 18 | 2 | 7 | 28 |
+| Xレア | 4 | - | - | 4 |
+
+- 取得元: [バトスピ Wiki リスト解析](https://batspi.com/index.php?cmd=listcard&sdan=BS01)
+- 取得方法: `curl` で全ページ（`&rowid=...&pcnt1=N`）のHTMLを取得し、要約を介さず原文をパース
+- 各カードが持つ情報: コスト・軽減シンボル・系統・各レベルのコア数とBP・シンボル・効果テキスト（原文）・レアリティ・禁止フラグ・構造化済み効果（`effects`）
+
+### デッキ
+
+`data/constants.ts` の `DECK_RECIPES` に赤・紫・緑・白の単色40枚を定義。
+各色とも スピリット9種×3（27枚）＋ネクサス2種（3+1=4枚）＋マジック3種×3（9枚）の構成。
+低コスト帯のスピリット中心で、禁止カード（ストームドロー BS01-132）は除外。
+全エントリは cards.json の実 cardId・名前・色と機械検証済み
+（※ 過去に cards.json を Wiki 実データで再構築した際に cardId が全面的にズレたため、
+cardId をハードコードする箇所は必ず cards.json と突き合わせて検証すること）。
+
+---
+
+## 2. 実装済みのルール・効果
+
+### ルール
+
+- ステップ進行: スタート / コア / ドロー / リフレッシュ / メイン / アタック / エンド
+- 先攻1ターン目はドローなし
+- コスト軽減（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）
+- 維持コア（Lv1コア）、コア移動とレベル変動、維持コア割れでの消滅
+- バトル（BP比較・相打ち）、ライフダメージ（ライフのコアはリザーブへ）
+- バトル中フラッシュの交互優先権: アタック後は防御側から優先権を持ち、
+  フラッシュマジック／神速召喚／覚醒を使うと優先権が相手へ移る（flashCount リセット、
+  共通ヘルパー `passFlashPriority`）。`pass` アクションで優先権を譲り、両者連続パスでフラッシュ終了。
+  ブロック／ライフ受けは「防御側が優先権保持中」または「フラッシュ終了後」のみ可能
+- ブロック宣言後の追加フラッシュ: ブロックしてもバトルは即解決せず、フラッシュが再オープン
+  （優先権は防御側から）。両者連続パスで `resolveBattle` が実行される。
+  BP比較は `tempBpBuff` を加味した実効BP（`currentLevel` が加算済み）。
+  ブロック済みでの再ブロック／ライフ受けは拒否される
+- 覚醒のクライアントUI: フラッシュ中（優先権あり）の覚醒持ちスピリットに「覚醒可能」バッジを表示。
+  バッジクリック → 移動元スピリットのクリックでコア1個ずつ移動（バッジ方式なのは、
+  スピリット本体クリックが既にブロック送信に割り当てられているため）
+- デッキ切れ（ドロー不能）で敗北
+- 相手の手札・デッキ内容はサーバー側でマスクして配信
+- コスト支払い（リザーブ＋スピリット上のコアの併用）: `summon` / `setNexus` / `castMagic` は
+  任意で `paySources`（`{ instanceId, count }[]`）を受け付け、自分のスピリット上のコアを
+  コストの支払いに充てられる（v1はスピリット上のコアのみ対応、ネクサス上は将来対応）。
+  維持コア分は従来通り必ずリザーブから払う。`RuleValidator.validatePaySources` が
+  対象の実在・重複禁止・コア数上限・過払い禁止・残額のリザーブ充足を検証し、
+  `GameEngine.payCost` が支払い元スピリットのコアをトラッシュへ送った後、
+  維持コア（Lv1）を下回った支払い元を消滅させる。クライアントは軽減後コストがリザーブで
+  足りない場合に「支払いモード」（`UiState.paying`）を開始し、自分のスピリットをクリックする
+  たびに1個ずつ割り当て、必要数に達したら自動送信する（対象選択モード・覚醒モードとは排他制御）
+
+### キーワード効果
+
+`server/src/logic/EffectModules.ts` の `KEYWORDS` レジストリで一元管理。
+カードデータには名前だけを持たせ、挙動はエンジン側が `hasKeyword(cardId, keyword)` で解決する。
+
+| キーワード | id | 状態 |
+| :-- | :-- | :-- |
+| 神速 | `soku` | 実装済み（バトル中のフラッシュタイミングで手札から召喚可能） |
+| 覚醒 | `awaken` | 実装済み（サーバーAPI＋クライアントUI。優先権整合済み） |
+| 激突 | `clash` | 予約（第一弾未収録。将来弾向け） |
+| 装甲 | `armor` | 予約（同上） |
+
+### 誘発効果（トリガー × アクション）
+
+トリガー: `onSummon` / `onAttack` / `onDestroy` / `onBattle` / `onBlock`
+
+| アクション | 内容 |
+| :-- | :-- |
+| `draw` | 自分がデッキから引く |
+| `destroy` | 相手スピリットを破壊（1体、BP最大を自動選択。maxBp 省略=BP不問、keywordFilter で「【神速】持ちのみ」等の限定可） |
+| `destroyAll` | BP以下の相手スピリットを全破壊 |
+| `selfBuff` | このスピリット自身をBP+（ターン終了時まで） |
+| `destroyNexus` | 相手ネクサスを破壊 |
+| `returnSelfToHand` | このスピリットを持ち主の手札に戻す |
+| `coreRemove` | 対象スピリットのコアを持ち主のリザーブへ置く（対象指定可） |
+| `bpBuff` | 対象スピリット1体をBP+（ターン終了時まで、対象指定可） |
+| `exhaust` | 相手スピリットを疲労させる（対象指定可、疲労済みは no-op） |
+| `destroyExhausted` | 疲労状態の相手スピリットを破壊（対象指定可、回復状態は no-op） |
+| `drawPer` | カウント値ぶんドロー（counter: `exhaustedEnemies` / `opponentHand`） |
+| `bpBuffPer` | 対象1体をカウント値×amountPer だけBP+（ターン終了時まで） |
+| `discardHandAll` | 自分の手札をすべて破棄（トラッシュへ） |
+| `bpBuffAll` | 自分のスピリットすべてをBP+（ターン終了時まで） |
+| `returnToHand` | 対象スピリットを持ち主の手札に戻す（バウンス。onDestroy 不発火、対象指定可） |
+| `returnToDeckTop` | 対象スピリットを持ち主のデッキの上に戻す（対象指定可） |
+| `coreCharge` | 自分のリザーブから対象の自分スピリットへコアを置く（不足時は可能な分） |
+| `lifeCharge` | 自分のリザーブからライフへコアを置く |
+| `coreGain` | ボイドから自分のリザーブへコアを追加 |
+| `discardOpponent` | 相手の手札を破棄（手札末尾からの決定的選択。本来は相手が選ぶ処理の簡略化） |
+| `refreshSelf` | このスピリット自身を回復 |
+| `lifeCrush` | 相手のライフのコアを相手のリザーブへ（ライフ0で勝敗決定） |
+| `voidCoreToSelf` | ボイドからこのスピリット上にコアを置く |
+| `voidCoreToSelfPer` | 自分の他スピリット数ぶん、ボイドからこのスピリット上にコアを置く |
+| `refreshAllOwn` | 自分の疲労スピリットを全回復（回復分は `cantAttackThisTurn` でこのターンアタック不可） |
+| `endBattle` | 今のバトルをただちに終了（BP比較もライフダメージもなし） |
+| `exhaustAllByColor` | 相手最多色を自動選択し、その色の両者全スピリットを疲労（色選択の簡略化） |
+| `lockFlash` | このバトルの間、相手はフラッシュで手札のカードを使用不可（`flashLockedPlayer`。覚醒は対象外） |
+| `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化） |
+| `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版） |
+| `coreToVoidOwn` | 自分のコアをボイドへ（trashCores 優先、次に実効BP最小スピリット） |
+| `bothSidesCoreToTrash` | 両者の各BP最大スピリットのコアを各持ち主のトラッシュへ |
+| `discardSelfOne` | 自分の手札末尾1枚を破棄（百識の谷Lv1） |
+| `coreDrainAllOthers` | self 以外の全スピリットからコア1個ずつ持ち主リザーブへ、消滅数ぶんボイドから self へ（魔界七将デスペラード） |
+| `grantBlockerImmunity` | ブロック中の自分スピリットにこのターンの免疫を付与（フェザーバリア） |
+| `negateOwnBlockConstraint` | 自分スピリット1体の cantBlock/cantBlockLowerBp をこのターン無効化（バーストファイア） |
+
+構造化済みの効果は135枚中 **123枚**（スピリット79/91・ネクサス12/12・マジック32/32）。
+**効果文を持つ全カードの構造化が完了**（残り12枚は効果テキストのないバニラ）。
+
+### 山札公開（deckReveal）
+
+`{ type: "deckReveal", count, pickType? }`。自分のデッキ上から count 枚を公開し、pickType に一致する
+最初の1枚（省略時は先頭）を手札へ、残りを元の順で山札の下に戻す（公開はログで両者可視、選択は自動の簡略化）。
+スワロウアイヴィー。今後の「上N枚を見て〇〇を手札」系に再利用可。
+
+### 起動能力（kind: "activated"）
+
+`{ kind: "activated", timing: "flashBattle", levels, cost: { reserveToTrash }, condition?, action }`。
+プレイヤーがコストを払って任意発動する能力の汎用の器。GameAction `activateAbility{instanceId, effectId}` で発動、
+`validateActivateAbility`（タイミング・条件 selfInBattle・優先権・コスト）→ `doActivateAbility`（コスト支払い→
+resolveAction→passFlashPriority）。個別効果は `action` に載せるだけ。クライアントは「起動」バッジUI（覚醒バッジ踏襲）。
+グラン・ドルバルカン（コア1個で endBattle）。
+
+### コア配置修飾（kind: "coreBonus"）
+
+`{ kind: "coreBonus", levels, amount }`。このスピリットに効果でコアが置かれるとき置く数を +amount（ボイド由来）。
+コアを置く各アクション（coreCharge / voidCoreToSelf / voidCoreToOther）が `placeCoresOnSpirit` 経由で参照。グラーバ。
+**マジックは32枚すべて構造化完了。**
+fieldEvent に `opponentDrew`（相手のドロー時に発火。シダフクロウ）を追加。
+
+### 免疫・効果無効
+
+- `constraint untargetableByOpponent`（ワルキューレ）: 相手の**対象を取る**効果（`pickEnemyByBp` 自動選択・
+  明示ターゲット）の対象にならない。範囲効果（destroyAll 等）には無力
+- CardInstance の一時フラグ `immuneToOpponentThisTurn`（フェザーバリア、ターン終了でリセット）:
+  相手のカード効果を一切受けない（対象＋範囲の両方から除外）
+- CardInstance の一時フラグ `blockConstraintNegatedThisTurn`（バーストファイア）:
+  validateBlock で自身の cantBlock/cantBlockLowerBp を無視。免疫判定はクライアントの対象選択にもミラー
+
+### コスト修飾（kind: "costMod"）
+
+`{ kind: "costMod", levels, colorFilter, amount }`。フィールドの発生源から、指定色のカードの
+使用コストを両プレイヤー分 amount だけ増やす（`effectiveCost` にフック、サーバー/クライアント両方）。
+例: ルビーの太陽（白カードのコスト+1）。
+
+### フィールドイベント誘発（kind: "fieldEvent"）
+
+`{ kind: "fieldEvent", event: "ownLifeDamaged" | "ownSpiritDestroyed" | "anySpiritAttacked", phase?, turn?, levels, action }`。
+自分のライフ被弾（致死時は発火しない）・自分のスピリット破壊（destroy/deplete 両方、onDestroy の後）・
+アタック宣言（両陣営のフィールドから発火、self はアタックしたスピリット）に反応してフィールドから発火する。
+phase / turn で『相手のアタックステップ』等の限定が可能。
+例: 命の果実（被弾で draw、Lv2 は +coreGain）、侵食されゆく銀世界 Lv2、魔帝の墓標 Lv2（アタック宣言で自コアをトラッシュへ）。
+アクション `refreshOne`（キーワードフィルタ付き1体回復）・`coreRemoveSelf`・`coreToTrashSelf`、
+オーラの `summonedThisTurnOnly`（風吹く丘陵 Lv2「このターン召喚された自分のスピリット+1000」）も追加。
+
+### フィールド全体制約（kind: "globalConstraint"）
+
+`{ kind: "globalConstraint", levels, constraint }`。フィールドの発生源から**両陣営の全スピリット／ネクサス**に効く。
+`hasGlobalConstraint(state, type)` で判定。
+- `singleCoreCantAct` — コア1個のスピリットはアタック/ブロック不可（魔帝の墓標）。validateAttack/Block と
+  クライアントのハイライトに反映
+- `nexusIndestructible` — すべてのネクサスは破壊されない（オーディーン Lv2-3）。destroyNexus 冒頭で遮断
+  （バウンス returnNexusToHand は破壊ではないため対象外）
+
+### バトル結果誘発（battleRole / kind: "battleWon"）
+
+- triggered の `battleRole?: "attacker" | "blocker"` — onBattle を勝利時の役割で限定
+  （キングタウロス大公 Lv2-3「アタック時に相手だけ破壊→ライフクラッシュ」）
+- `{ kind: "battleWon", role, levels, action }` — 持ち主のスピリットが指定役割で勝利したとき、
+  フィールドのネクサス等から発火。**resolveAction の self には勝利したスピリットが渡る**
+  （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）
+
+### 必ずアタック（constraint: mustAttack）
+
+`validateEndTurn` が、レベル有効な mustAttack 持ちでアタック可能（回復状態・cantAttack でない）な
+スピリットがいる間はターン終了を拒否する（ウィル・オーブ・ディザスター）。
+
+### ブロック制約（kind: "constraint"）
+
+`{ kind: "constraint", levels, constraint: ConstraintDef }`。RuleValidator.validateBlock が参照する宣言的ルールで、
+クライアントのブロック可能ハイライトにも同判定をミラー。
+- `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
+- `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
+- `unblockableBy`（colorFilter / keywordFilter / maxCores）— このスピリットのアタックは指定色／キーワード持ち／
+  コア数以下のスピリットにブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、スピノアックス＝神速）
+- `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
+- `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
+- `canDirectAttack`（targetFilter: rested / singleCore）— アタック時に条件を満たす相手スピリットを
+  指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
+  doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
+  クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
+
+### アタックステップ終了（endAttackStep）
+
+`{ type: "endAttackStep", onlyOpponentTurn? }` は既存の遅延フラグ `endAttackStepAfterBattle` を立て、
+handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安全にターンを終了する
+（サイレントウォールと同じ機構）。`onlyOpponentTurn:true` は相手ターン限定（妖機妃ソール onDestroy）。
+
+`onBattle` は「BPを比べて勝った側（相手だけを破壊した側）」にのみ発火し相打ちでは発火しないため、
+効果文『BPを比べ相手のスピリットだけを破壊したとき』と厳密に等価
+（フェニキオス・ナージャ・ブランボアーを構造化。『アタック時』限定は `battleRole` で対応済み）。
+
+未構造化の残り（31枚）:
+- マジック2枚: バーストファイア（効果無効）・フェザーバリア（効果耐性）
+- ネクサス3枚: 燃えさかる戦場Lv2（強制ブロック）・ルビーの太陽（コスト増ルール）・
+  百識の谷（ドロー枚数修正）・魔帝の墓標（全体アタック/ブロック制約＋アタック時コアボイド送り）等
+- スピリット: 効果耐性・破壊耐性、疲労スピリットへの指定アタック、トラッシュ回収（選択依存）、
+  コア再配置（プレイヤー選択依存: 要塞龍ギガLv2・チェンジングコアmain等）、
+  相手ドロー時誘発、条件付きバトル効果の一部など
+
+`fireTrigger` は同一トリガーの複数エントリを配列順にすべて実行する（複合可。
+例: ジークフリード Lv3 破壊時 = coreGain + lifeCharge で「ボイド→ライフ」を厳密等価に表現）。
+
+### ステップ誘発（kind: "step"）
+
+`{ kind: "step", step: Phase, turn: "own"|"opponent"|"both", levels, action }`。
+PhaseManager が各ステップ処理直後に `fireStepTriggers(state, step)` を呼び、
+両者のフィールド（スピリット＋ネクサス）から該当効果を実行する（勝敗決定で打ち切り）。
+例: 千年雪の尖塔（自分スタートステップにネクサス/スピリットバウンス）、
+侵食されゆく銀世界（相手アタックステップにトラッシュコア全回収）、
+賢者の樹 Lv2（自分エンドステップに全回復）。
+
+### 常時BP修正（kind: "aura"）
+
+`{ kind: "aura", levels, aura: AuraDef }`。AuraDef は
+対象（self / ownAll）× colorFilter × battlingOnly × 量（amount 固定 / amountPer×counter）×
+condition（色・系統・リザーブ有無）の組み合わせ。
+`effectiveBp(state, pid, inst)` が基礎BP（tempBpBuff込み）にオーラを加算し、
+**バトル解決（resolveBattle）・効果の対象自動選択（pickEnemyByBp / destroyAll）・
+クライアントのBP表示**はすべて実効BPを使う。
+counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
+発生源のレベル判定は素の currentLevel（再帰回避）。
+例: ガウシルヴィア（リザーブ数比例）、オーディーン（両者ネクサス数比例）、
+主無き古城（自分の紫全体+1000）、燃えさかる戦場（バトル中の自分スピリット+1000）。
+
+`destroy` は `maxBp` 省略（BP不問）と `keywordFilter`（指定キーワード持ちのみ）に対応
+（晶輝龍ディアマット「【神速】を持つスピリット1体を破壊できる」を構造化）。
+
+### 複合効果（1タイミング複数アクション）
+
+`resolveMagic` は timing に一致する**すべての** magic 効果を配列順に実行する
+（例: ハンドリバース main = 手札全破棄 → 相手手札数ぶんドロー）。
+既存カードに同一 timing の複数エントリは無かったため、この変更で挙動が変わったカードはない。
+
+### マジックの対象指定
+
+`castMagic` コマンドは `targetInstanceId`（任意）を受け付ける。
+`resolveMagic` → `resolveAction` へ伝播し、`coreRemove` / `bpBuff` / `exhaust` / `destroyExhausted` が対象として使用する。
+対象未指定時のフォールバック: `coreRemove` は相手フィールドのBP最大スピリット、
+`bpBuff` はバトル中の自分スピリット優先（いなければ自分フィールド先頭）。
+クライアントは `magicTargetSide()` で対象側（自分/相手）を判定し、
+手札クリック → 対象スピリットクリックの2段階UIで送信する。
+`RuleValidator` は指定された対象がフィールドに実在するかを検証する。
+
+---
+
+## 3. 効果・キーワードの追加方法（3層設計）
+
+[data.md](./data.md) 5章の方針に沿い、以下の手順で追加する。既存処理に影響を与えない。
+
+1. **型を足す**: `server/src/type.ts` の `EffectAction` / `Keyword` / `TriggerEvent` に追加
+2. **ハンドラを足す**: `server/src/logic/EffectModules.ts` の `resolveAction`（アクション）または `KEYWORDS` レジストリ（キーワード）に処理を追加
+3. **データに書く**: `data/cards.json` の対象カードの `effects` 配列に定義を追加
+
+キーワードは名前参照（`hasKeyword`）で判定するため、「神速を持つスピリットを参照する効果」のような
+カード間の参照も使い回せる。
+
+---
+
+## 4. 未対応（表示のみ）の効果
+
+第一弾には現エンジン未対応の効果が多く、これらは効果テキストを表示するだけで自動発動しない。
+対応する場合はそれぞれ新しいアクション型／トリガー／状態が必要。
+
+- コア整理（「コア1個を残す」「別のスピリットに置く」等。単純なコア除去は `coreRemove` で対応済み）
+- 疲労状態のスピリットへの指定アタック（キラーテレスコープ。疲労付与自体は `exhaust` で対応済み）
+- （必ずアタックは `mustAttack`、ブロック制限は `constraint`、手札破棄は `discardOpponent` で対応済み）
+- 破壊耐性（オーディーンLv2-3「ネクサスは破壊されない」）、コスト増ルール（ルビーの太陽）、
+  強制ブロック（燃えさかる戦場Lv2）、ドロー枚数修正（百識の谷）
+  （常時BP参照は `aura`、ステップ起点のネクサス効果は `step` で対応済み）
+- バトル時の条件付き効果（「相手だけ破壊したとき〜」）の多く
+
+---
+
+## 5. 既知の簡略化・今後の課題
+
+- フラッシュの交互優先権パス・ブロック宣言後の追加フラッシュは実装済み（バトル中のみ）。
+  メインステップのフラッシュ（バトル外）は優先権制の対象外
+- コスト支払いはスピリット上のコアとの併用に対応済み（v1）。ネクサス上のコアからの支払いは未対応
+- ブロック後フラッシュ中に攻撃側／ブロック側が破壊された場合は、双方パス時の
+  `resolveBattle` の不在ガードで安全終了する簡略実装（破壊時点での即時バトル終了は未対応）
+- マジックの対象選択UIは実装済み。誘発効果の対象は引き続き自動選択（破壊は相手のBP最大を狙う）
+- マジックの構造化は「タイミングの文面が既存アクション（複合可）で完全表現できる場合のみ」。
+  条件付き・色選択・未対応概念（効果無効・効果耐性・バトル終了系など）はスキップ
+  （バウンス・コア操作系は `returnToHand` / `returnToDeckTop` / `coreCharge` / `lifeCharge` / `coreGain` で対応済み）
+- オフェンシブオーラ（BS01-116）は「アタック中の自分スピリットすべて」を単体 bpBuff で簡略化
+  （現エンジンは同時アタック1体のため等価）
+- クライアントの `magicTargetSide` はタイミング内の**最初の**効果で対象側を判定する。
+  複合効果で対象付きアクションが2番目以降に来ると対象選択UIが誤判定する可能性
+  （現構造化データでは該当なし）
+- `cantAttackThisTurn` は「アタック不可」バッジ（左上・グレー）＋アタックハイライト除外、
+  `flashLockedPlayer` はバトル文言への「フラッシュ封印中」追記＋手札の使用可能ハイライト抑止で
+  クライアント表示済み（クリック自体は可能で、サーバー拒否は既存のトースト表示）
+- カードデータはWiki由来。効果文の細部は実カードとの突き合わせ確認まではしていない
+
+---
+
+## 5.5 デッキビルダー
+
+`/deck.html` にデッキ構築ページを実装（`public/src/deck.ts` → `dist/deck.js`、専用CSS `deck.css`）。
+
+- カードプール面: 全135枚のグリッド表示。色・タイプ・コスト帯・名前検索の複合フィルタ。
+  禁止カードは追加不可。ホバー/クリックで効果テキスト全文の詳細パネル
+- デッキ面: 種別リスト（±操作）、`枚数/40` 常時表示、コストカーブ・色/タイプ内訳の統計
+- 制約検証: 合計40枚ちょうど・**同名**3枚まで（cardId でなく名前で合算）・禁止カード不可
+- 保存: localStorage（キー `bsweb:decks`）に保存/読込/削除、JSONダウンロード、
+  JSONインポート（不正データは内容表示して中止。合計≠40のみ警告付きで許容）、4色プリセット自動生成
+- **対戦ロビー統合（実装済み）**: ロビーに「デッキ構築」リンク、deck-select に localStorage の
+  カスタムデッキを列挙（40枚でないものは disabled）。join は `deckCards`（`Record<cardId, 枚数>`）を
+  受け付け、サーバー側 `validateDeckCards`（GameState.ts。実在ID・合計40枚・同名3枚・禁止カード不可）で
+  検証してエラー時は join 拒否。`DeckSpec = string | Record<string, number>` で色キーと共存
+- 既知の簡略化: ロビーのカスタムデッキ一覧はページ表示時に読み込む（ビルダーで保存直後は
+  ロビーのリロードで反映。storage イベントによるライブ更新は未実装）
+
+---
+
+## 6. テスト
+
+| コマンド | 内容 |
+| :-- | :-- |
+| `npm run typecheck` | `tsc --noEmit` による型チェック |
+| `npm run smoke` | エンジン単体の動作確認（召喚時破壊・アタック時BP+・神速召喚など） |
+| E2E | `PORT=3100 npx tsx server/src/index.ts` 起動後に `PORT=3100 npx tsx scripts/e2e.ts` |
+
+---
+
+## 7. 変更履歴
+
+実装の変更ログは [CHANGELOG.md](./CHANGELOG.md) に分離（SPEC の肥大を防ぐため）。
