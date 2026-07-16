@@ -188,6 +188,12 @@ input[type="text"] {
     color: #1a1d2b;
 }
 
+.chip-yellow.active {
+    background: #b09a2a;
+    border-color: #e8cf4a;
+    color: #1a1d2b;
+}
+
 #search-input {
     width: 180px;
 }
@@ -262,6 +268,10 @@ input[type="text"] {
 
 .pool-card.color-white {
     border-color: #d8dcef;
+}
+
+.pool-card.color-yellow {
+    border-color: #e8cf4a;
 }
 
 .pool-card.limited {
@@ -427,6 +437,10 @@ input[type="text"] {
 
 .deck-row.color-white {
     border-left-color: #d8dcef;
+}
+
+.deck-row.color-yellow {
+    border-left-color: #e8cf4a;
 }
 
 .row-cost {
@@ -654,6 +668,11 @@ input[type="text"] {
 
 .preset-btn.chip-white {
     background: #8a8fa8;
+    color: #1a1d2b;
+}
+
+.preset-btn.chip-yellow {
+    background: #b09a2a;
     color: #1a1d2b;
 }
 

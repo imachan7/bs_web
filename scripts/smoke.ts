@@ -1465,6 +1465,28 @@ for (const [name, recipe] of Object.entries(DECK_RECIPES)) {
     }
 }
 
+console.log("=== 第二弾（BS02）データの検証 ===")
+{
+    // cards.json に BS02 全115枚（通常111＋Xレア4）が入っていること
+    const bs02 = ["001", "050", "063", "111", "X05", "X08"].map((n) => `BS02-${n}`)
+    for (const cardId of bs02) getCard(cardId) // 実在チェック（無ければ throw）
+    assert(getCard("BS02-063").limited === true, "冥犬ケルル・ベロスは禁止カード")
+    assert(getCard("BS02-049").color === "yellow", "ピヨンは黄")
+    assert(getCard("BS02-X05").name === "暴双龍ディラノス", "XレアのID・名前が一致")
+
+    // 黄デッキでゲームを開始できる
+    const s = createGame(
+        "bs02-yellow-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    engineRunTurnStart(s)
+    assert(
+        s.players.p1.deck.length + s.players.p1.hand.length === 40,
+        "黄デッキ40枚でゲーム開始できる",
+    )
+}
+
 console.log("=== カスタムデッキ検証（validateDeckCards） ===")
 {
     // DECK_RECIPES.red 相当の40枚（cardId はレシピ定義を流用。実在チェックは上のループ済み）

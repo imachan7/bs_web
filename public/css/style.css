@@ -259,6 +259,18 @@ button:hover {
     border-color: #9a4ad4;
 }
 
+.card.color-green {
+    border-color: #4ad45e;
+}
+
+.card.color-white {
+    border-color: #d8dcef;
+}
+
+.card.color-yellow {
+    border-color: #e8cf4a;
+}
+
 .card.rested {
     transform: rotate(8deg);
     filter: grayscale(0.6) brightness(0.8);
