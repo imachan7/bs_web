@@ -20,7 +20,7 @@ function runTurnStart(s: GameState): void {
     s.turn = 3
 }
 import { handleAction } from "../server/src/logic/GameEngine"
-import { destroySpirit, effectiveBp, resolveAction } from "../server/src/logic/EffectModules"
+import { destroySpirit, effectiveBp, hasKeyword, resolveAction } from "../server/src/logic/EffectModules"
 import { effectiveCost } from "../server/src/logic/RuleValidator"
 import type { GameAction, GameState, PlayerId } from "../server/src/type"
 import { DECK_RECIPES, DECK_SIZE } from "../data/constants"
@@ -3547,6 +3547,161 @@ console.log("=== 呪撃（BS02-015 ハンプダンプ） ===")
     assert(act(s2, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける")
     assert(s2.players.p1.field.spirits.length === 1, "ブロックされなければ【呪撃】は発動せずアタッカーは生存")
     assert(s2.battle === null, "バトル終了")
+}
+
+console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
+{
+    console.log("--- BS02-005 ドラグノ突撃兵：cantBlock制約 + アタック時BP+2000 ---")
+    const s = createGame(
+        "bs02-005-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "green" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    s.players.p2.reserve = 20
+    const jassei = createInstance("BS02-005", s.turn, 3) // ドラグノ突撃兵 Lv2 BP6000
+    s.players.p1.field.spirits.push(jassei)
+    const enemyAtk = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000
+    s.players.p2.field.spirits.push(enemyAtk)
+
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
+    assert(act(s, "p2", { type: "attack", instanceId: enemyAtk.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(
+        act(s, "p1", { type: "block", instanceId: jassei.instanceId }) !== null,
+        "cantBlock制約でドラグノ突撃兵はブロックできない",
+    )
+    assert(act(s, "p1", { type: "takeLife" }) === null, "ブロックできないためライフで受ける")
+
+    assert(act(s, "p2", { type: "endTurn" }) === null, "p2がターン終了")
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: jassei.instanceId }) === null, "ドラグノ突撃兵でアタック")
+    assert(jassei.tempBpBuff === 2000, "アタック時効果（selfBuff）でBP+2000")
+}
+{
+    console.log("--- BS02-017 マミーラ：召喚時に相手スピリット上のコア1個をリザーブへ ---")
+    const s = createGame(
+        "bs02-017-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const enemy = createInstance("BS01-001", s.turn, 3) // ゴラドン（コア3個）
+    s.players.p2.field.spirits.push(enemy)
+    const p2ReserveBefore = s.players.p2.reserve
+    s.players.p1.hand[0] = "BS02-017"
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "マミーラを召喚できる")
+    assert(enemy.cores === 2, "召喚時効果（coreRemove）で相手スピリットのコアが1個減る")
+    assert(s.players.p2.reserve === p2ReserveBefore + 1, "除去されたコアは持ち主のリザーブへ")
+}
+{
+    console.log("--- BS02-021 髑髏騎士ズ・ガイン：アタック時コア除去 + Lv3で相手手札破棄 ---")
+    const s = createGame(
+        "bs02-021-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const zugain = createInstance("BS02-021", s.turn, 8) // 髑髏騎士ズ・ガイン Lv3
+    s.players.p1.field.spirits.push(zugain)
+    const enemy = createInstance("BS01-001", s.turn, 3) // ゴラドン（コア3個）
+    s.players.p2.field.spirits.push(enemy)
+    s.players.p2.hand.push("BS01-001", "BS01-002")
+    const p2HandBefore = s.players.p2.hand.length
+    const p2ReserveBefore = s.players.p2.reserve
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: zugain.instanceId }) === null, "ズ・ガインでアタック")
+    assert(enemy.cores === 2, "アタック時効果（coreRemove）で相手スピリットのコアが1個減る")
+    assert(s.players.p2.reserve === p2ReserveBefore + 1, "除去されたコアは持ち主のリザーブへ")
+    assert(s.players.p2.hand.length === p2HandBefore - 1, "Lv3効果（discardOpponent）で相手の手札が1枚減る")
+}
+{
+    console.log("--- BS02-076 太古の断層：battleWon（アタッカー勝利/ブロッカー勝利）でドロー ---")
+    const s = createGame(
+        "bs02-076-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "green" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    s.players.p2.reserve = 20
+    const nexus = createInstance("BS02-076", s.turn, 3) // 太古の断層 Lv2
+    s.players.p1.field.nexuses.push(nexus)
+
+    // p1（アタッカー）が勝利 → battleWon(attacker)でp1がドロー
+    const atk1 = createInstance("BS01-001", s.turn, 3) // ゴラドン Lv2 BP3000
+    s.players.p1.field.spirits.push(atk1)
+    const def1 = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000
+    s.players.p2.field.spirits.push(def1)
+    const p1HandBefore = s.players.p1.hand.length
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: atk1.instanceId }) === null, "atk1でアタック")
+    assert(act(s, "p2", { type: "block", instanceId: def1.instanceId }) === null, "p2がブロック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
+    assert(!s.players.p2.field.spirits.includes(def1), "BP勝負でブロッカーが破壊される")
+    assert(s.players.p1.hand.length === p1HandBefore + 1, "battleWon(attacker)効果で太古の断層がドロー")
+
+    // p2ターンでp1（ブロッカー）が勝利 → battleWon(blocker)でp1がドロー
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
+    const atk2 = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000（p2の攻撃側）
+    s.players.p2.field.spirits.push(atk2)
+    const def2 = createInstance("BS01-001", s.turn, 3) // ゴラドン Lv2 BP3000（p1のブロッカー）
+    s.players.p1.field.spirits.push(def2)
+    const p1HandBefore2 = s.players.p1.hand.length
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ")
+    assert(act(s, "p2", { type: "attack", instanceId: atk2.instanceId }) === null, "atk2でアタック")
+    assert(act(s, "p1", { type: "block", instanceId: def2.instanceId }) === null, "p1がブロック宣言")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
+    assert(!s.players.p2.field.spirits.includes(atk2), "BP勝負でアタッカーが破壊される")
+    assert(s.players.p1.hand.length === p1HandBefore2 + 1, "battleWon(blocker)効果で太古の断層がドロー")
+}
+{
+    console.log("--- BS02-077 決闘台地：相手のスタートステップに【覚醒】持ちを回復 ---")
+    const s = createGame(
+        "bs02-077-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "green" },
+    )
+    runTurnStart(s)
+    const ketto = createInstance("BS02-077", s.turn, 0) // 決闘台地 Lv1
+    s.players.p1.field.nexuses.push(ketto)
+    const balmunk = createInstance("BS02-007", s.turn, 1) // 昇龍バルムンク Lv1（覚醒持ち）
+    balmunk.isRested = true
+    s.players.p1.field.spirits.push(balmunk)
+    const other = createInstance("BS01-001", s.turn, 1) // 覚醒を持たない疲労スピリット（対照）
+    other.isRested = true
+    s.players.p1.field.spirits.push(other)
+
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了 → p2のスタートステップが発生")
+    assert(!balmunk.isRested, "決闘台地の効果（refreshOne, keywordFilter:awaken）で覚醒持ちが回復")
+    assert(other.isRested === true, "覚醒を持たないスピリットは対象外で疲労のまま")
+}
+{
+    console.log("--- BS02-011 ツヴァイ・ハウル：【覚醒】+ アタック時BP2000以下を破壊 ---")
+    const s = createGame(
+        "bs02-011-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "green" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const hau = createInstance("BS02-011", s.turn, 4) // ツヴァイ・ハウル Lv2 BP5000
+    s.players.p1.field.spirits.push(hau)
+    const weak = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000（破壊対象）
+    const strong = createInstance("BS01-001", s.turn, 3) // ゴラドン Lv2 BP3000（対象外）
+    s.players.p2.field.spirits.push(weak, strong)
+
+    assert(hasKeyword("BS02-011", "awaken"), "ツヴァイ・ハウルは【覚醒】キーワードを持つ")
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: hau.instanceId }) === null, "ツヴァイ・ハウルでアタック")
+    assert(!s.players.p2.field.spirits.includes(weak), "アタック時効果（destroy maxBp2000）でBP1000のゴラドンが破壊される")
+    assert(s.players.p2.field.spirits.includes(strong), "BP3000のゴラドンは対象外で生存")
 }
 
 console.log("")

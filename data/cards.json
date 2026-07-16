@@ -6285,7 +6285,32 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv2『このスピリットのアタック時』\nこのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-005-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS02-005-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-006",
@@ -6363,7 +6388,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-007-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-008",
@@ -6402,7 +6438,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-008-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-009",
@@ -6516,7 +6567,33 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nLv2･Lv3『このスピリットのアタック時』\nBP2000以下のスピリット1体を破壊できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-011-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS02-011-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "maxBp": 2000,
+     "count": 1
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS02-012",
@@ -6552,7 +6629,21 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nお互い、自分のフィールドに出ているスピリットの色を1色指定する。\n指定されなかった色のスピリットすべてを破壊する。\nLv2『このスピリットのアタック時』\nこのスピリットをBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-012-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 4000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-013",
@@ -6730,7 +6821,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体の上に置いてあるコア1個を、相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-017-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-018",
@@ -6909,7 +7015,36 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体のコア1個を、相手のリザーブに置く。\nLv3『このスピリットのアタック時』\n自分は、相手の手札1枚を内容を見ないで破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-021-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-021-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-022",
@@ -8962,7 +9097,32 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nアタックしている自分のコスト2のスピリットすべてをBP+2000する。\nLv2『お互いのアタックステップ』\n相手のスピリットを破壊したとき、自分はデッキから、破壊したスピリット1体につき1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-076-e1",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS02-076-e2",
+    "kind": "battleWon",
+    "role": "blocker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-077",
@@ -8994,7 +9154,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『相手のスタートステップ』\n【覚醒】を持つ自分のスピリット1体を回復させる。\nLv2『相手のスタートステップ』\n【覚醒】を持つ自分のスピリットすべてを回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-077-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "refreshOne",
+     "keywordFilter": "awaken"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-078",
@@ -9336,7 +9510,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nお互いは、それぞれ自分のフィールドにあるネクサス1つを選び破壊する。\nこの効果は、どちらのフィールドにもネクサスが1つ以上なくては使用できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-088-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-089",
@@ -9376,7 +9560,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつきスピリット1体ずつを残し、それ以外を破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-090-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-091",
@@ -9395,7 +9589,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nBP7000以上の自分のスピリット1体の上に置かれているコアすべてをボイドに置くことで、相手のスピリット上のコア7個を選んで、相手のリザーブに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-091-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-092",
@@ -9415,7 +9619,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n相手のネクサスかリザーブに置かれているコア1個を、相手のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-092-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-093",
@@ -9435,7 +9649,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nお互い、それぞれのスピリットのコア4個ずつを持ち主のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-093-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-094",
@@ -9454,7 +9678,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n相手のフィールド/トラッシュ/リザーブにコアが合計10個～19個あるとき、相手はその中から2個をボイドに置く。\nコアが合計20個以上あるとき、相手はその中から、コア6個をボイドに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-094-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-095",
