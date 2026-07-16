@@ -3800,6 +3800,81 @@ console.log("=== BS02 緑・白の構造化効果 ===")
     assert(blocker.tempBpBuff === 3000, "対象のBPが+3000される")
 }
 
+console.log("=== BS02 黄の構造化効果 ===")
+{
+    console.log("--- BS02-055 チャウー：coreBonus（効果で置かれるコア+1） ---")
+    const s = createGame(
+        "bs02-055-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const chau = createInstance("BS02-055", s.turn, 1) // チャウー Lv1
+    s.players.p1.field.spirits.push(chau)
+    s.players.p1.hand[0] = "BS01-115" // アウェイクン：フラッシュでリザーブからコア3個を対象へ
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: chau.instanceId }) === null,
+        "アウェイクンでチャウーへコアチャージ",
+    )
+    assert(chau.cores === 1 + 3 + 1, "coreBonusで置かれるコアが+1される（元1+チャージ3+bonus1=5）")
+}
+{
+    console.log("--- BS02-066 アルカナドール・パン：召喚時に相手スピリットを疲労 ---")
+    const s = createGame(
+        "bs02-066-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    s.players.p1.hand[0] = "BS02-066"
+    const enemy = createInstance("BS01-001", s.turn, 1) // ゴラドン（対象）
+    s.players.p2.field.spirits.push(enemy)
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "アルカナドール・パンを召喚")
+    assert(enemy.isRested === true, "onSummon効果（exhaust）で相手スピリットが疲労する")
+}
+{
+    console.log("--- BS02-105/107/108/111：フラッシュでBP+（グレートウォール/タイムリープ/マジックブック/スピリットイリュージョン） ---")
+    const s = createGame(
+        "bs02-yellow-magic-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 100
+    const target = createInstance("BS01-001", s.turn, 1)
+    s.players.p1.field.spirits.push(target)
+
+    s.players.p1.hand[0] = "BS02-105"
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
+        "グレートウォールのフラッシュ効果を使用",
+    )
+    assert(target.tempBpBuff === 2000, "グレートウォールでBP+2000")
+
+    s.players.p1.hand[0] = "BS02-107"
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
+        "タイムリープのフラッシュ効果を使用",
+    )
+    assert(target.tempBpBuff === 4000, "タイムリープでさらにBP+2000（合計4000）")
+
+    s.players.p1.hand[0] = "BS02-108"
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
+        "マジックブックのフラッシュ効果を使用",
+    )
+    assert(target.tempBpBuff === 8000, "マジックブックでさらにBP+4000（合計8000）")
+
+    s.players.p1.hand[0] = "BS02-111"
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
+        "スピリットイリュージョンのフラッシュ効果を使用",
+    )
+    assert(target.tempBpBuff === 11000, "スピリットイリュージョンでさらにBP+3000（合計11000）")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

@@ -8419,7 +8419,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリット上に、スピリット/ネクサス/マジックの効果によってコアが置かれるとき、その数を+1個する。\nLv2\nお互いのスピリット上に置かれたコアが、スピリット/ネクサス/マジックの効果によってリザーブに置かれるとき、そのスピリットからリザーブに置かれるコアの数を+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-055-e1",
+    "kind": "coreBonus",
+    "levels": [
+     1,
+     2
+    ],
+    "amount": 1
+   }
+  ]
  },
  {
   "cardId": "BS02-056",
@@ -8828,7 +8838,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を疲労させることができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-066-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS02-067",
@@ -10040,7 +10065,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、コスト6と8のスピリットすべては、アタックとブロックができない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-105-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-106",
@@ -10078,7 +10113,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のスピリット1体の『このスピリットの召喚時』効果1つを発揮させる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-107-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-108",
@@ -10097,7 +10142,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分の手札にあるマジックカードを好きなだけ手元に置くことで、手元に置いたカード1枚につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-108-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-109",
@@ -10157,7 +10212,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\nスピリットの色を1色指定する。\nこのターンの間、指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-111-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-X05",
