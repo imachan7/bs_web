@@ -3704,6 +3704,102 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
     assert(s.players.p2.field.spirits.includes(strong), "BP3000のゴラドンは対象外で生存")
 }
 
+console.log("=== BS02 緑・白の構造化効果 ===")
+{
+    console.log("--- ダッチョーノ：破壊時にボイドからリザーブへコア2個 ---")
+    const s = createGame(
+        "bs02-gw-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "white" },
+    )
+    runTurnStart(s)
+    const dacho = createInstance("BS02-032", s.turn, 1)
+    s.players.p1.field.spirits.push(dacho)
+    const reserveBefore = s.players.p1.reserve
+    destroySpirit(s, "p1", dacho.instanceId)
+    // 破壊されたスピリット上のコア1個もリザーブへ戻るため、+1（自身のコア）+2（coreGain）= +3
+    assert(s.players.p1.reserve === reserveBefore + 3, "破壊時にリザーブ+3（自身のコア1+coreGain2）")
+
+    console.log("--- カイザレオン大帝Lv2：アタックで相手だけ破壊→ライフクラッシュ ---")
+    const kaiser = createInstance("BS02-036", s.turn, 7) // Lv2 BP15000
+    s.players.p1.field.spirits.push(kaiser)
+    const gora = createInstance("BS01-001", s.turn, 1) // BP1000
+    s.players.p2.field.spirits.push(gora)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: kaiser.instanceId }) === null, "大帝でアタック")
+    assert(act(s, "p2", { type: "block", instanceId: gora.instanceId }) === null, "ゴラドンでブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    const lifeBefore = s.players.p2.life
+    const oppReserveBefore = s.players.p2.reserve
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
+    assert(s.players.p2.field.spirits.length === 0, "ブロッカーが破壊される")
+    assert(s.players.p2.life === lifeBefore - 1, "onBattle(attacker)でライフクラッシュ")
+    // ブロッカー破壊で戻るコア1個＋ライフクラッシュのコア1個 = +2
+    assert(s.players.p2.reserve === oppReserveBefore + 2, "ブロッカーのコアとライフのコアが相手リザーブへ")
+}
+
+{
+    console.log("--- ライオライダーLv2：ブロックで相手だけ破壊→自身回復 ---")
+    const s = createGame(
+        "bs02-gw-test2",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s)
+    const gora = createInstance("BS01-001", s.turn, 1) // BP1000
+    s.players.p1.field.spirits.push(gora)
+    const lio = createInstance("BS02-041", s.turn, 3) // Lv2 BP5000
+    s.players.p2.field.spirits.push(lio)
+    act(s, "p1", { type: "nextPhase" })
+    assert(act(s, "p1", { type: "attack", instanceId: gora.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "block", instanceId: lio.instanceId }) === null, "ライオライダーでブロック")
+    act(s, "p2", { type: "pass" })
+    assert(act(s, "p1", { type: "pass" }) === null, "バトル解決")
+    assert(s.players.p1.field.spirits.length === 0, "アタッカーが破壊される")
+    assert(lio.isRested === false, "onBattle(blocker)のrefreshSelfで回復している")
+
+    console.log("--- 機神官フレイLv2：ブロック時に相手のフラッシュを封印 ---")
+    const s2 = createGame(
+        "bs02-gw-test3",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s2)
+    const gora2 = createInstance("BS01-001", s2.turn, 1)
+    s2.players.p1.field.spirits.push(gora2)
+    const frey = createInstance("BS02-047", s2.turn, 2) // Lv2
+    s2.players.p2.field.spirits.push(frey)
+    act(s2, "p1", { type: "nextPhase" })
+    act(s2, "p1", { type: "attack", instanceId: gora2.instanceId })
+    assert(act(s2, "p2", { type: "block", instanceId: frey.instanceId }) === null, "フレイでブロック")
+    assert(s2.battle?.flashLockedPlayer === "p1", "onBlockのlockFlashで攻撃側がフラッシュ封印される")
+
+    console.log("--- リロードコア：フラッシュでBP+3000 ---")
+    const s3 = createGame(
+        "bs02-gw-test4",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s3)
+    const gora3 = createInstance("BS01-001", s3.turn, 1)
+    s3.players.p1.field.spirits.push(gora3)
+    const blocker = createInstance("BS01-001", s3.turn, 1)
+    s3.players.p2.field.spirits.push(blocker)
+    s3.players.p2.hand[0] = "BS02-103"
+    s3.players.p2.reserve = 10
+    act(s3, "p1", { type: "nextPhase" })
+    act(s3, "p1", { type: "attack", instanceId: gora3.instanceId })
+    assert(
+        act(s3, "p2", {
+            type: "castMagic",
+            handIndex: 0,
+            targetInstanceId: blocker.instanceId,
+        }) === null,
+        "防御側フラッシュでリロードコアを使用",
+    )
+    assert(blocker.tempBpBuff === 3000, "対象のBPが+3000される")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

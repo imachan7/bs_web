@@ -7223,7 +7223,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-026-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-027",
@@ -7327,7 +7337,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個をこのスピリットに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-029-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-030",
@@ -7361,7 +7386,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2『このスピリットの破壊時』\n自分の手札にある系統：「怪虫」を持つスピリットカードを好きなだけ、コストを支払い自分のフィールドに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-030-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-031",
@@ -7432,7 +7467,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\nボイドからコア2個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-032-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 2
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-033",
@@ -7579,7 +7629,22 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1『自分のアタックステップ』\nこのスピリットはアタックできない。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフにあるコア1個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-036-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-037",
@@ -7612,7 +7677,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのブロック時』\nこのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-037-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-038",
@@ -7765,7 +7844,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-041-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "blocker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-042",
@@ -8039,7 +8132,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nボイドから、コア1個ずつを自分のネクサスすべての上に置く。\nLv2･Lv3『このスピリットのブロック時』\nこのバトル終了時まで、相手はフラッシュタイミングで使う効果を使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-047-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "lockFlash"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-048",
@@ -9728,7 +9835,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n手札にある、自分のトラッシュに置かれたコアの数以下のコストを持つスピリットカード1枚を、コストを支払わずに自分のフィールドに召喚する。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-096-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-097",
@@ -9767,7 +9884,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n系統：「怪虫」を持つ自分のスピリット1体を破壊することで、自分の手札にあるコスト5のスピリットカード1枚を、コストを支払わずに自分のフィールドに召喚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-098-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-099",
@@ -9865,7 +9992,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n系統：「武装」を持つ自分のスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-103-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-104",
