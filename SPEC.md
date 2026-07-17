@@ -56,9 +56,12 @@
   turnConstraints/banActByCostThisTurn を新設）＋バッチ5の9枚（BS02-031/035/048/062/068/069/086/
   095/X07 と太古の断層の追加エントリ。aura costFilter・unblockableBy costNot・noRestWhenBlockingColor・
   selfCoresAtDestruction カウンタ・costMod の cardType/side/phaseTurn 拡張・immunityGrant＝マジック効果耐性・
-  deployNexus・sacrificeNexusThenWipeEnemyNexusCores を新設）の計 **77枚**（効果文持ち103枚中）。
-  スキップ残は26枚（→ 5章の課題リスト。Lv/コスト/色/系統の置換・付与系・復活・強奪・効果無効・
-  プレイヤー選択コストなど深い新概念のみが残る）。
+  deployNexus・sacrificeNexusThenWipeEnemyNexusCores を新設）＋バッチ6のレベル置換3枚
+  （BS02-002/073/085。CardInstance の levelAsContinuous / levelOverrideThisTurn、kind "levelAs"、
+  refreshLevelAsOverrides 事後フック、levelOverrideOpponentNexuses を新設。currentLevel/levelOf が
+  上書きを優先参照、rawLevel で発生源の再帰回避）＋バッチ4のデータ入れ忘れ修正1枚（BS02-081
+  緑芽吹く原野＝ownMagicUsed のエンジンだけ実装されデータ未登録だった）の計 **81枚**（効果文持ち103枚中）。
+  スキップ残は22枚（→ 5章の課題リスト）。
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が

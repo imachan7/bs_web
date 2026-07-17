@@ -7,13 +7,15 @@
 //     ターン終了でのリセット、リザーブ不足による不発も確認する
 import {
     act,
+    assert,
     createGame,
     createInstance,
     currentLevel,
+    effectiveCost,
     fireStepTriggers,
+    getCard,
     refreshLevelAsOverrides,
     runTurnStart,
-    assert,
 } from "./helpers"
 
 console.log("=== BS02-002 ナイフ投げのジャグリーン：自分のスピリットが2体以下の間Lv3として扱う ===")
@@ -110,5 +112,34 @@ console.log("=== BS02-073 皇帝アンプルール：リザーブ不足なら不
     assert(
         currentLevel(enemyNexus).level === 2,
         "リザーブ不足で不発のため、相手ネクサスは本来のLv2のまま",
+    )
+}
+
+console.log("=== 緑芽吹く原野：自分のマジック使用でコア獲得（バッチ4のデータ入れ忘れ修正） ===")
+{
+    const s = createGame(
+        "bs02-magicused-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const meadow = createInstance("BS02-081", s.turn, 0) // 緑芽吹く原野 Lv1
+    s.players.p1.field.nexuses.push(meadow)
+    const attacker = createInstance("BS01-001", s.turn, 1)
+    s.players.p1.field.spirits.push(attacker)
+    s.players.p1.hand[0] = "BS01-131" // ポイズンシュート（フラッシュ可）
+    s.players.p1.reserve = 10
+    act(s, "p1", { type: "nextPhase" })
+    act(s, "p1", { type: "attack", instanceId: attacker.instanceId })
+    act(s, "p2", { type: "pass" })
+    const reserveBefore = s.players.p1.reserve
+    const cost = effectiveCost(s, "p1", getCard("BS01-131"))
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0 }) === null,
+        "アタックステップ中にフラッシュマジックを使用",
+    )
+    assert(
+        s.players.p1.reserve === reserveBefore - cost + 1,
+        "マジック使用で緑芽吹く原野からコア1個獲得（コスト消費+1戻り）",
     )
 }

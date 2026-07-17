@@ -118,3 +118,7 @@
 - smoke テストを分割: scripts/smoke.ts（約5000行）を scripts/smoke/part1〜6.ts（各900行以下）と
   helpers.ts（assert/act/QUIET/テスト用runTurnStart/summary＋エンジン関数のre-export）に機械分割し、
   smoke.ts はランナー化。テスト内容は無変更（分割前後で984件合格が一致）。CLAUDE.md のトークン規律も更新
+- BS02構造化バッチ6: レベル置換「〜として扱う」（ジャグリーン・トパーズの流星・皇帝アンプルール）。
+  currentLevel/levelOf がインスタンス上の上書き（levelOverrideThisTurn > levelAsContinuous）を優先し、
+  事後フック refreshLevelAsOverrides で継続条件を再計算。あわせてバッチ4のデータ入れ忘れ
+  （BS02-081 緑芽吹く原野）を修正・テスト追加。計81/103枚（smoke 997件全合格）
