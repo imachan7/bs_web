@@ -124,6 +124,9 @@ function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
+    if (aura.costFilter !== undefined && master(targetInst.cardId).cost !== aura.costFilter) {
+        return false
+    }
     if (aura.phaseTurn) {
         if (view.phase !== aura.phaseTurn.phase) return false
         if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
@@ -307,14 +310,42 @@ export function canBlockAttacker(
         ) {
             return false
         }
+        if (c.costNot !== undefined && blockerCard.cost !== c.costNot) return false
     }
     return true
 }
 
+// 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）
+// サーバー hasMagicImmunity のミラー。対象選択ハイライトで、使用中のカードがマジックの場合に参照する
+export function hasMagicImmunityView(
+    view: GameView,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    const player = view.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "immunityGrant") continue
+            if (effect.against !== "magic") continue
+            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
+            if (
+                effect.familyFilter &&
+                !master(inst.cardId).family.includes(effect.familyFilter)
+            ) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 // コスト修正（kind: "costMod"）の合計（サーバー costModTotal と同じロジックの簡易版）。
 // 両プレイヤーのフィールド（スピリット＋ネクサス）を走査し、レベル有効な costMod のうち
-// card.color が colorFilter と一致するものの amount を合計する
-function costModTotal(view: GameView, card: CardData): number {
+// 条件（colorFilter・cardType・side・phaseTurn。すべて省略時は常に一致）に合うものの amount を合計する
+function costModTotal(view: GameView, usingPid: PlayerId, card: CardData): number {
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = view.players[pid]
@@ -324,7 +355,14 @@ function costModTotal(view: GameView, card: CardData): number {
             for (const effect of master(source.cardId).effects) {
                 if (effect.kind !== "costMod") continue
                 if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-                if (card.color !== effect.colorFilter) continue
+                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
+                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+                if (effect.side === "opponent" && usingPid === pid) continue
+                if (effect.phaseTurn) {
+                    if (view.phase !== effect.phaseTurn.phase) continue
+                    if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
+                    if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
+                }
                 total += effect.amount
             }
         }
@@ -369,7 +407,7 @@ export function effectiveCost(
         }
     }
     const base = Math.max(card.cost - Math.min(reductionColors.length, symbols), 0)
-    return base + costModTotal(view, card)
+    return base + costModTotal(view, pid, card)
 }
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
@@ -826,11 +864,12 @@ function fieldCardEl(
             return el
         }
         // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
-        // 使用中マジックの色に対する装甲持ちは選択不可
+        // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
+        // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
         if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColor = usingCardId ? master(usingCardId).color : undefined
-            if (!hasArmorAgainst(inst, usingColor)) {
+            if (!hasArmorAgainst(inst, usingColor) && !hasMagicImmunityView(view, ownerPid, inst)) {
                 el.classList.add("targetable", "clickable")
             }
         }

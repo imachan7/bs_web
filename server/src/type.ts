@@ -93,6 +93,8 @@ export type EffectAction =
     | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
     | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number } // 自分のスピリット全員（costFilter指定時はコスト一致のみ）に、このターンの間キーワードを付与する（リフレクションアーマー）
     | { type: "banActByCostThisTurn"; maxCost: number } // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
+    | { type: "deployNexus"; from: "hand" | "trash"; colors: Color[] } // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）
+    | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -101,6 +103,7 @@ export type DrawPerCounter =
     | "exhaustedEnemies"
     | "opponentHand"
     | { ownFamily: string }
+    | "selfCoresAtDestruction" // 破壊時点でこのスピリット上に置かれていたコア数（destroySpiritが破壊直前に記録。漆黒鳥ヤタグロス）
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
@@ -164,18 +167,20 @@ export interface AuraDef {
     keywordFilter?: Keyword // ownAll 用: 指定キーワード（静的付与・一時付与・keywordGrant すべて含む）を持つスピリットのみ（暴双龍ディラノス）
     phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // ownAll 用: 指定ステップかつ指定turn条件（own=発生源の持ち主がturnPlayer、opponent=持ち主が非turnPlayer、both=常に）のときのみ有効（アルマ・ジール／エメラルドに輝く鍾乳洞）
     minCores?: number // ownAll 用: 対象スピリットのコア数がこれ以上のときのみ有効（エメラルドに輝く鍾乳洞）
+    costFilter?: number // ownAll 用: 対象スピリットのコストがこれと一致するときのみ有効（太古の断層）
 }
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[] } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれるスピリットにブロックされない
+    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[]; costNot?: number } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
     | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ。イリュージョナ／牛霊スモゥグ／オルカリア）
     | { type: "cantAttack" } // このスピリットはアタックできない（カイザレオン大帝Lv1）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
+    | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
 
 // フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 // kind: "constraint" は「発生源自身」への制約だが、こちらは発生源の持ち主に関係なく
@@ -257,8 +262,11 @@ export type EffectDef =
           id: string
           kind: "costMod"
           levels: number[] | null
-          colorFilter: Color // このコスト修正が効く、使用されるカードの色（発生源の持ち主・対象カードの持ち主は問わない＝両陣営に効く）
+          colorFilter?: Color // このコスト修正が効く、使用されるカードの色（省略時は色不問。発生源の持ち主・対象カードの持ち主は問わない＝両陣営に効く）
+          cardType?: CardType // 対象カードの種別（省略時は種別不問。螺旋の塔：マジック限定）
+          side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用（省略時は両陣営に適用＝従来通り）
           amount: number // 軽減後コストに加算する量（ルビーの太陽：白のカード全体+1）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効（螺旋の塔：自分のアタックステップ）
       }
     | {
           id: string
@@ -293,6 +301,14 @@ export type EffectDef =
           symbols: Color[] // 与える軽減シンボル
           condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
       }
+    | {
+          id: string
+          kind: "immunityGrant" // 発生源の持ち主の familyFilter 一致スピリットすべては、相手のマジックの効果を受けない（ポークン）
+          levels: number[] | null
+          target: "ownAll"
+          familyFilter?: string // 指定時はこの系統を持つスピリットのみ
+          against: "magic"
+      }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
 export interface CardData {
@@ -324,6 +340,7 @@ export interface CardInstance {
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
+    coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
 }
 
 // プレイヤーの状態

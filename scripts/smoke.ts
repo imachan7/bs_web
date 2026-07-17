@@ -4696,6 +4696,268 @@ console.log("=== BS02-080 エメラルドに輝く鍾乳洞：コア3個以上�
     assert(effectiveBp(s, "p1", light) === lightBaseBp, "コア1個のlightは対象外のため+0")
 }
 
+console.log("=== BS02-076 太古の断層 e3：自分のアタックステップ中、アタック中のコスト2スピリットのみ+2000 ===")
+{
+    const s = createGame(
+        "bs02-kodaidansou-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    runTurnStart(s)
+    const tower = createInstance("BS02-076", s.turn, 0) // Lv1（levels[1,2]で有効）
+    s.players.p1.field.nexuses.push(tower)
+    // BS01-004（ドラグノ偵察兵）はonAttackでの自己BP+2000を持つため、
+    // 効果のないバニラのコスト2スピリットを使って純粋にオーラの増減だけを検証する
+    const attacker = createInstance("BS01-005", s.turn, 1) // アイバーン cost2 Lv1 BP2000（アタック要員・効果なし）
+    const bench = createInstance("BS02-003", s.turn, 2) // ディノハウンド cost2 Lv1（維持コア2）BP4000（非バトル中の対照・効果なし）
+    const cheapAttacker = createInstance("BS01-001", s.turn, 1) // ゴラドン cost0 Lv1 BP1000（コスト2以外の対照）
+    s.players.p1.field.spirits.push(attacker, bench, cheapAttacker)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null,
+        "コスト2のattackerでアタック",
+    )
+    assert(effectiveBp(s, "p1", attacker) === 2000 + 2000, "アタック中のコスト2スピリットは+2000")
+    assert(effectiveBp(s, "p1", bench) === 4000, "非バトル中のコスト2スピリットは対象外（+0）")
+    assert(effectiveBp(s, "p1", cheapAttacker) === 1000, "コスト2以外は対象外（+0）")
+
+}
+
+console.log("=== BS02-048 竜戦車アースガルド Lv2：コスト8以外がブロック不可、コスト8はブロック可 ===")
+{
+    const s = createGame(
+        "bs02-earthgard-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "white", p2: "red" },
+    )
+    runTurnStart(s)
+    const earthgard = createInstance("BS02-048", s.turn, 4) // Lv2
+    s.players.p1.field.spirits.push(earthgard)
+    const notCost8 = createInstance("BS01-001", s.turn, 1) // ゴラドン cost0
+    const cost8 = createInstance("BS01-025", s.turn, 1) // 要塞龍ギガ cost8
+    s.players.p2.field.spirits.push(notCost8, cost8)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: earthgard.instanceId }) === null,
+        "アースガルドでアタック",
+    )
+    assert(
+        act(s, "p2", { type: "block", instanceId: notCost8.instanceId }) !== null,
+        "コスト8以外のnotCost8はブロックできない",
+    )
+    assert(
+        act(s, "p2", { type: "block", instanceId: cost8.instanceId }) === null,
+        "コスト8のcost8はブロックできる",
+    )
+}
+
+console.log("=== BS02-X07 巨神機トール：赤のアタッカーをブロックしても疲労しない（他色では疲労する） ===")
+{
+    const s = createGame(
+        "bs02-thor-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s)
+    const thor = createInstance("BS02-X07", s.turn, 2) // Lv2（levels[2,3]で有効）
+    s.players.p2.field.spirits.push(thor)
+    const redAttacker = createInstance("BS01-001", s.turn, 1) // ゴラドン 赤
+    const greenAttacker = createInstance("BS01-050", s.turn, 1) // ビートビートル 緑
+    s.players.p1.field.spirits.push(redAttacker, greenAttacker)
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: redAttacker.instanceId }) === null,
+        "赤のredAttackerでアタック",
+    )
+    assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールがブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "p2がパス（防御側から優先権）")
+    assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")
+    assert(thor.isRested === false, "赤のスピリットをブロックしたトールは疲労しない")
+
+    assert(
+        act(s, "p1", { type: "attack", instanceId: greenAttacker.instanceId }) === null,
+        "緑のgreenAttackerでアタック",
+    )
+    assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールが再度ブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "p2がパス")
+    assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")
+    assert(thor.isRested === true, "赤以外のスピリットをブロックしたトールは疲労する")
+}
+
+console.log("=== BS02-035 漆黒鳥ヤタグロス：破壊時、置かれていたコア数ぶんボイドからリザーブへ ===")
+{
+    const s = createGame(
+        "bs02-yatagurosu-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const yatagurosu = createInstance("BS02-035", s.turn, 3) // Lv2（コア3個）
+    s.players.p1.field.spirits.push(yatagurosu)
+    const reserveBefore = s.players.p1.reserve
+    destroySpirit(s, "p1", yatagurosu.instanceId)
+    assert(
+        !s.players.p1.field.spirits.includes(yatagurosu),
+        "ヤタグロスはフィールドから除去された",
+    )
+    assert(
+        s.players.p1.reserve === reserveBefore + 6,
+        "コア3個の戻し(+3)とボイドからの追加(+3)で、リザーブ+6",
+    )
+}
+
+console.log("=== BS02-086 螺旋の塔：自分のアタックステップ中、相手のマジックのみ+1コスト ===")
+{
+    const s = createGame(
+        "bs02-rasennotou-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const tower = createInstance("BS02-086", s.turn, 0) // Lv1（levels[1,2]で有効）
+    s.players.p1.field.nexuses.push(tower)
+    const magic = getCard("BS01-114") // バスタースピア（赤・reduction=red2つ、フィールドに一致色なしなので軽減0）
+    const baseCost = magic.cost
+    assert(
+        effectiveCost(s, "p1", magic) === baseCost,
+        "メインステップではp1のコストは基本コストのまま",
+    )
+    assert(
+        effectiveCost(s, "p2", magic) === baseCost,
+        "メインステップではp2のコストも基本コストのまま（フェーズ条件未成立）",
+    )
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        effectiveCost(s, "p1", magic) === baseCost,
+        "p1のアタックステップ中もp1自身のマジックのコストは変わらない",
+    )
+    assert(
+        effectiveCost(s, "p2", magic) === baseCost + 1,
+        "p1のアタックステップ中、相手(p2)のマジックは+1コスト",
+    )
+}
+
+console.log("=== BS02-062 ポークン：漂精スピリットは相手のマジックの効果を受けない（スピリット効果は防がない） ===")
+{
+    const s = createGame(
+        "bs02-poakun-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const poakun = createInstance("BS02-062", s.turn, 3) // Lv2（levels[2,3]で有効）
+    s.players.p1.field.spirits.push(poakun)
+    resolveAction(s, "p2", null, { type: "destroy", count: 1 }, undefined, undefined, "magic")
+    assert(
+        s.players.p1.field.spirits.includes(poakun),
+        "マジック由来の破壊効果は漂精のポークンに効かない",
+    )
+    resolveAction(s, "p2", null, { type: "destroy", count: 1 }, undefined, undefined, "spirit")
+    assert(
+        !s.players.p1.field.spirits.includes(poakun),
+        "スピリット効果由来の破壊効果はポークンにも通常通り効く",
+    )
+}
+
+console.log("=== deployNexus：白虎ハック／黒虎クロン／スコルピードの召喚時ネクサス配置 ===")
+{
+    console.log("--- 白虎ハック：手札の白ネクサスを配置（該当なしなら何も起きない） ---")
+    const s = createGame(
+        "bs02-deploynexus-haku-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.hand[0] = "BS02-068" // 白虎ハック
+    s.players.p1.reserve = 20
+    const nexusCountBefore = s.players.p1.field.nexuses.length
+    assert(
+        act(s, "p1", { type: "summon", handIndex: 0 }) === null,
+        "手札に白ネクサスがない状態で白虎ハックを召喚",
+    )
+    assert(
+        s.players.p1.field.nexuses.length === nexusCountBefore,
+        "該当する白ネクサスが手札になければ何も起きない",
+    )
+
+    console.log("--- 白虎ハック：手札に白ネクサス（生み出される尖兵）がある場合は配置される ---")
+    const s2 = createGame(
+        "bs02-deploynexus-haku2-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s2)
+    s2.players.p1.hand[0] = "BS02-068" // 白虎ハック
+    s2.players.p1.hand[1] = "BS02-082" // 生み出される尖兵（白ネクサス）
+    s2.players.p1.reserve = 20
+    assert(act(s2, "p1", { type: "summon", handIndex: 0 }) === null, "白虎ハックを召喚")
+    assert(
+        s2.players.p1.field.nexuses.some((n) => n.cardId === "BS02-082"),
+        "手札の白ネクサスが配置される",
+    )
+    assert(!s2.players.p1.hand.includes("BS02-082"), "配置したネクサスは手札から消える")
+
+    console.log("--- 黒虎クロン：手札の紫ネクサス（紫水晶の森）を配置 ---")
+    const s3 = createGame(
+        "bs02-deploynexus-kuro-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s3)
+    s3.players.p1.hand[0] = "BS02-069" // 黒虎クロン
+    s3.players.p1.hand[1] = "BS02-079" // 紫水晶の森（紫ネクサス）
+    s3.players.p1.reserve = 20
+    assert(act(s3, "p1", { type: "summon", handIndex: 0 }) === null, "黒虎クロンを召喚")
+    assert(
+        s3.players.p1.field.nexuses.some((n) => n.cardId === "BS02-079"),
+        "手札の紫ネクサスが配置される",
+    )
+
+    console.log("--- スコルピード：トラッシュの緑ネクサス（緑芽吹く原野）を配置 ---")
+    const s4 = createGame(
+        "bs02-deploynexus-scorpio-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s4)
+    s4.players.p1.trashCards.push("BS02-081") // 緑芽吹く原野（緑ネクサス）
+    s4.players.p1.hand[0] = "BS02-031" // スコルピード
+    s4.players.p1.reserve = 20
+    assert(act(s4, "p1", { type: "summon", handIndex: 0 }) === null, "スコルピードを召喚")
+    assert(
+        s4.players.p1.field.nexuses.some((n) => n.cardId === "BS02-081"),
+        "トラッシュの緑ネクサスが配置される",
+    )
+    assert(!s4.players.p1.trashCards.includes("BS02-081"), "配置したネクサスはトラッシュから消える")
+}
+
+console.log("=== BS02-095 サクリファイス：自分ネクサス破壊＋相手ネクサスのコアを全てトラッシュへ ===")
+{
+    const s = createGame(
+        "bs02-sacrifice-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    const n1 = createInstance("BS02-078", s.turn, 1) // 夢魔の寝所（コア1個・最小）
+    const n2 = createInstance("BS02-079", s.turn, 3) // 紫水晶の森（コア3個）
+    s.players.p1.field.nexuses.push(n1, n2)
+    const oppNexus = createInstance("BS01-098", s.turn, 2) // 燃えさかる戦場（コア2個）
+    s.players.p2.field.nexuses.push(oppNexus)
+    s.players.p1.hand[0] = "BS02-095"
+    s.players.p1.reserve = 20
+    const trashCoresBefore = s.players.p2.trashCores
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "サクリファイスを使用")
+    assert(!s.players.p1.field.nexuses.includes(n1), "コア数最小のn1が破壊される")
+    assert(s.players.p1.field.nexuses.includes(n2), "n2は残る")
+    assert(oppNexus.cores === 0, "相手ネクサスのコアが0になる")
+    assert(
+        s.players.p2.trashCores === trashCoresBefore + 2,
+        "相手ネクサスのコア2個がトラッシュに置かれる",
+    )
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

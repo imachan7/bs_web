@@ -7614,7 +7614,27 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュから白/緑のネクサスカード1枚を選び、コストを支払わずに自分のフィールドに配置できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-031-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "white",
+      "green"
+     ]
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-032",
@@ -7789,7 +7809,23 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\nボイドから、このスピリット上に置かれたコア1個につきコア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-035-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreGainPer",
+     "counter": "selfCoresAtDestruction"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-036",
@@ -8403,7 +8439,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある、このスピリットと同じ系統を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットのアタック時』\nこのスピリットは、コスト8以外のスピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-048-e2",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "costNot": 8
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-049",
@@ -8994,7 +9042,19 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3\n系統：「漂精」を持つ自分のスピリットすべては、相手のマジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-062-e1",
+    "kind": "immunityGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "familyFilter": "漂精",
+    "against": "magic"
+   }
+  ]
  },
  {
   "cardId": "BS02-063",
@@ -9242,7 +9302,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある白のネクサスカード1枚を、コストを支払わずに自分のフィールドに配置できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-068-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "hand",
+     "colors": [
+      "white"
+     ]
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-069",
@@ -9276,7 +9354,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある紫のネクサスカード1枚を、コストを支払わずに自分のフィールドに配置できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-069-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "hand",
+     "colors": [
+      "purple"
+     ]
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-070",
@@ -9634,6 +9730,25 @@
     "action": {
      "type": "draw",
      "count": 1
+    }
+   },
+   {
+    "id": "BS02-076-e3",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "costFilter": 2,
+     "battlingOnly": true,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
     }
    }
   ]
@@ -10021,7 +10136,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n相手はマジックの効果を使用するとき、1コスト余分に支払われなくてはならない。\nLv2『自分のアタックステップ』\n相手がマジックの効果を使用するとき、コストはすべてリザーブから支払われなくてはならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-086-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "magic",
+    "side": "opponent",
+    "amount": 1,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-087",
@@ -10282,7 +10413,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分のネクサス1つを破壊することで、相手のネクサスすべての上に置かれているコアすべてを、相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-095-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "sacrificeNexusThenWipeEnemyNexusCores"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-096",
@@ -10913,7 +11053,20 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n系統：「武装」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットは、相手の赤のスピリットをブロックしたとき疲労しない。\nLv3『このスピリットのアタック時』\nバトル終了時、系統：「武装」を持つ自分のスピリット1体を破壊することで、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-X07-e1",
+    "kind": "constraint",
+    "levels": [
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "noRestWhenBlockingColor",
+     "color": "red"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-X08",

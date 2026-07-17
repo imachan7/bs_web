@@ -15,6 +15,7 @@ import {
     effectiveBp,
     hasGlobalConstraint,
     hasKeyword,
+    hasMagicImmunity,
     isUntargetableByOpponent,
     KEYWORDS,
     spiritHasKeyword,
@@ -22,9 +23,12 @@ import {
 import { COLOR_LABELS } from "../../../data/constants"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
-// 走査し、レベル有効な costMod のうち card.color が colorFilter と一致するものの amount を合計する
-// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く）
-function costModTotal(state: GameState, card: CardData): number {
+// 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
+// 常に一致）に合うものの amount を合計する。usingPid は実際にそのカードを使おうとしているプレイヤー
+// （side:"opponent" の判定・validateSummon等の呼び出し元から渡る）
+// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く。
+//   螺旋の塔：「自分のアタックステップ中、相手のマジックは+1コスト」＝side:"opponent"＋phaseTurn）
+function costModTotal(state: GameState, usingPid: PlayerId, card: CardData): number {
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
@@ -34,7 +38,15 @@ function costModTotal(state: GameState, card: CardData): number {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "costMod") continue
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (card.color !== effect.colorFilter) continue
+                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
+                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+                // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
+                if (effect.side === "opponent" && usingPid === pid) continue
+                if (effect.phaseTurn) {
+                    if (state.phase !== effect.phaseTurn.phase) continue
+                    if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                    if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                }
                 total += effect.amount
             }
         }
@@ -79,7 +91,7 @@ export function effectiveCost(
     const symbols = countSymbols(state.players[pid], reductionColors)
     const reduction = Math.min(reductionColors.length, symbols)
     const base = Math.max(card.cost - reduction, 0)
-    return base + costModTotal(state, card)
+    return base + costModTotal(state, pid, card)
 }
 
 function checkMainTiming(state: GameState, pid: PlayerId): string | null {
@@ -206,12 +218,17 @@ export function validateCastMagic(
             findSpirit(state.players[opponentOf(pid)], targetInstanceId) !==
                 undefined
         if (!exists) return "対象のスピリットが見つかりません"
-        // 相手スピリットが免疫（ワルキューレ／フェザーバリア）なら対象にできない
+        // 相手スピリットが免疫（ワルキューレ／フェザーバリア）またはマジック効果耐性（ポークン）
+        // を持つなら対象にできない（マジックの使用自体はここで検証しているためsourceTypeは常に"magic"）
         const enemyTarget = findSpirit(
             state.players[opponentOf(pid)],
             targetInstanceId,
         )
-        if (enemyTarget && isUntargetableByOpponent(enemyTarget)) {
+        if (
+            enemyTarget &&
+            (isUntargetableByOpponent(enemyTarget) ||
+                hasMagicImmunity(state, opponentOf(pid), enemyTarget))
+        ) {
             return "このスピリットは効果の対象にできません"
         }
     }
@@ -445,6 +462,9 @@ export function validateBlock(
                 c.levelFilter.includes(currentLevel(inst).level)
             ) {
                 return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
+            }
+            if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
+                return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
             }
         }
     }

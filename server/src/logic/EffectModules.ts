@@ -25,6 +25,7 @@ import type {
 import { COLOR_LABELS } from "../../../data/constants"
 import {
     clearBattle,
+    createInstance,
     currentLevel,
     draw,
     getCard,
@@ -190,6 +191,9 @@ function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
+    if (aura.costFilter !== undefined && getCard(targetInst.cardId).cost !== aura.costFilter) {
+        return false
+    }
     if (aura.phaseTurn) {
         if (state.phase !== aura.phaseTurn.phase) return false
         if (aura.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) return false
@@ -293,6 +297,36 @@ export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefin
     )
 }
 
+// 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
+// ownerPid のフィールド（スピリット＋ネクサス）を走査し、レベル有効・familyFilter一致（省略時は不問）の
+// immunityGrant（against: "magic"）を持つ発生源が1つでもあれば、inst は相手のマジックの効果を受けない。
+// 呼び出し側は「効果の発生源が実際にマジックか（sourceType === "magic"）」を先に判定してから呼ぶこと
+// （装甲の hasArmorAgainst が sourceColor を受け取るのと同じ考え方で、対象側にだけ知識を閉じる）。
+export function hasMagicImmunity(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "immunityGrant") continue
+            if (effect.against !== "magic") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (
+                effect.familyFilter &&
+                !getCard(inst.cardId).family.includes(effect.familyFilter)
+            ) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 // このスピリットに効果でコアが置かれるときの追加数（グラーバの coreBonus）。
 // コアを置く各アクション（coreCharge / voidCoreToSelf / voidCoreToOther）が参照する。
 function coreBonusFor(inst: CardInstance): number {
@@ -364,6 +398,8 @@ export function destroySpirit(
     const inst = player.field.spirits[index]
     if (!inst) return
     const master = getCard(inst.cardId)
+    // 破壊直前のコア数を記録（リザーブへ移す前。漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
+    inst.coresAtDestruction = inst.cores
 
     player.field.spirits.splice(index, 1)
     player.reserve += inst.cores
@@ -518,19 +554,22 @@ export function removeCoresToTrash(
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
 // 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
 // sourceColor: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
+// sourceType: 効果発生源の種別（マジック効果耐性判定用。"magic" のときのみ hasMagicImmunity を追加チェック）
 function pickEnemyByBp(
     state: GameState,
     targetPid: PlayerId,
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColor?: Color,
+    sourceType?: "spirit" | "nexus" | "magic",
 ): CardInstance | null {
     const candidates = state.players[targetPid].field.spirits.filter(
-        // targetPid はアクターの相手フィールド。免疫スピリット・装甲該当は対象選択から除外する
+        // targetPid はアクターの相手フィールド。免疫スピリット・装甲該当・マジック効果耐性該当は対象選択から除外する
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isUntargetableByOpponent(s) &&
             !hasArmorAgainst(s, sourceColor) &&
+            !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
             extraPredicate(s),
     )
     if (candidates.length === 0) return null
@@ -610,15 +649,18 @@ function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
 }
 
 // drawPer / coreGainPer 共通のカウンタ集計。
-// exhaustedEnemies / opponentHand は相手（opp）基準、{ ownFamily } は自分（owner）のフィールド基準
+// exhaustedEnemies / opponentHand は相手（opp）基準、{ ownFamily } は自分（owner）のフィールド基準、
+// selfCoresAtDestruction は self（破壊時点のコア数を destroySpirit が記録済み）基準
 function countDrawPerCounter(
     state: GameState,
     owner: PlayerId,
     opp: PlayerId,
     counter: DrawPerCounter,
+    self: CardInstance | null,
 ): number {
     if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
     if (counter === "opponentHand") return state.players[opp].hand.length
+    if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
     return state.players[owner].field.spirits.filter((s) =>
@@ -636,10 +678,14 @@ export function resolveAction(
     action: EffectAction,
     targetInstanceId?: string,
     sourceColor?: Color,
+    sourceType?: "spirit" | "nexus" | "magic",
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
     const srcColor = sourceColor ?? (self ? getCard(self.cardId).color : undefined)
+    // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
+    // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
+    const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
 
     switch (action.type) {
         case "draw": {
@@ -666,6 +712,7 @@ export function resolveAction(
                             spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
                         (selfBp === undefined || effectiveBp(state, opp, s) === selfBp),
                     srcColor,
+                    srcType,
                 )
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
@@ -678,12 +725,13 @@ export function resolveAction(
 
         case "destroyAll": {
             // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
-            // 全効果免疫（フェザーバリア）・装甲該当のスピリットは除外する
+            // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する
             const targets = state.players[opp].field.spirits.filter(
                 (s) =>
                     effectiveBp(state, opp, s) <= action.maxBp &&
                     !isImmuneToArea(s) &&
-                    !hasArmorAgainst(s, srcColor),
+                    !hasArmorAgainst(s, srcColor) &&
+                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
             )
             if (targets.length === 0) {
                 log(state, `${sourceName}：対象がいなかった。`)
@@ -868,16 +916,20 @@ export function resolveAction(
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
                 : (() => {
-                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
+                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
                       return t ? { pid: opp, inst: t } : null
                   })()
             if (!found) {
                 log(state, `${sourceName}のコア除去：対象がいなかった。`)
                 return
             }
-            // 明示ターゲットが相手側かつ装甲該当なら効果を受けない
-            if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
-                log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+            // 明示ターゲットが相手側かつ装甲該当・マジック効果耐性該当なら効果を受けない
+            if (
+                found.pid !== owner &&
+                (hasArmorAgainst(found.inst, srcColor) ||
+                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+            ) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
             }
             // 維持コア割れの消滅処理は removeCores が担う
@@ -928,8 +980,12 @@ export function resolveAction(
                     log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                     return
                 }
-                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
-                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                if (
+                    found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColor) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                ) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
                 }
                 if (found.inst.isRested) {
@@ -951,6 +1007,7 @@ export function resolveAction(
                     Infinity,
                     (s) => !s.isRested,
                     srcColor,
+                    srcType,
                 )
                 if (!target) {
                     log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -970,8 +1027,12 @@ export function resolveAction(
                     log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
                     return
                 }
-                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
-                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                if (
+                    found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColor) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                ) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
                 }
                 if (!found.inst.isRested) {
@@ -988,7 +1049,7 @@ export function resolveAction(
                 // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
                 // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、
                 // 自分側には適用しない＝pickEnemyByBpと同じ非対称ルール。同値の場合は相手側を優先する）
-                const oppCandidate = pickEnemyByBp(state, opp, Infinity, (s) => s.isRested, srcColor)
+                const oppCandidate = pickEnemyByBp(state, opp, Infinity, (s) => s.isRested, srcColor, srcType)
                 const ownCandidates = state.players[owner].field.spirits.filter((s) => s.isRested)
                 const ownCandidate =
                     ownCandidates.length > 0
@@ -1022,6 +1083,7 @@ export function resolveAction(
                     Infinity,
                     (s) => s.isRested,
                     srcColor,
+                    srcType,
                 )
                 if (!target) {
                     log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
@@ -1033,7 +1095,7 @@ export function resolveAction(
         }
 
         case "drawPer": {
-            const count = countDrawPerCounter(state, owner, opp, action.counter)
+            const count = countDrawPerCounter(state, owner, opp, action.counter, self)
             if (count === 0) {
                 log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
                 return
@@ -1043,7 +1105,7 @@ export function resolveAction(
         }
 
         case "coreGainPer": {
-            const count = countDrawPerCounter(state, owner, opp, action.counter)
+            const count = countDrawPerCounter(state, owner, opp, action.counter, self)
             if (count === 0) {
                 log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
                 return
@@ -1106,8 +1168,12 @@ export function resolveAction(
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     return
                 }
-                if (found.pid !== owner && hasArmorAgainst(found.inst, srcColor)) {
-                    log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                if (
+                    found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColor) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                ) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
                 }
                 returnSpiritToHand(state, found.pid, found.inst)
@@ -1115,7 +1181,7 @@ export function resolveAction(
             }
             // 未指定時は相手フィールドのBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
-                const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
+                const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
@@ -1129,7 +1195,7 @@ export function resolveAction(
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
                 : (() => {
-                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor)
+                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
                       return t ? { pid: opp, inst: t } : null
                   })()
             if (!found) {
@@ -1139,9 +1205,10 @@ export function resolveAction(
             if (
                 targetInstanceId &&
                 found.pid !== owner &&
-                hasArmorAgainst(found.inst, srcColor)
+                (hasArmorAgainst(found.inst, srcColor) ||
+                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
             ) {
-                log(state, `${getCard(found.inst.cardId).name}は装甲によって${sourceName}の効果を受けなかった。`)
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
             }
             returnSpiritToDeckTop(state, found.pid, found.inst)
@@ -1887,6 +1954,85 @@ export function resolveAction(
             )
             return
         }
+
+        case "deployNexus": {
+            // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに
+            // 自分のフィールドに配置する（スコルピード／白虎ハック／黒虎クロン。
+            // 本来は「できる」＝任意発動だが、自動処理では常に発動する簡略化）
+            const player = state.players[owner]
+            const isMatch = (cardId: string): boolean => {
+                const c = getCard(cardId)
+                return c.type === "nexus" && action.colors.includes(c.color)
+            }
+            let cardId: string | undefined
+            if (action.from === "hand") {
+                const idx = player.hand.findIndex(isMatch)
+                if (idx === -1) {
+                    log(state, `${sourceName}：手札に対象のネクサスがなかった。`)
+                    return
+                }
+                cardId = player.hand[idx]
+                player.hand.splice(idx, 1)
+            } else {
+                // トラッシュは末尾（新しい方）から最初の一致を選ぶ（本来は好きな1枚を選べる簡略化）
+                let idx = -1
+                for (let j = player.trashCards.length - 1; j >= 0; j--) {
+                    if (isMatch(player.trashCards[j]!)) {
+                        idx = j
+                        break
+                    }
+                }
+                if (idx === -1) {
+                    log(state, `${sourceName}：トラッシュに対象のネクサスがなかった。`)
+                    return
+                }
+                cardId = player.trashCards[idx]
+                player.trashCards.splice(idx, 1)
+            }
+            if (cardId === undefined) return
+            const maintain = lv1Cores(getCard(cardId))
+            const inst = createInstance(cardId, state.turn, maintain)
+            player.field.nexuses.push(inst)
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
+            )
+            return
+        }
+
+        case "sacrificeNexusThenWipeEnemyNexusCores": {
+            // サクリファイス：自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、
+            // 相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスを選ぶのは
+            // 本来プレイヤーの選択だが、コア数最小を自動選択する決定的な簡略化）
+            const mine = state.players[owner].field.nexuses
+            if (mine.length === 0) {
+                log(state, `${sourceName}：自分のネクサスがなかった。`)
+                return
+            }
+            const sacrifice = mine.reduce((best, n) => (n.cores < best.cores ? n : best))
+            const destroyed = destroyNexus(state, owner, sacrifice.instanceId)
+            if (!destroyed) {
+                log(state, `${sourceName}：ネクサスを破壊できなかったため効果は発動しなかった。`)
+                return
+            }
+            const oppPlayer = state.players[opp]
+            let total = 0
+            for (const nexus of oppPlayer.field.nexuses) {
+                if (nexus.cores <= 0) continue
+                total += nexus.cores
+                oppPlayer.trashCores += nexus.cores
+                nexus.cores = 0
+            }
+            if (total === 0) {
+                log(state, `${sourceName}：${oppPlayer.name}のネクサスにコアがなかった。`)
+                return
+            }
+            log(
+                state,
+                `${sourceName}：${oppPlayer.name}のネクサス上のコア合計${total}個をトラッシュに置いた。`,
+            )
+            return
+        }
     }
 }
 
@@ -2044,8 +2190,8 @@ export function resolveMagic(
     const card = getCard(cardId)
     for (const effect of card.effects) {
         if (effect.kind !== "magic" || effect.timing !== timing) continue
-        // self が null（マジック）のため、装甲判定用のカード色を明示的に渡す
-        resolveAction(state, owner, null, effect.action, targetInstanceId, card.color)
+        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す
+        resolveAction(state, owner, null, effect.action, targetInstanceId, card.color, "magic")
     }
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）

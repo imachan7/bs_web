@@ -512,7 +512,12 @@ function resolveBattle(state: GameState): void {
         return
     }
 
-    blocker.isRested = true
+    // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
+    const attackerColor = getCard(attacker.cardId).color
+    const skipRest = activeConstraints(state, defenderPid, blocker).some(
+        (c) => c.type === "noRestWhenBlockingColor" && c.color === attackerColor,
+    )
+    if (!skipRest) blocker.isRested = true
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const blockerBp = effectiveBp(state, defenderPid, blocker)
 
@@ -548,7 +553,6 @@ function resolveBattle(state: GameState): void {
     if (hasJugeki) {
         const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
         if (stillOnField) {
-            const attackerColor = getCard(attacker.cardId).color
             if (hasArmorAgainst(stillOnField, attackerColor)) {
                 log(
                     state,
