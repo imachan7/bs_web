@@ -4181,6 +4181,117 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
     assert(effectiveBp(s2, "p1", gora2) === 1000, "覚醒を持たないゴラドンは対象外")
 }
 
+console.log("=== BS02-009 竜狩りのアーケオルニ：anyNexusDestroyedとdrawPerDestroyedが二重にならず加算 ===")
+{
+    const s = createGame(
+        "bs02-archeorni-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    runTurnStart(s)
+    const archeorni = createInstance("BS02-009", s.turn, 3) // Lv2（fieldEvent有効）
+    s.players.p1.field.spirits.push(archeorni)
+    const nexus = createInstance("BS02-078", s.turn, 0) // 夢魔の寝所（効果なしの中立ネクサス）
+    s.players.p2.field.nexuses.push(nexus)
+    const handBefore = s.players.p1.hand.length
+    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, drawPerDestroyed: 1 })
+    assert(s.players.p2.field.nexuses.length === 0, "ネクサスが破壊される")
+    assert(
+        s.players.p1.hand.length === handBefore + 2,
+        "drawPerDestroyed(1枚)とアーケオルニのfieldEvent(1枚)で合計2枚ドロー（二重にならない）",
+    )
+}
+
+console.log("=== BS02-013 バット・バット：onBlockedでブロッカーのコアが1個減り相手リザーブへ ===")
+{
+    const s = createGame(
+        "bs02-batbat-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    const batbat = createInstance("BS02-013", s.turn, 3) // Lv2（onBlocked有効）
+    s.players.p1.field.spirits.push(batbat)
+    const blocker = createInstance("BS01-001", s.turn, 2) // ゴラドン コア2
+    s.players.p2.field.spirits.push(blocker)
+    const reserveBefore = s.players.p2.reserve
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: batbat.instanceId }) === null, "バット・バットでアタック")
+    assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンでブロック")
+    assert(blocker.cores === 1, "ブロッカーのコアが1個減る")
+    assert(s.players.p2.reserve === reserveBefore + 1, "減ったコアがブロッカー側（相手）のリザーブへ加算される")
+}
+
+console.log("=== BS02-024 暗黒将軍ブラッディ・シーザー：onAttackのdestroyExhausted anySideが両陣営から実効BP最大を破壊 ===")
+{
+    const s = createGame(
+        "bs02-caesar-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    const caesar = createInstance("BS02-024", s.turn, 3) // Lv2 BP6000（onAttack有効）
+    const ownRested = createInstance("BS01-073", s.turn, 1) // 極彩鳥ヴァルペルチャー Lv1 BP7000（シーザーより高BP）
+    ownRested.isRested = true
+    s.players.p1.field.spirits.push(caesar, ownRested)
+    const oppRested = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000
+    oppRested.isRested = true
+    s.players.p2.field.spirits.push(oppRested)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: caesar.instanceId }) === null, "シーザーでアタック")
+    assert(!s.players.p1.field.spirits.includes(ownRested), "自陣の疲労スピリット（BP7000）がanySideで破壊される")
+    assert(s.players.p2.field.spirits.includes(oppRested), "相手の疲労スピリット（BP1000、より低い）は破壊されない")
+    assert(s.players.p1.field.spirits.includes(caesar), "シーザー自身（BP6000、7000より低い）は残る")
+}
+
+console.log("=== BS02-X06 魔界七将デストロード：召喚時にLv2スピリットのみ両陣営で疲労 ===")
+{
+    const s = createGame(
+        "bs02-desperado-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const p1Lv1 = createInstance("BS01-004", s.turn, 1) // Lv1
+    const p1Lv2 = createInstance("BS01-004", s.turn, 2) // Lv2
+    s.players.p1.field.spirits.push(p1Lv1, p1Lv2)
+    const p2Lv1 = createInstance("BS01-004", s.turn, 1) // Lv1
+    const p2Lv2 = createInstance("BS01-004", s.turn, 2) // Lv2
+    s.players.p2.field.spirits.push(p2Lv1, p2Lv2)
+    s.players.p1.hand[0] = "BS02-X06"
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "デストロードを召喚")
+    assert(p1Lv2.isRested === true, "自陣のLv2スピリットが疲労する")
+    assert(p2Lv2.isRested === true, "相手陣のLv2スピリットも疲労する")
+    assert(p1Lv1.isRested === false, "自陣のLv1スピリットは疲労しない")
+    assert(p2Lv1.isRested === false, "相手陣のLv1スピリットは疲労しない")
+}
+
+console.log("=== BS02-012 地龍王ケンドラゴス：召喚時に両陣営で最多色以外のスピリットが破壊される ===")
+{
+    const s = createGame(
+        "bs02-kendragos-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "green" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const p1Red1 = createInstance("BS01-001", s.turn, 1) // 赤
+    const p1Red2 = createInstance("BS01-002", s.turn, 1) // 赤
+    const p1White = createInstance("BS01-074", s.turn, 1) // 白（少数派）
+    s.players.p1.field.spirits.push(p1Red1, p1Red2, p1White)
+    const p2Green1 = createInstance("BS01-050", s.turn, 1) // 緑
+    const p2Green2 = createInstance("BS01-051", s.turn, 1) // 緑
+    const p2Yellow = createInstance("BS02-049", s.turn, 1) // 黄（少数派）
+    s.players.p2.field.spirits.push(p2Green1, p2Green2, p2Yellow)
+    s.players.p1.hand[0] = "BS02-012"
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ケンドラゴスを召喚")
+    assert(!s.players.p1.field.spirits.includes(p1White), "自陣の少数派色（白）のスピリットが破壊される")
+    assert(s.players.p1.field.spirits.includes(p1Red1) && s.players.p1.field.spirits.includes(p1Red2), "自陣の最多色（赤、ケンドラゴス自身を含め3体）は残る")
+    assert(!s.players.p2.field.spirits.includes(p2Yellow), "相手陣の少数派色（黄）のスピリットも破壊される")
+    assert(s.players.p2.field.spirits.includes(p2Green1) && s.players.p2.field.spirits.includes(p2Green2), "相手陣の最多色（緑）は残る")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

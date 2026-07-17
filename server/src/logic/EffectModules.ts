@@ -401,6 +401,10 @@ export function destroyNexus(
     player.reserve += inst.cores
     player.trashCards.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
+    // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火
+    // （竜狩りのアーケオルニ）。バウンス（returnNexusToHand）はここを通らないため対象外
+    fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
     return true
 }
 
@@ -673,6 +677,66 @@ export function resolveAction(
             return
         }
 
+        case "exhaustAllByLevel": {
+            // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）
+            let count = 0
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                for (const s of state.players[pid].field.spirits) {
+                    if (currentLevel(s).level !== action.level) continue
+                    if (s.isRested) continue
+                    s.isRested = true
+                    count++
+                }
+            }
+            log(state, `${sourceName}：Lv${action.level}のスピリット${count}体を疲労させた。`)
+            return
+        }
+
+        case "destroyAllExceptChosenColors": {
+            // お互い自分のフィールドで最多のスピリット色を1色ずつ自動指定する
+            // （同数の場合はColor定義順=red,purple,green,white,yellow,blueの先頭を採用。
+            // フィールドが空のプレイヤーは指定なし。プレイヤー選択の決定的簡略化）
+            const colorOrder: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            const pickChosenColor = (pid: PlayerId): Color | null => {
+                const spirits = state.players[pid].field.spirits
+                if (spirits.length === 0) return null
+                const counts = new Map<Color, number>()
+                for (const s of spirits) {
+                    const c = getCard(s.cardId).color
+                    counts.set(c, (counts.get(c) ?? 0) + 1)
+                }
+                let best: Color | null = null
+                let bestCount = 0
+                for (const c of colorOrder) {
+                    const n = counts.get(c) ?? 0
+                    if (n > bestCount) {
+                        bestCount = n
+                        best = c
+                    }
+                }
+                return best
+            }
+            const chosenP1 = pickChosenColor("p1")
+            const chosenP2 = pickChosenColor("p2")
+            const safeColors = new Set([chosenP1, chosenP2].filter((c): c is Color => c !== null))
+            log(
+                state,
+                `${sourceName}：指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
+                    `いずれでもない色のスピリットを破壊する。`,
+            )
+            // 相手フィールドは既存の免疫（isImmuneToArea）・装甲チェックを適用、自分フィールドは適用しない
+            // （destroyExhaustedのanySideと同じ非対称ルール＝自分の効果は自分のスピリットには免疫が働かない）
+            const oppTargets = state.players[opp].field.spirits.filter(
+                (s) => !safeColors.has(getCard(s.cardId).color) && !isImmuneToArea(s) && !hasArmorAgainst(s, srcColor),
+            )
+            const ownTargets = state.players[owner].field.spirits.filter(
+                (s) => !safeColors.has(getCard(s.cardId).color),
+            )
+            for (const t of oppTargets) destroySpirit(state, opp, t.instanceId)
+            for (const t of ownTargets) destroySpirit(state, owner, t.instanceId)
+            return
+        }
+
         case "grantBlockerImmunity": {
             // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
             const mine = state.players[owner].field.spirits
@@ -902,6 +966,36 @@ export function resolveAction(
                     return
                 }
                 destroySpirit(state, found.pid, found.inst.instanceId)
+                return
+            }
+            if (action.anySide) {
+                // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
+                // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、
+                // 自分側には適用しない＝pickEnemyByBpと同じ非対称ルール。同値の場合は相手側を優先する）
+                const oppCandidate = pickEnemyByBp(state, opp, Infinity, (s) => s.isRested, srcColor)
+                const ownCandidates = state.players[owner].field.spirits.filter((s) => s.isRested)
+                const ownCandidate =
+                    ownCandidates.length > 0
+                        ? ownCandidates.reduce((best, s) =>
+                              effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                          )
+                        : null
+                let target: { pid: PlayerId; inst: CardInstance } | null = null
+                if (oppCandidate && ownCandidate) {
+                    target =
+                        effectiveBp(state, owner, ownCandidate) > effectiveBp(state, opp, oppCandidate)
+                            ? { pid: owner, inst: ownCandidate }
+                            : { pid: opp, inst: oppCandidate }
+                } else if (oppCandidate) {
+                    target = { pid: opp, inst: oppCandidate }
+                } else if (ownCandidate) {
+                    target = { pid: owner, inst: ownCandidate }
+                }
+                if (!target) {
+                    log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
+                    return
+                }
+                destroySpirit(state, target.pid, target.inst.instanceId)
                 return
             }
             // 未指定時は相手フィールドの疲労状態スピリットからBP最大をcount回自動選択
@@ -1681,6 +1775,7 @@ export function fireTrigger(
     selfInstance: CardInstance,
     event: TriggerEvent,
     battleRole?: "attacker" | "blocker",
+    targetInstanceId?: string,
 ): void {
     const card = getCard(selfInstance.cardId)
     const level = currentLevel(selfInstance).level
@@ -1689,7 +1784,7 @@ export function fireTrigger(
         if (effect.trigger !== event) continue
         if (!effectActiveAtLevel(effect.levels, level)) continue
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) continue
-        resolveAction(state, owner, selfInstance, effect.action)
+        resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
     }
 }
 

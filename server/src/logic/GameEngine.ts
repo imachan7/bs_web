@@ -368,6 +368,18 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
         state.battle = null
         return null
     }
+    // 攻撃側の「ブロックされたとき」誘発（バット・バット、暗黒将軍ブラッディ・シーザー）。
+    // self=アタッカー、targetInstanceId=ブロッカー（coreRemoveの対象に使う）
+    const attackerPid = opponentOf(pid)
+    const attackerInstanceId = state.battle?.attackerInstanceId
+    const attacker = attackerInstanceId
+        ? findSpirit(state.players[attackerPid], attackerInstanceId)
+        : undefined
+    if (attacker) fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId)
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // ブロック宣言後は即解決せず、フラッシュを再オープンする
     // （公式ルール: フラッシュは非ターンプレイヤー＝防御側から優先権を持つ）
     state.isFlashTiming = true

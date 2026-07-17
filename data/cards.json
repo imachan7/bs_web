@@ -6500,7 +6500,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2\n自分か相手のフィールドにあるネクサスが破壊されたとき、破壊されたネクサス1つにつき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-009-e1",
+    "kind": "fieldEvent",
+    "event": "anyNexusDestroyed",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-010",
@@ -6654,6 +6667,19 @@
      "amount": 4000
     },
     "optional": false
+   },
+   {
+    "id": "BS02-012-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAllExceptChosenColors"
+    },
+    "optional": false
    }
   ]
  },
@@ -6686,7 +6712,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\nこのスピリットは、相手がブロック宣言したとき、ブロックしたスピリット上のコア1個を相手のリザーブに置くことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-013-e1",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-014",
@@ -7229,7 +7269,36 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットは、相手がブロック宣言したとき、ブロックしたスピリット上のコア2個までを相手のリザーブに置くことができる。\nLv2『このスピリットのアタック時』\n自分か相手の疲労状態のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-024-e1",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 2
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-024-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "anySide": true
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-025",
@@ -10538,7 +10607,21 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1『このスピリットの召喚時』\nLv2スピリットすべてを疲労させる。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドから、破壊された相手のスピリット上に置かれていたコア1個につき、コア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-X06-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "exhaustAllByLevel",
+     "level": 2
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-X07",
