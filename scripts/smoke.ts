@@ -6,6 +6,7 @@ import "./smoke/part3"
 import "./smoke/part4"
 import "./smoke/part5"
 import "./smoke/part6"
+import "./smoke/part7"
 import { summary } from "./smoke/helpers"
 
 summary()

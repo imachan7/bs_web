@@ -6184,7 +6184,18 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\n自分のフィールドにスピリットが2体以下しかいない間、このスピリットはLv3として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-002-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": 3,
+    "condition": {
+     "maxOwnSpirits": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-003",
@@ -9576,7 +9587,22 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv3『お互いのスタートステップ』\nステップ開始時、自分のリザーブのコア1個をボイドに置くことで、このターンの間、相手のネクサスすべてはLv1として扱うことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-073-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "both",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "levelOverrideOpponentNexuses",
+     "level": 1,
+     "costReserveToVoid": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-074",
@@ -10104,7 +10130,29 @@
   "rarity": "R",
   "limited": true,
   "effect": "Lv1･Lv2\n自分の手札にあるネクサスカードすべてに、軽減シンボル[黄][黄]を与える。\nLv2\n自分のネクサスすべてをLv2として扱うことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-085-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "nexus",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ]
+   },
+   {
+    "id": "BS02-085-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownNexusesAll",
+    "treatAs": 2,
+    "sourceMinLevel": 2
+   }
+  ]
  },
  {
   "cardId": "BS02-086",

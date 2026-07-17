@@ -2,7 +2,7 @@
 import type { GameState } from "../type"
 import { FIRST_TURN_DRAW } from "../../../data/constants"
 import { draw, log } from "./GameState"
-import { fireStepTriggers } from "./EffectModules"
+import { fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める
 export function runTurnStart(state: GameState): void {
@@ -51,6 +51,10 @@ export function runTurnStart(state: GameState): void {
     state.flashCount = 0
     fireStepTriggers(state, "main")
     if (state.winner) return
+
+    // 継続的なレベル置換（levelAs）をターン開始処理の最後に再計算する
+    // （ジャグリーンのスピリット数条件・トパーズの流星のsourceMinLevelなど）
+    refreshLevelAsOverrides(state)
 }
 
 // メインステップ → アタックステップ
@@ -74,6 +78,16 @@ export function endTurn(state: GameState): void {
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             inst.tempKeywords = []
+        }
+    }
+    // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット
+    // （スピリット・ネクサス両方が対象になりうる。皇帝アンプルールは相手のネクサスに設定する）
+    for (const pid of ["p1", "p2"] as const) {
+        for (const inst of [
+            ...state.players[pid].field.spirits,
+            ...state.players[pid].field.nexuses,
+        ]) {
+            delete inst.levelOverrideThisTurn
         }
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット

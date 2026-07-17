@@ -32,6 +32,7 @@ import {
     log,
     lv1Cores,
     opponentOf,
+    rawLevel,
 } from "./GameState"
 
 // ---- キーワードレジストリ ----
@@ -378,6 +379,51 @@ export function hasGlobalConstraint(
         }
     }
     return false
+}
+
+// 継続的なレベル置換（kind: "levelAs"）を再計算する。
+// 全インスタンスの levelAsContinuous を一旦クリアしてから、両陣営フィールドの levelAs 効果を
+// 走査して条件成立分を再適用する（毎回全消去→再構築でズレを防ぐ）。
+// 発生源自身のレベル判定（sourceMinLevel）は rawLevel（コア数基準・上書き無視）で行い、
+// currentLevel の再帰・自己参照を避ける。
+// 呼び出し箇所: GameEngine.handleAction の事後フック／ターン開始処理の最後／ゲーム生成直後
+export function refreshLevelAsOverrides(state: GameState): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of [
+            ...state.players[pid].field.spirits,
+            ...state.players[pid].field.nexuses,
+        ]) {
+            delete inst.levelAsContinuous
+        }
+    }
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        const sources = [...player.field.spirits, ...player.field.nexuses]
+        for (const source of sources) {
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "levelAs") continue
+                if (
+                    effect.sourceMinLevel !== undefined &&
+                    rawLevel(source) < effect.sourceMinLevel
+                ) {
+                    continue
+                }
+                if (
+                    effect.condition?.maxOwnSpirits !== undefined &&
+                    player.field.spirits.length > effect.condition.maxOwnSpirits
+                ) {
+                    continue
+                }
+                if (effect.target === "self") {
+                    source.levelAsContinuous = effect.treatAs
+                } else if (effect.target === "ownNexusesAll") {
+                    for (const nexus of player.field.nexuses) {
+                        nexus.levelAsContinuous = effect.treatAs
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ---- スピリット／ネクサスの除去 ----
@@ -2030,6 +2076,33 @@ export function resolveAction(
             log(
                 state,
                 `${sourceName}：${oppPlayer.name}のネクサス上のコア合計${total}個をトラッシュに置いた。`,
+            )
+            return
+        }
+
+        case "levelOverrideOpponentNexuses": {
+            // 皇帝アンプルール：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
+            // 足りればその数のコアをリザーブからボイドへ送ってから、相手の全ネクサスの
+            // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
+            if (action.costReserveToVoid !== undefined) {
+                const player = state.players[owner]
+                if (player.reserve < action.costReserveToVoid) {
+                    log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
+                    return
+                }
+                player.reserve -= action.costReserveToVoid
+                log(
+                    state,
+                    `${player.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
+                )
+            }
+            const oppPlayer = state.players[opp]
+            for (const nexus of oppPlayer.field.nexuses) {
+                nexus.levelOverrideThisTurn = action.level
+            }
+            log(
+                state,
+                `${sourceName}：${oppPlayer.name}のネクサスすべてを、このターンの間Lv${action.level}として扱う。`,
             )
             return
         }

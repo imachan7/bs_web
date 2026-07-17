@@ -25,7 +25,7 @@ import {
 // CommonJS の循環require（関数宣言はホイストされ、モジュール読み込み完了時点で exports に
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
-import { fireFieldEventTriggers } from "./EffectModules"
+import { fireFieldEventTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ---- カードマスターデータの読み込み ----
 
@@ -151,7 +151,7 @@ export function createGame(
     names: Record<PlayerId, string>,
     decks: Record<PlayerId, DeckSpec>,
 ): GameState {
-    return {
+    const state: GameState = {
         gameId,
         turn: 1,
         turnPlayer: "p1",
@@ -169,6 +169,9 @@ export function createGame(
         endAttackStepAfterBattle: false,
         turnConstraints: [],
     }
+    // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
+    refreshLevelAsOverrides(state)
+    return state
 }
 
 // ---- 状態更新のヘルパー ----
@@ -213,9 +216,32 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
     fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew")
 }
 
-// 現在のコア数からレベルとBPを求める（レベル未満なら level: 0）
+// コア数のみによる素のレベル判定（levelAsContinuous / levelOverrideThisTurn による上書きは無視する）。
+// レベル置換効果（kind: "levelAs"）が自分自身の発動条件（sourceMinLevel）を判定する際など、
+// currentLevel の再帰・自己参照を避けたい箇所で使う
+export function rawLevel(inst: CardInstance): number {
+    const master = getCard(inst.cardId)
+    let level = 0
+    for (const lv of master.levels) {
+        if (inst.cores >= lv.cores && lv.level > level) level = lv.level
+    }
+    return level
+}
+
+// 現在のコア数からレベルとBPを求める（レベル未満なら level: 0）。
+// levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
+// （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
+// 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
+// （該当レベルがカードに無ければ通常計算にフォールバック）
 export function currentLevel(inst: CardInstance): { level: number; bp: number } {
     const master = getCard(inst.cardId)
+    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
+    if (override !== undefined) {
+        const lv = master.levels.find((l) => l.level === override)
+        if (lv) {
+            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
+        }
+    }
     let result = { level: 0, bp: 0 }
     for (const lv of master.levels) {
         if (inst.cores >= lv.cores && lv.level > result.level) {

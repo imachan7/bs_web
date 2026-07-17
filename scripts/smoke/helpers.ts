@@ -3,6 +3,7 @@
 import {
     createGame,
     createInstance,
+    currentLevel,
     draw,
     getCard,
     lv1Cores,
@@ -20,7 +21,15 @@ function runTurnStart(s: GameState): void {
     s.turn = 3
 }
 import { handleAction } from "../../server/src/logic/GameEngine"
-import { destroySpirit, effectiveBp, hasKeyword, resolveAction, spiritHasKeyword } from "../../server/src/logic/EffectModules"
+import {
+    destroySpirit,
+    effectiveBp,
+    fireStepTriggers,
+    hasKeyword,
+    refreshLevelAsOverrides,
+    resolveAction,
+    spiritHasKeyword,
+} from "../../server/src/logic/EffectModules"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
 import type { GameAction, GameState, PlayerId } from "../../server/src/type"
 import { DECK_RECIPES, DECK_SIZE } from "../../data/constants"
@@ -81,6 +90,7 @@ export function summary(): void {
 export {
     createGame,
     createInstance,
+    currentLevel,
     draw,
     getCard,
     lv1Cores,
@@ -90,7 +100,9 @@ export {
     handleAction,
     destroySpirit,
     effectiveBp,
+    fireStepTriggers,
     hasKeyword,
+    refreshLevelAsOverrides,
     resolveAction,
     spiritHasKeyword,
     effectiveCost,

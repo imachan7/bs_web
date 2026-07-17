@@ -30,8 +30,19 @@ export function master(cardId: string): CardData {
 
 // ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
 
+// levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
+// （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
+// 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
+// （該当レベルがカードに無ければ通常計算にフォールバック。サーバーのcurrentLevelと同じロジック）
 export function levelOf(inst: CardInstance): { level: number; bp: number } {
     const m = master(inst.cardId)
+    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
+    if (override !== undefined) {
+        const lv = m.levels.find((l) => l.level === override)
+        if (lv) {
+            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
+        }
+    }
     let result = { level: 0, bp: 0 }
     for (const lv of m.levels) {
         if (inst.cores >= lv.cores && lv.level > result.level) {

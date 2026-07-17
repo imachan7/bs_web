@@ -20,6 +20,7 @@ import {
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
+    refreshLevelAsOverrides,
     resolveAction,
     resolveMagic,
 } from "./EffectModules"
@@ -50,6 +51,9 @@ export function handleAction(
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
     forceEndTurnIfFlagged(state)
+    // 継続的なレベル置換（levelAs）をアクション実行の事後フックとして再計算する
+    // （召喚・破壊等でフィールドのスピリット数が変わるたびにジャグリーンの条件を反映するため）
+    if (!state.winner) refreshLevelAsOverrides(state)
     return result
 }
 
