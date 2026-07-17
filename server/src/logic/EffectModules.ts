@@ -164,6 +164,12 @@ function countAuraCounter(
     if (counter === "ownExhausted") {
         return state.players[sourcePid].field.spirits.filter((s) => s.isRested).length
     }
+    // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
+    if ("ownNameIncludes" in counter) {
+        return state.players[sourcePid].field.spirits.filter((s) =>
+            getCard(s.cardId).name.includes(counter.ownNameIncludes),
+        ).length
+    }
     // { ownFamily: string }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む）
     return state.players[sourcePid].field.spirits.filter((s) =>
         spiritHasFamily(state, sourcePid, s, counter.ownFamily),
@@ -202,6 +208,12 @@ function auraAppliesTo(
     targetOwnerPid: PlayerId,
     targetInst: CardInstance,
 ): boolean {
+    // phaseTurn は target を問わず適用する（アルカナプリンス・オベロ：target:"self" での使用）
+    if (aura.phaseTurn) {
+        if (state.phase !== aura.phaseTurn.phase) return false
+        if (aura.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) return false
+        if (aura.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) return false
+    }
     if (aura.target === "self") {
         return sourceInst.instanceId === targetInst.instanceId
     }
@@ -240,11 +252,6 @@ function auraAppliesTo(
         !spiritHasFamily(state, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
         return false
-    }
-    if (aura.phaseTurn) {
-        if (state.phase !== aura.phaseTurn.phase) return false
-        if (aura.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) return false
-        if (aura.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) return false
     }
     return true
 }
@@ -684,6 +691,43 @@ function findSpiritAny(
     return null
 }
 
+// 騎獣スレイプホース：マジックによるBPバフ（bpBuff/bpBuffPer）が対象に適用された直後にフックし、
+// 条件を満たせばさらに magicBuffBonus 分のBP+を追加する。
+// 効果文の『このスピリットのアタック時』／『自分のアタックステップ』条件は「バトル中または
+// 自分のアタックステップ」で近似する簡略化とし、判定は state.phase === "attack" のみとする。
+function applyMagicBuffBonus(
+    state: GameState,
+    target: CardInstance,
+    srcType?: "spirit" | "nexus" | "magic",
+    srcColor?: Color,
+): void {
+    if (srcType !== "magic") return
+    if (state.phase !== "attack") return
+    const found = findSpiritAny(state, target.instanceId)
+    if (!found) return
+    const targetOwner = found.pid
+    const targetColor = getCard(target.cardId).color
+    for (const source of state.players[targetOwner].field.spirits) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicBuffBonus") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.colorFilter && srcColor !== effect.colorFilter) continue
+            if (effect.target === "self") {
+                if (source.instanceId !== target.instanceId) continue
+            } else {
+                // ownOthers：発生源以外の、持ち主の緑スピリットが対象のときのみ
+                if (source.instanceId === target.instanceId) continue
+                if (targetColor !== "green") continue
+            }
+            target.tempBpBuff += effect.amountBonus
+            log(
+                state,
+                `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（ターン終了時まで）。`,
+            )
+        }
+    }
+}
+
 // bpBuff / bpBuffPer 共通の対象選択：
 // 対象指定があれば両プレイヤーから検索、なければバトル中の自分スピリット優先、
 // いなければ自分フィールドの先頭スピリット
@@ -753,6 +797,7 @@ function countDrawPerCounter(
     if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
     if (counter === "opponentHand") return state.players[opp].hand.length
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
+    if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
     return state.players[owner].field.spirits.filter((s) =>
@@ -1145,6 +1190,7 @@ export function resolveAction(
                 state,
                 `${getCard(target.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
             )
+            applyMagicBuffBonus(state, target, srcType, srcColor)
             return
         }
 
@@ -1312,6 +1358,7 @@ export function resolveAction(
                 state,
                 `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
             )
+            applyMagicBuffBonus(state, target, srcType, srcColor)
             return
         }
 
@@ -1825,15 +1872,40 @@ export function resolveAction(
         case "deckReveal": {
             // スワロウアイヴィー：自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の
             // 1枚（省略時は先頭）を手札に加える。残りは元の順で山札の下に戻す。
+            // 大天使ミカファール：countPer指定時は自分の指定色スピリット/ネクサス合計数ぶん公開し、
+            // pickAllOfType指定時は一致するカードすべてを手札に加える。
             // 簡略化: 本来はプレイヤーが選ぶ／戻す順を選ぶ処理を、決定的な自動選択で代替する。
             const player = state.players[owner]
-            const revealed = player.deck.splice(0, action.count)
+            const count = action.countPer
+                ? [...player.field.spirits, ...player.field.nexuses].filter(
+                      (s) => getCard(s.cardId).color === action.countPer!.ownColorTotal,
+                  ).length
+                : action.count ?? 0
+            const revealed = player.deck.splice(0, count)
             if (revealed.length === 0) {
                 log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
                 return
             }
             const revealedCount = revealed.length
             const revealedNames = revealed.map((id) => getCard(id).name).join("、")
+            if (action.pickAllOfType) {
+                const picked = revealed.filter((id) => getCard(id).type === action.pickAllOfType)
+                const remaining = revealed.filter((id) => getCard(id).type !== action.pickAllOfType)
+                if (picked.length === 0) {
+                    log(
+                        state,
+                        `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開したが、一致するカードがなかった。`,
+                    )
+                } else {
+                    for (const id of picked) player.hand.push(id)
+                    log(
+                        state,
+                        `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開し、${picked.map((id) => getCard(id).name).join("、")}を手札に加えた。`,
+                    )
+                }
+                for (const id of remaining) player.deck.push(id)
+                return
+            }
             const pickIndex = revealed.findIndex(
                 (id) =>
                     action.pickType === undefined ||

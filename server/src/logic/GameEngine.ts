@@ -533,6 +533,9 @@ function resolveBattle(state: GameState): void {
         return
     }
 
+    // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGainPer counter "lastBattleDestroyedCores"）
+    state.lastBattleDestroyedCores = 0
+
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColor = getCard(attacker.cardId).color
     const skipRest = activeConstraints(state, defenderPid, blocker).some(
@@ -548,6 +551,8 @@ function resolveBattle(state: GameState): void {
     )
 
     if (attackerBp > blockerBp) {
+        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
+        state.lastBattleDestroyedCores = blocker.cores
         destroySpirit(state, defenderPid, blocker.instanceId)
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")

@@ -168,6 +168,7 @@ export function createGame(
         winner: null,
         endAttackStepAfterBattle: false,
         turnConstraints: [],
+        lastBattleDestroyedCores: 0,
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)

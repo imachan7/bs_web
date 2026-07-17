@@ -72,6 +72,11 @@ function countAuraCounter(view: GameView, sourcePid: PlayerId, counter: AuraCoun
     if (counter === "ownExhausted") {
         return view.players[sourcePid].field.spirits.filter((s) => s.isRested).length
     }
+    if ("ownNameIncludes" in counter) {
+        return view.players[sourcePid].field.spirits.filter((s) =>
+            master(s.cardId).name.includes(counter.ownNameIncludes),
+        ).length
+    }
     return view.players[sourcePid].field.spirits.filter((s) =>
         spiritHasFamilyView(view, sourcePid, s, counter.ownFamily),
     ).length
@@ -106,6 +111,12 @@ function auraAppliesTo(
     targetOwnerPid: PlayerId,
     targetInst: CardInstance,
 ): boolean {
+    // phaseTurn は target を問わず適用する（アルカナプリンス・オベロ：target:"self" での使用）
+    if (aura.phaseTurn) {
+        if (view.phase !== aura.phaseTurn.phase) return false
+        if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
+        if (aura.phaseTurn.turn === "opponent" && sourcePid === view.turnPlayer) return false
+    }
     if (aura.target === "self") {
         return sourceInst.instanceId === targetInst.instanceId
     }
@@ -143,11 +154,6 @@ function auraAppliesTo(
         !spiritHasFamilyView(view, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
         return false
-    }
-    if (aura.phaseTurn) {
-        if (view.phase !== aura.phaseTurn.phase) return false
-        if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
-        if (aura.phaseTurn.turn === "opponent" && sourcePid === view.turnPlayer) return false
     }
     return true
 }

@@ -7763,7 +7763,30 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットを対象としたBPを+する緑のマジックの効果が使用されたとき、さらにこのスピリットをBP+2000する。\nLv3『自分のアタックステップ』\nこのスピリット以外の、自分の緑のスピリットを対象としたBPを+する緑のマジックの効果が使用されたとき、さらにそのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-033-e1",
+    "kind": "magicBuffBonus",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "self",
+    "colorFilter": "green",
+    "amountBonus": 2000
+   },
+   {
+    "id": "BS02-033-e2",
+    "kind": "magicBuffBonus",
+    "levels": [
+     3
+    ],
+    "target": "ownOthers",
+    "colorFilter": "green",
+    "amountBonus": 2000
+   }
+  ]
  },
  {
   "cardId": "BS02-034",
@@ -9573,7 +9596,29 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nカード名に「アルカナ」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3\nコスト2の自分のスピリットすべては、カード名に「アルカナ」が入っているものとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-070-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amountPer": 1000,
+     "counter": {
+      "ownNameIncludes": "アルカナ"
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-071",
@@ -11253,6 +11298,20 @@
      "level": 2
     },
     "optional": false
+   },
+   {
+    "id": "BS02-X06-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGainPer",
+     "counter": "lastBattleDestroyedCores"
+    },
+    "optional": false
    }
   ]
  },
@@ -11343,6 +11402,24 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の黄のスピリット/ネクサス1つにつき、自分のデッキを上から1枚オープンする。\nその中のマジックカードすべてを手札に加える。\n残ったカードはデッキの下に戻す。\nLv2\n自分の手札/手元にあるマジックカードすべてを、コストを支払わずに使用できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-X08-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deckReveal",
+     "countPer": {
+      "ownColorTotal": "yellow"
+     },
+     "pickAllOfType": "magic"
+    },
+    "optional": false
+   }
+  ]
  }
 ]
