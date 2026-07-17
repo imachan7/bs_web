@@ -115,3 +115,6 @@
 - BS02構造化バッチ5（9枚+部分1）: aura costFilter・unblockableBy costNot・ブロック時不疲労・
   破壊時コア数カウンタ・costMod拡張（相手マジック限定+1等）・immunityGrant（漂精のマジック耐性）・
   deployNexus（手札/トラッシュから無償配置）・サクリファイス専用処理。計77/103枚（smoke 984件全合格）
+- smoke テストを分割: scripts/smoke.ts（約5000行）を scripts/smoke/part1〜6.ts（各900行以下）と
+  helpers.ts（assert/act/QUIET/テスト用runTurnStart/summary＋エンジン関数のre-export）に機械分割し、
+  smoke.ts はランナー化。テスト内容は無変更（分割前後で984件合格が一致）。CLAUDE.md のトークン規律も更新

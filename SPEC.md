@@ -481,6 +481,10 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 | `npm run smoke` | エンジン単体の動作確認（召喚時破壊・アタック時BP+・神速召喚など） |
 | E2E | `PORT=3100 npx tsx server/src/index.ts` 起動後に `PORT=3100 npx tsx scripts/e2e.ts` |
 
+smoke テストの本体は `scripts/smoke/part1〜6.ts` に分割（`scripts/smoke.ts` はランナー、
+共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
+テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
+
 ---
 
 ## 7. 変更履歴
