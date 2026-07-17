@@ -187,6 +187,14 @@ function auraAppliesTo(
     ) {
         return false
     }
+    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
+        return false
+    }
+    if (aura.phaseTurn) {
+        if (state.phase !== aura.phaseTurn.phase) return false
+        if (aura.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) return false
+        if (aura.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) return false
+    }
     return true
 }
 
@@ -1793,6 +1801,92 @@ export function resolveAction(
             fireTrigger(state, owner, target, "onSummon")
             return
         }
+
+        case "recoverMagicFromTrash": {
+            // トラッシュの末尾（新しい方）からマジックカードを探して1枚手札に戻す
+            // （recoverSpiritFromTrashと同じ考え方。本来は好きな1枚を選べるが決定的な自動選択で簡略化）
+            const player = state.players[owner]
+            let idx = -1
+            for (let j = player.trashCards.length - 1; j >= 0; j--) {
+                if (getCard(player.trashCards[j]!).type === "magic") {
+                    idx = j
+                    break
+                }
+            }
+            if (idx === -1) {
+                log(state, `${sourceName}のマジック回収：トラッシュに対象がいなかった。`)
+                return
+            }
+            const cardId = player.trashCards[idx]!
+            player.trashCards.splice(idx, 1)
+            player.hand.push(cardId)
+            log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+            return
+        }
+
+        case "trashCoresToSpirit": {
+            // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。
+            // 対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
+            const player = state.players[owner]
+            const mine = player.field.spirits
+            const target = targetInstanceId
+                ? (mine.find((s) => s.instanceId === targetInstanceId) ?? null)
+                : (self ?? mine[0] ?? null)
+            if (!target) {
+                log(state, `${sourceName}：コアを置く対象がいなかった。`)
+                return
+            }
+            const amount =
+                action.count !== undefined
+                    ? Math.min(action.count, player.trashCores)
+                    : player.trashCores
+            if (amount <= 0) {
+                log(state, `${sourceName}：トラッシュにコアがなかった。`)
+                return
+            }
+            player.trashCores -= amount
+            log(
+                state,
+                `${player.name}はトラッシュのコア${amount}個を${getCard(target.cardId).name}の上に置いた。`,
+            )
+            placeCoresOnSpirit(state, target, amount)
+            return
+        }
+
+        case "grantKeywordAll": {
+            // リフレクションアーマー：自分のスピリット全員（costFilter指定時はコスト一致のみ）に
+            // このターンの間キーワードを付与する（grantKeywordの全体版）
+            const targets = state.players[owner].field.spirits.filter(
+                (s) =>
+                    action.costFilter === undefined ||
+                    getCard(s.cardId).cost === action.costFilter,
+            )
+            if (targets.length === 0) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            for (const t of targets) {
+                t.tempKeywords.push({
+                    keyword: action.keyword,
+                    ...(action.colors ? { colors: action.colors } : {}),
+                })
+            }
+            log(
+                state,
+                `${state.players[owner].name}の${action.costFilter !== undefined ? `コスト${action.costFilter}の` : ""}スピリットすべてに【${KEYWORDS[action.keyword].label}】を付与した。（${targets.length}体）`,
+            )
+            return
+        }
+
+        case "banActByCostThisTurn": {
+            // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可
+            state.turnConstraints.push({ type: "cantActByCost", maxCost: action.maxCost })
+            log(
+                state,
+                `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットはアタックとブロックができない。`,
+            )
+            return
+        }
     }
 }
 
@@ -1952,5 +2046,10 @@ export function resolveMagic(
         if (effect.kind !== "magic" || effect.timing !== timing) continue
         // self が null（マジック）のため、装甲判定用のカード色を明示的に渡す
         resolveAction(state, owner, null, effect.action, targetInstanceId, card.color)
+    }
+    // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
+    // （opponentDrewの実装を踏襲。緑芽吹く原野）
+    if (!state.winner) {
+        fireFieldEventTriggers(state, owner, "ownMagicUsed")
     }
 }

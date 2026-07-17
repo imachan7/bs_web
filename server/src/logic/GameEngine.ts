@@ -430,6 +430,11 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         // ライフ0で敗北が決まった場合は発火しない
         fireFieldEventTriggers(state, pid, "ownLifeDamaged")
     }
+    // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
+    // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
+    if (dealt > 0 && attacker) {
+        fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+    }
 
     clearBattle(state)
     return null

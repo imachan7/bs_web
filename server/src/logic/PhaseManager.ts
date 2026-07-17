@@ -78,6 +78,8 @@ export function endTurn(state: GameState): void {
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
     state.endAttackStepAfterBattle = false
+    // このターン限りの全体制約（ヘビィゲート）もリセット
+    state.turnConstraints = []
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

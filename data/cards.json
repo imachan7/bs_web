@@ -7431,7 +7431,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\n相手の回復状態のスピリット1体につき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-027-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "readyEnemies",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-028",
@@ -7720,7 +7735,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある緑のスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-034-e1",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-035",
@@ -8106,7 +8135,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『相手のアタックステップ』\n自分の白のスピリットすべてをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-043-e1",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-044",
@@ -8695,7 +8742,22 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2･Lv3『相手のアタックステップ』\nステップ開始時、自分のトラッシュから、コア2個をこのスピリット上に置くことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-057-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "trashCoresToSpirit",
+     "count": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-058",
@@ -9362,7 +9424,21 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるマジックカード1枚を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-072-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "recoverMagicFromTrash"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-073",
@@ -9702,7 +9778,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nコアが3個以上置かれている自分のスピリットすべてをBP+1000する。\nLv2『お互いのアタックステップ』\nコアが3個以上置かれている自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、ボイドから、コア1個をこのネクサス上に置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-080-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "minCores": 3,
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-081",
@@ -10235,7 +10330,16 @@
   "rarity": "",
   "limited": true,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、自分のスピリット1体に置く。\nこの効果は、メインステップで使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-097-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "trashCoresToSpirit"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-098",
@@ -10286,7 +10390,18 @@
   "rarity": "R",
   "limited": true,
   "effect": "フラッシュ：\n自分のスピリット1体を破壊する。\nボイドから、破壊したスピリットのコスト1につき、コア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-099-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroyOwnByCost",
+     "maxCost": 99,
+     "gainCoresEqualCost": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-100",
@@ -10340,7 +10455,24 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のコスト2のスピリットすべてに“【装甲：赤/紫/緑/青】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-101-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantKeywordAll",
+     "keyword": "armor",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "blue"
+     ],
+     "costFilter": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-102",
@@ -10581,7 +10713,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、コスト1以下のスピリットすべては、アタックとブロックができない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-110-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "banActByCostThisTurn",
+     "maxCost": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-111",

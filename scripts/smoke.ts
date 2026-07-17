@@ -4436,6 +4436,266 @@ console.log("=== BS02-102 ホワイトポーション：フラッシュで自分
     assert(!rested.isRested, "疲労していた自分のスピリットが回復する")
 }
 
+console.log("=== BS02-027 カプリホルン：アタック時、相手の回復状態スピリット数×1000でBP+ ===")
+{
+    const s = createGame(
+        "bs02-caprihorn-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const caprihorn = createInstance("BS02-027", s.turn, 3) // Lv2 BP3000
+    s.players.p1.field.spirits.push(caprihorn)
+    const ready1 = createInstance("BS01-001", s.turn, 1)
+    const ready2 = createInstance("BS01-002", s.turn, 1)
+    const rested = createInstance("BS01-003", s.turn, 1)
+    rested.isRested = true
+    s.players.p2.field.spirits.push(ready1, ready2, rested)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: caprihorn.instanceId }) === null,
+        "カプリホルンでアタック",
+    )
+    assert(
+        effectiveBp(s, "p1", caprihorn) === 3000 + 2 * 1000,
+        "相手の回復状態スピリット2体ぶんBP+2000（3000+2000=5000）",
+    )
+}
+
+console.log("=== BS02-099 ライフチェイン：フラッシュで自分のコスト最大スピリットを破壊しコスト分コア獲得 ===")
+{
+    const s = createGame(
+        "bs02-lifechain-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const low = createInstance("BS01-001", s.turn, 1) // ゴラドン cost0
+    const high = createInstance("BS01-004", s.turn, 1) // ドラグノ偵察兵 cost2
+    s.players.p1.field.spirits.push(low, high)
+    s.players.p1.hand[0] = "BS02-099"
+    s.players.p1.reserve = 10
+    const reserveBefore = s.players.p1.reserve
+    const cost = effectiveCost(s, "p1", getCard("BS02-099"))
+    const highCores = high.cores // 破壊時にスピリット自身のコアもリザーブへ戻る
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ライフチェインを使用")
+    assert(!s.players.p1.field.spirits.includes(high), "コスト最大のドラグノ偵察兵が破壊される")
+    assert(s.players.p1.field.spirits.includes(low), "コストの低いゴラドンは残る")
+    assert(
+        s.players.p1.reserve === reserveBefore - cost + highCores + 2,
+        "コスト支払い後、破壊されたスピリット自身のコアが戻り、さらにコスト(2)ぶんコアを獲得する",
+    )
+}
+
+console.log("=== BS02-072 トリックスター：召喚時、トラッシュのマジックを手札に戻す（スピリットは戻らない） ===")
+{
+    const s = createGame(
+        "bs02-trickster-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.trashCards.push("BS01-001", "BS02-102") // スピリット、マジックの順でトラッシュに積む
+    s.players.p1.hand[0] = "BS02-072"
+    s.players.p1.reserve = 10
+    const handBefore = s.players.p1.hand.length
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "トリックスターを召喚")
+    assert(
+        s.players.p1.hand.includes("BS02-102"),
+        "トラッシュのマジック（ホワイトポーション）が手札に戻る",
+    )
+    assert(s.players.p1.trashCards.includes("BS01-001"), "トラッシュのスピリット（ゴラドン）は残る")
+    assert(s.players.p1.hand.length === handBefore, "召喚(-1)と回収(+1)で手札枚数は変わらない")
+}
+
+console.log("=== BS02-057 妖精女王ティ・ターニャ / BS02-097 ネイチャーフォース：トラッシュのコアをスピリットへ ===")
+{
+    console.log("--- ティ・ターニャ：相手のアタックステップ開始時、トラッシュのコア2個を自身に置く ---")
+    const s = createGame(
+        "bs02-tityanya-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const tityanya = createInstance("BS02-057", s.turn, 2) // Lv2
+    s.players.p1.field.spirits.push(tityanya)
+    s.players.p1.trashCores = 5
+    assert(
+        act(s, "p1", { type: "nextPhase" }) === null,
+        "p1がアタックステップへ移行（自分のターンでは発火しない）",
+    )
+    assert(tityanya.cores === 2, "p1自身のアタックステップでは発火せずコアは変わらない")
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了、p2のターンへ")
+    assert(
+        act(s, "p2", { type: "nextPhase" }) === null,
+        "p2がアタックステップへ移行（相手のアタックステップとして発火）",
+    )
+    assert(tityanya.cores === 4, "トラッシュからコア2個が自身に置かれる（2→4）")
+    assert(s.players.p1.trashCores === 3, "トラッシュのコアが2個減る（5→3）")
+
+    console.log("--- ネイチャーフォース：フラッシュで自分のトラッシュのコアすべてを対象スピリットへ ---")
+    const s2 = createGame(
+        "bs02-natureforce-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s2)
+    const target = createInstance("BS01-001", s2.turn, 1)
+    s2.players.p1.field.spirits.push(target)
+    s2.players.p1.trashCores = 4
+    s2.players.p1.hand[0] = "BS02-097"
+    s2.players.p1.reserve = 10
+    const cost2 = effectiveCost(s2, "p1", getCard("BS02-097"))
+    // 使用コストの支払いぶんも支払い直後にトラッシュコアへ加算されるため、効果発動時点では
+    // 4 + cost2 個のトラッシュコアが対象になる（コスト支払い→効果解決の順で処理されるため）
+    assert(
+        act(s2, "p1", {
+            type: "castMagic",
+            handIndex: 0,
+            targetInstanceId: target.instanceId,
+        }) === null,
+        "ネイチャーフォースを使用",
+    )
+    assert(
+        target.cores === 1 + 4 + cost2,
+        "トラッシュのコア（初期4個＋コスト支払い分）すべてが対象スピリットに置かれる",
+    )
+    assert(s2.players.p1.trashCores === 0, "トラッシュのコアが0になる")
+}
+
+console.log("=== BS02-101 リフレクションアーマー：コスト2の自分スピリット全員に装甲付与（コスト2以外は対象外） ===")
+{
+    const s = createGame(
+        "bs02-reflectionarmor-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "white", p2: "red" },
+    )
+    runTurnStart(s)
+    const cost2a = createInstance("BS01-004", s.turn, 1) // ドラグノ偵察兵 cost2 BP2000
+    const cost2b = createInstance("BS01-003", s.turn, 1) // テラノセイバー cost2 BP4000
+    const cost0 = createInstance("BS01-001", s.turn, 1) // ゴラドン cost0 BP1000
+    s.players.p1.field.spirits.push(cost2a, cost2b, cost0)
+    s.players.p1.hand[0] = "BS02-101"
+    s.players.p1.reserve = 10
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "リフレクションアーマーを使用")
+    // p2からの赤ソースの破壊効果（フレイムダンス相当）を直接シミュレート
+    resolveAction(s, "p2", null, { type: "destroy", maxBp: 4000, count: 1 }, undefined, "red")
+    assert(s.players.p1.field.spirits.includes(cost2a), "コスト2のドラグノ偵察兵は装甲で赤の破壊効果を防ぐ")
+    assert(s.players.p1.field.spirits.includes(cost2b), "コスト2のテラノセイバーも装甲で赤の破壊効果を防ぐ")
+    assert(!s.players.p1.field.spirits.includes(cost0), "コスト2以外のゴラドンは装甲が付与されず破壊される")
+}
+
+console.log("=== BS02-043 アルマ・ジール：相手のアタックステップ中のみ白スピリット+1000 ===")
+{
+    const s = createGame(
+        "bs02-almazeal-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "white", p2: "red" },
+    )
+    runTurnStart(s)
+    const almazeal = createInstance("BS02-043", s.turn, 3) // Lv2
+    s.players.p1.field.spirits.push(almazeal)
+    const whiteSpirit = createInstance("BS01-074", s.turn, 1) // 白スピリット
+    s.players.p1.field.spirits.push(whiteSpirit)
+    const baseBp = effectiveBp(s, "p1", whiteSpirit)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1（自分）のアタックステップへ移行")
+    assert(
+        effectiveBp(s, "p1", whiteSpirit) === baseBp,
+        "自分のターンのアタックステップではBP+されない（+0）",
+    )
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了、p2のターンへ")
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2がアタックステップへ移行")
+    assert(
+        effectiveBp(s, "p1", whiteSpirit) === baseBp + 1000,
+        "相手（p2）のアタックステップ中は白スピリット+1000",
+    )
+}
+
+console.log("=== BS02-110 ヘビィゲート：コスト1以下のスピリットはこのターンアタック/ブロック不可、ターン終了で解除 ===")
+{
+    const s = createGame(
+        "bs02-heavygate-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const cheap = createInstance("BS01-001", s.turn, 1) // ゴラドン cost0（自分の場）
+    s.players.p1.field.spirits.push(cheap)
+    const attacker2 = createInstance("BS01-004", s.turn, 1) // ドラグノ偵察兵 cost2（アタック要員、バトル成立用）
+    s.players.p1.field.spirits.push(attacker2)
+    const blocker = createInstance("BS01-001", s.turn, 1) // 相手側の同cost0（ブロック検証用）
+    s.players.p2.field.spirits.push(blocker)
+    s.players.p1.hand[0] = "BS02-110"
+    s.players.p1.reserve = 10
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ヘビィゲートを使用")
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1がアタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: cheap.instanceId }) !== null,
+        "コスト0のcheapはこのターンアタックできない",
+    )
+    assert(
+        act(s, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null,
+        "コスト2のattacker2はアタックできる",
+    )
+    assert(
+        act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
+        "コスト0のblockerはこのターンブロックできない",
+    )
+    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受ける")
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2がアタックステップへ移行")
+    assert(
+        act(s, "p2", { type: "attack", instanceId: blocker.instanceId }) === null,
+        "ターン終了後は制約が解除され、blockerはアタックできる",
+    )
+}
+
+console.log("=== BS02-034 老賢樹トレントン：アタックでライフを減らしたとき、ボイドからコア1個 ===")
+{
+    const s = createGame(
+        "bs02-trenton-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const trenton = createInstance("BS02-034", s.turn, 4) // Lv2
+    s.players.p1.field.spirits.push(trenton)
+    const reserveBefore = s.players.p1.reserve
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: trenton.instanceId }) === null,
+        "老賢樹トレントンでアタック",
+    )
+    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受ける")
+    assert(
+        s.players.p1.reserve === reserveBefore + 1,
+        "ライフを減らしたことでボイドからコア1個を自分のリザーブに置く",
+    )
+}
+
+console.log("=== BS02-080 エメラルドに輝く鍾乳洞：コア3個以上の自分スピリットのみ、自分のアタックステップ中+1000 ===")
+{
+    const s = createGame(
+        "bs02-emerald-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const emerald = createInstance("BS02-080", s.turn, 2) // Lv2
+    s.players.p1.field.nexuses.push(emerald)
+    const heavy = createInstance("BS01-001", s.turn, 3) // コア3個（Lv2 BP3000）
+    const light = createInstance("BS01-002", s.turn, 1) // コア1個
+    s.players.p1.field.spirits.push(heavy, light)
+    const heavyBaseBp = effectiveBp(s, "p1", heavy)
+    const lightBaseBp = effectiveBp(s, "p1", light)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        effectiveBp(s, "p1", heavy) === heavyBaseBp + 1000,
+        "コア3個以上のheavyは自分のアタックステップ中+1000",
+    )
+    assert(effectiveBp(s, "p1", light) === lightBaseBp, "コア1個のlightは対象外のため+0")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

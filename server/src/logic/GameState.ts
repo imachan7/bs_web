@@ -167,6 +167,7 @@ export function createGame(
         log: [],
         winner: null,
         endAttackStepAfterBattle: false,
+        turnConstraints: [],
     }
 }
 
@@ -285,5 +286,6 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         log: state.log.slice(-60),
         winner: state.winner,
         you: viewer,
+        turnConstraints: [...state.turnConstraints],
     }
 }

@@ -89,6 +89,10 @@ export type EffectAction =
     | { type: "destroyAllExceptChosenColors" } // お互い自分フィールドで最多のスピリット色を1色ずつ自動指定し、両陣営のどちらの指定色でもないスピリットをすべて破壊（プレイヤー選択の簡略化）
     | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
     | { type: "refireSummonEffect" } // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）のonSummon効果を再発揮する（タイムリープ）
+    | { type: "recoverMagicFromTrash" } // 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
+    | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
+    | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number } // 自分のスピリット全員（costFilter指定時はコスト一致のみ）に、このターンの間キーワードを付与する（リフレクションアーマー）
+    | { type: "banActByCostThisTurn"; maxCost: number } // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -108,6 +112,7 @@ export type TriggerEvent =
     | "onBlock" // ブロック時
     | "onBlocked" // アタック中の自分スピリットが相手のブロック宣言を受けたとき（self=アタッカー）
     | "onBattleEnd" // バトル終了時（GameEngine.resolveBattleの最後。バトル参加者のうちまだ生存している個体に発火。コリスタル）
+    | "onLifeDealt" // このスピリットのアタックによって相手のライフを減らしたとき（アタッカー側で発火。老賢樹トレントン）
 
 // フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
 // TriggerEvent は「効果の発生源となったスピリット自身に起きたこと」を起点とするが、
@@ -119,6 +124,7 @@ export type FieldEvent =
     | "anySpiritAttacked" // 両陣営どちらかのスピリットがアタックを宣言したとき（self はアタックしたスピリット。魔帝の墓標Lv2）
     | "opponentDrew" // 持ち主から見て相手がデッキからカードをドローしたとき（GameState.draw から発火。シダフクロウ）
     | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンス returnNexusToHand は対象外）
+    | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -156,6 +162,8 @@ export interface AuraDef {
     condition?: AuraCondition // 満たすときのみ amount を適用
     summonedThisTurnOnly?: boolean // ownAll 用: 対象の summonedTurn === state.turn のスピリットのみ（このターン召喚されたスピリットに限定）
     keywordFilter?: Keyword // ownAll 用: 指定キーワード（静的付与・一時付与・keywordGrant すべて含む）を持つスピリットのみ（暴双龍ディラノス）
+    phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // ownAll 用: 指定ステップかつ指定turn条件（own=発生源の持ち主がturnPlayer、opponent=持ち主が非turnPlayer、both=常に）のときのみ有効（アルマ・ジール／エメラルドに輝く鍾乳洞）
+    minCores?: number // ownAll 用: 対象スピリットのコア数がこれ以上のときのみ有効（エメラルドに輝く鍾乳洞）
 }
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
@@ -356,7 +364,12 @@ export interface GameState {
     log: string[]
     winner: PlayerId | null
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
+    turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
 }
+
+// このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
+export type TurnConstraintDef =
+    | { type: "cantActByCost"; maxCost: number } // コストがmaxCost以下のスピリットはすべてアタック/ブロック不可（ヘビィゲート）
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----
 
@@ -388,6 +401,7 @@ export interface GameView {
     log: string[]
     winner: PlayerId | null
     you: PlayerId
+    turnConstraints: TurnConstraintDef[]
 }
 
 // ---- クライアント → サーバーのアクション ----

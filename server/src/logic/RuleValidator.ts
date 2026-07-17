@@ -346,6 +346,10 @@ export function validateAttack(
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
     }
+    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタックできない
+    if (cantActByCost(state, inst)) {
+        return "このターンの間、このスピリットはアタックできません"
+    }
 
     if (targetSpiritInstanceId !== undefined) {
         // 指定アタック：canDirectAttack を持ち、指定した相手スピリットが targetFilter に合うかを検証する
@@ -389,6 +393,10 @@ export function validateBlock(
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはブロックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはブロックできません"
+    }
+    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
+    if (cantActByCost(state, inst)) {
+        return "このターンの間、このスピリットはブロックできません"
     }
 
     const attackerPid = opponentOf(pid)
@@ -443,6 +451,15 @@ export function validateBlock(
     return null
 }
 
+// このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
+// できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
+function cantActByCost(state: GameState, inst: { cardId: string }): boolean {
+    const cost = getCard(inst.cardId).cost
+    return state.turnConstraints.some(
+        (c) => c.type === "cantActByCost" && cost <= c.maxCost,
+    )
+}
+
 // ブロック可能なスピリットがいるか（【激突】等の判定に使用）
 export function hasBlocker(state: GameState, pid: PlayerId): boolean {
     return state.players[pid].field.spirits.some(
@@ -477,6 +494,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
+        // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
+        if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
         // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
         if (constraints.some((c) => c.type === "cantAttack")) continue

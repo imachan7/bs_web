@@ -121,6 +121,14 @@ function auraAppliesTo(
     ) {
         return false
     }
+    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
+        return false
+    }
+    if (aura.phaseTurn) {
+        if (view.phase !== aura.phaseTurn.phase) return false
+        if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
+        if (aura.phaseTurn.turn === "opponent" && sourcePid === view.turnPlayer) return false
+    }
     return true
 }
 
@@ -214,6 +222,15 @@ export function hasGlobalConstraint(
         }
     }
     return false
+}
+
+// このターンの間だけの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか
+// （サーバー cantActByCost と同じロジックの簡易版。ヘビィゲート）
+export function cantActByCost(view: GameView, inst: CardInstance): boolean {
+    const cost = master(inst.cardId).cost
+    return view.turnConstraints.some(
+        (c) => c.type === "cantActByCost" && cost <= c.maxCost,
+    )
 }
 
 // 指定インスタンスが現在レベルで持つ制約定義の一覧（サーバー activeConstraints と同じロジックの簡易版）
@@ -400,7 +417,8 @@ export function magicTargetSide(
         effect.action.type === "bpBuffPer" ||
         effect.action.type === "coreCharge" ||
         effect.action.type === "grantKeyword" ||
-        effect.action.type === "refireSummonEffect"
+        effect.action.type === "refireSummonEffect" ||
+        effect.action.type === "trashCoresToSpirit"
     )
         return "self"
     return null
@@ -756,6 +774,8 @@ function fieldCardEl(
             inst.cores === 1 && hasGlobalConstraint(view, "singleCoreCantAct")
         // このスピリットはアタックできない（カイザレオン大帝Lv1）
         const cantAttack = activeConstraints(inst).some((c) => c.type === "cantAttack")
+        // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
+        const costLocked = cantActByCost(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -766,6 +786,7 @@ function fieldCardEl(
             !inst.cantAttackThisTurn &&
             !singleCoreLocked &&
             !cantAttack &&
+            !costLocked &&
             level >= 1
         ) {
             el.classList.add("clickable", "usable")
@@ -776,6 +797,7 @@ function fieldCardEl(
             !view.battle?.blockerInstanceId &&
             !inst.isRested &&
             !singleCoreLocked &&
+            !costLocked &&
             level >= 1 &&
             (!attacker || canBlockAttacker(view, ownerPid, inst, view.turnPlayer, attacker))
         ) {
