@@ -6580,7 +6580,39 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nお互いのフィールドに、ネクサスが合計3色以上あるとき、お互い、自分のフィールドにあるネクサスの色を1色指定する。\n指定されなかった色のネクサスすべてを破壊する。\nLv3『このスピリットのアタック時』\n相手のフィールドにネクサスが2色以上配置されていて、このスピリットのアタックによって相手のライフを減らしたとき、さらに相手のライフにあるコア1個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-010-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyAllNexusesExceptChosenColors",
+     "minTotalColors": 3
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-010-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "opponentNexusColorsAtLeast": 2
+    },
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-011",
@@ -7989,7 +8021,31 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nこのスピリットはアタックできない。\nLv2『このスピリットの破壊時』\n自分のスピリット1体を指定する。\nこのスピリット上に置かれているコアは、リザーブではなく、指定したスピリット1体の上に置かれる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-038-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "BS02-038-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "destructionCoresToOwnSpirit"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-039",
@@ -8162,7 +8218,19 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のリフレッシュステップ』\nこのスピリットは回復しない。\nLv2･Lv3\nこのスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。\nこのスピリットが疲労状態で自分のフィールドにいる間、指定されたスピリットは回復できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-042-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noRefresh"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-043",
@@ -9239,7 +9307,28 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv2『自分のアタックステップ』\n自分のフィールドに黄のスピリットとネクサスが合計3つ以上あるとき、このターンの間、自分の黄のスピリットをブロックした相手のスピリットすべてはLv1として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-065-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "colorFilter": "yellow",
+    "condition": {
+     "ownColorTotalAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "levelOverrideTarget",
+     "level": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-066",
@@ -9883,6 +9972,20 @@
     "action": {
      "type": "refreshOne",
      "keywordFilter": "awaken"
+    }
+   },
+   {
+    "id": "BS02-077-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "keywordFilter": "awaken",
+     "all": true
     }
    }
   ]

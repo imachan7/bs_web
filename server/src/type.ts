@@ -64,7 +64,7 @@ export type EffectAction =
     | { type: "voidCoreToSelf"; count: number } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op）
     | { type: "voidCoreToSelfPer"; counter: "ownOtherSpirits" } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
     | { type: "discardOpponent"; count: number } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）
-    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ。候補から実効BP最大を自動選択、いなければno-op）
+    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color; all?: boolean } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ。候補から実効BP最大を自動選択、いなければno-op）。all指定時は該当候補すべてを回復し cantAttackThisTurn は付与しない（決闘台地Lv2）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: "readyEnemies"; amountPer: number } // このスピリット自身を「相手フィールドの回復状態スピリット数×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
     | { type: "voidCoreToOther"; count: number } // ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
@@ -97,6 +97,9 @@ export type EffectAction =
     | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
     | { type: "levelOverrideOpponentNexuses"; level: number; costReserveToVoid?: number } // 相手の全ネクサスの levelOverrideThisTurn を level に設定（このターンの間）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから適用する（「できる」の任意発動は自動発動で簡略化。皇帝アンプルール）
     | { type: "summonFromHandFree"; colorFilter?: Color; sameFamilyAsSelf?: boolean } // 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド）
+    | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
+    | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
+    | { type: "levelOverrideTarget"; level: number } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -130,6 +133,7 @@ export type FieldEvent =
     | "opponentDrew" // 持ち主から見て相手がデッキからカードをドローしたとき（GameState.draw から発火。シダフクロウ）
     | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンス returnNexusToHand は対象外）
     | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
+    | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -184,6 +188,7 @@ export type ConstraintDef =
     | { type: "cantAttack" } // このスピリットはアタックできない（カイザレオン大帝Lv1）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
+    | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
 
 // フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 // kind: "constraint" は「発生源自身」への制約だが、こちらは発生源の持ち主に関係なく
@@ -210,6 +215,7 @@ export type EffectDef =
           action: EffectAction
           optional: boolean // 「〜できる」= 任意（自動処理では常に発動）
           battleRole?: "attacker" | "blocker" // onBattle 専用：勝利したときの自分の役割がこれと一致する場合のみ発火（省略時は従来通り常に発火）
+          condition?: { opponentNexusColorsAtLeast: number } // 指定時、持ち主から見て相手フィールドのネクサスの色数（重複除く）がこれ以上のときのみ発火（溶海竜プレシオスLv3）
       }
     | {
           id: string
@@ -253,7 +259,8 @@ export type EffectDef =
           action: EffectAction
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           turn?: "own" | "opponent" // 指定時はこの陣営条件でのみ発火（own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時。省略時はどちらでも発火）
-          colorFilter?: Color // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの色がこれと一致するときのみ発火（祝福されし大聖堂）
+          colorFilter?: Color // event: "ownSpiritDestroyed" | "ownSpiritBlocked" 限定：対象スピリットの色がこれと一致するときのみ発火（祝福されし大聖堂／花の子リップ）
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 指定時、発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
       }
     | {
           id: string

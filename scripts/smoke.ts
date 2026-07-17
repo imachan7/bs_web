@@ -8,6 +8,7 @@ import "./smoke/part5"
 import "./smoke/part6"
 import "./smoke/part7"
 import "./smoke/part8"
+import "./smoke/part9"
 import { summary } from "./smoke/helpers"
 
 summary()

@@ -385,6 +385,23 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
         state.battle = null
         return null
     }
+    // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
+    // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
+    // targetInstanceIdはブロッカー（instanceId）
+    if (attacker) {
+        fireFieldEventTriggers(
+            state,
+            attackerPid,
+            "ownSpiritBlocked",
+            undefined,
+            getCard(attacker.cardId).color,
+            instanceId,
+        )
+    }
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // ブロック宣言後は即解決せず、フラッシュを再オープンする
     // （公式ルール: フラッシュは非ターンプレイヤー＝防御側から優先権を持つ）
     state.isFlashTiming = true

@@ -893,6 +893,90 @@ export function resolveAction(
             return
         }
 
+        case "destroyAllNexusesExceptChosenColors": {
+            // destroyAllExceptChosenColorsのネクサス版。両者フィールドのネクサスの色数合計
+            // （重複除く）がminTotalColors未満なら不発（ログのみ）。
+            // お互い自分フィールドで最多のネクサス色を1色ずつ自動指定し（同数はcolorOrder先頭、
+            // ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する
+            // （色選択の決定的簡略化。溶海竜プレシオス）
+            const colorOrder: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            const pickChosenNexusColor = (pid: PlayerId): Color | null => {
+                const nexuses = state.players[pid].field.nexuses
+                if (nexuses.length === 0) return null
+                const counts = new Map<Color, number>()
+                for (const n of nexuses) {
+                    const c = getCard(n.cardId).color
+                    counts.set(c, (counts.get(c) ?? 0) + 1)
+                }
+                let best: Color | null = null
+                let bestCount = 0
+                for (const c of colorOrder) {
+                    const n = counts.get(c) ?? 0
+                    if (n > bestCount) {
+                        bestCount = n
+                        best = c
+                    }
+                }
+                return best
+            }
+            const allNexusColors = new Set<Color>()
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                for (const n of state.players[pid].field.nexuses) {
+                    allNexusColors.add(getCard(n.cardId).color)
+                }
+            }
+            if (allNexusColors.size < action.minTotalColors) {
+                log(
+                    state,
+                    `${sourceName}：両者のネクサスの色数合計が${action.minTotalColors}色未満のため発動しなかった。`,
+                )
+                return
+            }
+            const chosenP1 = pickChosenNexusColor("p1")
+            const chosenP2 = pickChosenNexusColor("p2")
+            const safeColors = new Set([chosenP1, chosenP2].filter((c): c is Color => c !== null))
+            log(
+                state,
+                `${sourceName}：ネクサスの指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
+                    `いずれでもない色のネクサスを破壊する。`,
+            )
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                const targets = state.players[pid].field.nexuses.filter(
+                    (n) => !safeColors.has(getCard(n.cardId).color),
+                )
+                for (const t of targets) destroyNexus(state, pid, t.instanceId)
+            }
+            return
+        }
+
+        case "destructionCoresToOwnSpirit": {
+            // 盾精ラングリーズ：destroySpiritが破壊直前にリザーブへ移した分（coresAtDestruction）を
+            // 持ち主の実効BP最大のスピリットへ付け替える（対象選択の決定的簡略化）
+            const coreCount = self?.coresAtDestruction ?? 0
+            if (coreCount <= 0) {
+                log(state, `${sourceName}：移すコアがなかった。`)
+                return
+            }
+            const player = state.players[owner]
+            const target = player.field.spirits.reduce<CardInstance | null>(
+                (best, s) =>
+                    !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                null,
+            )
+            if (!target) {
+                log(state, `${sourceName}：移す先のスピリットがいなかった（リザーブに残る）。`)
+                return
+            }
+            const moveCount = Math.min(coreCount, player.reserve)
+            player.reserve -= moveCount
+            placeCoresOnSpirit(state, target, moveCount)
+            log(
+                state,
+                `${sourceName}：リザーブのコア${moveCount}個を${getCard(target.cardId).name}へ移した。`,
+            )
+            return
+        }
+
         case "grantBlockerImmunity": {
             // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
             const mine = state.players[owner].field.spirits
@@ -1358,6 +1442,12 @@ export function resolveAction(
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
+                return
+            }
+            // all指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）
+            if (action.all) {
+                for (const c of candidates) c.isRested = false
+                log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
                 return
             }
             const target = candidates.reduce((best, s) =>
@@ -2153,6 +2243,22 @@ export function resolveAction(
             return
         }
 
+        case "levelOverrideTarget": {
+            // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
+            // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
+            const found = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
+            if (!found) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            found.inst.levelOverrideThisTurn = action.level
+            log(
+                state,
+                `${sourceName}：${getCard(found.inst.cardId).name}はこのターンの間Lv${action.level}として扱われる。`,
+            )
+            return
+        }
+
         case "summonFromHandFree": {
             // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
             // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
@@ -2226,6 +2332,13 @@ export function fireTrigger(
         if (effect.trigger !== event) continue
         if (!effectActiveAtLevel(effect.levels, level)) continue
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) continue
+        if (effect.condition) {
+            // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
+            // opponentNexusColorsAtLeast 以上のときのみ発火
+            const oppNexuses = state.players[opponentOf(owner)].field.nexuses
+            const colors = new Set(oppNexuses.map((n) => getCard(n.cardId).color))
+            if (colors.size < effect.condition.opponentNexusColorsAtLeast) continue
+        }
         resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
     }
 }
@@ -2322,6 +2435,7 @@ export function fireFieldEventTriggers(
     event: FieldEvent,
     selfOverride?: { pid: PlayerId; inst: CardInstance },
     eventColor?: Color,
+    targetInstanceId?: string,
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -2336,10 +2450,23 @@ export function fireFieldEventTriggers(
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
+            if (effect.condition) {
+                // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const sources = [...player.field.spirits, ...player.field.nexuses]
+                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                if (total < count) continue
+            }
             if (selfOverride) {
-                resolveAction(state, selfOverride.pid, selfOverride.inst, effect.action)
+                resolveAction(
+                    state,
+                    selfOverride.pid,
+                    selfOverride.inst,
+                    effect.action,
+                    targetInstanceId,
+                )
             } else {
-                resolveAction(state, pid, inst, effect.action)
+                resolveAction(state, pid, inst, effect.action, targetInstanceId)
             }
             if (state.winner) return
         }

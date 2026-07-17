@@ -2,7 +2,7 @@
 import type { GameState } from "../type"
 import { FIRST_TURN_DRAW } from "../../../data/constants"
 import { draw, log } from "./GameState"
-import { fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { activeConstraints, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める
 export function runTurnStart(state: GameState): void {
@@ -40,6 +40,8 @@ export function runTurnStart(state: GameState): void {
         player.trashCores = 0
     }
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        // noRefresh（スクルディア）を持つスピリットはこのステップで回復しない
+        if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
         inst.isRested = false
     }
     fireStepTriggers(state, "refresh")
