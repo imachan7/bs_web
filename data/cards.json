@@ -7263,7 +7263,37 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『自分のリフレッシュステップ』\nこのスピリットが回復するとき、相手のスピリット1体かネクサス1つの上に置いてあるコア1個を、相手のトラッシュに置く。\nLv3『自分のリフレッシュステップ』\nこのスピリットが回復するとき、相手のスピリット1体かネクサス1つの上に置いてあるコア2個を相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "step",
+    "step": "refresh",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": "selfWasRefreshedThisStep",
+    "action": {
+     "type": "coreToOpponentTrashChoice",
+     "count": 1
+    }
+   },
+   {
+    "id": "e2",
+    "kind": "step",
+    "step": "refresh",
+    "turn": "own",
+    "levels": [
+     3
+    ],
+    "condition": "selfWasRefreshedThisStep",
+    "action": {
+     "type": "coreToOpponentTrashChoice",
+     "count": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-023",

@@ -169,6 +169,7 @@ export function createGame(
         endAttackStepAfterBattle: false,
         turnConstraints: [],
         lastBattleDestroyedCores: 0,
+        pendingChoice: null,
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)
@@ -277,6 +278,18 @@ export function findSpirit(
     return player.field.spirits.find((s) => s.instanceId === instanceId)
 }
 
+// 両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
+// pendingChoice.selfInstanceId の解決用（self は常にスピリットのため）
+export function findInstanceAnywhere(
+    state: GameState,
+    instanceId: string,
+): CardInstance | undefined {
+    return (
+        findSpirit(state.players.p1, instanceId) ??
+        findSpirit(state.players.p2, instanceId)
+    )
+}
+
 // ---- クライアントへ送る公開ビュー ----
 
 function playerView(player: PlayerState, isSelf: boolean): PlayerView {
@@ -314,5 +327,10 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        pendingChoice: state.pendingChoice
+            ? viewer === state.pendingChoice.pid
+                ? { ...state.pendingChoice }
+                : { ...state.pendingChoice, candidates: [], prompt: "相手が対象を選択中…" }
+            : null,
     }
 }

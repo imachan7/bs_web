@@ -100,6 +100,7 @@ export type EffectAction =
     | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
     | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
     | { type: "levelOverrideTarget"; level: number } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）
+    | { type: "coreToOpponentTrashChoice"; count: number } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -232,7 +233,7 @@ export type EffectDef =
           turn: "own" | "opponent" | "both" // own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時、both=常に
           levels: number[] | null
           action: EffectAction
-          condition?: "handNotGreaterThanOpponent" // 指定時はこの条件を満たすときのみ発火（主無き古城Lv2：持ち主の手札枚数が相手以下）
+          condition?: "handNotGreaterThanOpponent" | "selfWasRefreshedThisStep" // handNotGreaterThanOpponent=持ち主の手札枚数が相手以下（主無き古城Lv2）、selfWasRefreshedThisStep=発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
       }
     | {
           id: string
@@ -409,6 +410,21 @@ export interface BattleState {
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
 }
 
+// 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
+// requestChoice 経由でセットし、GameAction "resolveChoice" で消費される。
+// queue は、選択待ち中に中断された「同一トリガー内の残りエントリ」を直列化したもの
+// （fireTrigger / resolveMagic のエントリループが積む。selfInstanceId から self を復元して再開する）。
+export interface PendingChoice {
+    pid: PlayerId // 選択するプレイヤー
+    kind: "target" // v1 は対象選択のみ
+    prompt: string // クライアント表示用の説明文（日本語）
+    candidates: string[] // 選択候補の instanceId（スピリット/ネクサス混在可）
+    optional: boolean // true ならスキップ（選ばない）可
+    action: EffectAction // 選択後に resolveAction する本体
+    selfInstanceId: string | null // 発生源スピリット（self の復元用）
+    queue: { selfInstanceId: string | null; action: EffectAction }[] // 中断された残りアクション
+}
+
 // ゲーム全体の状態（サーバーで一元管理）
 export interface GameState {
     gameId: string
@@ -425,6 +441,7 @@ export interface GameState {
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
     turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
     lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
+    pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
 }
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
@@ -462,6 +479,7 @@ export interface GameView {
     winner: PlayerId | null
     you: PlayerId
     turnConstraints: TurnConstraintDef[]
+    pendingChoice: PendingChoice | null // 相手視点では candidates を空配列・prompt をマスクして配信（viewFor）
 }
 
 // ---- クライアント → サーバーのアクション ----
@@ -480,6 +498,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
+    | { type: "resolveChoice"; instanceId?: string } // pendingChoice への応答（instanceId省略＝スキップ。optionalのときのみ許可）
     | { type: "takeLife" }
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack

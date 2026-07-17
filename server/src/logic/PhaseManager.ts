@@ -39,12 +39,14 @@ export function runTurnStart(state: GameState): void {
         log(state, `トラッシュのコア${player.trashCores}個をリザーブに戻した。`)
         player.trashCores = 0
     }
+    const refreshedInstanceIds = new Set<string>()
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
         // noRefresh（スクルディア）を持つスピリットはこのステップで回復しない
         if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
+        if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
         inst.isRested = false
     }
-    fireStepTriggers(state, "refresh")
+    fireStepTriggers(state, "refresh", refreshedInstanceIds)
     if (state.winner) return
 
     state.phase = "main"

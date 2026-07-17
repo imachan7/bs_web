@@ -14,6 +14,7 @@ import type {
     ConstraintDef,
     DrawPerCounter,
     EffectAction,
+    EffectDef,
     FieldEvent,
     GameState,
     GlobalConstraintDef,
@@ -2379,6 +2380,73 @@ export function resolveAction(
             )
             return
         }
+
+        case "coreToOpponentTrashChoice": {
+            // 相手フィールドのスピリット/ネクサス1つを選び、コアcount個を相手のトラッシュへ置く。
+            // targetInstanceId 指定時はその対象へ実行、未指定時は候補を集めて選択を要求する（魔界侯爵コキュートス）
+            if (targetInstanceId !== undefined) {
+                const oppPlayer = state.players[opp]
+                const spirit = oppPlayer.field.spirits.find((s) => s.instanceId === targetInstanceId)
+                if (spirit) {
+                    removeCoresToTrash(state, opp, spirit, action.count)
+                    return
+                }
+                const nexus = oppPlayer.field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                if (nexus) {
+                    const removed = Math.min(action.count, nexus.cores)
+                    nexus.cores -= removed
+                    state.players[opp].trashCores += removed
+                    log(
+                        state,
+                        `${sourceName}：${getCard(nexus.cardId).name}（ネクサス）のコア${removed}個をトラッシュに置いた。`,
+                    )
+                    return
+                }
+                log(state, `${sourceName}：対象が見つからなかった。`)
+                return
+            }
+            // 初回：相手フィールドのコア1個以上のスピリット/ネクサスを候補にして選択を要求する
+            const oppPlayer = state.players[opp]
+            const spiritCandidates = oppPlayer.field.spirits.filter(
+                (s) => s.cores >= 1 && !isUntargetableByOpponent(s) && !hasArmorAgainst(s, srcColor),
+            )
+            const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
+            const candidates = [...spiritCandidates, ...nexusCandidates].map((i) => i.instanceId)
+            requestChoice(state, owner, "コアを取り除く相手のスピリット/ネクサスを選択", candidates, false, action, self)
+            return
+        }
+    }
+}
+
+// 選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
+// 2件以上なら state.pendingChoice を立てて GameAction "resolveChoice" を待つ
+export function requestChoice(
+    state: GameState,
+    pid: PlayerId,
+    prompt: string,
+    candidates: string[],
+    optional: boolean,
+    action: EffectAction,
+    self: CardInstance | null,
+): void {
+    if (candidates.length === 0) {
+        log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
+        return
+    }
+    const only = candidates[0]
+    if (candidates.length === 1 && only !== undefined) {
+        resolveAction(state, pid, self, action, only)
+        return
+    }
+    state.pendingChoice = {
+        pid,
+        kind: "target",
+        prompt,
+        candidates,
+        optional,
+        action,
+        selfInstanceId: self ? self.instanceId : null,
+        queue: [],
     }
 }
 
@@ -2399,19 +2467,33 @@ export function fireTrigger(
 ): void {
     const card = getCard(selfInstance.cardId)
     const level = currentLevel(selfInstance).level
-    for (const effect of card.effects) {
-        if (effect.kind !== "triggered") continue
-        if (effect.trigger !== event) continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
-        if (effect.battleRole !== undefined && effect.battleRole !== battleRole) continue
+    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
+        if (effect.kind !== "triggered") return false
+        if (effect.trigger !== event) return false
+        if (!effectActiveAtLevel(effect.levels, level)) return false
+        if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
             // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
             // opponentNexusColorsAtLeast 以上のときのみ発火
             const oppNexuses = state.players[opponentOf(owner)].field.nexuses
             const colors = new Set(oppNexuses.map((n) => getCard(n.cardId).color))
-            if (colors.size < effect.condition.opponentNexusColorsAtLeast) continue
+            if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
         }
+        return true
+    }
+    const effects = card.effects
+    for (let i = 0; i < effects.length; i++) {
+        const effect = effects[i]
+        if (!effect || !matches(effect)) continue
         resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+        // 選択待ちが立ったら、残りの一致エントリを queue に積んで中断する
+        if (state.pendingChoice) {
+            const remaining = effects.slice(i + 1).filter(matches)
+            state.pendingChoice.queue.push(
+                ...remaining.map((e) => ({ selfInstanceId: selfInstance.instanceId, action: e.action })),
+            )
+            return
+        }
     }
 }
 
@@ -2439,6 +2521,7 @@ export function fireBattleWonTriggers(
             if (!effectActiveAtLevel(effect.levels, level)) continue
             resolveAction(state, winnerPid, winnerInst, effect.action)
             if (state.winner) return
+            if (state.pendingChoice) return
         }
     }
 }
@@ -2456,7 +2539,13 @@ function checkStepCondition(
 // 指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
 // ターンプレイヤー側 → 相手側の順に、各プレイヤー内ではスピリット→ネクサスの順で発火する。
 // 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
-export function fireStepTriggers(state: GameState, step: Phase): void {
+// refreshedInstanceIds はリフレッシュステップで実際に回復（isRested: true → false）した
+// インスタンスの集合（PhaseManagerが渡す）。selfWasRefreshedThisStep 条件の判定に使う（省略可）
+export function fireStepTriggers(
+    state: GameState,
+    step: Phase,
+    refreshedInstanceIds?: Set<string>,
+): void {
     const order: PlayerId[] = [
         state.turnPlayer,
         opponentOf(state.turnPlayer),
@@ -2473,11 +2562,11 @@ export function fireStepTriggers(state: GameState, step: Phase): void {
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.condition && !checkStepCondition(state, pid, effect.condition)) {
-                    continue
-                }
+                if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
+                if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
                 resolveAction(state, pid, inst, effect.action)
                 if (state.winner) return
+                if (state.pendingChoice) return
             }
         }
     }
@@ -2541,6 +2630,7 @@ export function fireFieldEventTriggers(
                 resolveAction(state, pid, inst, effect.action, targetInstanceId)
             }
             if (state.winner) return
+            if (state.pendingChoice) return
         }
     }
 }
@@ -2555,10 +2645,21 @@ export function resolveMagic(
     targetInstanceId?: string,
 ): void {
     const card = getCard(cardId)
-    for (const effect of card.effects) {
-        if (effect.kind !== "magic" || effect.timing !== timing) continue
+    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
+        effect.kind === "magic" && effect.timing === timing
+    const effects = card.effects
+    for (let i = 0; i < effects.length; i++) {
+        const effect = effects[i]
+        if (!effect || !matches(effect)) continue
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す
         resolveAction(state, owner, null, effect.action, targetInstanceId, card.color, "magic")
+        if (state.pendingChoice) {
+            const remaining = effects.slice(i + 1).filter(matches)
+            state.pendingChoice.queue.push(
+                ...remaining.map((e) => ({ selfInstanceId: null, action: e.action })),
+            )
+            return
+        }
     }
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）
