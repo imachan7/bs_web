@@ -50,7 +50,11 @@
   （BS02-009/013/024/X06。anyNexusDestroyed・onBlocked・destroyExhausted anySide・
   exhaustAllByLevel・destroyAllExceptChosenColors を新設、ケンドラゴス e2 追加）＋バッチ3の7枚
   （BS02-006/016/050/058/067/102/107。bpEqualsSelf・onBattleEnd/destroySelf・lifeDamageToVoid・
-  reductionGrant・refireSummonEffect を新設）の計 **59枚**。スキップ残は44枚（→ 5章の課題リスト）。
+  reductionGrant・refireSummonEffect を新設）＋バッチ4の11枚（BS02-027/034/043/057/072/080/081/
+  097/099/101/110。recoverMagicFromTrash・trashCoresToSpirit・grantKeywordAll・aura の
+  phaseTurn/minCores・fieldEvent ownMagicUsed・トリガー onLifeDealt・ターン限定全体制約
+  turnConstraints/banActByCostThisTurn を新設）の計 **68枚**（効果文持ち103枚中）。
+  スキップ残は35枚（→ 5章の課題リスト。Lv/コスト/色の置換系・復活・強奪・効果無効など深い新概念のみが残る）。
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が

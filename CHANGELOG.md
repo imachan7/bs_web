@@ -108,3 +108,7 @@
   lifeDamageToVoid（スライミー）・reductionGrant＝軽減シンボル付与（ペンタン・バーチュ、サーバー/クライアント両方）・
   refireSummonEffect（タイムリープ）・ホワイトポーション（前バッチ見逃しの refreshOne）。
   計59/103枚（smoke 895件全合格）
+- BS02構造化バッチ4（11枚。監査で発見した既存アクションのみで書ける見逃し2枚を含む）:
+  recoverMagicFromTrash・trashCoresToSpirit・grantKeywordAll・aura phaseTurn/minCores・
+  fieldEvent ownMagicUsed・トリガー onLifeDealt・ターン限定全体制約（ヘビィゲート）を新設。
+  計68/103枚（smoke 940件全合格）
