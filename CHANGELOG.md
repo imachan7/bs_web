@@ -122,3 +122,6 @@
   currentLevel/levelOf がインスタンス上の上書き（levelOverrideThisTurn > levelAsContinuous）を優先し、
   事後フック refreshLevelAsOverrides で継続条件を再計算。あわせてバッチ4のデータ入れ忘れ
   （BS02-081 緑芽吹く原野）を修正・テスト追加。計81/103枚（smoke 997件全合格）
+- BS02構造化バッチ7: 系統の継続付与（kind familyGrant＋spiritHasFamily。ポム・生み出される尖兵）と
+  手札からの無料召喚（summonFromHandFree、召喚時効果は不発。トレントン・アースガルド）。
+  計83/103枚で区切りとし、残り20枚は表示のみで確定（分類は SPEC 5章。smoke 1021件全合格）
