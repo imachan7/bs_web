@@ -43,8 +43,10 @@
 - 禁止カード4枚: BS02-063（冥犬ケルル・ベロス）・BS02-085・BS02-097・BS02-099
 - 新キーワード: **【装甲：色】**（指定色の相手スピリット/ネクサス/マジックの効果を受けない）、
   **【呪撃】**（ブロックした相手スピリットをバトル終了時に破壊）— **実装済み**（2章のキーワード表を参照）
-- 構造化の進捗: キーワード5枚（BS02-015/020/040/044/045）＋赤・紫15枚＋緑・白11枚＋黄6枚の計 **37枚**
-  （全色一巡完了）。スキップは計66枚（→ 5章の課題リスト。黄は妖精・天使系の新概念が多く6/35と低率）。
+- 構造化の進捗: キーワード5枚＋赤・紫15枚＋緑・白11枚＋黄6枚＋エンジン小拡張バッチ8枚
+  （BS02-004/018/019/061/071/075/084/106。cantAttack・recovered指定アタック・levelFilter・
+  色フィルタ・系統カウンタ・refreshAllByCost・destroyOwnByCost を新設）の計 **45枚**。
+  スキップ残は58枚（→ 5章の課題リスト。黄は妖精・天使系の新概念が多い）。
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
@@ -161,6 +163,9 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `lockFlash` | このバトルの間、相手はフラッシュで手札のカードを使用不可（`flashLockedPlayer`。覚醒は対象外） |
 | `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化） |
 | `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版） |
+| `coreGainPer` | カウント値ぶんボイドから自分のリザーブへ（counter: drawPer と共通の `DrawPerCounter`。宝石の獣カーバルク） |
+| `refreshAllByCost` | **両陣営**の指定コストのスピリットをすべて回復（cantAttackThisTurn は付かない。ローヤルポーション） |
+| `destroyOwnByCost` | self 以外の自分スピリットからコスト ≤ maxCost かつコスト最大の1体を破壊（プレイヤー選択の決定的簡略化）。gainCoresEqualCost でそのコスト数のコアをボイドから自分リザーブへ（天使長プリンシパール） |
 | `coreToVoidOwn` | 自分のコアをボイドへ（trashCores 優先、次に実効BP最小スピリット） |
 | `bothSidesCoreToTrash` | 両者の各BP最大スピリットのコアを各持ち主のトラッシュへ |
 | `discardSelfOne` | 自分の手札末尾1枚を破棄（百識の谷Lv1） |
@@ -214,8 +219,9 @@ fieldEvent に `opponentDrew`（相手のドロー時に発火。シダフクロ
 アタック宣言（両陣営のフィールドから発火、self はアタックしたスピリット）に反応してフィールドから発火する。
 phase / turn で『相手のアタックステップ』等の限定が可能。
 例: 命の果実（被弾で draw、Lv2 は +coreGain）、侵食されゆく銀世界 Lv2、魔帝の墓標 Lv2（アタック宣言で自コアをトラッシュへ）。
-アクション `refreshOne`（キーワードフィルタ付き1体回復）・`coreRemoveSelf`・`coreToTrashSelf`、
+アクション `refreshOne`（キーワード／色フィルタ付き1体回復。天使エンジュ＝黄限定）・`coreRemoveSelf`・`coreToTrashSelf`、
 オーラの `summonedThisTurnOnly`（風吹く丘陵 Lv2「このターン召喚された自分のスピリット+1000」）も追加。
+fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリットの色を限定。祝福されし大聖堂＝黄）にも対応。
 
 ### フィールド全体制約（kind: "globalConstraint"）
 
@@ -244,12 +250,14 @@ phase / turn で『相手のアタックステップ』等の限定が可能。
 `{ kind: "constraint", levels, constraint: ConstraintDef }`。RuleValidator.validateBlock が参照する宣言的ルールで、
 クライアントのブロック可能ハイライトにも同判定をミラー。
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
+- `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
-- `unblockableBy`（colorFilter / keywordFilter / maxCores）— このスピリットのアタックは指定色／キーワード持ち／
-  コア数以下のスピリットにブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、スピノアックス＝神速）
+- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter）— このスピリットのアタックは指定色／
+  キーワード持ち／コア数以下／**指定レベル**のスピリットにブロックされない（ボーン・グラディエイター＝緑、
+  ラビクリスタ＝赤、スピノアックス＝神速、悪魔スプラー・デースペル＝レベル基準）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
-- `canDirectAttack`（targetFilter: rested / singleCore）— アタック時に条件を満たす相手スピリットを
+- `canDirectAttack`（targetFilter: rested / singleCore / recovered）— アタック時に条件を満たす相手スピリットを
   指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
   doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
   クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
@@ -366,9 +374,11 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
   **aura の keywordFilter**（ディラノスLv1「【覚醒】持ち全体+1000」）— 出現頻度が高く優先度高
 - **ネクサス破壊への誘発トリガー**（アーケオルニ）、**相手のブロック宣言への攻撃側誘発**（バット・バット・シーザー）
 - **条件付きレベル変更**「スピリット2体以下の間Lv3として扱う」（ジャグリーン）
-- **レベル基準のブロック制限**（悪魔スプラー・デースペル。unblockableBy の levelFilter 拡張で対応可能）
+- ~~レベル基準のブロック制限（スプラー・デースペル）~~ / ~~回復状態への指定アタック（オルカリア）~~ /
+  ~~色フィルタ回復・fieldEvent（エンジュ・大聖堂）~~ / ~~系統カウンタ（カーバルク）~~ /
+  ~~コスト指定全回復（ローヤルポーション）~~ / ~~自陣営破壊＋コスト連動コア獲得（プリンシパール）~~
+  — **エンジン小拡張バッチで対応済み（2026-07-17）**
 - **色を指定した全体破壊**（プレシオス・ケンドラゴスLv3）、**レベル指定の全体疲労**（デストロードLv1）
-- **回復状態への指定アタック**（オルカリア。canDirectAttack の targetFilter 拡張で対応可能）
 - **ライフ被弾コアの行き先変更**（スライミー: リザーブでなくボイドへ）
 - **自分か相手を選べる対象**（シーザーの疲労破壊）、**スピリット/ネクサス択一の対象**（コキュートス）
 - **コア増加の検知**（夢魔の寝所）、**破壊からの復活**（紫水晶の森）、

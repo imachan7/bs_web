@@ -93,3 +93,6 @@
 - BS02 緑・白の効果構造化バッチ（11枚構造化・20枚スキップ）。サブエージェントが battleWon で構造化した
   BS02-036/041 の『このスピリットの〜時』限定効果を triggered onBattle + battleRole に是正
   （battleWon は持ち主の全スピリット勝利で発火するため自己限定効果には不正確）。smoke +18件（790件全合格）
+- BS02スキップ分を拾うエンジン小拡張8件（cantAttack制約・recovered指定アタック・unblockableBy levelFilter・
+  refreshOne/fieldEventの色フィルタ・系統カウンタのdrawPer/coreGainPer・refreshAllByCost・destroyOwnByCost）を
+  実装し8枚を追加構造化（計45/103枚。smoke 830件全合格）
