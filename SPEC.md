@@ -68,8 +68,9 @@
   fieldEvent ownSpiritBlocked/condition・levelOverrideTarget・refreshOne all を新設。
   波1b: オベロe1・デストロードe2・ミカファールe1・スレイプホース — AuraCounter ownNameIncludes・
   lastBattleDestroyedCores・deckReveal countPer/pickAllOfType・kind magicBuffBonus を新設。
-  副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）の計 **90枚**（効果文持ち103枚中）。
-- 残り13枚: コキュートス・クロスシザース・ケン・クラン・クルーク（対話的選択系→ pendingChoice 基盤で対応予定）、
+  副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）＋波2の pendingChoice 基盤
+  （コキュートスを構造化。2章の「効果解決中のプレイヤー選択」を参照）の計 **91枚**（効果文持ち103枚中）。
+- 残り12枚: クロスシザース・ケン・クラン・クルーク（選択・付与系。pendingChoice 基盤で対応可能に）、
   チャガマル・紫水晶の森・鏡の回廊（破壊への割り込み）、封印された魔導書（効果無効・対象変更）、
   エンジェルボイス（Lv比較バトル）、アディショナルカラー（色付与）、夢魔の寝所、ケルル・ベロス（強奪・禁止カード）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
@@ -291,6 +292,19 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
   （覚醒バッジ・ブロック可否・装甲対象選択・実効BP表示）
 - aura は `keywordFilter?: Keyword` に対応（「【覚醒】を持つ自分のスピリットすべて+1000」＝ディラノス Lv1-3。
   keywordGrant で付与された覚醒もカウントされる）
+
+### 効果解決中のプレイヤー選択（pendingChoice）
+
+`GameState.pendingChoice = { pid, kind: "target", prompt, candidates, optional, action, selfInstanceId, queue }`。
+効果解決が対象選択を要するとき中断してセットし、選択待ち中は `resolveChoice` 以外のアクションを拒否する。
+`{ type: "resolveChoice", instanceId? }` で再開（省略＝スキップは optional のみ）。中断時に残っていた
+誘発エントリは queue（instanceId ベースで直列化可能）に積まれ、選択後に順に消化される（再中断も可）。
+候補1件は選択なしで即解決、0件は不発。viewFor は相手視点の candidates をマスクする。
+クライアントは candidates を `targetable` ハイライトし、クリックで送信（「選ばない」ボタンは optional 時のみ）。
+共通ヘルパー `requestChoice`。選択を使う初のアクションは `coreToOpponentTrashChoice`
+（魔界侯爵コキュートス: 自分のリフレッシュステップで自身が回復したとき（step condition
+`selfWasRefreshedThisStep`）、相手のスピリット/ネクサスを選んでコアを相手トラッシュへ）。
+**既存の自動選択アクションは変更していない**（選択式への置き換えは今後 opt-in で段階導入）。
 
 ### バトル結果誘発（battleRole / kind: "battleWon"）
 
