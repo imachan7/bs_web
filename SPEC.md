@@ -62,10 +62,16 @@
   上書きを優先参照、rawLevel で発生源の再帰回避）＋バッチ4のデータ入れ忘れ修正1枚（BS02-081
   緑芽吹く原野＝ownMagicUsed のエンジンだけ実装されデータ未登録だった）＋バッチ7の系統付与・無料召喚
   （BS02-054 ポム・082 尖兵の familyGrant/aura familyFilter、034 トレントン・048 アースガルドの
-  summonFromHandFree。spiritHasFamily で系統参照を状態対応化）の計 **83枚**（効果文持ち103枚中）。
-- **残り20枚は表示のみで確定（2026-07-18 時点の区切り）**: 1枚ごとに専用機構（対話的選択UI・
-  破壊への割り込み置換・効果無効/対象変更のインターセプト・バトル解決の置換など）が必要な領域で、
-  BS01 と同じ「効果テキスト表示のみ」の方針とする。内訳は 5章の課題リストに保存（再開可能）。
+  summonFromHandFree。spiritHasFamily で系統参照を状態対応化）＋波1（2026-07-18 再開。
+  波1a: プレシオス・ラングリーズ・スクルディアe1・花の子リップ・決闘台地e2 —
+  destroyAllNexusesExceptChosenColors・destructionCoresToOwnSpirit・noRefresh・
+  fieldEvent ownSpiritBlocked/condition・levelOverrideTarget・refreshOne all を新設。
+  波1b: オベロe1・デストロードe2・ミカファールe1・スレイプホース — AuraCounter ownNameIncludes・
+  lastBattleDestroyedCores・deckReveal countPer/pickAllOfType・kind magicBuffBonus を新設。
+  副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）の計 **90枚**（効果文持ち103枚中）。
+- 残り13枚: コキュートス・クロスシザース・ケン・クラン・クルーク（対話的選択系→ pendingChoice 基盤で対応予定）、
+  チャガマル・紫水晶の森・鏡の回廊（破壊への割り込み）、封印された魔導書（効果無効・対象変更）、
+  エンジェルボイス（Lv比較バトル）、アディショナルカラー（色付与）、夢魔の寝所、ケルル・ベロス（強奪・禁止カード）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
