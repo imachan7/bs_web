@@ -1,6 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
-import type { CardData, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, Color, GameState, PaySource, PlayerId } from "../type"
 import {
     countSymbols,
     currentLevel,
@@ -42,15 +42,42 @@ function costModTotal(state: GameState, card: CardData): number {
     return total
 }
 
+// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
+// pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
+// 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
+// （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
+function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData): Color[] {
+    const extra: Color[] = []
+    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "reductionGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                if (total < count) continue
+            }
+            extra.push(...effect.symbols)
+        }
+    }
+    return extra
+}
+
 // 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
-// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト
+// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
+// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する
 export function effectiveCost(
     state: GameState,
     pid: PlayerId,
     card: CardData,
 ): number {
-    const symbols = countSymbols(state.players[pid], card.reduction)
-    const reduction = Math.min(card.reduction.length, symbols)
+    const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
+    const symbols = countSymbols(state.players[pid], reductionColors)
+    const reduction = Math.min(reductionColors.length, symbols)
     const base = Math.max(card.cost - reduction, 0)
     return base + costModTotal(state, card)
 }

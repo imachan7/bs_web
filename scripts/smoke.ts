@@ -3846,7 +3846,17 @@ console.log("=== BS02 黄の構造化効果 ===")
     const target = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(target)
 
+    // タイムリープにメイン効果（refireSummonEffect）が追加されたため、バトル外で使用すると
+    // メイン効果が優先されフラッシュ効果（BP+2000）が発動しない。フラッシュ効果を確実に
+    // 検証するため、アタックでバトルを開始してフラッシュタイミング中に使用する
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: target.instanceId }) === null,
+        "targetでアタック（フラッシュ効果検証のためバトルを開始）",
+    )
+
     s.players.p1.hand[0] = "BS02-105"
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パスで攻撃側に優先権")
     assert(
         act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
         "グレートウォールのフラッシュ効果を使用",
@@ -3854,6 +3864,7 @@ console.log("=== BS02 黄の構造化効果 ===")
     assert(target.tempBpBuff === 2000, "グレートウォールでBP+2000")
 
     s.players.p1.hand[0] = "BS02-107"
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パスで攻撃側に優先権")
     assert(
         act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
         "タイムリープのフラッシュ効果を使用",
@@ -3861,6 +3872,7 @@ console.log("=== BS02 黄の構造化効果 ===")
     assert(target.tempBpBuff === 4000, "タイムリープでさらにBP+2000（合計4000）")
 
     s.players.p1.hand[0] = "BS02-108"
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パスで攻撃側に優先権")
     assert(
         act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
         "マジックブックのフラッシュ効果を使用",
@@ -3868,6 +3880,7 @@ console.log("=== BS02 黄の構造化効果 ===")
     assert(target.tempBpBuff === 8000, "マジックブックでさらにBP+4000（合計8000）")
 
     s.players.p1.hand[0] = "BS02-111"
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パスで攻撃側に優先権")
     assert(
         act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
         "スピリットイリュージョンのフラッシュ効果を使用",
@@ -4290,6 +4303,137 @@ console.log("=== BS02-012 地龍王ケンドラゴス：召喚時に両陣営で
     assert(s.players.p1.field.spirits.includes(p1Red1) && s.players.p1.field.spirits.includes(p1Red2), "自陣の最多色（赤、ケンドラゴス自身を含め3体）は残る")
     assert(!s.players.p2.field.spirits.includes(p2Yellow), "相手陣の少数派色（黄）のスピリットも破壊される")
     assert(s.players.p2.field.spirits.includes(p2Green1) && s.players.p2.field.spirits.includes(p2Green2), "相手陣の最多色（緑）は残る")
+}
+
+console.log("=== BS02-006 プテラトマホーク：onAttackのdestroy(bpEqualsSelf)はselfと同BPの相手のみ破壊 ===")
+{
+    const s = createGame(
+        "bs02-pteratomahawk-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    runTurnStart(s)
+    const pteratomahawk = createInstance("BS02-006", s.turn, 1) // Lv1 BP2000
+    s.players.p1.field.spirits.push(pteratomahawk)
+    const sameBp = createInstance("BS02-006", s.turn, 1) // Lv1 BP2000（同BP）
+    const diffBp = createInstance("BS02-006", s.turn, 3) // Lv2 BP4000（異BP）
+    s.players.p2.field.spirits.push(sameBp, diffBp)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: pteratomahawk.instanceId }) === null, "プテラトマホークでアタック")
+    assert(!s.players.p2.field.spirits.includes(sameBp), "同BPの相手スピリットが破壊される")
+    assert(s.players.p2.field.spirits.includes(diffBp), "異BPの相手スピリットは残る")
+}
+
+console.log("=== BS02-050 コリスタル：バトル（ブロックあり）で生き残っても終了時に自壊する ===")
+{
+    const s = createGame(
+        "bs02-koristal-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const koristal = createInstance("BS02-050", s.turn, 2) // Lv2 BP5000（onBattleEnd有効）
+    s.players.p1.field.spirits.push(koristal)
+    const weak = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000
+    s.players.p2.field.spirits.push(weak)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: koristal.instanceId }) === null, "コリスタルでアタック")
+    assert(act(s, "p2", { type: "block", instanceId: weak.instanceId }) === null, "ゴラドンでブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
+    assert(!s.players.p2.field.spirits.includes(weak), "BPで負けたブロッカーは破壊される")
+    assert(!s.players.p1.field.spirits.includes(koristal), "バトルに勝ったコリスタル自身もバトル終了時に自壊する")
+}
+
+console.log("=== BS02-016 スライミー：Lv3のアタックでライフのコアがリザーブでなくボイドへ ===")
+{
+    const s = createGame(
+        "bs02-slimy-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "yellow" },
+    )
+    runTurnStart(s)
+    const slimy = createInstance("BS02-016", s.turn, 4) // Lv3（lifeDamageToVoid有効）
+    s.players.p1.field.spirits.push(slimy)
+    s.players.p2.reserve = 0
+    const lifeBefore = s.players.p2.life
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: slimy.instanceId }) === null, "スライミーでアタック")
+    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(s.players.p2.life === lifeBefore - 1, "ライフが1減る")
+    assert(s.players.p2.reserve === 0, "取り除かれたコアはリザーブでなくボイドへ消える")
+}
+
+console.log("=== BS02-058 ペンタン：黄3つ以上でマジックのeffectiveCostが下がる ===")
+{
+    const s = createGame(
+        "bs02-pentan-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const pentan = createInstance("BS02-058", s.turn, 1) // Lv1
+    const yellow2 = createInstance("BS02-050", s.turn, 1) // コリスタル（黄）
+    s.players.p1.field.spirits.push(pentan, yellow2)
+    const timeleap = getCard("BS02-107") // タイムリープ：黄マジック cost5 reduction[黄,黄]
+    const costBefore = effectiveCost(s, "p1", timeleap)
+    assert(costBefore === 3, "黄が2つ（3つ未満）では従来通りの軽減（cost5-2=3）")
+    const yellow3 = createInstance("BS02-067", s.turn, 1) // 天使バーチュ（黄）で3つ目
+    s.players.p1.field.spirits.push(yellow3)
+    const costAfter = effectiveCost(s, "p1", timeleap)
+    assert(costAfter === costBefore - 1, "黄が3つ以上になると軽減シンボルが追加されコストが1下がる")
+}
+
+console.log("=== BS02-067 天使バーチュ：手札の黄スピリットのコストが下がる ===")
+{
+    const s = createGame(
+        "bs02-virtue-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const virtue = createInstance("BS02-067", s.turn, 1) // Lv1（軽減シンボル付与は無効）
+    s.players.p1.field.spirits.push(virtue)
+    const chunpopo = getCard("BS02-051") // チュンポポ：黄スピリット cost1 reduction[]
+    assert(effectiveCost(s, "p1", chunpopo) === 1, "バーチュLv1では軽減シンボル付与は効かない")
+    virtue.cores = 3 // Lv2へ（軽減シンボル付与が有効になる）
+    assert(effectiveCost(s, "p1", chunpopo) === 0, "バーチュLv2になると黄スピリットのコストが1下がる")
+}
+
+console.log("=== BS02-107 タイムリープ：メインで召喚時効果持ちスピリットのonSummonを再発揮 ===")
+{
+    const s = createGame(
+        "bs02-timeleap-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    const gripHands = createInstance("BS01-030", s.turn, 1) // グリプ・ハンズ Lv1（onSummon draw1）
+    s.players.p1.field.spirits.push(gripHands)
+    s.players.p1.hand[0] = "BS02-107" // タイムリープ
+    s.players.p1.reserve = 10
+    const handBefore = s.players.p1.hand.length
+    const deckBefore = s.players.p1.deck.length
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: gripHands.instanceId }) === null, "タイムリープを使用")
+    assert(s.players.p1.deck.length === deckBefore - 1, "召喚時効果（ドロー）が再発揮してデッキから1枚引く")
+    assert(s.players.p1.hand.length === handBefore, "タイムリープの使用（-1）とドロー（+1）で手札枚数は変わらない")
+}
+
+console.log("=== BS02-102 ホワイトポーション：フラッシュで自分のスピリット1体を回復 ===")
+{
+    const s = createGame(
+        "bs02-whitepotion-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "white", p2: "red" },
+    )
+    runTurnStart(s)
+    const rested = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1
+    rested.isRested = true
+    s.players.p1.field.spirits.push(rested)
+    s.players.p1.hand[0] = "BS02-102" // ホワイトポーション
+    s.players.p1.reserve = 10
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ホワイトポーションを使用")
+    assert(!rested.isRested, "疲労していた自分のスピリットが回復する")
 }
 
 console.log("")

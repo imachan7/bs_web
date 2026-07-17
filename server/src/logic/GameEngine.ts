@@ -12,6 +12,7 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import {
+    activeConstraints,
     destroySpirit,
     effectActiveAtLevel,
     effectiveBp,
@@ -400,15 +401,26 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     )
     const defender = state.players[pid]
 
-    // ダメージ = アタックスピリットのシンボル数。ライフのコアはリザーブへ
+    // ダメージ = アタックスピリットのシンボル数。ライフのコアは通常リザーブへ、
+    // ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
     const damage = attacker ? getCard(attacker.cardId).symbol.length : 1
     const dealt = Math.min(damage, defender.life)
+    const toVoid =
+        attacker !== undefined &&
+        activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt
-    defender.reserve += dealt
-    log(
-        state,
-        `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
-    )
+    if (toVoid) {
+        log(
+            state,
+            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）。コアはボイドへ消えた。`,
+        )
+    } else {
+        defender.reserve += dealt
+        log(
+            state,
+            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
+        )
+    }
 
     if (defender.life <= 0) {
         state.winner = attackerPid
@@ -545,6 +557,15 @@ function resolveBattle(state: GameState): void {
                 destroySpirit(state, defenderPid, blocker.instanceId)
             }
         }
+    }
+
+    // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
+    // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
+    const survivingAttacker = findSpirit(state.players[attackerPid], attacker.instanceId)
+    if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+    if (!state.winner) {
+        const survivingBlocker = findSpirit(state.players[defenderPid], blocker.instanceId)
+        if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
     }
 
     clearBattle(state)

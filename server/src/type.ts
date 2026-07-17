@@ -35,7 +35,7 @@ export interface PaySource {
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
     | { type: "draw"; count: number } // 自分がデッキから引く
-    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ）
+    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op）
     | { type: "destroyAll"; maxBp: number } // BP以下の相手スピリットを全破壊
     | { type: "selfBuff"; amount: number } // このスピリット自身をBP+（ターン終了時まで）
     | { type: "destroyNexus"; count: number; drawPerDestroyed?: number } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）
@@ -87,6 +87,8 @@ export type EffectAction =
     | { type: "grantKeyword"; keyword: Keyword; colors?: Color[] } // 自分のスピリット1体に、このターンの間キーワードを付与する（targetInstanceId優先、フォールバックはバトル中の自分スピリット→自分フィールド先頭。スピリットリンク／インビンシブルシールド）
     | { type: "exhaustAllByLevel"; level: number } // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op）
     | { type: "destroyAllExceptChosenColors" } // お互い自分フィールドで最多のスピリット色を1色ずつ自動指定し、両陣営のどちらの指定色でもないスピリットをすべて破壊（プレイヤー選択の簡略化）
+    | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
+    | { type: "refireSummonEffect" } // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）のonSummon効果を再発揮する（タイムリープ）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -105,6 +107,7 @@ export type TriggerEvent =
     | "onBattle" // バトル時
     | "onBlock" // ブロック時
     | "onBlocked" // アタック中の自分スピリットが相手のブロック宣言を受けたとき（self=アタッカー）
+    | "onBattleEnd" // バトル終了時（GameEngine.resolveBattleの最後。バトル参加者のうちまだ生存している個体に発火。コリスタル）
 
 // フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
 // TriggerEvent は「効果の発生源となったスピリット自身に起きたこと」を起点とするが、
@@ -164,6 +167,7 @@ export type ConstraintDef =
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
     | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ。イリュージョナ／牛霊スモゥグ／オルカリア）
     | { type: "cantAttack" } // このスピリットはアタックできない（カイザレオン大帝Lv1）
+    | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
 
 // フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 // kind: "constraint" は「発生源自身」への制約だが、こちらは発生源の持ち主に関係なく
@@ -271,6 +275,15 @@ export type EffectDef =
           target: "ownAll"
           familyFilter?: string // 指定時はこの系統を持つスピリットのみ
           phase?: Phase // 指定時はこのステップの間のみ有効（turnPlayerを問わない＝『お互いの〜ステップ』）
+      }
+    | {
+          id: string
+          kind: "reductionGrant" // 発生源が場にありレベル有効の間、条件成立時に対象カード種別/色の使用コストへ軽減シンボルを付与する（ペンタン／天使バーチュ）
+          levels: number[] | null
+          cardType?: CardType // 対象カード種別（省略時は種別不問）
+          cardColor?: Color // 対象カードの色（省略時は色不問）
+          symbols: Color[] // 与える軽減シンボル
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応

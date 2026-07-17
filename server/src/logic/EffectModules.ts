@@ -640,15 +640,23 @@ export function resolveAction(
         }
 
         case "destroy": {
+            // bpEqualsSelf 指定時は self の実効BPが確定しないと対象を選べない（selfがnullならno-op）
+            if (action.bpEqualsSelf && !self) {
+                log(state, `${sourceName}の破壊効果：selfが不在のため対象がいなかった。`)
+                return
+            }
+            const selfBp = action.bpEqualsSelf && self ? effectiveBp(state, owner, self) : undefined
             for (let i = 0; i < action.count; i++) {
-                // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象
+                // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
+                // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）
                 const target = pickEnemyByBp(
                     state,
                     opp,
                     action.maxBp ?? Infinity,
                     (s) =>
-                        action.keywordFilter === undefined ||
-                        spiritHasKeyword(state, opp, s, action.keywordFilter),
+                        (action.keywordFilter === undefined ||
+                            spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
+                        (selfBp === undefined || effectiveBp(state, opp, s) === selfBp),
                     srcColor,
                 )
                 if (!target) {
@@ -1757,6 +1765,32 @@ export function resolveAction(
                     `${sourceName}：この効果で${destroyed}体が消滅したため、ボイドからコア${destroyed}個を自身の上に置いた。`,
                 )
             }
+            return
+        }
+
+        case "destroySelf": {
+            // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
+            if (!self) {
+                log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
+                return
+            }
+            destroySpirit(state, owner, self.instanceId)
+            return
+        }
+
+        case "refireSummonEffect": {
+            // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）の
+            // onSummon効果を再発揮する（タイムリープ。効果を持たなければ何も起きない）
+            const mine = state.players[owner].field.spirits
+            const target = targetInstanceId
+                ? (mine.find((s) => s.instanceId === targetInstanceId) ?? null)
+                : (mine[0] ?? null)
+            if (!target) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            log(state, `${sourceName}：${getCard(target.cardId).name}の召喚時効果を再発揮する。`)
+            fireTrigger(state, owner, target, "onSummon")
             return
         }
     }

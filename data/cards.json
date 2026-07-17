@@ -6360,7 +6360,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットと同じBPの相手のスピリット1体を破壊できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-006-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "bpEqualsSelf": true
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-007",
@@ -6840,7 +6857,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のライフから取り除かれるコアは、リザーブではなくボイドに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-016-e1",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "lifeDamageToVoid"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-017",
@@ -8390,7 +8418,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのバトル時』\nこのスピリットは、バトル終了時に破壊される。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-050-e1",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroySelf"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-051",
@@ -8687,7 +8729,43 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1\n自分の黄のスピリット/ネクサスが合計3つ以上ある間、自分のマジックカードすべてに軽減シンボル[黄]を与える。\nLv2\n自分の黄のスピリット/ネクサスが合計3つ以上ある間、自分のマジックカードすべてに軽減シンボル[黄][黄]を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-058-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1
+    ],
+    "cardType": "magic",
+    "symbols": [
+     "yellow"
+    ],
+    "condition": {
+     "ownColorTotalAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    }
+   },
+   {
+    "id": "BS02-058-e2",
+    "kind": "reductionGrant",
+    "levels": [
+     2
+    ],
+    "cardType": "magic",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ],
+    "condition": {
+     "ownColorTotalAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-059",
@@ -9054,7 +9132,21 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv2･Lv3\n自分の手札にある黄のスピリットカードすべてに軽減シンボル[黄]を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-067-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "cardType": "spirit",
+    "cardColor": "yellow",
+    "symbols": [
+     "yellow"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS02-068",
@@ -10268,7 +10360,16 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\n自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-102-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshOne"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-103",
@@ -10401,6 +10502,14 @@
     "action": {
      "type": "bpBuff",
      "amount": 2000
+    }
+   },
+   {
+    "id": "BS02-107-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "refireSummonEffect"
     }
    }
   ]

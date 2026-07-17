@@ -315,19 +315,43 @@ function costModTotal(view: GameView, card: CardData): number {
     return total
 }
 
+// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボル
+// （サーバー reductionGrantSymbols と同じロジックの簡易版。ペンタン／天使バーチュ）
+function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): Color[] {
+    const extra: Color[] = []
+    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "reductionGrant") continue
+            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
+            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => master(s.cardId).color === color).length
+                if (total < count) continue
+            }
+            extra.push(...effect.symbols)
+        }
+    }
+    return extra
+}
+
 export function effectiveCost(
     view: GameView,
     pid: PlayerId,
     card: CardData,
 ): number {
     const field = view.players[pid].field
+    const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
     let symbols = 0
     for (const inst of [...field.spirits, ...field.nexuses]) {
         for (const sym of master(inst.cardId).symbol) {
-            if (card.reduction.includes(sym)) symbols++
+            if (reductionColors.includes(sym)) symbols++
         }
     }
-    const base = Math.max(card.cost - Math.min(card.reduction.length, symbols), 0)
+    const base = Math.max(card.cost - Math.min(reductionColors.length, symbols), 0)
     return base + costModTotal(view, card)
 }
 
@@ -375,7 +399,8 @@ export function magicTargetSide(
         effect.action.type === "bpBuff" ||
         effect.action.type === "bpBuffPer" ||
         effect.action.type === "coreCharge" ||
-        effect.action.type === "grantKeyword"
+        effect.action.type === "grantKeyword" ||
+        effect.action.type === "refireSummonEffect"
     )
         return "self"
     return null
