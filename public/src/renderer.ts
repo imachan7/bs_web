@@ -633,16 +633,32 @@ export function render(view: GameView, ui: UiState): void {
         $("flash-info").textContent = `フラッシュ（優先権: ${hasPriority ? "あなた" : "相手"}）`
     }
 
-    show("btn-attack-phase", myMainFree)
-    show("btn-end-turn", myTurn && !view.battle && (view.phase === "main" || view.phase === "attack"))
-    show("btn-take-life", canDefend && !view.battle?.blockerInstanceId)
-    show("btn-pass", inFlash)
+    // 効果解決中の選択待ち（サーバーがresolveChoice以外のアクションを全拒否するため、
+    // 自分宛・相手宛を問わず通常の操作ボタンを隠す）
+    const pendingChoiceActive = !!view.pendingChoice
+    const myPendingChoice =
+        view.pendingChoice && view.pendingChoice.pid === view.you ? view.pendingChoice : null
+    const oppPendingChoice =
+        view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
+
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive)
+    show(
+        "btn-end-turn",
+        myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
+    )
+    show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
+    show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
         ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null
     show("btn-cancel-target", anyMode)
     show("btn-attack-player", ui.directedAttack !== null)
-    show("targeting-info", anyMode)
-    if (ui.paying !== null) {
+    show("targeting-info", anyMode || pendingChoiceActive)
+    show("btn-skip-choice", myPendingChoice?.optional === true)
+    if (myPendingChoice) {
+        $("targeting-info").textContent = myPendingChoice.prompt
+    } else if (oppPendingChoice) {
+        $("targeting-info").textContent = "相手が対象を選択中…"
+    } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
             `コアが足りません。スピリット上のコアを割り当ててください（残り${remaining}個）`
@@ -800,6 +816,14 @@ function fieldCardEl(
         el.classList.add("attacker-mark")
     }
 
+    // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する
+    if (view.pendingChoice && view.pendingChoice.pid === view.you) {
+        if (view.pendingChoice.candidates.includes(inst.instanceId)) {
+            el.classList.add("targetable", "clickable")
+        }
+        return el
+    }
+
     if (isNexus) return el
 
     // このターンアタック不可（ピュアエリクサー等で回復した個体）
@@ -815,6 +839,12 @@ function fieldCardEl(
         !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
 
     if (isMine) {
+        // 選択待ち中（自分・相手いずれか宛）は自分側の操作UIをすべて抑止する
+        // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
+        // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）
+        if (view.pendingChoice) {
+            return el
+        }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う
         // （他の操作（コア移動・アタック・覚醒等）と競合しないよう、ここで処理を打ち切る）
         if (ui.paying !== null) {
@@ -961,8 +991,9 @@ function renderHand(view: GameView, ui: UiState): void {
         const need = cost + (lv1 ? lv1.cores : 0)
 
         const usable =
-            (myMainFree && reserve >= need) ||
-            (inFlash && !flashLocked && m.type === "magic" && m.flash && reserve >= cost)
+            !view.pendingChoice &&
+            ((myMainFree && reserve >= need) ||
+                (inFlash && !flashLocked && m.type === "magic" && m.flash && reserve >= cost))
 
         const el = document.createElement("div")
         el.className = `card color-${m.color}`

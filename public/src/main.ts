@@ -145,8 +145,19 @@ function onHandClick(handIndex: number): void {
 
 // ---- フィールドクリック ----
 
+// pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
+// 送信したら true を返す（呼び出し側はそこで処理を打ち切る）
+function tryResolveChoice(instanceId: string): boolean {
+    if (!view || !view.pendingChoice) return false
+    if (view.pendingChoice.pid !== view.you) return false
+    if (!view.pendingChoice.candidates.includes(instanceId)) return false
+    send({ type: "resolveChoice", instanceId })
+    return true
+}
+
 function onMySpiritClick(instanceId: string): void {
     if (!view) return
+    if (tryResolveChoice(instanceId)) return
 
     // 指定アタックの対象選択モード中：自分のスピリットのクリックは無視する
     // （対象は相手スピリット。プレイヤーへアタックは専用ボタン、キャンセルは対象選択をやめるボタン）
@@ -256,6 +267,7 @@ function assignPayCore(instanceId: string): void {
 
 function onOppSpiritClick(instanceId: string): void {
     if (!view) return
+    if (tryResolveChoice(instanceId)) return
     if (ui.paying !== null) return // v1はスピリット上のコアのみ対応、自分のスピリットのみが支払い元
     if (ui.awakenTarget !== null) return // 覚醒モード中は相手側の操作を抑止
     // 指定アタックの対象選択モード中：フィルタに合う相手スピリットをクリックしたら指定アタックを送信する
@@ -424,6 +436,16 @@ async function init(): Promise<void> {
         if (el) onOppSpiritClick(String(el.dataset.instanceId))
     })
 
+    // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合のみ選択可能
+    byId("my-nexuses").addEventListener("click", (e) => {
+        const el = closestData(e, "data-instance-id")
+        if (el) tryResolveChoice(String(el.dataset.instanceId))
+    })
+    byId("opp-nexuses").addEventListener("click", (e) => {
+        const el = closestData(e, "data-instance-id")
+        if (el) tryResolveChoice(String(el.dataset.instanceId))
+    })
+
     byId("btn-attack-phase").addEventListener("click", () =>
         send({ type: "nextPhase" }),
     )
@@ -445,6 +467,9 @@ async function init(): Promise<void> {
         ui.paying = null
         ui.directedAttack = null
         rerender()
+    })
+    byId("btn-skip-choice").addEventListener("click", () => {
+        send({ type: "resolveChoice" })
     })
 }
 
