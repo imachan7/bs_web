@@ -48,8 +48,9 @@
   色フィルタ・系統カウンタ・refreshAllByCost・destroyOwnByCost を新設）＋キーワード付与バッチ3枚
   （BS02-089/100/X05。grantKeyword・keywordGrant・aura keywordFilter を新設）＋バッチ2の4枚
   （BS02-009/013/024/X06。anyNexusDestroyed・onBlocked・destroyExhausted anySide・
-  exhaustAllByLevel・destroyAllExceptChosenColors を新設、ケンドラゴス e2 追加）の計 **52枚**。
-  スキップ残は51枚（→ 5章の課題リスト）。
+  exhaustAllByLevel・destroyAllExceptChosenColors を新設、ケンドラゴス e2 追加）＋バッチ3の7枚
+  （BS02-006/016/050/058/067/102/107。bpEqualsSelf・onBattleEnd/destroySelf・lifeDamageToVoid・
+  reductionGrant・refireSummonEffect を新設）の計 **59枚**。スキップ残は44枚（→ 5章の課題リスト）。
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
@@ -178,6 +179,16 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `grantKeyword` | 自分のスピリット1体にこのターンの間キーワードを一時付与（`tempKeywords`、ターン終了でリセット。colors 付きで装甲も付与可。スピリットリンク＝覚醒、インビンシブルシールド＝装甲） |
 | `exhaustAllByLevel` | 両陣営の指定レベルのスピリットをすべて疲労（範囲効果。デストロードLv1） |
 | `destroyAllExceptChosenColors` | お互いが自フィールド最多のスピリット色を自動指定し、どちらの指定色でもないスピリットを全破壊（色選択の決定的簡略化。ケンドラゴス） |
+| `destroySelf` | self を破壊（onDestroy 誘発あり。onBattleEnd と組み合わせてコリスタルの自壊） |
+| `refireSummonEffect` | 対象の自分スピリット1体の onSummon 効果を再発揮（タイムリープ） |
+
+- `destroy` は `bpEqualsSelf: true` で「self と同BPの相手のみ」に限定可（プテラトマホーク）
+- 新トリガー `onBattleEnd`: バトル解決の最後（呪撃の後）に、生存しているバトル参加者それぞれで発火
+- constraint `lifeDamageToVoid`: このアタッカーがライフを減らしたとき、コアはリザーブでなくボイドへ（スライミーLv3）
+- kind `reductionGrant`: 自分のフィールド発生源から、手札の指定種別/色のカードに軽減シンボルを付与
+  （`effectiveCost` が card.reduction に連結してから軽減計算。条件 ownColorTotalAtLeast 対応。
+  ペンタン＝黄3つ以上でマジックに[黄]（Lv2は[黄][黄]）、天使バーチュ＝黄スピリットカードに[黄]。
+  サーバー・クライアント両実装）
 | `coreToVoidOwn` | 自分のコアをボイドへ（trashCores 優先、次に実効BP最小スピリット） |
 | `bothSidesCoreToTrash` | 両者の各BP最大スピリットのコアを各持ち主のトラッシュへ |
 | `discardSelfOne` | 自分の手札末尾1枚を破棄（百識の谷Lv1） |

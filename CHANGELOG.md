@@ -104,3 +104,7 @@
   シーザー。fireTrigger に targetInstanceId 転送を追加）、destroyExhausted anySide（両陣営対応）、
   exhaustAllByLevel（デストロードLv1）、destroyAllExceptChosenColors（ケンドラゴス、色自動指定の簡略化）。
   計52/103枚（smoke 864件全合格）
+- BS02構造化バッチ3: destroy bpEqualsSelf（プテラトマホーク）・onBattleEnd/destroySelf（コリスタル）・
+  lifeDamageToVoid（スライミー）・reductionGrant＝軽減シンボル付与（ペンタン・バーチュ、サーバー/クライアント両方）・
+  refireSummonEffect（タイムリープ）・ホワイトポーション（前バッチ見逃しの refreshOne）。
+  計59/103枚（smoke 895件全合格）
