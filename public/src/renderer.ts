@@ -115,6 +115,12 @@ function auraAppliesTo(
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== view.turn) {
         return false
     }
+    if (
+        aura.keywordFilter &&
+        !spiritHasKeywordView(view, targetOwnerPid, targetInst, aura.keywordFilter)
+    ) {
+        return false
+    }
     return true
 }
 
@@ -155,6 +161,37 @@ export function hasKeyword(cardId: string, keyword: Keyword): boolean {
     return master(cardId).effects.some(
         (e) => e.kind === "keyword" && e.keyword === keyword,
     )
+}
+
+// 状態を考慮したキーワード判定（サーバー spiritHasKeyword のミラー）:
+// 静的キーワード ‖ 一時付与（tempKeywords） ‖ 持ち主フィールドからの継続付与（keywordGrant）
+export function spiritHasKeywordView(
+    view: GameView,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
+    if (hasKeyword(inst.cardId, keyword)) return true
+    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    const player = view.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "keywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
+            if (
+                effect.familyFilter &&
+                !master(inst.cardId).family.includes(effect.familyFilter)
+            ) {
+                continue
+            }
+            if (effect.phase && view.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
 }
 
 // フィールド全体制約（kind: "globalConstraint"）が現在有効か
@@ -201,12 +238,17 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
     if (sourceColor === undefined) return false
     const { level } = levelOf(inst)
-    return master(inst.cardId).effects.some(
+    const staticArmor = master(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
             (e.levels === null || e.levels.includes(level)) &&
             (e.colors?.includes(sourceColor) ?? false),
+    )
+    if (staticArmor) return true
+    // 一時付与の装甲（インビンシブルシールド）
+    return inst.tempKeywords.some(
+        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
     )
 }
 
@@ -235,7 +277,10 @@ export function canBlockAttacker(
     for (const c of attackerConstraints) {
         if (c.type !== "unblockableBy") continue
         if (c.colorFilter !== undefined && blockerCard.color === c.colorFilter) return false
-        if (c.keywordFilter !== undefined && hasKeyword(blockerInst.cardId, c.keywordFilter)) {
+        if (
+            c.keywordFilter !== undefined &&
+            spiritHasKeywordView(view, blockerPid, blockerInst, c.keywordFilter)
+        ) {
             return false
         }
         if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) return false
@@ -329,21 +374,25 @@ export function magicTargetSide(
     if (
         effect.action.type === "bpBuff" ||
         effect.action.type === "bpBuffPer" ||
-        effect.action.type === "coreCharge"
+        effect.action.type === "coreCharge" ||
+        effect.action.type === "grantKeyword"
     )
         return "self"
     return null
 }
 
-// 【覚醒】を現在レベルで持っているか（levels 指定があれば現在レベルが含まれる場合のみ）
-export function canAwaken(inst: CardInstance): boolean {
+// 【覚醒】を持っているか（静的キーワードは現在レベル限定、一時付与・keywordGrant も含む）
+export function canAwaken(view: GameView, inst: CardInstance): boolean {
     const { level } = levelOf(inst)
-    return master(inst.cardId).effects.some(
+    const staticAwaken = master(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "awaken" &&
             (e.levels === null || e.levels.includes(level)),
     )
+    if (staticAwaken) return true
+    // 一時付与（スピリットリンク）・継続付与（ディラノス）。覚醒UIは自分のスピリット専用
+    return spiritHasKeywordView(view, view.you, inst, "awaken")
 }
 
 // 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
@@ -658,7 +707,7 @@ function fieldCardEl(
         // 対象選択中（自分側）
         if (ui.targeting?.side === "self") el.classList.add("targetable", "clickable")
         // 覚醒可能（フラッシュ中で優先権あり）：バッジのクリックで覚醒モード開始
-        if (inFlash && canAwaken(inst)) {
+        if (inFlash && canAwaken(view, inst)) {
             const badge = document.createElement("button")
             badge.className = "awaken-badge"
             badge.dataset.awaken = inst.instanceId

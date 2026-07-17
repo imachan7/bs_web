@@ -45,8 +45,9 @@
   **【呪撃】**（ブロックした相手スピリットをバトル終了時に破壊）— **実装済み**（2章のキーワード表を参照）
 - 構造化の進捗: キーワード5枚＋赤・紫15枚＋緑・白11枚＋黄6枚＋エンジン小拡張バッチ8枚
   （BS02-004/018/019/061/071/075/084/106。cantAttack・recovered指定アタック・levelFilter・
-  色フィルタ・系統カウンタ・refreshAllByCost・destroyOwnByCost を新設）の計 **45枚**。
-  スキップ残は58枚（→ 5章の課題リスト。黄は妖精・天使系の新概念が多い）。
+  色フィルタ・系統カウンタ・refreshAllByCost・destroyOwnByCost を新設）＋キーワード付与バッチ3枚
+  （BS02-089/100/X05。grantKeyword・keywordGrant・aura keywordFilter を新設）の計 **48枚**。
+  スキップ残は55枚（→ 5章の課題リスト。黄は妖精・天使系の新概念が多い）。
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
@@ -166,6 +167,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `coreGainPer` | カウント値ぶんボイドから自分のリザーブへ（counter: drawPer と共通の `DrawPerCounter`。宝石の獣カーバルク） |
 | `refreshAllByCost` | **両陣営**の指定コストのスピリットをすべて回復（cantAttackThisTurn は付かない。ローヤルポーション） |
 | `destroyOwnByCost` | self 以外の自分スピリットからコスト ≤ maxCost かつコスト最大の1体を破壊（プレイヤー選択の決定的簡略化）。gainCoresEqualCost でそのコスト数のコアをボイドから自分リザーブへ（天使長プリンシパール） |
+| `grantKeyword` | 自分のスピリット1体にこのターンの間キーワードを一時付与（`tempKeywords`、ターン終了でリセット。colors 付きで装甲も付与可。スピリットリンク＝覚醒、インビンシブルシールド＝装甲） |
 | `coreToVoidOwn` | 自分のコアをボイドへ（trashCores 優先、次に実効BP最小スピリット） |
 | `bothSidesCoreToTrash` | 両者の各BP最大スピリットのコアを各持ち主のトラッシュへ |
 | `discardSelfOne` | 自分の手札末尾1枚を破棄（百識の谷Lv1） |
@@ -231,6 +233,22 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
   クライアントのハイライトに反映
 - `nexusIndestructible` — すべてのネクサスは破壊されない（オーディーン Lv2-3）。destroyNexus 冒頭で遮断
   （バウンス returnNexusToHand は破壊ではないため対象外）
+
+### キーワード付与（tempKeywords / kind: "keywordGrant"）
+
+- **一時付与**: `grantKeyword` アクションが対象の `CardInstance.tempKeywords` に
+  `{ keyword, colors? }` を push（ターン終了でリセット。PhaseManager の一時フラグ処理）
+- **継続付与**: `{ kind: "keywordGrant", levels, keyword, target: "ownAll", familyFilter?, phase? }` —
+  発生源が場にありレベル有効の間、持ち主の familyFilter 一致スピリットすべてに付与。
+  phase 指定でそのステップ中のみ（ターンプレイヤー不問＝『お互いの〜ステップ』。暴双龍ディラノス Lv2-3）
+- **状態対応の判定** `spiritHasKeyword(state, ownerPid, inst, keyword)`: 静的 ‖ 一時付与 ‖ 継続付与。
+  フィールド上のスピリットを判定する箇所（覚醒API・unblockableBy keywordFilter・激突・
+  destroy/refreshOne の keywordFilter・aura keywordFilter）はすべてこちらを使う。
+  手札の神速判定はカード静的（hasKeyword）のまま。付与された装甲は `hasArmorAgainst` が
+  tempKeywords も見るので機能する。クライアントは `spiritHasKeywordView` でミラー
+  （覚醒バッジ・ブロック可否・装甲対象選択・実効BP表示）
+- aura は `keywordFilter?: Keyword` に対応（「【覚醒】を持つ自分のスピリットすべて+1000」＝ディラノス Lv1-3。
+  keywordGrant で付与された覚醒もカウントされる）
 
 ### バトル結果誘発（battleRole / kind: "battleWon"）
 
@@ -370,8 +388,8 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 
 後続の弾でも再出現しそうなものから優先度をつけて対応する:
 
-- **一時的キーワード付与**（スピリットリンク・ディラノスLv2-3・インビンシブルシールド）と
-  **aura の keywordFilter**（ディラノスLv1「【覚醒】持ち全体+1000」）— 出現頻度が高く優先度高
+- ~~一時的キーワード付与（スピリットリンク・ディラノスLv2-3・インビンシブルシールド）と
+  aura の keywordFilter（ディラノスLv1）~~ — **キーワード付与バッチで対応済み（2026-07-17）**
 - **ネクサス破壊への誘発トリガー**（アーケオルニ）、**相手のブロック宣言への攻撃側誘発**（バット・バット・シーザー）
 - **条件付きレベル変更**「スピリット2体以下の間Lv3として扱う」（ジャグリーン）
 - ~~レベル基準のブロック制限（スプラー・デースペル）~~ / ~~回復状態への指定アタック（オルカリア）~~ /

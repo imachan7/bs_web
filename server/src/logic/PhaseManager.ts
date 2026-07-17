@@ -73,6 +73,7 @@ export function endTurn(state: GameState): void {
             inst.cantAttackThisTurn = false
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
+            inst.tempKeywords = []
         }
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット

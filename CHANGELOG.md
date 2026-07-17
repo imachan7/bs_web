@@ -96,3 +96,7 @@
 - BS02スキップ分を拾うエンジン小拡張8件（cantAttack制約・recovered指定アタック・unblockableBy levelFilter・
   refreshOne/fieldEventの色フィルタ・系統カウンタのdrawPer/coreGainPer・refreshAllByCost・destroyOwnByCost）を
   実装し8枚を追加構造化（計45/103枚。smoke 830件全合格）
+- キーワード付与を実装: grantKeyword アクション（tempKeywords による一時付与、ターン終了リセット）、
+  kind:"keywordGrant"（フィールド発生源からの系統・フェーズ限定の継続付与）、状態対応判定 spiritHasKeyword、
+  aura の keywordFilter。スピリットリンク・インビンシブルシールド・暴双龍ディラノスを構造化
+  （計48/103枚。クライアントの覚醒バッジ・ブロック可否・装甲対象選択・実効BP表示もミラー。smoke 842件全合格）

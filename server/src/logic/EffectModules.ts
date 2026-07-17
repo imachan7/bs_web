@@ -65,6 +65,39 @@ export function effectActiveAtLevel(
     return levels === null || levels.includes(level)
 }
 
+// 状態を考慮したキーワード判定：
+//   静的キーワード（hasKeyword） ‖ 一時付与（tempKeywords。スピリットリンク等） ‖
+//   持ち主フィールドからの継続付与（kind: "keywordGrant"。暴双龍ディラノス）
+// フィールド上のスピリットを判定する箇所はこちらを使う（手札の静的判定は hasKeyword のまま）。
+export function spiritHasKeyword(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
+    if (hasKeyword(inst.cardId, keyword)) return true
+    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "keywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (
+                effect.familyFilter &&
+                !getCard(inst.cardId).family.includes(effect.familyFilter)
+            ) {
+                continue
+            }
+            if (effect.phase && state.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
+}
+
 // ---- 常時BP修正（オーラ） ----
 
 // フィールド上の指定インスタンスがスピリットとして存在するか
@@ -146,6 +179,12 @@ function auraAppliesTo(
         }
     }
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== state.turn) {
+        return false
+    }
+    if (
+        aura.keywordFilter &&
+        !spiritHasKeyword(state, targetOwnerPid, targetInst, aura.keywordFilter)
+    ) {
         return false
     }
     return true
@@ -232,12 +271,17 @@ function isImmuneToArea(inst: CardInstance): boolean {
 export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
     if (sourceColor === undefined) return false
     const level = currentLevel(inst).level
-    return getCard(inst.cardId).effects.some(
+    const staticArmor = getCard(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
             effectActiveAtLevel(e.levels, level) &&
             (e.colors?.includes(sourceColor) ?? false),
+    )
+    if (staticArmor) return true
+    // 一時付与の装甲（インビンシブルシールド）
+    return inst.tempKeywords.some(
+        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
     )
 }
 
@@ -523,6 +567,31 @@ function pickBpBuffTarget(
     return target
 }
 
+// grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
+// 対象指定があれば自分フィールドから検索、なければバトル中の自分スピリット優先、
+// いなければ自分フィールドの先頭スピリット
+function pickOwnKeywordTarget(
+    state: GameState,
+    owner: PlayerId,
+    targetInstanceId?: string,
+): CardInstance | null {
+    const mine = state.players[owner].field.spirits
+    if (targetInstanceId) {
+        return mine.find((s) => s.instanceId === targetInstanceId) ?? null
+    }
+    let target: CardInstance | null = null
+    if (state.battle) {
+        target =
+            mine.find(
+                (s) =>
+                    s.instanceId === state.battle?.attackerInstanceId ||
+                    s.instanceId === state.battle?.blockerInstanceId,
+            ) ?? null
+    }
+    if (!target) target = mine[0] ?? null
+    return target
+}
+
 // 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
 function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
     return state.players[opp].field.spirits.filter((s) => s.isRested).length
@@ -575,7 +644,7 @@ export function resolveAction(
                     action.maxBp ?? Infinity,
                     (s) =>
                         action.keywordFilter === undefined ||
-                        hasKeyword(s.cardId, action.keywordFilter),
+                        spiritHasKeyword(state, opp, s, action.keywordFilter),
                     srcColor,
                 )
                 if (!target) {
@@ -650,6 +719,24 @@ export function resolveAction(
             log(
                 state,
                 `${getCard(target.cardId).name}の『ブロックできない』効果を無効にした。`,
+            )
+            return
+        }
+
+        case "grantKeyword": {
+            // スピリットリンク／インビンシブルシールド：自分のスピリット1体に一時的にキーワードを付与
+            const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            target.tempKeywords.push({
+                keyword: action.keyword,
+                ...(action.colors ? { colors: action.colors } : {}),
+            })
+            log(
+                state,
+                `${getCard(target.cardId).name}に【${KEYWORDS[action.keyword].label}】を付与した。`,
             )
             return
         }
@@ -996,7 +1083,7 @@ export function resolveAction(
                 (s) =>
                     s.isRested &&
                     (action.keywordFilter === undefined ||
-                        hasKeyword(s.cardId, action.keywordFilter)) &&
+                        spiritHasKeyword(state, owner, s, action.keywordFilter)) &&
                     (action.colorFilter === undefined ||
                         getCard(s.cardId).color === action.colorFilter),
             )

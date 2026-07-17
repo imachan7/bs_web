@@ -17,6 +17,7 @@ import {
     hasKeyword,
     isUntargetableByOpponent,
     KEYWORDS,
+    spiritHasKeyword,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
@@ -245,7 +246,7 @@ export function validateAwaken(
     const player = state.players[pid]
     const target = findSpirit(player, instanceId)
     if (!target) return "覚醒するスピリットが見つかりません"
-    if (!hasKeyword(target.cardId, "awaken")) return "このスピリットは【覚醒】を持ちません"
+    if (!spiritHasKeyword(state, pid, target, "awaken")) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
     const from = findSpirit(player, fromInstanceId)
@@ -397,7 +398,7 @@ export function validateBlock(
             }
             if (
                 c.keywordFilter !== undefined &&
-                hasKeyword(inst.cardId, c.keywordFilter)
+                spiritHasKeyword(state, pid, inst, c.keywordFilter)
             ) {
                 return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
             }
@@ -473,7 +474,11 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.battle.attackerInstanceId,
     )
     // 【激突】持ちのアタック時はブロック強制（第一弾には未収録だが将来弾向けに残す）
-    if (attacker && hasKeyword(attacker.cardId, "clash") && hasBlocker(state, pid)) {
+    if (
+        attacker &&
+        spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
+        hasBlocker(state, pid)
+    ) {
         return "【激突】によりブロックしなければなりません"
     }
     return null

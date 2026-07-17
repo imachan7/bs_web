@@ -20,7 +20,7 @@ function runTurnStart(s: GameState): void {
     s.turn = 3
 }
 import { handleAction } from "../server/src/logic/GameEngine"
-import { destroySpirit, effectiveBp, hasKeyword, resolveAction } from "../server/src/logic/EffectModules"
+import { destroySpirit, effectiveBp, hasKeyword, resolveAction, spiritHasKeyword } from "../server/src/logic/EffectModules"
 import { effectiveCost } from "../server/src/logic/RuleValidator"
 import type { GameAction, GameState, PlayerId } from "../server/src/type"
 import { DECK_RECIPES, DECK_SIZE } from "../data/constants"
@@ -4058,6 +4058,127 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     // 召喚コスト8+維持コア1=9を消費（20→11）、destroyOwnByCostでmid自身のコア1個がリザーブへ（11→12）、
     // gainCoresEqualCostでmidのコスト4ぶんコア追加（12→16）
     assert(s.players.p1.reserve === 16, "召喚コスト消費＋破壊時のコア戻し＋gainCoresEqualCostの合計が一致")
+}
+
+console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura keywordFilter ===")
+{
+    console.log("--- スピリットリンク：付与された覚醒でawakenアクションが通る ---")
+    const s = createGame(
+        "grant-keyword-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s)
+    const attacker = createInstance("BS01-001", s.turn, 1) // ゴラドン（覚醒なし）
+    const donor = createInstance("BS01-001", s.turn, 2) // コア供給元
+    s.players.p1.field.spirits.push(attacker, donor)
+    s.players.p1.hand[0] = "BS02-089"
+    s.players.p1.reserve = 10
+    act(s, "p1", { type: "nextPhase" })
+    act(s, "p1", { type: "attack", instanceId: attacker.instanceId })
+    // 覚醒なしの時点では拒否される
+    assert(
+        act(s, "p1", {
+            type: "awaken",
+            instanceId: attacker.instanceId,
+            fromInstanceId: donor.instanceId,
+            count: 1,
+        }) !== null,
+        "覚醒を持たないスピリットのawakenは拒否",
+    )
+    act(s, "p2", { type: "pass" }) // 防御側パス → p1に優先権
+    assert(
+        act(s, "p1", {
+            type: "castMagic",
+            handIndex: 0,
+            targetInstanceId: attacker.instanceId,
+        }) === null,
+        "フラッシュでスピリットリンクを使用",
+    )
+    assert(
+        attacker.tempKeywords.some((k) => k.keyword === "awaken"),
+        "対象に覚醒が一時付与される",
+    )
+    act(s, "p2", { type: "pass" }) // 使用で優先権がp2へ移る → p2パスでp1へ戻る
+    assert(
+        act(s, "p1", {
+            type: "awaken",
+            instanceId: attacker.instanceId,
+            fromInstanceId: donor.instanceId,
+            count: 1,
+        }) === null,
+        "付与された覚醒でコアを移動できる",
+    )
+    assert(attacker.cores === 2 && donor.cores === 1, "コアが移動している")
+
+    console.log("--- ターン終了で一時付与がクリアされる ---")
+    act(s, "p2", { type: "pass" })
+    act(s, "p1", { type: "pass" }) // フラッシュ終了
+    act(s, "p2", { type: "takeLife" })
+    act(s, "p1", { type: "endTurn" })
+    assert(attacker.tempKeywords.length === 0, "endTurnでtempKeywordsが空になる")
+
+    console.log("--- インビンシブルシールド：付与された装甲が赤の効果を防ぐ ---")
+    const s2 = createGame(
+        "grant-armor-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s2)
+    const guard = createInstance("BS01-001", s2.turn, 1)
+    s2.players.p2.field.spirits.push(guard)
+    resolveAction(s2, "p2", null, {
+        type: "grantKeyword",
+        keyword: "armor",
+        colors: ["red", "purple", "green", "blue"],
+    }, guard.instanceId)
+    // p1の赤ソースの破壊効果は装甲で対象に取れない
+    resolveAction(s2, "p1", null, { type: "destroy", count: 1 }, undefined, "red")
+    assert(s2.players.p2.field.spirits.length === 1, "付与された装甲が赤の破壊効果を防ぐ")
+}
+
+{
+    console.log("--- ディラノス：keywordGrant（地竜へ覚醒付与、アタックステップ限定） ---")
+    const s = createGame(
+        "keyword-grant-field-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s)
+    const dillanos = createInstance("BS02-X05", s.turn, 3) // Lv2（keywordGrant有効）
+    const dino = createInstance("BS02-003", s.turn, 2) // ディノハウンド（地竜）
+    const gora = createInstance("BS01-001", s.turn, 1) // ゴラドン（爬獣＝対象外）
+    s.players.p1.field.spirits.push(dillanos, dino, gora)
+    assert(
+        !spiritHasKeyword(s, "p1", dino, "awaken"),
+        "メインステップでは付与されない（phase: attack 限定）",
+    )
+    act(s, "p1", { type: "nextPhase" })
+    assert(
+        spiritHasKeyword(s, "p1", dino, "awaken"),
+        "アタックステップ中は地竜に覚醒が付与される",
+    )
+    assert(
+        !spiritHasKeyword(s, "p1", gora, "awaken"),
+        "地竜以外には付与されない",
+    )
+
+    console.log("--- ディラノスの aura keywordFilter：覚醒持ちのみBP+1000 ---")
+    const s2 = createGame(
+        "aura-keyword-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "white" },
+    )
+    runTurnStart(s2)
+    const dillanos2 = createInstance("BS02-X05", s2.turn, 1) // Lv1（auraは有効、keywordGrantは無効）
+    const balmung = createInstance("BS02-007", s2.turn, 1) // バルムンク（静的覚醒持ち・Lv1 BP3000）
+    const gora2 = createInstance("BS01-001", s2.turn, 1) // 覚醒なし・Lv1 BP1000
+    s2.players.p1.field.spirits.push(dillanos2, balmung, gora2)
+    assert(
+        effectiveBp(s2, "p1", balmung) === 3000 + 1000,
+        "覚醒持ちバルムンクはaura keywordFilterで+1000",
+    )
+    assert(effectiveBp(s2, "p1", gora2) === 1000, "覚醒を持たないゴラドンは対象外")
 }
 
 console.log("")

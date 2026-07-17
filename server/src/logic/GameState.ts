@@ -63,6 +63,7 @@ export function createInstance(
         cantAttackThisTurn: false,
         immuneToOpponentThisTurn: false,
         blockConstraintNegatedThisTurn: false,
+        tempKeywords: [],
     }
 }
 

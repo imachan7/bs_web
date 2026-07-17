@@ -84,6 +84,7 @@ export type EffectAction =
     | { type: "coreGainPer"; counter: DrawPerCounter } // カウント値ぶんボイドから自分のリザーブへコアを追加（0ならログのみ。宝石の獣カーバルク）
     | { type: "refreshAllByCost"; cost: number } // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない。ローヤルポーション）
     | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（プレイヤー選択の簡略化＝決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ（天使長プリンシパール）
+    | { type: "grantKeyword"; keyword: Keyword; colors?: Color[] } // 自分のスピリット1体に、このターンの間キーワードを付与する（targetInstanceId優先、フォールバックはバトル中の自分スピリット→自分フィールド先頭。スピリットリンク／インビンシブルシールド）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -147,6 +148,7 @@ export interface AuraDef {
     counter?: AuraCounter
     condition?: AuraCondition // 満たすときのみ amount を適用
     summonedThisTurnOnly?: boolean // ownAll 用: 対象の summonedTurn === state.turn のスピリットのみ（このターン召喚されたスピリットに限定）
+    keywordFilter?: Keyword // ownAll 用: 指定キーワード（静的付与・一時付与・keywordGrant すべて含む）を持つスピリットのみ（暴双龍ディラノス）
 }
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
@@ -257,6 +259,15 @@ export type EffectDef =
           levels: number[] | null
           amount: number
       }
+    | {
+          id: string
+          kind: "keywordGrant" // 発生源が場にありレベル有効の間、持ち主の familyFilter 一致スピリットすべてにキーワードを継続付与する（暴双龍ディラノス）
+          levels: number[] | null
+          keyword: Keyword
+          target: "ownAll"
+          familyFilter?: string // 指定時はこの系統を持つスピリットのみ
+          phase?: Phase // 指定時はこのステップの間のみ有効（turnPlayerを問わない＝『お互いの〜ステップ』）
+      }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
 export interface CardData {
@@ -287,6 +298,7 @@ export interface CardInstance {
     cantAttackThisTurn: boolean // このターンの間アタック不可（refreshAllOwn で回復した個体などに付与）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
+    tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
 }
 
 // プレイヤーの状態

@@ -9847,7 +9847,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体に“【覚醒】自分のスピリット上から、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-089-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantKeyword",
+     "keyword": "awaken"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-090",
@@ -10134,7 +10144,23 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体に“【装甲：赤/紫/緑/青】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-100-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantKeyword",
+     "keyword": "armor",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "blue"
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-101",
@@ -10448,7 +10474,35 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\n【覚醒】を持つ自分のスピリットすべてをBP+1000する。\nLv2･Lv3『お互いのアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてに“【覚醒】自分のスピリット上から、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-X05-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "awaken",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "BS02-X05-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "keyword": "awaken",
+    "target": "ownAll",
+    "familyFilter": "地竜",
+    "phase": "attack"
+   }
+  ]
  },
  {
   "cardId": "BS02-X06",
