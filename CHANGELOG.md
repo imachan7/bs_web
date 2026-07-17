@@ -112,3 +112,6 @@
   recoverMagicFromTrash・trashCoresToSpirit・grantKeywordAll・aura phaseTurn/minCores・
   fieldEvent ownMagicUsed・トリガー onLifeDealt・ターン限定全体制約（ヘビィゲート）を新設。
   計68/103枚（smoke 940件全合格）
+- BS02構造化バッチ5（9枚+部分1）: aura costFilter・unblockableBy costNot・ブロック時不疲労・
+  破壊時コア数カウンタ・costMod拡張（相手マジック限定+1等）・immunityGrant（漂精のマジック耐性）・
+  deployNexus（手札/トラッシュから無償配置）・サクリファイス専用処理。計77/103枚（smoke 984件全合格）
