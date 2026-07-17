@@ -314,6 +314,10 @@ export function validateAttack(
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
     }
+    // このスピリットはアタックできない（カイザレオン大帝Lv1）
+    if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
+        return "このスピリットはアタックできません"
+    }
 
     if (targetSpiritInstanceId !== undefined) {
         // 指定アタック：canDirectAttack を持ち、指定した相手スピリットが targetFilter に合うかを検証する
@@ -330,6 +334,9 @@ export function validateAttack(
         }
         if (directConstraint.targetFilter === "singleCore" && target.cores !== 1) {
             return "コア1個のスピリットしか指定できません"
+        }
+        if (directConstraint.targetFilter === "recovered" && target.isRested) {
+            return "回復状態のスピリットしか指定できません"
         }
     }
     return null
@@ -397,6 +404,12 @@ export function validateBlock(
             if (c.maxCores !== undefined && inst.cores <= c.maxCores) {
                 return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
             }
+            if (
+                c.levelFilter !== undefined &&
+                c.levelFilter.includes(currentLevel(inst).level)
+            ) {
+                return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
+            }
         }
     }
     return null
@@ -437,6 +450,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
         const constraints = activeConstraints(state, pid, inst)
+        // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
+        if (constraints.some((c) => c.type === "cantAttack")) continue
         if (constraints.some((c) => c.type === "mustAttack")) {
             return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
         }

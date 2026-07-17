@@ -3875,6 +3875,191 @@ console.log("=== BS02 黄の構造化効果 ===")
     assert(target.tempBpBuff === 11000, "スピリットイリュージョンでさらにBP+3000（合計11000）")
 }
 
+console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
+{
+    console.log("--- BS02-036 カイザレオン大帝Lv1：constraint cantAttack でアタック不可 ---")
+    const s = createGame(
+        "bs02-ext-cantattack",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "green", p2: "red" },
+    )
+    runTurnStart(s)
+    const kaiser1 = createInstance("BS02-036", s.turn, 1) // Lv1
+    s.players.p1.field.spirits.push(kaiser1)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: kaiser1.instanceId }) !== null,
+        "Lv1のカイザレオン大帝はcantAttack制約でアタックできない",
+    )
+}
+{
+    console.log("--- BS02-004 オルカリアLv2：canDirectAttack targetFilter recovered ---")
+    const s = createGame(
+        "bs02-ext-recovered",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    runTurnStart(s)
+    const orca = createInstance("BS02-004", s.turn, 3) // Lv2
+    s.players.p1.field.spirits.push(orca)
+    const restedEnemy = createInstance("BS01-001", s.turn, 1)
+    restedEnemy.isRested = true
+    const recoveredEnemy = createInstance("BS01-001", s.turn, 1)
+    s.players.p2.field.spirits.push(restedEnemy, recoveredEnemy)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: orca.instanceId,
+            targetSpiritInstanceId: restedEnemy.instanceId,
+        }) !== null,
+        "疲労状態のスピリットはrecoveredフィルタで指定できない",
+    )
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: orca.instanceId,
+            targetSpiritInstanceId: recoveredEnemy.instanceId,
+        }) === null,
+        "回復状態のスピリットはrecoveredフィルタで指定アタックできる",
+    )
+}
+{
+    console.log("--- BS02-018/019：unblockableBy levelFilter ---")
+    const s = createGame(
+        "bs02-ext-levelfilter",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "red" },
+    )
+    runTurnStart(s)
+    const supler = createInstance("BS02-018", s.turn, 2) // 悪魔スプラー Lv2（levelFilter[3]）
+    s.players.p1.field.spirits.push(supler)
+    const lv3Blocker = createInstance("BS01-007", s.turn, 7) // ハンマドレイク Lv3
+    const lv2Blocker = createInstance("BS01-007", s.turn, 2) // ハンマドレイク Lv2
+    s.players.p2.field.spirits.push(lv3Blocker, lv2Blocker)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: supler.instanceId }) === null, "スプラーでアタック")
+    assert(
+        act(s, "p2", { type: "block", instanceId: lv3Blocker.instanceId }) !== null,
+        "Lv3のブロッカーはlevelFilter[3]でブロックできない",
+    )
+    assert(
+        act(s, "p2", { type: "block", instanceId: lv2Blocker.instanceId }) === null,
+        "Lv2のブロッカーはブロックできる",
+    )
+}
+{
+    console.log("--- BS02-061 天使エンジュ：召喚時にrefreshOne colorFilter yellowで自分の黄のみ回復 ---")
+    const s = createGame(
+        "bs02-ext-refreshcolor",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const yellowRested = createInstance("BS02-055", s.turn, 1) // チャウー（黄）
+    yellowRested.isRested = true
+    const redRested = createInstance("BS01-001", s.turn, 1) // ゴラドン（赤）
+    redRested.isRested = true
+    s.players.p1.field.spirits.push(yellowRested, redRested)
+    s.players.p1.hand[0] = "BS02-061"
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "天使エンジュを召喚")
+    assert(!yellowRested.isRested, "黄のスピリットが回復する")
+    assert(redRested.isRested === true, "赤のスピリットはcolorFilter対象外で疲労のまま")
+}
+{
+    console.log("--- BS02-084 祝福されし大聖堂Lv2：fieldEvent colorFilter yellowで自分の黄破壊時のみ発火 ---")
+    const s = createGame(
+        "bs02-ext-fieldevent-color",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const cathedral = createInstance("BS02-084", s.turn, 3) // Lv2
+    s.players.p1.field.nexuses.push(cathedral)
+    const yellowSpirit = createInstance("BS02-055", s.turn, 1) // チャウー（黄）
+    const redSpirit = createInstance("BS01-001", s.turn, 1) // ゴラドン（赤）
+    s.players.p1.field.spirits.push(yellowSpirit, redSpirit)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+
+    const reserveBefore = s.players.p1.reserve
+    const handBefore = s.players.p1.hand.length
+    destroySpirit(s, "p1", redSpirit.instanceId)
+    // 破壊された赤スピリット自身のコア1個のみリザーブへ（colorFilter不一致でcoreGainは発火せず）
+    assert(s.players.p1.reserve === reserveBefore + 1, "赤のスピリット破壊：colorFilter不一致で発火しない")
+    assert(s.players.p1.hand.length === handBefore, "赤のスピリット破壊：ドローも発火しない")
+
+    const reserveBefore2 = s.players.p1.reserve
+    const handBefore2 = s.players.p1.hand.length
+    destroySpirit(s, "p1", yellowSpirit.instanceId)
+    // 自身のコア1個 + coreGain(1) = +2
+    assert(s.players.p1.reserve === reserveBefore2 + 2, "黄のスピリット破壊：colorFilter一致でcoreGainが発火")
+    assert(s.players.p1.hand.length === handBefore2 + 1, "黄のスピリット破壊：Lv2のdrawも発火")
+}
+{
+    console.log("--- BS02-071 宝石の獣カーバルクLv2：破壊時に想獣数ぶんcoreGainPer+drawPer ---")
+    const s = createGame(
+        "bs02-ext-family",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    const carbuncle = createInstance("BS02-071", s.turn, 3) // Lv2（コア3個）
+    const kerberos = createInstance("BS02-063", s.turn, 1) // 冥犬ケルル・ベロス（想獣）
+    s.players.p1.field.spirits.push(carbuncle, kerberos)
+    const reserveBefore = s.players.p1.reserve
+    const handBefore = s.players.p1.hand.length
+    destroySpirit(s, "p1", carbuncle.instanceId)
+    // 自身のコア3個 + coreGainPer（想獣1体=ケルル・ベロスのみ。破壊時点でカーバルク自身はフィールドから除去済み）= +4
+    assert(s.players.p1.reserve === reserveBefore + 4, "破壊時：自身のコア3+coreGainPer(想獣1体分)=+4")
+    assert(s.players.p1.hand.length === handBefore + 1, "破壊時：drawPer(想獣1体分)で1枚ドロー")
+}
+{
+    console.log("--- BS02-106 ローヤルポーション：refreshAllByCostで両陣営のコスト2スピリットを回復 ---")
+    const s = createGame(
+        "bs02-ext-refreshcost",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const own2 = createInstance("BS01-004", s.turn, 1) // ドラグノ偵察兵 コスト2
+    own2.isRested = true
+    const own3 = createInstance("BS01-009", s.turn, 1) // ヴォルク・バブーン コスト3
+    own3.isRested = true
+    s.players.p1.field.spirits.push(own2, own3)
+    const opp2 = createInstance("BS01-004", s.turn, 1)
+    opp2.isRested = true
+    s.players.p2.field.spirits.push(opp2)
+    s.players.p1.hand[0] = "BS02-106"
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ローヤルポーションを使用")
+    assert(!own2.isRested, "自分のコスト2スピリットが回復")
+    assert(!opp2.isRested, "相手のコスト2スピリットも回復（両陣営）")
+    assert(own3.isRested === true, "コスト3のスピリットはrefreshAllByCost対象外で疲労のまま")
+}
+{
+    console.log("--- BS02-075 天使長プリンシパール：召喚時にdestroyOwnByCostでコスト最大の1体を破壊 ---")
+    const s = createGame(
+        "bs02-ext-destroyowncost",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    const low = createInstance("BS01-004", s.turn, 1) // コスト2
+    const mid = createInstance("BS01-012", s.turn, 1) // コスト4
+    const high = createInstance("BS01-016", s.turn, 1) // コスト5（maxCost超過で対象外）
+    s.players.p1.field.spirits.push(low, mid, high)
+    s.players.p1.hand[0] = "BS02-075"
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "天使長プリンシパールを召喚")
+    assert(!s.players.p1.field.spirits.includes(mid), "コスト4以下のうちコスト最大のスピリットが破壊される")
+    assert(s.players.p1.field.spirits.includes(low), "コスト2のスピリットは対象外で生存")
+    assert(s.players.p1.field.spirits.includes(high), "コスト5のスピリットはmaxCost超過で対象外")
+    // 召喚コスト8+維持コア1=9を消費（20→11）、destroyOwnByCostでmid自身のコア1個がリザーブへ（11→12）、
+    // gainCoresEqualCostでmidのコスト4ぶんコア追加（12→16）
+    assert(s.players.p1.reserve === 16, "召喚コスト消費＋破壊時のコア戻し＋gainCoresEqualCostの合計が一致")
+}
+
 console.log("")
 if (failed > 0) {
     console.error(`${failed}件の失敗があります（合格${passed}件）`)

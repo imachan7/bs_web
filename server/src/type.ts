@@ -44,7 +44,7 @@ export type EffectAction =
     | { type: "bpBuff"; amount: number } // 対象スピリット1体をBP+（ターン終了時まで）
     | { type: "exhaust"; count: number } // 相手スピリットを疲労させる
     | { type: "destroyExhausted"; count: number } // 疲労状態の相手スピリットを破壊
-    | { type: "drawPer"; counter: "exhaustedEnemies" | "opponentHand" } // カウント値ぶん自分がドロー（0ならログのみ）
+    | { type: "drawPer"; counter: DrawPerCounter } // カウント値ぶん自分がドロー（0ならログのみ）
     | { type: "bpBuffPer"; counter: "exhaustedEnemies"; amountPer: number } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
     | { type: "bpBuffAll"; amount: number } // 自分のフィールドのスピリットすべてをBP+（ターン終了時まで）
@@ -64,7 +64,7 @@ export type EffectAction =
     | { type: "voidCoreToSelf"; count: number } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op）
     | { type: "voidCoreToSelfPer"; counter: "ownOtherSpirits" } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
     | { type: "discardOpponent"; count: number } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）
-    | { type: "refreshOne"; keywordFilter?: Keyword } // 自分の疲労スピリット1体を回復（keywordFilter指定時はそのキーワード持ちのみ。候補から実効BP最大を自動選択、いなければno-op）
+    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ。候補から実効BP最大を自動選択、いなければno-op）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: "readyEnemies"; amountPer: number } // このスピリット自身を「相手フィールドの回復状態スピリット数×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
     | { type: "voidCoreToOther"; count: number } // ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
@@ -81,6 +81,17 @@ export type EffectAction =
     | { type: "negateOwnBlockConstraint" } // 自分のスピリット1体が持つ cantBlock/cantBlockLowerBp を、このターンの間無効化する（バーストファイア）
     | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない。妖機妃ソール）
     | { type: "deckReveal"; count: number; pickType?: CardType } // 自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の1枚（省略時は先頭）を手札に加える。残りは元の順でデッキの下に戻す（スワロウアイヴィー）
+    | { type: "coreGainPer"; counter: DrawPerCounter } // カウント値ぶんボイドから自分のリザーブへコアを追加（0ならログのみ。宝石の獣カーバルク）
+    | { type: "refreshAllByCost"; cost: number } // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない。ローヤルポーション）
+    | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（プレイヤー選択の簡略化＝決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ（天使長プリンシパール）
+
+// drawPer / coreGainPer 共通のカウンタ定義。
+// { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
+// selfはすでにフィールドから除去されているため、self自身はカウントに含まれない）
+export type DrawPerCounter =
+    | "exhaustedEnemies"
+    | "opponentHand"
+    | { ownFamily: string }
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
@@ -142,10 +153,11 @@ export interface AuraDef {
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下のスピリットにブロックされない
+    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[] } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれるスピリットにブロックされない
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
-    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ。イリュージョナ／牛霊スモゥグ）
+    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ。イリュージョナ／牛霊スモゥグ／オルカリア）
+    | { type: "cantAttack" } // このスピリットはアタックできない（カイザレオン大帝Lv1）
 
 // フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 // kind: "constraint" は「発生源自身」への制約だが、こちらは発生源の持ち主に関係なく
@@ -215,6 +227,7 @@ export type EffectDef =
           action: EffectAction
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           turn?: "own" | "opponent" // 指定時はこの陣営条件でのみ発火（own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時。省略時はどちらでも発火）
+          colorFilter?: Color // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの色がこれと一致するときのみ発火（祝福されし大聖堂）
       }
     | {
           id: string

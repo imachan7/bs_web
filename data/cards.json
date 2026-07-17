@@ -6251,7 +6251,19 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\n回復状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-004-e1",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "recovered"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-005",
@@ -6875,7 +6887,35 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\nこのスピリットは、Lv3スピリットからブロックされない。\nLv3『このスピリットのアタック時』\nこのスピリットは、Lv2/Lv3スピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-018-e1",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      3
+     ]
+    }
+   },
+   {
+    "id": "BS02-018-e2",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      2,
+      3
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-019",
@@ -6914,7 +6954,35 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\nこのスピリットは、Lv1スピリットからブロックされない。\nLv3『このスピリットのアタック時』\nこのスピリットは、Lv1/Lv2スピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-019-e1",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   },
+   {
+    "id": "BS02-019-e2",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1,
+      2
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-020",
@@ -7643,6 +7711,16 @@
      "count": 1
     },
     "optional": false
+   },
+   {
+    "id": "BS02-036-e2",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
    }
   ]
  },
@@ -8653,7 +8731,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の黄のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-061-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshOne",
+     "colorFilter": "yellow"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-062",
@@ -9038,7 +9132,41 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\nボイドから、自分のフィールドにいる系統：「想獣」を持つスピリット1体につき、コア1個を自分のリザーブに置く。\nLv2･Lv3『このスピリットの破壊時』\n自分はデッキから、自分のフィールドにいる系統：「想獣」を持つスピリット1体につき、1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-071-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreGainPer",
+     "counter": {
+      "ownFamily": "想獣"
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-071-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "drawPer",
+     "counter": {
+      "ownFamily": "想獣"
+     }
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-072",
@@ -9197,7 +9325,24 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト4以下の自分のスピリット1体を破壊する。\nボイドから、破壊したスピリットのコストと同じ数のコアを自分のリザーブに置く。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットを対象としたBPを+するマジックの効果が使用されたとき、さらにこのスピリットをBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-075-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyOwnByCost",
+     "maxCost": 4,
+     "gainCoresEqualCost": true
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS02-076",
@@ -9525,7 +9670,37 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の黄のスピリットが破壊されたとき、ボイドからコア1個を自分のリザーブに置く。\nLv2『お互いのアタックステップ』\n自分の黄のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-084-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "colorFilter": "yellow",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS02-084-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "colorFilter": "yellow",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-085",
@@ -10094,7 +10269,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nコスト2のスピリットすべてを回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-106-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshAllByCost",
+     "cost": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-107",

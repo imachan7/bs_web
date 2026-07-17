@@ -12,6 +12,7 @@ import type {
     CardInstance,
     Color,
     ConstraintDef,
+    DrawPerCounter,
     EffectAction,
     FieldEvent,
     GameState,
@@ -326,7 +327,8 @@ export function destroySpirit(
     // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
     // （侵食されゆく銀世界Lv2）。fireFieldEventTriggers の action がさらに destroySpirit を
     // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed")
+    // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）を渡す
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color)
 }
 
 // ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
@@ -524,6 +526,23 @@ function pickBpBuffTarget(
 // 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
 function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
     return state.players[opp].field.spirits.filter((s) => s.isRested).length
+}
+
+// drawPer / coreGainPer 共通のカウンタ集計。
+// exhaustedEnemies / opponentHand は相手（opp）基準、{ ownFamily } は自分（owner）のフィールド基準
+function countDrawPerCounter(
+    state: GameState,
+    owner: PlayerId,
+    opp: PlayerId,
+    counter: DrawPerCounter,
+): number {
+    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
+    if (counter === "opponentHand") return state.players[opp].hand.length
+    // { ownFamily: string }：自分のフィールドの指定系統スピリット数
+    // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
+    return state.players[owner].field.spirits.filter((s) =>
+        getCard(s.cardId).family.includes(counter.ownFamily),
+    ).length
 }
 
 // 効果アクションを実行する。
@@ -817,15 +836,27 @@ export function resolveAction(
         }
 
         case "drawPer": {
-            const count =
-                action.counter === "exhaustedEnemies"
-                    ? countExhaustedEnemies(state, opp)
-                    : state.players[opp].hand.length
+            const count = countDrawPerCounter(state, owner, opp, action.counter)
             if (count === 0) {
                 log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
                 return
             }
             draw(state, owner, count)
+            return
+        }
+
+        case "coreGainPer": {
+            const count = countDrawPerCounter(state, owner, opp, action.counter)
+            if (count === 0) {
+                log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
+                return
+            }
+            const player = state.players[owner]
+            player.reserve += count
+            log(
+                state,
+                `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
+            )
             return
         }
 
@@ -960,12 +991,14 @@ export function resolveAction(
         }
 
         case "refreshOne": {
-            // 自分の疲労スピリットから（keywordFilter指定時はそのキーワード持ちのみ）実効BP最大の1体を回復
+            // 自分の疲労スピリットから（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
             const candidates = state.players[owner].field.spirits.filter(
                 (s) =>
                     s.isRested &&
                     (action.keywordFilter === undefined ||
-                        hasKeyword(s.cardId, action.keywordFilter)),
+                        hasKeyword(s.cardId, action.keywordFilter)) &&
+                    (action.colorFilter === undefined ||
+                        getCard(s.cardId).color === action.colorFilter),
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
@@ -996,6 +1029,54 @@ export function resolveAction(
                 state,
                 `${player.name}の疲労スピリット${count}体を回復した。（このターンの間、回復したスピリットはアタック不可）`,
             )
+            return
+        }
+
+        case "refreshAllByCost": {
+            // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない）
+            let count = 0
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                for (const s of state.players[pid].field.spirits) {
+                    if (!s.isRested) continue
+                    if (getCard(s.cardId).cost !== action.cost) continue
+                    s.isRested = false
+                    count++
+                }
+            }
+            if (count === 0) {
+                log(state, `${sourceName}：コスト${action.cost}の疲労スピリットがいなかった。`)
+                return
+            }
+            log(state, `${sourceName}：コスト${action.cost}のスピリット${count}体を回復した。`)
+            return
+        }
+
+        case "destroyOwnByCost": {
+            // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する
+            // （本来はプレイヤーが選ぶ処理だが、決定的な自動選択で簡略化）
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) =>
+                    (!self || s.instanceId !== self.instanceId) &&
+                    getCard(s.cardId).cost <= action.maxCost,
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            const target = candidates.reduce((best, s) =>
+                getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
+            )
+            const targetCost = getCard(target.cardId).cost
+            const targetName = getCard(target.cardId).name
+            destroySpirit(state, owner, target.instanceId)
+            if (action.gainCoresEqualCost) {
+                const player = state.players[owner]
+                player.reserve += targetCost
+                log(
+                    state,
+                    `${sourceName}：破壊した${targetName}のコストと同じ数のコア${targetCost}個をボイドから自分のリザーブに置いた。（リザーブ${player.reserve}）`,
+                )
+            }
             return
         }
 
@@ -1603,6 +1684,9 @@ export function fireStepTriggers(state: GameState, step: Phase): void {
 // selfOverride を指定すると、resolveAction に渡す self とその持ち主を差し替える
 // （anySpiritAttacked では「アタックしたスピリット」に効果を作用させるため。
 // fireBattleWonTriggers が勝利スピリットを self に渡すのと同じ考え方）。既存呼び出しには影響しない。
+// eventColor を指定すると、colorFilter 付きの効果（event: "ownSpiritDestroyed" 限定）は
+// この色と一致する場合のみ発火する（祝福されし大聖堂）。他イベントでは colorFilter を持つ
+// データが無いため未指定のままでよい。
 // 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
 // 注意（再入）: ここで実行される action が destroySpirit を呼ぶと、本関数を呼び出した
 // destroySpirit 自身への再入となる。現対象カードの action は draw / coreGain のみで
@@ -1613,6 +1697,7 @@ export function fireFieldEventTriggers(
     pid: PlayerId,
     event: FieldEvent,
     selfOverride?: { pid: PlayerId; inst: CardInstance },
+    eventColor?: Color,
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -1626,6 +1711,7 @@ export function fireFieldEventTriggers(
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+            if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
             if (selfOverride) {
                 resolveAction(state, selfOverride.pid, selfOverride.inst, effect.action)
             } else {

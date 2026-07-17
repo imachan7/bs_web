@@ -239,6 +239,12 @@ export function canBlockAttacker(
             return false
         }
         if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) return false
+        if (
+            c.levelFilter !== undefined &&
+            c.levelFilter.includes(levelOf(blockerInst).level)
+        ) {
+            return false
+        }
     }
     return true
 }
@@ -376,22 +382,23 @@ export interface UiState {
     awakenTarget: string | null
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
-    directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" } | null
+    directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っているか（サーバー validateAttack と同じロジックの簡易版）
-export function canDirectAttack(inst: CardInstance): "rested" | "singleCore" | null {
+export function canDirectAttack(inst: CardInstance): "rested" | "singleCore" | "recovered" | null {
     const constraint = activeConstraints(inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
     return constraint.targetFilter
 }
 
-// 指定アタックの対象条件（rested/singleCore）に、相手スピリットが合致するか
+// 指定アタックの対象条件（rested/singleCore/recovered）に、相手スピリットが合致するか
 export function matchesDirectedAttackFilter(
-    filter: "rested" | "singleCore",
+    filter: "rested" | "singleCore" | "recovered",
     target: CardInstance,
 ): boolean {
     if (filter === "rested") return target.isRested
+    if (filter === "recovered") return !target.isRested
     return target.cores === 1
 }
 
@@ -673,6 +680,8 @@ function fieldCardEl(
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
         const singleCoreLocked =
             inst.cores === 1 && hasGlobalConstraint(view, "singleCoreCantAct")
+        // このスピリットはアタックできない（カイザレオン大帝Lv1）
+        const cantAttack = activeConstraints(inst).some((c) => c.type === "cantAttack")
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -682,6 +691,7 @@ function fieldCardEl(
             !inst.isRested &&
             !inst.cantAttackThisTurn &&
             !singleCoreLocked &&
+            !cantAttack &&
             level >= 1
         ) {
             el.classList.add("clickable", "usable")
