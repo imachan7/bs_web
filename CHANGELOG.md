@@ -100,3 +100,7 @@
   kind:"keywordGrant"（フィールド発生源からの系統・フェーズ限定の継続付与）、状態対応判定 spiritHasKeyword、
   aura の keywordFilter。スピリットリンク・インビンシブルシールド・暴双龍ディラノスを構造化
   （計48/103枚。クライアントの覚醒バッジ・ブロック可否・装甲対象選択・実効BP表示もミラー。smoke 842件全合格）
+- BS02構造化バッチ2: fieldEvent anyNexusDestroyed（アーケオルニ）、攻撃側トリガー onBlocked（バット・バット・
+  シーザー。fireTrigger に targetInstanceId 転送を追加）、destroyExhausted anySide（両陣営対応）、
+  exhaustAllByLevel（デストロードLv1）、destroyAllExceptChosenColors（ケンドラゴス、色自動指定の簡略化）。
+  計52/103枚（smoke 864件全合格）
