@@ -28,6 +28,7 @@ import {
     hasKeyword,
     refreshLevelAsOverrides,
     resolveAction,
+    spiritHasFamily,
     spiritHasKeyword,
 } from "../../server/src/logic/EffectModules"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
@@ -104,6 +105,7 @@ export {
     hasKeyword,
     refreshLevelAsOverrides,
     resolveAction,
+    spiritHasFamily,
     spiritHasKeyword,
     effectiveCost,
     DECK_RECIPES,

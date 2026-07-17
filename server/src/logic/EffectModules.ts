@@ -89,11 +89,51 @@ export function spiritHasKeyword(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (
                 effect.familyFilter &&
-                !getCard(inst.cardId).family.includes(effect.familyFilter)
+                !spiritHasFamily(state, ownerPid, inst, effect.familyFilter)
             ) {
                 continue
             }
             if (effect.phase && state.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 状態を考慮した系統判定：
+//   静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
+// aura の familyFilter・AuraCounter/DrawPerCounter の { ownFamily }・keywordGrant の familyFilter は
+// すべてこちらを参照する（familyGrant で付与された系統もカウントに含めるため）。
+export function spiritHasFamily(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    family: string,
+): boolean {
+    if (getCard(inst.cardId).family.includes(family)) return true
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "familyGrant") continue
+            if (effect.family !== family) continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.colorFilter && getCard(inst.cardId).color !== effect.colorFilter) {
+                continue
+            }
+            if (
+                effect.costFilter !== undefined &&
+                getCard(inst.cardId).cost !== effect.costFilter
+            ) {
+                continue
+            }
+            if (effect.phase && state.phase !== effect.phase) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                if (total < count) continue
+            }
             return true
         }
     }
@@ -124,9 +164,9 @@ function countAuraCounter(
     if (counter === "ownExhausted") {
         return state.players[sourcePid].field.spirits.filter((s) => s.isRested).length
     }
-    // { ownFamily: string }：発生源自身を含む自分フィールドのスピリット数
+    // { ownFamily: string }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む）
     return state.players[sourcePid].field.spirits.filter((s) =>
-        getCard(s.cardId).family.includes(counter.ownFamily),
+        spiritHasFamily(state, sourcePid, s, counter.ownFamily),
     ).length
 }
 
@@ -193,6 +233,12 @@ function auraAppliesTo(
         return false
     }
     if (aura.costFilter !== undefined && getCard(targetInst.cardId).cost !== aura.costFilter) {
+        return false
+    }
+    if (
+        aura.familyFilter &&
+        !spiritHasFamily(state, targetOwnerPid, targetInst, aura.familyFilter)
+    ) {
         return false
     }
     if (aura.phaseTurn) {
@@ -707,10 +753,10 @@ function countDrawPerCounter(
     if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
     if (counter === "opponentHand") return state.players[opp].hand.length
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
-    // { ownFamily: string }：自分のフィールドの指定系統スピリット数
+    // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
     return state.players[owner].field.spirits.filter((s) =>
-        getCard(s.cardId).family.includes(counter.ownFamily),
+        spiritHasFamily(state, owner, s, counter.ownFamily),
     ).length
 }
 
@@ -2103,6 +2149,55 @@ export function resolveAction(
             log(
                 state,
                 `${sourceName}：${oppPlayer.name}のネクサスすべてを、このターンの間Lv${action.level}として扱う。`,
+            )
+            return
+        }
+
+        case "summonFromHandFree": {
+            // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
+            // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
+            // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
+            // この効果で召喚されたスピリットの onSummon 効果は発揮されないため、fireTrigger を呼ばず
+            // 直接 createInstance → push する
+            const player = state.players[owner]
+            const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
+            let bestIndex = -1
+            let bestCost = -1
+            for (let i = 0; i < player.hand.length; i++) {
+                const candidateId = player.hand[i]!
+                const candidate = getCard(candidateId)
+                if (candidate.type !== "spirit") continue
+                if (action.colorFilter !== undefined && candidate.color !== action.colorFilter) {
+                    continue
+                }
+                if (action.sameFamilyAsSelf) {
+                    if (!selfFamily) continue
+                    if (!candidate.family.some((f) => selfFamily.includes(f))) continue
+                }
+                if (candidate.cost > bestCost) {
+                    bestCost = candidate.cost
+                    bestIndex = i
+                }
+            }
+            if (bestIndex === -1) {
+                log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
+                return
+            }
+            const cardId = player.hand[bestIndex]!
+            const card = getCard(cardId)
+            const maintain = lv1Cores(card)
+            if (player.reserve < maintain) {
+                log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+                return
+            }
+            player.hand.splice(bestIndex, 1)
+            player.reserve -= maintain
+            const inst = createInstance(cardId, state.turn, maintain)
+            player.field.spirits.push(inst)
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+                    "（このスピリットの召喚時効果は発揮されない）",
             )
             return
         }

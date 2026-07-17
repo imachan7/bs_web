@@ -7779,6 +7779,20 @@
      "count": 1
     },
     "optional": false
+   },
+   {
+    "id": "BS02-034-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "summonFromHandFree",
+     "colorFilter": "green"
+    },
+    "optional": false
    }
   ]
  },
@@ -8452,6 +8466,20 @@
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある、このスピリットと同じ系統を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットのアタック時』\nこのスピリットは、コスト8以外のスピリットからブロックされない。",
   "effects": [
    {
+    "id": "BS02-048-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "summonFromHandFree",
+     "sameFamilyAsSelf": true
+    },
+    "optional": false
+   },
+   {
     "id": "BS02-048-e2",
     "kind": "constraint",
     "levels": [
@@ -8681,7 +8709,41 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「道化」を持つ自分のスピリットすべてをBP+1000する。\nLv2\n自分の黄のスピリット/ネクサスが合計3つ以上ある間、自分のスピリットと、手札のスピリットカードすべてに系統：「道化」を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-054-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "道化",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS02-054-e2",
+    "kind": "familyGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "family": "道化",
+    "condition": {
+     "ownColorTotalAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-055",
@@ -10018,7 +10080,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のコスト2の白のスピリットすべてに系統：「武装」を与える。\nLv2『お互いのアタックステップ』\n系統：「武装」を持つ自分のスピリットが疲労したとき、その疲労したスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-082-e1",
+    "kind": "familyGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "family": "武装",
+    "colorFilter": "white",
+    "costFilter": 2,
+    "phase": "attack"
+   }
+  ]
  },
  {
   "cardId": "BS02-083",

@@ -96,6 +96,7 @@ export type EffectAction =
     | { type: "deployNexus"; from: "hand" | "trash"; colors: Color[] } // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）
     | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
     | { type: "levelOverrideOpponentNexuses"; level: number; costReserveToVoid?: number } // 相手の全ネクサスの levelOverrideThisTurn を level に設定（このターンの間）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから適用する（「できる」の任意発動は自動発動で簡略化。皇帝アンプルール）
+    | { type: "summonFromHandFree"; colorFilter?: Color; sameFamilyAsSelf?: boolean } // 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -169,6 +170,7 @@ export interface AuraDef {
     phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // ownAll 用: 指定ステップかつ指定turn条件（own=発生源の持ち主がturnPlayer、opponent=持ち主が非turnPlayer、both=常に）のときのみ有効（アルマ・ジール／エメラルドに輝く鍾乳洞）
     minCores?: number // ownAll 用: 対象スピリットのコア数がこれ以上のときのみ有効（エメラルドに輝く鍾乳洞）
     costFilter?: number // ownAll 用: 対象スピリットのコストがこれと一致するときのみ有効（太古の断層）
+    familyFilter?: string // ownAll 用: 指定系統（静的付与・familyGrant による付与を含む。spiritHasFamily で判定）を持つスピリットのみ（ポム）
 }
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
@@ -292,6 +294,17 @@ export type EffectDef =
           target: "ownAll"
           familyFilter?: string // 指定時はこの系統を持つスピリットのみ
           phase?: Phase // 指定時はこのステップの間のみ有効（turnPlayerを問わない＝『お互いの〜ステップ』）
+      }
+    | {
+          id: string
+          kind: "familyGrant" // 発生源が場にありレベル有効の間、持ち主の対象スピリットに系統を継続付与する（ポム／生み出される尖兵）
+          levels: number[] | null
+          target: "ownAll"
+          family: string // 付与する系統
+          colorFilter?: Color // 指定時は対象スピリットの色がこれと一致するときのみ
+          costFilter?: number // 指定時は対象スピリットのコストがこれと一致するときのみ
+          phase?: Phase // 指定時はこのステップ中のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』）
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
       }
     | {
           id: string

@@ -73,7 +73,7 @@ function countAuraCounter(view: GameView, sourcePid: PlayerId, counter: AuraCoun
         return view.players[sourcePid].field.spirits.filter((s) => s.isRested).length
     }
     return view.players[sourcePid].field.spirits.filter((s) =>
-        master(s.cardId).family.includes(counter.ownFamily),
+        spiritHasFamilyView(view, sourcePid, s, counter.ownFamily),
     ).length
 }
 
@@ -136,6 +136,12 @@ function auraAppliesTo(
         return false
     }
     if (aura.costFilter !== undefined && master(targetInst.cardId).cost !== aura.costFilter) {
+        return false
+    }
+    if (
+        aura.familyFilter &&
+        !spiritHasFamilyView(view, targetOwnerPid, targetInst, aura.familyFilter)
+    ) {
         return false
     }
     if (aura.phaseTurn) {
@@ -205,11 +211,49 @@ export function spiritHasKeywordView(
             if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
             if (
                 effect.familyFilter &&
-                !master(inst.cardId).family.includes(effect.familyFilter)
+                !spiritHasFamilyView(view, ownerPid, inst, effect.familyFilter)
             ) {
                 continue
             }
             if (effect.phase && view.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
+// 静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
+export function spiritHasFamilyView(
+    view: GameView,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    family: string,
+): boolean {
+    if (master(inst.cardId).family.includes(family)) return true
+    const player = view.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "familyGrant") continue
+            if (effect.family !== family) continue
+            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
+            if (effect.colorFilter && master(inst.cardId).color !== effect.colorFilter) {
+                continue
+            }
+            if (
+                effect.costFilter !== undefined &&
+                master(inst.cardId).cost !== effect.costFilter
+            ) {
+                continue
+            }
+            if (effect.phase && view.phase !== effect.phase) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => master(s.cardId).color === color).length
+                if (total < count) continue
+            }
             return true
         }
     }
