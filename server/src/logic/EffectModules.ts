@@ -26,16 +26,31 @@ import type {
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
 import {
+    CARD_DB,
     clearBattle,
     createInstance,
     currentLevel,
     draw,
+    findInstanceAnywhere,
     getCard,
     log,
     lv1Cores,
     opponentOf,
     rawLevel,
 } from "./GameState"
+
+// 音鳥クルークのgrantFamilyChoiceAll用: 全カードの系統を重複なく集めたソート済みリスト。
+// GameState.ts とはモジュール相互importの関係にあり、モジュール読み込み時点では
+// CARD_DB がまだ初期化されていない可能性があるため、初回参照時に遅延計算してキャッシュする
+let allFamiliesCache: string[] | null = null
+function getAllFamilies(): string[] {
+    if (allFamiliesCache === null) {
+        allFamiliesCache = Array.from(
+            new Set(Array.from(CARD_DB.values()).flatMap((c) => c.family)),
+        ).sort()
+    }
+    return allFamiliesCache
+}
 
 // ---- キーワードレジストリ ----
 // 挙動（召喚やコア移動の可否）は GameEngine / RuleValidator が hasKeyword で参照する。
@@ -127,7 +142,7 @@ export function spiritHasFamily(
             if (effect.kind !== "familyGrant") continue
             if (effect.family !== family) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.colorFilter && getCard(inst.cardId).color !== effect.colorFilter) {
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
             }
             if (
@@ -139,7 +154,7 @@ export function spiritHasFamily(
             if (effect.phase && state.phase !== effect.phase) continue
             if (effect.condition) {
                 const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                const total = sources.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             return true
@@ -228,7 +243,7 @@ function auraAppliesTo(
     // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
     if (sourcePid !== targetOwnerPid) return false
     if (!isSpiritOnField(state, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && getCard(targetInst.cardId).color !== aura.colorFilter) {
+    if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
         return false
     }
     if (aura.battlingOnly) {
@@ -357,6 +372,12 @@ export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefin
     return inst.tempKeywords.some(
         (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
     )
+}
+
+// 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー）
+export function instHasColor(inst: CardInstance, color: Color): boolean {
+    if (getCard(inst.cardId).color === color) return true
+    return inst.tempColors.includes(color)
 }
 
 // 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
@@ -945,6 +966,7 @@ export function resolveAction(
     targetInstanceId?: string,
     sourceColor?: Color,
     sourceType?: "spirit" | "nexus" | "magic",
+    chosenOption?: string,
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
@@ -1618,7 +1640,7 @@ export function resolveAction(
                     (action.keywordFilter === undefined ||
                         spiritHasKeyword(state, owner, s, action.keywordFilter)) &&
                     (action.colorFilter === undefined ||
-                        getCard(s.cardId).color === action.colorFilter),
+                        instHasColor(s, action.colorFilter)),
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
@@ -1725,8 +1747,10 @@ export function resolveAction(
             // 相手フィールドで最多の色を選ぶ（同数なら先に見つかった色。Map は挿入順を保持する）
             const tally = new Map<Color, number>()
             for (const s of oppSpirits) {
-                const color = getCard(s.cardId).color
-                tally.set(color, (tally.get(color) ?? 0) + 1)
+                const colors = new Set<Color>([getCard(s.cardId).color, ...s.tempColors])
+                for (const color of colors) {
+                    tally.set(color, (tally.get(color) ?? 0) + 1)
+                }
             }
             let chosen: Color | null = null
             let best = 0
@@ -1743,7 +1767,7 @@ export function resolveAction(
             let exhausted = 0
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 for (const s of state.players[pid].field.spirits) {
-                    if (getCard(s.cardId).color !== chosen) continue
+                    if (!instHasColor(s, chosen)) continue
                     // 装甲は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
                     if (pid !== owner && hasArmorAgainst(s, srcColor)) continue
                     s.isRested = true
@@ -2569,6 +2593,82 @@ export function resolveAction(
             )
             return
         }
+
+        case "grantColorChoice": {
+            // 第3段階を先に判定する：doResolveChoiceのoption応答はtargetInstanceIdを渡さず
+            // （selfに退避済みの対象を積んでchosenOptionだけを渡す）resolveActionを呼ぶため、
+            // 「targetInstanceId未指定なら第1段階」という判定を先にしてしまうと
+            // 第3段階に到達できず第1段階の選択要求へ戻ってしまう。そのためchosenOptionの有無を最優先で見る。
+            if (chosenOption !== undefined) {
+                // 第3段階：選ばれた色を対象（第2段階でselfとして退避したもの）のtempColorsへ反映
+                if (!self) return
+                const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+                    ([, label]) => label === chosenOption,
+                )
+                if (!colorEntry) return
+                const [color] = colorEntry
+                if (!self.tempColors.includes(color)) self.tempColors.push(color)
+                log(state, `${getCard(self.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
+                return
+            }
+            if (targetInstanceId === undefined) {
+                // 第1段階：色を与える対象スピリットを選ぶ（両陣営のフィールド全体）
+                const candidates = [
+                    ...state.players.p1.field.spirits,
+                    ...state.players.p2.field.spirits,
+                ].map((s) => s.instanceId)
+                requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
+                return
+            }
+            // 第2段階：色を選ぶ。対象のinstanceIdをselfとして退避し、次の選択（kind:"option"）へ引き継ぐ
+            const target = findInstanceAnywhere(state, targetInstanceId)
+            if (!target) return
+            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            requestChoice(
+                state,
+                owner,
+                "与える色を選んでください",
+                [],
+                false,
+                action,
+                target,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+
+        case "grantFamilyChoiceAll": {
+            if (!self) return
+            const holders = state.players[owner].field.spirits.filter((s) =>
+                spiritHasFamily(state, owner, s, action.targetFamily),
+            )
+            if (holders.length === 0) {
+                return
+            }
+            if (chosenOption === undefined) {
+                requestChoice(
+                    state,
+                    owner,
+                    `「${action.targetFamily}」持ちに与える系統を選んでください`,
+                    [],
+                    true,
+                    action,
+                    self,
+                    "option",
+                    getAllFamilies(),
+                )
+                return
+            }
+            for (const s of holders) {
+                if (!s.tempFamilies.includes(chosenOption)) s.tempFamilies.push(chosenOption)
+            }
+            log(
+                state,
+                `${sourceName}：系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた（ターン終了時まで）。`,
+            )
+            return
+        }
     }
 }
 
@@ -2582,7 +2682,24 @@ export function requestChoice(
     optional: boolean,
     action: EffectAction,
     self: CardInstance | null,
+    kind: "target" | "option" = "target",
+    options?: string[],
 ): void {
+    if (kind === "option") {
+        // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない
+        state.pendingChoice = {
+            pid,
+            kind: "option",
+            prompt,
+            candidates: [],
+            options: options ?? [],
+            optional,
+            action,
+            selfInstanceId: self ? self.instanceId : null,
+            queue: [],
+        }
+        return
+    }
     if (candidates.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
         return
@@ -2770,7 +2887,7 @@ export function fireStepTriggers(
                 if (effect.condition && typeof effect.condition === "object" && "ownColorTotalAtLeast" in effect.condition) {
                     // 道化師クラン：自分のフィールドに指定色のスピリット+ネクサスが合計count以上あるときのみ発火
                     const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const total = instances.filter((s) => getCard(s.cardId).color === color).length
+                    const total = instances.filter((s) => instHasColor(s, color)).length
                     if (total < count) continue
                 }
                 resolveAction(state, pid, inst, effect.action)
@@ -2824,7 +2941,7 @@ export function fireFieldEventTriggers(
                 // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
                 const { color, count } = effect.condition.ownColorTotalAtLeast
                 const sources = [...player.field.spirits, ...player.field.nexuses]
-                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                const total = sources.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             if (selfOverride) {

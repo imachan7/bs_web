@@ -16,6 +16,7 @@ import {
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
+    instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
     spiritHasKeyword,
@@ -445,7 +446,7 @@ export function validateBlock(
         const attackerConstraints = activeConstraints(state, attackerPid, attacker)
         for (const c of attackerConstraints) {
             if (c.type !== "unblockableBy") continue
-            if (c.colorFilter !== undefined && blockerCard.color === c.colorFilter) {
+            if (c.colorFilter !== undefined && instHasColor(inst, c.colorFilter)) {
                 return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
             }
             if (

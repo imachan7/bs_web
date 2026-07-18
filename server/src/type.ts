@@ -103,6 +103,8 @@ export type EffectAction =
     | { type: "coreToOpponentTrashChoice"; count: number } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）
     | { type: "battleCompareByLevel" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにLvを比較させる（バトル外は不発。エンジェルボイス）
     | { type: "grantAlsoCostAll"; cost: number } // 自分のスピリットすべての tempAlsoCosts に cost を追加する（このターンの間、実コストに加えてこのコストとしても扱われる。道化師クラン）
+    | { type: "grantColorChoice" } // 対象選択→色選択の2段階choiceを経て、選ばれた対象のtempColorsに選ばれた色を追加する（フラッシュ：スピリット1体にもう1色与える。アディショナルカラー）
+    | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドに1体もいなければ不発。いれば全系統からのoption choiceを経て、targetFamily持ち全員のtempFamiliesに選ばれた系統を追加する（このターンの間。音鳥クルーク）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -425,6 +427,8 @@ export interface CardInstance {
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
+    tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
+    tempFamilies: string[] // このターンの間だけ付与された系統（ターン終了でリセット。音鳥クルーク）
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
@@ -461,9 +465,10 @@ export interface BattleState {
 // （fireTrigger / resolveMagic のエントリループが積む。selfInstanceId から self を復元して再開する）。
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
-    kind: "target" // v1 は対象選択のみ
+    kind: "target" | "option" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択
     prompt: string // クライアント表示用の説明文（日本語）
-    candidates: string[] // 選択候補の instanceId（スピリット/ネクサス混在可）
+    candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"のときは空配列）
+    options?: string[] // kind:"option" のとき選択肢ラベル一覧（表示ラベル＝そのまま値として使う）
     optional: boolean // true ならスキップ（選ばない）可
     action: EffectAction // 選択後に resolveAction する本体
     selfInstanceId: string | null // 発生源スピリット（self の復元用）
@@ -543,7 +548,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
-    | { type: "resolveChoice"; instanceId?: string } // pendingChoice への応答（instanceId省略＝スキップ。optionalのときのみ許可）
+    | { type: "resolveChoice"; instanceId?: string; option?: string } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption。両方省略＝スキップ。optionalのときのみ許可）
     | { type: "takeLife" }
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack

@@ -65,6 +65,8 @@ export function createInstance(
         blockConstraintNegatedThisTurn: false,
         tempKeywords: [],
         tempAlsoCosts: [],
+        tempColors: [],
+        tempFamilies: [],
     }
 }
 

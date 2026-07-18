@@ -128,7 +128,7 @@ function auraAppliesTo(
     }
     if (sourcePid !== targetOwnerPid) return false
     if (!isSpiritOnField(view, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && master(targetInst.cardId).color !== aura.colorFilter) {
+    if (aura.colorFilter && !instHasColorView(targetInst, aura.colorFilter)) {
         return false
     }
     if (aura.battlingOnly) {
@@ -234,6 +234,12 @@ export function spiritHasKeywordView(
     return false
 }
 
+// 状態を考慮した色判定（サーバー instHasColor のミラー）
+export function instHasColorView(inst: CardInstance, color: Color): boolean {
+    if (master(inst.cardId).color === color) return true
+    return inst.tempColors.includes(color)
+}
+
 // 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
 // 静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
 export function spiritHasFamilyView(
@@ -251,7 +257,7 @@ export function spiritHasFamilyView(
             if (effect.kind !== "familyGrant") continue
             if (effect.family !== family) continue
             if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.colorFilter && master(inst.cardId).color !== effect.colorFilter) {
+            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) {
                 continue
             }
             if (
@@ -263,7 +269,7 @@ export function spiritHasFamilyView(
             if (effect.phase && view.phase !== effect.phase) continue
             if (effect.condition) {
                 const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => master(s.cardId).color === color).length
+                const total = sources.filter((s) => instHasColorView(s, color)).length
                 if (total < count) continue
             }
             return true
@@ -365,7 +371,7 @@ export function canBlockAttacker(
     const attackerConstraints = activeConstraints(attackerInst)
     for (const c of attackerConstraints) {
         if (c.type !== "unblockableBy") continue
-        if (c.colorFilter !== undefined && blockerCard.color === c.colorFilter) return false
+        if (c.colorFilter !== undefined && instHasColorView(blockerInst, c.colorFilter)) return false
         if (
             c.keywordFilter !== undefined &&
             spiritHasKeywordView(view, blockerPid, blockerInst, c.keywordFilter)
@@ -662,6 +668,20 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
+    // kind:"option"の選択肢ボタンを描画する（myPendingChoiceが自分宛かつoption式のときのみ）
+    const choiceOptionsEl = $("choice-options")
+    choiceOptionsEl.innerHTML = ""
+    if (myPendingChoice && myPendingChoice.kind === "option") {
+        for (const opt of myPendingChoice.options ?? []) {
+            const b = document.createElement("button")
+            b.dataset.option = opt
+            b.textContent = opt
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
+    } else {
+        show("choice-options", false)
+    }
     if (myPendingChoice) {
         $("targeting-info").textContent = myPendingChoice.prompt
     } else if (oppPendingChoice) {

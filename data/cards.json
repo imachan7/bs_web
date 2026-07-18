@@ -9386,7 +9386,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のスタートステップ』\nこのターンの間、自分のフィールド、または手札にある系統：「歌鳥」を持つスピリット/スピリットカードすべてに好きな系統1つを与えることができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-064-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "grantFamilyChoiceAll",
+     "targetFamily": "歌鳥"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-065",
@@ -11117,7 +11133,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、スピリット1体に、本来持っている色とは別に、もう1色、好きな色を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-104-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantColorChoice"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-105",

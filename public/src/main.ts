@@ -471,6 +471,10 @@ async function init(): Promise<void> {
     byId("btn-skip-choice").addEventListener("click", () => {
         send({ type: "resolveChoice" })
     })
+    byId("choice-options").addEventListener("click", (e) => {
+        const el = closestData(e, "data-option")
+        if (el) send({ type: "resolveChoice", option: String(el.dataset.option) })
+    })
 }
 
 void init()

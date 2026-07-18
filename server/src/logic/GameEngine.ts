@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { DestroyContext, GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     createInstance,
@@ -89,7 +89,7 @@ function dispatchAction(
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
         case "resolveChoice":
-            return doResolveChoice(state, pid, action.instanceId)
+            return doResolveChoice(state, pid, action.instanceId, action.option)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
@@ -507,10 +507,29 @@ function doActivateAbility(
 // instanceId 省略時は「選ばない」（optional な選択のみ許可）。
 // 選択実行後、退避していた queue（同一トリガー内の残りの誘発）を先頭から順に消化する。
 // 途中で新たな pendingChoice が立てば、残りの queue をそちらへ引き継いで中断する。
-function doResolveChoice(state: GameState, pid: PlayerId, instanceId?: string): string | null {
+function doResolveChoice(state: GameState, pid: PlayerId, instanceId?: string, option?: string): string | null {
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
+
+    if (pending.kind === "option") {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        if (option === undefined && !pending.optional) {
+            return "選択肢を選んでください"
+        }
+        state.pendingChoice = null
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        if (option !== undefined) {
+            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+        } else {
+            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
+        }
+        if (state.winner) return null
+        return drainChoiceQueue(state, pending.pid, pending.queue)
+    }
+
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
         return "選択できない対象です"
     }
@@ -527,19 +546,22 @@ function doResolveChoice(state: GameState, pid: PlayerId, instanceId?: string): 
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
+    return drainChoiceQueue(state, pending.pid, pending.queue)
+}
 
-    // 退避した queue を先頭から順に消化する。途中で新しい pendingChoice が立ったら
-    // 残りをそちらの queue に積んで中断する（同じ中断パターンの繰り返し）
-    const queue = pending.queue
+// 退避したqueue（同一トリガー内の残りの誘発）を先頭から順に消化する。
+// 途中で新しいpendingChoiceが立ったら残りをそちらのqueueに積んで中断する（同じ中断パターンの繰り返し）。
+function drainChoiceQueue(
+    state: GameState,
+    pid: PlayerId,
+    queue: { selfInstanceId: string | null; action: EffectAction }[],
+): string | null {
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i]
         if (!item) continue
         const itemSelf = item.selfInstanceId ? findInstanceAnywhere(state, item.selfInstanceId) ?? null : null
-        resolveAction(state, pending.pid, itemSelf, item.action)
+        resolveAction(state, pid, itemSelf, item.action)
         if (state.winner) return null
-        // resolveAction 呼び出し後の再読込: TS の制御フロー解析が「state.pendingChoice = null」の
-        // 直後の narrowing を関数呼び出しを跨いでも保持してしまう既知の挙動があるため、
-        // 明示的な型で読み直して回避する（実際には resolveAction 内で再代入されうる）
         const newPending = state.pendingChoice as GameState["pendingChoice"]
         if (newPending) {
             newPending.queue.push(...queue.slice(i + 1))
