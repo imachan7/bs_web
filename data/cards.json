@@ -8759,7 +8759,29 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv3『相手のアタックステップ』\nこのスピリットが相手のスピリット/ネクサス/マジックの効果で破壊されたとき、このスピリット上のコア1個だけを残し、それ以外を自分のトラッシュに置くことで、回復状態で自分のフィールドに戻すことができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-052-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     3
+    ],
+    "scope": "self",
+    "when": {
+     "byOpponentEffect": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "keepOneCoreRestToTrash": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-053",
@@ -10165,7 +10187,30 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットが相手のスピリット/ネクサス/マジックの効果で破壊されたとき、そのスピリット上のコア1個をボイドに置くことで、そのスピリットを回復状態で、自分のフィールドに戻すことができる。\nLv2『自分のアタックステップ』\nステップ終了時、自分のフィールドに回復状態のスピリットが3体以上いたとき、自分はデッキから2枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-079-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "when": {
+     "byOpponentEffect": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "oneCoreToVoid": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-080",
@@ -10342,7 +10387,23 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n【装甲】を持つ自分のスピリットすべては、【装甲】で指定された色の相手のスピリットとBPを比べ破壊されたとき、疲労状態で自分のフィールドに戻ることができる。\nLv2『お互いのアタックステップ』\n相手がマジックの効果を使用したとき、その効果を無効にする。\nこの効果を使用したとき、このネクサス上のコア2個をボイドに置く。\n(この効果はターンに1回しか使えない)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-083-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "when": {
+     "byBattleVsArmorColor": true
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-084",

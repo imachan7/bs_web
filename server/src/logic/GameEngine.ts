@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { DestroyContext, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     createInstance,
@@ -614,16 +614,32 @@ function resolveBattle(state: GameState): void {
     if (attackerValue > blockerValue) {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
         state.lastBattleDestroyedCores = blocker.cores
-        destroySpirit(state, defenderPid, blocker.instanceId)
+        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+            sourcePid: attackerPid,
+            sourceType: "spirit",
+            battle: { attackerColor },
+        })
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
     } else if (attackerValue < blockerValue) {
-        destroySpirit(state, attackerPid, attacker.instanceId)
+        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+            sourcePid: defenderPid,
+            sourceType: "spirit",
+            battle: { attackerColor: getCard(blocker.cardId).color },
+        })
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
     } else {
-        destroySpirit(state, defenderPid, blocker.instanceId)
-        destroySpirit(state, attackerPid, attacker.instanceId)
+        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+            sourcePid: attackerPid,
+            sourceType: "spirit",
+            battle: { attackerColor },
+        })
+        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+            sourcePid: defenderPid,
+            sourceType: "spirit",
+            battle: { attackerColor: getCard(blocker.cardId).color },
+        })
     }
 
     // 【呪撃】：アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
@@ -650,7 +666,11 @@ function resolveBattle(state: GameState): void {
                     state,
                     `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
                 )
-                destroySpirit(state, defenderPid, blocker.instanceId)
+                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+                    sourcePid: attackerPid,
+                    sourceType: "spirit",
+                    battle: { attackerColor },
+                })
             }
         }
     }

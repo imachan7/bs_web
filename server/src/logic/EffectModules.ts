@@ -12,6 +12,7 @@ import type {
     CardInstance,
     Color,
     ConstraintDef,
+    DestroyContext,
     DrawPerCounter,
     EffectAction,
     EffectDef,
@@ -495,6 +496,7 @@ export function destroySpirit(
     ownerPid: PlayerId,
     instanceId: string,
     cause: "destroy" | "deplete" = "destroy",
+    context?: DestroyContext,
 ): void {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
@@ -504,6 +506,14 @@ export function destroySpirit(
     const inst = player.field.spirits[index]
     if (!inst) return
     const master = getCard(inst.cardId)
+
+    // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
+    // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
+    // 「〜できる」の任意発動は常に発動する簡略化とする。
+    if (cause === "destroy" && tryReviveOnDestroy(state, ownerPid, inst, context)) {
+        return
+    }
+
     // 破壊直前のコア数を記録（リザーブへ移す前。漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
 
@@ -523,6 +533,99 @@ export function destroySpirit(
     // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
     // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）を渡す
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color)
+}
+
+// reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
+// 優先順位: instのカード自身が持つ scope:"self" の効果 → 持ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
+function tryReviveOnDestroy(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    context?: DestroyContext,
+): boolean {
+    const player = state.players[ownerPid]
+    const level = currentLevel(inst).level
+
+    const matchesWhen = (when: { byOpponentEffect?: boolean; byBattleVsArmorColor?: boolean }): boolean => {
+        if (when.byOpponentEffect) {
+            if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
+        }
+        if (when.byBattleVsArmorColor) {
+            const attackerColor = context?.battle?.attackerColor
+            if (attackerColor === undefined || !hasArmorAgainst(inst, attackerColor)) return false
+        }
+        return true
+    }
+
+    const matchesPhaseTurn = (phaseTurn?: { phase: Phase; turn: "own" | "opponent" }): boolean => {
+        if (!phaseTurn) return true
+        if (state.phase !== phaseTurn.phase) return false
+        if (phaseTurn.turn === "own" && ownerPid !== state.turnPlayer) return false
+        if (phaseTurn.turn === "opponent" && ownerPid === state.turnPlayer) return false
+        return true
+    }
+
+    const applyCost = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>): boolean => {
+        if (effect.cost?.keepOneCoreRestToTrash) {
+            const excess = inst.cores - 1
+            if (excess > 0) {
+                inst.cores = 1
+                player.trashCores += excess
+            }
+            return true
+        }
+        if (effect.cost?.oneCoreToVoid) {
+            // コア1個の個体は支払うと維持コア割れになるため不発
+            if (inst.cores <= 1) return false
+            inst.cores -= 1
+            return true
+        }
+        return true
+    }
+
+    const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
+        if (!effectActiveAtLevel(effect.levels, level)) return false
+        if (!matchesWhen(effect.when)) return false
+        if (!matchesPhaseTurn(effect.phaseTurn)) return false
+        if (!applyCost(effect)) return false
+        inst.isRested = effect.revived.rested
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}は、${sourceName}の効果で破壊される代わりに${effect.revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った。`,
+        )
+        return true
+    }
+
+    // self由来（inst自身が持つ reviveOnDestroy）
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "reviveOnDestroy") continue
+        if (effect.scope !== "self") continue
+        if (tryEffect(effect, getCard(inst.cardId).name)) return true
+    }
+
+    // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
+    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        if (source.instanceId === inst.instanceId) continue
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "reviveOnDestroy") continue
+            if (effect.scope !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!matchesWhen(effect.when)) continue
+            if (!matchesPhaseTurn(effect.phaseTurn)) continue
+            if (!applyCost(effect)) continue
+            inst.isRested = effect.revived.rested
+            log(
+                state,
+                `${player.name}の${getCard(inst.cardId).name}は、${getCard(source.cardId).name}の効果で破壊される代わりに${effect.revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った。`,
+            )
+            return true
+        }
+    }
+
+    return false
 }
 
 // ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
@@ -849,6 +952,10 @@ export function resolveAction(
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
+    // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
+    // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
+    const destroyContext: DestroyContext =
+        srcType !== undefined ? { sourcePid: owner, sourceType: srcType } : { sourcePid: owner }
 
     switch (action.type) {
         case "draw": {
@@ -881,7 +988,7 @@ export function resolveAction(
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
                 }
-                destroySpirit(state, opp, target.instanceId)
+                destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
             }
             return
         }
@@ -900,7 +1007,7 @@ export function resolveAction(
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             }
-            for (const t of targets) destroySpirit(state, opp, t.instanceId)
+            for (const t of targets) destroySpirit(state, opp, t.instanceId, "destroy", destroyContext)
             return
         }
 
@@ -959,7 +1066,7 @@ export function resolveAction(
             const ownTargets = state.players[owner].field.spirits.filter(
                 (s) => !safeColors.has(getCard(s.cardId).color),
             )
-            for (const t of oppTargets) destroySpirit(state, opp, t.instanceId)
+            for (const t of oppTargets) destroySpirit(state, opp, t.instanceId, "destroy", destroyContext)
             for (const t of ownTargets) destroySpirit(state, owner, t.instanceId)
             return
         }
@@ -1337,7 +1444,7 @@ export function resolveAction(
                     log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
                     break
                 }
-                destroySpirit(state, opp, target.instanceId)
+                destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
             }
             return
         }

@@ -202,6 +202,13 @@ export type GlobalConstraintDef =
     | { type: "singleCoreCantAct" } // コア1個しか置いていないスピリットは、アタックとブロックができない（両陣営。魔帝の墓標）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
 
+// 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
+export interface DestroyContext {
+    sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
+    sourceType?: "spirit" | "nexus" | "magic"
+    battle?: { attackerColor: Color } // バトルによる破壊のときのアタッカー色（装甲判定用）
+}
+
 // 効果定義（kind による判別ユニオン）。
 // levels は発動するレベルの配列（null = レベル不問）。
 export type EffectDef =
@@ -300,6 +307,22 @@ export type EffectDef =
           kind: "coreBonus" // このスピリットに効果でコアが置かれるとき、置く数を+amount（ボイド由来）する（グラーバ）
           levels: number[] | null
           amount: number
+      }
+    | {
+          id: string
+          kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊）
+          levels: number[] | null
+          scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          when: {
+              byOpponentEffect?: boolean // 相手の効果による破壊のみ（context.sourcePidが相手のとき）
+              byBattleVsArmorColor?: boolean // 装甲で指定した色の相手とのBP比較による破壊のみ
+          }
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" } // 発動できるステップ条件（発生源の持ち主基準）
+          revived: { rested: boolean } // 戻るときの状態（false=回復状態、true=疲労状態）
+          cost?: {
+              keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りを持ち主のトラッシュへ
+              oneCoreToVoid?: boolean // 対象のコア1個をボイドへ（コア1個の個体は支払い不可＝不発）
+          }
       }
     | {
           id: string
