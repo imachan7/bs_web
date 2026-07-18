@@ -69,10 +69,12 @@
   波1b: オベロe1・デストロードe2・ミカファールe1・スレイプホース — AuraCounter ownNameIncludes・
   lastBattleDestroyedCores・deckReveal countPer/pickAllOfType・kind magicBuffBonus を新設。
   副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）＋波2の pendingChoice 基盤
-  （コキュートスを構造化。2章の「効果解決中のプレイヤー選択」を参照）の計 **91枚**（効果文持ち103枚中）。
-- 残り12枚: クロスシザース・ケン・クラン・クルーク（選択・付与系。pendingChoice 基盤で対応可能に）、
-  チャガマル・紫水晶の森・鏡の回廊（破壊への割り込み）、封印された魔導書（効果無効・対象変更）、
-  エンジェルボイス（Lv比較バトル）、アディショナルカラー（色付与）、夢魔の寝所、ケルル・ベロス（強奪・禁止カード）
+  （コキュートスを構造化。2章の「効果解決中のプレイヤー選択」を参照）＋波3a（エンジェルボイス＝
+  BattleState.compareByLevel の Lv比較バトル、ケン＝kind effectGrant の誘発効果付与、クラン＝
+  tempAlsoCosts/instHasCost の「コストとしても扱う」、魔導書e2＝kind drawDouble の効果ドロー倍化）の
+  計 **95枚**（効果文持ち103枚中）。
+- 残り8枚: チャガマル・紫水晶の森・鏡の回廊（破壊への割り込み・復活）、アディショナルカラー（色付与）・
+  クルーク（系統選択）、クロスシザース（コア数リンク）、夢魔の寝所、ケルル・ベロス（強奪・禁止カード）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
