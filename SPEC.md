@@ -75,8 +75,12 @@
   計95枚＋波3b（チャガマル・紫水晶の森・鏡の回廊e1＝kind reviveOnDestroy による破壊への割り込み復活
   （destroySpirit に破壊文脈を伝播、「できる」は常時発動の簡略化）、アディショナルカラー・クルーク＝
   pendingChoice の kind:"option"（ボタン選択UI）と tempColors/tempFamilies・instHasColor）の
-  計 **100枚**（効果文持ち103枚中）。紫水晶の森Lv2（ステップ終了時ドロー）はステップ終了フック不在のため未対応
-- 残り3枚: クロスシザース（コア数リンク）・夢魔の寝所（手動コア増加の検知）・ケルル・ベロス（強奪・禁止カード）
+  計100枚＋最終波（クロスシザース＝coresLinkedTo/coresOverride のコア数リンク choice、夢魔の寝所＝
+  exhaustOnManualCoreAdd（手動コア増加の検知）と constraintGrant（制約の付与。activeConstraints が
+  フィールド発生源からの付与も合成）、ケルル・ベロス e1＝既存 constraint のみ）で
+  **効果文を持つ全103枚の構造化が完了（2026-07-18）**。
+- 未対応として残る効果は2つのみ: ケルル・ベロス e2（強奪。禁止カードのため優先度なし）と
+  紫水晶の森 Lv2（ステップ終了時ドロー。ステップ終了フック不在）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
