@@ -483,7 +483,10 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 - コスト支払いはスピリット上のコアとの併用に対応済み（v1）。ネクサス上のコアからの支払いは未対応
 - ブロック後フラッシュ中に攻撃側／ブロック側が破壊された場合は、双方パス時の
   `resolveBattle` の不在ガードで安全終了する簡略実装（破壊時点での即時バトル終了は未対応）
-- マジックの対象選択UIは実装済み。誘発効果の対象は引き続き自動選択（破壊は相手のBP最大を狙う）
+- マジックの対象選択UIは実装済み。誘発効果の対象は **実対戦では選択式**（`GameState.interactiveTargets`。
+  サーバー index.ts がゲーム開始時に true を設定し、destroy / coreRemove / exhaust / destroyExhausted /
+  returnToHand / returnToDeckTop の6アクションで候補2体以上なら pendingChoice を発行。destroy の count≥2 は
+  queue で連続選択）。テスト（interactiveTargets=false 既定）では従来の自動選択（破壊は相手のBP最大）を維持
 - マジックの構造化は「タイミングの文面が既存アクション（複合可）で完全表現できる場合のみ」。
   条件付き・色選択・未対応概念（効果無効・効果耐性・バトル終了系など）はスキップ
   （バウンス・コア操作系は `returnToHand` / `returnToDeckTop` / `coreCharge` / `lifeCharge` / `coreGain` で対応済み）
