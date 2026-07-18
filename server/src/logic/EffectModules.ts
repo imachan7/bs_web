@@ -815,19 +815,19 @@ export function removeCoresToTrash(
 
 // ---- アクションの実行 ----
 
-// 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
-// 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
+// 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
+// （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）
 // sourceColor: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
 // sourceType: 効果発生源の種別（マジック効果耐性判定用。"magic" のときのみ hasMagicImmunity を追加チェック）
-function pickEnemyByBp(
+function pickEnemyCandidates(
     state: GameState,
     targetPid: PlayerId,
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColor?: Color,
     sourceType?: "spirit" | "nexus" | "magic",
-): CardInstance | null {
-    const candidates = state.players[targetPid].field.spirits.filter(
+): CardInstance[] {
+    return state.players[targetPid].field.spirits.filter(
         // targetPid はアクターの相手フィールド。免疫スピリット・装甲該当・マジック効果耐性該当は対象選択から除外する
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
@@ -836,10 +836,59 @@ function pickEnemyByBp(
             !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
             extraPredicate(s),
     )
+}
+
+// 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
+// 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
+function pickEnemyByBp(
+    state: GameState,
+    targetPid: PlayerId,
+    maxBp: number,
+    extraPredicate: (s: CardInstance) => boolean = () => true,
+    sourceColor?: Color,
+    sourceType?: "spirit" | "nexus" | "magic",
+): CardInstance | null {
+    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColor, sourceType)
     if (candidates.length === 0) return null
     return candidates.reduce((best, s) =>
         effectiveBp(state, targetPid, s) > effectiveBp(state, targetPid, best) ? s : best,
     )
+}
+
+// interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
+// returnToHand）の対象選択を requestChoice に委ねる共通ヘルパー。
+// candidates が2件以上のときだけ pendingChoice を立てて true を返す（呼び出し側はそのまま return する）。
+// 0/1件のときは false を返し、呼び出し側の既存の自動選択ループにフォールバックさせる。
+// firstAction は今回1体分（count:1）、remainingAction は残り(count-1)分（無ければ null）。
+// 呼び出し側で action の具体的なユニオン枝を保ったまま組み立てて渡す（ジェネリクスにすると
+// EffectAction 全体のunionに対する交差型判定でTSエラーになるため、呼び出し側で narrowing する）。
+function tryInteractiveTargetChoice(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    prompt: string,
+    candidates: CardInstance[],
+    firstAction: EffectAction,
+    remainingAction: EffectAction | null,
+): boolean {
+    if (!state.interactiveTargets) return false
+    if (candidates.length < 2) return false
+    requestChoice(
+        state,
+        owner,
+        prompt,
+        candidates.map((s) => s.instanceId),
+        false,
+        firstAction,
+        self,
+    )
+    if (remainingAction && state.pendingChoice) {
+        state.pendingChoice.queue.unshift({
+            selfInstanceId: self ? self.instanceId : null,
+            action: remainingAction,
+        })
+    }
+    return true
 }
 
 // instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
@@ -1026,20 +1075,40 @@ export function resolveAction(
                 return
             }
             const selfBp = action.bpEqualsSelf && self ? effectiveBp(state, owner, self) : undefined
+            // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
+            // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）
+            const matchesFilter = (s: CardInstance) =>
+                (action.keywordFilter === undefined ||
+                    spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
+                (selfBp === undefined || effectiveBp(state, opp, s) === selfBp)
+            if (targetInstanceId !== undefined) {
+                // pendingChoice解決：選ばれた1体のみ破壊する
+                const target = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                if (target) {
+                    destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+                } else {
+                    log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                }
+                return
+            }
+            if (state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, action.maxBp ?? Infinity, matchesFilter, srcColor, srcType)
+                if (
+                    tryInteractiveTargetChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
+                        candidates,
+                        { ...action, count: 1 },
+                        action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    )
+                ) {
+                    return
+                }
+            }
             for (let i = 0; i < action.count; i++) {
-                // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
-                // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）
-                const target = pickEnemyByBp(
-                    state,
-                    opp,
-                    action.maxBp ?? Infinity,
-                    (s) =>
-                        (action.keywordFilter === undefined ||
-                            spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
-                        (selfBp === undefined || effectiveBp(state, opp, s) === selfBp),
-                    srcColor,
-                    srcType,
-                )
+                const target = pickEnemyByBp(state, opp, action.maxBp ?? Infinity, matchesFilter, srcColor, srcType)
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
@@ -1322,6 +1391,21 @@ export function resolveAction(
         }
 
         case "coreRemove": {
+            if (targetInstanceId === undefined && state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColor, srcType)
+                if (candidates.length >= 2) {
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}のコア除去：対象を選んでください`,
+                        candidates.map((s) => s.instanceId),
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+            }
             // 対象指定があれば両プレイヤーから検索、なければ相手のBP最大スピリットを自動選択
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
@@ -1410,6 +1494,22 @@ export function resolveAction(
                 log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
                 return
             }
+            if (state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => !s.isRested, srcColor, srcType)
+                if (
+                    tryInteractiveTargetChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}の疲労付与：対象を選んでください`,
+                        candidates,
+                        { ...action, count: 1 },
+                        action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    )
+                ) {
+                    return
+                }
+            }
             // 未指定時は相手フィールドの回復状態スピリットからBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
                 const target = pickEnemyByBp(
@@ -1485,6 +1585,22 @@ export function resolveAction(
                 }
                 destroySpirit(state, target.pid, target.inst.instanceId)
                 return
+            }
+            if (state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => s.isRested, srcColor, srcType)
+                if (
+                    tryInteractiveTargetChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}の疲労破壊：対象を選んでください`,
+                        candidates,
+                        { ...action, count: 1 },
+                        action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    )
+                ) {
+                    return
+                }
             }
             // 未指定時は相手フィールドの疲労状態スピリットからBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
@@ -1591,6 +1707,22 @@ export function resolveAction(
                 returnSpiritToHand(state, found.pid, found.inst)
                 return
             }
+            if (state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColor, srcType)
+                if (
+                    tryInteractiveTargetChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}の手札戻し：対象を選んでください`,
+                        candidates,
+                        { ...action, count: 1 },
+                        action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    )
+                ) {
+                    return
+                }
+            }
             // 未指定時は相手フィールドのBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
                 const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
@@ -1604,6 +1736,21 @@ export function resolveAction(
         }
 
         case "returnToDeckTop": {
+            if (targetInstanceId === undefined && state.interactiveTargets) {
+                const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColor, srcType)
+                if (candidates.length >= 2) {
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}のデッキ戻し：対象を選んでください`,
+                        candidates.map((s) => s.instanceId),
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+            }
             const found = targetInstanceId
                 ? findSpiritAny(state, targetInstanceId)
                 : (() => {
