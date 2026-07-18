@@ -211,7 +211,7 @@ function onMySpiritClick(instanceId: string): void {
         const inst = view.players[view.you].field.spirits.find(
             (s) => s.instanceId === instanceId,
         )
-        const filter = inst ? canDirectAttack(inst) : null
+        const filter = inst ? canDirectAttack(view, view.you, inst) : null
         const oppSpirits = view.players[opponentOf(view.you)].field.spirits
         const hasValidTarget =
             filter !== null && oppSpirits.some((s) => matchesDirectedAttackFilter(filter, s))

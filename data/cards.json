@@ -7557,7 +7557,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のスタートステップ』\n自分のネクサス1つを指定する。\n指定されたネクサスに置かれているコアの数は、このスピリットに置かれているコアの数と同じとして扱うことができる。\n(ネクサスを指定したとき、そのネクサスは、このスピリットの横に置いておく)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-028-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "linkNexusCoresChoice"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-029",
@@ -9347,7 +9362,30 @@
   "rarity": "R",
   "limited": true,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nこのスピリットはアタックとブロックができない。\nLv2･Lv3『自分のスタートステップ』\n相手のコスト6のスピリット1体を、そのままの状態で自分のフィールドに移動させる。\n移動したスピリットは、そのターンの間、自分のスピリットとして使用できる。\nこのとき、移動させたスピリット上のコアは持ち主のものとして扱い、新たにコアを置けず、取り除くこともできない。\nターン終了時、そのスピリットは疲労状態で相手のフィールドに戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-063-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "BS02-063-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-064",
@@ -10171,7 +10209,33 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のメインステップ』\nスピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。\nLv2『自分のアタックステップ』\n自分のLv3スピリットすべては、相手の疲労状態のスピリットをアタックの対象に指定し、そのスピリットにアタックできる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-078-e1",
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS02-078-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "minLevel": 3,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-079",

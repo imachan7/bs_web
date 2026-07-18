@@ -329,11 +329,31 @@ export function activeConstraints(
     inst: CardInstance,
 ): ConstraintDef[] {
     const level = currentLevel(inst).level
-    return getCard(inst.cardId)
+    const own = getCard(inst.cardId)
         .effects.filter(
             (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
+    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
+    // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
+    const granted: ConstraintDef[] = []
+    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "constraintGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (state.phase !== phase) continue
+                if (turn === "own" && pid !== state.turnPlayer) continue
+                if (turn === "opponent" && pid === state.turnPlayer) continue
+            }
+            granted.push(effect.constraint)
+        }
+    }
+    return [...own, ...granted]
 }
 
 // 相手の「対象を取る」効果の対象にならないか（クイーン・ワルキューレの常時、
@@ -504,6 +524,20 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                 }
             }
+        }
+    }
+    // クロスシザースのネクサス⇔コア数リンク（coresLinkedTo）を同期する。
+    // リンク元スピリットが消えていれば両フィールドをクリアする
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const nexus of state.players[pid].field.nexuses) {
+            if (!nexus.coresLinkedTo) continue
+            const source = findInstanceAnywhere(state, nexus.coresLinkedTo)
+            if (!source) {
+                delete nexus.coresLinkedTo
+                delete nexus.coresOverride
+                continue
+            }
+            nexus.coresOverride = source.cores
         }
     }
 }
@@ -2666,6 +2700,25 @@ export function resolveAction(
             log(
                 state,
                 `${sourceName}：系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた（ターン終了時まで）。`,
+            )
+            return
+        }
+
+        case "linkNexusCoresChoice": {
+            // クロスシザース：自分のネクサス1つを指定し、コア数をこのスピリットのコア数と同じものとして扱う
+            // （selfがnullなら不発。requestChoiceが候補0件/1件/複数件を判定する）
+            if (!self) return
+            if (targetInstanceId === undefined) {
+                const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
+                requestChoice(state, owner, "コア数をリンクするネクサスを選んでください", candidates, true, action, self)
+                return
+            }
+            const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+            if (!nexus) return
+            nexus.coresLinkedTo = self.instanceId
+            log(
+                state,
+                `${sourceName}：${getCard(nexus.cardId).name}のコア数は、このスピリットのコア数と同じものとして扱われる。`,
             )
             return
         }

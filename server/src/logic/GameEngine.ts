@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     createInstance,
@@ -273,11 +273,40 @@ function doMoveCore(
     if (direction === "add") {
         player.reserve -= 1
         inst.cores += 1
+        checkExhaustOnManualCoreAdd(state, pid, inst)
     } else {
         inst.cores -= 1
         player.reserve += 1
     }
     return null
+}
+
+// 持ち主から見て相手が、効果以外（moveCore/awaken）でスピリットのコアを増やしたとき、
+// 相手フィールドの exhaustOnManualCoreAdd 持ちネクサス（レベル有効）があれば、
+// そのスピリットを疲労させる（自分のメインステップ限定。夢魔の寝所）
+function checkExhaustOnManualCoreAdd(
+    state: GameState,
+    actingPid: PlayerId,
+    affectedInst: CardInstance,
+): void {
+    if (state.phase !== "main") return
+    if (affectedInst.isRested) return
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        if (opponentOf(pid) !== actingPid) continue
+        for (const nexus of state.players[pid].field.nexuses) {
+            const level = currentLevel(nexus).level
+            const hasEffect = getCard(nexus.cardId).effects.some(
+                (e) => e.kind === "exhaustOnManualCoreAdd" && effectActiveAtLevel(e.levels, level),
+            )
+            if (!hasEffect) continue
+            affectedInst.isRested = true
+            log(
+                state,
+                `${getCard(nexus.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
+            )
+            return
+        }
+    }
 }
 
 function doAwaken(
@@ -297,6 +326,7 @@ function doAwaken(
 
     from.cores -= count
     target.cores += count
+    checkExhaustOnManualCoreAdd(state, pid, target)
     log(
         state,
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,

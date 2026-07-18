@@ -247,9 +247,11 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
             return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
         }
     }
+    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
+    const coreCount = inst.coresOverride ?? inst.cores
     let result = { level: 0, bp: 0 }
     for (const lv of master.levels) {
-        if (inst.cores >= lv.cores && lv.level > result.level) {
+        if (coreCount >= lv.cores && lv.level > result.level) {
             result = { level: lv.level, bp: lv.bp }
         }
     }

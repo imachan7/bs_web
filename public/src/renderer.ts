@@ -49,9 +49,11 @@ export function levelOf(inst: CardInstance): { level: number; bp: number } {
             return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
         }
     }
+    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
+    const coreCount = inst.coresOverride ?? inst.cores
     let result = { level: 0, bp: 0 }
     for (const lv of m.levels) {
-        if (inst.cores >= lv.cores && lv.level > result.level) {
+        if (coreCount >= lv.cores && lv.level > result.level) {
             result = { level: lv.level, bp: lv.bp }
         }
     }
@@ -312,19 +314,38 @@ export function cantActByCost(view: GameView, inst: CardInstance): boolean {
 }
 
 // 指定インスタンスが現在レベルで持つ制約定義の一覧（サーバー activeConstraints と同じロジックの簡易版）
-export function activeConstraints(inst: CardInstance): ConstraintDef[] {
+export function activeConstraints(view: GameView, pid: PlayerId, inst: CardInstance): ConstraintDef[] {
     const { level } = levelOf(inst)
-    return master(inst.cardId)
+    const own = master(inst.cardId)
         .effects.filter(
             (e) => e.kind === "constraint" && (e.levels === null || e.levels.includes(level)),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
+    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源からownAll/minLevel/phaseTurn条件に合う制約を合成する
+    const granted: ConstraintDef[] = []
+    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "constraintGrant") continue
+            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
+            if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (view.phase !== phase) continue
+                if (turn === "own" && pid !== view.turnPlayer) continue
+                if (turn === "opponent" && pid === view.turnPlayer) continue
+            }
+            granted.push(effect.constraint)
+        }
+    }
+    return [...own, ...granted]
 }
 
 // 相手の対象を取る効果の対象にならないか（サーバー isUntargetableByOpponent のミラー）
-export function isUntargetableByOpponent(inst: CardInstance): boolean {
+export function isUntargetableByOpponent(view: GameView, pid: PlayerId, inst: CardInstance): boolean {
     if (inst.immuneToOpponentThisTurn) return true
-    return activeConstraints(inst).some(
+    return activeConstraints(view, pid, inst).some(
         (c) => c.type === "untargetableByOpponent",
     )
 }
@@ -356,7 +377,7 @@ export function canBlockAttacker(
     attackerPid: PlayerId,
     attackerInst: CardInstance,
 ): boolean {
-    const blockerConstraints = activeConstraints(blockerInst)
+    const blockerConstraints = activeConstraints(view, blockerPid, blockerInst)
     // バーストファイアで無効化中は cantBlock/cantBlockLowerBp を無視
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) return false
@@ -368,7 +389,7 @@ export function canBlockAttacker(
         }
     }
     const blockerCard = master(blockerInst.cardId)
-    const attackerConstraints = activeConstraints(attackerInst)
+    const attackerConstraints = activeConstraints(view, attackerPid, attackerInst)
     for (const c of attackerConstraints) {
         if (c.type !== "unblockableBy") continue
         if (c.colorFilter !== undefined && instHasColorView(blockerInst, c.colorFilter)) return false
@@ -591,8 +612,12 @@ export interface UiState {
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っているか（サーバー validateAttack と同じロジックの簡易版）
-export function canDirectAttack(inst: CardInstance): "rested" | "singleCore" | "recovered" | null {
-    const constraint = activeConstraints(inst).find((c) => c.type === "canDirectAttack")
+export function canDirectAttack(
+    view: GameView,
+    pid: PlayerId,
+    inst: CardInstance,
+): "rested" | "singleCore" | "recovered" | null {
+    const constraint = activeConstraints(view, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
     return constraint.targetFilter
 }
@@ -930,7 +955,7 @@ function fieldCardEl(
         const singleCoreLocked =
             inst.cores === 1 && hasGlobalConstraint(view, "singleCoreCantAct")
         // このスピリットはアタックできない（カイザレオン大帝Lv1）
-        const cantAttack = activeConstraints(inst).some((c) => c.type === "cantAttack")
+        const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
         const costLocked = cantActByCost(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
@@ -985,7 +1010,7 @@ function fieldCardEl(
         // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
         // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
         // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
-        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
+        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(view, ownerPid, inst)) {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColor = usingCardId ? master(usingCardId).color : undefined
             if (!hasArmorAgainst(inst, usingColor) && !hasMagicImmunityView(view, ownerPid, inst)) {

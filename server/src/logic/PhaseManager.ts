@@ -97,6 +97,13 @@ export function endTurn(state: GameState): void {
             delete inst.levelOverrideThisTurn
         }
     }
+    // ネクサスのコア数リンク（クロスシザース）もこのターンだけの簡略化のためリセットする
+    for (const pid of ["p1", "p2"] as const) {
+        for (const nexus of state.players[pid].field.nexuses) {
+            delete nexus.coresLinkedTo
+            delete nexus.coresOverride
+        }
+    }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット

@@ -105,6 +105,7 @@ export type EffectAction =
     | { type: "grantAlsoCostAll"; cost: number } // 自分のスピリットすべての tempAlsoCosts に cost を追加する（このターンの間、実コストに加えてこのコストとしても扱われる。道化師クラン）
     | { type: "grantColorChoice" } // 対象選択→色選択の2段階choiceを経て、選ばれた対象のtempColorsに選ばれた色を追加する（フラッシュ：スピリット1体にもう1色与える。アディショナルカラー）
     | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドに1体もいなければ不発。いれば全系統からのoption choiceを経て、targetFamily持ち全員のtempFamiliesに選ばれた系統を追加する（このターンの間。音鳥クルーク）
+    | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
 
 // drawPer / coreGainPer 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
@@ -395,6 +396,22 @@ export type EffectDef =
           levels: number[] | null
           phaseTurn: { phase: Phase; turn: "own" }
       }
+    | {
+          id: string
+          kind: "exhaustOnManualCoreAdd" // 持ち主から見て相手がスピリット/ネクサス/マジックの効果以外（moveCore/awaken）でスピリットのコアを
+          // 増やしたとき、そのスピリットを疲労させる（持ち主の相手のメインステップ限定。夢魔の寝所）
+          levels: number[] | null
+      }
+    | {
+          id: string
+          kind: "constraintGrant" // 発生源が場にありレベル有効の間、持ち主フィールドの対象（ownAll、minLevel条件）に
+          // 制約を継続付与する（夢魔の寝所Lv2：自分のLv3スピリットに指定アタックを許す）
+          levels: number[] | null
+          target: "ownAll"
+          minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
+          constraint: ConstraintDef
+      }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
 export interface CardData {
@@ -432,6 +449,10 @@ export interface CardInstance {
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
+    coresLinkedTo?: string // このネクサスのコア数を、リンク元スピリット（instanceId）のコア数と同じものとして扱う
+    // （クロスシザース。本来は再指定まで永続だが、このターンの間だけの簡略化。ターン終了でリセット）
+    coresOverride?: number // coresLinkedTo設定時、EffectModules.refreshLevelAsOverridesがリンク元スピリットの
+    // 現在コア数から毎回同期する。currentLevelはこの値をcoresの代わりに使う（ターン終了でリセット）
 }
 
 // プレイヤーの状態
