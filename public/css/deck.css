@@ -194,6 +194,11 @@ input[type="text"] {
     color: #1a1d2b;
 }
 
+.chip-blue.active {
+    background: #2f4aa0;
+    border-color: #4a6cd4;
+}
+
 #search-input {
     width: 180px;
 }
@@ -272,6 +277,10 @@ input[type="text"] {
 
 .pool-card.color-yellow {
     border-color: #e8cf4a;
+}
+
+.pool-card.color-blue {
+    border-color: #4a6cd4;
 }
 
 .pool-card.limited {
@@ -441,6 +450,10 @@ input[type="text"] {
 
 .deck-row.color-yellow {
     border-left-color: #e8cf4a;
+}
+
+.deck-row.color-blue {
+    border-left-color: #4a6cd4;
 }
 
 .row-cost {
@@ -674,6 +687,10 @@ input[type="text"] {
 .preset-btn.chip-yellow {
     background: #b09a2a;
     color: #1a1d2b;
+}
+
+.preset-btn.chip-blue {
+    background: #2f4aa0;
 }
 
 /* ---- トースト ---- */
