@@ -488,6 +488,12 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
   サーバー index.ts がゲーム開始時に true を設定し、destroy / coreRemove / exhaust / destroyExhausted /
   returnToHand / returnToDeckTop の6アクションで候補2体以上なら pendingChoice を発行。destroy の count≥2 は
   queue で連続選択）。テスト（interactiveTargets=false 既定）では従来の自動選択（破壊は相手のBP最大）を維持
+- カード選択も choice 化済み（pendingChoice kind:"card"、cardZone hand/trash）: discardOpponent は
+  **捨てられる側の相手**が選ぶ（原作準拠）、トラッシュ回収・無料召喚・無償ネクサス配置は使用者が選ぶ。
+  手札はハイライトクリック、トラッシュはカード名ボタンで選択。ネイチャーフォースの
+  「メインステップで使えない」制限も `mainForbidden` で忠実化
+- メインステップのフラッシュ優先権は**実装しない**（原作にメインステップの相手応答フラッシュは存在せず、
+  現行実装が原作準拠のため。2026-07-19 判断）
 - マジックの構造化は「タイミングの文面が既存アクション（複合可）で完全表現できる場合のみ」。
   条件付き・色選択・未対応概念（効果無効・効果耐性・バトル終了系など）はスキップ
   （バウンス・コア操作系は `returnToHand` / `returnToDeckTop` / `coreCharge` / `lifeCharge` / `coreGain` で対応済み）
