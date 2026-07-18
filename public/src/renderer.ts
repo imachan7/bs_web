@@ -877,7 +877,22 @@ function fieldCardEl(
         return el
     }
 
-    if (isNexus) return el
+    if (isNexus) {
+        // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
+        if (isMine && ui.paying !== null) {
+            const assigned = ui.paying.assigned[inst.instanceId] ?? 0
+            if (assigned > 0) {
+                const badge = document.createElement("div")
+                badge.className = "pay-badge"
+                badge.textContent = `支払${assigned}`
+                el.appendChild(badge)
+            }
+            if (assigned < inst.cores) {
+                el.classList.add("targetable", "clickable")
+            }
+        }
+        return el
+    }
 
     // このターンアタック不可（ピュアエリクサー等で回復した個体）
     if (inst.cantAttackThisTurn) {

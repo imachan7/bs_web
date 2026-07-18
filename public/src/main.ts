@@ -234,7 +234,9 @@ function assignPayCore(instanceId: string): void {
     if (!view || !ui.paying) return
     const pay = ui.paying
     const player = view.players[view.you]
-    const inst = player.field.spirits.find((s) => s.instanceId === instanceId)
+    const inst =
+        player.field.spirits.find((s) => s.instanceId === instanceId) ??
+        player.field.nexuses.find((n) => n.instanceId === instanceId)
     if (!inst) return
     const cardId = player.hand?.[pay.handIndex]
     if (cardId === undefined) {
@@ -436,10 +438,16 @@ async function init(): Promise<void> {
         if (el) onOppSpiritClick(String(el.dataset.instanceId))
     })
 
-    // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合のみ選択可能
+    // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合と支払いモード中はコア割り当て対象になる
     byId("my-nexuses").addEventListener("click", (e) => {
         const el = closestData(e, "data-instance-id")
-        if (el) tryResolveChoice(String(el.dataset.instanceId))
+        if (!el) return
+        const instanceId = String(el.dataset.instanceId)
+        if (tryResolveChoice(instanceId)) return
+        if (ui.paying !== null) {
+            assignPayCore(instanceId)
+            return
+        }
     })
     byId("opp-nexuses").addEventListener("click", (e) => {
         const el = closestData(e, "data-instance-id")

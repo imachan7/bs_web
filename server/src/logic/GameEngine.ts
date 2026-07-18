@@ -5,6 +5,7 @@ import {
     createInstance,
     currentLevel,
     findInstanceAnywhere,
+    findNexus,
     findSpirit,
     getCard,
     log,
@@ -118,7 +119,7 @@ function payCost(
     let paidFromSpirits = 0
     if (paySources && paySources.length > 0) {
         for (const src of paySources) {
-            const inst = findSpirit(player, src.instanceId)
+            const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
             if (!inst) continue
             const paid = Math.min(src.count, inst.cores)
             inst.cores -= paid
@@ -130,9 +131,11 @@ function payCost(
     player.reserve -= remaining
     player.trashCores += remaining
     if (paidFromSpirits > 0) {
-        log(state, `${player.name}はスピリット上のコア${paidFromSpirits}個を含めてコストを支払った。`)
+        log(state, `${player.name}はフィールドのコア${paidFromSpirits}個を含めてコストを支払った。`)
     }
     // 全支払い完了後、支払い元スピリットが維持コア（Lv1）を下回っていたら消滅させる
+    // （ここは意図的に findSpirit のみを検索する。ネクサスは維持コアの概念がなく
+    //   自然に消滅対象から外れるため、findNexus を併用しないこと）
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)

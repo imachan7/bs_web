@@ -23,7 +23,7 @@ export interface LevelDef {
     bp: number
 }
 
-// コスト支払い時に使うスピリット上のコアの割り当て（v1: スピリット上のコアのみ、ネクサス上は将来対応）
+// コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 export interface PaySource {
     instanceId: string
     count: number

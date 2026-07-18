@@ -284,6 +284,13 @@ export function findSpirit(
     return player.field.spirits.find((s) => s.instanceId === instanceId)
 }
 
+export function findNexus(
+    player: PlayerState,
+    instanceId: string,
+): CardInstance | undefined {
+    return player.field.nexuses.find((n) => n.instanceId === instanceId)
+}
+
 // 両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
 // pendingChoice.selfInstanceId の解決用（self は常にスピリットのため）
 export function findInstanceAnywhere(

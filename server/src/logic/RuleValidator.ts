@@ -4,6 +4,7 @@ import type { CardData, CardInstance, Color, GameState, PaySource, PlayerId } fr
 import {
     countSymbols,
     currentLevel,
+    findNexus,
     findSpirit,
     getCard,
     lv1Cores,
@@ -118,10 +119,10 @@ function validatePaySources(
     const seen = new Set<string>()
     let total = 0
     for (const src of paySources) {
-        if (seen.has(src.instanceId)) return "支払い元のスピリットが重複しています"
+        if (seen.has(src.instanceId)) return "支払い元が重複しています"
         seen.add(src.instanceId)
-        const inst = findSpirit(player, src.instanceId)
-        if (!inst) return "支払い元のスピリットが見つかりません"
+        const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
+        if (!inst) return "支払い元が見つかりません"
         if (src.count < 1) return "支払うコア数が不正です"
         if (src.count > inst.cores) return "支払い元のコアが足りません"
         total += src.count
