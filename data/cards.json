@@ -13588,7 +13588,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-054-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-055",
@@ -13763,7 +13772,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\nLv3『自分のアタックステップ』\nカード名に「アルカナ」と入っている自分のスピリットすべてをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-059-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-060",
@@ -14176,7 +14195,18 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\nLv2･Lv3『このスピリットのアタック時』\n自分のフィールドに紫のネクサスがあるとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-070-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-071",
@@ -14375,7 +14405,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-076-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-077",
@@ -14515,7 +14556,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-080-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-081",
@@ -15095,7 +15147,18 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『このスピリットのアタック時』\n相手のスピリット1体の上から、このスピリットの【粉砕】によって破棄されるカード1枚につき、コア1個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-096-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-097",
@@ -16552,7 +16615,17 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n緑/黄から1色を指定し、自分のトラッシュにある指定した色のマジックカードすべてを手札に戻す。\nLv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分のトラッシュにある、このバトルで使用したマジックカードすべては手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-X11-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-X12",

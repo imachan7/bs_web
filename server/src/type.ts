@@ -150,6 +150,8 @@ export type Keyword =
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
     | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
+    | "funsai" // 粉砕：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
+    | "kobo" // 光芒：アタック時、バトル終了時に自分がこのバトルで使用したマジックカードすべてを手札に戻す
 
 // 常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
 export type AuraCounter =
@@ -479,6 +481,7 @@ export interface BattleState {
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
+    usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに

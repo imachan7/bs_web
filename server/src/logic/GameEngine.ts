@@ -22,8 +22,10 @@ import {
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
+    millDeck,
     refreshLevelAsOverrides,
     resolveAction,
+    resolveKoboOnBattleEnd,
     resolveMagic,
 } from "./EffectModules"
 import {
@@ -379,6 +381,15 @@ function doAttack(
 
     fireTrigger(state, pid, inst, "onAttack")
 
+    // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
+    if (!state.winner) {
+        const attackLevel = currentLevel(inst).level
+        const hasFunsai = card.effects.some(
+            (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, attackLevel),
+        )
+        if (hasFunsai) millDeck(state, opponentOf(pid), attackLevel)
+    }
+
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
     // 両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
@@ -497,6 +508,7 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         fireTrigger(state, attackerPid, attacker, "onLifeDealt")
     }
 
+    resolveKoboOnBattleEnd(state, attackerPid, attacker)
     clearBattle(state)
     return null
 }
@@ -763,5 +775,6 @@ function resolveBattle(state: GameState): void {
         if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
     }
 
+    resolveKoboOnBattleEnd(state, attackerPid, attacker)
     clearBattle(state)
 }

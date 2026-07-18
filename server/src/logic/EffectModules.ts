@@ -66,6 +66,8 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     clash: { id: "clash", label: "激突" },
     armor: { id: "armor", label: "装甲" },
     jugeki: { id: "jugeki", label: "呪撃" },
+    funsai: { id: "funsai", label: "粉砕" },
+    kobo: { id: "kobo", label: "光芒" },
 }
 
 // 指定カードがそのキーワードを持つか。
@@ -121,6 +123,46 @@ export function spiritHasKeyword(
         }
     }
     return false
+}
+
+// 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
+// デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）
+export function millDeck(state: GameState, pid: PlayerId, count: number): void {
+    const player = state.players[pid]
+    const actual = Math.min(count, player.deck.length)
+    for (let i = 0; i < actual; i++) {
+        const cardId = player.deck.shift()
+        if (cardId === undefined) break
+        player.trashCards.push(cardId)
+    }
+    log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
+}
+
+// 【光芒】: バトル終了時、アタッカーがレベル有効で光芒を持つなら、
+// このバトル中にアタッカー側が使用したマジックカードをトラッシュから手札へ戻す。
+// state.battle が null になる前（clearBattle 直前）に、各呼び出し元から呼ぶ。
+// attacker はローカル参照を渡す（BP比較でフィールドから除去済みでも cardId/cores は読み取れる。呪撃と同じ考え方）
+export function resolveKoboOnBattleEnd(
+    state: GameState,
+    attackerPid: PlayerId,
+    attacker: CardInstance | undefined,
+): void {
+    if (!state.battle || !attacker) return
+    const usedMagicCardIds = state.battle.usedMagicCardIds?.[attackerPid]
+    if (!usedMagicCardIds || usedMagicCardIds.length === 0) return
+    const attackerLevel = currentLevel(attacker).level
+    const hasKobo = getCard(attacker.cardId).effects.some(
+        (e) => e.kind === "keyword" && e.keyword === "kobo" && effectActiveAtLevel(e.levels, attackerLevel),
+    )
+    if (!hasKobo) return
+    const player = state.players[attackerPid]
+    for (const cardId of usedMagicCardIds) {
+        const idx = player.trashCards.lastIndexOf(cardId)
+        if (idx === -1) continue
+        player.trashCards.splice(idx, 1)
+        player.hand.push(cardId)
+        log(state, `【光芒】${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+    }
 }
 
 // 状態を考慮した系統判定：
@@ -1975,6 +2017,9 @@ export function resolveAction(
                 return
             }
             log(state, `${sourceName}によって、行っていたバトルはただちに終了した。`)
+            const endBattleAttackerPid = state.turnPlayer
+            const endBattleAttacker = findSpiritAny(state, state.battle.attackerInstanceId)
+            resolveKoboOnBattleEnd(state, endBattleAttackerPid, endBattleAttacker?.inst)
             clearBattle(state)
             return
         }
@@ -3428,6 +3473,14 @@ export function resolveMagic(
     timing: "main" | "flash",
     targetInstanceId?: string,
 ): void {
+    // 【光芒】用: バトル中の使用ならアタッカー側の usedMagicCardIds に記録する
+    // （バトル終了時にこの中からトラッシュ→手札へ戻す）
+    if (state.battle) {
+        if (!state.battle.usedMagicCardIds) {
+            state.battle.usedMagicCardIds = { p1: [], p2: [] }
+        }
+        state.battle.usedMagicCardIds[owner].push(cardId)
+    }
     const card = getCard(cardId)
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
