@@ -90,7 +90,7 @@ function dispatchAction(
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
         case "resolveChoice":
-            return doResolveChoice(state, pid, action.instanceId, action.option)
+            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
@@ -540,7 +540,13 @@ function doActivateAbility(
 // instanceId 省略時は「選ばない」（optional な選択のみ許可）。
 // 選択実行後、退避していた queue（同一トリガー内の残りの誘発）を先頭から順に消化する。
 // 途中で新たな pendingChoice が立てば、残りの queue をそちらへ引き継いで中断する。
-function doResolveChoice(state: GameState, pid: PlayerId, instanceId?: string, option?: string): string | null {
+function doResolveChoice(
+    state: GameState,
+    pid: PlayerId,
+    instanceId?: string,
+    option?: string,
+    cardIndex?: number,
+): string | null {
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
@@ -556,6 +562,24 @@ function doResolveChoice(state: GameState, pid: PlayerId, instanceId?: string, o
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (option !== undefined) {
             resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+        } else {
+            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
+        }
+        if (state.winner) return null
+        return drainChoiceQueue(state, pending.pid, pending.queue)
+    }
+
+    if (pending.kind === "card") {
+        if (cardIndex !== undefined && !(pending.cardIndices ?? []).includes(cardIndex)) {
+            return "選択できない対象です"
+        }
+        if (cardIndex === undefined && !pending.optional) {
+            return "対象を選択してください"
+        }
+        state.pendingChoice = null
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        if (cardIndex !== undefined) {
+            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
         } else {
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }

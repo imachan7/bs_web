@@ -139,6 +139,7 @@ console.log("=== BS02-057 妖精女王ティ・ターニャ / BS02-097 ネイチ
     assert(s.players.p1.trashCores === 3, "トラッシュのコアが2個減る（5→3）")
 
     console.log("--- ネイチャーフォース：フラッシュで自分のトラッシュのコアすべてを対象スピリットへ ---")
+    // 「この効果はメインステップで使えない」（mainForbidden）ため、バトル中のフラッシュタイミングで使用する
     const s2 = createGame(
         "bs02-natureforce-test",
         { p1: "アキラ", p2: "ユウキ" },
@@ -151,6 +152,12 @@ console.log("=== BS02-057 妖精女王ティ・ターニャ / BS02-097 ネイチ
     s2.players.p1.hand[0] = "BS02-097"
     s2.players.p1.reserve = 10
     const cost2 = effectiveCost(s2, "p1", getCard("BS02-097"))
+    assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(
+        act(s2, "p1", { type: "attack", instanceId: target.instanceId }) === null,
+        "targetでアタックしてフラッシュタイミングを開始",
+    )
+    assert(act(s2, "p2", { type: "pass" }) === null, "p2がパスしてp1に優先権を戻す")
     // 使用コストの支払いぶんも支払い直後にトラッシュコアへ加算されるため、効果発動時点では
     // 4 + cost2 個のトラッシュコアが対象になる（コスト支払い→効果解決の順で処理されるため）
     assert(
@@ -159,7 +166,7 @@ console.log("=== BS02-057 妖精女王ティ・ターニャ / BS02-097 ネイチ
             handIndex: 0,
             targetInstanceId: target.instanceId,
         }) === null,
-        "ネイチャーフォースを使用",
+        "バトル中のフラッシュでネイチャーフォースを使用できる",
     )
     assert(
         target.cores === 1 + 4 + cost2,

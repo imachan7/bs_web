@@ -891,6 +891,65 @@ function tryInteractiveTargetChoice(
     return true
 }
 
+// tryInteractiveTargetChoice のカード版：interactiveTargets有効時、count等で複数回に分けて
+// 処理するカード選択アクション（discardOpponent/recoverSpiritFromTrash）の選択を
+// requestCardChoice に委ねる共通ヘルパー。candidates(インデックス配列)が2件以上のときだけ
+// pendingChoice を立てて true を返す（呼び出し側はそのまま return する）。
+// 0/1件のときは false を返し、呼び出し側の既存の自動選択にフォールバックさせる。
+function tryInteractiveCardChoice(
+    state: GameState,
+    pid: PlayerId,
+    self: CardInstance | null,
+    prompt: string,
+    cardZone: "hand" | "trash",
+    cardIndices: number[],
+    firstAction: EffectAction,
+    remainingAction: EffectAction | null,
+): boolean {
+    if (!state.interactiveTargets) return false
+    if (cardIndices.length < 2) return false
+    requestCardChoice(state, pid, prompt, cardZone, cardIndices, false, firstAction, self)
+    if (remainingAction && state.pendingChoice) {
+        state.pendingChoice.queue.unshift({
+            selfInstanceId: self ? self.instanceId : null,
+            action: remainingAction,
+        })
+    }
+    return true
+}
+
+// summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
+// 維持コアのみリザーブから払ってフィールドへ配置する（onSummon効果は発揮させない）。
+// プレイヤー選択（chosenCardIndex）・自動選択（コスト最大）どちらの経路からも呼ぶ
+function summonFreeFromHandIndex(
+    state: GameState,
+    owner: PlayerId,
+    sourceName: string,
+    handIndex: number,
+): void {
+    const player = state.players[owner]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    const maintain = lv1Cores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+        return
+    }
+    player.hand.splice(handIndex, 1)
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+            "（このスピリットの召喚時効果は発揮されない）",
+    )
+}
+
 // instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
 function findSpiritAny(
     state: GameState,
@@ -1050,6 +1109,7 @@ export function resolveAction(
     sourceColor?: Color,
     sourceType?: "spirit" | "nexus" | "magic",
     chosenOption?: string,
+    chosenCardIndex?: number,
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
@@ -2071,22 +2131,58 @@ export function resolveAction(
         }
 
         case "discardOpponent": {
-            // 本来は相手が選ぶが、簡略化して手札末尾からcount枚を破棄する（Math.randomは不使用）
-            const player = state.players[opp]
-            if (player.hand.length === 0) {
-                log(state, `${sourceName}の手札破棄：${player.name}の手札がなかった。`)
+            // interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPid指定時＝
+            // 選択式の再突入呼び出し。選択者=破棄される相手本人のため、pendingChoice解決時に
+            // resolveActionへ渡るowner引数は常にpending.pid（=破棄される側）になり、
+            // opponentOf(owner)による逆算では元の効果所有者を指してしまう。そのため選択式に入った
+            // 時点で対象プレイヤーIdをactionに固定して持ち回す
+            const targetPid = action.forcedTargetPid ?? opp
+            const target = state.players[targetPid]
+            if (chosenCardIndex !== undefined) {
+                const cardId = target.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}の手札破棄：対象がいなかった。`)
+                    return
+                }
+                target.hand.splice(chosenCardIndex, 1)
+                target.trashCards.push(cardId)
+                log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
                 return
             }
+            if (target.hand.length === 0) {
+                log(state, `${sourceName}の手札破棄：${target.name}の手札がなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                const indices = target.hand.map((_, i) => i)
+                if (
+                    tryInteractiveCardChoice(
+                        state,
+                        targetPid,
+                        self,
+                        `${sourceName}の手札破棄：破棄するカードを選んでください`,
+                        "hand",
+                        indices,
+                        { type: "discardOpponent", count: 1, forcedTargetPid: targetPid },
+                        action.count > 1
+                            ? { type: "discardOpponent", count: action.count - 1, forcedTargetPid: targetPid }
+                            : null,
+                    )
+                ) {
+                    return
+                }
+            }
+            // 既存の決定的自動選択：本来は相手が選ぶが、簡略化して手札末尾からcount枚を破棄する
             const discarded: string[] = []
             for (let i = 0; i < action.count; i++) {
-                const cardId = player.hand.pop()
+                const cardId = target.hand.pop()
                 if (cardId === undefined) break
-                player.trashCards.push(cardId)
+                target.trashCards.push(cardId)
                 discarded.push(getCard(cardId).name)
             }
             log(
                 state,
-                `${player.name}は手札「${discarded.join("、")}」を破棄した。`,
+                `${target.name}は手札「${discarded.join("、")}」を破棄した。`,
             )
             return
         }
@@ -2268,9 +2364,43 @@ export function resolveAction(
         }
 
         case "recoverSpiritFromTrash": {
-            // トラッシュの末尾（新しい方）からスピリットカードを探してcount枚手札に戻す
-            // （本来は好きな1枚を選べるが、決定的な自動選択で簡略化）
+            // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
             const player = state.players[owner]
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.trashCards[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}のスピリット回収：対象がいなかった。`)
+                    return
+                }
+                player.trashCards.splice(chosenCardIndex, 1)
+                player.hand.push(cardId)
+                log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                const indices = player.trashCards
+                    .map((id, i) => ({ id, i }))
+                    .filter(({ id }) => getCard(id).type === "spirit")
+                    .map(({ i }) => i)
+                if (
+                    tryInteractiveCardChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}のスピリット回収：手札に戻すカードを選んでください`,
+                        "trash",
+                        indices,
+                        { type: "recoverSpiritFromTrash", count: 1 },
+                        action.count > 1
+                            ? { type: "recoverSpiritFromTrash", count: action.count - 1 }
+                            : null,
+                    )
+                ) {
+                    return
+                }
+            }
+            // 既存の決定的自動選択：トラッシュの末尾（新しい方）からスピリットカードを探して
+            // count枚手札に戻す（本来は好きな1枚を選べるが、決定的な自動選択で簡略化）
             for (let i = 0; i < action.count; i++) {
                 let idx = -1
                 for (let j = player.trashCards.length - 1; j >= 0; j--) {
@@ -2462,9 +2592,41 @@ export function resolveAction(
         }
 
         case "recoverMagicFromTrash": {
-            // トラッシュの末尾（新しい方）からマジックカードを探して1枚手札に戻す
-            // （recoverSpiritFromTrashと同じ考え方。本来は好きな1枚を選べるが決定的な自動選択で簡略化）
+            // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
             const player = state.players[owner]
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.trashCards[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}のマジック回収：対象がいなかった。`)
+                    return
+                }
+                player.trashCards.splice(chosenCardIndex, 1)
+                player.hand.push(cardId)
+                log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                const indices = player.trashCards
+                    .map((id, i) => ({ id, i }))
+                    .filter(({ id }) => getCard(id).type === "magic")
+                    .map(({ i }) => i)
+                if (indices.length >= 2) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}のマジック回収：手札に戻すカードを選んでください`,
+                        "trash",
+                        indices,
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+            }
+            // 既存の決定的自動選択：トラッシュの末尾（新しい方）からマジックカードを探して
+            // 1枚手札に戻す（recoverSpiritFromTrashと同じ考え方。本来は好きな1枚を選べるが
+            // 決定的な自動選択で簡略化）
             let idx = -1
             for (let j = player.trashCards.length - 1; j >= 0; j--) {
                 if (getCard(player.trashCards[j]!).type === "magic") {
@@ -2550,12 +2712,54 @@ export function resolveAction(
         case "deployNexus": {
             // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに
             // 自分のフィールドに配置する（スコルピード／白虎ハック／黒虎クロン。
-            // 本来は「できる」＝任意発動だが、自動処理では常に発動する簡略化）
+            // 本来は「できる」＝任意発動だが、自動処理では常に発動する簡略化。
+            // interactiveTargets時は選択式（選択者=使用者。cardZoneはfromに応じてhand/trash）
             const player = state.players[owner]
             const isMatch = (cardId: string): boolean => {
                 const c = getCard(cardId)
                 return c.type === "nexus" && action.colors.includes(c.color)
             }
+            const deployFromIndex = (idx: number): void => {
+                const zone = action.from === "hand" ? player.hand : player.trashCards
+                const cardId = zone[idx]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：対象がいなかった。`)
+                    return
+                }
+                zone.splice(idx, 1)
+                const maintain = lv1Cores(getCard(cardId))
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.nexuses.push(inst)
+                log(
+                    state,
+                    `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
+                )
+            }
+            if (chosenCardIndex !== undefined) {
+                deployFromIndex(chosenCardIndex)
+                return
+            }
+            if (state.interactiveTargets) {
+                const zone = action.from === "hand" ? player.hand : player.trashCards
+                const indices: number[] = []
+                for (let i = 0; i < zone.length; i++) {
+                    if (isMatch(zone[i]!)) indices.push(i)
+                }
+                if (indices.length >= 2) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：配置するネクサスを選んでください`,
+                        action.from,
+                        indices,
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+            }
+            // 既存の決定的自動選択（手札は先頭、トラッシュは末尾＝新しい方から）
             let cardId: string | undefined
             if (action.from === "hand") {
                 const idx = player.hand.findIndex(isMatch)
@@ -2673,25 +2877,53 @@ export function resolveAction(
             // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
             // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
             // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
+            // interactiveTargets時は選択式（選択者=使用者。cardZone:"hand"）。
             // この効果で召喚されたスピリットの onSummon 効果は発揮されないため、fireTrigger を呼ばず
-            // 直接 createInstance → push する
+            // 直接 createInstance → push する（summonFreeFromHandIndex に共通化）
             const player = state.players[owner]
             const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
+            const matchesCardId = (candidateId: string): boolean => {
+                const candidate = getCard(candidateId)
+                if (candidate.type !== "spirit") return false
+                if (action.colorFilter !== undefined && candidate.color !== action.colorFilter) return false
+                if (action.sameFamilyAsSelf) {
+                    if (!selfFamily) return false
+                    if (!candidate.family.some((f) => selfFamily.includes(f))) return false
+                }
+                return true
+            }
+            if (chosenCardIndex !== undefined) {
+                summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)
+                return
+            }
+            if (state.interactiveTargets) {
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (indices.length >= 2) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください`,
+                        "hand",
+                        indices,
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+            }
+            // 既存の決定的自動選択（コスト最大、同コストは手札の先頭側）
             let bestIndex = -1
             let bestCost = -1
             for (let i = 0; i < player.hand.length; i++) {
                 const candidateId = player.hand[i]!
-                const candidate = getCard(candidateId)
-                if (candidate.type !== "spirit") continue
-                if (action.colorFilter !== undefined && candidate.color !== action.colorFilter) {
-                    continue
-                }
-                if (action.sameFamilyAsSelf) {
-                    if (!selfFamily) continue
-                    if (!candidate.family.some((f) => selfFamily.includes(f))) continue
-                }
-                if (candidate.cost > bestCost) {
-                    bestCost = candidate.cost
+                if (!matchesCardId(candidateId)) continue
+                const cost = getCard(candidateId).cost
+                if (cost > bestCost) {
+                    bestCost = cost
                     bestIndex = i
                 }
             }
@@ -2699,22 +2931,7 @@ export function resolveAction(
                 log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
                 return
             }
-            const cardId = player.hand[bestIndex]!
-            const card = getCard(cardId)
-            const maintain = lv1Cores(card)
-            if (player.reserve < maintain) {
-                log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
-                return
-            }
-            player.hand.splice(bestIndex, 1)
-            player.reserve -= maintain
-            const inst = createInstance(cardId, state.turn, maintain)
-            player.field.spirits.push(inst)
-            log(
-                state,
-                `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
-                    "（このスピリットの召喚時効果は発揮されない）",
-            )
+            summonFreeFromHandIndex(state, owner, sourceName, bestIndex)
             return
         }
 
@@ -2914,6 +3131,47 @@ export function requestChoice(
         kind: "target",
         prompt,
         candidates,
+        optional,
+        action,
+        selfInstanceId: self ? self.instanceId : null,
+        queue: [],
+    }
+}
+
+// requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
+// 候補が0件なら不発、1件なら即座に resolveAction（chosenCardIndex渡し）で解決、
+// 2件以上なら state.pendingChoice(kind:"card") を立てて GameAction "resolveChoice"（cardIndex）を待つ。
+// pid＝選択するプレイヤー＝ゾーンの持ち主（cardOwner）。discardOpponentのように選択者が
+// 効果の使用者と異なる場合は、呼び出し側が pid にその選択者を渡す（resolveAction の owner
+// 引数と食い違うため、対象特定は action 側に埋め込んで持ち回ること。discardOpponent の
+// forcedTargetPid を参照）
+export function requestCardChoice(
+    state: GameState,
+    pid: PlayerId,
+    prompt: string,
+    cardZone: "hand" | "trash",
+    cardIndices: number[],
+    optional: boolean,
+    action: EffectAction,
+    self: CardInstance | null,
+): void {
+    if (cardIndices.length === 0) {
+        log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
+        return
+    }
+    const only = cardIndices[0]
+    if (cardIndices.length === 1 && only !== undefined) {
+        resolveAction(state, pid, self, action, undefined, undefined, undefined, undefined, only)
+        return
+    }
+    state.pendingChoice = {
+        pid,
+        kind: "card",
+        prompt,
+        candidates: [],
+        cardZone,
+        cardOwner: pid,
+        cardIndices,
         optional,
         action,
         selfInstanceId: self ? self.instanceId : null,

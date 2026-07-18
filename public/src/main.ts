@@ -99,8 +99,25 @@ socket.on("opponentLeft", () => {
 
 // ---- 手札クリック ----
 
+// pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
+// resolveChoice を送信する。送信したら true を返す（呼び出し側はそこで処理を打ち切る）
+function tryResolveCardChoice(handIndex: number): boolean {
+    if (!view || !view.pendingChoice) return false
+    if (view.pendingChoice.pid !== view.you) return false
+    if (view.pendingChoice.kind !== "card" || view.pendingChoice.cardZone !== "hand") return false
+    if (!(view.pendingChoice.cardIndices ?? []).includes(handIndex)) return false
+    send({ type: "resolveChoice", cardIndex: handIndex })
+    return true
+}
+
 function onHandClick(handIndex: number): void {
     if (!view) return
+    // 選択待ち中は通常の手札操作（召喚等）をすべて抑止する。自分宛のkind:"card"・cardZone:"hand"
+    // なら選択を送信し、それ以外（相手宛や別kind）は何もしない
+    if (view.pendingChoice) {
+        tryResolveCardChoice(handIndex)
+        return
+    }
     if (ui.awakenTarget !== null) return // 覚醒モード中は手札操作を抑止
     if (ui.paying !== null) return // 支払いモード中は新規手札操作を抑止
     if (ui.directedAttack !== null) return // 指定アタックの対象選択モード中は手札操作を抑止
@@ -480,8 +497,13 @@ async function init(): Promise<void> {
         send({ type: "resolveChoice" })
     })
     byId("choice-options").addEventListener("click", (e) => {
-        const el = closestData(e, "data-option")
-        if (el) send({ type: "resolveChoice", option: String(el.dataset.option) })
+        const optionEl = closestData(e, "data-option")
+        if (optionEl) {
+            send({ type: "resolveChoice", option: String(optionEl.dataset.option) })
+            return
+        }
+        const cardEl = closestData(e, "data-card-index")
+        if (cardEl) send({ type: "resolveChoice", cardIndex: Number(cardEl.dataset.cardIndex) })
     })
 }
 

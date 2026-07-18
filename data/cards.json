@@ -10983,6 +10983,7 @@
     "id": "BS02-097-e1",
     "kind": "magic",
     "timing": "flash",
+    "mainForbidden": true,
     "action": {
      "type": "trashCoresToSpirit"
     }

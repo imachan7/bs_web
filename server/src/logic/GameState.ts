@@ -323,6 +323,18 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
     }
 }
 
+// 相手視点でのpendingChoiceマスク：candidatesは常に空に、kind:"card"のときはcardIndicesも
+// 空にし、表示用promptを種別に応じた汎用メッセージに差し替える（内容が漏れないようにする）
+function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
+    const isCard = pc.kind === "card"
+    return {
+        ...pc,
+        candidates: [],
+        ...(isCard ? { cardIndices: [] } : {}),
+        prompt: isCard ? "相手がカードを選択中…" : "相手が対象を選択中…",
+    }
+}
+
 export function viewFor(state: GameState, viewer: PlayerId): GameView {
     return {
         gameId: state.gameId,
@@ -343,7 +355,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }
-                : { ...state.pendingChoice, candidates: [], prompt: "相手が対象を選択中…" }
+                : maskPendingChoiceForOpponent(state.pendingChoice)
             : null,
     }
 }

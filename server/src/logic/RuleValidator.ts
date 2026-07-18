@@ -1,6 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
-import type { CardData, CardInstance, Color, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, CardInstance, Color, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import {
     countSymbols,
     currentLevel,
@@ -247,6 +247,18 @@ export function validateCastMagic(
     } else {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
+        // メインステップ経路（バトル外）で使用しようとしているtiming（doCastMagicと同じ判定：
+        // main用エントリがあればmain、なければflash用エントリをメインステップから使うことになる）の
+        // エントリがすべてmainForbiddenなら、効果文「メインステップで使えない」に従い使用を拒否する
+        const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
+        const usedTiming: "main" | "flash" = hasMain ? "main" : "flash"
+        const usedEntries = card.effects.filter(
+            (e): e is Extract<EffectDef, { kind: "magic" }> =>
+                e.kind === "magic" && e.timing === usedTiming,
+        )
+        if (usedEntries.length > 0 && usedEntries.every((e) => e.mainForbidden)) {
+            return "このマジックはメインステップでは使用できません"
+        }
     }
 
     const payError = validatePaySources(state, pid, effectiveCost(state, pid, card), paySources)

@@ -63,7 +63,7 @@ export type EffectAction =
     | { type: "lifeCrush"; count: number } // 相手のライフのコアcount個を相手のリザーブへ（ライフ0以下で勝敗決定）
     | { type: "voidCoreToSelf"; count: number } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op）
     | { type: "voidCoreToSelfPer"; counter: "ownOtherSpirits" } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
-    | { type: "discardOpponent"; count: number } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）
+    | { type: "discardOpponent"; count: number; forcedTargetPid?: PlayerId } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）。interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPidは選択式再突入時のみ内部で設定する対象プレイヤー（cards.jsonには書かない。選択者=破棄される側のためresolveActionのowner引数がopponentOf(owner)で逆算できなくなるのを避ける）
     | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color; all?: boolean } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ。候補から実効BP最大を自動選択、いなければno-op）。all指定時は該当候補すべてを回復し cantAttackThisTurn は付与しない（決闘台地Lv2）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: "readyEnemies"; amountPer: number } // このスピリット自身を「相手フィールドの回復状態スピリット数×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
@@ -237,6 +237,7 @@ export type EffectDef =
           kind: "magic"
           timing: "main" | "flash"
           action: EffectAction
+          mainForbidden?: boolean // trueなら、このエントリがtimingとして採用されるメインステップでの使用そのものを拒否する（効果文「メインステップで使えない」の忠実化。ネイチャーフォース）
       }
     | {
           id: string
@@ -486,10 +487,13 @@ export interface BattleState {
 // （fireTrigger / resolveMagic のエントリループが積む。selfInstanceId から self を復元して再開する）。
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
-    kind: "target" | "option" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択
+    kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）
-    candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"のときは空配列）
+    candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"/"card"のときは空配列）
     options?: string[] // kind:"option" のとき選択肢ラベル一覧（表示ラベル＝そのまま値として使う）
+    cardZone?: "hand" | "trash" // kind:"card" のとき必須：どちらのゾーンから選ぶか
+    cardOwner?: PlayerId // kind:"card" のとき必須：ゾーンの持ち主（今回は常に pid 自身のゾーン＝pidと同値）
+    cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
     optional: boolean // true ならスキップ（選ばない）可
     action: EffectAction // 選択後に resolveAction する本体
     selfInstanceId: string | null // 発生源スピリット（self の復元用）
@@ -570,7 +574,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
-    | { type: "resolveChoice"; instanceId?: string; option?: string } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption。両方省略＝スキップ。optionalのときのみ許可）
+    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）
     | { type: "takeLife" }
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack

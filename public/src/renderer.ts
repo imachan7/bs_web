@@ -693,7 +693,9 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
-    // kind:"option"の選択肢ボタンを描画する（myPendingChoiceが自分宛かつoption式のときのみ）
+    // kind:"option"の選択肢ボタンを描画する（myPendingChoiceが自分宛かつoption式のときのみ）。
+    // kind:"card"かつcardZone:"trash"のときも同じボタンUIでカード名を並べる
+    // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
     const choiceOptionsEl = $("choice-options")
     choiceOptionsEl.innerHTML = ""
     if (myPendingChoice && myPendingChoice.kind === "option") {
@@ -704,13 +706,24 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "card" && myPendingChoice.cardZone === "trash") {
+        const trash = view.players[view.you].trashCards
+        for (const idx of myPendingChoice.cardIndices ?? []) {
+            const cardId = trash[idx]
+            if (cardId === undefined) continue
+            const b = document.createElement("button")
+            b.dataset.cardIndex = String(idx)
+            b.textContent = master(cardId).name
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else {
         show("choice-options", false)
     }
     if (myPendingChoice) {
         $("targeting-info").textContent = myPendingChoice.prompt
     } else if (oppPendingChoice) {
-        $("targeting-info").textContent = "相手が対象を選択中…"
+        $("targeting-info").textContent = oppPendingChoice.prompt
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
@@ -1052,6 +1065,15 @@ function renderHand(view: GameView, ui: UiState): void {
     const flashLocked = view.battle?.flashLockedPlayer === view.you
     const reserve = view.players[view.you].reserve
 
+    // 効果解決中の選択待ち（自分宛・kind:"card"・cardZone:"hand"）：候補インデックスをハイライトする
+    const handChoiceIndices =
+        view.pendingChoice &&
+        view.pendingChoice.pid === view.you &&
+        view.pendingChoice.kind === "card" &&
+        view.pendingChoice.cardZone === "hand"
+            ? new Set(view.pendingChoice.cardIndices ?? [])
+            : null
+
     hand.forEach((cardId, index) => {
         const m = master(cardId)
         const cost = effectiveCost(view, view.you, m)
@@ -1067,6 +1089,7 @@ function renderHand(view: GameView, ui: UiState): void {
         el.className = `card color-${m.color}`
         el.dataset.handIndex = String(index)
         if (usable) el.classList.add("usable", "clickable")
+        if (handChoiceIndices?.has(index)) el.classList.add("targetable", "clickable")
 
         const typeLabel =
             m.type === "spirit" ? "スピリット" : m.type === "nexus" ? "ネクサス" : "マジック"
