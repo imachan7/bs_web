@@ -11724,7 +11724,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-002-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-003",
@@ -11757,7 +11771,41 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1『このスピリットのアタック時』\nこのスピリットは【神速】を持つスピリットにブロックされない。\nLv2『このスピリットのアタック時』\nこのスピリットは【呪撃】/【神速】を持つスピリットにブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-003-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "soku"
+    }
+   },
+   {
+    "id": "BS03-003-e2",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "soku"
+    }
+   },
+   {
+    "id": "BS03-003-e3",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "jugeki"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-004",
@@ -11868,7 +11916,33 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットと同じBPを持つスピリット1体を破壊できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-006-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-006-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "bpEqualsSelf": true
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-007",
@@ -12021,7 +12095,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP2000以下のスピリットすべてを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-010-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "maxBp": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-011",
@@ -12057,7 +12146,23 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nBP2000以下のスピリット1体を破壊できる。\nLv2『自分のアタックステップ』\nコア1個だけを置いている自分のスピリットすべてをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-011-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroy",
+     "maxBp": 2000,
+     "count": 1
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-012",
@@ -12099,7 +12204,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコアが3個以下のスピリット1体を破壊できる。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分のトラッシュのスピリットカード1枚を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-012-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     3
+    ],
+    "battleRole": "attacker",
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-013",
@@ -12168,7 +12288,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-014-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS03-014-e2",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-015",
@@ -12201,7 +12340,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットの破壊時』\n相手のスピリット1体の上に置かれたコア1個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-015-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-016",
@@ -12270,7 +12423,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットの破壊時』\nコア2個が置かれているスピリット1体を破壊できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-017-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-018",
@@ -12350,7 +12513,36 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分は手札1枚を選んで破棄する。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-019-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "discardSelfOne"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-019-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-020",
@@ -12465,7 +12657,21 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-022-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-023",
@@ -12500,7 +12706,31 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-023-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-023-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     2
+    ],
+    "battleRole": "blocker",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-024",
@@ -12536,7 +12766,22 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットは、Lv1スピリットからブロックされない。\nLv2\n【呪撃】を持つ自分のスピリットすべては、Lv1スピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-024-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-025",
@@ -15417,7 +15662,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、相手のBP1000以下のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【覚醒】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、破壊されたスピリットと同じBPを持つ相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-103-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroy",
+     "maxBp": 1000,
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-104",
@@ -15483,7 +15744,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のターン』\nコアが2個以下しか置かれていないスピリットすべては、系統をないものとして扱い、新たに得ることもない。\nLv2『自分のアタックステップ』\n自分のコスト2のスピリットすべてに“【呪撃】『このスピリットのアタック時』このスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-105-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "grantKeywordAll",
+     "keyword": "jugeki",
+     "costFilter": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-106",
@@ -15892,7 +16168,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分の手札が4枚になるまで、自分はデッキからドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-118-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-119",
@@ -15912,7 +16198,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nLv1のネクサスすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-119-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-120",
@@ -15931,7 +16227,18 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nBP5000以下のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-120-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "maxBp": 5000,
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-121",
@@ -15971,7 +16278,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nネクサスすべての上に置いてあるコアすべてを持ち主のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-122-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-123",
@@ -15990,7 +16307,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにある、系統：「無魔」を持つスピリットカードすべてを手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-123-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-124",
@@ -16030,7 +16357,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\nスピリット1体の上に置いてあるコア1個だけを残し、それ以外を持ち主のリザーブに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-125-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-126",
