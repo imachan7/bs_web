@@ -1,6 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
-import type { CardData, Color, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, CardInstance, Color, GameState, PaySource, PlayerId } from "../type"
 import {
     countSymbols,
     currentLevel,
@@ -473,10 +473,14 @@ export function validateBlock(
 
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
 // できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
-function cantActByCost(state: GameState, inst: { cardId: string }): boolean {
+function cantActByCost(state: GameState, inst: CardInstance): boolean {
     const cost = getCard(inst.cardId).cost
+    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
+    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
     return state.turnConstraints.some(
-        (c) => c.type === "cantActByCost" && cost <= c.maxCost,
+        (c) =>
+            c.type === "cantActByCost" &&
+            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
     )
 }
 

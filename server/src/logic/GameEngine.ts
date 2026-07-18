@@ -603,13 +603,21 @@ function resolveBattle(state: GameState): void {
         `${getCard(blocker.cardId).name}（BP${blockerBp}）が${getCard(attacker.cardId).name}（BP${attackerBp}）をブロック！`,
     )
 
-    if (attackerBp > blockerBp) {
+    // エンジェルボイス：バトル解決時、BPの代わりにLvを比較する（Lvが低い方が破壊される。同Lvは相打ち）
+    const compareByLevel = state.battle.compareByLevel === true
+    if (compareByLevel) {
+        log(state, "バトル解決：BPの代わりにLvを比較する。")
+    }
+    const attackerValue = compareByLevel ? currentLevel(attacker).level : attackerBp
+    const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
+
+    if (attackerValue > blockerValue) {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
         state.lastBattleDestroyedCores = blocker.cores
         destroySpirit(state, defenderPid, blocker.instanceId)
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
-    } else if (attackerBp < blockerBp) {
+    } else if (attackerValue < blockerValue) {
         destroySpirit(state, attackerPid, attacker.instanceId)
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")

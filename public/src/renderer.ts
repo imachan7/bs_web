@@ -28,6 +28,12 @@ export function master(cardId: string): CardData {
     return card
 }
 
+// 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
+// 指定コストとして扱われるか（サーバー instHasCost と同じロジックの簡易版）
+export function instHasCost(inst: CardInstance, cost: number): boolean {
+    return master(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
+}
+
 // ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
 
 // levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
@@ -146,7 +152,7 @@ function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
-    if (aura.costFilter !== undefined && master(targetInst.cardId).cost !== aura.costFilter) {
+    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
         return false
     }
     if (
@@ -250,7 +256,7 @@ export function spiritHasFamilyView(
             }
             if (
                 effect.costFilter !== undefined &&
-                master(inst.cardId).cost !== effect.costFilter
+                !instHasCost(inst, effect.costFilter)
             ) {
                 continue
             }
@@ -293,7 +299,9 @@ export function hasGlobalConstraint(
 export function cantActByCost(view: GameView, inst: CardInstance): boolean {
     const cost = master(inst.cardId).cost
     return view.turnConstraints.some(
-        (c) => c.type === "cantActByCost" && cost <= c.maxCost,
+        (c) =>
+            c.type === "cantActByCost" &&
+            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
     )
 }
 

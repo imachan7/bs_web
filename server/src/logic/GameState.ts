@@ -64,6 +64,7 @@ export function createInstance(
         immuneToOpponentThisTurn: false,
         blockConstraintNegatedThisTurn: false,
         tempKeywords: [],
+        tempAlsoCosts: [],
     }
 }
 

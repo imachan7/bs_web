@@ -60,6 +60,12 @@ export function hasKeyword(cardId: string, keyword: Keyword): boolean {
     )
 }
 
+// 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
+// 指定コストとして扱われるか（コスト一致判定を行う既存箇所はすべてこちらを参照する）
+export function instHasCost(inst: CardInstance, cost: number): boolean {
+    return getCard(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
+}
+
 // 効果が現在のレベルで有効か（levels が null ならレベル不問）
 export function effectActiveAtLevel(
     levels: number[] | null,
@@ -125,7 +131,7 @@ export function spiritHasFamily(
             }
             if (
                 effect.costFilter !== undefined &&
-                getCard(inst.cardId).cost !== effect.costFilter
+                !instHasCost(inst, effect.costFilter)
             ) {
                 continue
             }
@@ -245,7 +251,7 @@ function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
-    if (aura.costFilter !== undefined && getCard(targetInst.cardId).cost !== aura.costFilter) {
+    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
         return false
     }
     if (
@@ -806,6 +812,25 @@ function countDrawPerCounter(
     ).length
 }
 
+// 効果ドロー倍化（封印された魔導書）：owner のフィールドにレベル有効かつ phaseTurn 一致の
+// kind:"drawDouble" があれば2を返す（重複しない＝複数あっても2倍まで）。
+// draw / drawPer アクションの枚数確定箇所からのみ参照する（deckReveal・通常のドローステップは対象外）
+function drawDoubleMultiplier(state: GameState, owner: PlayerId): number {
+    const player = state.players[owner]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "drawDouble") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (state.phase !== effect.phaseTurn.phase) continue
+            if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue
+            return 2
+        }
+    }
+    return 1
+}
+
 // 効果アクションを実行する。
 //   owner = 効果の使用者、self = 効果の発生源スピリット（マジックは null）
 //   sourceColor = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
@@ -827,7 +852,7 @@ export function resolveAction(
 
     switch (action.type) {
         case "draw": {
-            draw(state, owner, action.count)
+            draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
             return
         }
 
@@ -1323,7 +1348,7 @@ export function resolveAction(
                 log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
                 return
             }
-            draw(state, owner, count)
+            draw(state, owner, count * drawDoubleMultiplier(state, owner))
             return
         }
 
@@ -2181,7 +2206,7 @@ export function resolveAction(
             const targets = state.players[owner].field.spirits.filter(
                 (s) =>
                     action.costFilter === undefined ||
-                    getCard(s.cardId).cost === action.costFilter,
+                    instHasCost(s, action.costFilter),
             )
             if (targets.length === 0) {
                 log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -2415,6 +2440,28 @@ export function resolveAction(
             requestChoice(state, owner, "コアを取り除く相手のスピリット/ネクサスを選択", candidates, false, action, self)
             return
         }
+
+        case "battleCompareByLevel": {
+            // エンジェルボイス：現在のバトルにフラグを立て、解決時にBPの代わりにLvを比較させる
+            if (!state.battle) {
+                log(state, `${sourceName}：バトル外のため不発。`)
+                return
+            }
+            state.battle.compareByLevel = true
+            log(state, `${sourceName}：バトル解決時、BPの代わりにLvを比較する。`)
+            return
+        }
+
+        case "grantAlsoCostAll": {
+            // 道化師クラン：自分のスピリットすべてを、このターンの間コストaction.costのスピリットとしても扱う
+            const targets = state.players[owner].field.spirits
+            for (const t of targets) t.tempAlsoCosts.push(action.cost)
+            log(
+                state,
+                `${state.players[owner].name}のスピリットすべては、このターンの間コスト${action.cost}のスピリットとしても扱われる。`,
+            )
+            return
+        }
     }
 }
 
@@ -2481,20 +2528,69 @@ export function fireTrigger(
         }
         return true
     }
+    // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
+    // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
+    // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
+    const grantedActions = collectGrantedTriggerActions(state, owner, selfInstance, event)
+
     const effects = card.effects
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
         resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
-        // 選択待ちが立ったら、残りの一致エントリを queue に積んで中断する
+        // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
             state.pendingChoice.queue.push(
                 ...remaining.map((e) => ({ selfInstanceId: selfInstance.instanceId, action: e.action })),
+                ...grantedActions.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
             )
             return
         }
     }
+    for (let i = 0; i < grantedActions.length; i++) {
+        const grantedAction = grantedActions[i]
+        if (!grantedAction) continue
+        resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
+        if (state.pendingChoice) {
+            const remaining = grantedActions.slice(i + 1)
+            state.pendingChoice.queue.push(
+                ...remaining.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
+            )
+            return
+        }
+    }
+}
+
+// fireTrigger 用: 持ち主(owner)フィールドの kind:"effectGrant" 発生源から、selfInstance に
+// 継続付与された誘発効果（trigger一致）のアクション一覧を集める（アルカナビースト・ケン）
+function collectGrantedTriggerActions(
+    state: GameState,
+    owner: PlayerId,
+    selfInstance: CardInstance,
+    event: TriggerEvent,
+): EffectAction[] {
+    const sources = [
+        ...state.players[owner].field.spirits,
+        ...state.players[owner].field.nexuses,
+    ]
+    const actions: EffectAction[] = []
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "effectGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.granted.trigger !== event) continue
+            if (
+                effect.nameIncludes &&
+                !getCard(selfInstance.cardId).name.includes(effect.nameIncludes)
+            ) {
+                continue
+            }
+            actions.push(effect.granted.action)
+        }
+    }
+    return actions
 }
 
 // バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
@@ -2564,6 +2660,12 @@ export function fireStepTriggers(
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
+                if (effect.condition && typeof effect.condition === "object" && "ownColorTotalAtLeast" in effect.condition) {
+                    // 道化師クラン：自分のフィールドに指定色のスピリット+ネクサスが合計count以上あるときのみ発火
+                    const { color, count } = effect.condition.ownColorTotalAtLeast
+                    const total = instances.filter((s) => getCard(s.cardId).color === color).length
+                    if (total < count) continue
+                }
                 resolveAction(state, pid, inst, effect.action)
                 if (state.winner) return
                 if (state.pendingChoice) return

@@ -8946,7 +8946,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv3\nカード名に「アルカナ」と入っている自分のスピリットすべてに“『このスピリットのブロック時』このスピリットをBP+2000する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-056-e1",
+    "kind": "effectGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "granted": {
+     "trigger": "onBlock",
+     "action": {
+      "type": "selfBuff",
+      "amount": 2000
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-057",
@@ -9142,7 +9159,28 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のスタートステップ』\n自分のフィールドに黄のスピリットとネクサスが合計3つ以上あるとき、このターンの間、自分のスピリットすべてはコスト2のスピリットとしても扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-060-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownColorTotalAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "grantAlsoCostAll",
+     "cost": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-061",
@@ -10502,7 +10540,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『自分のターン』\nお互いを対象としたマジックの効果は、効果の対象を相手のみ、または自分のみに変更できる。\nLv2『自分のアタックステップ』\n自分がスピリット/マジックの効果でデッキからドローするとき、その合計枚数を2倍にする。\n(この効果は重複しない)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-087-e2",
+    "kind": "drawDouble",
+    "levels": [
+     2
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-088",
@@ -11149,7 +11199,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nバトル解決時、BPのかわりにLvを比べ、Lvの低いスピリットが破壊される。\nLvが同じとき、お互いのスピリットが破壊される。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS02-109-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "battleCompareByLevel"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS02-110",

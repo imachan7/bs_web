@@ -82,6 +82,7 @@ export function endTurn(state: GameState): void {
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             inst.tempKeywords = []
+            inst.tempAlsoCosts = []
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット
