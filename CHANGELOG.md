@@ -134,3 +134,6 @@
   計91/103枚（smoke 1098件全合格）
 - BS02構造化 波3a: エンジェルボイス（Lv比較バトル）・ケン（effectGrant＝誘発効果の付与）・
   クラン（コストとしても扱う）・封印された魔導書e2（効果ドロー倍化）。計95/103枚（smoke 1139件全合格）
+- BS02構造化 波3b: 破壊への割り込み復活（reviveOnDestroy。チャガマル・紫水晶の森・鏡の回廊e1）と
+  選択肢式choice（kind:"option"。アディショナルカラー＝対象→色の2段階選択、クルーク＝系統選択、
+  tempColors/tempFamilies/instHasColor 新設）。計100/103枚（smoke 1197件全合格）
