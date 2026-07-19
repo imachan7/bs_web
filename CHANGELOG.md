@@ -160,3 +160,5 @@
 - BS03エンジン拡張バッチ: EffectCounter統一（Per系5アクションのカウンタを12種に一般化）・
   keywordGrant/effectGrantのcolorFilter・exhaustのlevelFilter。緑・白のスキップから8枚を追加構造化
   （smoke 1454件全合格）
+- BS03構造化バッチ3（黄）: 14枚構造化（全文5・部分9）・12枚スキップ（色/名前の「として扱う」付与・
+  トリガーの色条件ゲート・マジック無償化などが未対応。仕上げ拡張バッチ候補）。smoke 1475件全合格
