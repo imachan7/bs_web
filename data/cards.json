@@ -13880,7 +13880,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-049-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshOne"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-050",
@@ -14104,7 +14118,45 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のフィールドに白のスピリットがいる間、このスピリットをBP+1000する。\nLv2『相手のアタックステップ』\n自分の白のスピリットすべてをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-055-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amount": 1000,
+     "condition": {
+      "hasOwnColorSpirit": "white"
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   },
+   {
+    "id": "BS03-055-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-056",
@@ -14323,7 +14375,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットの破壊時』\n【光芒】を持つ自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-061-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "keywordFilter": "kobo"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-062",
@@ -14362,7 +14428,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\n系統：「遊精」を持つ自分のスピリットすべてをBP+1000する。\nLv2･Lv3\n系統：「小玩」を持つ自分のスピリットが破壊されたとき、そのスピリットすべてを自分の手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-062-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "遊精",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-063",
@@ -14507,7 +14589,35 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2\n自分の黄のマジックカードすべてに軽減シンボル[黄][黄]を与える。\nLv2\n自分の手札の黄のスピリットカードすべてに軽減シンボル[黄][黄]を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-066-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "magic",
+    "cardColor": "yellow",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ]
+   },
+   {
+    "id": "BS03-066-e2",
+    "kind": "reductionGrant",
+    "levels": [
+     2
+    ],
+    "cardType": "spirit",
+    "cardColor": "yellow",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-067",
@@ -14549,7 +14659,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nカード名に「アルカナ」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3\nコスト3の自分のスピリットすべては、カード名に「アルカナ」が入っているものとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-067-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownNameIncludes": "アルカナ"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-068",
@@ -16148,7 +16277,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n【光芒】を持つ自分のスピリットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n自分のスピリットが持つ【光芒】の効果は、『このスピリットのブロック時』にも発揮される。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-110-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "kobo",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-111",
@@ -16821,7 +16969,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、自分の黄のスピリットすべてに、系統：「四道」を与える。\n同時にカード名に「アルカナ」が入っているものとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-134-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-135",
@@ -16841,7 +16999,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターン中、系統2つ以上を持つ自分のスピリットすべては、BP比べで相手のスピリットに破壊された時、手札に戻る。\nフラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-135-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-136",
@@ -16860,7 +17028,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n【光芒】を持つ自分のスピリット1体につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-136-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-137",
@@ -16879,7 +17057,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n自分のフィールドに系統：「四道」を持つスピリットが4体以上いるとき、このターンの間、相手のスピリットすべてをLv1として扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-137-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-138",
@@ -16938,7 +17126,25 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにあるマジックカード1枚を選んで手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-140-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverMagicFromTrash"
+    }
+   },
+   {
+    "id": "BS03-140-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-141",
