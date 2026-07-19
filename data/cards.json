@@ -14903,7 +14903,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のデッキを上から1枚破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-073-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-074",
@@ -15465,7 +15480,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n相手のデッキを上から、このスピリット上に置かれているコア1個につき、1枚破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-087-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": "selfCoresAtDestruction"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-088",
@@ -15886,7 +15917,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットのアタックで相手のライフを減らしたとき、相手のデッキを上から5枚破棄する。\nLv2『このスピリットのアタック時』\n自分のフィールドに紫のネクサスがあるとき、このスピリットはブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-097-e1",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 5
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-098",
@@ -16030,7 +16076,32 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるネクサスカードすべてを、コストを支払わずに配置できる。\nLv2･Lv3『このスピリットのアタック時』\n自分の青のネクサス1つにつき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-100-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+     ],
+     "all": true
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-101",
@@ -17376,6 +17447,15 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS03-144-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "mill",
+     "count": 5
+    }
    }
   ]
  },
@@ -17404,6 +17484,16 @@
     "action": {
      "type": "bpBuff",
      "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-145-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "bpBuffAll",
+     "amount": 3000,
+     "familyFilter": "闘神"
     }
    }
   ]
@@ -17493,6 +17583,21 @@
     "action": {
      "type": "bpBuff",
      "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-148-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "green",
+      "blue"
+     ],
+     "all": true
     }
    }
   ]
@@ -17709,6 +17814,35 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のデッキを上から10枚破棄する。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のデッキを上から10枚破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-X12-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 10
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-X12-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     2
+    ],
+    "battleRole": "attacker",
+    "action": {
+     "type": "mill",
+     "count": 10
+    },
+    "optional": false
+   }
+  ]
  }
 ]

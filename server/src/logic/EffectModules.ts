@@ -1140,6 +1140,12 @@ function countEffectCounter(
             getCard(s.cardId).name.includes(counter.ownNameIncludes),
         ).length
     }
+    // { ownColor: Color }：自分フィールドの指定色スピリット数
+    if ("ownColor" in counter) {
+        return state.players[owner].field.spirits.filter((s) =>
+            instHasColor(s, counter.ownColor),
+        ).length
+    }
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
     return state.players[owner].field.spirits.filter((s) =>
@@ -1814,13 +1820,17 @@ export function resolveAction(
         }
 
         case "bpBuffAll": {
-            const spirits = state.players[owner].field.spirits
+            const spirits = state.players[owner].field.spirits.filter(
+                (s) =>
+                    !action.familyFilter ||
+                    spiritHasFamily(state, owner, s, action.familyFilter),
+            )
             for (const s of spirits) {
                 s.tempBpBuff += action.amount
             }
             log(
                 state,
-                `${state.players[owner].name}のスピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
+                `${state.players[owner].name}の${action.familyFilter ? `【${action.familyFilter}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
             )
             return
         }
@@ -2808,6 +2818,23 @@ export function resolveAction(
                     `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
                 )
             }
+            if (action.all) {
+                // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
+                const zone = action.from === "hand" ? player.hand : player.trashCards
+                const indices: number[] = []
+                for (let i = 0; i < zone.length; i++) {
+                    if (isMatch(zone[i]!)) indices.push(i)
+                }
+                if (indices.length === 0) {
+                    log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
+                    return
+                }
+                // 後ろのインデックスから順に配置（splice後もインデックスがずれないように）
+                for (let i = indices.length - 1; i >= 0; i--) {
+                    deployFromIndex(indices[i]!)
+                }
+                return
+            }
             if (chosenCardIndex !== undefined) {
                 deployFromIndex(chosenCardIndex)
                 return
@@ -3157,6 +3184,24 @@ export function resolveAction(
                 state,
                 `${sourceName}：${getCard(nexus.cardId).name}のコア数は、このスピリットのコア数と同じものとして扱われる。`,
             )
+            return
+        }
+
+        case "mill": {
+            // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
+            const targetPid = action.side === "own" ? owner : opponentOf(owner)
+            millDeck(state, targetPid, action.count)
+            return
+        }
+
+        case "millPer": {
+            const count = countEffectCounter(state, owner, self, action.counter)
+            if (count === 0) {
+                log(state, `${sourceName}の可変粉砕：カウントが0のため粉砕しなかった。`)
+                return
+            }
+            const targetPid = action.side === "own" ? owner : opponentOf(owner)
+            millDeck(state, targetPid, count)
             return
         }
     }
