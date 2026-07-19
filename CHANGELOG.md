@@ -157,3 +157,6 @@
   バニラ参照・手札公開など新概念はSPEC課題へ）。smoke 1400件全合格
 - BS03構造化バッチ2（緑・白）: 13枚構造化（全文8・部分5）・19枚スキップ（カウンタ不足・バニラ参照・
   付与系のcolorFilter欠如など。頻出分は次のエンジン拡張バッチで対応）。smoke 1423件全合格
+- BS03エンジン拡張バッチ: EffectCounter統一（Per系5アクションのカウンタを12種に一般化）・
+  keywordGrant/effectGrantのcolorFilter・exhaustのlevelFilter。緑・白のスキップから8枚を追加構造化
+  （smoke 1454件全合格）
