@@ -14936,7 +14936,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-074-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-075",
@@ -15051,7 +15066,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分の手札にある青のネクサスカード1枚を、コストを支払わずに自分のフィールドに配置できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-077-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "hand",
+     "colors": [
+      "blue"
+     ]
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-078",
@@ -15312,7 +15345,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nお互いデッキから1枚ドローする。\nLv2『このスピリットの破壊時』\n自分は、相手の手札1枚を内容を見ないで破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-084-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-085",
@@ -15637,7 +15684,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-093-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-094",
@@ -15672,7 +15735,36 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『このスピリットのアタック時』\n自分のフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。\nLv2『このスピリットのアタック時』\nお互いのフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-094-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-094-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "allNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-095",
@@ -15830,7 +15922,32 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv1･Lv2『このスピリットのアタック時』\nこのスピリットは、Lv1以下のスピリットにブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-098-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS03-098-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-099",
@@ -17182,7 +17299,27 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のデッキを上から5枚オープンする。\nネクサスカードがあれば、その中から1枚を選び、手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-142-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deckReveal",
+     "count": 5,
+     "pickType": "nexus"
+    }
+   },
+   {
+    "id": "BS03-142-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-143",
@@ -17201,7 +17338,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、【粉砕】を持つ自分のスピリットがアタックしたとき、ボイドから、コア1個を自分のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-143-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-144",
@@ -17220,7 +17367,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n相手のデッキを上から5枚破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-144-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-145",
@@ -17239,7 +17396,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、系統：「闘神」を持つ自分のスピリットすべてをBP+3000する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-145-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-146",
@@ -17258,7 +17425,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分の手札にあるネクサスカードを好きなだけ破棄する。\nその破棄したネクサスカード1枚につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-146-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-147",
@@ -17278,7 +17455,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のフィールドのコアが1個以上置かれているネクサスすべては、このターンの間、ネクサスとしての効果を失い“コスト：1/系統：「造兵」/Lv1コスト：1/Lv1BP：2000/効果の記述なし”のスピリットとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-147-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-148",
@@ -17298,7 +17485,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにある赤/緑/青のネクサスカードすべてを、コストを支払わずに配置する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-148-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-149",
