@@ -50,7 +50,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 サブエージェントのコールドスタート読み込みを最小化する。委譲プロンプトに次を明記すること:
 
-- **smoke.ts を丸読みさせない**（約2600行）。「末尾150行程度を読んでパターンを踏襲」と指示する
+- **smoke テストを丸読みさせない**。テスト本体は `scripts/smoke/part1〜N.ts` に分割済み
+  （`scripts/smoke.ts` は各パートを import するランナー、共通ヘルパーは `scripts/smoke/helpers.ts`）。
+  テスト追加は「新しい partN+1.ts を作って smoke.ts に import を1行足す。書き方は既存パートの
+  冒頭50行程度を読んで踏襲」と指示する（既存パートの丸読みは不要）
 - **SPEC.md は必要な章だけ読ませる**。効果実装なら「SPEC.md の2章（アクション一覧）と3章（3層設計）だけ読む」で足りる。全読み・CHANGELOG は不要
 - スキーマ・対象カード・読むファイルを事前にピン留めし、探索（grep 探し回り）をさせない
 - 検証出力は結論だけ取る: `npm run smoke:quiet`（失敗と集計のみ表示）。全 ✅ 行（約700行）を読ませない

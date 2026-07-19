@@ -23,7 +23,7 @@ export interface LevelDef {
     bp: number
 }
 
-// コスト支払い時に使うスピリット上のコアの割り当て（v1: スピリット上のコアのみ、ネクサス上は将来対応）
+// コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 export interface PaySource {
     instanceId: string
     count: number
@@ -35,7 +35,7 @@ export interface PaySource {
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
     | { type: "draw"; count: number } // 自分がデッキから引く
-    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ）
+    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op）
     | { type: "destroyAll"; maxBp: number } // BP以下の相手スピリットを全破壊
     | { type: "selfBuff"; amount: number } // このスピリット自身をBP+（ターン終了時まで）
     | { type: "destroyNexus"; count: number; drawPerDestroyed?: number } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）
@@ -43,8 +43,8 @@ export type EffectAction =
     | { type: "coreRemove"; count: number } // 対象スピリットのコアを持ち主のリザーブへ置く
     | { type: "bpBuff"; amount: number } // 対象スピリット1体をBP+（ターン終了時まで）
     | { type: "exhaust"; count: number } // 相手スピリットを疲労させる
-    | { type: "destroyExhausted"; count: number } // 疲労状態の相手スピリットを破壊
-    | { type: "drawPer"; counter: "exhaustedEnemies" | "opponentHand" } // カウント値ぶん自分がドロー（0ならログのみ）
+    | { type: "destroyExhausted"; count: number; anySide?: boolean } // 疲労状態の相手スピリットを破壊（anySide指定時は両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊）
+    | { type: "drawPer"; counter: DrawPerCounter } // カウント値ぶん自分がドロー（0ならログのみ）
     | { type: "bpBuffPer"; counter: "exhaustedEnemies"; amountPer: number } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
     | { type: "bpBuffAll"; amount: number } // 自分のフィールドのスピリットすべてをBP+（ターン終了時まで）
@@ -63,8 +63,8 @@ export type EffectAction =
     | { type: "lifeCrush"; count: number } // 相手のライフのコアcount個を相手のリザーブへ（ライフ0以下で勝敗決定）
     | { type: "voidCoreToSelf"; count: number } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op）
     | { type: "voidCoreToSelfPer"; counter: "ownOtherSpirits" } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
-    | { type: "discardOpponent"; count: number } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）
-    | { type: "refreshOne"; keywordFilter?: Keyword } // 自分の疲労スピリット1体を回復（keywordFilter指定時はそのキーワード持ちのみ。候補から実効BP最大を自動選択、いなければno-op）
+    | { type: "discardOpponent"; count: number; forcedTargetPid?: PlayerId } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）。interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPidは選択式再突入時のみ内部で設定する対象プレイヤー（cards.jsonには書かない。選択者=破棄される側のためresolveActionのowner引数がopponentOf(owner)で逆算できなくなるのを避ける）
+    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color; all?: boolean } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ。候補から実効BP最大を自動選択、いなければno-op）。all指定時は該当候補すべてを回復し cantAttackThisTurn は付与しない（決闘台地Lv2）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: "readyEnemies"; amountPer: number } // このスピリット自身を「相手フィールドの回復状態スピリット数×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
     | { type: "voidCoreToOther"; count: number } // ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
@@ -80,7 +80,42 @@ export type EffectAction =
     | { type: "grantBlockerImmunity" } // ブロックしている自分のスピリット1体に、このターンの間 immuneToOpponentThisTurn を付与する（フェザーバリア）
     | { type: "negateOwnBlockConstraint" } // 自分のスピリット1体が持つ cantBlock/cantBlockLowerBp を、このターンの間無効化する（バーストファイア）
     | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない。妖機妃ソール）
-    | { type: "deckReveal"; count: number; pickType?: CardType } // 自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の1枚（省略時は先頭）を手札に加える。残りは元の順でデッキの下に戻す（スワロウアイヴィー）
+    | { type: "deckReveal"; count?: number; pickType?: CardType; countPer?: { ownColorTotal: Color }; pickAllOfType?: "magic" } // 自分のデッキ上からcount枚（countPer指定時は自分の指定色スピリット/ネクサス合計数。countと排他）を公開し、pickTypeに一致する最初の1枚（省略時は先頭。pickAllOfType指定時は一致するすべて）を手札に加える。残りは元の順でデッキの下に戻す（スワロウアイヴィー／大天使ミカファール）
+    | { type: "coreGainPer"; counter: DrawPerCounter } // カウント値ぶんボイドから自分のリザーブへコアを追加（0ならログのみ。宝石の獣カーバルク）
+    | { type: "refreshAllByCost"; cost: number } // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない。ローヤルポーション）
+    | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（プレイヤー選択の簡略化＝決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ（天使長プリンシパール）
+    | { type: "grantKeyword"; keyword: Keyword; colors?: Color[] } // 自分のスピリット1体に、このターンの間キーワードを付与する（targetInstanceId優先、フォールバックはバトル中の自分スピリット→自分フィールド先頭。スピリットリンク／インビンシブルシールド）
+    | { type: "exhaustAllByLevel"; level: number } // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op）
+    | { type: "destroyAllExceptChosenColors" } // お互い自分フィールドで最多のスピリット色を1色ずつ自動指定し、両陣営のどちらの指定色でもないスピリットをすべて破壊（プレイヤー選択の簡略化）
+    | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
+    | { type: "refireSummonEffect" } // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）のonSummon効果を再発揮する（タイムリープ）
+    | { type: "recoverMagicFromTrash" } // 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
+    | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
+    | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number } // 自分のスピリット全員（costFilter指定時はコスト一致のみ）に、このターンの間キーワードを付与する（リフレクションアーマー）
+    | { type: "banActByCostThisTurn"; maxCost: number } // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
+    | { type: "deployNexus"; from: "hand" | "trash"; colors: Color[] } // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）
+    | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
+    | { type: "levelOverrideOpponentNexuses"; level: number; costReserveToVoid?: number } // 相手の全ネクサスの levelOverrideThisTurn を level に設定（このターンの間）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから適用する（「できる」の任意発動は自動発動で簡略化。皇帝アンプルール）
+    | { type: "summonFromHandFree"; colorFilter?: Color; sameFamilyAsSelf?: boolean } // 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド）
+    | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
+    | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
+    | { type: "levelOverrideTarget"; level: number } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）
+    | { type: "coreToOpponentTrashChoice"; count: number } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）
+    | { type: "battleCompareByLevel" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにLvを比較させる（バトル外は不発。エンジェルボイス）
+    | { type: "grantAlsoCostAll"; cost: number } // 自分のスピリットすべての tempAlsoCosts に cost を追加する（このターンの間、実コストに加えてこのコストとしても扱われる。道化師クラン）
+    | { type: "grantColorChoice" } // 対象選択→色選択の2段階choiceを経て、選ばれた対象のtempColorsに選ばれた色を追加する（フラッシュ：スピリット1体にもう1色与える。アディショナルカラー）
+    | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドに1体もいなければ不発。いれば全系統からのoption choiceを経て、targetFamily持ち全員のtempFamiliesに選ばれた系統を追加する（このターンの間。音鳥クルーク）
+    | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
+
+// drawPer / coreGainPer 共通のカウンタ定義。
+// { ownFamily: string } は自分のフィールドの指定系統スピリット数（onDestroy等では発火時点で
+// selfはすでにフィールドから除去されているため、self自身はカウントに含まれない）
+export type DrawPerCounter =
+    | "exhaustedEnemies"
+    | "opponentHand"
+    | { ownFamily: string }
+    | "selfCoresAtDestruction" // 破壊時点でこのスピリット上に置かれていたコア数（destroySpiritが破壊直前に記録。漆黒鳥ヤタグロス）
+    | "lastBattleDestroyedCores" // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（GameEngine.resolveBattleが記録、次のバトル解決の冒頭でリセット。魔界七将デストロード）
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
@@ -90,6 +125,9 @@ export type TriggerEvent =
     | "onDestroy" // 破壊時
     | "onBattle" // バトル時
     | "onBlock" // ブロック時
+    | "onBlocked" // アタック中の自分スピリットが相手のブロック宣言を受けたとき（self=アタッカー）
+    | "onBattleEnd" // バトル終了時（GameEngine.resolveBattleの最後。バトル参加者のうちまだ生存している個体に発火。コリスタル）
+    | "onLifeDealt" // このスピリットのアタックによって相手のライフを減らしたとき（アタッカー側で発火。老賢樹トレントン）
 
 // フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
 // TriggerEvent は「効果の発生源となったスピリット自身に起きたこと」を起点とするが、
@@ -100,6 +138,9 @@ export type FieldEvent =
     | "ownSpiritDestroyed" // 自分のスピリットが破壊されたとき
     | "anySpiritAttacked" // 両陣営どちらかのスピリットがアタックを宣言したとき（self はアタックしたスピリット。魔帝の墓標Lv2）
     | "opponentDrew" // 持ち主から見て相手がデッキからカードをドローしたとき（GameState.draw から発火。シダフクロウ）
+    | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンス returnNexusToHand は対象外）
+    | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
+    | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -108,6 +149,9 @@ export type Keyword =
     | "awaken" // 覚醒：フラッシュタイミングで自分のスピリットのコアを集められる
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
+    | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
+    | "funsai" // 粉砕：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
+    | "kobo" // 光芒：アタック時、バトル終了時に自分がこのバトルで使用したマジックカードすべてを手札に戻す
 
 // 常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
 export type AuraCounter =
@@ -116,6 +160,7 @@ export type AuraCounter =
     | "allNexuses" // 両者のネクサス数の合計
     | "ownExhausted" // 自分の疲労スピリット数
     | { ownFamily: string } // 自分フィールドの指定系統を持つスピリット数（発生源自身も含む）
+    | { ownNameIncludes: string } // 自分フィールドでカード名にこの文字列を含むスピリット数（発生源自身も含む。アルカナプリンス・オベロ）
 
 // 常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
 export type AuraCondition =
@@ -135,16 +180,25 @@ export interface AuraDef {
     counter?: AuraCounter
     condition?: AuraCondition // 満たすときのみ amount を適用
     summonedThisTurnOnly?: boolean // ownAll 用: 対象の summonedTurn === state.turn のスピリットのみ（このターン召喚されたスピリットに限定）
+    keywordFilter?: Keyword // ownAll 用: 指定キーワード（静的付与・一時付与・keywordGrant すべて含む）を持つスピリットのみ（暴双龍ディラノス）
+    phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // target問わず適用: 指定ステップかつ指定turn条件（own=発生源の持ち主がturnPlayer、opponent=持ち主が非turnPlayer、both=常に）のときのみ有効（アルマ・ジール／エメラルドに輝く鍾乳洞／アルカナプリンス・オベロ）
+    minCores?: number // ownAll 用: 対象スピリットのコア数がこれ以上のときのみ有効（エメラルドに輝く鍾乳洞）
+    costFilter?: number // ownAll 用: 対象スピリットのコストがこれと一致するときのみ有効（太古の断層）
+    familyFilter?: string // ownAll 用: 指定系統（静的付与・familyGrant による付与を含む。spiritHasFamily で判定）を持つスピリットのみ（ポム）
 }
 
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下のスピリットにブロックされない
+    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[]; costNot?: number } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
-    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ。イリュージョナ／牛霊スモゥグ）
+    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ。イリュージョナ／牛霊スモゥグ／オルカリア）
+    | { type: "cantAttack" } // このスピリットはアタックできない（カイザレオン大帝Lv1）
+    | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
+    | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
+    | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
 
 // フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 // kind: "constraint" は「発生源自身」への制約だが、こちらは発生源の持ち主に関係なく
@@ -152,6 +206,13 @@ export type ConstraintDef =
 export type GlobalConstraintDef =
     | { type: "singleCoreCantAct" } // コア1個しか置いていないスピリットは、アタックとブロックができない（両陣営。魔帝の墓標）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
+
+// 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
+export interface DestroyContext {
+    sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
+    sourceType?: "spirit" | "nexus" | "magic"
+    battle?: { attackerColor: Color } // バトルによる破壊のときのアタッカー色（装甲判定用）
+}
 
 // 効果定義（kind による判別ユニオン）。
 // levels は発動するレベルの配列（null = レベル不問）。
@@ -161,6 +222,7 @@ export type EffectDef =
           kind: "keyword"
           keyword: Keyword
           levels: number[] | null
+          colors?: Color[] // 装甲用: この色の相手効果を受けない
       }
     | {
           id: string
@@ -170,12 +232,14 @@ export type EffectDef =
           action: EffectAction
           optional: boolean // 「〜できる」= 任意（自動処理では常に発動）
           battleRole?: "attacker" | "blocker" // onBattle 専用：勝利したときの自分の役割がこれと一致する場合のみ発火（省略時は従来通り常に発火）
+          condition?: { opponentNexusColorsAtLeast: number } // 指定時、持ち主から見て相手フィールドのネクサスの色数（重複除く）がこれ以上のときのみ発火（溶海竜プレシオスLv3）
       }
     | {
           id: string
           kind: "magic"
           timing: "main" | "flash"
           action: EffectAction
+          mainForbidden?: boolean // trueなら、このエントリがtimingとして採用されるメインステップでの使用そのものを拒否する（効果文「メインステップで使えない」の忠実化。ネイチャーフォース）
       }
     | {
           id: string
@@ -184,7 +248,10 @@ export type EffectDef =
           turn: "own" | "opponent" | "both" // own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時、both=常に
           levels: number[] | null
           action: EffectAction
-          condition?: "handNotGreaterThanOpponent" // 指定時はこの条件を満たすときのみ発火（主無き古城Lv2：持ち主の手札枚数が相手以下）
+          condition?:
+              | "handNotGreaterThanOpponent" // 持ち主の手札枚数が相手以下（主無き古城Lv2）
+              | "selfWasRefreshedThisStep" // 発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
+              | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上（道化師クラン）
       }
     | {
           id: string
@@ -213,6 +280,8 @@ export type EffectDef =
           action: EffectAction
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           turn?: "own" | "opponent" // 指定時はこの陣営条件でのみ発火（own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時。省略時はどちらでも発火）
+          colorFilter?: Color // event: "ownSpiritDestroyed" | "ownSpiritBlocked" 限定：対象スピリットの色がこれと一致するときのみ発火（祝福されし大聖堂／花の子リップ）
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 指定時、発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
       }
     | {
           id: string
@@ -224,8 +293,11 @@ export type EffectDef =
           id: string
           kind: "costMod"
           levels: number[] | null
-          colorFilter: Color // このコスト修正が効く、使用されるカードの色（発生源の持ち主・対象カードの持ち主は問わない＝両陣営に効く）
+          colorFilter?: Color // このコスト修正が効く、使用されるカードの色（省略時は色不問。発生源の持ち主・対象カードの持ち主は問わない＝両陣営に効く）
+          cardType?: CardType // 対象カードの種別（省略時は種別不問。螺旋の塔：マジック限定）
+          side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用（省略時は両陣営に適用＝従来通り）
           amount: number // 軽減後コストに加算する量（ルビーの太陽：白のカード全体+1）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効（螺旋の塔：自分のアタックステップ）
       }
     | {
           id: string
@@ -241,6 +313,107 @@ export type EffectDef =
           kind: "coreBonus" // このスピリットに効果でコアが置かれるとき、置く数を+amount（ボイド由来）する（グラーバ）
           levels: number[] | null
           amount: number
+      }
+    | {
+          id: string
+          kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊）
+          levels: number[] | null
+          scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          when: {
+              byOpponentEffect?: boolean // 相手の効果による破壊のみ（context.sourcePidが相手のとき）
+              byBattleVsArmorColor?: boolean // 装甲で指定した色の相手とのBP比較による破壊のみ
+          }
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" } // 発動できるステップ条件（発生源の持ち主基準）
+          revived: { rested: boolean } // 戻るときの状態（false=回復状態、true=疲労状態）
+          cost?: {
+              keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りを持ち主のトラッシュへ
+              oneCoreToVoid?: boolean // 対象のコア1個をボイドへ（コア1個の個体は支払い不可＝不発）
+          }
+      }
+    | {
+          id: string
+          kind: "keywordGrant" // 発生源が場にありレベル有効の間、持ち主の familyFilter 一致スピリットすべてにキーワードを継続付与する（暴双龍ディラノス）
+          levels: number[] | null
+          keyword: Keyword
+          target: "ownAll"
+          familyFilter?: string // 指定時はこの系統を持つスピリットのみ
+          phase?: Phase // 指定時はこのステップの間のみ有効（turnPlayerを問わない＝『お互いの〜ステップ』）
+      }
+    | {
+          id: string
+          kind: "familyGrant" // 発生源が場にありレベル有効の間、持ち主の対象スピリットに系統を継続付与する（ポム／生み出される尖兵）
+          levels: number[] | null
+          target: "ownAll"
+          family: string // 付与する系統
+          colorFilter?: Color // 指定時は対象スピリットの色がこれと一致するときのみ
+          costFilter?: number // 指定時は対象スピリットのコストがこれと一致するときのみ
+          phase?: Phase // 指定時はこのステップ中のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』）
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
+      }
+    | {
+          id: string
+          kind: "reductionGrant" // 発生源が場にありレベル有効の間、条件成立時に対象カード種別/色の使用コストへ軽減シンボルを付与する（ペンタン／天使バーチュ）
+          levels: number[] | null
+          cardType?: CardType // 対象カード種別（省略時は種別不問）
+          cardColor?: Color // 対象カードの色（省略時は色不問）
+          symbols: Color[] // 与える軽減シンボル
+          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
+      }
+    | {
+          id: string
+          kind: "immunityGrant" // 発生源の持ち主の familyFilter 一致スピリットすべては、相手のマジックの効果を受けない（ポークン）
+          levels: number[] | null
+          target: "ownAll"
+          familyFilter?: string // 指定時はこの系統を持つスピリットのみ
+          against: "magic"
+      }
+    | {
+          id: string
+          kind: "levelAs" // 継続的な「Lv◯として扱う」置換（EffectModules.refreshLevelAsOverridesが毎回再計算する。ナイフ投げのジャグリーン／トパーズの流星）
+          levels: null
+          target: "self" | "ownNexusesAll"
+          treatAs: number // 扱うレベル
+          condition?: { maxOwnSpirits: number } // 自分のフィールドのスピリット数がこの値以下の間有効（発生源自身を含む）
+          sourceMinLevel?: number // 発生源の素のレベル（コア数基準。上書き無視）がこれ以上のときのみ有効
+      }
+    | {
+          id: string
+          kind: "magicBuffBonus" // マジックによるBPバフに追加でBP+する（対象・アタックステップ限定。騎獣スレイプホース）
+          levels: number[] | null
+          target: "self" | "ownOthers" // self=発生源自身が対象になったとき / ownOthers=発生源以外の持ち主の緑スピリットが対象になったとき
+          colorFilter?: Color // 使用されたマジックの色（省略時は色不問）
+          amountBonus: number
+      }
+    | {
+          id: string
+          kind: "effectGrant" // 発生源が場にありレベル有効の間、持ち主の対象スピリットに誘発効果を継続的に付与する（アルカナビースト・ケン）
+          levels: number[] | null
+          target: "ownAll"
+          nameIncludes?: string // 対象スピリットのカード名に含まれる文字列（省略時は自分のスピリットすべてが対象。発生源自身も一致すれば対象に含む）
+          granted: { trigger: TriggerEvent; action: EffectAction } // 付与される誘発効果（levelsは常に有効扱い）
+      }
+    | {
+          id: string
+          kind: "drawDouble" // 持ち主フィールドにある間、自分がスピリット/マジックの効果でデッキからドローする合計枚数を2倍にする
+          // （draw/drawPerアクションが対象。deckRevealと通常のドローステップは対象外。重複しない＝複数あっても2倍まで。封印された魔導書）
+          levels: number[] | null
+          phaseTurn: { phase: Phase; turn: "own" }
+      }
+    | {
+          id: string
+          kind: "exhaustOnManualCoreAdd" // 持ち主から見て相手がスピリット/ネクサス/マジックの効果以外（moveCore/awaken）でスピリットのコアを
+          // 増やしたとき、そのスピリットを疲労させる（持ち主の相手のメインステップ限定。夢魔の寝所）
+          levels: number[] | null
+      }
+    | {
+          id: string
+          kind: "constraintGrant" // 発生源が場にありレベル有効の間、持ち主フィールドの対象（ownAll、minLevel条件）に
+          // 制約を継続付与する（夢魔の寝所Lv2：自分のLv3スピリットに指定アタックを許す）
+          levels: number[] | null
+          target: "ownAll"
+          minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
+          constraint: ConstraintDef
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
@@ -272,6 +445,17 @@ export interface CardInstance {
     cantAttackThisTurn: boolean // このターンの間アタック不可（refreshAllOwn で回復した個体などに付与）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
+    tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
+    tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
+    tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
+    tempFamilies: string[] // このターンの間だけ付与された系統（ターン終了でリセット。音鳥クルーク）
+    coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
+    levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
+    levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
+    coresLinkedTo?: string // このネクサスのコア数を、リンク元スピリット（instanceId）のコア数と同じものとして扱う
+    // （クロスシザース。本来は再指定まで永続だが、このターンの間だけの簡略化。ターン終了でリセット）
+    coresOverride?: number // coresLinkedTo設定時、EffectModules.refreshLevelAsOverridesがリンク元スピリットの
+    // 現在コア数から毎回同期する。currentLevelはこの値をcoresの代わりに使う（ターン終了でリセット）
 }
 
 // プレイヤーの状態
@@ -296,6 +480,27 @@ export interface BattleState {
     blockerInstanceId: string | null
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
+    compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
+    usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
+}
+
+// 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
+// requestChoice 経由でセットし、GameAction "resolveChoice" で消費される。
+// queue は、選択待ち中に中断された「同一トリガー内の残りエントリ」を直列化したもの
+// （fireTrigger / resolveMagic のエントリループが積む。selfInstanceId から self を復元して再開する）。
+export interface PendingChoice {
+    pid: PlayerId // 選択するプレイヤー
+    kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
+    prompt: string // クライアント表示用の説明文（日本語）
+    candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"/"card"のときは空配列）
+    options?: string[] // kind:"option" のとき選択肢ラベル一覧（表示ラベル＝そのまま値として使う）
+    cardZone?: "hand" | "trash" // kind:"card" のとき必須：どちらのゾーンから選ぶか
+    cardOwner?: PlayerId // kind:"card" のとき必須：ゾーンの持ち主（今回は常に pid 自身のゾーン＝pidと同値）
+    cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
+    optional: boolean // true ならスキップ（選ばない）可
+    action: EffectAction // 選択後に resolveAction する本体
+    selfInstanceId: string | null // 発生源スピリット（self の復元用）
+    queue: { selfInstanceId: string | null; action: EffectAction }[] // 中断された残りアクション
 }
 
 // ゲーム全体の状態（サーバーで一元管理）
@@ -312,7 +517,15 @@ export interface GameState {
     log: string[]
     winner: PlayerId | null
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
+    turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
+    lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
+    pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
 }
+
+// このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
+export type TurnConstraintDef =
+    | { type: "cantActByCost"; maxCost: number } // コストがmaxCost以下のスピリットはすべてアタック/ブロック不可（ヘビィゲート）
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----
 
@@ -344,6 +557,8 @@ export interface GameView {
     log: string[]
     winner: PlayerId | null
     you: PlayerId
+    turnConstraints: TurnConstraintDef[]
+    pendingChoice: PendingChoice | null // 相手視点では candidates を空配列・prompt をマスクして配信（viewFor）
 }
 
 // ---- クライアント → サーバーのアクション ----
@@ -362,6 +577,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
+    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）
     | { type: "takeLife" }
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack

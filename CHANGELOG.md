@@ -76,3 +76,84 @@
 - 山札公開（`deckReveal`）・フラッシュ起動能力フレームワーク（`kind:"activated"` ＋ `activateAbility`）・
   コア配置修飾（`kind:"coreBonus"`）を実装。スワロウアイヴィー・グラン・ドルバルカン・グラーバを構造化。
   これで効果文を持つ全カードの構造化が完了（合計123枚、残り12枚はバニラ）
+- 先攻1ターン目のアタック禁止ルールを実装（validateAttack で拒否、mustAttack もターン1では
+  endTurn を妨げない。クライアントのアタック可能ハイライトにもミラー）。smoke はテスト用
+  runTurnStart ラッパーでターン3開始に変更し、ターン1専用テストを追加
+- 効果テキストのツールチップを実装（PC: カードにホバー、スマホ: 長押し500ms でカード名＋効果全文を
+  カードの上に重ねて表示。長押し後のタップはカード操作として誤発火しないよう抑止）
+- 第二弾：激翔（BS02）全115枚を Wiki から取得し cards.json へ追加（合計250枚）。新色・黄のUI対応
+  （デッキビルダーのフィルタ/プリセット・ロビー・CSSの色クラス）、DECK_RECIPES に黄単色40枚を追加、
+  禁止カード4枚（BS02-063/085/097/099）を limited フラグで反映。effects は未構造化
+  （【装甲】【呪撃】のエンジン実装と構造化は次バッチ）
+- BS02 新キーワード【装甲：色】【呪撃】をエンジン実装（keyword エントリに colors 追加、resolveAction に
+  sourceColor 伝播、resolveBattle 末尾に呪撃フック、クライアント対象選択ミラー）。
+  BS02-015/020/040/044/045 の5枚を構造化（smoke +6ケース、732件全合格）
+- BS02 赤・紫の効果構造化バッチ（15枚構造化・17枚は新概念のためスキップ、スキップ分は SPEC 5章に課題として記録）。
+  BS02-X06 の効果文分断（Wiki リストページの br 起因）を個別ページと突き合わせて修正
+- BS02 緑・白の効果構造化バッチ（11枚構造化・20枚スキップ）。サブエージェントが battleWon で構造化した
+  BS02-036/041 の『このスピリットの〜時』限定効果を triggered onBattle + battleRole に是正
+  （battleWon は持ち主の全スピリット勝利で発火するため自己限定効果には不正確）。smoke +18件（790件全合格）
+- BS02スキップ分を拾うエンジン小拡張8件（cantAttack制約・recovered指定アタック・unblockableBy levelFilter・
+  refreshOne/fieldEventの色フィルタ・系統カウンタのdrawPer/coreGainPer・refreshAllByCost・destroyOwnByCost）を
+  実装し8枚を追加構造化（計45/103枚。smoke 830件全合格）
+- キーワード付与を実装: grantKeyword アクション（tempKeywords による一時付与、ターン終了リセット）、
+  kind:"keywordGrant"（フィールド発生源からの系統・フェーズ限定の継続付与）、状態対応判定 spiritHasKeyword、
+  aura の keywordFilter。スピリットリンク・インビンシブルシールド・暴双龍ディラノスを構造化
+  （計48/103枚。クライアントの覚醒バッジ・ブロック可否・装甲対象選択・実効BP表示もミラー。smoke 842件全合格）
+- BS02構造化バッチ2: fieldEvent anyNexusDestroyed（アーケオルニ）、攻撃側トリガー onBlocked（バット・バット・
+  シーザー。fireTrigger に targetInstanceId 転送を追加）、destroyExhausted anySide（両陣営対応）、
+  exhaustAllByLevel（デストロードLv1）、destroyAllExceptChosenColors（ケンドラゴス、色自動指定の簡略化）。
+  計52/103枚（smoke 864件全合格）
+- BS02構造化バッチ3: destroy bpEqualsSelf（プテラトマホーク）・onBattleEnd/destroySelf（コリスタル）・
+  lifeDamageToVoid（スライミー）・reductionGrant＝軽減シンボル付与（ペンタン・バーチュ、サーバー/クライアント両方）・
+  refireSummonEffect（タイムリープ）・ホワイトポーション（前バッチ見逃しの refreshOne）。
+  計59/103枚（smoke 895件全合格）
+- BS02構造化バッチ4（11枚。監査で発見した既存アクションのみで書ける見逃し2枚を含む）:
+  recoverMagicFromTrash・trashCoresToSpirit・grantKeywordAll・aura phaseTurn/minCores・
+  fieldEvent ownMagicUsed・トリガー onLifeDealt・ターン限定全体制約（ヘビィゲート）を新設。
+  計68/103枚（smoke 940件全合格）
+- BS02構造化バッチ5（9枚+部分1）: aura costFilter・unblockableBy costNot・ブロック時不疲労・
+  破壊時コア数カウンタ・costMod拡張（相手マジック限定+1等）・immunityGrant（漂精のマジック耐性）・
+  deployNexus（手札/トラッシュから無償配置）・サクリファイス専用処理。計77/103枚（smoke 984件全合格）
+- smoke テストを分割: scripts/smoke.ts（約5000行）を scripts/smoke/part1〜6.ts（各900行以下）と
+  helpers.ts（assert/act/QUIET/テスト用runTurnStart/summary＋エンジン関数のre-export）に機械分割し、
+  smoke.ts はランナー化。テスト内容は無変更（分割前後で984件合格が一致）。CLAUDE.md のトークン規律も更新
+- BS02構造化バッチ6: レベル置換「〜として扱う」（ジャグリーン・トパーズの流星・皇帝アンプルール）。
+  currentLevel/levelOf がインスタンス上の上書き（levelOverrideThisTurn > levelAsContinuous）を優先し、
+  事後フック refreshLevelAsOverrides で継続条件を再計算。あわせてバッチ4のデータ入れ忘れ
+  （BS02-081 緑芽吹く原野）を修正・テスト追加。計81/103枚（smoke 997件全合格）
+- BS02構造化バッチ7: 系統の継続付与（kind familyGrant＋spiritHasFamily。ポム・生み出される尖兵）と
+  手札からの無料召喚（summonFromHandFree、召喚時効果は不発。トレントン・アースガルド）。
+  計83/103枚で区切りとし、残り20枚は表示のみで確定（分類は SPEC 5章。smoke 1021件全合格）
+- BS02構造化を再開（波1a+1b、計9枚+部分完成）: プレシオス・ラングリーズ・スクルディアe1・花の子リップ・
+  決闘台地e2・オベロe1・デストロードe2完成・ミカファールe1・スレイプホース。aura の phaseTurn が
+  target:"self" で無視されるバグも発見・修正。計90/103枚（smoke 1080件全合格）
+- 効果解決中のプレイヤー選択（pendingChoice）基盤を実装: 効果解決を中断して対象を選ばせ、
+  resolveChoice で再開する直列化可能な機構（誘発キューの退避・再中断対応・view マスク・クライアント選択UI）。
+  初適用としてコキュートス（相手のスピリット/ネクサスを選んでコアをトラッシュへ）を構造化。
+  計91/103枚（smoke 1098件全合格）
+- BS02構造化 波3a: エンジェルボイス（Lv比較バトル）・ケン（effectGrant＝誘発効果の付与）・
+  クラン（コストとしても扱う）・封印された魔導書e2（効果ドロー倍化）。計95/103枚（smoke 1139件全合格）
+- BS02構造化 波3b: 破壊への割り込み復活（reviveOnDestroy。チャガマル・紫水晶の森・鏡の回廊e1）と
+  選択肢式choice（kind:"option"。アディショナルカラー＝対象→色の2段階選択、クルーク＝系統選択、
+  tempColors/tempFamilies/instHasColor 新設）。計100/103枚（smoke 1197件全合格）
+- BS02構造化 最終波: クロスシザース（ネクサスのコア数リンク choice）・夢魔の寝所（手動コア増加検知＋
+  constraintGrant による指定アタック付与）・ケルル・ベロスe1。これで効果文を持つ全103枚の構造化が完了
+  （未対応はケルル・ベロスe2の強奪と紫水晶の森Lv2のみ。smoke 1228件・E2E 全合格）
+- 対戦体験改善①: 誘発効果の対象選択をプレイヤー選択式に（opt-in の interactiveTargets。実対戦のみ有効、
+  テストは従来の自動選択を維持。対象6アクション＋destroy count連鎖。smoke 1259件・E2E 全合格）
+- 対戦体験改善②: コスト支払いをネクサス上のコアにも対応（validatePaySources/payCost の拡張、
+  クライアント支払いモードのネクサスクリック対応。smoke 1275件全合格）
+- 対戦体験改善③: 手札・トラッシュのカード選択を choice 化（pendingChoice kind:"card"。discardOpponent は
+  捨てられる側が選ぶ原作準拠に、トラッシュ回収・無料召喚・無償配置は使用者選択に）。ネイチャーフォースの
+  メインステップ使用禁止を忠実化。メインステップフラッシュ優先権は原作に存在しないため実装しない判断を記録
+  （smoke 1339件・E2E 全合格）
+- 第三弾：覇闘（BS03）全153枚を取り込み（計403枚）。新色・青のUI対応（ロビー・デッキビルダー・CSS）、
+  DECK_RECIPES に青単色40枚、禁止カード BS03-030 反映、複数レアリティ表記対応。
+  新キーワード【粉砕】【光芒】はエンジン未実装（次バッチ）。smoke 1345件全合格
+- BS03新キーワード【粉砕】（相手デッキをLv枚数ミル）【光芒】（バトル使用マジックの回収）をエンジン実装。
+  保持カード7枚（粉砕3・光芒4）にキーワード付与（smoke 1367件全合格）
+- BS03構造化バッチ1（赤・紫）: 21枚構造化（全文10・部分11）・9枚スキップ（コア数フィルタ破壊・
+  バニラ参照・手札公開など新概念はSPEC課題へ）。smoke 1400件全合格
+- BS03構造化バッチ2（緑・白）: 13枚構造化（全文8・部分5）・19枚スキップ（カウンタ不足・バニラ参照・
+  付与系のcolorFilter欠如など。頻出分は次のエンジン拡張バッチで対応）。smoke 1423件全合格

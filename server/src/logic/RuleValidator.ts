@@ -1,9 +1,10 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
-import type { CardData, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, CardInstance, Color, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import {
     countSymbols,
     currentLevel,
+    findNexus,
     findSpirit,
     getCard,
     lv1Cores,
@@ -15,15 +16,21 @@ import {
     effectiveBp,
     hasGlobalConstraint,
     hasKeyword,
+    hasMagicImmunity,
+    instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
+    spiritHasKeyword,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
-// 走査し、レベル有効な costMod のうち card.color が colorFilter と一致するものの amount を合計する
-// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く）
-function costModTotal(state: GameState, card: CardData): number {
+// 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
+// 常に一致）に合うものの amount を合計する。usingPid は実際にそのカードを使おうとしているプレイヤー
+// （side:"opponent" の判定・validateSummon等の呼び出し元から渡る）
+// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く。
+//   螺旋の塔：「自分のアタックステップ中、相手のマジックは+1コスト」＝side:"opponent"＋phaseTurn）
+function costModTotal(state: GameState, usingPid: PlayerId, card: CardData): number {
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
@@ -33,7 +40,15 @@ function costModTotal(state: GameState, card: CardData): number {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "costMod") continue
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (card.color !== effect.colorFilter) continue
+                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
+                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+                // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
+                if (effect.side === "opponent" && usingPid === pid) continue
+                if (effect.phaseTurn) {
+                    if (state.phase !== effect.phaseTurn.phase) continue
+                    if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                    if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                }
                 total += effect.amount
             }
         }
@@ -41,17 +56,44 @@ function costModTotal(state: GameState, card: CardData): number {
     return total
 }
 
+// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
+// pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
+// 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
+// （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
+function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData): Color[] {
+    const extra: Color[] = []
+    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "reductionGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
+            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                if (total < count) continue
+            }
+            extra.push(...effect.symbols)
+        }
+    }
+    return extra
+}
+
 // 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
-// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト
+// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
+// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する
 export function effectiveCost(
     state: GameState,
     pid: PlayerId,
     card: CardData,
 ): number {
-    const symbols = countSymbols(state.players[pid], card.reduction)
-    const reduction = Math.min(card.reduction.length, symbols)
+    const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
+    const symbols = countSymbols(state.players[pid], reductionColors)
+    const reduction = Math.min(reductionColors.length, symbols)
     const base = Math.max(card.cost - reduction, 0)
-    return base + costModTotal(state, card)
+    return base + costModTotal(state, pid, card)
 }
 
 function checkMainTiming(state: GameState, pid: PlayerId): string | null {
@@ -77,10 +119,10 @@ function validatePaySources(
     const seen = new Set<string>()
     let total = 0
     for (const src of paySources) {
-        if (seen.has(src.instanceId)) return "支払い元のスピリットが重複しています"
+        if (seen.has(src.instanceId)) return "支払い元が重複しています"
         seen.add(src.instanceId)
-        const inst = findSpirit(player, src.instanceId)
-        if (!inst) return "支払い元のスピリットが見つかりません"
+        const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
+        if (!inst) return "支払い元が見つかりません"
         if (src.count < 1) return "支払うコア数が不正です"
         if (src.count > inst.cores) return "支払い元のコアが足りません"
         total += src.count
@@ -178,12 +220,17 @@ export function validateCastMagic(
             findSpirit(state.players[opponentOf(pid)], targetInstanceId) !==
                 undefined
         if (!exists) return "対象のスピリットが見つかりません"
-        // 相手スピリットが免疫（ワルキューレ／フェザーバリア）なら対象にできない
+        // 相手スピリットが免疫（ワルキューレ／フェザーバリア）またはマジック効果耐性（ポークン）
+        // を持つなら対象にできない（マジックの使用自体はここで検証しているためsourceTypeは常に"magic"）
         const enemyTarget = findSpirit(
             state.players[opponentOf(pid)],
             targetInstanceId,
         )
-        if (enemyTarget && isUntargetableByOpponent(enemyTarget)) {
+        if (
+            enemyTarget &&
+            (isUntargetableByOpponent(enemyTarget) ||
+                hasMagicImmunity(state, opponentOf(pid), enemyTarget))
+        ) {
             return "このスピリットは効果の対象にできません"
         }
     }
@@ -200,6 +247,18 @@ export function validateCastMagic(
     } else {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
+        // メインステップ経路（バトル外）で使用しようとしているtiming（doCastMagicと同じ判定：
+        // main用エントリがあればmain、なければflash用エントリをメインステップから使うことになる）の
+        // エントリがすべてmainForbiddenなら、効果文「メインステップで使えない」に従い使用を拒否する
+        const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
+        const usedTiming: "main" | "flash" = hasMain ? "main" : "flash"
+        const usedEntries = card.effects.filter(
+            (e): e is Extract<EffectDef, { kind: "magic" }> =>
+                e.kind === "magic" && e.timing === usedTiming,
+        )
+        if (usedEntries.length > 0 && usedEntries.every((e) => e.mainForbidden)) {
+            return "このマジックはメインステップでは使用できません"
+        }
     }
 
     const payError = validatePaySources(state, pid, effectiveCost(state, pid, card), paySources)
@@ -245,7 +304,7 @@ export function validateAwaken(
     const player = state.players[pid]
     const target = findSpirit(player, instanceId)
     if (!target) return "覚醒するスピリットが見つかりません"
-    if (!hasKeyword(target.cardId, "awaken")) return "このスピリットは【覚醒】を持ちません"
+    if (!spiritHasKeyword(state, pid, target, "awaken")) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
     const from = findSpirit(player, fromInstanceId)
@@ -303,6 +362,7 @@ export function validateAttack(
 ): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
     if (state.phase !== "attack") return "アタックステップではありません"
+    if (state.turn === 1) return "先攻1ターン目はアタックできません"
     if (state.battle) return "バトルの解決中です"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
@@ -312,6 +372,14 @@ export function validateAttack(
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
+    }
+    // このスピリットはアタックできない（カイザレオン大帝Lv1）
+    if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
+        return "このスピリットはアタックできません"
+    }
+    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタックできない
+    if (cantActByCost(state, inst)) {
+        return "このターンの間、このスピリットはアタックできません"
     }
 
     if (targetSpiritInstanceId !== undefined) {
@@ -329,6 +397,9 @@ export function validateAttack(
         }
         if (directConstraint.targetFilter === "singleCore" && target.cores !== 1) {
             return "コア1個のスピリットしか指定できません"
+        }
+        if (directConstraint.targetFilter === "recovered" && target.isRested) {
+            return "回復状態のスピリットしか指定できません"
         }
     }
     return null
@@ -353,6 +424,10 @@ export function validateBlock(
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはブロックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはブロックできません"
+    }
+    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
+    if (cantActByCost(state, inst)) {
+        return "このターンの間、このスピリットはブロックできません"
     }
 
     const attackerPid = opponentOf(pid)
@@ -384,21 +459,43 @@ export function validateBlock(
         const attackerConstraints = activeConstraints(state, attackerPid, attacker)
         for (const c of attackerConstraints) {
             if (c.type !== "unblockableBy") continue
-            if (c.colorFilter !== undefined && blockerCard.color === c.colorFilter) {
+            if (c.colorFilter !== undefined && instHasColor(inst, c.colorFilter)) {
                 return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
             }
             if (
                 c.keywordFilter !== undefined &&
-                hasKeyword(inst.cardId, c.keywordFilter)
+                spiritHasKeyword(state, pid, inst, c.keywordFilter)
             ) {
                 return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
             }
             if (c.maxCores !== undefined && inst.cores <= c.maxCores) {
                 return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
             }
+            if (
+                c.levelFilter !== undefined &&
+                c.levelFilter.includes(currentLevel(inst).level)
+            ) {
+                return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
+            }
+            if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
+                return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
+            }
         }
     }
     return null
+}
+
+// このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
+// できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
+function cantActByCost(state: GameState, inst: CardInstance): boolean {
+    const cost = getCard(inst.cardId).cost
+    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
+    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
+    return state.turnConstraints.some(
+        (c) =>
+            c.type === "cantActByCost" &&
+            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
+    )
 }
 
 // ブロック可能なスピリットがいるか（【激突】等の判定に使用）
@@ -425,6 +522,9 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     }
     if (state.battle) return "バトルの解決中です"
 
+    // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
+    if (state.turn === 1) return null
+
     const player = state.players[pid]
     for (const inst of player.field.spirits) {
         if (inst.isRested) continue
@@ -432,7 +532,11 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
+        // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
+        if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
+        // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
+        if (constraints.some((c) => c.type === "cantAttack")) continue
         if (constraints.some((c) => c.type === "mustAttack")) {
             return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
         }
@@ -454,7 +558,11 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.battle.attackerInstanceId,
     )
     // 【激突】持ちのアタック時はブロック強制（第一弾には未収録だが将来弾向けに残す）
-    if (attacker && hasKeyword(attacker.cardId, "clash") && hasBlocker(state, pid)) {
+    if (
+        attacker &&
+        spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
+        hasBlocker(state, pid)
+    ) {
         return "【激突】によりブロックしなければなりません"
     }
     return null

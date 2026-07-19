@@ -1,8 +1,11 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     createInstance,
+    currentLevel,
+    findInstanceAnywhere,
+    findNexus,
     findSpirit,
     getCard,
     log,
@@ -11,12 +14,18 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import {
+    activeConstraints,
     destroySpirit,
+    effectActiveAtLevel,
     effectiveBp,
     fireBattleWonTriggers,
     fireFieldEventTriggers,
     fireTrigger,
+    hasArmorAgainst,
+    millDeck,
+    refreshLevelAsOverrides,
     resolveAction,
+    resolveKoboOnBattleEnd,
     resolveMagic,
 } from "./EffectModules"
 import {
@@ -46,6 +55,9 @@ export function handleAction(
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
     forceEndTurnIfFlagged(state)
+    // 継続的なレベル置換（levelAs）をアクション実行の事後フックとして再計算する
+    // （召喚・破壊等でフィールドのスピリット数が変わるたびにジャグリーンの条件を反映するため）
+    if (!state.winner) refreshLevelAsOverrides(state)
     return result
 }
 
@@ -54,6 +66,10 @@ function dispatchAction(
     pid: PlayerId,
     action: GameAction,
 ): string | null {
+    // 効果解決中のプレイヤー選択待ちは resolveChoice 以外のアクションをすべて拒否する
+    if (state.pendingChoice && action.type !== "resolveChoice") {
+        return "対象の選択待ちです"
+    }
     switch (action.type) {
         case "summon":
             return doSummon(state, pid, action.handIndex, action.paySources)
@@ -75,6 +91,8 @@ function dispatchAction(
             return doPass(state, pid)
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
+        case "resolveChoice":
+            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
@@ -103,7 +121,7 @@ function payCost(
     let paidFromSpirits = 0
     if (paySources && paySources.length > 0) {
         for (const src of paySources) {
-            const inst = findSpirit(player, src.instanceId)
+            const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
             if (!inst) continue
             const paid = Math.min(src.count, inst.cores)
             inst.cores -= paid
@@ -115,9 +133,11 @@ function payCost(
     player.reserve -= remaining
     player.trashCores += remaining
     if (paidFromSpirits > 0) {
-        log(state, `${player.name}はスピリット上のコア${paidFromSpirits}個を含めてコストを支払った。`)
+        log(state, `${player.name}はフィールドのコア${paidFromSpirits}個を含めてコストを支払った。`)
     }
     // 全支払い完了後、支払い元スピリットが維持コア（Lv1）を下回っていたら消滅させる
+    // （ここは意図的に findSpirit のみを検索する。ネクサスは維持コアの概念がなく
+    //   自然に消滅対象から外れるため、findNexus を併用しないこと）
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
@@ -258,11 +278,40 @@ function doMoveCore(
     if (direction === "add") {
         player.reserve -= 1
         inst.cores += 1
+        checkExhaustOnManualCoreAdd(state, pid, inst)
     } else {
         inst.cores -= 1
         player.reserve += 1
     }
     return null
+}
+
+// 持ち主から見て相手が、効果以外（moveCore/awaken）でスピリットのコアを増やしたとき、
+// 相手フィールドの exhaustOnManualCoreAdd 持ちネクサス（レベル有効）があれば、
+// そのスピリットを疲労させる（自分のメインステップ限定。夢魔の寝所）
+function checkExhaustOnManualCoreAdd(
+    state: GameState,
+    actingPid: PlayerId,
+    affectedInst: CardInstance,
+): void {
+    if (state.phase !== "main") return
+    if (affectedInst.isRested) return
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        if (opponentOf(pid) !== actingPid) continue
+        for (const nexus of state.players[pid].field.nexuses) {
+            const level = currentLevel(nexus).level
+            const hasEffect = getCard(nexus.cardId).effects.some(
+                (e) => e.kind === "exhaustOnManualCoreAdd" && effectActiveAtLevel(e.levels, level),
+            )
+            if (!hasEffect) continue
+            affectedInst.isRested = true
+            log(
+                state,
+                `${getCard(nexus.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
+            )
+            return
+        }
+    }
 }
 
 function doAwaken(
@@ -282,6 +331,7 @@ function doAwaken(
 
     from.cores -= count
     target.cores += count
+    checkExhaustOnManualCoreAdd(state, pid, target)
     log(
         state,
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
@@ -331,6 +381,15 @@ function doAttack(
 
     fireTrigger(state, pid, inst, "onAttack")
 
+    // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
+    if (!state.winner) {
+        const attackLevel = currentLevel(inst).level
+        const hasFunsai = card.effects.some(
+            (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, attackLevel),
+        )
+        if (hasFunsai) millDeck(state, opponentOf(pid), attackLevel)
+    }
+
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
     // 両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
@@ -365,6 +424,35 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
         state.battle = null
         return null
     }
+    // 攻撃側の「ブロックされたとき」誘発（バット・バット、暗黒将軍ブラッディ・シーザー）。
+    // self=アタッカー、targetInstanceId=ブロッカー（coreRemoveの対象に使う）
+    const attackerPid = opponentOf(pid)
+    const attackerInstanceId = state.battle?.attackerInstanceId
+    const attacker = attackerInstanceId
+        ? findSpirit(state.players[attackerPid], attackerInstanceId)
+        : undefined
+    if (attacker) fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId)
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
+    // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
+    // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
+    // targetInstanceIdはブロッカー（instanceId）
+    if (attacker) {
+        fireFieldEventTriggers(
+            state,
+            attackerPid,
+            "ownSpiritBlocked",
+            undefined,
+            getCard(attacker.cardId).color,
+            instanceId,
+        )
+    }
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // ブロック宣言後は即解決せず、フラッシュを再オープンする
     // （公式ルール: フラッシュは非ターンプレイヤー＝防御側から優先権を持つ）
     state.isFlashTiming = true
@@ -385,15 +473,26 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     )
     const defender = state.players[pid]
 
-    // ダメージ = アタックスピリットのシンボル数。ライフのコアはリザーブへ
+    // ダメージ = アタックスピリットのシンボル数。ライフのコアは通常リザーブへ、
+    // ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
     const damage = attacker ? getCard(attacker.cardId).symbol.length : 1
     const dealt = Math.min(damage, defender.life)
+    const toVoid =
+        attacker !== undefined &&
+        activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt
-    defender.reserve += dealt
-    log(
-        state,
-        `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
-    )
+    if (toVoid) {
+        log(
+            state,
+            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）。コアはボイドへ消えた。`,
+        )
+    } else {
+        defender.reserve += dealt
+        log(
+            state,
+            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
+        )
+    }
 
     if (defender.life <= 0) {
         state.winner = attackerPid
@@ -403,7 +502,13 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         // ライフ0で敗北が決まった場合は発火しない
         fireFieldEventTriggers(state, pid, "ownLifeDamaged")
     }
+    // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
+    // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
+    if (dealt > 0 && attacker) {
+        fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+    }
 
+    resolveKoboOnBattleEnd(state, attackerPid, attacker)
     clearBattle(state)
     return null
 }
@@ -440,6 +545,98 @@ function doActivateAbility(
     resolveAction(state, pid, inst, effect.action)
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
     if (state.battle) passFlashPriority(state, pid)
+    return null
+}
+
+// pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
+// instanceId 省略時は「選ばない」（optional な選択のみ許可）。
+// 選択実行後、退避していた queue（同一トリガー内の残りの誘発）を先頭から順に消化する。
+// 途中で新たな pendingChoice が立てば、残りの queue をそちらへ引き継いで中断する。
+function doResolveChoice(
+    state: GameState,
+    pid: PlayerId,
+    instanceId?: string,
+    option?: string,
+    cardIndex?: number,
+): string | null {
+    const pending = state.pendingChoice
+    if (!pending) return "選択待ちの効果がありません"
+    if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
+
+    if (pending.kind === "option") {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        if (option === undefined && !pending.optional) {
+            return "選択肢を選んでください"
+        }
+        state.pendingChoice = null
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        if (option !== undefined) {
+            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+        } else {
+            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
+        }
+        if (state.winner) return null
+        return drainChoiceQueue(state, pending.pid, pending.queue)
+    }
+
+    if (pending.kind === "card") {
+        if (cardIndex !== undefined && !(pending.cardIndices ?? []).includes(cardIndex)) {
+            return "選択できない対象です"
+        }
+        if (cardIndex === undefined && !pending.optional) {
+            return "対象を選択してください"
+        }
+        state.pendingChoice = null
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        if (cardIndex !== undefined) {
+            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
+        } else {
+            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
+        }
+        if (state.winner) return null
+        return drainChoiceQueue(state, pending.pid, pending.queue)
+    }
+
+    if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
+        return "選択できない対象です"
+    }
+    if (instanceId === undefined && !pending.optional) {
+        return "対象を選択してください"
+    }
+
+    state.pendingChoice = null
+    const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+
+    if (instanceId !== undefined) {
+        resolveAction(state, pending.pid, self, pending.action, instanceId)
+    } else {
+        log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
+    }
+    if (state.winner) return null
+    return drainChoiceQueue(state, pending.pid, pending.queue)
+}
+
+// 退避したqueue（同一トリガー内の残りの誘発）を先頭から順に消化する。
+// 途中で新しいpendingChoiceが立ったら残りをそちらのqueueに積んで中断する（同じ中断パターンの繰り返し）。
+function drainChoiceQueue(
+    state: GameState,
+    pid: PlayerId,
+    queue: { selfInstanceId: string | null; action: EffectAction }[],
+): string | null {
+    for (let i = 0; i < queue.length; i++) {
+        const item = queue[i]
+        if (!item) continue
+        const itemSelf = item.selfInstanceId ? findInstanceAnywhere(state, item.selfInstanceId) ?? null : null
+        resolveAction(state, pid, itemSelf, item.action)
+        if (state.winner) return null
+        const newPending = state.pendingChoice as GameState["pendingChoice"]
+        if (newPending) {
+            newPending.queue.push(...queue.slice(i + 1))
+            return null
+        }
+    }
     return null
 }
 
@@ -480,7 +677,15 @@ function resolveBattle(state: GameState): void {
         return
     }
 
-    blocker.isRested = true
+    // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGainPer counter "lastBattleDestroyedCores"）
+    state.lastBattleDestroyedCores = 0
+
+    // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
+    const attackerColor = getCard(attacker.cardId).color
+    const skipRest = activeConstraints(state, defenderPid, blocker).some(
+        (c) => c.type === "noRestWhenBlockingColor" && c.color === attackerColor,
+    )
+    if (!skipRest) blocker.isRested = true
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const blockerBp = effectiveBp(state, defenderPid, blocker)
 
@@ -489,18 +694,87 @@ function resolveBattle(state: GameState): void {
         `${getCard(blocker.cardId).name}（BP${blockerBp}）が${getCard(attacker.cardId).name}（BP${attackerBp}）をブロック！`,
     )
 
-    if (attackerBp > blockerBp) {
-        destroySpirit(state, defenderPid, blocker.instanceId)
+    // エンジェルボイス：バトル解決時、BPの代わりにLvを比較する（Lvが低い方が破壊される。同Lvは相打ち）
+    const compareByLevel = state.battle.compareByLevel === true
+    if (compareByLevel) {
+        log(state, "バトル解決：BPの代わりにLvを比較する。")
+    }
+    const attackerValue = compareByLevel ? currentLevel(attacker).level : attackerBp
+    const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
+
+    if (attackerValue > blockerValue) {
+        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
+        state.lastBattleDestroyedCores = blocker.cores
+        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+            sourcePid: attackerPid,
+            sourceType: "spirit",
+            battle: { attackerColor },
+        })
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
-    } else if (attackerBp < blockerBp) {
-        destroySpirit(state, attackerPid, attacker.instanceId)
+    } else if (attackerValue < blockerValue) {
+        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+            sourcePid: defenderPid,
+            sourceType: "spirit",
+            battle: { attackerColor: getCard(blocker.cardId).color },
+        })
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
     } else {
-        destroySpirit(state, defenderPid, blocker.instanceId)
-        destroySpirit(state, attackerPid, attacker.instanceId)
+        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+            sourcePid: attackerPid,
+            sourceType: "spirit",
+            battle: { attackerColor },
+        })
+        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+            sourcePid: defenderPid,
+            sourceType: "spirit",
+            battle: { attackerColor: getCard(blocker.cardId).color },
+        })
     }
 
+    // 【呪撃】：アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
+    // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
+    // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
+    // destroySpirit 後も cardId・cores は読み取れる）。
+    const attackerLevel = currentLevel(attacker).level
+    const hasJugeki = getCard(attacker.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "jugeki" &&
+            effectActiveAtLevel(e.levels, attackerLevel),
+    )
+    if (hasJugeki) {
+        const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
+        if (stillOnField) {
+            if (hasArmorAgainst(stillOnField, attackerColor)) {
+                log(
+                    state,
+                    `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`,
+                )
+            } else {
+                log(
+                    state,
+                    `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
+                )
+                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
+                    sourcePid: attackerPid,
+                    sourceType: "spirit",
+                    battle: { attackerColor },
+                })
+            }
+        }
+    }
+
+    // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
+    // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
+    const survivingAttacker = findSpirit(state.players[attackerPid], attacker.instanceId)
+    if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+    if (!state.winner) {
+        const survivingBlocker = findSpirit(state.players[defenderPid], blocker.instanceId)
+        if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+    }
+
+    resolveKoboOnBattleEnd(state, attackerPid, attacker)
     clearBattle(state)
 }

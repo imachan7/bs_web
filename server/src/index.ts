@@ -90,6 +90,8 @@ io.on("connection", (socket: Socket) => {
                     { p1: p1.name, p2: p2.name },
                     { p1: p1.deck, p2: p2.deck },
                 )
+                // 実対戦は誘発効果の対象をプレイヤーに選ばせる（smokeは既定falseのまま自動選択）
+                room.game.interactiveTargets = true
                 runTurnStart(room.game)
                 broadcastState(room)
             }
