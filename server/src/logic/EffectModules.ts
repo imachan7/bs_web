@@ -13,8 +13,8 @@ import type {
     Color,
     ConstraintDef,
     DestroyContext,
-    DrawPerCounter,
     EffectAction,
+    EffectCounter,
     EffectDef,
     FieldEvent,
     GameState,
@@ -118,6 +118,7 @@ export function spiritHasKeyword(
             ) {
                 continue
             }
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             if (effect.phase && state.phase !== effect.phase) continue
             return true
         }
@@ -167,7 +168,7 @@ export function resolveKoboOnBattleEnd(
 
 // 状態を考慮した系統判定：
 //   静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
-// aura の familyFilter・AuraCounter/DrawPerCounter の { ownFamily }・keywordGrant の familyFilter は
+// aura の familyFilter・AuraCounter/EffectCounter の { ownFamily }・keywordGrant の familyFilter は
 // すべてこちらを参照する（familyGrant で付与された系統もカウントに含めるため）。
 export function spiritHasFamily(
     state: GameState,
@@ -1099,20 +1100,46 @@ function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
     return state.players[opp].field.spirits.filter((s) => s.isRested).length
 }
 
-// drawPer / coreGainPer 共通のカウンタ集計。
-// exhaustedEnemies / opponentHand は相手（opp）基準、{ ownFamily } は自分（owner）のフィールド基準、
-// selfCoresAtDestruction は self（破壊時点のコア数を destroySpirit が記録済み）基準
-function countDrawPerCounter(
+// selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ集計（BS03バッチで統一）。
+// readyEnemies / exhaustedEnemies / opponentHand は相手（opponentOf(owner)）基準、
+// ownReserve / ownNexuses / ownExhausted / ownOtherSpirits / { ownFamily } / { ownNameIncludes } は
+// 自分（owner）のフィールド基準、allNexuses は両者基準、selfCoresAtDestruction は
+// self（破壊時点のコア数を destroySpirit が記録済み）基準、lastBattleDestroyedCores は state 直下の記録値
+function countEffectCounter(
     state: GameState,
     owner: PlayerId,
-    opp: PlayerId,
-    counter: DrawPerCounter,
     self: CardInstance | null,
+    counter: EffectCounter,
 ): number {
+    const opp = opponentOf(owner)
+    if (counter === "readyEnemies") {
+        return state.players[opp].field.spirits.filter((s) => !s.isRested).length
+    }
     if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
     if (counter === "opponentHand") return state.players[opp].hand.length
+    if (counter === "ownOtherSpirits") {
+        return state.players[owner].field.spirits.filter(
+            (s) => s.instanceId !== self?.instanceId,
+        ).length
+    }
+    if (counter === "ownReserve") return state.players[owner].reserve
+    if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
+    if (counter === "allNexuses") {
+        return (
+            state.players.p1.field.nexuses.length + state.players.p2.field.nexuses.length
+        )
+    }
+    if (counter === "ownExhausted") {
+        return state.players[owner].field.spirits.filter((s) => s.isRested).length
+    }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
+    // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
+    if ("ownNameIncludes" in counter) {
+        return state.players[owner].field.spirits.filter((s) =>
+            getCard(s.cardId).name.includes(counter.ownNameIncludes),
+        ).length
+    }
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
     return state.players[owner].field.spirits.filter((s) =>
@@ -1570,7 +1597,10 @@ export function resolveAction(
         }
 
         case "exhaust": {
-            // 対象指定時はその1体のみ処理（既に疲労済みならログを出して何もしない）
+            // levelFilter 指定時はcurrentLevelがこれに含まれるスピリットのみ対象（蜘蛛女アラクネット：相手のLv1限定）
+            const matchesLevel = (s: CardInstance) =>
+                action.levelFilter === undefined || action.levelFilter.includes(currentLevel(s).level)
+            // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
             if (targetInstanceId) {
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) {
@@ -1585,6 +1615,10 @@ export function resolveAction(
                     log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
                 }
+                if (!matchesLevel(found.inst)) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
+                    return
+                }
                 if (found.inst.isRested) {
                     log(
                         state,
@@ -1596,8 +1630,9 @@ export function resolveAction(
                 log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
                 return
             }
+            const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
             if (state.interactiveTargets) {
-                const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => !s.isRested, srcColor, srcType)
+                const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColor, srcType)
                 if (
                     tryInteractiveTargetChoice(
                         state,
@@ -1612,13 +1647,13 @@ export function resolveAction(
                     return
                 }
             }
-            // 未指定時は相手フィールドの回復状態スピリットからBP最大をcount回自動選択
+            // 未指定時は相手フィールドの回復状態（かつlevelFilter一致）スピリットからBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
                 const target = pickEnemyByBp(
                     state,
                     opp,
                     Infinity,
-                    (s) => !s.isRested,
+                    matchesCandidate,
                     srcColor,
                     srcType,
                 )
@@ -1724,7 +1759,7 @@ export function resolveAction(
         }
 
         case "drawPer": {
-            const count = countDrawPerCounter(state, owner, opp, action.counter, self)
+            const count = countEffectCounter(state, owner, self, action.counter)
             if (count === 0) {
                 log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
                 return
@@ -1734,7 +1769,7 @@ export function resolveAction(
         }
 
         case "coreGainPer": {
-            const count = countDrawPerCounter(state, owner, opp, action.counter, self)
+            const count = countEffectCounter(state, owner, self, action.counter)
             if (count === 0) {
                 log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
                 return
@@ -1749,7 +1784,7 @@ export function resolveAction(
         }
 
         case "bpBuffPer": {
-            const count = countExhaustedEnemies(state, opp)
+            const count = countEffectCounter(state, owner, self, action.counter)
             if (count === 0) {
                 log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
                 return
@@ -2155,16 +2190,14 @@ export function resolveAction(
         }
 
         case "voidCoreToSelfPer": {
-            // self 以外の自分のフィールドのスピリット数ぶん、ボイドからコアを置く
+            // カウント値ぶん、ボイドからこのスピリット上にコアを置く
             if (!self) {
                 log(state, `${sourceName}：コアを置く対象がいなかった。`)
                 return
             }
-            const count = state.players[owner].field.spirits.filter(
-                (s) => s.instanceId !== self.instanceId,
-            ).length
+            const count = countEffectCounter(state, owner, self, action.counter)
             if (count === 0) {
-                log(state, `${sourceName}：このスピリット以外に自分のスピリットがいなかった。`)
+                log(state, `${sourceName}：カウントが0のためコアを置かなかった。`)
                 return
             }
             self.cores += count
@@ -2233,19 +2266,14 @@ export function resolveAction(
         }
 
         case "selfBuffPer": {
-            // このスピリット自身を「相手フィールドの回復状態スピリット数×amountPer」だけBP+
+            // このスピリット自身を「カウント値×amountPer」だけBP+
             if (!self) {
                 log(state, `${sourceName}：バフ対象がいなかった。`)
                 return
             }
-            const count = state.players[opp].field.spirits.filter(
-                (s) => !s.isRested,
-            ).length
+            const count = countEffectCounter(state, owner, self, action.counter)
             if (count === 0) {
-                log(
-                    state,
-                    `${sourceName}：相手の回復状態のスピリットがいなかったため増加しなかった。`,
-                )
+                log(state, `${sourceName}：カウントが0のため増加しなかった。`)
                 return
             }
             const amount = count * action.amountPer
@@ -3314,6 +3342,7 @@ function collectGrantedTriggerActions(
             ) {
                 continue
             }
+            if (effect.colorFilter && !instHasColor(selfInstance, effect.colorFilter)) continue
             actions.push(effect.granted.action)
         }
     }

@@ -13006,7 +13006,22 @@
   "rarity": "",
   "limited": true,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、自分のフィールドにあるネクサス1つにつき、コア1個をこのスピリット上に置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-030-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToSelfPer",
+     "counter": "ownNexuses"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-031",
@@ -13040,7 +13055,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\n自分のリザーブにあるコア1個につき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-031-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownReserve",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-032",
@@ -13074,7 +13104,24 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\n相手のLv1スピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-032-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "levelFilter": [
+      1
+     ]
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-033",
@@ -13235,7 +13282,24 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットに破壊されたとき、ボイドからコア4個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\n系統：「爪鳥」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-036-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "爪鳥"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-037",
@@ -13661,7 +13725,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-046-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-047",
@@ -13739,6 +13819,23 @@
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のフィールドにいる系統：「巨獣」を持つスピリット1体につき、このスピリットをBP+1000する。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
   "effects": [
+   {
+    "id": "BS03-048-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "巨獣"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
    {
     "id": "BS03-048-e2",
     "kind": "triggered",
@@ -16567,7 +16664,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n疲労状態の自分のスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-128-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreGainPer",
+     "counter": "ownExhausted"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-129",
@@ -17092,7 +17199,26 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\n自分の白のスピリットすべてに“『このスピリットのブロック時』このスピリットをBP+2000する”という効果を与える。\nLv2\n自分のスピリットすべてに“【装甲：赤/紫/緑】このスピリットは、相手の赤/紫/緑のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。\nLv3\n自分のスピリットすべてに【装甲：赤/紫/緑/黄/青】を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-X10-e1",
+    "kind": "effectGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "colorFilter": "white",
+    "granted": {
+     "trigger": "onBlock",
+     "action": {
+      "type": "selfBuff",
+      "amount": 2000
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-X11",

@@ -229,6 +229,7 @@ export function spiritHasKeywordView(
             ) {
                 continue
             }
+            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) continue
             if (effect.phase && view.phase !== effect.phase) continue
             return true
         }
