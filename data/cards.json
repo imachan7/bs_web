@@ -12912,7 +12912,28 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2\nこのスピリットは、相手がデッキからカードをドローするとき回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-028-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-028-e2",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-029",
@@ -13128,7 +13149,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3\n系統：「爪鳥」を持つ自分のスピリットすべてをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-034-e1",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "爪鳥",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-035",
@@ -13230,7 +13266,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-037-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-038",
@@ -13294,7 +13343,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのブロック時』\nこのバトル終了時まで、相手はフラッシュタイミングで手札のカードを使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-039-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "lockFlash"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-040",
@@ -13440,7 +13502,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【装甲：赤/紫】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-043-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red",
+     "purple"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-044",
@@ -13474,7 +13550,33 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1【装甲：赤/白】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2【装甲：赤/紫/白】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-044-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1
+    ],
+    "colors": [
+     "red",
+     "white"
+    ]
+   },
+   {
+    "id": "BS03-044-e2",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "red",
+     "purple",
+     "white"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-045",
@@ -13509,7 +13611,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-045-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-046",
@@ -13621,7 +13738,21 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のフィールドにいる系統：「巨獣」を持つスピリット1体につき、このスピリットをBP+1000する。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-048-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "blocker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-049",
@@ -16406,7 +16537,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nBP2000以下のスピリットすべてを疲労させる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-127-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-128",
@@ -16464,7 +16605,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nネクサス1つを持ち主の手札に戻す。\n相手のネクサスを手札に戻した場合、ボイドからコア1個を自分のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-130-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-131",
@@ -16504,7 +16655,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、【装甲】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-132-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-133",
@@ -16524,7 +16685,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "フラッシュ：\n自分のリザーブから、自分のライフにコア2個を置く。\n(この効果はターンに1回しか使えない)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-133-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lifeCharge",
+     "count": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-134",
@@ -16870,7 +17041,17 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv1･Lv2『このスピリットの召喚時』\n【神速】を持つスピリットすべてを回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-X09-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-X10",
