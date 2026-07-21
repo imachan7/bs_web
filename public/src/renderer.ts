@@ -867,6 +867,7 @@ function fieldCardEl(
     el.className = `card color-${m.color}`
     if (inst.isRested) el.classList.add("rested")
     el.dataset.instanceId = inst.instanceId
+    el.dataset.cardId = inst.cardId
     el.dataset.side = isMine ? "mine" : "opp"
 
     const name = document.createElement("div")
@@ -877,14 +878,29 @@ function fieldCardEl(
     const stats = document.createElement("div")
     stats.className = "stats"
     stats.textContent = isNexus
-        ? `ネクサス Lv${level}`
-        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        ? `コスト${m.cost} Lv${level}`
+        : `コスト${m.cost} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
 
     const cores = document.createElement("div")
     cores.className = "cores"
     cores.textContent = `◉ コア ${inst.cores}`
     el.appendChild(cores)
+
+    const symbolsDiv = document.createElement("div")
+    symbolsDiv.className = "symbols"
+    if (m.symbol.length === 0) {
+        symbolsDiv.textContent = "無"
+        symbolsDiv.style.color = "var(--text-muted)"
+        symbolsDiv.style.fontSize = "10px"
+    } else {
+        m.symbol.forEach(symColor => {
+            const sym = document.createElement("span")
+            sym.className = `sym-icon bg-${symColor}`
+            symbolsDiv.appendChild(sym)
+        })
+    }
+    el.appendChild(symbolsDiv)
 
     if (m.effect) {
         const eff = document.createElement("div")
@@ -1096,7 +1112,18 @@ function renderHand(view: GameView, ui: UiState): void {
             .map((g) => g.cardId),
     )
 
+    const groupedHand = new Map<string, { count: number, indices: number[] }>()
     hand.forEach((cardId, index) => {
+        if (!groupedHand.has(cardId)) {
+            groupedHand.set(cardId, { count: 0, indices: [] })
+        }
+        const g = groupedHand.get(cardId)!
+        g.count++
+        g.indices.push(index)
+    })
+
+    groupedHand.forEach((g, cardId) => {
+        const index = g.indices[0]
         const m = master(cardId)
         const cost = effectiveCost(view, view.you, m)
         const lv1 = m.levels.find((l) => l.level === 1)
@@ -1113,11 +1140,32 @@ function renderHand(view: GameView, ui: UiState): void {
                     reserve >= need &&
                     ((m.type === "magic" && m.flash) || flashSummonable)))
 
+        let targetable = false
+        let activeIndex = index
+        if (handChoiceIndices) {
+            const tIdx = g.indices.find(idx => handChoiceIndices.has(idx))
+            if (tIdx !== undefined) {
+                targetable = true
+                activeIndex = tIdx
+            }
+        }
+
         const el = document.createElement("div")
         el.className = `card color-${m.color}`
-        el.dataset.handIndex = String(index)
+        el.dataset.handIndex = String(activeIndex)
+        el.dataset.cardId = cardId
         if (usable) el.classList.add("usable", "clickable")
-        if (handChoiceIndices?.has(index)) el.classList.add("targetable", "clickable")
+        if (targetable) el.classList.add("targetable", "clickable")
+
+        const costBadge = document.createElement("div")
+        costBadge.className = "cost-badge"
+        if (cost < m.cost) {
+            costBadge.classList.add("discounted")
+            costBadge.innerHTML = `<span class="original-cost">${m.cost}</span><span class="current-cost">${cost}</span>`
+        } else {
+            costBadge.textContent = String(cost)
+        }
+        el.appendChild(costBadge)
 
         const typeLabel =
             m.type === "spirit" ? "スピリット" : m.type === "nexus" ? "ネクサス" : "マジック"
@@ -1129,7 +1177,7 @@ function renderHand(view: GameView, ui: UiState): void {
 
         const stats = document.createElement("div")
         stats.className = "stats"
-        stats.textContent = `${COLOR_LABELS[m.color]}/${typeLabel} コスト${cost}${cost !== m.cost ? `(${m.cost})` : ""}`
+        stats.textContent = `${COLOR_LABELS[m.color]}/${typeLabel}`
         el.appendChild(stats)
 
         if (m.levels.length > 0) {
@@ -1147,6 +1195,13 @@ function renderHand(view: GameView, ui: UiState): void {
             eff.className = "effect-text"
             eff.textContent = m.effect
             el.appendChild(eff)
+        }
+
+        if (g.count > 1) {
+            const badge = document.createElement("div")
+            badge.className = "count-badge"
+            badge.textContent = `x${g.count}`
+            el.appendChild(badge)
         }
 
         handEl.appendChild(el)
@@ -1242,15 +1297,84 @@ export function setupEffectTooltip(): void {
     document.body.appendChild(tip)
 
     const showFor = (card: HTMLElement): void => {
-        const effect = card.querySelector(".effect-text")?.textContent
-        if (!effect) return
-        const name = card.querySelector(".name")?.textContent ?? ""
+        const cardId = card.dataset.cardId
+        if (!cardId) return
+        const m = master(cardId)
+        
         tip.innerHTML = ""
         const title = document.createElement("div")
         title.className = "tooltip-name"
-        title.textContent = name
+        title.textContent = m.name
         tip.appendChild(title)
-        tip.appendChild(document.createTextNode(effect))
+        
+        if (m.family && m.family.length > 0) {
+            const fam = document.createElement("div")
+            fam.className = "tooltip-family"
+            fam.textContent = "系統: " + m.family.join(" / ")
+            fam.style.fontSize = "11px"
+            fam.style.color = "var(--text-muted)"
+            fam.style.marginBottom = "6px"
+            tip.appendChild(fam)
+        }
+        
+        const costArea = document.createElement("div")
+        costArea.style.display = "flex"
+        costArea.style.gap = "8px"
+        costArea.style.alignItems = "center"
+        costArea.style.marginBottom = "8px"
+        costArea.style.fontSize = "12px"
+        
+        const costEl = document.createElement("div")
+        costEl.textContent = `コスト: ${m.cost}`
+        costArea.appendChild(costEl)
+
+        const redEl = document.createElement("div")
+        redEl.style.display = "flex"
+        redEl.style.alignItems = "center"
+        redEl.style.gap = "2px"
+        redEl.textContent = `軽減: `
+        if (m.reduction.length === 0) {
+            redEl.textContent += "なし"
+        } else {
+            m.reduction.forEach(r => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${r}`
+                redEl.appendChild(icon)
+            })
+        }
+        costArea.appendChild(redEl)
+        tip.appendChild(costArea)
+        
+        if (m.levels && m.levels.length > 0) {
+            const lvArea = document.createElement("div")
+            lvArea.style.marginBottom = "8px"
+            lvArea.style.fontSize = "11px"
+            lvArea.style.color = "#94a3b8"
+            
+            m.levels.forEach(lv => {
+                const lvLine = document.createElement("div")
+                let text = `Lv${lv.level} (維持コア${lv.cores})`
+                if (lv.bp !== undefined) {
+                    text += ` BP ${lv.bp}`
+                }
+                lvLine.textContent = text
+                lvArea.appendChild(lvLine)
+            })
+            tip.appendChild(lvArea)
+        }
+        
+        if (m.effect) {
+            const eff = document.createElement("div")
+            eff.textContent = m.effect
+            tip.appendChild(eff)
+        } else {
+            const vanilla = document.createElement("div")
+            vanilla.textContent = "（効果なし）"
+            vanilla.style.fontStyle = "italic"
+            vanilla.style.color = "var(--text-muted)"
+            tip.appendChild(vanilla)
+        }
+        
         tip.classList.remove("hidden")
         // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
         const rect = card.getBoundingClientRect()

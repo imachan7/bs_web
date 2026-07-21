@@ -1,12 +1,32 @@
+:root {
+    --bg-main: #0f1115;
+    --bg-panel: #1a1d24;
+    --bg-card: #232730;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+
+    --c-red: #ef4444;
+    --c-purple: #a855f7;
+    --c-green: #22c55e;
+    --c-white: #e5e7eb;
+    --c-yellow: #eab308;
+    --c-blue: #3b82f6;
+}
+
 * {
     box-sizing: border-box;
 }
 
 body {
     margin: 0;
-    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
-    background: #1a1d2b;
-    color: #e8e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-main);
+    color: var(--text-main);
 }
 
 .hidden {
@@ -14,270 +34,444 @@ body {
 }
 
 /* ---- ロビー ---- */
-
 #lobby {
-    max-width: 420px;
-    margin: 80px auto;
-    padding: 24px;
-    background: #242838;
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 32px;
+    background: var(--bg-panel);
     border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     text-align: center;
+}
+
+#lobby h1 {
+    margin-top: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 1px;
 }
 
 .lobby-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 
 .lobby-form label {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     text-align: left;
     font-size: 13px;
+    color: var(--text-muted);
 }
 
 .lobby-form input,
 .lobby-form select {
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid #444;
-    background: #1a1d2b;
-    color: #e8e8f0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #14161b;
+    color: var(--text-main);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.lobby-form input:focus,
+.lobby-form select:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 button {
-    padding: 8px 14px;
+    padding: 10px 16px;
     border: none;
-    border-radius: 6px;
-    background: #4a6cd4;
+    border-radius: 8px;
+    background: var(--accent);
     color: #fff;
+    font-weight: 500;
     cursor: pointer;
     font-size: 14px;
+    transition: background 0.2s, transform 0.1s;
 }
 
 button:hover {
-    background: #5d7de0;
+    background: var(--accent-hover);
+}
+
+button:active {
+    transform: scale(0.98);
 }
 
 #waiting-message {
     margin-top: 16px;
-    color: #ffd968;
+    color: var(--warning);
+    font-size: 14px;
 }
 
-/* デッキビルダーへの導線リンク */
 #deck-builder-link {
-    margin-top: 4px;
+    margin-top: 8px;
     font-size: 13px;
-    color: #8fb0ff;
+    color: var(--accent);
+    text-decoration: none;
 }
 
 #deck-builder-link:hover {
-    color: #b8ceff;
+    text-decoration: underline;
 }
 
-/* 40枚ちょうどでないカスタムデッキの選択肢 */
 #deck-select option:disabled {
-    color: #777;
+    color: #555;
 }
 
 /* ---- ステータスバー ---- */
-
 #status-bar {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 8px 16px;
-    background: #242838;
+    padding: 12px 20px;
+    background: var(--bg-panel);
     font-size: 14px;
+    border-bottom: 1px solid #2a2d38;
 }
 
 #phase-info {
-    color: #ffd968;
-    font-weight: bold;
+    color: var(--warning);
+    font-weight: 600;
 }
 
 #targeting-info {
-    color: #ff8888;
-    font-weight: bold;
+    color: var(--danger);
+    font-weight: 600;
 }
 
-#action-buttons {
-    margin-left: auto;
+#center-info-area {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50px;
+    padding: 8px 20px;
     gap: 8px;
 }
 
+#action-buttons-container {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: auto;
+}
+
+#action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#action-buttons button {
+    padding: 10px 24px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    background: var(--bg-card);
+    color: #fff;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#action-buttons button:hover {
+    background: var(--accent);
+    transform: translateY(-2px);
+}
+#action-buttons button.hidden {
+    display: none;
+}
+
 #btn-take-life {
-    background: #d44a4a;
+    background: var(--danger);
+}
+#btn-take-life:hover {
+    background: #f87171;
 }
 
 /* ---- 盤面 ---- */
-
 #board {
+    position: relative;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 46px);
+    overflow: hidden;
 }
 
 .player-area {
-    padding: 8px 16px;
+    flex: 1;
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .player-info {
     display: flex;
     gap: 16px;
     font-size: 13px;
-    padding: 4px 0;
-    color: #b8bdd4;
+    color: var(--text-muted);
 }
 
 .player-info .life {
-    color: #ff8888;
-    font-weight: bold;
+    color: var(--danger);
+    font-weight: 700;
+    font-size: 15px;
 }
 
 .player-info .turn-mark {
-    color: #ffd968;
+    color: var(--warning);
+    font-weight: 600;
 }
 
 .field-row {
     display: flex;
-    gap: 16px;
-    min-height: 110px;
+    gap: 20px;
+    min-height: 150px;
     align-items: center;
 }
 
 .spirit-zone,
 .nexus-zone {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    min-height: 160px;
 }
 
 .nexus-zone {
-    min-width: 120px;
+    min-width: 260px;
+}
+.spirit-zone {
+    flex: 1;
 }
 
-#center {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 4px 16px;
-    min-height: 0;
-}
+
 
 #battle-info {
-    padding: 8px 12px;
-    background: #4a2838;
-    border: 1px solid #d44a8a;
-    border-radius: 8px;
-    margin-bottom: 4px;
+    padding: 10px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--danger);
+    border-radius: 4px;
+    margin-bottom: 8px;
     font-size: 14px;
+    font-weight: 500;
+}
+
+/* ---- ログパネル ---- */
+.log-toggle-btn {
+    background: var(--bg-card);
+    border: 1px solid #444;
+    color: var(--text-main);
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.log-toggle-btn:hover { background: #2c3044; }
+
+#log-panel, #trash-panel {
+    position: fixed;
+    right: 20px;
+    bottom: 80px;
+    width: 320px;
+    height: 400px;
+    background: rgba(15, 17, 21, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid #3a3f4e;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    z-index: 150;
+    overflow: hidden;
+}
+
+#trash-panel {
+    right: 350px; /* offset from log panel */
+}
+
+#log-panel .log-header,
+#trash-panel .trash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid #3a3f4e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#log-panel .log-header button,
+#trash-panel .trash-header button#btn-close-trash {
+    background: transparent;
+    padding: 4px 8px;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+}
+#log-panel .log-header button:hover,
+#trash-panel .trash-header button#btn-close-trash:hover { color: #fff; transform: none; }
+
+.trash-tabs {
+    display: flex;
+    gap: 8px;
+}
+.trash-tabs button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+.trash-tabs button.active {
+    color: #fff;
+    font-weight: bold;
+    border-bottom: 2px solid var(--accent);
 }
 
 #log {
     flex: 1;
     overflow-y: auto;
-    background: #14161f;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 12px;
-    line-height: 1.7;
-    color: #a8aec4;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+#trash-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-content: flex-start;
+}
+
+/* トラッシュのカードサイズを少し小さく */
+#trash-content .card {
+    width: 68px;
+    height: 96px;
+    font-size: 11px;
+    padding: 4px;
+}
+#trash-content .card::before {
+    display: block; /* border color */
 }
 
 /* ---- カード ---- */
-
 .card {
-    width: 104px;
-    min-height: 96px;
+    width: 100px;
+    height: 140px;
     border-radius: 8px;
-    padding: 6px;
+    padding: 8px;
     font-size: 11px;
-    background: #2c3044;
-    border: 2px solid #555;
+    background: linear-gradient(145deg, #2a2e39, #20232c);
+    border: 1px solid #3a3f4e;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     cursor: default;
     position: relative;
-    transition: transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    border-radius: 8px 8px 0 0;
+    background: #555;
 }
 
 .card .name {
-    font-weight: bold;
+    font-weight: 600;
     font-size: 11px;
-    margin-bottom: 2px;
+    margin-top: 2px;
+    margin-bottom: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .card .stats {
-    color: #cdd2e8;
+    color: var(--text-main);
+    font-size: 10px;
+    margin-bottom: 4px;
 }
 
 .card .cores {
-    color: #7fd4ff;
+    color: var(--accent-hover);
+    font-weight: bold;
+    font-size: 10px;
 }
 
 .card .effect-text {
-    margin-top: 2px;
+    margin-top: auto;
     font-size: 9px;
-    color: #9aa0b8;
-    max-height: 40px;
+    color: var(--text-muted);
+    max-height: 48px;
     overflow: hidden;
+    line-height: 1.3;
 }
 
-/* 効果全文のツールチップ（PC: ホバー / スマホ: 長押し。renderer の setupEffectTooltip が生成） */
+/* 効果全文のツールチップ */
 #effect-tooltip {
     position: fixed;
     z-index: 1000;
-    max-width: 300px;
-    padding: 8px 10px;
-    background: #1a1d2b;
-    border: 1px solid #6a71a0;
+    max-width: 280px;
+    padding: 12px;
+    background: rgba(20, 22, 27, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid #3a3f4e;
     border-radius: 8px;
     font-size: 12px;
     line-height: 1.6;
-    color: #dfe3f5;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    color: var(--text-main);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     pointer-events: none;
     white-space: pre-wrap;
 }
 
 #effect-tooltip .tooltip-name {
-    font-weight: bold;
-    color: #ffd968;
-    margin-bottom: 4px;
+    font-weight: 700;
+    color: var(--warning);
+    margin-bottom: 6px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
 }
 
-.card.color-red {
-    border-color: #d4564a;
+#targeting-info {
+    font-weight: 700;
+    color: var(--danger);
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
-.card.color-purple {
-    border-color: #9a4ad4;
-}
-
-.card.color-green {
-    border-color: #4ad45e;
-}
-
-.card.color-white {
-    border-color: #d8dcef;
-}
-
-.card.color-yellow {
-    border-color: #e8cf4a;
-}
-
-.card.color-blue {
-    border-color: #4a6cd4;
-}
+.card.color-red::before { background: var(--c-red); }
+.card.color-purple::before { background: var(--c-purple); }
+.card.color-green::before { background: var(--c-green); }
+.card.color-white::before { background: var(--c-white); }
+.card.color-yellow::before { background: var(--c-yellow); }
+.card.color-blue::before { background: var(--c-blue); }
 
 .card.rested {
-    transform: rotate(8deg);
-    filter: grayscale(0.6) brightness(0.8);
+    transform: rotate(10deg);
+    opacity: 0.7;
 }
 
 .card.clickable {
@@ -285,126 +479,122 @@ button:hover {
 }
 
 .card.clickable:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: translateY(-6px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    border-color: #555;
 }
 
 .card.rested.clickable:hover {
-    transform: rotate(8deg) translateY(-4px);
+    transform: rotate(10deg) translateY(-6px);
 }
 
 .card.usable {
-    box-shadow: 0 0 8px 2px rgba(255, 217, 104, 0.55);
+    box-shadow: 0 0 0 2px var(--warning), 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
 .card.targetable {
-    box-shadow: 0 0 8px 2px rgba(255, 100, 100, 0.8);
+    box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
 }
 
-/* 覚醒モード：コアの移動先スピリットの強調 */
 .card.awaken-target {
-    box-shadow: 0 0 10px 3px rgba(255, 170, 60, 0.9);
+    box-shadow: 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6);
 }
 
-/* 覚醒可能バッジ（クリックで覚醒モード開始） */
+.awaken-badge,
+.activate-badge,
+.pay-badge,
+.cant-attack-badge {
+    position: absolute;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    cursor: pointer;
+    line-height: 1.2;
+}
+
 .awaken-badge {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    padding: 2px 6px;
-    font-size: 11px;
-    line-height: 1.3;
-    border-radius: 4px;
-    background: #d4762a;
+    bottom: -6px; right: -6px;
+    background: var(--warning);
+    color: #000;
 }
+.awaken-badge:hover { background: #fbbf24; }
 
-.awaken-badge:hover {
-    background: #e88c3f;
-}
-
-/* 起動能力バッジ（覚醒バッジと同じ配置・区別のため青緑系） */
 .activate-badge {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    padding: 2px 6px;
-    font-size: 11px;
-    line-height: 1.3;
-    border-radius: 4px;
-    background: #2a9d8f;
+    bottom: -6px; right: -6px;
+    background: var(--success);
+    color: #000;
 }
+.activate-badge:hover { background: #34d399; }
 
-.activate-badge:hover {
-    background: #38b8a8;
-}
-
-/* 支払いモード：スピリットへの割り当て済みコア数バッジ */
 .pay-badge {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    padding: 2px 6px;
-    font-size: 11px;
-    line-height: 1.3;
-    border-radius: 4px;
-    background: #2a7ad4;
+    bottom: -6px; right: -6px;
+    background: var(--accent);
     color: #fff;
 }
 
-.card.attacker-mark {
-    box-shadow: 0 0 10px 3px rgba(255, 80, 80, 0.9);
-}
-
-/* 指定アタックの対象選択モード：対象を選んでいるアタッカー自身の強調 */
-.card.directed-attacker {
-    box-shadow: 0 0 10px 3px rgba(80, 160, 255, 0.9);
-}
-
-/* このターンアタック不可バッジ（ピュアエリクサー等で回復した個体） */
 .cant-attack-badge {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    padding: 2px 6px;
-    font-size: 11px;
-    line-height: 1.3;
-    border-radius: 4px;
-    background: #666a7a;
-    color: #ddd;
+    top: -6px; left: -6px;
+    background: #4b5563;
+    color: #fff;
+    cursor: default;
+}
+
+.card.attacker-mark {
+    box-shadow: 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.6);
+}
+
+.card.directed-attacker {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 16px rgba(59, 130, 246, 0.6);
 }
 
 .core-buttons {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: -10px;
+    right: -10px;
     display: flex;
-    gap: 2px;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.card:hover .core-buttons {
+    opacity: 1;
 }
 
 .core-buttons button {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     padding: 0;
-    font-size: 11px;
-    line-height: 1;
-    background: #3a4060;
+    font-size: 12px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    border: 1px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.core-buttons button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
 }
 
 /* ---- 手札 ---- */
-
 #hand {
     display: flex;
     gap: 8px;
-    padding-top: 8px;
+    padding-top: 12px;
     flex-wrap: wrap;
 }
 
 /* ---- 結果表示・トースト ---- */
-
 #result-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -412,20 +602,183 @@ button:hover {
 }
 
 #result-message {
-    font-size: 36px;
-    font-weight: bold;
-    color: #ffd968;
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--warning);
+    text-shadow: 0 4px 20px rgba(245, 158, 11, 0.6);
 }
 
 #toast {
     position: fixed;
-    bottom: 24px;
+    bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: #d44a4a;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 8px;
+    background: var(--bg-card);
+    border-left: 4px solid var(--danger);
+    color: var(--text-main);
+    padding: 12px 24px;
+    border-radius: 6px;
     font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     z-index: 200;
+}
+
+/* ---- 盤面に出ているカード（トークン風） ---- */
+.spirit-zone .card,
+.nexus-zone .card {
+    justify-content: center;
+    align-items: center;
+    padding: 2px;
+    border: none;
+}
+
+.spirit-zone .card .name,
+.spirit-zone .card .effect-text,
+.nexus-zone .card .name,
+.nexus-zone .card .effect-text {
+    display: none;
+}
+
+.spirit-zone .card::before,
+.nexus-zone .card::before {
+    display: none;
+}
+
+.spirit-zone .card .stats,
+.spirit-zone .card .cores,
+.nexus-zone .card .stats,
+.nexus-zone .card .cores {
+    font-size: 11px;
+    text-align: center;
+    margin: 1px 0;
+}
+
+/* スピリットは円形 */
+.spirit-zone .card {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #2a2e39;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.spirit-zone .card.color-red { box-shadow: inset 0 0 0 2px var(--c-red), 0 4px 6px rgba(0,0,0,0.3); }
+.spirit-zone .card.color-purple { box-shadow: inset 0 0 0 2px var(--c-purple), 0 4px 6px rgba(0,0,0,0.3); }
+.spirit-zone .card.color-green { box-shadow: inset 0 0 0 2px var(--c-green), 0 4px 6px rgba(0,0,0,0.3); }
+.spirit-zone .card.color-white { box-shadow: inset 0 0 0 2px var(--c-white), 0 4px 6px rgba(0,0,0,0.3); }
+.spirit-zone .card.color-yellow { box-shadow: inset 0 0 0 2px var(--c-yellow), 0 4px 6px rgba(0,0,0,0.3); }
+.spirit-zone .card.color-blue { box-shadow: inset 0 0 0 2px var(--c-blue), 0 4px 6px rgba(0,0,0,0.3); }
+
+/* ネクサスは六角形 */
+.nexus-zone .card {
+    width: 70px;
+    height: 78px;
+    border-radius: 0;
+    box-shadow: none; /* clip-path hides box-shadow */
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: #2a2e39;
+}
+.nexus-zone .card.color-red { background: linear-gradient(145deg, #7f1d1d, #20232c); }
+.nexus-zone .card.color-purple { background: linear-gradient(145deg, #581c87, #20232c); }
+.nexus-zone .card.color-green { background: linear-gradient(145deg, #14532d, #20232c); }
+.nexus-zone .card.color-white { background: linear-gradient(145deg, #4b5563, #20232c); }
+.nexus-zone .card.color-yellow { background: linear-gradient(145deg, #713f12, #20232c); }
+.nexus-zone .card.color-blue { background: linear-gradient(145deg, #1e3a8a, #20232c); }
+
+/* ホバー時の上書き（トークン用） */
+.spirit-zone .card.clickable:hover {
+    transform: translateY(-4px);
+}
+.spirit-zone .card.color-red.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-red), 0 8px 16px rgba(0,0,0,0.5); }
+.spirit-zone .card.color-purple.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-purple), 0 8px 16px rgba(0,0,0,0.5); }
+.spirit-zone .card.color-green.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-green), 0 8px 16px rgba(0,0,0,0.5); }
+.spirit-zone .card.color-white.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-white), 0 8px 16px rgba(0,0,0,0.5); }
+.spirit-zone .card.color-yellow.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-yellow), 0 8px 16px rgba(0,0,0,0.5); }
+.spirit-zone .card.color-blue.clickable:hover { box-shadow: inset 0 0 0 2px var(--c-blue), 0 8px 16px rgba(0,0,0,0.5); }
+
+.nexus-zone .card.clickable:hover {
+    transform: translateY(-4px);
+}
+
+/* 状態バッジの上書き（トークン用） */
+.spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
+.spirit-zone .card.targetable { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.6); }
+.spirit-zone .card.attacker-mark { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.8); }
+
+.nexus-zone .card.usable { background: linear-gradient(145deg, var(--warning), #20232c); }
+.nexus-zone .card.targetable { background: linear-gradient(145deg, var(--danger), #20232c); }
+.nexus-zone .card.attacker-mark { background: linear-gradient(145deg, var(--danger), #20232c); }
+
+/* ---- シンボルアイコン（盤面トークン用） ---- */
+.symbols {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 2px;
+}
+.sym-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.sym-icon.bg-red { background: var(--c-red); }
+.sym-icon.bg-purple { background: var(--c-purple); }
+.sym-icon.bg-green { background: var(--c-green); }
+.sym-icon.bg-white { background: var(--c-white); }
+.sym-icon.bg-yellow { background: var(--c-yellow); }
+.sym-icon.bg-blue { background: var(--c-blue); }
+
+/* ---- 手札のコストバッジ ---- */
+.cost-badge {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #1e293b;
+    border: 2px solid #475569;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    z-index: 10;
+}
+.cost-badge.discounted {
+    width: auto;
+    border-radius: 13px;
+    padding: 0 8px;
+    background: #064e3b;
+    border-color: var(--success);
+    color: var(--success);
+}
+.original-cost {
+    text-decoration: line-through;
+    color: #94a3b8;
+    font-size: 11px;
+    margin-right: 4px;
+}
+.current-cost {
+    color: #34d399; /* light green */
+}
+
+/* ---- まとまった枚数の表示（手札・トラッシュ用） ---- */
+.count-badge {
+    position: absolute;
+    bottom: -6px;
+    right: -6px;
+    background: #eab308;
+    color: #000;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    z-index: 10;
 }

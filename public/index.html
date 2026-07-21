@@ -39,20 +39,11 @@
     <!-- ゲーム画面 -->
     <div id="game" class="hidden">
         <div id="status-bar">
+            <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
+            <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
             <span id="turn-info"></span>
             <span id="phase-info"></span>
             <span id="flash-info" class="hidden"></span>
-            <span id="targeting-info" class="hidden"></span>
-            <div id="action-buttons">
-                <button id="btn-attack-phase" class="hidden">アタックステップへ</button>
-                <button id="btn-end-turn" class="hidden">ターン終了</button>
-                <button id="btn-take-life" class="hidden">ライフで受ける</button>
-                <button id="btn-pass" class="hidden">パス</button>
-                <button id="btn-attack-player" class="hidden">プレイヤーへアタック</button>
-                <button id="btn-cancel-target" class="hidden">対象選択をやめる</button>
-                <button id="btn-skip-choice" class="hidden">選ばない</button>
-                <div id="choice-options" class="hidden"></div>
-            </div>
         </div>
 
         <div id="board">
@@ -64,9 +55,44 @@
                 </div>
             </div>
 
-            <div id="center">
+            <div id="center-info-area">
                 <div id="battle-info" class="hidden"></div>
+                <div id="targeting-info" class="hidden"></div>
+            </div>
+
+            <div id="action-buttons-container">
+                    <div id="action-buttons">
+                        <button id="btn-attack-phase" class="hidden">アタックステップへ</button>
+                        <button id="btn-end-turn" class="hidden">ターン終了</button>
+                        <button id="btn-take-life" class="hidden">ライフで受ける</button>
+                        <button id="btn-pass" class="hidden">パス</button>
+                        <button id="btn-attack-player" class="hidden">プレイヤーへアタック</button>
+                        <button id="btn-cancel-target" class="hidden">対象選択をやめる</button>
+                        <button id="btn-skip-choice" class="hidden">選ばない</button>
+                        <div id="choice-options" class="hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ログパネル -->
+            <div id="log-panel" class="hidden">
+                <div class="log-header">
+                    <span>バトルログ</span>
+                    <button id="btn-close-log">✕</button>
+                </div>
                 <div id="log"></div>
+            </div>
+
+            <!-- トラッシュパネル -->
+            <div id="trash-panel" class="hidden">
+                <div class="trash-header">
+                    <div class="trash-tabs">
+                        <button id="tab-my-trash" class="active">自分</button>
+                        <button id="tab-opp-trash">相手</button>
+                    </div>
+                    <button id="btn-close-trash">✕</button>
+                </div>
+                <div id="trash-content"></div>
             </div>
 
             <div id="player-area" class="player-area">
