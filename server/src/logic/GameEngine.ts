@@ -691,6 +691,10 @@ function resolveBattle(state: GameState): void {
     if (!skipRest) blocker.isRested = true
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const blockerBp = effectiveBp(state, defenderPid, blocker)
+    // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
+    // byBattleKillerLevel判定用）。命名はattackerColorと同じく歴史的なもので、実際は勝者側の値
+    const attackerLevel = currentLevel(attacker).level
+    const blockerLevel = currentLevel(blocker).level
 
     log(
         state,
@@ -711,7 +715,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor },
+            battle: { attackerColor, attackerLevel },
         })
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
@@ -719,7 +723,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color },
+            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
         })
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
@@ -727,12 +731,12 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor },
+            battle: { attackerColor, attackerLevel },
         })
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color },
+            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
         })
     }
 
@@ -740,7 +744,6 @@ function resolveBattle(state: GameState): void {
     // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
     // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
     // destroySpirit 後も cardId・cores は読み取れる）。
-    const attackerLevel = currentLevel(attacker).level
     const hasJugeki = getCard(attacker.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
@@ -763,7 +766,7 @@ function resolveBattle(state: GameState): void {
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
-                    battle: { attackerColor },
+                    battle: { attackerColor, attackerLevel },
                 })
             }
         }

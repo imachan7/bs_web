@@ -27,6 +27,7 @@ import "./smoke/part24"
 import "./smoke/part25"
 import "./smoke/part26"
 import "./smoke/part27"
+import "./smoke/part28"
 import { summary } from "./smoke/helpers"
 
 summary()

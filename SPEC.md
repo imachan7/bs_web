@@ -127,14 +127,22 @@
   fieldEvent "ownFunsaiMilled"（repeatPerCount で「置かれるたび」対応）・kind "funsaiBonus"＝
   破棄枚数修正・kind "funsaiOnBlock"＝ブロック時にも粉砕発揮・levelAs 拡張
   （target ownSpiritsByKeyword／treatAs "max"／phase・turn／condition anyFieldHasColorSpirit）を新設。
-  millDeck が実破棄枚数を返すようになった）の計 **92枚** / 効果文持ち128枚。
-- **残り36枚は表示のみ（2026-07-21 時点）**。主な未対応概念は2クラスタ＋単発に集約:
+  millDeck が実破棄枚数を返すようになった）の計92枚＋バニラ参照バッチ6枚
+  （BS03-102/104/106/108/111/114 の各色ネクサス群。isVanillaCard＝効果原文が空のカード判定を新設し、
+  aura vanillaFilter・reviveOnDestroy の when byBattle/byBattleKillerLevel と revived toHand・
+  fieldEvent vanillaOnly/byBattleOnly・battleWon の role "any"/turn/vanillaWinnerOnly/selfMode "source"・
+  refreshOne vanillaFilter・levelAs ownSpiritsVanilla/coresScaled・
+  globalConstraint ownNexusIndestructible（バニラ数条件付き）を追加。
+  DestroyContext.battle に attackerLevel を伝播。運命分かつ岐路 e2 の「自分か相手のスピリット1体を疲労」は
+  相手側のみに簡略化）の計 **98枚** / 効果文持ち128枚。
+- **残り30枚は表示のみ（2026-07-21 時点）**。主な未対応概念は「任意コスト支払い」クラスタ＋単発:
   (1) 任意コスト支払い（「手札のネクサス1枚を破棄することで」「コア◯個を置くことで」系。
-  BS03-033/088/092/107/124 等）、(2) バニラ参照（「効果の記述を持たない自分のスピリット」＋
-  バトル破壊時の疲労復帰/手札戻り。BS03-102/104/106/108/111/114 のネクサス群）。
-  ほか単発: 効果無効化・手札加入検知・player-choice可変数・
-  相対レベル操作（ビルドアップ）・シンボル追加（ダブルハート）・破壊耐性など。
-  再開時はこのリストから優先度をつけて拡張する（粉砕連動クラスタは対応済み）
+  BS03-033/088/092/107/124 等）。ほか単発: 効果無効化（ウッド・ゴレム＝相手ネクサスLv2効果無効・
+  フォクシン＝マジック回数制限・イワトビペンタン＝軽減無効・力奪う凱旋門）・手札加入検知
+  （マードック・英雄の喪失）・player-choice可変数・相対レベル操作（ビルドアップ）・
+  シンボル追加（ダブルハート）・色の継続付与（フラットフェイス・ティングリー）・
+  ライフ被弾の条件付き無効（フレイア）・バトル参加者の入れ替え（テレポートチェンジ）など。
+  再開時はこのリストから優先度をつけて拡張する（粉砕連動・バニラ参照クラスタは対応済み）
 
 ### デッキ
 

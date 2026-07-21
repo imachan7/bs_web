@@ -9,6 +9,7 @@ import type {
     AuraCondition,
     AuraCounter,
     AuraDef,
+    CardData,
     CardInstance,
     Color,
     ConstraintDef,
@@ -76,6 +77,12 @@ export function hasKeyword(cardId: string, keyword: Keyword): boolean {
     return getCard(cardId).effects.some(
         (e) => e.kind === "keyword" && e.keyword === keyword,
     )
+}
+
+// カードに効果の記述を持たない（＝バニラ）か。Wiki由来の効果原文（card.effect）が空文字のカードを指す
+// （無法者の荒野／運命分かつ岐路／深緑の樹海／鋼に覆われた高空／子供部屋 午前0時／サファイアの城壁が参照）。
+export function isVanillaCard(card: CardData): boolean {
+    return card.effect === ""
 }
 
 // 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
@@ -377,6 +384,9 @@ function auraAppliesTo(
     ) {
         return false
     }
+    if (aura.vanillaFilter && !isVanillaCard(getCard(targetInst.cardId))) {
+        return false
+    }
     return true
 }
 
@@ -600,10 +610,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
-    // 対象ごとに異なりうるため、発生源でなく対象カードのlevelsを参照する）
-    const resolveTreatAs = (treatAs: number | "max", inst: CardInstance): number => {
-        if (treatAs !== "max") return treatAs
-        return getCard(inst.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+    // 対象ごとに異なりうるため、発生源でなく対象カードのlevelsを参照する）。
+    // "coresScaled" はコア数で換算する（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）
+    const resolveTreatAs = (treatAs: number | "max" | "coresScaled", inst: CardInstance): number => {
+        const maxLevel = () => getCard(inst.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+        if (treatAs === "max") return maxLevel()
+        if (treatAs === "coresScaled") {
+            if (inst.cores >= 3) return maxLevel()
+            if (inst.cores === 2) return 2
+            return 1
+        }
+        return treatAs
     }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
@@ -646,6 +663,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             (e) => e.kind === "keyword" && e.keyword === effect.keywordFilter,
                         )
                         if (!hasStaticKeyword) continue
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "ownSpiritsVanilla") {
+                    // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）
+                    for (const spirit of player.field.spirits) {
+                        if (!isVanillaCard(getCard(spirit.cardId))) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 }
@@ -712,8 +735,12 @@ export function destroySpirit(
     // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
     // （侵食されゆく銀世界Lv2）。fireFieldEventTriggers の action がさらに destroySpirit を
     // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
-    // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）を渡す
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color)
+    // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
+    // バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color, undefined, undefined, {
+        vanilla: isVanillaCard(master),
+        byBattle: context?.battle !== undefined,
+    })
 }
 
 // reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
@@ -727,13 +754,25 @@ function tryReviveOnDestroy(
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
 
-    const matchesWhen = (when: { byOpponentEffect?: boolean; byBattleVsArmorColor?: boolean }): boolean => {
+    const matchesWhen = (when: {
+        byOpponentEffect?: boolean
+        byBattleVsArmorColor?: boolean
+        byBattle?: boolean
+        byBattleKillerLevel?: number
+    }): boolean => {
         if (when.byOpponentEffect) {
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
         }
         if (when.byBattleVsArmorColor) {
             const attackerColor = context?.battle?.attackerColor
             if (attackerColor === undefined || !hasArmorAgainst(inst, attackerColor)) return false
+        }
+        if (when.byBattle && context?.battle === undefined) return false
+        if (
+            when.byBattleKillerLevel !== undefined &&
+            context?.battle?.attackerLevel !== when.byBattleKillerLevel
+        ) {
+            return false
         }
         return true
     }
@@ -764,15 +803,33 @@ function tryReviveOnDestroy(
         return true
     }
 
+    // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
+    // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
+    const applyRevived = (revived: { rested: boolean } | { toHand: true }): void => {
+        if ("toHand" in revived) {
+            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
+            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            player.reserve += inst.cores
+            player.hand.push(inst.cardId)
+        } else {
+            inst.isRested = revived.rested
+        }
+    }
+
+    const revivedLabel = (revived: { rested: boolean } | { toHand: true }): string =>
+        "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
+
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (!effectActiveAtLevel(effect.levels, level)) return false
+        if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (!applyCost(effect)) return false
-        inst.isRested = effect.revived.rested
+        const name = getCard(inst.cardId).name
+        applyRevived(effect.revived)
         log(
             state,
-            `${player.name}の${getCard(inst.cardId).name}は、${sourceName}の効果で破壊される代わりに${effect.revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った。`,
+            `${player.name}の${name}は、${sourceName}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
         )
         return true
     }
@@ -794,18 +851,46 @@ function tryReviveOnDestroy(
             if (effect.kind !== "reviveOnDestroy") continue
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (!applyCost(effect)) continue
-            inst.isRested = effect.revived.rested
+            const name = getCard(inst.cardId).name
+            applyRevived(effect.revived)
             log(
                 state,
-                `${player.name}の${getCard(inst.cardId).name}は、${getCard(source.cardId).name}の効果で破壊される代わりに${effect.revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った。`,
+                `${player.name}の${name}は、${getCard(source.cardId).name}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
             )
             return true
         }
     }
 
+    return false
+}
+
+// 破壊対象ネクサスの持ち主（ownerPid）自身のフィールド（スピリット＋ネクサス）のみを走査し、
+// レベル有効かつ condition（ownVanillaSpiritsAtLeast＝持ち主のバニラスピリット数）を満たす
+// globalConstraint "ownNexusIndestructible" があるか判定する。
+// hasGlobalConstraint は両陣営を走査する汎用判定だが、こちらは破壊対象の持ち主側のみに効く
+// 制約（サファイアの城壁）専用の判定のため別関数にしている。
+function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId): boolean {
+    const player = state.players[ownerPid]
+    const instances = [...player.field.spirits, ...player.field.nexuses]
+    for (const inst of instances) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "ownNexusIndestructible") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition) {
+                const vanillaCount = player.field.spirits.filter((s) =>
+                    isVanillaCard(getCard(s.cardId)),
+                ).length
+                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            }
+            return true
+        }
+    }
     return false
 }
 
@@ -825,6 +910,15 @@ export function destroyNexus(
     if (!inst) return false
     // 破壊耐性（要塞皇オーディーンLv2-3等）：すべてのネクサスは破壊されない
     if (hasGlobalConstraint(state, "nexusIndestructible")) {
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
+        )
+        return false
+    }
+    // 破壊耐性（サファイアの城壁Lv2）：破壊対象ネクサスの持ち主自身のフィールドに、
+    // condition（バニラスピリット数）を満たす ownNexusIndestructible 発生源があれば破壊されない
+    if (hasOwnNexusIndestructible(state, ownerPid)) {
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
@@ -2044,14 +2138,15 @@ export function resolveAction(
         }
 
         case "refreshOne": {
-            // 自分の疲労スピリットから（keywordFilter/colorFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
+            // 自分の疲労スピリットから（keywordFilter/colorFilter/vanillaFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
             const candidates = state.players[owner].field.spirits.filter(
                 (s) =>
                     s.isRested &&
                     (action.keywordFilter === undefined ||
                         spiritHasKeyword(state, owner, s, action.keywordFilter)) &&
                     (action.colorFilter === undefined ||
-                        instHasColor(s, action.colorFilter)),
+                        instHasColor(s, action.colorFilter)) &&
+                    (action.vanillaFilter === undefined || isVanillaCard(getCard(s.cardId))),
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
@@ -3605,11 +3700,15 @@ function collectGrantedTriggerActions(
 }
 
 // バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
-// kind: "battleWon" かつ role 一致かつレベル条件を満たす効果を実行する（ネクサスのバトル結果誘発）。
+// kind: "battleWon" かつ role 一致（role:"any"はどちらの役割でも一致）かつレベル条件を満たす効果を実行する
+// （ネクサスのバトル結果誘発）。
 // resolveAction には self として発生源（ネクサス／スピリット）ではなく、
 // 「勝利したスピリット（winnerInst）」を渡す。refreshSelf 等が「勝ったスピリット」を回復させる
 // ような効果文（例: 無限蟲の蟻塚「自分のブロックしたスピリットは回復する」）を、
-// 発生源に関係なく素直に表現するための意図的な選択。
+// 発生源に関係なく素直に表現するための意図的な選択。selfMode:"source" 指定時は逆に
+// 発生源インスタンス（ネクサス自身）を self に渡す（深緑の樹海：ネクサス自身にコアを置く）。
+// turn:"own" 指定時は winnerPid が turnPlayer のときのみ、vanillaWinnerOnly 指定時は
+// 勝利したスピリットがバニラのときのみ発火する。
 // 勝敗が決着したら（state.winner が立ったら）残りは打ち切る。
 export function fireBattleWonTriggers(
     state: GameState,
@@ -3624,9 +3723,12 @@ export function fireBattleWonTriggers(
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
             if (effect.kind !== "battleWon") continue
-            if (effect.role !== role) continue
+            if (effect.role !== "any" && effect.role !== role) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            resolveAction(state, winnerPid, winnerInst, effect.action)
+            if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
+            if (effect.vanillaWinnerOnly && !isVanillaCard(getCard(winnerInst.cardId))) continue
+            const actionSelf = effect.selfMode === "source" ? inst : winnerInst
+            resolveAction(state, winnerPid, actionSelf, effect.action)
             if (state.winner) return
             if (state.pendingChoice) return
         }
@@ -3711,6 +3813,7 @@ export function fireFieldEventTriggers(
     eventColor?: Color,
     targetInstanceId?: string,
     eventCount?: number,
+    eventInfo?: { vanilla?: boolean; byBattle?: boolean },
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -3725,6 +3828,8 @@ export function fireFieldEventTriggers(
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
+            if (effect.vanillaOnly && !eventInfo?.vanilla) continue
+            if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             if (effect.condition) {
                 if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上

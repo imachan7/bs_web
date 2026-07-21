@@ -16349,7 +16349,45 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべてをBP+2000する。\nLv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-102-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "vanillaFilter": true,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS03-102-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-103",
@@ -16430,7 +16468,37 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、自分はデッキから1枚ドローする。\nLv2『お互いのアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、自分か相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-104-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "vanillaOnly": true,
+    "byBattleOnly": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-104-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "vanillaWinnerOnly": true,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-105",
@@ -16511,7 +16579,43 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個をこのネクサス上に置く。\nLv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-106-e1",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "vanillaWinnerOnly": true,
+    "selfMode": "source",
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-106-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-107",
@@ -16576,7 +16680,35 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『相手のアタックステップ』\nステップ開始時、カードに効果の記述を持たない自分のスピリット1体を回復させる。\nLv2『相手のアタックステップ』\nステップ開始時、カードに効果の記述を持たない自分のスピリットすべてを回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-108-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "refreshOne",
+     "vanillaFilter": true
+    }
+   },
+   {
+    "id": "BS03-108-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "vanillaFilter": true,
+     "all": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-109",
@@ -16691,7 +16823,47 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のLv1スピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。\nLv2『相手のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のLv3スピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-111-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattleKillerLevel": 1
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": true
+    }
+   },
+   {
+    "id": "BS03-111-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattleKillerLevel": 3
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-112",
@@ -16790,7 +16962,30 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、そのスピリット上に置かれているコアが1個のときLv1、コアが2個のときLv2、コアが3個以上のとき、そのスピリットが持つ最高Lvとして扱う。\nLv2\n自分のフィールドに効果の記述を持たないスピリットが3体以上いる間、自分のネクサスすべては相手のスピリット/ネクサス/マジックの効果によって破壊されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-114-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsVanilla",
+    "treatAs": "coresScaled",
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS03-114-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "ownNexusIndestructible"
+    },
+    "condition": {
+     "ownVanillaSpiritsAtLeast": 3
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-115",

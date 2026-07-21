@@ -34,6 +34,11 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
     return master(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
 }
 
+// カードに効果の記述を持たない（バニラ）か（サーバー isVanillaCard と同じロジックの簡易版）
+function isVanillaCard(cardId: string): boolean {
+    return master(cardId).effect === ""
+}
+
 // ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
 
 // levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
@@ -166,6 +171,9 @@ function auraAppliesTo(
         aura.familyFilter &&
         !spiritHasFamilyView(view, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
+        return false
+    }
+    if (aura.vanillaFilter && !isVanillaCard(targetInst.cardId)) {
         return false
     }
     return true
