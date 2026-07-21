@@ -106,6 +106,11 @@ function checkAuraCondition(
             (s) => master(s.cardId).color === condition.hasOwnColorSpirit,
         )
     }
+    if ("ownHasKeyword" in condition) {
+        return player.field.spirits.some((s) =>
+            spiritHasKeywordView(view, sourcePid, s, condition.ownHasKeyword),
+        )
+    }
     return player.field.spirits.some((s) =>
         master(s.cardId).family.includes(condition.hasOwnFamily),
     )
@@ -553,7 +558,8 @@ export function magicTargetSide(
         effect.action.type === "coreCharge" ||
         effect.action.type === "grantKeyword" ||
         effect.action.type === "refireSummonEffect" ||
-        effect.action.type === "trashCoresToSpirit"
+        effect.action.type === "trashCoresToSpirit" ||
+        effect.action.type === "voidCoreToTarget"
     )
         return "self"
     return null

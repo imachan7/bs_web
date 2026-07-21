@@ -259,6 +259,12 @@ function checkAuraCondition(
             (s) => getCard(s.cardId).color === condition.hasOwnColorSpirit,
         )
     }
+    // { ownHasKeyword: Keyword }：自分フィールドに指定キーワード持ちのスピリットがいる（一時付与・継続付与も考慮）
+    if ("ownHasKeyword" in condition) {
+        return player.field.spirits.some((s) =>
+            spiritHasKeyword(state, sourcePid, s, condition.ownHasKeyword),
+        )
+    }
     // { hasOwnFamily: string }：発生源自身を含んでよい
     return player.field.spirits.some((s) =>
         getCard(s.cardId).family.includes(condition.hasOwnFamily),
@@ -3204,6 +3210,106 @@ export function resolveAction(
             millDeck(state, targetPid, count)
             return
         }
+
+        case "destroyAllNexusesWithCores": {
+            // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（フレイム・エルク）。
+            // 破壊耐性（nexusIndestructible）はdestroyNexus内で尊重される
+            let destroyed = 0
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                const targets = state.players[pid].field.nexuses
+                    .filter((n) => n.cores >= 1)
+                    .map((n) => n.instanceId)
+                for (const instanceId of targets) {
+                    if (destroyNexus(state, pid, instanceId)) destroyed++
+                }
+            }
+            if (destroyed === 0) {
+                log(state, `${sourceName}：コアが置かれているネクサスがなかった。`)
+            }
+            return
+        }
+
+        case "voidCoreToAllOwnByFamily": {
+            // ボイドからコアcount個ずつを、指定系統いずれかを持つ自分のスピリットすべての上に置く（太陽花ゾンネ・ブルム）
+            const candidates = state.players[owner].field.spirits.filter((s) =>
+                action.families.some((family) => spiritHasFamily(state, owner, s, family)),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象の系統を持つスピリットがいなかった。`)
+                return
+            }
+            for (const target of candidates) {
+                placeCoresOnSpirit(state, target, action.count)
+            }
+            log(
+                state,
+                `${sourceName}：ボイドからコア${action.count}個ずつを${candidates.length}体の上に置いた。`,
+            )
+            return
+        }
+
+        case "voidCoreToTarget": {
+            // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）
+            const target = targetInstanceId
+                ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
+                      (best, s) =>
+                          !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
+                              ? s
+                              : best,
+                      undefined,
+                  )
+            if (!target) {
+                log(state, `${sourceName}：コアを置く対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
+            )
+            placeCoresOnSpirit(state, target, action.count)
+            return
+        }
+
+        case "refreshByFamilyAuto": {
+            // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる
+            // （プレイヤー選択の決定的簡略化。フロックリカバリー）
+            const rested = state.players[owner].field.spirits.filter((s) => s.isRested)
+            if (rested.length === 0) {
+                log(state, `${sourceName}：疲労状態のスピリットがいなかった。`)
+                return
+            }
+            // 疲労中の自分スピリットで最多の系統を選ぶ（同数は先に見つかった系統。Mapは挿入順を保持する）
+            const tally = new Map<string, number>()
+            for (const s of rested) {
+                const families = new Set(getCard(s.cardId).family)
+                for (const family of families) {
+                    tally.set(family, (tally.get(family) ?? 0) + 1)
+                }
+            }
+            let chosen: string | null = null
+            let best = 0
+            for (const [family, count] of tally) {
+                if (count > best) {
+                    best = count
+                    chosen = family
+                }
+            }
+            if (!chosen) {
+                log(state, `${sourceName}：対象の系統がなかった。`)
+                return
+            }
+            const candidates = rested
+                .filter((s) => spiritHasFamily(state, owner, s, chosen!))
+                .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+                .slice(0, action.count)
+            for (const s of candidates) s.isRested = false
+            log(
+                state,
+                `${sourceName}：系統「${chosen}」を選び、${candidates.length}体を回復させた。`,
+            )
+            return
+        }
     }
 }
 
@@ -3320,11 +3426,38 @@ export function fireTrigger(
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
-            // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
-            // opponentNexusColorsAtLeast 以上のときのみ発火
-            const oppNexuses = state.players[opponentOf(owner)].field.nexuses
-            const colors = new Set(oppNexuses.map((n) => getCard(n.cardId).color))
-            if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
+            if ("opponentNexusColorsAtLeast" in effect.condition) {
+                // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
+                // opponentNexusColorsAtLeast 以上のときのみ発火
+                const oppNexuses = state.players[opponentOf(owner)].field.nexuses
+                const colors = new Set(oppNexuses.map((n) => getCard(n.cardId).color))
+                if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
+            } else if ("ownFieldHasColorSpirit" in effect.condition) {
+                // オチョゴ／ジェルフィ：発生源の持ち主のフィールドに指定色のスピリットがいるときのみ発火
+                const color = effect.condition.ownFieldHasColorSpirit
+                if (
+                    !state.players[owner].field.spirits.some((s) => instHasColor(s, color))
+                ) {
+                    return false
+                }
+            } else if ("ownFieldHasColorNexus" in effect.condition) {
+                // 天使キュリオ：発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火
+                const color = effect.condition.ownFieldHasColorNexus
+                if (
+                    !state.players[owner].field.nexuses.some(
+                        (n) => getCard(n.cardId).color === color,
+                    )
+                ) {
+                    return false
+                }
+            } else if ("targetSameLevelAsSelf" in effect.condition) {
+                // 剣竜ステゴラーサウルス：ブロックしてきたスピリット（targetInstanceId）のLvが
+                // selfのLvと同じときのみ発火（未指定/不在なら発火しない）
+                if (targetInstanceId === undefined) return false
+                const target = findInstanceAnywhere(state, targetInstanceId)
+                if (!target) return false
+                if (currentLevel(target).level !== level) return false
+            }
         }
         return true
     }
@@ -3562,6 +3695,20 @@ export function resolveMagic(
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
+        if (effect.condition) {
+            // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
+            const { family, count } = effect.condition.ownFamilyCountAtLeast
+            const total = state.players[owner].field.spirits.filter((s) =>
+                spiritHasFamily(state, owner, s, family),
+            ).length
+            if (total < count) {
+                log(
+                    state,
+                    `${card.name}：系統「${family}」を持つスピリットが${count}体未満のため発動しなかった。`,
+                )
+                continue
+            }
+        }
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す
         resolveAction(state, owner, null, effect.action, targetInstanceId, card.color, "magic")
         if (state.pendingChoice) {
