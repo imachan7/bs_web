@@ -15582,7 +15582,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のフィールドに緑のネクサスがある間、【粉砕】によって相手のトラッシュにカードが置かれるたび、ボイドからコア1個をこのスピリット上に置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-086-e1",
+    "kind": "fieldEvent",
+    "event": "ownFunsaiMilled",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "repeatPerCount": true,
+    "condition": {
+     "ownFieldHasColorNexus": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-087",
@@ -15746,7 +15765,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分か相手のフィールドに赤のスピリットがいる間、【粉砕】を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-090-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByKeyword",
+    "keywordFilter": "funsai",
+    "treatAs": "max",
+    "phase": "attack",
+    "turn": "own",
+    "condition": {
+     "anyFieldHasColorSpirit": "red"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-091",
@@ -16789,7 +16822,28 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n【粉砕】で相手のデッキを破棄するとき、破棄するカードを+2枚する。\nLv2『自分のアタックステップ』\n【粉砕】を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-115-e1",
+    "kind": "funsaiBonus",
+    "levels": [
+     1,
+     2
+    ],
+    "amount": 2
+   },
+   {
+    "id": "BS03-115-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByKeyword",
+    "keywordFilter": "funsai",
+    "treatAs": "max",
+    "phase": "attack",
+    "turn": "own",
+    "sourceMinLevel": 2
+   }
+  ]
  },
  {
   "cardId": "BS03-116",
@@ -16854,7 +16908,29 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のスピリットが持つ【粉砕】の効果は、『このスピリットのブロック時』にも発揮される。\nLv2『お互いのアタックステップ』\n【粉砕】の効果で相手のデッキを破棄したとき、ボイドから、コア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-117-e1",
+    "kind": "funsaiOnBlock",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-117-e2",
+    "kind": "fieldEvent",
+    "event": "ownFunsaiMilled",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-118",

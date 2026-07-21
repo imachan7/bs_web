@@ -22,9 +22,11 @@ import {
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
+    hasFunsaiOnBlock,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
+    resolveFunsai,
     resolveKoboOnBattleEnd,
     resolveMagic,
 } from "./EffectModules"
@@ -382,13 +384,8 @@ function doAttack(
     fireTrigger(state, pid, inst, "onAttack")
 
     // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
-    if (!state.winner) {
-        const attackLevel = currentLevel(inst).level
-        const hasFunsai = card.effects.some(
-            (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, attackLevel),
-        )
-        if (hasFunsai) millDeck(state, opponentOf(pid), attackLevel)
-    }
+    // （funsaiBonus・ownFunsaiMilled誘発の共通処理はresolveFunsaiに集約）
+    if (!state.winner) resolveFunsai(state, pid, inst)
 
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
@@ -420,6 +417,12 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果
     if (blocker) fireTrigger(state, pid, blocker, "onBlock")
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
+    // 【粉砕】をこのスピリットのブロック時にも発揮させる継続付与（士気高き大本営）
+    if (blocker && hasFunsaiOnBlock(state, pid)) resolveFunsai(state, pid, blocker)
     if (state.winner) {
         state.battle = null
         return null

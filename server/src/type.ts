@@ -156,6 +156,7 @@ export type FieldEvent =
     | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンス returnNexusToHand は対象外）
     | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
     | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
+    | "ownFunsaiMilled" // 自分のスピリットの【粉砕】が相手のデッキをトラッシュへ送ったとき（発火は粉砕解決ごとに1回。repeatPerCount指定時は実破棄枚数ぶんアクションを繰り返す）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -302,7 +303,10 @@ export type EffectDef =
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           turn?: "own" | "opponent" // 指定時はこの陣営条件でのみ発火（own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時。省略時はどちらでも発火）
           colorFilter?: Color // event: "ownSpiritDestroyed" | "ownSpiritBlocked" 限定：対象スピリットの色がこれと一致するときのみ発火（祝福されし大聖堂／花の子リップ）
-          condition?: { ownColorTotalAtLeast: { color: Color; count: number } } // 指定時、発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
+          condition?:
+              | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
+              | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（instHasColor判定。修理屋バラン・バラン）
+          repeatPerCount?: boolean // event: "ownFunsaiMilled" 用：実破棄枚数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン）
       }
     | {
           id: string
@@ -393,9 +397,14 @@ export type EffectDef =
           id: string
           kind: "levelAs" // 継続的な「Lv◯として扱う」置換（EffectModules.refreshLevelAsOverridesが毎回再計算する。ナイフ投げのジャグリーン／トパーズの流星）
           levels: null
-          target: "self" | "ownNexusesAll"
-          treatAs: number // 扱うレベル
-          condition?: { maxOwnSpirits: number } // 自分のフィールドのスピリット数がこの値以下の間有効（発生源自身を含む）
+          target: "self" | "ownNexusesAll" | "ownSpiritsByKeyword" // ownSpiritsByKeyword=keywordFilterのキーワードエントリを静的に持つ持ち主のスピリットすべて（レベル不問。斬竜刀のガイ／崩壊する戦線）
+          treatAs: number | "max" // 扱うレベル。"max"=対象カード自身が持つ最高Lv（card.levelsのlevel最大値。対象ごとに算出）
+          keywordFilter?: Keyword // target: "ownSpiritsByKeyword" 用
+          phase?: Phase // 指定時、state.phaseが一致するときのみ有効
+          turn?: "own" // 指定時、発生源の持ち主がturnPlayerのときのみ有効
+          condition?:
+              | { maxOwnSpirits: number } // 自分のフィールドのスピリット数がこの値以下の間有効（発生源自身を含む）
+              | { anyFieldHasColorSpirit: Color } // 自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効（斬竜刀のガイ）
           sourceMinLevel?: number // 発生源の素のレベル（コア数基準。上書き無視）がこれ以上のときのみ有効
       }
     | {
@@ -437,6 +446,17 @@ export type EffectDef =
           minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
           constraint: ConstraintDef
+      }
+    | {
+          id: string
+          kind: "funsaiBonus" // 持ち主のスピリットの【粉砕】の破棄枚数を+amountする（崩壊する戦線Lv1-2）
+          levels: number[] | null
+          amount: number
+      }
+    | {
+          id: string
+          kind: "funsaiOnBlock" // 持ち主のスピリットの【粉砕】を『このスピリットのブロック時』にも発揮させる（士気高き大本営Lv1-2）
+          levels: number[] | null
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応

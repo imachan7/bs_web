@@ -127,8 +127,9 @@ export function spiritHasKeyword(
 }
 
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
-// デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）
-export function millDeck(state: GameState, pid: PlayerId, count: number): void {
+// デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）。
+// 戻り値は実際に破棄した枚数（ownFunsaiMilledの発火判定・repeatPerCountに使う）
+export function millDeck(state: GameState, pid: PlayerId, count: number): number {
     const player = state.players[pid]
     const actual = Math.min(count, player.deck.length)
     for (let i = 0; i < actual; i++) {
@@ -137,6 +138,57 @@ export function millDeck(state: GameState, pid: PlayerId, count: number): void {
         player.trashCards.push(cardId)
     }
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
+    return actual
+}
+
+// 持ち主フィールドの funsaiBonus（崩壊する戦線）合計：【粉砕】の破棄枚数に加算する
+function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    let total = 0
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "funsaiBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount
+        }
+    }
+    return total
+}
+
+// 持ち主フィールドに funsaiOnBlock（士気高き大本営）が有効な発生源があるか
+export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean {
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "funsaiOnBlock") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
+// 【粉砕】の解決：spirit が現在レベルで粉砕を持つなら、相手のデッキを
+// （現在レベル + funsaiBonus合計）枚破棄する（アタック時／funsaiOnBlockによるブロック時の共通処理）。
+// 実破棄枚数が1以上なら fieldEvent "ownFunsaiMilled" を発火する（repeatPerCount対応）
+export function resolveFunsai(
+    state: GameState,
+    ownerPid: PlayerId,
+    spirit: CardInstance,
+): void {
+    const level = currentLevel(spirit).level
+    const hasFunsai = getCard(spirit.cardId).effects.some(
+        (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, level),
+    )
+    if (!hasFunsai) return
+    const bonus = funsaiBonusTotal(state, ownerPid)
+    const actual = millDeck(state, opponentOf(ownerPid), level + bonus)
+    if (actual > 0) {
+        fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
+    }
 }
 
 // 【光芒】: バトル終了時、アタッカーがレベル有効で光芒を持つなら、
@@ -547,6 +599,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.levelAsContinuous
         }
     }
+    // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
+    // 対象ごとに異なりうるため、発生源でなく対象カードのlevelsを参照する）
+    const resolveTreatAs = (treatAs: number | "max", inst: CardInstance): number => {
+        if (treatAs !== "max") return treatAs
+        return getCard(inst.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+    }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
         const sources = [...player.field.spirits, ...player.field.nexuses]
@@ -559,17 +617,36 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 ) {
                     continue
                 }
-                if (
-                    effect.condition?.maxOwnSpirits !== undefined &&
-                    player.field.spirits.length > effect.condition.maxOwnSpirits
-                ) {
-                    continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.condition) {
+                    if ("maxOwnSpirits" in effect.condition) {
+                        if (player.field.spirits.length > effect.condition.maxOwnSpirits) continue
+                    } else {
+                        // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
+                        const color = effect.condition.anyFieldHasColorSpirit
+                        const anySpirits = [
+                            ...state.players.p1.field.spirits,
+                            ...state.players.p2.field.spirits,
+                        ]
+                        if (!anySpirits.some((s) => instHasColor(s, color))) continue
+                    }
                 }
                 if (effect.target === "self") {
-                    source.levelAsContinuous = effect.treatAs
+                    source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
                 } else if (effect.target === "ownNexusesAll") {
                     for (const nexus of player.field.nexuses) {
-                        nexus.levelAsContinuous = effect.treatAs
+                        nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
+                    }
+                } else if (effect.target === "ownSpiritsByKeyword") {
+                    // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ
+                    // keyword一致のエントリがあるか。レベル・付与は見ない）
+                    for (const spirit of player.field.spirits) {
+                        const hasStaticKeyword = getCard(spirit.cardId).effects.some(
+                            (e) => e.kind === "keyword" && e.keyword === effect.keywordFilter,
+                        )
+                        if (!hasStaticKeyword) continue
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 }
             }
@@ -3633,6 +3710,7 @@ export function fireFieldEventTriggers(
     selfOverride?: { pid: PlayerId; inst: CardInstance },
     eventColor?: Color,
     targetInstanceId?: string,
+    eventCount?: number,
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -3648,25 +3726,35 @@ export function fireFieldEventTriggers(
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
             if (effect.condition) {
-                // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const sources = [...player.field.spirits, ...player.field.nexuses]
-                const total = sources.filter((s) => instHasColor(s, color)).length
-                if (total < count) continue
+                if ("ownColorTotalAtLeast" in effect.condition) {
+                    // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
+                    const { color, count } = effect.condition.ownColorTotalAtLeast
+                    const sources = [...player.field.spirits, ...player.field.nexuses]
+                    const total = sources.filter((s) => instHasColor(s, color)).length
+                    if (total < count) continue
+                } else {
+                    // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
+                    const color = effect.condition.ownFieldHasColorNexus
+                    if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
+                }
             }
-            if (selfOverride) {
-                resolveAction(
-                    state,
-                    selfOverride.pid,
-                    selfOverride.inst,
-                    effect.action,
-                    targetInstanceId,
-                )
-            } else {
-                resolveAction(state, pid, inst, effect.action, targetInstanceId)
+            // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す
+            const repeatTimes = effect.repeatPerCount && eventCount ? eventCount : 1
+            for (let i = 0; i < repeatTimes; i++) {
+                if (selfOverride) {
+                    resolveAction(
+                        state,
+                        selfOverride.pid,
+                        selfOverride.inst,
+                        effect.action,
+                        targetInstanceId,
+                    )
+                } else {
+                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
+                }
+                if (state.winner) return
+                if (state.pendingChoice) return
             }
-            if (state.winner) return
-            if (state.pendingChoice) return
         }
     }
 }
