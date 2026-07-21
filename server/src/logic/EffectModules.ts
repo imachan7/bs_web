@@ -777,7 +777,7 @@ function tryReviveOnDestroy(
         return true
     }
 
-    const matchesPhaseTurn = (phaseTurn?: { phase: Phase; turn: "own" | "opponent" }): boolean => {
+    const matchesPhaseTurn = (phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }): boolean => {
         if (!phaseTurn) return true
         if (state.phase !== phaseTurn.phase) return false
         if (phaseTurn.turn === "own" && ownerPid !== state.turnPlayer) return false
@@ -798,6 +798,13 @@ function tryReviveOnDestroy(
             // コア1個の個体は支払うと維持コア割れになるため不発
             if (inst.cores <= 1) return false
             inst.cores -= 1
+            return true
+        }
+        if (effect.cost?.reserveOneToTrash) {
+            // 持ち主のリザーブのコア1個を持ち主のトラッシュへ（リザーブ0なら不発）
+            if (player.reserve <= 0) return false
+            player.reserve -= 1
+            player.trashCores += 1
             return true
         }
         return true
@@ -852,6 +859,7 @@ function tryReviveOnDestroy(
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
+            if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (!applyCost(effect)) continue
@@ -3479,6 +3487,172 @@ export function resolveAction(
             log(
                 state,
                 `${sourceName}：系統「${chosen}」を選び、${candidates.length}体を回復させた。`,
+            )
+            return
+        }
+
+        case "selfBuffByHandDiscard": {
+            // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
+            if (!self) {
+                log(state, `${sourceName}：バフ対象がいなかった。`)
+                return
+            }
+            const player = state.players[owner]
+            const typeLabel =
+                action.discardCardType === "nexus"
+                    ? "ネクサス"
+                    : action.discardCardType === "magic"
+                      ? "マジック"
+                      : "スピリット"
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：破棄する手札がなかった。`)
+                    return
+                }
+                player.hand.splice(chosenCardIndex, 1)
+                player.trashCards.push(cardId)
+                self.tempBpBuff += action.amount
+                log(
+                    state,
+                    `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄し、${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
+                )
+                return
+            }
+            const indices = player.hand
+                .map((_, i) => i)
+                .filter((i) => getCard(player.hand[i]!).type === action.discardCardType)
+            if (indices.length === 0) {
+                log(state, `${sourceName}：手札に${typeLabel}カードがなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：${typeLabel}カード1枚を破棄してBP+${action.amount}できます（任意）`,
+                    "hand",
+                    indices,
+                    true,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 自動時：手札末尾（新しい方）の該当カードを破棄する簡略化
+            const idx = indices[indices.length - 1]!
+            const cardId = player.hand[idx]!
+            player.hand.splice(idx, 1)
+            player.trashCards.push(cardId)
+            self.tempBpBuff += action.amount
+            log(
+                state,
+                `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄し、${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
+            )
+            return
+        }
+
+        case "grantKeywordToHandCard": {
+            // 手札の条件一致カード1枚に、このターンの間キーワードを付与する
+            const player = state.players[owner]
+            const label = KEYWORDS[action.keyword].label
+            const grant = (cardId: string): void => {
+                player.tempHandKeywordGrants = player.tempHandKeywordGrants ?? []
+                player.tempHandKeywordGrants.push({ cardId, keyword: action.keyword })
+                log(
+                    state,
+                    `${player.name}の手札「${getCard(cardId).name}」に【${label}】が与えられた（ターン終了時まで）。`,
+                )
+            }
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：対象の手札がなかった。`)
+                    return
+                }
+                grant(cardId)
+                return
+            }
+            const indices = player.hand
+                .map((_, i) => i)
+                .filter((i) => {
+                    const c = getCard(player.hand[i]!)
+                    if (action.cardType !== undefined && c.type !== action.cardType) return false
+                    if (action.familyFilter !== undefined && !c.family.includes(action.familyFilter)) {
+                        return false
+                    }
+                    return true
+                })
+            if (indices.length === 0) {
+                log(state, `${sourceName}：対象の手札がなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：【${label}】を与える手札カードを選んでください`,
+                    "hand",
+                    indices,
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 自動時：手札末尾（新しい方）の該当カードを対象にする簡略化
+            const idx = indices[indices.length - 1]!
+            grant(player.hand[idx]!)
+            return
+        }
+
+        case "coreTradeToOpponentTrash": {
+            // 自分のリザーブのコアをX個自分のトラッシュへ、同数だけ相手のリザーブから相手のトラッシュへ
+            const player = state.players[owner]
+            const opponent = state.players[opp]
+            if (chosenOption !== undefined) {
+                const n = parseInt(chosenOption, 10)
+                if (!Number.isFinite(n) || n <= 0) return
+                const capped = Math.min(n, player.reserve, opponent.reserve)
+                if (capped <= 0) return
+                player.reserve -= capped
+                player.trashCores += capped
+                opponent.reserve -= capped
+                opponent.trashCores += capped
+                log(
+                    state,
+                    `${player.name}はリザーブのコア${capped}個をトラッシュへ置き、${opponent.name}のリザーブのコア${capped}個も相手のトラッシュへ置かれた。`,
+                )
+                return
+            }
+            const maxAmount = Math.min(player.reserve, opponent.reserve)
+            if (maxAmount <= 0) {
+                log(state, `${sourceName}：お互いのリザーブが不足しており実行できなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                const options = Array.from({ length: maxAmount }, (_, i) => `${i + 1}個`)
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：自分のリザーブのコアを何個トラッシュへ置きますか？（同数だけ相手のリザーブもトラッシュへ。任意）`,
+                    [],
+                    true,
+                    action,
+                    self,
+                    "option",
+                    options,
+                )
+                return
+            }
+            // 自動時：上限個（min(自分,相手)）を実行
+            player.reserve -= maxAmount
+            player.trashCores += maxAmount
+            opponent.reserve -= maxAmount
+            opponent.trashCores += maxAmount
+            log(
+                state,
+                `${player.name}はリザーブのコア${maxAmount}個をトラッシュへ置き、${opponent.name}のリザーブのコア${maxAmount}個も相手のトラッシュへ置かれた。`,
             )
             return
         }

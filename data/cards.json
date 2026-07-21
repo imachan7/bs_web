@@ -13207,7 +13207,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2：フラッシュ\n自分のリザーブのコア1個を自分のトラッシュに置くことで、このターンの間、自分の手札にある系統：「殻虫」を持つスピリットカード1枚に“【神速】このスピリットは手札からフラッシュのタイミングで召喚できる。このときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-033-e1",
+    "kind": "activated",
+    "timing": "flashBattle",
+    "levels": [
+     2
+    ],
+    "cost": {
+     "reserveToTrash": 1
+    },
+    "action": {
+     "type": "grantKeywordToHandCard",
+     "keyword": "soku",
+     "familyFilter": "殻虫",
+     "cardType": "spirit"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-034",
@@ -15691,7 +15709,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+5000できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-088-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 5000
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-089",
@@ -15848,7 +15882,23 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+5000できる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-092-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 5000
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS03-093",
@@ -16647,7 +16697,30 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のLv1スピリットすべては、バトルでBPを比べるときLv2BPを使用する。\nLv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、自分のリザーブにあるコア1個を自分のトラッシュに置くことで、手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-107-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "keywordFilter": "soku",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    },
+    "revived": {
+     "toHand": true
+    },
+    "cost": {
+     "reserveOneToTrash": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-108",
@@ -17313,7 +17386,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分のリザーブにあるコアを好きなだけ自分のトラッシュに置くことで、同じ数だけ相手のリザーブにあるコアを、相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-124-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreTradeToOpponentTrash"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-125",

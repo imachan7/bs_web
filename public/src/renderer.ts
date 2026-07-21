@@ -1089,16 +1089,29 @@ function renderHand(view: GameView, ui: UiState): void {
             ? new Set(view.pendingChoice.cardIndices ?? [])
             : null
 
+    // grantKeywordToHandCard（ビートプリースト等）で一時的に神速を付与された手札カードのcardId一覧
+    const tempSokuCardIds = new Set(
+        (view.players[view.you].tempHandKeywordGrants ?? [])
+            .filter((g) => g.keyword === "soku")
+            .map((g) => g.cardId),
+    )
+
     hand.forEach((cardId, index) => {
         const m = master(cardId)
         const cost = effectiveCost(view, view.you, m)
         const lv1 = m.levels.find((l) => l.level === 1)
         const need = cost + (lv1 ? lv1.cores : 0)
+        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか
+        const flashSummonable =
+            m.type === "spirit" && (hasKeyword(cardId, "soku") || tempSokuCardIds.has(cardId))
 
         const usable =
             !view.pendingChoice &&
             ((myMainFree && reserve >= need) ||
-                (inFlash && !flashLocked && m.type === "magic" && m.flash && reserve >= cost))
+                (inFlash &&
+                    !flashLocked &&
+                    reserve >= need &&
+                    ((m.type === "magic" && m.flash) || flashSummonable)))
 
         const el = document.createElement("div")
         el.className = `card color-${m.color}`

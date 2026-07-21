@@ -320,6 +320,9 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             spirits: player.field.spirits.map((s) => ({ ...s })),
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
         },
+        ...(isSelf && player.tempHandKeywordGrants
+            ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
+            : {}),
     }
 }
 

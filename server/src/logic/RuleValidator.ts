@@ -150,7 +150,11 @@ export function validateSummon(
     if (card.type !== "spirit") return "スピリットカードではありません"
 
     // 神速：フラッシュタイミングなら手札から召喚できる（自分・相手ターン問わず）
-    const flashSummon = state.isFlashTiming && hasKeyword(cardId, "soku")
+    // grantKeywordToHandCardで一時的に神速を付与された手札カードも同様に扱う（ビートプリースト）
+    const hasTempSoku = (player.tempHandKeywordGrants ?? []).some(
+        (g) => g.cardId === cardId && g.keyword === "soku",
+    )
+    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku)
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing

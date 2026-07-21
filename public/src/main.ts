@@ -3,6 +3,7 @@ import type { CardData, GameAction, GameView, PaySource, PlayerId } from "../../
 import {
     canDirectAttack,
     effectiveCost,
+    hasKeyword,
     magicTargetSide,
     master,
     matchesDirectedAttackFilter,
@@ -138,6 +139,17 @@ function onHandClick(handIndex: number): void {
             return
         }
         if (card.type === "nexus") {
+            tryPlay(handIndex, card, undefined)
+            return
+        }
+    }
+
+    // 神速召喚：静的に持つか、grantKeywordToHandCardで一時付与された手札スピリット
+    if (card.type === "spirit" && inFlash) {
+        const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
+            (g) => g.cardId === cardId && g.keyword === "soku",
+        )
+        if (hasKeyword(cardId, "soku") || tempSoku) {
             tryPlay(handIndex, card, undefined)
             return
         }

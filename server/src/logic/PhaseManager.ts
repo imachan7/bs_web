@@ -76,6 +76,7 @@ export function endTurn(state: GameState): void {
 
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
+        state.players[pid].tempHandKeywordGrants = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
             inst.cantAttackThisTurn = false
