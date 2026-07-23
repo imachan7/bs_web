@@ -42,8 +42,15 @@
             <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
             <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
             <span id="turn-info"></span>
-            <span id="phase-info"></span>
-            <span id="flash-info" class="hidden"></span>
+            <div id="phase-bar">
+                <span class="phase-step" data-phase="start">開始</span>
+                <span class="phase-step" data-phase="core">コア</span>
+                <span class="phase-step" data-phase="draw">ドロー</span>
+                <span class="phase-step" data-phase="refresh">リフレ</span>
+                <span class="phase-step" data-phase="main">メイン</span>
+                <span class="phase-step" data-phase="attack">アタック</span>
+                <span class="phase-step" data-phase="end">終了</span>
+            </div>
         </div>
 
         <div id="board">

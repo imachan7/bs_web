@@ -28,6 +28,15 @@ export function master(cardId: string): CardData {
     return card
 }
 
+const COLOR_SYMBOLS: Record<string, string> = {
+    red: "🔥",
+    purple: "💀",
+    green: "🌿",
+    white: "◇",
+    yellow: "⭐",
+    blue: "💧"
+}
+
 // 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
 // 指定コストとして扱われるか（サーバー instHasCost と同じロジックの簡易版）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
@@ -678,13 +687,29 @@ export function render(view: GameView, ui: UiState): void {
         isDefender && (!view.isFlashTiming || hasPriority)
 
     // ステータスバー
-    $("turn-info").textContent = `ターン${view.turn}`
-    $("phase-info").textContent = `${PHASE_LABELS[view.phase]}ステップ（${myTurn ? "あなた" : "相手"}のターン）`
+    $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
+    document.querySelectorAll(".phase-step").forEach(el => {
+        el.classList.remove("active")
+        if ((el as HTMLElement).dataset.phase === view.phase) {
+            el.classList.add("active")
+        }
+    })
 
-    // フラッシュ状態の表示
-    show("flash-info", !!view.battle && view.isFlashTiming)
-    if (view.battle && view.isFlashTiming) {
-        $("flash-info").textContent = `フラッシュ（優先権: ${hasPriority ? "あなた" : "相手"}）`
+    // フラッシュ状態の表示（ボーダーとパルス）
+    const board = $("board")
+    const oppHasFlash = !!view.battle && view.isFlashTiming && !hasPriority
+    if (inFlash) {
+        board.classList.add("your-priority")
+        board.classList.remove("opp-thinking")
+        $("btn-pass").classList.add("pulse")
+    } else if (oppHasFlash) {
+        board.classList.remove("your-priority")
+        board.classList.add("opp-thinking")
+        $("btn-pass").classList.remove("pulse")
+    } else {
+        board.classList.remove("your-priority")
+        board.classList.remove("opp-thinking")
+        $("btn-pass").classList.remove("pulse")
     }
 
     // 効果解決中の選択待ち（サーバーがresolveChoice以外のアクションを全拒否するため、
@@ -736,24 +761,28 @@ export function render(view: GameView, ui: UiState): void {
         show("choice-options", false)
     }
     if (myPendingChoice) {
-        $("targeting-info").textContent = myPendingChoice.prompt
+        $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
     } else if (oppPendingChoice) {
-        $("targeting-info").textContent = oppPendingChoice.prompt
+        $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
-            `コアが足りません。スピリット上のコアを割り当ててください（残り${remaining}個）`
+            `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
     } else if (ui.awakenTarget !== null) {
         $("targeting-info").textContent =
-            "【覚醒】コアの移動元にする自分のスピリットを選んでください"
+            "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
-            "アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+            "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
     } else if (ui.targeting) {
         $("targeting-info").textContent =
-            ui.targeting.side === "opponent"
-                ? "対象にする相手スピリットを選んでください"
-                : "対象にする自分のスピリットを選んでください"
+            `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
+    } else if (oppHasFlash) {
+        show("targeting-info", true)
+        $("targeting-info").textContent = "⏳ 相手がフラッシュタイミングを検討中…"
+    } else if (!myTurn && !view.battle && !pendingChoiceActive && !anyMode) {
+        show("targeting-info", true)
+        $("targeting-info").textContent = "⏳ 相手のターン…"
     }
 
     // プレイヤー情報
@@ -800,8 +829,8 @@ function renderInfo(
     const el = $(id)
     el.innerHTML = ""
     const items: [string, string][] = [
-        ["", p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
-        ["life", `ライフ ${"♥".repeat(p.life)}（${p.life}）`],
+        ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
+        ["life", `❤ ${p.life}`],
         ["", `リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],
@@ -897,6 +926,7 @@ function fieldCardEl(
         m.symbol.forEach(symColor => {
             const sym = document.createElement("span")
             sym.className = `sym-icon bg-${symColor}`
+            sym.dataset.colorLabel = COLOR_SYMBOLS[symColor] || ""
             symbolsDiv.appendChild(sym)
         })
     }
@@ -1339,6 +1369,7 @@ export function setupEffectTooltip(): void {
             m.reduction.forEach(r => {
                 const icon = document.createElement("span")
                 icon.className = `sym-icon bg-${r}`
+                icon.dataset.colorLabel = COLOR_SYMBOLS[r] || ""
                 redEl.appendChild(icon)
             })
         }
