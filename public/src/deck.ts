@@ -121,6 +121,12 @@ function renderPool(): void {
         el.className = `pool-card color-${card.color}`
         if (card.limited) el.classList.add("limited")
 
+        // コストバッジ
+        const costBadge = document.createElement("span")
+        costBadge.className = "cost-badge"
+        costBadge.textContent = String(card.cost)
+        el.appendChild(costBadge)
+
         const name = document.createElement("div")
         name.className = "name"
         name.textContent = card.name
@@ -128,15 +134,19 @@ function renderPool(): void {
 
         const info = document.createElement("div")
         info.className = "info"
+
+        const sym = document.createElement("span")
+        sym.className = `sym-icon bg-${card.color}`
+        info.appendChild(sym)
+
+        const txt = document.createElement("span")
         const bp = maxBp(card)
-        const parts = [
-            `${COLOR_LABELS[card.color]}`,
-            `コスト${card.cost}`,
-            TYPE_LABELS[card.type],
-        ]
+        const parts = [TYPE_LABELS[card.type]]
         if (bp !== null) parts.push(`BP${bp}`)
         if (card.rarity !== "") parts.push(card.rarity)
-        info.textContent = parts.join(" / ")
+        txt.textContent = parts.join(" / ")
+        info.appendChild(txt)
+
         el.appendChild(info)
 
         // 禁止カードの目印

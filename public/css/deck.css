@@ -249,6 +249,7 @@ input[type="text"] {
     font-size: 12px;
     margin-bottom: 4px;
     padding-right: 40px;
+    padding-left: 18px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -257,6 +258,9 @@ input[type="text"] {
 .pool-card .info {
     font-size: 11px;
     color: #cdd2e8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .pool-card.color-red {
@@ -303,7 +307,7 @@ input[type="text"] {
 .count-badge {
     position: absolute;
     top: -6px;
-    left: -6px;
+    right: -6px;
     background: #ffd968;
     color: #1a1d2b;
     font-size: 11px;
@@ -314,14 +318,53 @@ input[type="text"] {
 
 .add-btn {
     position: absolute;
-    top: 4px;
+    bottom: 4px;
     right: 4px;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     line-height: 1;
     font-size: 16px;
     border-radius: 50%;
+}
+
+.sym-icon {
+    position: relative;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    border: none;
+    vertical-align: middle;
+}
+.sym-icon.bg-red { background-image: url('/imgs/symbols/red_symbol.png'); }
+.sym-icon.bg-purple { background-image: url('/imgs/symbols/violet_symbol.png'); }
+.sym-icon.bg-green { background-image: url('/imgs/symbols/green_symbol.png'); }
+.sym-icon.bg-white { background-image: url('/imgs/symbols/white_symbol.png'); }
+.sym-icon.bg-yellow { background-image: url('/imgs/symbols/yallow_symbol.png'); }
+.sym-icon.bg-blue { background-image: url('/imgs/symbols/blue_symbol.png'); }
+
+.cost-badge {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1e293b;
+    border: 2px solid #475569;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    z-index: 10;
 }
 
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
@@ -466,14 +509,18 @@ input[type="text"] {
 }
 
 .row-cost {
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
+    width: 22px;
+    height: 22px;
+    line-height: 18px; /* adjusting for 2px border */
     text-align: center;
-    background: #3a4059;
+    background: #1e293b;
+    border: 2px solid #475569;
     border-radius: 50%;
     font-weight: bold;
     flex-shrink: 0;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    font-size: 11px;
 }
 
 .row-name {
