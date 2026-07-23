@@ -668,7 +668,20 @@ function show(id: string, visible: boolean): void {
     $(id).classList.toggle("hidden", !visible)
 }
 
+// innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
 // ---- 描画本体 ----
+
+// ライフ変動アニメーション用：直前に描画したライフ値を保持（初回はnullで比較しない）
+const prevLife: Record<PlayerId, number | null> = { p1: null, p2: null }
 
 export function render(view: GameView, ui: UiState): void {
     show("lobby", false)
@@ -799,12 +812,19 @@ export function render(view: GameView, ui: UiState): void {
     // バトル情報
     renderBattle(view)
 
-    // ログ
+    // ログ（内容のヒューリスティックでクラスを付与し、視認性を上げる。サーバーの文字列自体は変更しない）
     const logEl = $("log")
     logEl.innerHTML = ""
     for (const line of view.log) {
         const div = document.createElement("div")
         div.textContent = line
+        if (line.includes("ターン")) {
+            div.className = "log-turn"
+        } else if (line.includes("ステップ")) {
+            div.className = "log-phase"
+        } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
+            div.className = "log-important"
+        }
         logEl.appendChild(div)
     }
     logEl.scrollTop = logEl.scrollHeight
@@ -828,9 +848,12 @@ function renderInfo(
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
+    // ライフが前回描画より減っていれば、演出用クラスを付与（次回再描画で自然に消える）
+    const lifeDecreased = prevLife[pid] !== null && p.life < (prevLife[pid] as number)
+    prevLife[pid] = p.life
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
-        ["life", `❤ ${p.life}`],
+        ["life" + (lifeDecreased ? " life-changed" : ""), `❤ ${p.life}`],
         ["", `リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],
@@ -1261,20 +1284,34 @@ function renderBattle(view: GameView): void {
     // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
     const blocked = !!view.battle.blockerInstanceId
 
+    // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
+    let blockerText = ""
+    if (blocked) {
+        const defenderPid: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+        const blocker = view.players[defenderPid].field.spirits.find(
+            (s) => s.instanceId === view.battle?.blockerInstanceId,
+        )
+        if (blocker) {
+            const bm = master(blocker.cardId)
+            const blockerBp = effectiveBp(view, defenderPid, blocker)
+            blockerText = ` ブロッカー: ${bm.name}（BP${blockerBp}）。`
+        }
+    }
+
     let message: string
     if (blocked) {
         // ブロック宣言後の追加フラッシュ
         if (isDefender) {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。追加でフラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}追加でフラッシュマジックを使うか「パス」してください。`
             } else {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。相手の対応を待っています…`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}相手の対応を待っています…`
             }
         } else {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。フラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。相手の対応を待っています…`
+                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
             }
         }
     } else if (isDefender) {
@@ -1395,8 +1432,16 @@ export function setupEffectTooltip(): void {
         }
         
         if (m.effect) {
+            // 行頭が「Lv1」「Lv2」「Lv3」「フラッシュ」の行は強調表示する（innerHTMLのためエスケープ必須）
             const eff = document.createElement("div")
-            eff.textContent = m.effect
+            eff.innerHTML = m.effect
+                .split("\n")
+                .map((line) => {
+                    const escaped = escapeHtml(line)
+                    const isHighlight = /^(Lv[123]|フラッシュ)/.test(line)
+                    return `<div class="tooltip-effect-line${isHighlight ? " tooltip-effect-highlight" : ""}">${escaped}</div>`
+                })
+                .join("")
             tip.appendChild(eff)
         } else {
             const vanilla = document.createElement("div")

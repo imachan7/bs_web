@@ -248,7 +248,7 @@ input[type="text"] {
     font-weight: bold;
     font-size: 12px;
     margin-bottom: 4px;
-    padding-right: 26px;
+    padding-right: 40px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -314,14 +314,23 @@ input[type="text"] {
 
 .add-btn {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 22px;
-    height: 22px;
+    top: 4px;
+    right: 4px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     line-height: 1;
-    font-size: 14px;
+    font-size: 16px;
     border-radius: 50%;
+}
+
+/* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
+@media (hover: none) {
+    .add-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
 }
 
 /* ---- カード詳細 ---- */
@@ -485,10 +494,11 @@ input[type="text"] {
 }
 
 .row-minus {
-    width: 22px;
-    height: 22px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     line-height: 1;
+    font-size: 16px;
     background: #d44a4a;
     border-radius: 50%;
     flex-shrink: 0;
@@ -496,6 +506,15 @@ input[type="text"] {
 
 .row-minus:hover {
     background: #e05d5d;
+}
+
+/* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
+@media (hover: none) {
+    .row-minus {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
 }
 
 /* ---- 統計 ---- */
@@ -708,4 +727,14 @@ input[type="text"] {
     font-size: 13px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     z-index: 100;
+}
+
+/* ---- アクセシビリティ: モーション低減設定を尊重 ---- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
