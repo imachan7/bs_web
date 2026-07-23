@@ -572,6 +572,31 @@ function coreBonusFor(inst: CardInstance): number {
     return bonus
 }
 
+// 持ち主のコアステップで得られるコアの追加数（kind: "coreStepBonus"）を集計する。
+// フィールド（スピリット＋ネクサス）から発動条件を満たす発生源をすべて合算する
+// （ownFieldHasNames指定時は、指定カード名すべてが持ち主のスピリットにそろっているときのみ。ベル・ダンディア）。
+// PhaseManagerのコアステップから呼ぶ。
+export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    let bonus = 0
+    for (const inst of sources) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "coreStepBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition) {
+                const ok = effect.condition.ownFieldHasNames.every((name) =>
+                    player.field.spirits.some((s) => getCard(s.cardId).name === name),
+                )
+                if (!ok) continue
+            }
+            bonus += effect.amount
+        }
+    }
+    return bonus
+}
+
 // 対象スピリットへ「効果で」コアを置く共通処理。coreBonus（グラーバ）ぶんをボイドから追加する。
 function placeCoresOnSpirit(
     state: GameState,
@@ -962,6 +987,8 @@ export function destroyNexus(
     // （竜狩りのアーケオルニ）。バウンス（returnNexusToHand）はここを通らないため対象外
     fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
     fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
+    // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）
+    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed")
     return true
 }
 
@@ -1480,17 +1507,24 @@ export function resolveAction(
         }
 
         case "exhaustAllByLevel": {
-            // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）
+            // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）。
+            // "lastBattleDestroyed"指定時は直前のバトル解決で破壊されたブロッカーのLvを使用（0=まだ発生していない=不発。魔界伯爵ヴィール）
+            const level =
+                action.level === "lastBattleDestroyed" ? state.lastBattleDestroyedLevel : action.level
+            if (level === 0) {
+                log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいないため発動しなかった。`)
+                return
+            }
             let count = 0
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 for (const s of state.players[pid].field.spirits) {
-                    if (currentLevel(s).level !== action.level) continue
+                    if (currentLevel(s).level !== level) continue
                     if (s.isRested) continue
                     s.isRested = true
                     count++
                 }
             }
-            log(state, `${sourceName}：Lv${action.level}のスピリット${count}体を疲労させた。`)
+            log(state, `${sourceName}：Lv${level}のスピリット${count}体を疲労させた。`)
             return
         }
 
@@ -2170,7 +2204,7 @@ export function resolveAction(
         }
 
         case "refreshOne": {
-            // 自分の疲労スピリットから（keywordFilter/colorFilter/vanillaFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
+            // 自分の疲労スピリットから（keywordFilter/colorFilter/vanillaFilter/familyFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
             const candidates = state.players[owner].field.spirits.filter(
                 (s) =>
                     s.isRested &&
@@ -2178,7 +2212,9 @@ export function resolveAction(
                         spiritHasKeyword(state, owner, s, action.keywordFilter)) &&
                     (action.colorFilter === undefined ||
                         instHasColor(s, action.colorFilter)) &&
-                    (action.vanillaFilter === undefined || isVanillaCard(getCard(s.cardId))),
+                    (action.vanillaFilter === undefined || isVanillaCard(getCard(s.cardId))) &&
+                    (action.familyFilter === undefined ||
+                        spiritHasFamily(state, owner, s, action.familyFilter)),
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
@@ -3461,6 +3497,23 @@ export function resolveAction(
             return
         }
 
+        case "voidCoreToOwnNexuses": {
+            // ボイドからコアcount個ずつを、指定色（省略時は色不問）の自分のネクサスすべての上に置く（ボルカノ・ゴレム）
+            const nexuses = state.players[owner].field.nexuses.filter(
+                (n) => action.colorFilter === undefined || instHasColor(n, action.colorFilter),
+            )
+            if (nexuses.length === 0) {
+                log(state, `${sourceName}：対象のネクサスがなかった。`)
+                return
+            }
+            for (const n of nexuses) placeCoresOnSpirit(state, n, action.count)
+            log(
+                state,
+                `${sourceName}：ボイドからコア${action.count}個ずつを${nexuses.length}枚のネクサスの上に置いた。`,
+            )
+            return
+        }
+
         case "voidCoreToTarget": {
             // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）
             const target = targetInstanceId
@@ -4039,7 +4092,10 @@ export function fireFieldEventTriggers(
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             if (effect.familyFilter !== undefined && !eventInfo?.families?.includes(effect.familyFilter)) continue
             if (effect.condition) {
-                if ("ownColorTotalAtLeast" in effect.condition) {
+                if (effect.condition === "selfIsAttacking") {
+                    // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
+                    if (!state.battle || state.battle.attackerInstanceId !== inst.instanceId) continue
+                } else if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
                     const { color, count } = effect.condition.ownColorTotalAtLeast
                     const sources = [...player.field.spirits, ...player.field.nexuses]

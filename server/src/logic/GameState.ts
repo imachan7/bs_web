@@ -172,6 +172,7 @@ export function createGame(
         endAttackStepAfterBattle: false,
         turnConstraints: [],
         lastBattleDestroyedCores: 0,
+        lastBattleDestroyedLevel: 0,
         pendingChoice: null,
         interactiveTargets: false,
         events: [],

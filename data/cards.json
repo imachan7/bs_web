@@ -12673,7 +12673,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、その破壊したスピリットと同じLvのスピリットすべてを疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-021-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaustAllByLevel",
+     "level": "lastBattleDestroyed"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-022",
@@ -12930,7 +12945,20 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2\n自分の手札にある【神速】を持つスピリットカードすべてに軽減シンボル[緑]を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-027-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     2
+    ],
+    "cardType": "spirit",
+    "keywordFilter": "soku",
+    "symbols": [
+     "green"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-028",
@@ -13547,7 +13575,37 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3『このスピリットのブロック時』\n系統：「巨獣」を持つ自分のスピリット1体を回復させる。\nLv3『自分のコアステップ』\n自分のフィールドにカード名[ウル・ディーネ]、[ベル・ダンディア]、[スクルディア]がそろっているとき、コアステップで得られるコアを+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-040-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshOne",
+     "familyFilter": "巨獣"
+    }
+   },
+   {
+    "id": "BS03-040-e2",
+    "kind": "coreStepBonus",
+    "levels": [
+     3
+    ],
+    "amount": 1,
+    "condition": {
+     "ownFieldHasNames": [
+      "ウル・ディーネ",
+      "ベル・ダンディア",
+      "スクルディア"
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-041",
@@ -14015,7 +14073,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\n自分がマジックの効果を使用するたび、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-050-e1",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "levels": [
+     2
+    ],
+    "condition": "selfIsAttacking",
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-051",
@@ -15490,7 +15562,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットは、自分のネクサスが破壊されたとき回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-082-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-083",
@@ -16412,7 +16497,25 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドから、コア1個ずつを自分の青のネクサスすべての上に置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-101-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "colorFilter": "blue",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-102",

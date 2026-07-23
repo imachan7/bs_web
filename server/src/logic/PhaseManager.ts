@@ -2,7 +2,7 @@
 import type { GameState } from "../type"
 import { FIRST_TURN_DRAW } from "../../../data/constants"
 import { draw, log } from "./GameState"
-import { activeConstraints, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める
 export function runTurnStart(state: GameState): void {
@@ -14,10 +14,15 @@ export function runTurnStart(state: GameState): void {
     fireStepTriggers(state, "start")
     if (state.winner) return
 
-    // コアステップ：リザーブにコアを1個追加
+    // コアステップ：リザーブにコアを1個追加（coreStepBonus持ち＝ベル・ダンディア等で+amount）
     state.phase = "core"
-    player.reserve += 1
-    log(state, `${player.name}はリザーブにコアを1個置いた。`)
+    const coreStepBonus = coreStepBonusFor(state, pid)
+    player.reserve += 1 + coreStepBonus
+    if (coreStepBonus > 0) {
+        log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+    } else {
+        log(state, `${player.name}はリザーブにコアを1個置いた。`)
+    }
     fireStepTriggers(state, "core")
     if (state.winner) return
 

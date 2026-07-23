@@ -689,6 +689,8 @@ function resolveBattle(state: GameState): void {
 
     // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGainPer counter "lastBattleDestroyedCores"）
     state.lastBattleDestroyedCores = 0
+    // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaustAllByLevel level "lastBattleDestroyed"）
+    state.lastBattleDestroyedLevel = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColor = getCard(attacker.cardId).color
@@ -717,8 +719,9 @@ function resolveBattle(state: GameState): void {
     const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
 
     if (attackerValue > blockerValue) {
-        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
+        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
+        state.lastBattleDestroyedLevel = blockerLevel
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",

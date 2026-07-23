@@ -70,6 +70,7 @@ function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData):
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && card.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
             if (effect.condition) {
                 const { color, count } = effect.condition.ownColorTotalAtLeast
                 const total = sources.filter((s) => getCard(s.cardId).color === color).length

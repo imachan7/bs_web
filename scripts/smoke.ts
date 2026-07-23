@@ -31,6 +31,7 @@ import "./smoke/part28"
 import "./smoke/part29"
 import "./smoke/part30"
 import "./smoke/part31"
+import "./smoke/part32"
 import { summary } from "./smoke/helpers"
 
 summary()
