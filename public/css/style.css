@@ -1085,6 +1085,15 @@ button:active {
 
 /* ---- レスポンシブ: スマホ ---- */
 @media (max-width: 480px) {
+    /* フェイズ名を1文字表記に切り替え（375px幅で7ステップ＋ボタン類が収まらないため） */
+    .phase-step {
+        font-size: 0;
+        padding: 3px 5px;
+    }
+    .phase-step::before {
+        content: attr(data-short);
+        font-size: 10px;
+    }
     .spirit-zone .card {
         width: 54px;
         height: 54px;
