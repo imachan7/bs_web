@@ -252,6 +252,8 @@ function doCastMagic(
     player.hand.splice(handIndex, 1)
     player.trashCards.push(cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
+    // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
+    state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
 
     // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
     if (state.battle) {

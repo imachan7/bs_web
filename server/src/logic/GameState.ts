@@ -25,7 +25,7 @@ import {
 // CommonJS の循環require（関数宣言はホイストされ、モジュール読み込み完了時点で exports に
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
-import { emitEvent, fireFieldEventTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 
 // ---- カードマスターデータの読み込み ----
 
@@ -176,6 +176,7 @@ export function createGame(
         interactiveTargets: false,
         events: [],
         eventSeq: 0,
+        magicUsedThisTurn: { p1: 0, p2: 0 },
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)
@@ -223,6 +224,8 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
     // フィールド未初期化での呼び出しは発生しない（createPlayerがfield.spirits/nexusesを
     // 同期的に初期化済みでもあり、fireFieldEventTriggersはフィールドが空でも安全に何もしない）。
     fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew")
+    // フィールドイベント誘発「相手の手札にカードが加えられたとき」（犬人マードック／英雄の喪失）
+    notifyHandGained(state, pid, count)
 }
 
 // コア数のみによる素のレベル判定（levelAsContinuous / levelOverrideThisTurn による上書きは無視する）。

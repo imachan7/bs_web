@@ -513,6 +513,40 @@ function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): C
     return extra
 }
 
+// マジック使用制約（kind: "magicRestriction"）の判定（サーバー hasMagicRestriction と同じロジックの簡易版）
+function hasMagicRestriction(
+    view: GameView,
+    usingPid: PlayerId,
+    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent",
+): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
+        const sources = [...view.players[ownerPid].field.spirits, ...view.players[ownerPid].field.nexuses]
+        for (const source of sources) {
+            const level = levelOf(source).level
+            for (const effect of master(source.cardId).effects) {
+                if (effect.kind !== "magicRestriction") continue
+                if (effect.restriction !== restriction) continue
+                if (!(effect.levels === null || effect.levels.includes(level))) continue
+                if (effect.turn === "own" && ownerPid !== view.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === view.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// pidのフィールドが持つシンボルの色集合（サーバー ownFieldSymbolColors と同じロジックの簡易版。力奪う凱旋門）
+function ownFieldSymbolColors(view: GameView, pid: PlayerId): Set<Color> {
+    const colors = new Set<Color>()
+    const all = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const inst of all) {
+        for (const sym of master(inst.cardId).symbol) colors.add(sym)
+    }
+    return colors
+}
+
 export function effectiveCost(
     view: GameView,
     pid: PlayerId,
@@ -520,13 +554,19 @@ export function effectiveCost(
 ): number {
     const field = view.players[pid].field
     const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
+    const reductionBlocked = card.type === "magic" && hasMagicRestriction(view, pid, "noReductionOpponent")
     let symbols = 0
-    for (const inst of [...field.spirits, ...field.nexuses]) {
-        for (const sym of master(inst.cardId).symbol) {
-            if (reductionColors.includes(sym)) symbols++
+    if (!reductionBlocked) {
+        for (const inst of [...field.spirits, ...field.nexuses]) {
+            for (const sym of master(inst.cardId).symbol) {
+                if (reductionColors.includes(sym)) symbols++
+            }
         }
     }
-    const base = Math.max(card.cost - Math.min(reductionColors.length, symbols), 0)
+    const base = Math.max(
+        card.cost - (reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)),
+        0,
+    )
     return base + costModTotal(view, pid, card)
 }
 
@@ -1231,8 +1271,16 @@ function renderHand(view: GameView, ui: UiState): void {
         const flashSummonable =
             m.type === "spirit" && (hasKeyword(cardId, "soku") || tempSokuCardIds.has(cardId))
 
+        // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
+        // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）
+        const magicColorLocked =
+            m.type === "magic" &&
+            hasMagicRestriction(view, view.you, "colorLockOpponent") &&
+            !ownFieldSymbolColors(view, view.you).has(m.color)
+
         const usable =
             !view.pendingChoice &&
+            !magicColorLocked &&
             ((myMainFree && reserve >= need) ||
                 (inFlash &&
                     !flashLocked &&

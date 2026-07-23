@@ -160,6 +160,7 @@ export type FieldEvent =
     | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
     | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
     | "ownFunsaiMilled" // 自分のスピリットの【粉砕】が相手のデッキをトラッシュへ送ったとき（発火は粉砕解決ごとに1回。repeatPerCount指定時は実破棄枚数ぶんアクションを繰り返す）
+    | "opponentHandAdded" // 持ち主から見て相手の手札にカードが加えられたとき（notifyHandGainedから発火。犬人マードック／英雄の喪失）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -328,7 +329,8 @@ export type EffectDef =
           condition?:
               | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
               | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（instHasColor判定。修理屋バラン・バラン）
-          repeatPerCount?: boolean // event: "ownFunsaiMilled" 用：実破棄枚数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン）
+          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック）
+          familyFilter?: string // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの系統がこれを含むときのみ発火（英雄の喪失）
       }
     | {
           id: string
@@ -486,6 +488,16 @@ export type EffectDef =
           kind: "funsaiOnBlock" // 持ち主のスピリットの【粉砕】を『このスピリットのブロック時』にも発揮させる（士気高き大本営Lv1-2）
           levels: number[] | null
       }
+    | {
+          id: string
+          kind: "magicRestriction" // フィールドの発生源からマジックの使用に制約をかける
+          levels: number[] | null
+          restriction:
+              | "oncePerTurnAll" // お互い、ターンに1回しかマジックの効果を使用できない（作戦参謀フォクシン）
+              | "noReductionOpponent" // 発生源の持ち主の相手は、マジック使用時に軽減シンボルによるコスト軽減ができない（イワトビペンタン）
+              | "colorLockOpponent" // 発生源の持ち主の相手は、自分（=使用者）のフィールドのシンボルと同じ色を含まないマジックカードを使用できない（力奪う凱旋門）
+          turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効
+      }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
 export interface CardData {
@@ -595,6 +607,7 @@ export interface GameState {
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）
     eventSeq: number // GameEvent.seq の通し番号（クリアしてもリセットしない）
+    magicUsedThisTurn: Record<PlayerId, number> // このターンに各プレイヤーがマジックを使用した回数（ターン終了でリセット。magicRestriction:"oncePerTurnAll"用。作戦参謀フォクシン）
 }
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）

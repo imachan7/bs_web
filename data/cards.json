@@ -14915,7 +14915,27 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のターン』\n相手がマジックの効果を使用するとき、軽減シンボルによるコストの軽減はできなくなる。\nLv2『自分のターン』\n相手がマジックの効果を使用するとき、軽減シンボルによるコストの軽減はできなくなる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-069-e1",
+    "kind": "magicRestriction",
+    "restriction": "noReductionOpponent",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent"
+   },
+   {
+    "id": "BS03-069-e2",
+    "kind": "magicRestriction",
+    "restriction": "noReductionOpponent",
+    "levels": [
+     2
+    ],
+    "turn": "own"
+   }
+  ]
  },
  {
   "cardId": "BS03-070",
@@ -15158,7 +15178,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のメインステップ』\nマジック/ネクサスの効果で相手の手札にカードが加えられたとき、相手のフィールド/リザーブから、そのカード1枚につき、コア1個を相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-075-e1",
+    "kind": "fieldEvent",
+    "event": "opponentHandAdded",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "repeatPerCount": true,
+    "action": {
+     "type": "coreToOpponentTrashChoice",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-076",
@@ -15326,7 +15362,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nお互い、ターンに1回しかマジックの効果を使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-079-e1",
+    "kind": "magicRestriction",
+    "restriction": "oncePerTurnAll",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-080",
@@ -17002,7 +17048,17 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2\n相手は、相手のフィールドにあるシンボルと同じ色を含まない、マジックカードを使用できない。\nLv2\n相手はコストを支払わなければ、マジックカードを使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-113-e1",
+    "kind": "magicRestriction",
+    "restriction": "colorLockOpponent",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-114",
@@ -17143,7 +17199,38 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『相手のメインステップ』\n相手の手札にカードが加えられたとき、相手のデッキを上から、そのカード1枚につき1枚破棄する。\nLv2『お互いのアタックステップ』\n系統：「勇傑」を持つ自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、相手はデッキを上から5枚破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-116-e1",
+    "kind": "fieldEvent",
+    "event": "opponentHandAdded",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "repeatPerCount": true,
+    "action": {
+     "type": "mill",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-116-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "byBattleOnly": true,
+    "familyFilter": "勇傑",
+    "action": {
+     "type": "mill",
+     "count": 5
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-117",

@@ -231,13 +231,16 @@ export function resolveKoboOnBattleEnd(
     )
     if (!hasKobo) return
     const player = state.players[attackerPid]
+    let recovered = 0
     for (const cardId of usedMagicCardIds) {
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue
         player.trashCards.splice(idx, 1)
         player.hand.push(cardId)
+        recovered++
         log(state, `【光芒】${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
     }
+    notifyHandGained(state, attackerPid, recovered)
 }
 
 // 状態を考慮した系統判定：
@@ -756,6 +759,7 @@ export function destroySpirit(
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color, undefined, undefined, {
         vanilla: isVanillaCard(master),
         byBattle: context?.battle !== undefined,
+        families: master.family,
     })
 }
 
@@ -834,6 +838,7 @@ function tryReviveOnDestroy(
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
+            notifyHandGained(state, ownerPid, 1)
         } else {
             inst.isRested = revived.rested
         }
@@ -978,6 +983,7 @@ export function returnNexusToHand(
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
+    notifyHandGained(state, ownerPid, 1)
 }
 
 // スピリットを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
@@ -996,6 +1002,7 @@ export function returnSpiritToHand(
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}は手札に戻った。`)
+    notifyHandGained(state, ownerPid, 1)
 }
 
 // スピリットを持ち主のデッキの一番上へ戻す：コアはリザーブへ、カードはデッキトップへ。
@@ -1722,6 +1729,7 @@ export function resolveAction(
                 player.trashCards.splice(idx, 1)
                 player.hand.push(self.cardId)
                 log(state, `${getCard(self.cardId).name}は手札に戻った。`)
+                notifyHandGained(state, owner, 1)
             }
             return
         }
@@ -2622,6 +2630,7 @@ export function resolveAction(
                         state,
                         `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開し、${picked.map((id) => getCard(id).name).join("、")}を手札に加えた。`,
                     )
+                    notifyHandGained(state, owner, picked.length)
                 }
                 for (const id of remaining) player.deck.push(id)
                 return
@@ -2643,6 +2652,7 @@ export function resolveAction(
                     state,
                     `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開し、${getCard(pickedId!).name}を手札に加えた。`,
                 )
+                notifyHandGained(state, owner, 1)
             }
             // 残ったカードは公開順のまま山札の下に戻す（下に戻す＝push）
             for (const id of revealed) player.deck.push(id)
@@ -2661,6 +2671,7 @@ export function resolveAction(
                 player.trashCards.splice(chosenCardIndex, 1)
                 player.hand.push(cardId)
                 log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+                notifyHandGained(state, owner, 1)
                 return
             }
             if (state.interactiveTargets) {
@@ -2687,6 +2698,7 @@ export function resolveAction(
             }
             // 既存の決定的自動選択：トラッシュの末尾（新しい方）からスピリットカードを探して
             // count枚手札に戻す（本来は好きな1枚を選べるが、決定的な自動選択で簡略化）
+            let recovered = 0
             for (let i = 0; i < action.count; i++) {
                 let idx = -1
                 for (let j = player.trashCards.length - 1; j >= 0; j--) {
@@ -2702,8 +2714,10 @@ export function resolveAction(
                 const cardId = player.trashCards[idx]!
                 player.trashCards.splice(idx, 1)
                 player.hand.push(cardId)
+                recovered++
                 log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
             }
+            notifyHandGained(state, owner, recovered)
             return
         }
 
@@ -2889,6 +2903,7 @@ export function resolveAction(
                 player.trashCards.splice(chosenCardIndex, 1)
                 player.hand.push(cardId)
                 log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+                notifyHandGained(state, owner, 1)
                 return
             }
             if (state.interactiveTargets) {
@@ -2928,6 +2943,7 @@ export function resolveAction(
             player.trashCards.splice(idx, 1)
             player.hand.push(cardId)
             log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+            notifyHandGained(state, owner, 1)
             return
         }
 
@@ -4004,7 +4020,7 @@ export function fireFieldEventTriggers(
     eventColor?: Color,
     targetInstanceId?: string,
     eventCount?: number,
-    eventInfo?: { vanilla?: boolean; byBattle?: boolean },
+    eventInfo?: { vanilla?: boolean; byBattle?: boolean; families?: string[] },
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -4021,6 +4037,7 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            if (effect.familyFilter !== undefined && !eventInfo?.families?.includes(effect.familyFilter)) continue
             if (effect.condition) {
                 if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
@@ -4053,6 +4070,15 @@ export function fireFieldEventTriggers(
             }
         }
     }
+}
+
+// フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
+// 手札を得たプレイヤー(gainerPid)の相手側フィールドから発火する（犬人マードック／英雄の喪失）。
+// ドロー・トラッシュ回収・deckReveal・バウンス（ネクサス／スピリット）・reviveOnDestroy の
+// toHand など、初期手札配布を除く手札加入箇所すべてから呼ぶ。count省略時/0以下・勝敗確定後は何もしない
+export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: number): void {
+    if (count < 1 || state.winner) return
+    fireFieldEventTriggers(state, opponentOf(gainerPid), "opponentHandAdded", undefined, undefined, undefined, count)
 }
 
 // マジックカードの効果を実行する（timing に一致するすべての効果を配列順に実行）。
