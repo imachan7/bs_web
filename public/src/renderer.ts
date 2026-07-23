@@ -7,6 +7,7 @@ import type {
     CardInstance,
     Color,
     ConstraintDef,
+    GameEvent,
     GameView,
     GlobalConstraintDef,
     Keyword,
@@ -680,10 +681,56 @@ function escapeHtml(str: string): string {
 
 // ---- 描画本体 ----
 
-// ライフ変動アニメーション用：直前に描画したライフ値を保持（初回はnullで比較しない）
-const prevLife: Record<PlayerId, number | null> = { p1: null, p2: null }
+// イベント通知レイヤー：直前に処理済みのGameEvent.seq（初回は0で全件未処理扱い）
+let lastEventSeq = 0
+
+// バナー1件が画面に残る時間（CSSの event-banner-inout と合わせる）
+const EVENT_BANNER_DURATION_MS = 800
+
+function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
+    switch (ev.type) {
+        case "summon":
+            return `✨ ${ev.cardName} 召喚`
+        case "destroy":
+            return `💥 ${ev.cardName} 破壊`
+        case "magic":
+            return `📜 ${ev.cardName} 使用`
+        case "draw":
+            // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
+            return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
+        case "lifeDamage":
+            return null // バナーは出さず、ライフ表示のシェイク演出のみ
+    }
+}
+
+// view.events のうち前回描画より新しいものだけを処理する：
+// 召喚・破壊・マジック・相手ドローはオーバーレイのバナー通知、ライフダメージは
+// 対象プレイヤーのpidを集めて返す（renderInfoでの life-changed クラス付与に使う）
+function processNewEvents(view: GameView): Set<PlayerId> {
+    const layer = document.getElementById("event-layer")
+    const lifeDamagedPids = new Set<PlayerId>()
+    const newEvents = view.events.filter((ev) => ev.seq > lastEventSeq)
+    for (const ev of newEvents) {
+        if (ev.type === "lifeDamage") {
+            lifeDamagedPids.add(ev.pid)
+            continue
+        }
+        const text = eventBannerText(ev, view.you)
+        if (text === null || !layer) continue
+        const banner = document.createElement("div")
+        banner.className = `event-banner event-${ev.type}`
+        banner.textContent = text // サーバー由来の文字列（cardName等）を含むためtextContentで挿入
+        layer.appendChild(banner)
+        setTimeout(() => banner.remove(), EVENT_BANNER_DURATION_MS)
+    }
+    if (newEvents.length > 0) {
+        lastEventSeq = newEvents.reduce((max, ev) => Math.max(max, ev.seq), lastEventSeq)
+    }
+    return lifeDamagedPids
+}
 
 export function render(view: GameView, ui: UiState): void {
+    const lifeDamagedPids = processNewEvents(view)
     show("lobby", false)
     show("game", true)
 
@@ -799,8 +846,8 @@ export function render(view: GameView, ui: UiState): void {
     }
 
     // プレイヤー情報
-    renderInfo("opp-info", view, opp, false)
-    renderInfo("my-info", view, you, true)
+    renderInfo("opp-info", view, opp, false, lifeDamagedPids.has(opp))
+    renderInfo("my-info", view, you, true, lifeDamagedPids.has(you))
 
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
@@ -844,16 +891,15 @@ function renderInfo(
     view: GameView,
     pid: PlayerId,
     isSelf: boolean,
+    lifeDamaged: boolean,
 ): void {
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
-    // ライフが前回描画より減っていれば、演出用クラスを付与（次回再描画で自然に消える）
-    const lifeDecreased = prevLife[pid] !== null && p.life < (prevLife[pid] as number)
-    prevLife[pid] = p.life
+    // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
-        ["life" + (lifeDecreased ? " life-changed" : ""), `❤ ${p.life}`],
+        ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         ["", `リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],

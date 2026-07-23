@@ -208,6 +208,17 @@ export interface AuraDef {
     vanillaFilter?: true // ownAll 用: カードに効果の記述を持たない（バニラ）スピリットのみ（無法者の荒野）
 }
 
+// クライアント演出用のゲームイベント（アクション単位の一時データ）。
+// GameEngine.handleAction の冒頭で state.events をクリアし、1アクションで発生した分だけを
+// クライアントへ配信する。seq は state.eventSeq の通し番号（クリアしてもリセットしない）で、
+// クライアントは前回処理済みの seq より大きいものだけをアニメーション再生する。
+export type GameEvent =
+    | { seq: number; type: "summon"; pid: PlayerId; cardName: string } // 召喚（神速召喚含む）
+    | { seq: number; type: "destroy"; pid: PlayerId; cardName: string } // 破壊・消滅（cause問わず）
+    | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
+    | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
+    | { seq: number; type: "magic"; pid: PlayerId; cardName: string } // マジック使用
+
 // ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
@@ -582,6 +593,8 @@ export interface GameState {
     lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
+    events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）
+    eventSeq: number // GameEvent.seq の通し番号（クリアしてもリセットしない）
 }
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
@@ -621,6 +634,7 @@ export interface GameView {
     you: PlayerId
     turnConstraints: TurnConstraintDef[]
     pendingChoice: PendingChoice | null // 相手視点では candidates を空配列・prompt をマスクして配信（viewFor）
+    events: GameEvent[] // クライアント演出用の一時イベント列（隠匿情報なし。viewForがそのまま渡す）
 }
 
 // ---- クライアント → サーバーのアクション ----

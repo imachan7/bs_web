@@ -25,7 +25,7 @@ import {
 // CommonJS の循環require（関数宣言はホイストされ、モジュール読み込み完了時点で exports に
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
-import { fireFieldEventTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { emitEvent, fireFieldEventTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ---- カードマスターデータの読み込み ----
 
@@ -174,6 +174,8 @@ export function createGame(
         lastBattleDestroyedCores: 0,
         pendingChoice: null,
         interactiveTargets: false,
+        events: [],
+        eventSeq: 0,
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)
@@ -211,6 +213,7 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
         player.hand.push(cardId)
     }
     log(state, `${player.name}は${count}枚ドローした。`)
+    emitEvent(state, { type: "draw", pid, count })
     // フィールドイベント誘発「相手がドローしたとき」：ドローしたpidの相手側（opponentOf(pid)）の
     // フィールドから発火する（シダフクロウ＝「相手がドローするとき、このスピリットは回復する」）。
     // 注意（無限ループ）: ここで発火するactionがdrawを含むカードがあると、
@@ -360,5 +363,6 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
                 ? { ...state.pendingChoice }
                 : maskPendingChoiceForOpponent(state.pendingChoice)
             : null,
+        events: [...state.events],
     }
 }

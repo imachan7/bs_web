@@ -18,6 +18,7 @@ import type {
     EffectCounter,
     EffectDef,
     FieldEvent,
+    GameEvent,
     GameState,
     GlobalConstraintDef,
     Keyword,
@@ -51,6 +52,20 @@ function getAllFamilies(): string[] {
         ).sort()
     }
     return allFamiliesCache
+}
+
+// ---- クライアント演出用イベント ----
+
+// GameEvent からseqを除いたユニオン（分配条件型でバリアントごとに正しくOmitする。
+// 組み込みのOmitを直接ユニオンへ適用するとバリアント固有プロパティが消えてしまうため）
+type WithoutSeq<T> = T extends { seq: number } ? Omit<T, "seq"> : never
+
+// state.events にイベントを1件積む（seqはstate.eventSeqをインクリメントして自動採番）。
+// GameEngine.handleAction冒頭でstate.eventsをクリアするため、1アクションで発生した分だけが
+// クライアントへ配信される（召喚・破壊・ドロー・ライフダメージ・マジック使用）
+export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void {
+    state.eventSeq += 1
+    state.events.push({ ...event, seq: state.eventSeq } as GameEvent)
 }
 
 // ---- キーワードレジストリ ----
@@ -728,6 +743,7 @@ export function destroySpirit(
         state,
         `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
     )
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
 
     if (cause === "destroy") {
         fireTrigger(state, ownerPid, inst, "onDestroy")
@@ -2361,6 +2377,7 @@ export function resolveAction(
                 state,
                 `${sourceName}：${player.name}のライフからコア${dealt}個をリザーブに置いた。（残りライフ${player.life}）`,
             )
+            if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
             if (player.life <= 0 && !state.winner) {
                 state.winner = owner
                 log(state, `${state.players[owner].name}の勝利！`)
@@ -4056,6 +4073,7 @@ export function resolveMagic(
         state.battle.usedMagicCardIds[owner].push(cardId)
     }
     const card = getCard(cardId)
+    emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
     const effects = card.effects

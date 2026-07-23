@@ -18,6 +18,7 @@ import {
     destroySpirit,
     effectActiveAtLevel,
     effectiveBp,
+    emitEvent,
     fireBattleWonTriggers,
     fireFieldEventTriggers,
     fireTrigger,
@@ -53,6 +54,8 @@ export function handleAction(
 ): string | null {
     if (state.winner) return "ゲームはすでに終了しています"
 
+    // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
+    state.events = []
     const result = dispatchAction(state, pid, action)
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
@@ -195,6 +198,7 @@ function doSummon(
     player.field.spirits.push(inst)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     log(state, `${player.name}は${flashNote}${card.name}を召喚した。（コスト${cost}）`)
+    emitEvent(state, { type: "summon", pid, cardName: card.name })
 
     fireTrigger(state, pid, inst, "onSummon")
     // フラッシュ中（神速召喚）は優先権を相手へ移す
@@ -496,6 +500,7 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
             `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
         )
     }
+    if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid, amount: dealt })
 
     if (defender.life <= 0) {
         state.winner = attackerPid
