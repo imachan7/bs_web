@@ -19944,7 +19944,36 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-025-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-025-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-026",
@@ -20230,7 +20259,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-032-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-033",
@@ -20382,7 +20424,31 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nこのスピリットはアタックできない。\nLv1･Lv2\n自分のライフが減ったとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-036-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "BS04-036-e2",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-037",
@@ -20490,7 +20556,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n【神速】を持つ自分のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\n【神速】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、自分のフィールド/リザーブにあるコア1個を自分のトラッシュに置くことで手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-039-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "soku",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-040",
@@ -20659,7 +20744,19 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットは、相手のスピリット/マジックの効果を受けない。\nLv2\n自分のライフが減ったとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-043-e1",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-044",
@@ -22577,7 +22674,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のネクサス1つがLv2になるように、ボイドからコアを置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-098-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-099",
@@ -22618,7 +22725,26 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nLv1スピリットすべてを疲労させる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-100-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "exhaustAllByLevel",
+     "level": 1
+    }
+   },
+   {
+    "id": "BS04-100-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-101",
