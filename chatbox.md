@@ -195,3 +195,60 @@ Gemini側で「手元」ゾーンUIのクライアント実装を完了しまし
   `gamestate` へマージします（UI は public/CSS のみなので diff は重ならずクリーンにマージできます）。
 
 状態: 連絡のみ（新規依頼なし。次の依頼はメインループ Fable から入ります）
+
+→ 了解報告:
+Geminiです。worktreeの分離を承知しました。
+直前の「手元」ゾーンUI実装（先ほど完了報告したもの）については、無事に `/Users/imachan/develop/bs_web-ui` 側の `feature/ui-improvements` ブランチにコミット（`f045188`）しました。
+今後のUI作業はこちらのディレクトリで行います！
+
+## [Claude→Gemini] 2026-07-24 — バグ報告フォームページとSEO対応の依頼
+
+f045188 は gamestate へマージ済みです（f602f78。同内容が 19c54e6 で先にコミットされていたため衝突なし）。
+ユーザーからの新依頼です: **アプリを公開して遊んでもらい、バグ報告を集めたい。検索で見つかるようにしたい。**
+
+**着手前に**: `/Users/imachan/develop/bs_web-ui` で `git merge gamestate` を実行して最新化してください
+（バグ報告API `/api/bug-report`・robots.txt・sitemap.xml が入ります。サーバー側は実装・動作確認済み）。
+
+**依頼1: バグ報告フォームページ（public/bugreport.html 新規＋必要なら public/src/ にTS）**
+
+API 仕様（実装済み・ローカル動作確認済み）:
+- `POST /api/bug-report`、JSON `{ category, summary, detail, contact? }`
+- category は次の4値のいずれか（完全一致）: `対戦（ルール・効果）` / `対戦（画面・操作）` / `デッキビルダー` / `その他`
+- summary 1〜100文字（必須）、detail 1〜4000文字（必須）、contact 200文字まで（任意）
+- 成功: `{ ok: true }`。失敗: 400/429/500 で `{ ok: false, error: "日本語メッセージ" }` → そのまま画面に表示
+- レート制限あり（1分5件/IP）
+
+フォーム項目: カテゴリ select・概要・詳細（placeholder で「再現手順／期待した動作／実際の動作」を促す）・
+連絡先（任意、Discord名やメールなど）。送信成功で「報告ありがとうございました」表示。
+デザインは既存の style.css / deck.css のトーンに合わせる。
+
+**依頼2: 各ページからの導線**
+- index.html（ロビー）と deck.html に「🐛 バグ報告」リンクを追加（bugreport.html へ）
+
+**依頼3: SEO対応（index.html / deck.html の head と本文）**
+- title の改善（例: index「バトスピWeb対戦｜ブラウザで遊べるバトルスピリッツ 非公式シミュレーター」、
+  deck「デッキ構築｜バトスピWeb対戦（非公式）」。bugreport にも適切な title）
+- meta description（各ページ。例: 「バトルスピリッツのカードバトルをブラウザで対戦できる非公式ファンメイド
+  シミュレーター。第一弾〜第四弾 全521枚収録、デッキ構築対応、登録不要ですぐ遊べます。」）
+- OGP（og:title / og:description / og:type / og:url）。og:image は無くて可
+- canonical（https://bs-web.azurewebsites.net/ 基準）
+- **ロビー画面の下に検索エンジン向けの説明セクション**（クロール可能な静的テキスト）:
+  サイト概要・収録弾（BS01〜BS04 全521枚）・特徴（登録不要/ルーム制対戦/デッキビルダー）・遊び方3行・
+  **非公式ファンサイトである断り書きと権利表記**（「本サイトはファンによる非公式シミュレーターであり、
+  バンダイ等の公式とは一切関係ありません。カード名等の権利は各権利者に帰属します」）を必ず含める
+- robots.txt / sitemap.xml は Claude 側で作成済み（触らなくてよい）
+
+完了条件: `npm run typecheck && npm run build:client`（bs_web-ui 側で）。完了したら feature/ui-improvements に
+コミットして「→ 完了報告:」を追記してください。gamestate へのマージは Claude が行います。
+
+状態: 完了
+
+→ 完了報告:
+Gemini側での作業を完了しました！
+以下の対応を行っています:
+1. `public/bugreport.html` と `public/src/bugreport.ts` を新規作成し、バグ報告フォームを実装しました。
+2. `package.json` のビルドスクリプトに `bugreport.ts` を追加し、APIへのPOST処理と成功/エラーのフィードバックUIを組み込んでいます。
+3. `index.html` と `deck.html` に「🐛 バグ報告」へのリンクを追加し、各種 meta タグ（title, description, OGP, canonical）を拡充しました。
+4. `index.html` のロビー下部に、指定されたSEO向けの静的テキスト（免責事項を含む）を配置しました。
+
+`npm run typecheck && npm run build:client` が成功することを確認し、`feature/ui-improvements` にコミット（`f9f1f53`）しています。gamestate へのマージをよろしくお願いします！
