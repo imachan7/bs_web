@@ -86,10 +86,12 @@ function shuffle<T>(array: T[]): T[] {
 const MAX_COPIES = 3
 
 // カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
-// 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど / 同名（カード名で合算）3枚まで / 禁止カード不可
+// 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど /
+// 同名（カード名で合算）min(3, limitCount)枚まで（制限カードはlimitCountで3枚未満に絞る） / 禁止カード不可
 export function validateDeckCards(cards: Record<string, number>): string | null {
     let total = 0
     const byName = new Map<string, number>()
+    const nameLimit = new Map<string, number>()
     for (const [cardId, count] of Object.entries(cards)) {
         const card = CARD_DB.get(cardId)
         if (!card) return `存在しないカードIDが含まれています: ${cardId}`
@@ -101,10 +103,14 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
         }
         total += count
         byName.set(card.name, (byName.get(card.name) ?? 0) + count)
+        const limit =
+            card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
+        nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? MAX_COPIES, limit))
     }
     for (const [name, count] of byName) {
-        if (count > MAX_COPIES) {
-            return `同名カードは${MAX_COPIES}枚までです: ${name}（${count}枚）`
+        const limit = nameLimit.get(name) ?? MAX_COPIES
+        if (count > limit) {
+            return `同名カードは${limit}枚までです: ${name}（${count}枚）`
         }
     }
     if (total !== DECK_SIZE) {

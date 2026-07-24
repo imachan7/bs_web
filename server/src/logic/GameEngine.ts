@@ -31,6 +31,7 @@ import {
     resolveFunsai,
     resolveKoboOnBattleEnd,
     resolveMagic,
+    resolveTensho,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -202,6 +203,8 @@ function doSummon(
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
     fireTrigger(state, pid, inst, "onSummon")
+    // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
+    if (!state.winner) resolveTensho(state, pid, inst)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null

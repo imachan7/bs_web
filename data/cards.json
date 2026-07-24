@@ -19136,7 +19136,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-010-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-011",
@@ -19518,7 +19531,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-020-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-021",
@@ -19926,7 +19952,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-031-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-032",
@@ -20406,7 +20445,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-044-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-045",
@@ -20819,7 +20871,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-055-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-056",
@@ -21458,7 +21523,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "【転召：コスト5以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-073-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 5,
+    "dest": "trash"
+   }
+  ]
  },
  {
   "cardId": "BS04-074",
@@ -22526,7 +22603,20 @@
   "rarity": "X",
   "limited": false,
   "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、自分のコスト6以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。\nLv3『このスピリットのアタック時』\n赤のスピリット以外の、BP4000以下のスピリットすべてを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-X13-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 6,
+    "dest": "void"
+   }
+  ]
  },
  {
   "cardId": "BS04-X14",
@@ -22607,7 +22697,19 @@
   "rarity": "X",
   "limited": false,
   "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分のリザーブにあるコア1個をボイドに置くことで、相手のライフにあるコア2個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-X15-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 6,
+    "dest": "void"
+   }
+  ]
  },
  {
   "cardId": "BS04-X16",

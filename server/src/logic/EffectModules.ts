@@ -84,6 +84,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     jugeki: { id: "jugeki", label: "呪撃" },
     funsai: { id: "funsai", label: "粉砕" },
     kobo: { id: "kobo", label: "光芒" },
+    tensho: { id: "tensho", label: "転召" },
 }
 
 // 指定カードがそのキーワードを持つか。
@@ -241,6 +242,74 @@ export function resolveKoboOnBattleEnd(
         log(state, `【光芒】${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
     }
     notifyHandGained(state, attackerPid, recovered)
+}
+
+// 【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
+// 自分の他スピリットからコストがminCost以上の候補を集め、上のコアすべてをdestへ置く
+// （0体=不発、1体=自動選択、2体以上はinteractiveTargets時のみpendingChoice、それ以外はコスト最大を決定的選択）。
+export function resolveTensho(
+    state: GameState,
+    ownerPid: PlayerId,
+    spirit: CardInstance,
+): void {
+    const level = currentLevel(spirit).level
+    const effect = getCard(spirit.cardId).effects.find(
+        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
+    )
+    if (!effect || effect.kind !== "keyword") return
+    const minCost = effect.minCost ?? 0
+    const dest = effect.dest ?? "trash"
+    const candidates = state.players[ownerPid].field.spirits.filter(
+        (s) => s.instanceId !== spirit.instanceId && getCard(s.cardId).cost >= minCost,
+    )
+    if (candidates.length === 0) {
+        log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
+        return
+    }
+    if (candidates.length === 1) {
+        const only = candidates[0]
+        if (only) dumpAllCoresTensho(state, ownerPid, only, dest)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(
+            state,
+            ownerPid,
+            `【転召】コアを${dest === "void" ? "ボイドに置く" : "トラッシュに置く"}自分のスピリットを選択`,
+            candidates.map((s) => s.instanceId),
+            false,
+            { type: "tenshoCoreDump", dest },
+            spirit,
+        )
+        return
+    }
+    // 自動選択（プレイヤー選択の決定的簡略化）：コスト最大の1体
+    const chosen = candidates.reduce((best, s) =>
+        getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
+    )
+    dumpAllCoresTensho(state, ownerPid, chosen, dest)
+}
+
+// 対象スピリットの上のコアすべてをdestへ置く（trash=持ち主のトラッシュ、void=消滅）。
+// 維持コア割れは既存の消滅処理に委ねる（【転召】／resolveAction "tenshoCoreDump" 共通）
+function dumpAllCoresTensho(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    dest: "trash" | "void",
+): void {
+    const player = state.players[ownerPid]
+    const count = inst.cores
+    inst.cores = 0
+    if (dest === "trash") {
+        player.trashCores += count
+        log(state, `【転召】${getCard(inst.cardId).name}のコア${count}個をトラッシュに置いた。`)
+    } else {
+        log(state, `【転召】${getCard(inst.cardId).name}のコア${count}個をボイドに置いた。`)
+    }
+    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+    }
 }
 
 // 状態を考慮した系統判定：
@@ -1925,6 +1994,21 @@ export function resolveAction(
                 return
             }
             removeCoresToTrash(state, owner, self, action.count)
+            return
+        }
+
+        case "tenshoCoreDump": {
+            // 【転召】のpendingChoice再開専用：targetInstanceIdで指定された自分のスピリットの
+            // 上のコアすべてをdestへ（cards.jsonには書かない。resolveTenshoからのみ発行される）
+            if (targetInstanceId === undefined) return
+            const target = state.players[owner].field.spirits.find(
+                (s) => s.instanceId === targetInstanceId,
+            )
+            if (!target) {
+                log(state, "【転召】：対象がいなかった。")
+                return
+            }
+            dumpAllCoresTensho(state, owner, target, action.dest)
             return
         }
 
