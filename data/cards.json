@@ -21055,7 +21055,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n自分の白のスピリットすべてをBP+1000する。\nLv2『相手のエンドステップ』\n自分のフィールドに白のシンボルが3つ以上あり、このターン相手が1回もアタックしてこなかったとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-050-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-051",
@@ -21094,7 +21113,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv3\nカード名に「アルカナ」と入っている自分のスピリットすべてに“『このスピリットのアタック時』このスピリットをBP+2000する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-051-e1",
+    "kind": "effectGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "selfBuff",
+      "amount": 2000
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-052",
@@ -21174,7 +21210,18 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv2･Lv3『自分のスタートステップ』\n相手のスピリット2体を指定する。\n指定したスピリット2体の上のコアすべてを入れ替える。\nLv3\nこのスピリットは紫のスピリットとしても扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-053-e1",
+    "kind": "colorAs",
+    "levels": [
+     3
+    ],
+    "colors": [
+     "purple"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-054",
@@ -21636,7 +21683,29 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\nステップ開始時、自分の手札のネクサスカード1枚を破棄することで、ボイドから、コア1個をこのスピリット上に置くことができる。\nLv2『このスピリットの破壊時』\n自分のトラッシュにあるネクサスカード1枚を選んで、コストを支払わずに自分のフィールドに配置することができる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-065-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+     ]
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS04-066",
@@ -21705,7 +21774,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2『自分のアタックステップ』\n【覚醒】を持つ自分のスピリットすべては、そのスピリット上に置かれているコアが1個のときLv1、コアが2個のときLv2、コアが3個以上のとき、そのスピリットが持つ最高Lvとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-067-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByKeyword",
+    "keywordFilter": "awaken",
+    "treatAs": "coresScaled",
+    "phase": "attack",
+    "turn": "own",
+    "sourceLevels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-068",
@@ -21739,7 +21822,37 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+4000する。\nLv2『このスピリットのアタック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-068-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 4000
+    },
+    "optional": true
+   },
+   {
+    "id": "BS04-068-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 4000
+    },
+    "optional": true
+   }
+  ]
  },
  {
   "cardId": "BS04-069",
@@ -21857,6 +21970,22 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-071-e2",
+    "kind": "funsaiBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1
+   },
+   {
+    "id": "BS04-071-e3",
+    "kind": "funsaiBonus",
+    "levels": [
+     3
+    ],
+    "amount": 2
    }
   ]
  },
@@ -21991,7 +22120,27 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\nお互い、ターンに1回しかマジックの効果を使用できない。\nLv2･Lv3\n相手はコストを支払わなければ、マジックの効果を使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-074-e1",
+    "kind": "magicRestriction",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "restriction": "oncePerTurnAll"
+   },
+   {
+    "id": "BS04-074-e2",
+    "kind": "magicRestriction",
+    "levels": [
+     2,
+     3
+    ],
+    "restriction": "noFreeCastOpponent"
+   }
+  ]
  },
  {
   "cardId": "BS04-075",
@@ -22344,7 +22493,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「天霊」を持つ自分のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\n系統：「天霊」を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-084-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "天霊",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-085",
@@ -22440,7 +22608,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のスタートステップ』\n相手のデッキを上から1枚破棄する。\nLv2\nカードに効果の記述を持たない自分のスピリットすべては、召喚されたターンの間、そのスピリットが持つ最高Lvとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-087-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-088",
@@ -22860,7 +23043,17 @@
   "rarity": "",
   "limited": true,
   "effect": "メイン：\n自分のトラッシュにあるスピリットカード5枚を選び、好きな順番でデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-105-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-106",
@@ -22879,7 +23072,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、自分のスピリット1体に“【光芒】『このスピリットのアタック時』バトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る”という効果を与える。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-106-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-107",
@@ -22923,7 +23126,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n自分のフィールドに系統：「四道」を持つスピリットが5体以上いるとき、系統：「四道」を持つ自分のスピリットすべてを破壊して、相手のスピリットすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-108-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-109",
@@ -22941,7 +23154,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、系統：「造兵」を持つ自分のスピリットすべてを、カードに効果の記述を持たないスピリットとしても扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-109-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-110",
@@ -22978,7 +23201,26 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n相手のデッキを上から、相手の手札1枚につき1枚破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-111-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "millPer",
+     "counter": "opponentHand"
+    }
+   },
+   {
+    "id": "BS04-111-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-112",
@@ -23018,7 +23260,34 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにあるネクサスカード1枚を選んで、コストを支払わずに自分のフィールドに配置する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-113-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+     ]
+    }
+   },
+   {
+    "id": "BS04-113-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-114",
