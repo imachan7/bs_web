@@ -20668,6 +20668,24 @@
      "red",
      "green"
     ]
+   },
+   {
+    "id": "BS04-041-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "targetSameLevelAsSelf": true
+    },
+    "action": {
+     "type": "selfBuff",
+     "amount": 3000
+    },
+    "optional": false
    }
   ]
  },

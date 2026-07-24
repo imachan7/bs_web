@@ -437,8 +437,8 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     const blocker = findSpirit(state.players[pid], instanceId)
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
-    // ブロック時効果
-    if (blocker) fireTrigger(state, pid, blocker, "onBlock")
+    // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
+    if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
     if (state.winner) {
         state.battle = null
         return null
