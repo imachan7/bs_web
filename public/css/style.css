@@ -322,6 +322,7 @@ button:active {
     display: flex;
     gap: 20px;
     min-height: 150px;
+    flex: 1;
     align-items: center;
 }
 
@@ -894,23 +895,13 @@ button:active {
     box-shadow: 0 1px 2px rgba(0,0,0,0.5);
     border: none;
 }
-.sym-icon::after {
-    content: attr(data-color-label);
-    position: absolute;
-    top: -1px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 10px;
-    line-height: 14px;
-    pointer-events: none;
-}
-.sym-icon.bg-red { background: var(--c-red); background-image: url('/imgs/symbols/red_symbol.png'); }
-.sym-icon.bg-purple { background: var(--c-purple); background-image: url('/imgs/symbols/violet_symbol.png'); }
-.sym-icon.bg-green { background: var(--c-green); background-image: url('/imgs/symbols/green_symbol.png'); }
-.sym-icon.bg-white { background: var(--c-white); background-image: url('/imgs/symbols/white_symbol.png'); }
-.sym-icon.bg-yellow { background: var(--c-yellow); background-image: url('/imgs/symbols/yellow_symbol.png'); }
-.sym-icon.bg-blue { background: var(--c-blue); background-image: url('/imgs/symbols/blue_symbol.png'); }
+
+.sym-icon.bg-red { background-image: url('/imgs/symbols/red_symbol.png'); }
+.sym-icon.bg-purple { background-image: url('/imgs/symbols/violet_symbol.png'); }
+.sym-icon.bg-green { background-image: url('/imgs/symbols/green_symbol.png'); }
+.sym-icon.bg-white { background-image: url('/imgs/symbols/white_symbol.png'); }
+.sym-icon.bg-yellow { background-image: url('/imgs/symbols/yellow_symbol.png'); }
+.sym-icon.bg-blue { background-image: url('/imgs/symbols/blue_symbol.png'); }
 
 /* ---- 手札のコストバッジ ---- */
 .cost-badge {
@@ -1085,35 +1076,35 @@ button:active {
 
 /* ---- レスポンシブ: スマホ ---- */
 @media (max-width: 480px) {
-    /* フェイズ名を1文字表記に切り替え（375px幅で7ステップ＋ボタン類が収まらないため） */
-    .phase-step {
+    /* アクティブでないステップのみ1文字表記に切り替え */
+    .phase-step:not(.active) {
         font-size: 0;
         padding: 3px 5px;
     }
-    .phase-step::before {
+    .phase-step:not(.active)::before {
         content: attr(data-short);
         font-size: 10px;
     }
     .spirit-zone .card {
-        width: 54px;
-        height: 54px;
+        width: 64px;
+        height: 64px;
     }
     .spirit-zone .card .name {
-        font-size: 7px;
-        max-width: 46px;
+        font-size: 8px;
+        max-width: 56px;
     }
     .spirit-zone .card .stats,
     .spirit-zone .card .cores,
     .nexus-zone .card .stats,
     .nexus-zone .card .cores {
-        font-size: 9px;
+        font-size: 10px;
     }
     .nexus-zone .card {
-        width: 50px;
-        height: 56px;
+        width: 60px;
+        height: 60px;
     }
     .nexus-zone .card .name {
-        font-size: 7px;
+        font-size: 8px;
     }
     #hand .card {
         width: 68px;
