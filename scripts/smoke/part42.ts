@@ -96,7 +96,7 @@ console.log("=== BS04-068 アイアン・ゴレム: ブロック時/アタック
     runTurnStart(s)
     const golem = createInstance("BS04-068", s.turn, 3) // アイアン・ゴレム Lv2（3コア）
     s.players.p2.field.spirits.push(golem)
-    s.players.p2.hand[0] = "BS01-098" // 燃えさかる戦場（ネクサス）
+    s.players.p2.hand = ["BS01-098"] // 燃えさかる戦場（ネクサス）のみに固定（自動選択は「該当タイプの末尾」を破棄するため、引いた手札に別ネクサスがあると対象がぶれてフレーキーになる）
     const atk = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000
     s.players.p1.field.spirits.push(atk)
 

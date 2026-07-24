@@ -1304,7 +1304,40 @@ export function removeCoresToTrash(
     }
 }
 
+// コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
+// 維持コア（Lv1）を下回ったら消滅させる（BS04ヴェノムショット）。actorPidの扱いはremoveCoresと同じ
+function removeCoresToVoid(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    count: number,
+    actorPid?: PlayerId,
+): void {
+    const player = state.players[ownerPid]
+    const removed = Math.min(count, inst.cores)
+    inst.cores -= removed
+    log(
+        state,
+        `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をボイドに置いた。`,
+    )
+    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+    }
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
+    }
+}
+
 // ---- アクションの実行 ----
+
+// destroy/destroyExhausted/exhaust の costFilter 共通判定（BS04エンジン拡張バッチ2）。
+// 指定なしは常にtrue、max/minはそれぞれ対象コストの上限/下限
+function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {
+    if (!costFilter) return true
+    if (costFilter.max !== undefined && cost > costFilter.max) return false
+    if (costFilter.min !== undefined && cost < costFilter.min) return false
+    return true
+}
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 // （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）
@@ -1591,6 +1624,7 @@ function countEffectCounter(
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
+    if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
@@ -1668,11 +1702,13 @@ export function resolveAction(
             }
             const selfBp = action.bpEqualsSelf && self ? effectiveBp(state, owner, self) : undefined
             // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
-            // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）
+            // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）。
+            // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04風龍王フージャオス）
             const matchesFilter = (s: CardInstance) =>
                 (action.keywordFilter === undefined ||
                     spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
-                (selfBp === undefined || effectiveBp(state, opp, s) === selfBp)
+                (selfBp === undefined || effectiveBp(state, opp, s) === selfBp) &&
+                matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
             if (targetInstanceId !== undefined) {
                 // pendingChoice解決：選ばれた1体のみ破壊する
                 const target = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
@@ -1712,19 +1748,33 @@ export function resolveAction(
 
         case "destroyAll": {
             // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
-            // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する
-            const targets = state.players[opp].field.spirits.filter(
-                (s) =>
-                    effectiveBp(state, opp, s) <= action.maxBp &&
-                    !isImmuneToArea(s) &&
-                    !hasArmorAgainst(s, srcColor) &&
-                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
-            )
+            // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
+            // colorExclude 指定時はその色のスピリットを対象から除外する（BS04魔龍帝ジークフリードLv3）
+            const colorOk = (s: CardInstance) =>
+                action.colorExclude === undefined || !instHasColor(s, action.colorExclude)
+            const oppTargets = state.players[opp].field.spirits
+                .filter(
+                    (s) =>
+                        effectiveBp(state, opp, s) <= action.maxBp &&
+                        !isImmuneToArea(s) &&
+                        !hasArmorAgainst(s, srcColor) &&
+                        !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
+                        colorOk(s),
+                )
+                .map((s) => ({ pid: opp, inst: s }))
+            // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
+            // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
+            const ownTargets = action.anySide
+                ? state.players[owner].field.spirits
+                      .filter((s) => effectiveBp(state, owner, s) <= action.maxBp && !isImmuneToArea(s) && colorOk(s))
+                      .map((s) => ({ pid: owner, inst: s }))
+                : []
+            const targets = [...oppTargets, ...ownTargets]
             if (targets.length === 0) {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             }
-            for (const t of targets) destroySpirit(state, opp, t.instanceId, "destroy", destroyContext)
+            for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
             return
         }
 
@@ -1961,7 +2011,9 @@ export function resolveAction(
 
         case "destroyNexus": {
             let destroyed = 0
-            for (let i = 0; i < action.count; i++) {
+            // all指定時はcountを無視し、開始時点の相手ネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
+            const iterations = action.all ? state.players[opp].field.nexuses.length : action.count
+            for (let i = 0; i < iterations; i++) {
                 const nexus = state.players[opp].field.nexuses[0]
                 if (!nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
@@ -2028,8 +2080,13 @@ export function resolveAction(
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
             }
-            // 維持コア割れの消滅処理は removeCores が担う
-            removeCores(state, found.pid, found.inst, action.count, owner)
+            // 維持コア割れの消滅処理はremoveCores/removeCoresToVoidが担う。
+            // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）
+            if (action.dest === "void") {
+                removeCoresToVoid(state, found.pid, found.inst, action.count, owner)
+            } else {
+                removeCores(state, found.pid, found.inst, action.count, owner)
+            }
             return
         }
 
@@ -2224,7 +2281,7 @@ export function resolveAction(
                     log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
                 }
-                if (!matchesLevel(found.inst)) {
+                if (!matchesLevel(found.inst) || !matchesCostFilter(getCard(found.inst.cardId).cost, action.costFilter)) {
                     log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                     return
                 }
@@ -2239,9 +2296,13 @@ export function resolveAction(
                 log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
                 return
             }
-            // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
+            // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする。
+            // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04エンジン拡張バッチ2）
             const matchesCandidate = (s: CardInstance) =>
-                !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
+                !s.isRested &&
+                matchesLevel(s) &&
+                !isExhaustImmune(state, opp, s) &&
+                matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
             if (state.interactiveTargets) {
                 const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColor, srcType)
                 if (
@@ -2315,15 +2376,22 @@ export function resolveAction(
                     )
                     return
                 }
+                if (!matchesCostFilter(getCard(found.inst.cardId).cost, action.costFilter)) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
+                    return
+                }
                 destroySpirit(state, found.pid, found.inst.instanceId)
                 return
             }
+            // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04ヘルウィッチ）
+            const matchesExhaustedCandidate = (s: CardInstance) =>
+                s.isRested && matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
             if (action.anySide) {
                 // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
                 // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、
                 // 自分側には適用しない＝pickEnemyByBpと同じ非対称ルール。同値の場合は相手側を優先する）
-                const oppCandidate = pickEnemyByBp(state, opp, Infinity, (s) => s.isRested, srcColor, srcType)
-                const ownCandidates = state.players[owner].field.spirits.filter((s) => s.isRested)
+                const oppCandidate = pickEnemyByBp(state, opp, Infinity, matchesExhaustedCandidate, srcColor, srcType)
+                const ownCandidates = state.players[owner].field.spirits.filter(matchesExhaustedCandidate)
                 const ownCandidate =
                     ownCandidates.length > 0
                         ? ownCandidates.reduce((best, s) =>
@@ -2349,7 +2417,7 @@ export function resolveAction(
                 return
             }
             if (state.interactiveTargets) {
-                const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => s.isRested, srcColor, srcType)
+                const candidates = pickEnemyCandidates(state, opp, Infinity, matchesExhaustedCandidate, srcColor, srcType)
                 if (
                     tryInteractiveTargetChoice(
                         state,
@@ -2370,7 +2438,7 @@ export function resolveAction(
                     state,
                     opp,
                     Infinity,
-                    (s) => s.isRested,
+                    matchesExhaustedCandidate,
                     srcColor,
                     srcType,
                 )
@@ -2595,7 +2663,8 @@ export function resolveAction(
                         instHasColor(s, action.colorFilter)) &&
                     (action.vanillaFilter === undefined || isVanillaCard(getCard(s.cardId))) &&
                     (action.familyFilter === undefined ||
-                        spiritHasFamily(state, owner, s, action.familyFilter)),
+                        spiritHasFamily(state, owner, s, action.familyFilter)) &&
+                    (!action.excludeSelf || s.instanceId !== self?.instanceId),
             )
             if (candidates.length === 0) {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
@@ -4387,6 +4456,91 @@ export function resolveAction(
                 `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`,
             )
             resolveAction(state, owner, self, { type: "destroy", count })
+            return
+        }
+
+        case "coreToTrashAllByCost": {
+            // 相手のコストmaxCost以下のスピリットすべての上から、コア1個ずつを相手のトラッシュへ
+            // （範囲効果。destroyAllと同様に装甲・マジック効果耐性・immuneToOpponentThisTurnを除外。BS04風龍王フージャオス）
+            const targets = state.players[opp].field.spirits.filter(
+                (s) =>
+                    getCard(s.cardId).cost <= action.maxCost &&
+                    !isImmuneToArea(s) &&
+                    !hasArmorAgainst(s, srcColor) &&
+                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
+            )
+            if (targets.length === 0) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            for (const t of targets) removeCoresToTrash(state, opp, t, 1, owner)
+            return
+        }
+
+        case "coreRemovePerHandDiscard": {
+            // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体
+            // （実効BP最大を自動選択。同一解決内で既に選んだ個体は除外して異なる個体へ広げる）の
+            // コアを1個、相手のトラッシュへ置く（王蛇ケツァルカトル／ダンスマカブル）
+            const player = state.players[owner]
+            const removeOneCoreFromEnemy = (excluded: Set<string>): void => {
+                const target = pickEnemyByBp(
+                    state,
+                    opp,
+                    Infinity,
+                    (s) => !excluded.has(s.instanceId),
+                    srcColor,
+                    srcType,
+                )
+                if (!target) {
+                    log(state, `${sourceName}：コアを除去する対象がいなかった。`)
+                    return
+                }
+                excluded.add(target.instanceId)
+                removeCoresToTrash(state, opp, target, 1, owner)
+            }
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：破棄する手札がなかった。`)
+                    return
+                }
+                player.hand.splice(chosenCardIndex, 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は手札の「${getCard(cardId).name}」を破棄した。`)
+                removeOneCoreFromEnemy(new Set())
+                // 続けて破棄できるか再度尋ねる（optional=trueのためスキップで終了する）
+                resolveAction(state, owner, self, action)
+                return
+            }
+            if (state.interactiveTargets) {
+                if (player.hand.length === 0) {
+                    log(state, `${sourceName}：手札がなかった。`)
+                    return
+                }
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：破棄する手札を選んでください（選ばなければ終了）`,
+                    "hand",
+                    player.hand.map((_, i) => i),
+                    true,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 非interactive時：手札をすべて破棄し、破棄枚数ぶん一括でコア除去する（決定的簡略化）
+            const count = player.hand.length
+            if (count === 0) {
+                log(state, `${sourceName}：手札がなかった。`)
+                return
+            }
+            const discardedNames = player.hand.map((cardId) => getCard(cardId).name)
+            player.trashCards.push(...player.hand)
+            player.hand = []
+            log(state, `${player.name}は手札「${discardedNames.join("、")}」を破棄した。`)
+            const excluded = new Set<string>()
+            for (let i = 0; i < count; i++) removeOneCoreFromEnemy(excluded)
             return
         }
     }

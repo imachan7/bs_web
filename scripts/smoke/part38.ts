@@ -4,7 +4,9 @@
 //   - BS04-006 骸竜ゾン・サウル：e1オーラ（自分のアタックステップ中のみ紫スピリット+1000）/ e2 destroyExhausted（Lv3アタック時）
 //   - BS04-016 堕天使アゼル：バトル勝利時（battleRole:attacker）に天霊のスピリット数ぶんドロー（drawPer/ownFamily）
 //   - BS04-078 魔影街：Lv2のみ exhaustOnManualCoreAdd が発揮される（Lv1では発揮されない）
-//   - BS04-095 ヴェノムショット：フラッシュのみ構造化（メインのコア→ボイド行は未対応でスキップ）BP+1000
+//   - BS04-095 ヴェノムショット：フラッシュ効果BP+1000（メインのcoreRemove dest:voidはpart44で検証。
+//     BS04エンジン拡張バッチ2でメイン行も構造化されたため、バトル外キャストはメイン効果を優先する
+//     ようになった。ここではバトル中のフラッシュ優先権下でキャストしてflash効果を検証する）
 //   - BS04-X14 魔界七将パンデミウム：battleRole省略のためブロッカー勝利でもドロー1枚（onBattle）
 import { assert, act, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
 
@@ -139,7 +141,7 @@ console.log("--- Lv1の魔影街ではこの効果は発揮されない ---")
     assert(!spirit.isRested, "Lv1の魔影街ではexhaustOnManualCoreAddが発揮されないため疲労しない")
 }
 
-console.log("=== BS04-095 ヴェノムショット: フラッシュ効果のみ構造化（BP+1000） ===")
+console.log("=== BS04-095 ヴェノムショット: フラッシュ効果（BP+1000） ===")
 {
     const s = createGame(
         "bs04-095-test",
@@ -147,13 +149,18 @@ console.log("=== BS04-095 ヴェノムショット: フラッシュ効果のみ�
         { p1: "purple", p2: "red" },
     )
     runTurnStart(s)
+    const attacker = createInstance("BS01-001", s.turn, 1)
+    s.players.p1.field.spirits.push(attacker)
     const target = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(target)
     s.players.p1.reserve = 20
     s.players.p1.hand[0] = "BS04-095"
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック開始（バトル中にする）")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（攻撃側に優先権）")
     assert(
         act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: target.instanceId }) === null,
-        "ヴェノムショットを使用（メイン効果は未構造化のためflashエントリのみ解決される）",
+        "フラッシュでヴェノムショットを使用（バトル中はflashエントリが解決される）",
     )
     assert(target.tempBpBuff === 1000, "ヴェノムショットでBP+1000")
 }

@@ -19319,7 +19319,56 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のフィールドにあるネクサスすべてを破壊する。\nLv2･Lv3『このスピリットのアタック時』\n[風龍王フージャオス]以外の系統：「翼竜」を持つ自分のスピリット1体を回復させる。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、コスト3以下の相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-011-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyNexus",
+     "count": 0,
+     "all": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-011-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshOne",
+     "familyFilter": "翼竜",
+     "excludeSelf": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-011-e3",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "costFilter": {
+      "max": 3
+     }
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-012",
@@ -19595,7 +19644,41 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3『このスピリットのアタック時』\nコスト6以下の相手の疲労状態のスピリット1体を破壊する。\nLv3『このスピリットのアタック時』\nコスト1以下の相手の疲労状態のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-017-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "costFilter": {
+      "max": 6
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-017-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "costFilter": {
+      "max": 1
+     }
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-018",
@@ -19780,6 +19863,36 @@
      "count": 1
     },
     "optional": false
+   },
+   {
+    "id": "BS04-021-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreToTrashAllByCost",
+     "maxCost": 4
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-021-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "opponentTrashCores",
+     "amountPer": 1000
+    },
+    "optional": false
    }
   ]
  },
@@ -19836,6 +19949,19 @@
     "action": {
      "type": "draw",
      "count": 2
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-022-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreRemovePerHandDiscard"
     },
     "optional": false
    }
@@ -22828,7 +22954,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分の手札を好きなだけ破棄する。\nその破棄したカード1枚につき、相手のスピリット1体のコア1個を相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-094-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreRemovePerHandDiscard"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-095",
@@ -22848,6 +22983,16 @@
   "limited": false,
   "effect": "メイン：\n相手のスピリット1体の上に置いてあるコア1個をボイドに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
   "effects": [
+   {
+    "id": "BS04-095-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "coreRemove",
+     "count": 1,
+     "dest": "void"
+    }
+   },
    {
     "id": "BS04-095-e1",
     "kind": "magic",
@@ -23493,6 +23638,21 @@
     "action": {
      "type": "draw",
      "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-X13-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "destroyAll",
+     "maxBp": 4000,
+     "anySide": true,
+     "colorExclude": "red"
     },
     "optional": false
    }

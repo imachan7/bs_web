@@ -42,15 +42,15 @@ export type FamilyFilter = string | string[]
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
     | { type: "draw"; count: number } // 自分がデッキから引く
-    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op）
-    | { type: "destroyAll"; maxBp: number } // BP以下の相手スピリットを全破壊
+    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean; costFilter?: { max?: number; min?: number } } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op。costFilter指定時は対象スピリットのコストがmax以下/min以上のみ。BS04風龍王フージャオス）
+    | { type: "destroyAll"; maxBp: number; anySide?: boolean; colorExclude?: Color } // BP以下の相手スピリットを全破壊。anySide指定時は両陣営が対象、colorExclude指定時はその色のスピリットを除外する（BS04魔龍帝ジークフリードLv3：赤以外のBP4000以下すべて）
     | { type: "selfBuff"; amount: number } // このスピリット自身をBP+（ターン終了時まで）
-    | { type: "destroyNexus"; count: number; drawPerDestroyed?: number } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）
+    | { type: "destroyNexus"; count: number; drawPerDestroyed?: number; all?: boolean } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）。all指定時はcountを無視し相手のネクサスすべてを破壊する（BS04風龍王フージャオス）
     | { type: "returnSelfToHand" } // このスピリットを持ち主の手札に戻す
-    | { type: "coreRemove"; count: number } // 対象スピリットのコアを持ち主のリザーブへ置く
+    | { type: "coreRemove"; count: number; dest?: "void" } // 対象スピリットのコアを持ち主のリザーブへ置く（dest:"void"指定時はリザーブでなくボイドへ＝消滅。BS04ヴェノムショット）
     | { type: "bpBuff"; amount: number; attackingAll?: boolean; familyFilter?: FamilyFilter; minSymbols?: number } // 対象スピリット1体をBP+（ターン終了時まで）。attackingAll:true なら対象選択せず「アタックしている自分のスピリットすべて」をBP+（現エンジンは同時アタック1体のためアタッカーへ適用。オフェンシブオーラ BS01-116。familyFilter指定時は該当系統持ちのみ＝フォレストオーラ）。minSymbols指定時、対象（targetInstanceId明示・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効（ライトニングバリスタ等）
-    | { type: "exhaust"; count: number; levelFilter?: number[] } // 相手スピリットを疲労させる（levelFilter指定時はcurrentLevelが含まれるスピリットのみ対象。自動選択・明示ターゲット選択の両方に適用）
-    | { type: "destroyExhausted"; count: number; anySide?: boolean } // 疲労状態の相手スピリットを破壊（anySide指定時は両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊）
+    | { type: "exhaust"; count: number; levelFilter?: number[]; costFilter?: { max?: number; min?: number } } // 相手スピリットを疲労させる（levelFilter指定時はcurrentLevelが含まれるスピリットのみ対象。costFilter指定時は対象スピリットのコストがmax以下/min以上のみ。自動選択・明示ターゲット選択の両方に適用）
+    | { type: "destroyExhausted"; count: number; anySide?: boolean; costFilter?: { max?: number; min?: number } } // 疲労状態の相手スピリットを破壊（anySide指定時は両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊。costFilter指定時は対象スピリットのコストがmax以下/min以上のみ。BS04ヘルウィッチ）
     | { type: "drawPer"; counter: EffectCounter } // カウント値ぶん自分がドロー（0ならログのみ）
     | { type: "bpBuffPer"; counter: EffectCounter; amountPer: number } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
@@ -72,7 +72,7 @@ export type EffectAction =
     | { type: "voidCoreToSelf"; count: number } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op）
     | { type: "voidCoreToSelfPer"; counter: EffectCounter } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
     | { type: "discardOpponent"; count: number; forcedTargetPid?: PlayerId } // 相手の手札からcount枚を破棄（手札末尾から。手札が足りなければある分だけ）。interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPidは選択式再突入時のみ内部で設定する対象プレイヤー（cards.jsonには書かない。選択者=破棄される側のためresolveActionのowner引数がopponentOf(owner)で逆算できなくなるのを避ける）
-    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color; vanillaFilter?: true; familyFilter?: string; all?: boolean } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter/vanillaFilter/familyFilter指定時はそれぞれの条件持ちのみ。familyFilterはspiritHasFamily判定＝付与系統も考慮。候補から実効BP最大を自動選択、いなければno-op）。all指定時は該当候補すべてを回復し cantAttackThisTurn は付与しない（決闘台地Lv2／鋼に覆われた高空／ベル・ダンディア）
+    | { type: "refreshOne"; keywordFilter?: Keyword; colorFilter?: Color; vanillaFilter?: true; familyFilter?: string; all?: boolean; excludeSelf?: boolean } // 自分の疲労スピリット1体を回復（keywordFilter/colorFilter/vanillaFilter/familyFilter指定時はそれぞれの条件持ちのみ。familyFilterはspiritHasFamily判定＝付与系統も考慮。候補から実効BP最大を自動選択、いなければno-op）。all指定時は該当候補すべてを回復し cantAttackThisTurn は付与しない（決闘台地Lv2／鋼に覆われた高空／ベル・ダンディア）。excludeSelf指定時は候補からself自身を除外する（BS04風龍王フージャオス：自身も系統「翼竜」だが対象外）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: EffectCounter; amountPer: number } // このスピリット自身を「カウント値×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
     | { type: "voidCoreToOther"; count: number } // ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
@@ -133,6 +133,8 @@ export type EffectAction =
     | { type: "tenshoCoreDump"; dest: "trash" | "void" } // 【転召】のpendingChoice再開専用（cards.jsonには書かない）。targetInstanceIdで指定された自分のスピリットの上のコアすべてをdestへ（trash=持ち主のトラッシュ、void=消滅）。維持コア割れは既存の消滅処理（destroySpirit "deplete"）に委ねる
     | { type: "handMagicToTegamotoDraw" } // 自分の手札にあるマジックカードを好きなだけ手元（PlayerState.tegamoto）に置き、置いた枚数ぶんデッキから引く。interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）を1枚ずつ繰り返し発行（選ぶたび1枚移動+1ドローし、手札にマジックカードが残っていれば再度choiceを発行。スキップで終了）。自動時は該当カードすべてを一括移動して同数ドロー（決定的簡略化）。マジックブック
     | { type: "discardOpponentTegamotoDestroyPer" } // 相手の手元（tegamoto）にあるカードすべてを相手のトラッシュへ破棄し、その枚数を既存のdestroyアクション（count=枚数、maxBpなし=BP不問）へ委譲して相手スピリットを破壊する（interactive時の連続対象選択・装甲/免疫判定はdestroy側の経路をそのまま再利用）。相手の手元が0枚ならno-op。透明人間エクリア
+    | { type: "coreToTrashAllByCost"; maxCost: number } // 相手のコストmaxCost以下のスピリットすべての上から、コア1個ずつを相手のトラッシュへ置く（範囲効果。装甲・マジック効果耐性・immuneToOpponentThisTurnは対象から除外。BS04風龍王フージャオス）
+    | { type: "coreRemovePerHandDiscard" } // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体（実効BP最大を自動選択、同一解決内で既に選んだ個体は除外して異なる個体へ広げる）のコアを1個、相手のトラッシュへ置く。interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）を1枚ずつ繰り返し発行し、選ぶたび即座にコア除去を実行する（対象選択自体は毎回自動）。自動時は手札をすべて破棄し、破棄枚数ぶん一括でコア除去する（決定的簡略化）。王蛇ケツァルカトル／ダンスマカブル
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ定義（BS03バッチで統一）。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数、{ ownNameIncludes: string } は
@@ -149,6 +151,7 @@ export type EffectCounter =
     | "ownExhausted" // 自分の疲労スピリット数
     | "selfCoresAtDestruction" // 破壊時点でこのスピリット上に置かれていたコア数（destroySpiritが破壊直前に記録。漆黒鳥ヤタグロス）
     | "lastBattleDestroyedCores" // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（GameEngine.resolveBattleが記録、次のバトル解決の冒頭でリセット。魔界七将デストロード）
+    | "opponentTrashCores" // 相手のトラッシュに置かれているコア数（PlayerState.trashCores。BS04吸血鬼ダンピール）
     | { ownFamily: string }
     | { ownNameIncludes: string }
     | { ownColor: Color } // 自分のフィールドの指定色スピリット数
