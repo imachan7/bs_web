@@ -2,6 +2,7 @@
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
 import type { CardData, CardInstance, Color, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import {
+    coresForLevel,
     countSymbols,
     currentLevel,
     findNexus,
@@ -246,6 +247,7 @@ export function validateSummon(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -272,14 +274,27 @@ export function validateSummon(
     }
 
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
+    const placeError = validateSummonLevel(card, level)
+    if (placeError) return placeError
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
-    // 維持コアは必ずリザーブから払うため、コアで賄えなかった分+維持コアがリザーブに残っているか検証
+    // 置くコアは必ずリザーブから払うため、コアで賄えなかった分+置くコアがリザーブに残っているか検証
     const total = paySourcesTotal(paySources)
     if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+維持コアで${cost + maintain}個必要）`
+        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
     }
+    return null
+}
+
+// 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
+// カードに存在しないレベルや、Lv1のコア数を下回るレベル指定を弾く
+function validateSummonLevel(card: CardData, level?: number): string | null {
+    if (level === undefined) return null
+    if (!Number.isInteger(level) || level < 1) return "レベルの指定が不正です"
+    const cores = coresForLevel(card, level)
+    if (cores === null) return `${card.name}にLv${level}はありません`
     return null
 }
 
@@ -288,6 +303,7 @@ export function validateSetNexus(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -298,12 +314,14 @@ export function validateSetNexus(
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    const placeError = validateSummonLevel(card, level)
+    if (placeError) return placeError
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
     const total = paySourcesTotal(paySources)
     if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+維持コアで${cost + maintain}個必要）`
+        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
     }
     return null
 }

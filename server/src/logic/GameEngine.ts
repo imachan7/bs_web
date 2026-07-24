@@ -2,6 +2,7 @@
 import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
+    coresForLevel,
     createInstance,
     currentLevel,
     findInstanceAnywhere,
@@ -80,9 +81,9 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -189,8 +190,9 @@ function doSummon(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources)
+    const error = validateSummon(state, pid, handIndex, paySources, level)
     if (error) return error
 
     const player = state.players[pid]
@@ -198,16 +200,19 @@ function doSummon(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
+    // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
 
     payCost(state, pid, cost, paySources)
-    player.reserve -= maintain // 維持コアはリザーブから直接スピリットへ
+    player.reserve -= maintain // 置くコアはリザーブから直接スピリットへ
     player.hand.splice(handIndex, 1)
 
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
-    log(state, `${player.name}は${flashNote}${card.name}を召喚した。（コスト${cost}）`)
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
     fireTrigger(state, pid, inst, "onSummon")
@@ -224,8 +229,9 @@ function doSetNexus(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level)
     if (error) return error
 
     const player = state.players[pid]
@@ -233,14 +239,16 @@ function doSetNexus(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
 
     payCost(state, pid, cost, paySources)
     player.reserve -= maintain
     player.hand.splice(handIndex, 1)
 
     player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
-    log(state, `${player.name}は${card.name}を配置した。（コスト${cost}）`)
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
     return null
 }
 

@@ -737,8 +737,8 @@ export interface GameView {
 // ---- クライアント → サーバーのアクション ----
 
 export type GameAction =
-    | { type: "summon"; handIndex: number; paySources?: PaySource[] } // 召喚（神速持ちはフラッシュ時も可）
-    | { type: "setNexus"; handIndex: number; paySources?: PaySource[] }
+    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[] } // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）
+    | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[] } // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
     | { type: "moveCore"; instanceId: string; direction: "add" | "remove" }
     | {

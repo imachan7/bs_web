@@ -280,6 +280,13 @@ export function lv1Cores(card: CardData): number {
     return lv1 ? lv1.cores : 0
 }
 
+// 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
+// （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）
+export function coresForLevel(card: CardData, level: number): number | null {
+    const def = card.levels.find((l) => l.level === level)
+    return def ? def.cores : null
+}
+
 // 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
 // tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
