@@ -877,6 +877,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.condition) {
                     if ("maxOwnSpirits" in effect.condition) {
                         if (player.field.spirits.length > effect.condition.maxOwnSpirits) continue
+                    } else if ("ownFieldHasFamily" in effect.condition) {
+                        // 鼠人チューリヒ：発生源の持ち主のフィールドに指定系統を持つスピリットがいる間有効
+                        const family = effect.condition.ownFieldHasFamily
+                        if (!player.field.spirits.some((s) => spiritHasFamily(state, pid, s, family))) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -1636,6 +1640,14 @@ function countEffectCounter(
         return state.players[owner].field.spirits.filter((s) =>
             instHasColor(s, counter.ownColor),
         ).length
+    }
+    // { ownColorSymbols: Color }：自分フィールドのスピリットが持つ指定色シンボルの合計数
+    if ("ownColorSymbols" in counter) {
+        return state.players[owner].field.spirits.reduce(
+            (sum, s) =>
+                sum + getCard(s.cardId).symbol.filter((c) => c === counter.ownColorSymbols).length,
+            0,
+        )
     }
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
@@ -4124,13 +4136,28 @@ export function resolveAction(
         }
 
         case "millPer": {
-            const count = countEffectCounter(state, owner, self, action.counter)
+            const raw = countEffectCounter(state, owner, self, action.counter)
+            let count = raw * (action.multiplier ?? 1)
+            if (action.cap !== undefined) count = Math.min(count, action.cap)
             if (count === 0) {
                 log(state, `${sourceName}の可変粉砕：カウントが0のため粉砕しなかった。`)
                 return
             }
             const targetPid = action.side === "own" ? owner : opponentOf(owner)
             millDeck(state, targetPid, count)
+            return
+        }
+
+        case "levelMaxAllOwnThisTurn": {
+            // 自分のスピリットすべてを、各カードの最高Lvとして扱う（このターンの間。levelOverrideThisTurnはターン終了でリセット）
+            const player = state.players[owner]
+            let count = 0
+            for (const s of player.field.spirits) {
+                const maxLevel = getCard(s.cardId).levels.reduce((m, l) => Math.max(m, l.level), 1)
+                s.levelOverrideThisTurn = maxLevel
+                count++
+            }
+            log(state, `${sourceName}：このターンの間、自分のスピリット${count}体を最高Lvとして扱う。`)
             return
         }
 

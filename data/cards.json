@@ -21594,7 +21594,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のフィールドに系統：「戦獣」を持つスピリットがいる間、このスピリットはLv2として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-058-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": 2,
+    "condition": {
+     "ownFieldHasFamily": "戦獣"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-059",
@@ -22049,7 +22060,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのターンの間、自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-069-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "levelMaxAllOwnThisTurn"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-070",
@@ -23881,6 +23906,39 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のネクサス1つにつき、相手のデッキを上から5枚破棄する(上限15枚)。\nLv2『このスピリットのアタック時』\n自分の青シンボル1つにつき、相手のデッキを上から1枚破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-X16-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": "ownNexuses",
+     "multiplier": 5,
+     "cap": 15
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-X16-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": {
+      "ownColorSymbols": "blue"
+     },
+     "multiplier": 1
+    },
+    "optional": false
+   }
+  ]
  }
 ]
