@@ -4911,7 +4911,8 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 2000
+     "amount": 2000,
+     "attackingAll": true
     }
    }
   ]
@@ -18856,7 +18857,31 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv2『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-002-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS04-002-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-003",
@@ -19019,7 +19044,40 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分の紫のスピリットすべてをBP+1000する。\nLv3『このスピリットのアタック時』\n疲労状態のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-006-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "purple",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS04-006-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-007",
@@ -19053,7 +19111,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「竜人」を持つスピリットの『このスピリットのアタック時』と指定されている効果はすべて、『このスピリットのブロック時』に発揮される。\nLv2『このスピリットのアタック時』\nこのスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-007-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-008",
@@ -19092,7 +19164,23 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+5000する。\nLv2･Lv3『自分のアタックステップ』\n系統：「竜人」/「古竜」を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-008-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-009",
@@ -19449,7 +19537,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分のフィールドにいる系統：「天霊」を持つスピリット1体につき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-016-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "drawPer",
+     "counter": {
+      "ownFamily": "天霊"
+     }
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-017",
@@ -19659,7 +19766,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のコスト4以下のスピリットすべての上から、コア1個ずつを相手のトラッシュに置く。\nLv2･Lv3『このスピリットのアタック時』\n相手のトラッシュに置いてあるコア1個につき、このスピリットをBP+1000する。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-021-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-022",
@@ -19701,7 +19823,23 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから2枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\n自分の手札を好きな枚数破棄することで、破棄したカードの枚数と同じ数の相手のスピリット上から、コア1個ずつを相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-022-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 2
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-023",
@@ -21889,7 +22027,15 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n【呪撃】によって破壊された相手のスピリット上に置いてあるコア1個をボイドに置く。\nLv2『相手のメインステップ』\nスピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-078-e1",
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-079",
@@ -22293,7 +22439,17 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、系統：「翼竜」/「竜人」/「古竜」を持つ自分のスピリットすべては、BPを比べ相手のスピリットだけを破壊したとき回復する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-092-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-093",
@@ -22350,7 +22506,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\n相手のスピリット1体の上に置いてあるコア1個をボイドに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-095-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-096",
@@ -22786,6 +22952,21 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS04-X13-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
    }
   ]
  },
@@ -22829,7 +23010,23 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n相手のスピリットを破壊したとき、自分はデッキから1枚ドローする。\nLv2･Lv3『お互いのアタックステップ』\n自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、相手のスピリット1体を疲労させる。\nLv3『このスピリットの破壊時』\nお互い、手札5枚を破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-X14-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-X15",
