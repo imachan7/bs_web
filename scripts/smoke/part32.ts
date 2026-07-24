@@ -182,6 +182,7 @@ console.log("=== BS03-040 ベル・ダンディア e2：3名がそろえばコ�
     s.players.p1.field.spirits.push(scruldia)
 
     const reserveBefore = s.players.p1.reserve
+    s.turn = 3 // 1ターン目はコアステップ自体がないため、通常ターンとして検証する
     engineRunTurnStart(s)
     assert(
         s.players.p1.reserve === reserveBefore + 2,
@@ -200,6 +201,7 @@ console.log("=== BS03-040 ベル・ダンディア e2：3名がそろえばコ�
     s.players.p1.field.spirits.push(uldine)
 
     const reserveBefore = s.players.p1.reserve
+    s.turn = 3 // 1ターン目はコアステップ自体がないため、通常ターンとして検証する
     engineRunTurnStart(s)
     assert(s.players.p1.reserve === reserveBefore + 1, "3名そろっていなければコアステップは+0のまま")
 }

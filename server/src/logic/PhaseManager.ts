@@ -1,6 +1,5 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { FIRST_TURN_DRAW } from "../../../data/constants"
 import { draw, log } from "./GameState"
 import { activeConstraints, coreStepBonusFor, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
@@ -14,26 +13,27 @@ export function runTurnStart(state: GameState): void {
     fireStepTriggers(state, "start")
     if (state.winner) return
 
-    // コアステップ：リザーブにコアを1個追加（coreStepBonus持ち＝ベル・ダンディア等で+amount）
+    // コアステップ：リザーブにコアを1個追加（coreStepBonus持ち＝ベル・ダンディア等で+amount）。
+    // 先攻1ターン目はコアステップ自体が存在しない（公式ルール）
     state.phase = "core"
-    const coreStepBonus = coreStepBonusFor(state, pid)
-    player.reserve += 1 + coreStepBonus
-    if (coreStepBonus > 0) {
-        log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+    if (state.turn === 1) {
+        log(state, `先攻1ターン目のためコアステップなし。`)
     } else {
-        log(state, `${player.name}はリザーブにコアを1個置いた。`)
-    }
-    fireStepTriggers(state, "core")
-    if (state.winner) return
-
-    // ドローステップ（先攻1ターン目はスキップ）
-    state.phase = "draw"
-    if (state.turn === 1 && !FIRST_TURN_DRAW) {
-        log(state, `先攻1ターン目のためドローなし。`)
-    } else {
-        draw(state, pid, 1)
+        const coreStepBonus = coreStepBonusFor(state, pid)
+        player.reserve += 1 + coreStepBonus
+        if (coreStepBonus > 0) {
+            log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+        } else {
+            log(state, `${player.name}はリザーブにコアを1個置いた。`)
+        }
+        fireStepTriggers(state, "core")
         if (state.winner) return
     }
+
+    // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
+    state.phase = "draw"
+    draw(state, pid, 1)
+    if (state.winner) return
     fireStepTriggers(state, "draw")
     if (state.winner) return
 

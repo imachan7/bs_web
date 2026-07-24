@@ -35,9 +35,6 @@ export const INITIAL_RESERVE = 4
 export const INITIAL_HAND = 4
 export const DECK_SIZE = 40
 
-// 先攻1ターン目のドローを行うか（公式ルールに合わせて false）
-export const FIRST_TURN_DRAW = false
-
 // デッキレシピ（cardId -> 枚数）。合計40枚
 export const DECK_RECIPES: Record<
     string,

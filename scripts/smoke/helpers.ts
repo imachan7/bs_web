@@ -12,12 +12,20 @@ import {
 } from "../../server/src/logic/GameState"
 import { runTurnStart as engineRunTurnStart } from "../../server/src/logic/PhaseManager"
 
-// テスト用ラッパー: 「先攻1ターン目はアタック不可」ルールの影響を受けずに
-// 既存テストを動かすため、ターン開始処理の後にターン数を3（先攻の2ターン目相当）へ進める。
-// 1ターン目固有の挙動（初回ドローなし等）は engineRunTurnStart 内で処理済みのため影響しない。
+// テスト用ラッパー: 1ターン目固有ルール（コアステップなし・アタック不可）の影響を受けずに
+// 既存テストを動かすため、ターン数を3（先攻の2ターン目相当）へ進めて通常ターンとして処理する。
+// 既存テストの期待値（初回はコア+1・ドローなしの状態から開始）を保つため、
+// 初回呼び出しのときだけ通常ドローの1枚をデッキへ戻して打ち消す。
 // 1ターン目そのものを検証するテストは engineRunTurnStart を直接使う
 function runTurnStart(s: GameState): void {
+    const firstCall = s.turn === 1
+    if (firstCall) s.turn = 3
     engineRunTurnStart(s)
+    if (firstCall) {
+        const pid = s.turnPlayer
+        const drawn = s.players[pid].hand.pop()
+        if (drawn !== undefined) s.players[pid].deck.unshift(drawn)
+    }
     s.turn = 3
 }
 import { handleAction } from "../../server/src/logic/GameEngine"

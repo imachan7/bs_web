@@ -653,17 +653,17 @@ console.log("=== ステップ誘発の条件：主無き古城 e2（BS01-102 Lv2
     console.log("--- 手札同数：スタートステップに1ドロー ---")
     s.players.p1.hand = ["BS01-001", "BS01-001"]
     s.players.p2.hand = ["BS01-001", "BS01-001"]
-    // p1のターンを再度スタートステップから起こす（turn===1に戻して通常ドローをスキップさせ、
-    // 古城のドローだけを観測する）
+    // p1のターンを再度スタートステップから起こす（スタートステップの古城ドロー→通常ドローの順。
+    // 1ターン目扱い（turn=1）でもドローステップは行われるため、古城分+通常分の2枚増を観測する）
     s.turn = 1
     engineRunTurnStart(s)
-    assert(s.players.p1.hand.length === 3, "手札同数なら古城Lv2で1ドロー")
+    assert(s.players.p1.hand.length === 4, "手札同数なら古城Lv2で1ドロー（+通常ドローで計2枚増）")
 
-    console.log("--- 自分の手札が多いときはドローなし ---")
-    // 直前のドローで p1:3枚 > p2:2枚 になっている
+    console.log("--- 自分の手札が多いときは古城のドローなし ---")
+    // 直前の2ドローで p1:4枚 > p2:2枚 になっている
     s.turn = 1
     engineRunTurnStart(s)
-    assert(s.players.p1.hand.length === 3, "自分の手札が多いときはドローしない")
+    assert(s.players.p1.hand.length === 5, "自分の手札が多いときは古城のドローはなし（通常ドローの1枚増のみ）")
 }
 
 console.log("=== 遅延アタックステップ終了：サイレントウォール（BS01-144） ===")
