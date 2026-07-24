@@ -20129,7 +20129,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのターンの間、系統：「殻人」/「殻虫」を持つ自分のスピリットすべてをBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-029-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "bpBuffAll",
+     "amount": 3000,
+     "familyFilter": [
+      "殻人",
+      "殻虫"
+     ]
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-030",
@@ -22716,7 +22735,31 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nBP7000以下の相手のスピリット1体を破壊する。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-091-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroy",
+     "maxBp": 7000,
+     "count": 1
+    },
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    }
+   },
+   {
+    "id": "BS04-091-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-092",
@@ -22836,7 +22879,19 @@
   "rarity": "R",
   "limited": true,
   "effect": "メイン：\nお互い、それぞれのスピリット/ネクサスのコア4個をボイドに置く。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-096-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    },
+    "mainForbidden": true
+   }
+  ]
  },
  {
   "cardId": "BS04-097",
@@ -22855,7 +22910,22 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、アタックしている系統：「爪鳥」/「樹魔」を持つ自分のスピリットすべてをBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-097-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000,
+     "attackingAll": true,
+     "familyFilter": [
+      "爪鳥",
+      "樹魔"
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-098",
@@ -23024,7 +23094,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のスピリット2体を好きな順番でデッキの下に戻すことで、相手のスピリット2体を好きな順番でデッキの下に戻す。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-104-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    },
+    "mainForbidden": true
+   }
+  ]
  },
  {
   "cardId": "BS04-105",
@@ -23081,6 +23163,15 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS04-106-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "grantKeyword",
+     "keyword": "kobo"
+    }
    }
   ]
  },
@@ -23104,7 +23195,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nこのターンの間、相手のスピリットすべてをLv1として扱う。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-107-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    },
+    "mainForbidden": true
+   }
+  ]
  },
  {
   "cardId": "BS04-108",
@@ -23309,7 +23412,19 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のフィールドのネクサスを好きなだけ破壊する。\n相手は、その破壊したネクサス1つにつき、相手のスピリット1体を破壊する。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-114-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    },
+    "mainForbidden": true
+   }
+  ]
  },
  {
   "cardId": "BS04-X13",

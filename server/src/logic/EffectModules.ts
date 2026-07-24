@@ -17,6 +17,7 @@ import type {
     EffectAction,
     EffectCounter,
     EffectDef,
+    FamilyFilter,
     FieldEvent,
     GameEvent,
     GameState,
@@ -127,6 +128,18 @@ export function spiritHasKeyword(
 ): boolean {
     if (hasKeyword(inst.cardId, keyword)) return true
     if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    return hasContinuousKeywordGrant(state, ownerPid, inst, keyword)
+}
+
+// spiritHasKeyword の「持ち主フィールドからの継続付与（kind: "keywordGrant"）」判定だけを切り出したもの。
+// レベル判定を保ったまま静的キーワード判定を別途行いたい呼び出し元（resolveKoboOnBattleEnd）が
+// 単独で参照できるようにする（BS04エンジン拡張バッチ1）
+function hasContinuousKeywordGrant(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
     const player = state.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
     for (const source of sources) {
@@ -137,7 +150,7 @@ export function spiritHasKeyword(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (
                 effect.familyFilter &&
-                !spiritHasFamily(state, ownerPid, inst, effect.familyFilter)
+                !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)
             ) {
                 continue
             }
@@ -227,9 +240,16 @@ export function resolveKoboOnBattleEnd(
     const usedMagicCardIds = state.battle.usedMagicCardIds?.[attackerPid]
     if (!usedMagicCardIds || usedMagicCardIds.length === 0) return
     const attackerLevel = currentLevel(attacker).level
-    const hasKobo = getCard(attacker.cardId).effects.some(
+    // 静的キーワードはレベル判定つきで判定する（spiritHasKeywordの静的分岐＝hasKeywordはレベルを見ないため、
+    // ここだけは従来通り自前でレベルを確認する）。一時付与（tempKeywords。グリームホープ）・
+    // 継続付与（keywordGrant）はspiritHasKeywordの非静的判定と同じヘルパーを利用する（BS04エンジン拡張バッチ1）
+    const hasStaticKobo = getCard(attacker.cardId).effects.some(
         (e) => e.kind === "keyword" && e.keyword === "kobo" && effectActiveAtLevel(e.levels, attackerLevel),
     )
+    const hasKobo =
+        hasStaticKobo ||
+        attacker.tempKeywords.some((k) => k.keyword === "kobo") ||
+        hasContinuousKeywordGrant(state, attackerPid, attacker, "kobo")
     if (!hasKobo) return
     const player = state.players[attackerPid]
     let recovered = 0
@@ -352,6 +372,21 @@ export function spiritHasFamily(
     return false
 }
 
+// FamilyFilter（string | string[]）共通の判定ヘルパー：配列指定時はいずれかの系統を持てばよい（OR）。
+// aura.familyFilter・AuraCounter の { ownFamily }・bpBuffAll/bpBuff.familyFilter・keywordGrant.familyFilter は
+// すべてこちらを参照する（BS04エンジン拡張バッチ1）
+export function matchesFamilyFilter(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    filter: FamilyFilter,
+): boolean {
+    if (Array.isArray(filter)) {
+        return filter.some((f) => spiritHasFamily(state, ownerPid, inst, f))
+    }
+    return spiritHasFamily(state, ownerPid, inst, filter)
+}
+
 // ---- 常時BP修正（オーラ） ----
 
 // フィールド上の指定インスタンスがスピリットとして存在するか
@@ -382,9 +417,9 @@ function countAuraCounter(
             getCard(s.cardId).name.includes(counter.ownNameIncludes),
         ).length
     }
-    // { ownFamily: string }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む）
+    // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return state.players[sourcePid].field.spirits.filter((s) =>
-        spiritHasFamily(state, sourcePid, s, counter.ownFamily),
+        matchesFamilyFilter(state, sourcePid, s, counter.ownFamily),
     ).length
 }
 
@@ -467,7 +502,7 @@ function auraAppliesTo(
     }
     if (
         aura.familyFilter &&
-        !spiritHasFamily(state, targetOwnerPid, targetInst, aura.familyFilter)
+        !matchesFamilyFilter(state, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
         return false
     }
@@ -598,6 +633,19 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (getCard(inst.cardId).color === color) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
+}
+
+// インスタンスのシンボル数：カードの静的シンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+// GameEngineのライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
+// （BS04エンジン拡張バッチ1。state/ownerPidは将来の拡張用に受け取るが現状は未使用）
+export function instanceSymbolCount(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): number {
+    void state
+    void ownerPid
+    return getCard(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
 }
 
 // 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
@@ -1447,16 +1495,25 @@ function applyMagicBuffBonus(
 // bpBuff / bpBuffPer 共通の対象選択：
 // 対象指定があれば両プレイヤーから検索、なければバトル中の自分スピリット優先、
 // いなければ自分フィールドの先頭スピリット
+// minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
+// （ライトニングバリスタ等。BS04エンジン拡張バッチ1）
 function pickBpBuffTarget(
     state: GameState,
     owner: PlayerId,
     targetInstanceId?: string,
+    minSymbols?: number,
 ): CardInstance | null {
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
-        return found ? found.inst : null
+        if (!found) return null
+        if (minSymbols !== undefined && instanceSymbolCount(state, owner, found.inst) < minSymbols) {
+            return null
+        }
+        return found.inst
     }
-    const mine = state.players[owner].field.spirits
+    const mine = state.players[owner].field.spirits.filter(
+        (s) => minSymbols === undefined || instanceSymbolCount(state, owner, s) >= minSymbols,
+    )
     let target: CardInstance | null = null
     if (state.battle) {
         target =
@@ -2014,10 +2071,14 @@ export function resolveAction(
 
         case "bpBuff": {
             if (action.attackingAll) {
-                // オフェンシブオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
-                // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）
+                // オフェンシブオーラ／フォレストオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
+                // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）。
+                // familyFilter指定時は該当系統持ちのみ（フォレストオーラ＝爪鳥/樹魔）
                 const attackers = state.players[owner].field.spirits.filter(
-                    (s) => state.battle && s.instanceId === state.battle.attackerInstanceId,
+                    (s) =>
+                        state.battle &&
+                        s.instanceId === state.battle.attackerInstanceId &&
+                        (!action.familyFilter || matchesFamilyFilter(state, owner, s, action.familyFilter)),
                 )
                 if (attackers.length === 0) {
                     log(state, `${sourceName}のBP増加：アタックしている自分のスピリットがいなかった。`)
@@ -2033,7 +2094,7 @@ export function resolveAction(
                 }
                 return
             }
-            const target = pickBpBuffTarget(state, owner, targetInstanceId)
+            const target = pickBpBuffTarget(state, owner, targetInstanceId, action.minSymbols)
             if (!target) {
                 log(state, `${sourceName}のBP増加：対象がいなかった。`)
                 return
@@ -2381,14 +2442,19 @@ export function resolveAction(
             const spirits = state.players[owner].field.spirits.filter(
                 (s) =>
                     !action.familyFilter ||
-                    spiritHasFamily(state, owner, s, action.familyFilter),
+                    matchesFamilyFilter(state, owner, s, action.familyFilter),
             )
             for (const s of spirits) {
                 s.tempBpBuff += action.amount
             }
+            const familyLabel = action.familyFilter
+                ? Array.isArray(action.familyFilter)
+                    ? action.familyFilter.join("/")
+                    : action.familyFilter
+                : ""
             log(
                 state,
-                `${state.players[owner].name}の${action.familyFilter ? `【${action.familyFilter}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
+                `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
             )
             return
         }
@@ -4764,17 +4830,33 @@ export function resolveMagic(
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
         if (effect.condition) {
-            // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
-            const { family, count } = effect.condition.ownFamilyCountAtLeast
-            const total = state.players[owner].field.spirits.filter((s) =>
-                spiritHasFamily(state, owner, s, family),
-            ).length
-            if (total < count) {
-                log(
-                    state,
-                    `${card.name}：系統「${family}」を持つスピリットが${count}体未満のため発動しなかった。`,
+            if ("ownFamilyCountAtLeast" in effect.condition) {
+                // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
+                const { family, count } = effect.condition.ownFamilyCountAtLeast
+                const total = state.players[owner].field.spirits.filter((s) =>
+                    spiritHasFamily(state, owner, s, family),
+                ).length
+                if (total < count) {
+                    log(
+                        state,
+                        `${card.name}：系統「${family}」を持つスピリットが${count}体未満のため発動しなかった。`,
+                    )
+                    continue
+                }
+            } else {
+                // ライトニングバリスタ等：自分のフィールドにシンボル数がこれ以上のスピリットが
+                // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
+                const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
+                const has = state.players[owner].field.spirits.some(
+                    (s) => instanceSymbolCount(state, owner, s) >= minSymbols,
                 )
-                continue
+                if (!has) {
+                    log(
+                        state,
+                        `${card.name}：シンボル${minSymbols}個以上を持つスピリットがいないため発動しなかった。`,
+                    )
+                    continue
+                }
             }
         }
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す

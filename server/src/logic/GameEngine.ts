@@ -25,6 +25,7 @@ import {
     hasArmorAgainst,
     hasFunsaiOnBlock,
     hasLifeDamageNegate,
+    instanceSymbolCount,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
@@ -510,11 +511,9 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         return null
     }
 
-    // ダメージ = アタックスピリットのシンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+    // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker
-        ? getCard(attacker.cardId).symbol.length + (attacker.tempExtraSymbols ?? 0)
-        : 1
+    const damage = attacker ? instanceSymbolCount(state, attackerPid, attacker) : 1
     const dealt = Math.min(damage, defender.life)
     const toVoid =
         attacker !== undefined &&
