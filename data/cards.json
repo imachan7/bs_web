@@ -13927,7 +13927,21 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nブロックされなかった相手のスピリットのBPがこのスピリットのBP以下のとき、そのスピリットのアタックでは自分のライフは減らされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "lifeDamageNegate",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-048",
@@ -16221,7 +16235,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『相手のスタートステップ』\n相手の手札が4枚以上のとき、相手は手札が3枚になるようにカードを選んで破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "discardOpponentDownTo",
+     "limit": 3
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-096",
@@ -17155,7 +17184,36 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「四道」を持つ自分のスピリットすべては、相手のスピリット/ネクサス/マジックの効果で疲労しない。\nLv2『自分のアタックステップ』\n自分の黄のスピリットが破壊されたとき、系統：「四道」を持つ自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "exhaustImmunityGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "familyFilter": "四道",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
+    "id": "e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "colorFilter": "yellow",
+    "action": {
+     "type": "refreshOne",
+     "familyFilter": "四道"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-113",
@@ -17827,7 +17885,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分のスピリット1体を疲労させることで、このターンの間、スピリット1体をBP+(疲労させたスピリットのBP)する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuffByExhaustOwn"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-132",
@@ -18043,7 +18110,16 @@
   "rarity": "R",
   "limited": false,
   "effect": "フラッシュ：\n自分と相手のフィールドの疲労しているスピリットの数が同じになるように、相手のスピリットを疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "exhaustOpponentToMatch"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-140",

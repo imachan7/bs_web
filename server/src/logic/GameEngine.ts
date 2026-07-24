@@ -24,6 +24,7 @@ import {
     fireTrigger,
     hasArmorAgainst,
     hasFunsaiOnBlock,
+    hasLifeDamageNegate,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
@@ -481,6 +482,18 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         state.battle.attackerInstanceId,
     )
     const defender = state.players[pid]
+
+    // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
+    // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
+    if (attacker && hasLifeDamageNegate(state, pid, attackerPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return null
+    }
 
     // ダメージ = アタックスピリットのシンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）

@@ -561,6 +561,62 @@ export function hasMagicImmunity(
     return false
 }
 
+// 【疲労しない】（kind: "exhaustImmunityGrant"）：inst（targetOwnerPidの持ち主）が、相手の効果による
+// 疲労を受けないか。呼び出し側は「疲労させようとしている側がtargetOwnerPidと異なる場合のみ」呼ぶこと
+// （自分の効果による疲労は防がない。トランプの王国）
+export function isExhaustImmune(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    const player = state.players[targetOwnerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "exhaustImmunityGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!spiritHasFamily(state, targetOwnerPid, inst, effect.familyFilter)) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// 硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
+// 実効BP以下のとき、ライフダメージそのものを打ち消すか（kind: "lifeDamageNegate"）。
+// バトルによるライフ被弾（doTakeLife）専用。lifeCrush等バトル外のライフ減少には適用しない
+export function hasLifeDamageNegate(
+    state: GameState,
+    defenderPid: PlayerId,
+    attackerPid: PlayerId,
+    attacker: CardInstance | undefined,
+): boolean {
+    if (!attacker) return false
+    const attackerBp = effectiveBp(state, attackerPid, attacker)
+    const player = state.players[defenderPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "lifeDamageNegate") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && defenderPid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && defenderPid === state.turnPlayer) continue
+            }
+            if (attackerBp <= effectiveBp(state, defenderPid, source)) return true
+        }
+    }
+    return false
+}
+
 // このスピリットに効果でコアが置かれるときの追加数（グラーバの coreBonus）。
 // コアを置く各アクション（coreCharge / voidCoreToSelf / voidCoreToOther）が参照する。
 function coreBonusFor(inst: CardInstance): number {
@@ -1532,6 +1588,8 @@ export function resolveAction(
                 for (const s of state.players[pid].field.spirits) {
                     if (currentLevel(s).level !== level) continue
                     if (s.isRested) continue
+                    // 疲労させる側（owner）と持ち主が異なるときのみ疲労免疫を判定（トランプの王国）
+                    if (pid !== owner && isExhaustImmune(state, pid, s)) continue
                     s.isRested = true
                     count++
                 }
@@ -1857,6 +1915,102 @@ export function resolveAction(
             return
         }
 
+        case "bpBuffByExhaustOwn": {
+            // ユナイテッドパワー：回復状態の自分スピリット1体を疲労させ、その実効BP分だけ
+            // 自分のスピリット1体をバフする。段階判定は「最も進んだ段階の指標を先に見る」方式
+            // （grantColorChoiceと同じ考え方）: selfが埋まっていれば第2段階（疲労元は既に確定）、
+            // targetInstanceIdのみなら第1段階の応答（疲労させる対象が確定した直後）、
+            // どちらもなければ最初の呼び出し
+            if (self && targetInstanceId !== undefined) {
+                // 第2段階：selfが疲労させたスピリット、targetInstanceIdがバフ先
+                const buffTarget = pickBpBuffTarget(state, owner, targetInstanceId)
+                if (!buffTarget) {
+                    log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
+                    return
+                }
+                const amount = effectiveBp(state, owner, self)
+                buffTarget.tempBpBuff += amount
+                log(
+                    state,
+                    `${getCard(self.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+                )
+                applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+                return
+            }
+            if (targetInstanceId !== undefined) {
+                // 第1段階の応答：疲労させるスピリットが決まったので疲労させ、続けてバフ先を選ばせる
+                const exhaustTarget = state.players[owner].field.spirits.find(
+                    (s) => s.instanceId === targetInstanceId,
+                )
+                if (!exhaustTarget || exhaustTarget.isRested) {
+                    log(state, `${sourceName}：疲労させる対象がいなかった。`)
+                    return
+                }
+                exhaustTarget.isRested = true
+                if (state.interactiveTargets) {
+                    const buffCandidates = state.players[owner].field.spirits.map((s) => s.instanceId)
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}：BPを増加させる自分のスピリットを選んでください`,
+                        buffCandidates,
+                        false,
+                        action,
+                        exhaustTarget,
+                    )
+                    return
+                }
+                const buffTarget = pickBpBuffTarget(state, owner)
+                if (!buffTarget) {
+                    log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
+                    return
+                }
+                const amount = effectiveBp(state, owner, exhaustTarget)
+                buffTarget.tempBpBuff += amount
+                log(
+                    state,
+                    `${getCard(exhaustTarget.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+                )
+                applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+                return
+            }
+            // 最初の呼び出し：疲労させる自分のスピリット（回復状態のみ）を選ぶ
+            const restCandidates = state.players[owner].field.spirits.filter((s) => !s.isRested)
+            if (restCandidates.length === 0) {
+                log(state, `${sourceName}：回復状態の自分のスピリットがいないため発動しなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：疲労させる自分のスピリットを選んでください`,
+                    restCandidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+            const auto = restCandidates.reduce((best, s) =>
+                effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+            )
+            auto.isRested = true
+            const buffTarget = pickBpBuffTarget(state, owner)
+            if (!buffTarget) {
+                log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
+                return
+            }
+            const amount = effectiveBp(state, owner, auto)
+            buffTarget.tempBpBuff += amount
+            log(
+                state,
+                `${getCard(auto.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+            )
+            applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+            return
+        }
+
         case "exhaust": {
             // levelFilter 指定時はcurrentLevelがこれに含まれるスピリットのみ対象（蜘蛛女アラクネット：相手のLv1限定）
             const matchesLevel = (s: CardInstance) =>
@@ -1871,7 +2025,8 @@ export function resolveAction(
                 if (
                     found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColor) ||
-                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)) ||
+                        isExhaustImmune(state, found.pid, found.inst))
                 ) {
                     log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                     return
@@ -1891,7 +2046,9 @@ export function resolveAction(
                 log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
                 return
             }
-            const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
+            // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
+            const matchesCandidate = (s: CardInstance) =>
+                !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
             if (state.interactiveTargets) {
                 const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColor, srcType)
                 if (
@@ -1925,6 +2082,20 @@ export function resolveAction(
                 target.isRested = true
                 log(state, `${getCard(target.cardId).name}は疲労した。`)
             }
+            return
+        }
+
+        case "exhaustOpponentToMatch": {
+            // セイムタイアード：自分の疲労スピリット数と同数になるまで相手のスピリットを疲労させる。
+            // 差分をcountとして既存"exhaust"の単体処理へ委譲し、armor/免疫/interactive choiceを自然に通す
+            const ownExhausted = state.players[owner].field.spirits.filter((s) => s.isRested).length
+            const oppExhausted = state.players[opp].field.spirits.filter((s) => s.isRested).length
+            const diff = ownExhausted - oppExhausted
+            if (diff <= 0) {
+                log(state, `${sourceName}：相手の疲労スピリットが自分以上のため発動しなかった。`)
+                return
+            }
+            resolveAction(state, owner, self, { type: "exhaust", count: diff }, targetInstanceId, sourceColor, sourceType)
             return
         }
 
@@ -2357,8 +2528,8 @@ export function resolveAction(
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 for (const s of state.players[pid].field.spirits) {
                     if (!instHasColor(s, chosen)) continue
-                    // 装甲は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
-                    if (pid !== owner && hasArmorAgainst(s, srcColor)) continue
+                    // 装甲・疲労免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
+                    if (pid !== owner && (hasArmorAgainst(s, srcColor) || isExhaustImmune(state, pid, s))) continue
                     s.isRested = true
                     exhausted++
                 }
@@ -2531,6 +2702,17 @@ export function resolveAction(
                 state,
                 `${target.name}は手札「${discarded.join("、")}」を破棄した。`,
             )
+            return
+        }
+
+        case "discardOpponentDownTo": {
+            // 奇術師オリバー：相手の手札がlimit枚を超えている場合のみ、limit枚になるまで破棄する
+            const count = state.players[opp].hand.length - action.limit
+            if (count <= 0) {
+                log(state, `${sourceName}：相手の手札は${action.limit}枚以下のため発動しなかった。`)
+                return
+            }
+            resolveAction(state, owner, self, { type: "discardOpponent", count })
             return
         }
 
