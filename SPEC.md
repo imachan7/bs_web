@@ -227,6 +227,15 @@
   levelAs の対象/条件拡張（058/069/087/107/114）・コスト閾値の keywordGrant とデッキ破棄上限（082）・
   神速テキスト書換（033/080）・個別コスト付き複数無償召喚（057）・マジック対象リダイレクト（054）・
   破壊ネクサス復活（061）・デッキ破棄代替支払い（088）・unblockable無効化（110）ほか
+- **エンジン拡張バッチ1（2026-07-24）**: familyFilter の OR 配列（bpBuff/bpBuffAll、共通ヘルパー
+  matchesFamilyFilter）・シンボル数条件（magic condition ownFieldHasMinSymbolSpirit・対象フィルタ minSymbols・
+  instanceSymbolCount 共通化）・光芒の一時/継続付与対応（resolveKoboOnBattleEnd が tempKeywords も参照。
+  レベル判定は保持）で8枚を構造化（029/091/097 全文、096/104/106/107/114 部分）
+- **エンジン拡張バッチ2（2026-07-24）**: 破壊/疲労の costFilter（destroy/destroyExhausted/exhaust。
+  matchesCostFilter）・手札任意破棄連動（coreRemovePerHandDiscard）・coreRemove の dest:"void"・
+  destroyAll の anySide/colorExclude・destroyNexus の all・refreshOne の excludeSelf・
+  coreToTrashAllByCost・opponentTrashCores カウンタで7枚を全文構造化
+  （011/017/021/022/094/095/X13）。**BS04 構造化は effects付き 74枚に到達**
 
 ### デッキ
 
