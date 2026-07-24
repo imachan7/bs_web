@@ -28,6 +28,7 @@ const socket = io()
 let view: GameView | null = null
 const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null }
 let activeTrashTab: "mine" | "opp" = "mine"
+let activeTegamotoTab: "mine" | "opp" = "mine"
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -71,10 +72,42 @@ function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
     })
 }
 
+function renderTegamotoPanel(view: GameView, tab: "mine" | "opp"): void {
+    const tegamotoContent = document.getElementById("tegamoto-content")
+    if (!tegamotoContent) return
+    tegamotoContent.innerHTML = ""
+    
+    const pid = tab === "mine" ? view.you : opponentOf(view.you)
+    const tegamoto = view.players[pid].tegamoto || []
+    
+    tegamoto.forEach((cardId, index) => {
+        const m = master(cardId)
+        const el = document.createElement("div")
+        el.className = `card color-${m.color}`
+        
+        const name = document.createElement("div")
+        name.className = "name"
+        name.textContent = m.name
+        name.style.fontSize = "10px"
+        name.style.whiteSpace = "nowrap"
+        name.style.overflow = "hidden"
+        name.style.textOverflow = "ellipsis"
+        el.appendChild(name)
+        
+        el.dataset.cardId = cardId // enable tooltip
+        el.dataset.tegamotoIndex = String(index)
+        if (tab === "mine" && m.type === "magic") {
+            el.classList.add("clickable")
+        }
+        tegamotoContent.appendChild(el)
+    })
+}
+
 function rerender(): void {
     if (view) {
         render(view, ui)
         renderTrashPanel(view, activeTrashTab)
+        renderTegamotoPanel(view, activeTegamotoTab)
     }
 }
 
@@ -586,6 +619,48 @@ async function init(): Promise<void> {
         byId("tab-opp-trash").classList.add("active")
         byId("tab-my-trash").classList.remove("active")
         rerender()
+    })
+
+    // 手元 UI
+    byId("btn-my-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "mine"
+        byId("tab-my-tegamoto").classList.add("active")
+        byId("tab-opp-tegamoto").classList.remove("active")
+        byId("tegamoto-panel").classList.remove("hidden")
+        rerender()
+    })
+    byId("btn-opp-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "opp"
+        byId("tab-opp-tegamoto").classList.add("active")
+        byId("tab-my-tegamoto").classList.remove("active")
+        byId("tegamoto-panel").classList.remove("hidden")
+        rerender()
+    })
+    byId("btn-close-tegamoto").addEventListener("click", () => {
+        byId("tegamoto-panel").classList.add("hidden")
+    })
+    byId("tab-my-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "mine"
+        byId("tab-my-tegamoto").classList.add("active")
+        byId("tab-opp-tegamoto").classList.remove("active")
+        rerender()
+    })
+    byId("tab-opp-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "opp"
+        byId("tab-opp-tegamoto").classList.add("active")
+        byId("tab-my-tegamoto").classList.remove("active")
+        rerender()
+    })
+    
+    // 手元からのマジック使用
+    byId("tegamoto-content").addEventListener("click", (e) => {
+        if (activeTegamotoTab !== "mine") return
+        const cardEl = closestData(e, "data-tegamoto-index")
+        if (cardEl) {
+            const index = Number(cardEl.dataset.tegamotoIndex)
+            send({ type: "castMagic", handIndex: index, fromTegamoto: true })
+            byId("tegamoto-panel").classList.add("hidden")
+        }
     })
 }
 
