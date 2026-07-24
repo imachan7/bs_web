@@ -3,6 +3,7 @@ import type { CardData, GameAction, GameView, PaySource, PlayerId } from "../../
 import {
     canDirectAttack,
     effectiveCost,
+    hasKeyword,
     magicTargetSide,
     master,
     matchesDirectedAttackFilter,
@@ -26,13 +27,55 @@ const socket = io()
 
 let view: GameView | null = null
 const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null }
+let activeTrashTab: "mine" | "opp" = "mine"
 
 function send(action: GameAction): void {
     socket.emit("action", action)
 }
 
+function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
+    const trashContent = document.getElementById("trash-content")
+    if (!trashContent) return
+    trashContent.innerHTML = ""
+    
+    const pid = tab === "mine" ? view.you : opponentOf(view.you)
+    const trash = view.players[pid].trashCards || []
+    
+    const groupedTrash = new Map<string, number>()
+    trash.forEach(cardId => {
+        groupedTrash.set(cardId, (groupedTrash.get(cardId) || 0) + 1)
+    })
+    
+    groupedTrash.forEach((count, cardId) => {
+        const m = master(cardId)
+        const el = document.createElement("div")
+        el.className = `card color-${m.color}`
+        const name = document.createElement("div")
+        name.className = "name"
+        name.textContent = m.name
+        name.style.fontSize = "10px"
+        name.style.whiteSpace = "nowrap"
+        name.style.overflow = "hidden"
+        name.style.textOverflow = "ellipsis"
+        el.appendChild(name)
+        
+        if (count > 1) {
+            const badge = document.createElement("div")
+            badge.className = "count-badge"
+            badge.textContent = `x${count}`
+            el.appendChild(badge)
+        }
+        
+        el.dataset.cardId = cardId // enable tooltip
+        trashContent.appendChild(el)
+    })
+}
+
 function rerender(): void {
-    if (view) render(view, ui)
+    if (view) {
+        render(view, ui)
+        renderTrashPanel(view, activeTrashTab)
+    }
 }
 
 // カード種別に応じたアクションを送信する（paySources/targetInstanceIdは値がある場合のみキーを含める）
@@ -138,6 +181,17 @@ function onHandClick(handIndex: number): void {
             return
         }
         if (card.type === "nexus") {
+            tryPlay(handIndex, card, undefined)
+            return
+        }
+    }
+
+    // 神速召喚：静的に持つか、grantKeywordToHandCardで一時付与された手札スピリット
+    if (card.type === "spirit" && inFlash) {
+        const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
+            (g) => g.cardId === cardId && g.keyword === "soku",
+        )
+        if (hasKeyword(cardId, "soku") || tempSoku) {
             tryPlay(handIndex, card, undefined)
             return
         }
@@ -504,6 +558,34 @@ async function init(): Promise<void> {
         }
         const cardEl = closestData(e, "data-card-index")
         if (cardEl) send({ type: "resolveChoice", cardIndex: Number(cardEl.dataset.cardIndex) })
+    })
+    
+    byId("btn-toggle-log").addEventListener("click", () => {
+        const panel = byId("log-panel")
+        panel.classList.toggle("hidden")
+    })
+    byId("btn-close-log").addEventListener("click", () => {
+        byId("log-panel").classList.add("hidden")
+    })
+    
+    byId("btn-toggle-trash").addEventListener("click", () => {
+        byId("trash-panel").classList.toggle("hidden")
+        rerender()
+    })
+    byId("btn-close-trash").addEventListener("click", () => {
+        byId("trash-panel").classList.add("hidden")
+    })
+    byId("tab-my-trash").addEventListener("click", () => {
+        activeTrashTab = "mine"
+        byId("tab-my-trash").classList.add("active")
+        byId("tab-opp-trash").classList.remove("active")
+        rerender()
+    })
+    byId("tab-opp-trash").addEventListener("click", () => {
+        activeTrashTab = "opp"
+        byId("tab-opp-trash").classList.add("active")
+        byId("tab-my-trash").classList.remove("active")
+        rerender()
     })
 }
 

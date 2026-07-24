@@ -110,7 +110,72 @@
 - 構造化の進捗: キーワード7枚＋赤・紫バッチ21枚（全文10・部分11。スキップ9枚の未対応概念は
   課題リストに集約: コア数フィルタ破壊・バニラ参照・手札公開・動的Lv/BP比較・シンボル付与など）の
   計28枚＋緑・白バッチ13枚（全文8・部分5。スキップ19枚の主因: 各種Perアクションのカウンタが
-  固定的・付与系kindにcolorFilterが無い・バニラ参照など）の計 **41枚** / 効果文持ち128枚
+  固定的・付与系kindにcolorFilterが無い・バニラ参照など）＋エンジン拡張バッチ8枚
+  （EffectCounter 統一＝Per系アクションのカウンタを12種に一般化、keywordGrant/effectGrant の colorFilter、
+  exhaust の levelFilter。BS03-030/031/032/036/046/048/128/X10）＋黄バッチ14枚（全文5・部分9。
+  スキップ12枚の主因: 色/名前の継続付与・トリガーの色条件ゲート・マジック無償化・疲労免疫など）の
+  計62枚＋青バッチ13枚（全文6・部分7。スキップ22枚の最多要因は「相手のデッキを◯枚破棄」の
+  汎用ミルアクション不在＝8枚前後。ほか手札加入検知・任意コスト誘発・効果無効など）の
+  計73枚＋仕上げ拡張バッチ（mill/millPer・EffectCounter ownColor・bpBuffAll familyFilter・
+  deployNexus all を新設、BS03-073/087/097/100/144/145/148/X12）の計78枚＋条件ゲートバッチ10枚
+  （2026-07-21 再開。triggered condition に ownFieldHasColorSpirit/ownFieldHasColorNexus/
+  targetSameLevelAsSelf、magic condition ownFamilyCountAtLeast、AuraCondition ownHasKeyword、
+  新アクション destroyAllNexusesWithCores・voidCoreToAllOwnByFamily・voidCoreToTarget・
+  refreshByFamilyAuto を新設。BS03-004/007/008/035/056/057/065/126/129/149。
+  refreshByFamilyAuto は「系統1つを指定」を疲労中スピリットの最多系統の自動指定で簡略化）の
+  計88枚＋粉砕連動バッチ4枚（BS03-086/090/115/117。粉砕解決を resolveFunsai に共通化し、
+  fieldEvent "ownFunsaiMilled"（repeatPerCount で「置かれるたび」対応）・kind "funsaiBonus"＝
+  破棄枚数修正・kind "funsaiOnBlock"＝ブロック時にも粉砕発揮・levelAs 拡張
+  （target ownSpiritsByKeyword／treatAs "max"／phase・turn／condition anyFieldHasColorSpirit）を新設。
+  millDeck が実破棄枚数を返すようになった）の計92枚＋バニラ参照バッチ6枚
+  （BS03-102/104/106/108/111/114 の各色ネクサス群。isVanillaCard＝効果原文が空のカード判定を新設し、
+  aura vanillaFilter・reviveOnDestroy の when byBattle/byBattleKillerLevel と revived toHand・
+  fieldEvent vanillaOnly/byBattleOnly・battleWon の role "any"/turn/vanillaWinnerOnly/selfMode "source"・
+  refreshOne vanillaFilter・levelAs ownSpiritsVanilla/coresScaled・
+  globalConstraint ownNexusIndestructible（バニラ数条件付き）を追加。
+  DestroyContext.battle に attackerLevel を伝播。運命分かつ岐路 e2 の「自分か相手のスピリット1体を疲労」は
+  相手側のみに簡略化）の計98枚＋任意コスト支払いバッチ5枚（BS03-033/088/092/107/124。
+  新アクション selfBuffByHandDiscard・grantKeywordToHandCard・coreTradeToOpponentTrash、
+  reviveOnDestroy の keywordFilter・cost.reserveOneToTrash・phaseTurn turn:"both" を新設。
+  PlayerState.tempHandKeywordGrants で手札カードへの一時キーワード付与を管理し、
+  RuleValidator の神速召喚判定とクライアントの手札フラッシュ使用可能ハイライトの双方に反映
+  （副次効果として、既存の神速持ちカードもクライアントから手札フラッシュ召喚が操作可能になった＝
+  従来はサーバーのみ許可でクライアントUIが未実装だった潜在バグの修正）。
+  果て無き地平線 e1（Lv1スピリットがLv2BPを参照するBP参照元の置換）は未対応のためスキップ）の
+  計103枚＋マジック制約バッチ5枚（2026-07-24。BS03-069/075/079/113/116。
+  kind "magicRestriction"＝oncePerTurnAll（フォクシン）／noReductionOpponent（イワトビペンタン）／
+  colorLockOpponent（力奪う凱旋門 e1）を新設し validateCastMagic / effectiveCost に反映
+  （noReduction はクライアントのコスト表示にもミラー）。fieldEvent "opponentHandAdded"
+  （notifyHandGained をドロー・トラッシュ回収・バウンス・deckReveal 等の手札追加11箇所に配線、
+  repeatPerCount で枚数連動）と familyFilter（英雄の喪失 e2＝勇傑）を追加。
+  GameState.magicUsedThisTurn を新設。凱旋門 e2（コスト無償化の打ち消し）は概念未実装のためスキップ。
+  マードックの「フィールド/リザーブから」はフィールドのみに簡略化）の
+  計108枚＋条件付き誘発バッチ6枚（BS03-021/027/040/050/082/101。
+  lastBattleDestroyedLevel＝破壊ブロッカーLvの記録と exhaustAllByLevel の動的Lv対応、
+  FieldEvent "ownNexusDestroyed"、fieldEvent condition "selfIsAttacking"、
+  reductionGrant keywordFilter、refreshOne familyFilter、kind "coreStepBonus"
+  （カード名そろい条件つきコアステップ増加）、voidCoreToOwnNexuses を新設）の
+  計114枚＋色・シンボル・レベル操作バッチ4枚（BS03-053/058/121/141。
+  CardInstance.colorsAsContinuous（kind "colorAs"、フラットフェイス。レベル表記は完全一致で有効）・
+  tempExtraSymbols（ダブルハート。ライフダメージとコスト軽減シンボル集計に反映）、
+  アクション grantColorAll（ティングリー）・addSymbolThisTurn・levelUpThisTurn（ビルドアップ。
+  最大Lvキャップ）を新設。ダブルハート/ビルドアップの「自分か相手のスピリット1体」は
+  自分側のみに簡略化）の計118枚＋新概念バッチ4a の5枚（BS03-047/095/112/131/139。
+  kind "exhaustImmunityGrant"＝相手効果の疲労免疫（トランプの王国。exhaust系3経路にガード）・
+  kind "lifeDamageNegate"＝非ブロックアタッカーBPが発生源以下ならライフ減少無効（フレイア）、
+  アクション discardOpponentDownTo（オリバー。捨てる側選択の discardOpponent に委譲）・
+  bpBuffByExhaustOwn（ユナイテッドパワー。2段choice）・exhaustOpponentToMatch（セイムタイアード）を
+  新設）の計123枚＋最終バッチ4b の4枚＋凱旋門e2（BS03-064/085/109/138 と BS03-113 e2。
+  kind "magicFreeGrant"＝色指定マジック無償化（バロッサ）と magicRestriction "noFreeCastOpponent"＝
+  無償化打ち消し（凱旋門 e2。これで凱旋門は完全構造化）、levelAs の sourceLevels 完全一致・
+  target "opponentNexusesAll"（ウッド・ゴレム＝相手ネクサスをLv1扱いにして「Lv2効果は発揮されない」を
+  表現。レベル表示も1になる簡略化）、FieldEvent "ownSpiritCoresRemovedByOpponent"（極光の大地 e1。
+  コア除去6アクションに actorPid 伝播）・coreStepBonus condition ownFieldHasFamily（同 e2）、
+  アクション swapBattler（テレポートチェンジ＝バトル参加スピリットを疲労状態の自分のスピリットと
+  入れ替え）を新設）の計 **127枚** / 効果文持ち128枚。
+- **BS03 の構造化はこれで完了（2026-07-24）**。表示のみで残るのは
+  エクリア（BS03-016。「手元」ゾーン参照＝エンジンにゾーン自体が無く対応予定なし）の1枚と、
+  部分構造化の果て無き地平線 e1（Lv1スピリットのLv2BP参照）のみ
 
 ### デッキ
 
@@ -129,7 +194,9 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 ### ルール
 
 - ステップ進行: スタート / コア / ドロー / リフレッシュ / メイン / アタック / エンド
-- 先攻1ターン目はドローなし
+- 先攻1ターン目は**コアステップなし**（コア追加なし。リザーブ初期4個のまま）・**ドローステップはあり**
+  （公式ルール準拠。2026-07-24 修正: 従来は「コアあり・ドローなし」と逆に実装されていた。
+  smoke のテストヘルパー runTurnStart は既存テストの期待値を保つため通常ターン相当＋初回ドロー打ち消しで動作）
 - 先攻1ターン目はアタック不可（`validateAttack` で拒否。mustAttack もターン1では
   ターン終了を妨げない。クライアントのアタック可能ハイライトにも同条件をミラー）
 - コスト軽減（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）

@@ -25,7 +25,7 @@ import {
 // CommonJS の循環require（関数宣言はホイストされ、モジュール読み込み完了時点で exports に
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
-import { fireFieldEventTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 
 // ---- カードマスターデータの読み込み ----
 
@@ -172,8 +172,12 @@ export function createGame(
         endAttackStepAfterBattle: false,
         turnConstraints: [],
         lastBattleDestroyedCores: 0,
+        lastBattleDestroyedLevel: 0,
         pendingChoice: null,
         interactiveTargets: false,
+        events: [],
+        eventSeq: 0,
+        magicUsedThisTurn: { p1: 0, p2: 0 },
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)
@@ -211,6 +215,7 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
         player.hand.push(cardId)
     }
     log(state, `${player.name}は${count}枚ドローした。`)
+    emitEvent(state, { type: "draw", pid, count })
     // フィールドイベント誘発「相手がドローしたとき」：ドローしたpidの相手側（opponentOf(pid)）の
     // フィールドから発火する（シダフクロウ＝「相手がドローするとき、このスピリットは回復する」）。
     // 注意（無限ループ）: ここで発火するactionがdrawを含むカードがあると、
@@ -220,6 +225,8 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
     // フィールド未初期化での呼び出しは発生しない（createPlayerがfield.spirits/nexusesを
     // 同期的に初期化済みでもあり、fireFieldEventTriggersはフィールドが空でも安全に何もしない）。
     fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew")
+    // フィールドイベント誘発「相手の手札にカードが加えられたとき」（犬人マードック／英雄の喪失）
+    notifyHandGained(state, pid, count)
 }
 
 // コア数のみによる素のレベル判定（levelAsContinuous / levelOverrideThisTurn による上書きは無視する）。
@@ -265,14 +272,22 @@ export function lv1Cores(card: CardData): number {
     return lv1 ? lv1.cores : 0
 }
 
-// 軽減計算用：自分のフィールドにある指定色シンボルの数を数える
+// 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
+// tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
+// そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 export function countSymbols(player: PlayerState, colors: Color[]): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
-        for (const sym of getCard(inst.cardId).symbol) {
-            if (colors.includes(sym)) count++
+        const cardSymbols = getCard(inst.cardId).symbol
+        let matched = false
+        for (const sym of cardSymbols) {
+            if (colors.includes(sym)) {
+                count++
+                matched = true
+            }
         }
+        if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
     }
     return count
 }
@@ -320,6 +335,9 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             spirits: player.field.spirits.map((s) => ({ ...s })),
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
         },
+        ...(isSelf && player.tempHandKeywordGrants
+            ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
+            : {}),
     }
 }
 
@@ -357,5 +375,6 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
                 ? { ...state.pendingChoice }
                 : maskPendingChoiceForOpponent(state.pendingChoice)
             : null,
+        events: [...state.events],
     }
 }

@@ -70,6 +70,7 @@ function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData):
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && card.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
             if (effect.condition) {
                 const { color, count } = effect.condition.ownColorTotalAtLeast
                 const total = sources.filter((s) => getCard(s.cardId).color === color).length
@@ -81,17 +82,90 @@ function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData):
     return extra
 }
 
+// マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
+// レベル有効・restriction一致・turn条件成立の発生源があるか調べる。
+// oncePerTurnAll は持ち主を問わず両陣営に効くため usingPid との一致チェックをしない。
+// noReductionOpponent / colorLockOpponent は「発生源の持ち主の相手」にのみ効くため、
+// 発生源の持ち主自身が使用者（usingPid === ownerPid）のときは対象外とする
+// （イワトビペンタン／作戦参謀フォクシン／力奪う凱旋門）
+function hasMagicRestriction(
+    state: GameState,
+    usingPid: PlayerId,
+    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
+): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
+        const sources = [...state.players[ownerPid].field.spirits, ...state.players[ownerPid].field.nexuses]
+        for (const source of sources) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "magicRestriction") continue
+                if (effect.restriction !== restriction) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
+// レベル有効・色一致・phaseTurn一致の発生源があるかを調べる（薔薇人バロッサ：自分のアタックステップに
+// 自分の黄マジックカードを無償化）
+function hasMagicFreeGrant(state: GameState, pid: PlayerId, card: CardData): boolean {
+    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicFreeGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.colorFilter !== card.color) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
+// 軽減シンボルと同じシンボル集計対象を色の集合として求める）
+function ownFieldSymbolColors(state: GameState, pid: PlayerId): Set<Color> {
+    const colors = new Set<Color>()
+    const all = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const inst of all) {
+        for (const sym of getCard(inst.cardId).symbol) colors.add(sym)
+    }
+    return colors
+}
+
 // 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 // costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
-// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する
+// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する。
+// noReductionOpponent（イワトビペンタン）が有効なマジックは軽減シンボルによる軽減自体ができない
 export function effectiveCost(
     state: GameState,
     pid: PlayerId,
     card: CardData,
 ): number {
+    // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
+    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
+    if (
+        card.type === "magic" &&
+        hasMagicFreeGrant(state, pid, card) &&
+        !hasMagicRestriction(state, pid, "noFreeCastOpponent")
+    ) {
+        return 0
+    }
     const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
-    const symbols = countSymbols(state.players[pid], reductionColors)
-    const reduction = Math.min(reductionColors.length, symbols)
+    const reductionBlocked = card.type === "magic" && hasMagicRestriction(state, pid, "noReductionOpponent")
+    const symbols = reductionBlocked ? 0 : countSymbols(state.players[pid], reductionColors)
+    const reduction = reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)
     const base = Math.max(card.cost - reduction, 0)
     return base + costModTotal(state, pid, card)
 }
@@ -150,7 +224,11 @@ export function validateSummon(
     if (card.type !== "spirit") return "スピリットカードではありません"
 
     // 神速：フラッシュタイミングなら手札から召喚できる（自分・相手ターン問わず）
-    const flashSummon = state.isFlashTiming && hasKeyword(cardId, "soku")
+    // grantKeywordToHandCardで一時的に神速を付与された手札カードも同様に扱う（ビートプリースト）
+    const hasTempSoku = (player.tempHandKeywordGrants ?? []).some(
+        (g) => g.cardId === cardId && g.keyword === "soku",
+    )
+    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku)
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
@@ -212,6 +290,15 @@ export function validateCastMagic(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "magic") return "マジックカードではありません"
+
+    // 作戦参謀フォクシン：フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
+    if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
+        return "このターンはすでにマジックの効果を使用しているため使用できません"
+    }
+    // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない色のマジックは使用できない
+    if (hasMagicRestriction(state, pid, "colorLockOpponent") && !ownFieldSymbolColors(state, pid).has(card.color)) {
+        return "このマジックの色と一致するシンボルが自分のフィールドにないため使用できません"
+    }
 
     // 対象指定がある場合、両プレイヤーのフィールドに該当スピリットが存在するか検証
     if (targetInstanceId !== undefined) {

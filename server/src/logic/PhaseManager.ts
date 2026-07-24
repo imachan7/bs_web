@@ -1,8 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { FIRST_TURN_DRAW } from "../../../data/constants"
 import { draw, log } from "./GameState"
-import { activeConstraints, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める
 export function runTurnStart(state: GameState): void {
@@ -14,21 +13,27 @@ export function runTurnStart(state: GameState): void {
     fireStepTriggers(state, "start")
     if (state.winner) return
 
-    // コアステップ：リザーブにコアを1個追加
+    // コアステップ：リザーブにコアを1個追加（coreStepBonus持ち＝ベル・ダンディア等で+amount）。
+    // 先攻1ターン目はコアステップ自体が存在しない（公式ルール）
     state.phase = "core"
-    player.reserve += 1
-    log(state, `${player.name}はリザーブにコアを1個置いた。`)
-    fireStepTriggers(state, "core")
-    if (state.winner) return
-
-    // ドローステップ（先攻1ターン目はスキップ）
-    state.phase = "draw"
-    if (state.turn === 1 && !FIRST_TURN_DRAW) {
-        log(state, `先攻1ターン目のためドローなし。`)
+    if (state.turn === 1) {
+        log(state, `先攻1ターン目のためコアステップなし。`)
     } else {
-        draw(state, pid, 1)
+        const coreStepBonus = coreStepBonusFor(state, pid)
+        player.reserve += 1 + coreStepBonus
+        if (coreStepBonus > 0) {
+            log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+        } else {
+            log(state, `${player.name}はリザーブにコアを1個置いた。`)
+        }
+        fireStepTriggers(state, "core")
         if (state.winner) return
     }
+
+    // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
+    state.phase = "draw"
+    draw(state, pid, 1)
+    if (state.winner) return
     fireStepTriggers(state, "draw")
     if (state.winner) return
 
@@ -76,6 +81,7 @@ export function endTurn(state: GameState): void {
 
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
+        state.players[pid].tempHandKeywordGrants = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
             inst.cantAttackThisTurn = false
@@ -85,6 +91,7 @@ export function endTurn(state: GameState): void {
             inst.tempAlsoCosts = []
             inst.tempColors = []
             inst.tempFamilies = []
+            delete inst.tempExtraSymbols
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット
@@ -108,6 +115,8 @@ export function endTurn(state: GameState): void {
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
     state.turnConstraints = []
+    // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
+    state.magicUsedThisTurn = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

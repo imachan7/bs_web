@@ -56,10 +56,22 @@ runTurnStart(state)
 
 assert(state.players.p1.deck.length + state.players.p1.hand.length === 40, "p1のデッキ+手札が40枚")
 assert(state.players.p2.deck.length + state.players.p2.hand.length === 40, "p2のデッキ+手札が40枚")
-assert(state.players.p1.hand.length === 4, "p1の初期手札は4枚（先攻1ターン目ドローなし）")
+assert(state.players.p1.hand.length === 4, "p1の手札は4枚（テストヘルパーは通常ターン相当でドロー分を戻す）")
 assert(state.players.p1.life === 5, "初期ライフは5")
-assert(state.players.p1.reserve === 5, "先攻ターン1のリザーブは4+1=5")
+assert(state.players.p1.reserve === 5, "通常ターンのリザーブは4+1=5")
 assert(state.phase === "main", "ターン開始処理後はメインステップ")
+
+console.log("=== 先攻1ターン目の固有ルール（コアステップなし・ドローあり） ===")
+{
+    const t1 = createGame(
+        "turn1-rule-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    engineRunTurnStart(t1)
+    assert(t1.players.p1.reserve === 4, "先攻1ターン目はコアステップがなくリザーブ4のまま")
+    assert(t1.players.p1.hand.length === 5, "先攻1ターン目もドローステップはあり手札4+1=5枚")
+}
 
 console.log("=== 召喚（ゴラドンを手札に仕込む） ===")
 state.players.p1.hand[0] = "BS01-001" // ゴラドン: コスト0・維持1

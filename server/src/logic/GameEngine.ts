@@ -18,13 +18,17 @@ import {
     destroySpirit,
     effectActiveAtLevel,
     effectiveBp,
+    emitEvent,
     fireBattleWonTriggers,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
+    hasFunsaiOnBlock,
+    hasLifeDamageNegate,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
+    resolveFunsai,
     resolveKoboOnBattleEnd,
     resolveMagic,
 } from "./EffectModules"
@@ -51,6 +55,8 @@ export function handleAction(
 ): string | null {
     if (state.winner) return "ゲームはすでに終了しています"
 
+    // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
+    state.events = []
     const result = dispatchAction(state, pid, action)
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
@@ -193,6 +199,7 @@ function doSummon(
     player.field.spirits.push(inst)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     log(state, `${player.name}は${flashNote}${card.name}を召喚した。（コスト${cost}）`)
+    emitEvent(state, { type: "summon", pid, cardName: card.name })
 
     fireTrigger(state, pid, inst, "onSummon")
     // フラッシュ中（神速召喚）は優先権を相手へ移す
@@ -246,6 +253,8 @@ function doCastMagic(
     player.hand.splice(handIndex, 1)
     player.trashCards.push(cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
+    // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
+    state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
 
     // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
     if (state.battle) {
@@ -382,13 +391,8 @@ function doAttack(
     fireTrigger(state, pid, inst, "onAttack")
 
     // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
-    if (!state.winner) {
-        const attackLevel = currentLevel(inst).level
-        const hasFunsai = card.effects.some(
-            (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, attackLevel),
-        )
-        if (hasFunsai) millDeck(state, opponentOf(pid), attackLevel)
-    }
+    // （funsaiBonus・ownFunsaiMilled誘発の共通処理はresolveFunsaiに集約）
+    if (!state.winner) resolveFunsai(state, pid, inst)
 
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
@@ -420,6 +424,12 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果
     if (blocker) fireTrigger(state, pid, blocker, "onBlock")
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
+    // 【粉砕】をこのスピリットのブロック時にも発揮させる継続付与（士気高き大本営）
+    if (blocker && hasFunsaiOnBlock(state, pid)) resolveFunsai(state, pid, blocker)
     if (state.winner) {
         state.battle = null
         return null
@@ -473,9 +483,23 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     )
     const defender = state.players[pid]
 
-    // ダメージ = アタックスピリットのシンボル数。ライフのコアは通常リザーブへ、
-    // ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker ? getCard(attacker.cardId).symbol.length : 1
+    // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
+    // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
+    if (attacker && hasLifeDamageNegate(state, pid, attackerPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return null
+    }
+
+    // ダメージ = アタックスピリットのシンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+    // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
+    const damage = attacker
+        ? getCard(attacker.cardId).symbol.length + (attacker.tempExtraSymbols ?? 0)
+        : 1
     const dealt = Math.min(damage, defender.life)
     const toVoid =
         attacker !== undefined &&
@@ -493,6 +517,7 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
             `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
         )
     }
+    if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid, amount: dealt })
 
     if (defender.life <= 0) {
         state.winner = attackerPid
@@ -679,6 +704,8 @@ function resolveBattle(state: GameState): void {
 
     // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGainPer counter "lastBattleDestroyedCores"）
     state.lastBattleDestroyedCores = 0
+    // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaustAllByLevel level "lastBattleDestroyed"）
+    state.lastBattleDestroyedLevel = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColor = getCard(attacker.cardId).color
@@ -688,6 +715,10 @@ function resolveBattle(state: GameState): void {
     if (!skipRest) blocker.isRested = true
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const blockerBp = effectiveBp(state, defenderPid, blocker)
+    // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
+    // byBattleKillerLevel判定用）。命名はattackerColorと同じく歴史的なもので、実際は勝者側の値
+    const attackerLevel = currentLevel(attacker).level
+    const blockerLevel = currentLevel(blocker).level
 
     log(
         state,
@@ -703,12 +734,13 @@ function resolveBattle(state: GameState): void {
     const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
 
     if (attackerValue > blockerValue) {
-        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数を記録（魔界七将デストロードLv2）
+        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
+        state.lastBattleDestroyedLevel = blockerLevel
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor },
+            battle: { attackerColor, attackerLevel },
         })
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
@@ -716,7 +748,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color },
+            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
         })
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
@@ -724,12 +756,12 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor },
+            battle: { attackerColor, attackerLevel },
         })
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color },
+            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
         })
     }
 
@@ -737,7 +769,6 @@ function resolveBattle(state: GameState): void {
     // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
     // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
     // destroySpirit 後も cardId・cores は読み取れる）。
-    const attackerLevel = currentLevel(attacker).level
     const hasJugeki = getCard(attacker.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
@@ -760,7 +791,7 @@ function resolveBattle(state: GameState): void {
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
-                    battle: { attackerColor },
+                    battle: { attackerColor, attackerLevel },
                 })
             }
         }

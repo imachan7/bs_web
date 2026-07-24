@@ -7,6 +7,7 @@ import type {
     CardInstance,
     Color,
     ConstraintDef,
+    GameEvent,
     GameView,
     GlobalConstraintDef,
     Keyword,
@@ -28,10 +29,24 @@ export function master(cardId: string): CardData {
     return card
 }
 
+const COLOR_SYMBOLS: Record<string, string> = {
+    red: "🔥",
+    purple: "💀",
+    green: "🌿",
+    white: "◇",
+    yellow: "⭐",
+    blue: "💧"
+}
+
 // 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
 // 指定コストとして扱われるか（サーバー instHasCost と同じロジックの簡易版）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
     return master(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
+}
+
+// カードに効果の記述を持たない（バニラ）か（サーバー isVanillaCard と同じロジックの簡易版）
+function isVanillaCard(cardId: string): boolean {
+    return master(cardId).effect === ""
 }
 
 // ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
@@ -106,6 +121,11 @@ function checkAuraCondition(
             (s) => master(s.cardId).color === condition.hasOwnColorSpirit,
         )
     }
+    if ("ownHasKeyword" in condition) {
+        return player.field.spirits.some((s) =>
+            spiritHasKeywordView(view, sourcePid, s, condition.ownHasKeyword),
+        )
+    }
     return player.field.spirits.some((s) =>
         master(s.cardId).family.includes(condition.hasOwnFamily),
     )
@@ -161,6 +181,9 @@ function auraAppliesTo(
         aura.familyFilter &&
         !spiritHasFamilyView(view, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
+        return false
+    }
+    if (aura.vanillaFilter && !isVanillaCard(targetInst.cardId)) {
         return false
     }
     return true
@@ -229,6 +252,7 @@ export function spiritHasKeywordView(
             ) {
                 continue
             }
+            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) continue
             if (effect.phase && view.phase !== effect.phase) continue
             return true
         }
@@ -239,7 +263,8 @@ export function spiritHasKeywordView(
 // 状態を考慮した色判定（サーバー instHasColor のミラー）
 export function instHasColorView(inst: CardInstance, color: Color): boolean {
     if (master(inst.cardId).color === color) return true
-    return inst.tempColors.includes(color)
+    if (inst.tempColors.includes(color)) return true
+    return (inst.colorsAsContinuous ?? []).includes(color)
 }
 
 // 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
@@ -478,6 +503,7 @@ function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): C
             if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
             if (effect.cardType !== undefined && card.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
+            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
             if (effect.condition) {
                 const { color, count } = effect.condition.ownColorTotalAtLeast
                 const total = sources.filter((s) => master(s.cardId).color === color).length
@@ -489,20 +515,94 @@ function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): C
     return extra
 }
 
+// マジック使用制約（kind: "magicRestriction"）の判定（サーバー hasMagicRestriction と同じロジックの簡易版）
+function hasMagicRestriction(
+    view: GameView,
+    usingPid: PlayerId,
+    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
+): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
+        const sources = [...view.players[ownerPid].field.spirits, ...view.players[ownerPid].field.nexuses]
+        for (const source of sources) {
+            const level = levelOf(source).level
+            for (const effect of master(source.cardId).effects) {
+                if (effect.kind !== "magicRestriction") continue
+                if (effect.restriction !== restriction) continue
+                if (!(effect.levels === null || effect.levels.includes(level))) continue
+                if (effect.turn === "own" && ownerPid !== view.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === view.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// マジック無償化（kind: "magicFreeGrant"）の判定（サーバー hasMagicFreeGrant と同じロジックの簡易版。薔薇人バロッサ）
+function hasMagicFreeGrant(view: GameView, pid: PlayerId, card: CardData): boolean {
+    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const source of sources) {
+        const level = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "magicFreeGrant") continue
+            if (!(effect.levels === null || effect.levels.includes(level))) continue
+            if (effect.colorFilter !== card.color) continue
+            if (effect.phaseTurn) {
+                if (view.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// pidのフィールドが持つシンボルの色集合（サーバー ownFieldSymbolColors と同じロジックの簡易版。力奪う凱旋門）
+function ownFieldSymbolColors(view: GameView, pid: PlayerId): Set<Color> {
+    const colors = new Set<Color>()
+    const all = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const inst of all) {
+        for (const sym of master(inst.cardId).symbol) colors.add(sym)
+    }
+    return colors
+}
+
 export function effectiveCost(
     view: GameView,
     pid: PlayerId,
     card: CardData,
 ): number {
+    // マジック無償化（薔薇人バロッサ）：noFreeCastOpponent（力奪う凱旋門Lv2）がなければコスト0
+    if (
+        card.type === "magic" &&
+        hasMagicFreeGrant(view, pid, card) &&
+        !hasMagicRestriction(view, pid, "noFreeCastOpponent")
+    ) {
+        return 0
+    }
     const field = view.players[pid].field
     const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
+    const reductionBlocked = card.type === "magic" && hasMagicRestriction(view, pid, "noReductionOpponent")
     let symbols = 0
-    for (const inst of [...field.spirits, ...field.nexuses]) {
-        for (const sym of master(inst.cardId).symbol) {
-            if (reductionColors.includes(sym)) symbols++
+    if (!reductionBlocked) {
+        for (const inst of [...field.spirits, ...field.nexuses]) {
+            const cardSymbols = master(inst.cardId).symbol
+            let matched = false
+            for (const sym of cardSymbols) {
+                if (reductionColors.includes(sym)) {
+                    symbols++
+                    matched = true
+                }
+            }
+            if (matched && inst.tempExtraSymbols) symbols += inst.tempExtraSymbols
         }
     }
-    const base = Math.max(card.cost - Math.min(reductionColors.length, symbols), 0)
+    const base = Math.max(
+        card.cost - (reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)),
+        0,
+    )
     return base + costModTotal(view, pid, card)
 }
 
@@ -552,7 +652,10 @@ export function magicTargetSide(
         effect.action.type === "coreCharge" ||
         effect.action.type === "grantKeyword" ||
         effect.action.type === "refireSummonEffect" ||
-        effect.action.type === "trashCoresToSpirit"
+        effect.action.type === "trashCoresToSpirit" ||
+        effect.action.type === "voidCoreToTarget" ||
+        effect.action.type === "addSymbolThisTurn" ||
+        effect.action.type === "levelUpThisTurn"
     )
         return "self"
     return null
@@ -644,9 +747,68 @@ function show(id: string, visible: boolean): void {
     $(id).classList.toggle("hidden", !visible)
 }
 
+// innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
 // ---- 描画本体 ----
 
+// イベント通知レイヤー：直前に処理済みのGameEvent.seq（初回は0で全件未処理扱い）
+let lastEventSeq = 0
+
+// バナー1件が画面に残る時間（CSSの event-banner-inout と合わせる）
+const EVENT_BANNER_DURATION_MS = 800
+
+function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
+    switch (ev.type) {
+        case "summon":
+            return `✨ ${ev.cardName} 召喚`
+        case "destroy":
+            return `💥 ${ev.cardName} 破壊`
+        case "magic":
+            return `📜 ${ev.cardName} 使用`
+        case "draw":
+            // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
+            return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
+        case "lifeDamage":
+            return null // バナーは出さず、ライフ表示のシェイク演出のみ
+    }
+}
+
+// view.events のうち前回描画より新しいものだけを処理する：
+// 召喚・破壊・マジック・相手ドローはオーバーレイのバナー通知、ライフダメージは
+// 対象プレイヤーのpidを集めて返す（renderInfoでの life-changed クラス付与に使う）
+function processNewEvents(view: GameView): Set<PlayerId> {
+    const layer = document.getElementById("event-layer")
+    const lifeDamagedPids = new Set<PlayerId>()
+    const newEvents = view.events.filter((ev) => ev.seq > lastEventSeq)
+    for (const ev of newEvents) {
+        if (ev.type === "lifeDamage") {
+            lifeDamagedPids.add(ev.pid)
+            continue
+        }
+        const text = eventBannerText(ev, view.you)
+        if (text === null || !layer) continue
+        const banner = document.createElement("div")
+        banner.className = `event-banner event-${ev.type}`
+        banner.textContent = text // サーバー由来の文字列（cardName等）を含むためtextContentで挿入
+        layer.appendChild(banner)
+        setTimeout(() => banner.remove(), EVENT_BANNER_DURATION_MS)
+    }
+    if (newEvents.length > 0) {
+        lastEventSeq = newEvents.reduce((max, ev) => Math.max(max, ev.seq), lastEventSeq)
+    }
+    return lifeDamagedPids
+}
+
 export function render(view: GameView, ui: UiState): void {
+    const lifeDamagedPids = processNewEvents(view)
     show("lobby", false)
     show("game", true)
 
@@ -663,13 +825,29 @@ export function render(view: GameView, ui: UiState): void {
         isDefender && (!view.isFlashTiming || hasPriority)
 
     // ステータスバー
-    $("turn-info").textContent = `ターン${view.turn}`
-    $("phase-info").textContent = `${PHASE_LABELS[view.phase]}ステップ（${myTurn ? "あなた" : "相手"}のターン）`
+    $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
+    document.querySelectorAll(".phase-step").forEach(el => {
+        el.classList.remove("active")
+        if ((el as HTMLElement).dataset.phase === view.phase) {
+            el.classList.add("active")
+        }
+    })
 
-    // フラッシュ状態の表示
-    show("flash-info", !!view.battle && view.isFlashTiming)
-    if (view.battle && view.isFlashTiming) {
-        $("flash-info").textContent = `フラッシュ（優先権: ${hasPriority ? "あなた" : "相手"}）`
+    // フラッシュ状態の表示（ボーダーとパルス）
+    const board = $("board")
+    const oppHasFlash = !!view.battle && view.isFlashTiming && !hasPriority
+    if (inFlash) {
+        board.classList.add("your-priority")
+        board.classList.remove("opp-thinking")
+        $("btn-pass").classList.add("pulse")
+    } else if (oppHasFlash) {
+        board.classList.remove("your-priority")
+        board.classList.add("opp-thinking")
+        $("btn-pass").classList.remove("pulse")
+    } else {
+        board.classList.remove("your-priority")
+        board.classList.remove("opp-thinking")
+        $("btn-pass").classList.remove("pulse")
     }
 
     // 効果解決中の選択待ち（サーバーがresolveChoice以外のアクションを全拒否するため、
@@ -721,29 +899,33 @@ export function render(view: GameView, ui: UiState): void {
         show("choice-options", false)
     }
     if (myPendingChoice) {
-        $("targeting-info").textContent = myPendingChoice.prompt
+        $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
     } else if (oppPendingChoice) {
-        $("targeting-info").textContent = oppPendingChoice.prompt
+        $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
-            `コアが足りません。スピリット上のコアを割り当ててください（残り${remaining}個）`
+            `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
     } else if (ui.awakenTarget !== null) {
         $("targeting-info").textContent =
-            "【覚醒】コアの移動元にする自分のスピリットを選んでください"
+            "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
-            "アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+            "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
     } else if (ui.targeting) {
         $("targeting-info").textContent =
-            ui.targeting.side === "opponent"
-                ? "対象にする相手スピリットを選んでください"
-                : "対象にする自分のスピリットを選んでください"
+            `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
+    } else if (oppHasFlash) {
+        show("targeting-info", true)
+        $("targeting-info").textContent = "⏳ 相手がフラッシュタイミングを検討中…"
+    } else if (!myTurn && !view.battle && !pendingChoiceActive && !anyMode) {
+        show("targeting-info", true)
+        $("targeting-info").textContent = "⏳ 相手のターン…"
     }
 
     // プレイヤー情報
-    renderInfo("opp-info", view, opp, false)
-    renderInfo("my-info", view, you, true)
+    renderInfo("opp-info", view, opp, false, lifeDamagedPids.has(opp))
+    renderInfo("my-info", view, you, true, lifeDamagedPids.has(you))
 
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
@@ -755,12 +937,19 @@ export function render(view: GameView, ui: UiState): void {
     // バトル情報
     renderBattle(view)
 
-    // ログ
+    // ログ（内容のヒューリスティックでクラスを付与し、視認性を上げる。サーバーの文字列自体は変更しない）
     const logEl = $("log")
     logEl.innerHTML = ""
     for (const line of view.log) {
         const div = document.createElement("div")
         div.textContent = line
+        if (line.includes("ターン")) {
+            div.className = "log-turn"
+        } else if (line.includes("ステップ")) {
+            div.className = "log-phase"
+        } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
+            div.className = "log-important"
+        }
         logEl.appendChild(div)
     }
     logEl.scrollTop = logEl.scrollHeight
@@ -780,13 +969,15 @@ function renderInfo(
     view: GameView,
     pid: PlayerId,
     isSelf: boolean,
+    lifeDamaged: boolean,
 ): void {
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
+    // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
-        ["", p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
-        ["life", `ライフ ${"♥".repeat(p.life)}（${p.life}）`],
+        ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
+        ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         ["", `リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],
@@ -852,6 +1043,7 @@ function fieldCardEl(
     el.className = `card color-${m.color}`
     if (inst.isRested) el.classList.add("rested")
     el.dataset.instanceId = inst.instanceId
+    el.dataset.cardId = inst.cardId
     el.dataset.side = isMine ? "mine" : "opp"
 
     const name = document.createElement("div")
@@ -862,14 +1054,30 @@ function fieldCardEl(
     const stats = document.createElement("div")
     stats.className = "stats"
     stats.textContent = isNexus
-        ? `ネクサス Lv${level}`
-        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        ? `コスト${m.cost} Lv${level}`
+        : `コスト${m.cost} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
 
     const cores = document.createElement("div")
     cores.className = "cores"
     cores.textContent = `◉ コア ${inst.cores}`
     el.appendChild(cores)
+
+    const symbolsDiv = document.createElement("div")
+    symbolsDiv.className = "symbols"
+    if (m.symbol.length === 0) {
+        symbolsDiv.textContent = "無"
+        symbolsDiv.style.color = "var(--text-muted)"
+        symbolsDiv.style.fontSize = "10px"
+    } else {
+        m.symbol.forEach(symColor => {
+            const sym = document.createElement("span")
+            sym.className = `sym-icon bg-${symColor}`
+            sym.dataset.colorLabel = COLOR_SYMBOLS[symColor] || ""
+            symbolsDiv.appendChild(sym)
+        })
+    }
+    el.appendChild(symbolsDiv)
 
     if (m.effect) {
         const eff = document.createElement("div")
@@ -1074,22 +1282,75 @@ function renderHand(view: GameView, ui: UiState): void {
             ? new Set(view.pendingChoice.cardIndices ?? [])
             : null
 
+    // grantKeywordToHandCard（ビートプリースト等）で一時的に神速を付与された手札カードのcardId一覧
+    const tempSokuCardIds = new Set(
+        (view.players[view.you].tempHandKeywordGrants ?? [])
+            .filter((g) => g.keyword === "soku")
+            .map((g) => g.cardId),
+    )
+
+    const groupedHand = new Map<string, { count: number, indices: number[] }>()
     hand.forEach((cardId, index) => {
+        if (!groupedHand.has(cardId)) {
+            groupedHand.set(cardId, { count: 0, indices: [] })
+        }
+        const g = groupedHand.get(cardId)!
+        g.count++
+        g.indices.push(index)
+    })
+
+    groupedHand.forEach((g, cardId) => {
+        const index = g.indices[0]
         const m = master(cardId)
         const cost = effectiveCost(view, view.you, m)
         const lv1 = m.levels.find((l) => l.level === 1)
         const need = cost + (lv1 ? lv1.cores : 0)
+        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか
+        const flashSummonable =
+            m.type === "spirit" && (hasKeyword(cardId, "soku") || tempSokuCardIds.has(cardId))
+
+        // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
+        // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）
+        const magicColorLocked =
+            m.type === "magic" &&
+            hasMagicRestriction(view, view.you, "colorLockOpponent") &&
+            !ownFieldSymbolColors(view, view.you).has(m.color)
 
         const usable =
             !view.pendingChoice &&
+            !magicColorLocked &&
             ((myMainFree && reserve >= need) ||
-                (inFlash && !flashLocked && m.type === "magic" && m.flash && reserve >= cost))
+                (inFlash &&
+                    !flashLocked &&
+                    reserve >= need &&
+                    ((m.type === "magic" && m.flash) || flashSummonable)))
+
+        let targetable = false
+        let activeIndex = index
+        if (handChoiceIndices) {
+            const tIdx = g.indices.find(idx => handChoiceIndices.has(idx))
+            if (tIdx !== undefined) {
+                targetable = true
+                activeIndex = tIdx
+            }
+        }
 
         const el = document.createElement("div")
         el.className = `card color-${m.color}`
-        el.dataset.handIndex = String(index)
+        el.dataset.handIndex = String(activeIndex)
+        el.dataset.cardId = cardId
         if (usable) el.classList.add("usable", "clickable")
-        if (handChoiceIndices?.has(index)) el.classList.add("targetable", "clickable")
+        if (targetable) el.classList.add("targetable", "clickable")
+
+        const costBadge = document.createElement("div")
+        costBadge.className = "cost-badge"
+        if (cost < m.cost) {
+            costBadge.classList.add("discounted")
+            costBadge.innerHTML = `<span class="original-cost">${m.cost}</span><span class="current-cost">${cost}</span>`
+        } else {
+            costBadge.textContent = String(cost)
+        }
+        el.appendChild(costBadge)
 
         const typeLabel =
             m.type === "spirit" ? "スピリット" : m.type === "nexus" ? "ネクサス" : "マジック"
@@ -1101,7 +1362,7 @@ function renderHand(view: GameView, ui: UiState): void {
 
         const stats = document.createElement("div")
         stats.className = "stats"
-        stats.textContent = `${COLOR_LABELS[m.color]}/${typeLabel} コスト${cost}${cost !== m.cost ? `(${m.cost})` : ""}`
+        stats.textContent = `${COLOR_LABELS[m.color]}/${typeLabel}`
         el.appendChild(stats)
 
         if (m.levels.length > 0) {
@@ -1119,6 +1380,13 @@ function renderHand(view: GameView, ui: UiState): void {
             eff.className = "effect-text"
             eff.textContent = m.effect
             el.appendChild(eff)
+        }
+
+        if (g.count > 1) {
+            const badge = document.createElement("div")
+            badge.className = "count-badge"
+            badge.textContent = `x${g.count}`
+            el.appendChild(badge)
         }
 
         handEl.appendChild(el)
@@ -1148,20 +1416,34 @@ function renderBattle(view: GameView): void {
     // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
     const blocked = !!view.battle.blockerInstanceId
 
+    // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
+    let blockerText = ""
+    if (blocked) {
+        const defenderPid: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+        const blocker = view.players[defenderPid].field.spirits.find(
+            (s) => s.instanceId === view.battle?.blockerInstanceId,
+        )
+        if (blocker) {
+            const bm = master(blocker.cardId)
+            const blockerBp = effectiveBp(view, defenderPid, blocker)
+            blockerText = ` ブロッカー: ${bm.name}（BP${blockerBp}）。`
+        }
+    }
+
     let message: string
     if (blocked) {
         // ブロック宣言後の追加フラッシュ
         if (isDefender) {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。追加でフラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}追加でフラッシュマジックを使うか「パス」してください。`
             } else {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。相手の対応を待っています…`
+                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}相手の対応を待っています…`
             }
         } else {
             if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。フラッシュマジックを使うか「パス」してください。`
+                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。相手の対応を待っています…`
+                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
             }
         }
     } else if (isDefender) {
@@ -1214,15 +1496,121 @@ export function setupEffectTooltip(): void {
     document.body.appendChild(tip)
 
     const showFor = (card: HTMLElement): void => {
-        const effect = card.querySelector(".effect-text")?.textContent
-        if (!effect) return
-        const name = card.querySelector(".name")?.textContent ?? ""
+        const cardId = card.dataset.cardId
+        if (!cardId) return
+        const m = master(cardId)
+        
         tip.innerHTML = ""
+        const titleArea = document.createElement("div")
+        titleArea.style.display = "flex"
+        titleArea.style.alignItems = "center"
+        titleArea.style.gap = "8px"
+        titleArea.style.marginBottom = "6px"
+        titleArea.style.borderBottom = "1px solid #333"
+        titleArea.style.paddingBottom = "4px"
+
         const title = document.createElement("div")
         title.className = "tooltip-name"
-        title.textContent = name
-        tip.appendChild(title)
-        tip.appendChild(document.createTextNode(effect))
+        title.textContent = m.name
+        title.style.margin = "0"
+        title.style.borderBottom = "none"
+        title.style.paddingBottom = "0"
+        titleArea.appendChild(title)
+        tip.appendChild(titleArea)
+        
+        if (m.family && m.family.length > 0) {
+            const fam = document.createElement("div")
+            fam.className = "tooltip-family"
+            fam.textContent = "系統: " + m.family.join(" / ")
+            fam.style.fontSize = "11px"
+            fam.style.color = "var(--text-muted)"
+            fam.style.marginBottom = "6px"
+            tip.appendChild(fam)
+        }
+        
+        const costArea = document.createElement("div")
+        costArea.style.display = "flex"
+        costArea.style.gap = "8px"
+        costArea.style.alignItems = "center"
+        costArea.style.marginBottom = "8px"
+        costArea.style.fontSize = "12px"
+        
+        const costEl = document.createElement("div")
+        costEl.textContent = `コスト: ${m.cost}`
+        costArea.appendChild(costEl)
+
+        const redEl = document.createElement("div")
+        redEl.style.display = "flex"
+        redEl.style.alignItems = "center"
+        redEl.style.gap = "2px"
+        redEl.textContent = `軽減: `
+        if (m.reduction.length === 0) {
+            redEl.textContent += "なし"
+        } else {
+            m.reduction.forEach(r => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${r}`
+                icon.dataset.colorLabel = COLOR_SYMBOLS[r] || ""
+                redEl.appendChild(icon)
+            })
+        }
+        costArea.appendChild(redEl)
+
+        const symbolEl = document.createElement("div")
+        symbolEl.style.display = "flex"
+        symbolEl.style.alignItems = "center"
+        symbolEl.style.gap = "2px"
+        symbolEl.textContent = `シンボル: `
+        if (m.symbol && m.symbol.length > 0) {
+            m.symbol.forEach(symColor => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${symColor}`
+                symbolEl.appendChild(icon)
+            })
+        } else {
+            symbolEl.textContent += "なし"
+        }
+        costArea.appendChild(symbolEl)
+        tip.appendChild(costArea)
+        
+        if (m.levels && m.levels.length > 0) {
+            const lvArea = document.createElement("div")
+            lvArea.style.marginBottom = "8px"
+            lvArea.style.fontSize = "11px"
+            lvArea.style.color = "#94a3b8"
+            
+            m.levels.forEach(lv => {
+                const lvLine = document.createElement("div")
+                let text = `Lv${lv.level} (維持コア${lv.cores})`
+                if (lv.bp !== undefined) {
+                    text += ` BP ${lv.bp}`
+                }
+                lvLine.textContent = text
+                lvArea.appendChild(lvLine)
+            })
+            tip.appendChild(lvArea)
+        }
+        
+        if (m.effect) {
+            // 行頭が「Lv1」「Lv2」「Lv3」「フラッシュ」の行は強調表示する（innerHTMLのためエスケープ必須）
+            const eff = document.createElement("div")
+            eff.innerHTML = m.effect
+                .split("\n")
+                .map((line) => {
+                    const escaped = escapeHtml(line)
+                    const isHighlight = /^(Lv[123]|フラッシュ)/.test(line)
+                    return `<div class="tooltip-effect-line${isHighlight ? " tooltip-effect-highlight" : ""}">${escaped}</div>`
+                })
+                .join("")
+            tip.appendChild(eff)
+        } else {
+            const vanilla = document.createElement("div")
+            vanilla.textContent = "（効果なし）"
+            vanilla.style.fontStyle = "italic"
+            vanilla.style.color = "var(--text-muted)"
+            tip.appendChild(vanilla)
+        }
+        
         tip.classList.remove("hidden")
         // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
         const rect = card.getBoundingClientRect()
