@@ -21182,7 +21182,26 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のフィールドに黄のスピリットが3体以上いる間、自分のマジックカードすべてに軽減シンボル[黄]を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-049-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "magic",
+    "symbols": [
+     "yellow"
+    ],
+    "condition": {
+     "ownColorSpiritsAtLeast": {
+      "color": "yellow",
+      "count": 3
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-050",
@@ -22414,7 +22433,29 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「翼竜」/「空牙」を持つ自分のスピリットすべてをBP+2000する。\nLv2『自分のアタックステップ』\n系統：「翼竜」/「空牙」を持つ自分のスピリットのアタックに対して、相手は可能ならば必ずブロックする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-076-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": [
+      "翼竜",
+      "空牙"
+     ],
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-077",
@@ -22447,7 +22488,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\n自分の手札にある系統：「古竜」/「龍帝」を持つスピリットカードすべてに軽減シンボル[赤]を与える。\nLv2『自分のメインステップ』\n自分のフィールドに系統：「古竜」/「龍帝」を持つスピリットが召喚されたとき、召喚されたスピリットのBP以下のBPを持つ相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-077-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "spirit",
+    "familyFilter": [
+     "古竜",
+     "龍帝"
+    ],
+    "symbols": [
+     "red"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-078",

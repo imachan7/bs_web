@@ -71,10 +71,26 @@ function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData):
             if (effect.cardType !== undefined && card.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
             if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
+            // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
+            if (effect.familyFilter !== undefined) {
+                const families = Array.isArray(effect.familyFilter)
+                    ? effect.familyFilter
+                    : [effect.familyFilter]
+                if (!families.some((f) => card.family.includes(f))) continue
+            }
             if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => getCard(s.cardId).color === color).length
-                if (total < count) continue
+                if ("ownColorSpiritsAtLeast" in effect.condition) {
+                    // ティ・ターニャ：ネクサスを数えず、指定色のスピリット数のみで判定
+                    const { color, count } = effect.condition.ownColorSpiritsAtLeast
+                    const total = state.players[pid].field.spirits.filter(
+                        (s) => getCard(s.cardId).color === color,
+                    ).length
+                    if (total < count) continue
+                } else {
+                    const { color, count } = effect.condition.ownColorTotalAtLeast
+                    const total = sources.filter((s) => getCard(s.cardId).color === color).length
+                    if (total < count) continue
+                }
             }
             extra.push(...effect.symbols)
         }
