@@ -14202,7 +14202,28 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2\nこのスピリットは白のスピリットとしても扱う。\nLv3\nこのスピリットは紫のスピリットとしても扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "colorAs",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "white"
+    ]
+   },
+   {
+    "id": "e2",
+    "kind": "colorAs",
+    "levels": [
+     3
+    ],
+    "colors": [
+     "purple"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS03-054",
@@ -14454,7 +14475,22 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのターンの間、自分のスピリットすべては黄のスピリットとしても扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "grantColorAll",
+     "color": "yellow"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-059",
@@ -17497,7 +17533,16 @@
   "rarity": "C,R",
   "limited": false,
   "effect": "フラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それに、それが持つシンボルと同じ色のシンボル1つを追加する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "addSymbolThisTurn"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-122",
@@ -18055,7 +18100,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それのLvを1つ上のものとして扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "levelUpThisTurn"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS03-142",

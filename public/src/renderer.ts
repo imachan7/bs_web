@@ -263,7 +263,8 @@ export function spiritHasKeywordView(
 // 状態を考慮した色判定（サーバー instHasColor のミラー）
 export function instHasColorView(inst: CardInstance, color: Color): boolean {
     if (master(inst.cardId).color === color) return true
-    return inst.tempColors.includes(color)
+    if (inst.tempColors.includes(color)) return true
+    return (inst.colorsAsContinuous ?? []).includes(color)
 }
 
 // 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
@@ -559,9 +560,15 @@ export function effectiveCost(
     let symbols = 0
     if (!reductionBlocked) {
         for (const inst of [...field.spirits, ...field.nexuses]) {
-            for (const sym of master(inst.cardId).symbol) {
-                if (reductionColors.includes(sym)) symbols++
+            const cardSymbols = master(inst.cardId).symbol
+            let matched = false
+            for (const sym of cardSymbols) {
+                if (reductionColors.includes(sym)) {
+                    symbols++
+                    matched = true
+                }
             }
+            if (matched && inst.tempExtraSymbols) symbols += inst.tempExtraSymbols
         }
     }
     const base = Math.max(
@@ -618,7 +625,9 @@ export function magicTargetSide(
         effect.action.type === "grantKeyword" ||
         effect.action.type === "refireSummonEffect" ||
         effect.action.type === "trashCoresToSpirit" ||
-        effect.action.type === "voidCoreToTarget"
+        effect.action.type === "voidCoreToTarget" ||
+        effect.action.type === "addSymbolThisTurn" ||
+        effect.action.type === "levelUpThisTurn"
     )
         return "self"
     return null
@@ -1464,10 +1473,22 @@ export function setupEffectTooltip(): void {
         const m = master(cardId)
         
         tip.innerHTML = ""
+        const titleArea = document.createElement("div")
+        titleArea.style.display = "flex"
+        titleArea.style.alignItems = "center"
+        titleArea.style.gap = "8px"
+        titleArea.style.marginBottom = "6px"
+        titleArea.style.borderBottom = "1px solid #333"
+        titleArea.style.paddingBottom = "4px"
+
         const title = document.createElement("div")
         title.className = "tooltip-name"
         title.textContent = m.name
-        tip.appendChild(title)
+        title.style.margin = "0"
+        title.style.borderBottom = "none"
+        title.style.paddingBottom = "0"
+        titleArea.appendChild(title)
+        tip.appendChild(titleArea)
         
         if (m.family && m.family.length > 0) {
             const fam = document.createElement("div")
@@ -1506,6 +1527,22 @@ export function setupEffectTooltip(): void {
             })
         }
         costArea.appendChild(redEl)
+
+        const symbolEl = document.createElement("div")
+        symbolEl.style.display = "flex"
+        symbolEl.style.alignItems = "center"
+        symbolEl.style.gap = "2px"
+        symbolEl.textContent = `シンボル: `
+        if (m.symbol && m.symbol.length > 0) {
+            m.symbol.forEach(symColor => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${symColor}`
+                symbolEl.appendChild(icon)
+            })
+        } else {
+            symbolEl.textContent += "なし"
+        }
+        costArea.appendChild(symbolEl)
         tip.appendChild(costArea)
         
         if (m.levels && m.levels.length > 0) {

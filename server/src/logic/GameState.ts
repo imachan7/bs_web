@@ -272,14 +272,22 @@ export function lv1Cores(card: CardData): number {
     return lv1 ? lv1.cores : 0
 }
 
-// 軽減計算用：自分のフィールドにある指定色シンボルの数を数える
+// 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
+// tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
+// そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 export function countSymbols(player: PlayerState, colors: Color[]): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
-        for (const sym of getCard(inst.cardId).symbol) {
-            if (colors.includes(sym)) count++
+        const cardSymbols = getCard(inst.cardId).symbol
+        let matched = false
+        for (const sym of cardSymbols) {
+            if (colors.includes(sym)) {
+                count++
+                matched = true
+            }
         }
+        if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
     }
     return count
 }

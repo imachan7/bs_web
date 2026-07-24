@@ -523,10 +523,12 @@ export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefin
     )
 }
 
-// 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー）
+// 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
+// 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (getCard(inst.cardId).color === color) return true
-    return inst.tempColors.includes(color)
+    if (inst.tempColors.includes(color)) return true
+    return (inst.colorsAsContinuous ?? []).includes(color)
 }
 
 // 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
@@ -650,6 +652,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.colorsAsContinuous
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
@@ -670,6 +673,15 @@ export function refreshLevelAsOverrides(state: GameState): void {
         const sources = [...player.field.spirits, ...player.field.nexuses]
         for (const source of sources) {
             for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind === "colorAs") {
+                    // 発生源自身が指定色のスピリットとしても扱われる（継続。百面相のフラットフェイス）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!source.colorsAsContinuous) source.colorsAsContinuous = []
+                    for (const c of effect.colors) {
+                        if (!source.colorsAsContinuous.includes(c)) source.colorsAsContinuous.push(c)
+                    }
+                    continue
+                }
                 if (effect.kind !== "levelAs") continue
                 if (
                     effect.sourceMinLevel !== undefined &&
@@ -3739,6 +3751,66 @@ export function resolveAction(
             log(
                 state,
                 `${player.name}はリザーブのコア${maxAmount}個をトラッシュへ置き、${opponent.name}のリザーブのコア${maxAmount}個も相手のトラッシュへ置かれた。`,
+            )
+            return
+        }
+
+        case "grantColorAll": {
+            // このターンの間、自分のスピリットすべてを指定色のスピリットとしても扱う（妖精ティングリー）
+            for (const s of state.players[owner].field.spirits) {
+                if (!s.tempColors.includes(action.color)) s.tempColors.push(action.color)
+            }
+            log(
+                state,
+                `${sourceName}：このターンの間、${state.players[owner].name}のスピリットすべてが${COLOR_LABELS[action.color]}のスピリットとしても扱われる。`,
+            )
+            return
+        }
+
+        case "addSymbolThisTurn": {
+            // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
+            const target = targetInstanceId
+                ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
+                      (best, s) =>
+                          !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
+                              ? s
+                              : best,
+                      undefined,
+                  )
+            if (!target) {
+                log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
+                return
+            }
+            target.tempExtraSymbols = (target.tempExtraSymbols ?? 0) + 1
+            log(
+                state,
+                `${sourceName}：${getCard(target.cardId).name}に、このターンの間シンボル1つを追加した。`,
+            )
+            return
+        }
+
+        case "levelUpThisTurn": {
+            // 対象の自分スピリットのLvをこのターンの間1つ上として扱う（カードの最大Lvでキャップ。未指定時は自分の実効BP最大。ビルドアップ）
+            const target = targetInstanceId
+                ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
+                      (best, s) =>
+                          !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
+                              ? s
+                              : best,
+                      undefined,
+                  )
+            if (!target) {
+                log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
+                return
+            }
+            const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+            const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
+            target.levelOverrideThisTurn = nextLevel
+            log(
+                state,
+                `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`,
             )
             return
         }

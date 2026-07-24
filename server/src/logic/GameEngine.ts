@@ -482,9 +482,11 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     )
     const defender = state.players[pid]
 
-    // ダメージ = アタックスピリットのシンボル数。ライフのコアは通常リザーブへ、
-    // ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker ? getCard(attacker.cardId).symbol.length : 1
+    // ダメージ = アタックスピリットのシンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+    // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
+    const damage = attacker
+        ? getCard(attacker.cardId).symbol.length + (attacker.tempExtraSymbols ?? 0)
+        : 1
     const dealt = Math.min(damage, defender.life)
     const toVoid =
         attacker !== undefined &&
