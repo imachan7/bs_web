@@ -2013,6 +2013,26 @@ export function resolveAction(
         }
 
         case "bpBuff": {
+            if (action.attackingAll) {
+                // オフェンシブオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
+                // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）
+                const attackers = state.players[owner].field.spirits.filter(
+                    (s) => state.battle && s.instanceId === state.battle.attackerInstanceId,
+                )
+                if (attackers.length === 0) {
+                    log(state, `${sourceName}のBP増加：アタックしている自分のスピリットがいなかった。`)
+                    return
+                }
+                for (const t of attackers) {
+                    t.tempBpBuff += action.amount
+                    log(
+                        state,
+                        `${getCard(t.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
+                    )
+                    applyMagicBuffBonus(state, t, srcType, srcColor)
+                }
+                return
+            }
             const target = pickBpBuffTarget(state, owner, targetInstanceId)
             if (!target) {
                 log(state, `${sourceName}のBP増加：対象がいなかった。`)
