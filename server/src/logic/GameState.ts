@@ -151,6 +151,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         deck,
         hand,
         trashCards: [],
+        tegamoto: [],
         field: { spirits: [], nexuses: [] },
     }
 }
@@ -180,6 +181,7 @@ export function createGame(
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
         pendingChoice: null,
+        turnStartResumeStep: null,
         interactiveTargets: false,
         events: [],
         eventSeq: 0,
@@ -337,6 +339,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         hand: isSelf ? [...player.hand] : null,
         handCount: player.hand.length,
         trashCards: [...player.trashCards],
+        tegamoto: [...player.tegamoto],
         field: {
             spirits: player.field.spirits.map((s) => ({ ...s })),
             nexuses: player.field.nexuses.map((n) => ({ ...n })),

@@ -112,16 +112,30 @@ function hasMagicRestriction(
 }
 
 // マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
-// レベル有効・色一致・phaseTurn一致の発生源があるかを調べる（薔薇人バロッサ：自分のアタックステップに
-// 自分の黄マジックカードを無償化）
-function hasMagicFreeGrant(state: GameState, pid: PlayerId, card: CardData): boolean {
+// レベル有効・色一致（またはscope一致）・phaseTurn一致の発生源があるかを調べる
+// （薔薇人バロッサ：自分のアタックステップに自分の黄マジックカードを無償化）。
+// requireTegamotoScope=true のときは、手元(tegamoto)のカードを無償使用しようとしている呼び出しのため、
+// colorFilter指定の色限定バリアントは対象外とし、scope:"allMagicHandAndTegamoto"の発生源のみ有効とする
+// （大天使ミカファールLv2）。requireTegamotoScope=false（手札からの通常使用）は、色限定バリアントの
+// 色一致 or scope指定バリアント（色不問）のどちらでも成立する
+function hasMagicFreeGrant(
+    state: GameState,
+    pid: PlayerId,
+    card: CardData,
+    requireTegamotoScope = false,
+): boolean {
     const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicFreeGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.colorFilter !== card.color) continue
+            const isAllScope = effect.scope === "allMagicHandAndTegamoto"
+            if (requireTegamotoScope) {
+                if (!isAllScope) continue
+            } else if (!isAllScope) {
+                if (effect.colorFilter !== card.color) continue
+            }
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
@@ -284,12 +298,24 @@ export function validateCastMagic(
     handIndex: number,
     targetInstanceId?: string,
     paySources?: PaySource[],
+    fromTegamoto?: boolean,
 ): string | null {
     const player = state.players[pid]
-    const cardId = player.hand[handIndex]
-    if (cardId === undefined) return "手札にカードがありません"
+    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
+    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "magic") return "マジックカードではありません"
+
+    // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
+    // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）
+    if (fromTegamoto) {
+        if (
+            !hasMagicFreeGrant(state, pid, card, true) ||
+            hasMagicRestriction(state, pid, "noFreeCastOpponent")
+        ) {
+            return "手元のマジックカードを無償使用できる効果がありません"
+        }
+    }
 
     // 作戦参謀フォクシン：フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {

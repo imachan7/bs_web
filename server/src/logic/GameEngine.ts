@@ -12,7 +12,7 @@ import {
     lv1Cores,
     opponentOf,
 } from "./GameState"
-import { endTurn, toAttackPhase } from "./PhaseManager"
+import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
 import {
     activeConstraints,
     destroySpirit,
@@ -83,7 +83,14 @@ function dispatchAction(
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources)
         case "castMagic":
-            return doCastMagic(state, pid, action.handIndex, action.targetInstanceId, action.paySources)
+            return doCastMagic(
+                state,
+                pid,
+                action.handIndex,
+                action.targetInstanceId,
+                action.paySources,
+                action.fromTegamoto,
+            )
         case "moveCore":
             return doMoveCore(state, pid, action.instanceId, action.direction)
         case "awaken":
@@ -242,18 +249,23 @@ function doCastMagic(
     handIndex: number,
     targetInstanceId?: string,
     paySources?: PaySource[],
+    fromTegamoto?: boolean,
 ): string | null {
-    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources)
+    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto)
     if (error) return error
 
     const player = state.players[pid]
-    const cardId = player.hand[handIndex]
-    if (cardId === undefined) return "手札にカードがありません"
+    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
+    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
 
     payCost(state, pid, cost, paySources)
-    player.hand.splice(handIndex, 1)
+    if (fromTegamoto) {
+        player.tegamoto.splice(handIndex, 1)
+    } else {
+        player.hand.splice(handIndex, 1)
+    }
     player.trashCards.push(cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
@@ -606,7 +618,7 @@ function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return drainChoiceQueue(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid, pending.queue)
     }
 
     if (pending.kind === "card") {
@@ -624,7 +636,7 @@ function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return drainChoiceQueue(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid, pending.queue)
     }
 
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
@@ -643,7 +655,22 @@ function doResolveChoice(
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
-    return drainChoiceQueue(state, pending.pid, pending.queue)
+    return finishChoiceResolution(state, pending.pid, pending.queue)
+}
+
+// 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
+// ステップ誘発の pendingChoice で中断していたターン開始処理を続きのステップから再開する
+// （百識の谷Lv1のドローステップ破棄選択など。中断していなければ resumeTurnStart は no-op）。
+function finishChoiceResolution(
+    state: GameState,
+    pid: PlayerId,
+    queue: { selfInstanceId: string | null; action: EffectAction }[],
+): string | null {
+    drainChoiceQueue(state, pid, queue)
+    if (!state.pendingChoice && !state.winner) {
+        resumeTurnStart(state)
+    }
+    return null
 }
 
 // 退避したqueue（同一トリガー内の残りの誘発）を先頭から順に消化する。

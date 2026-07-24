@@ -3234,8 +3234,42 @@ export function resolveAction(
         }
 
         case "discardSelfOne": {
-            // 自分の手札末尾1枚をトラッシュへ（本来は自分が選ぶ処理の簡略化。手札0ならno-op）
+            // 自分の手札1枚をトラッシュへ（手札0ならno-op）。
+            // interactiveTargets時は選択式（選択者＝効果所有者本人。cardZone:"hand"）
             const player = state.players[owner]
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}の手札破棄：対象がいなかった。`)
+                    return
+                }
+                player.hand.splice(chosenCardIndex, 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+                return
+            }
+            if (player.hand.length === 0) {
+                log(state, `${sourceName}の手札破棄：手札がなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                const indices = player.hand.map((_, i) => i)
+                if (
+                    tryInteractiveCardChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}の手札破棄：破棄するカードを選んでください`,
+                        "hand",
+                        indices,
+                        { type: "discardSelfOne" },
+                        null,
+                    )
+                ) {
+                    return
+                }
+            }
+            // 既存の決定的自動選択（テスト等 interactiveTargets=false）：手札末尾1枚を破棄
             const cardId = player.hand.pop()
             if (cardId === undefined) {
                 log(state, `${sourceName}の手札破棄：手札がなかった。`)
@@ -4187,6 +4221,86 @@ export function resolveAction(
                 state,
                 `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`,
             )
+            return
+        }
+
+        case "handMagicToTegamotoDraw": {
+            // マジックブック：自分の手札にあるマジックカードを好きなだけ手元(tegamoto)に置き、
+            // 置いた枚数ぶんデッキから引く。chosenCardIndexが渡された＝choiceで1枚選ばれた経路。
+            // 1枚移動+1ドロー後、手札にまだマジックカードが残っていれば同じactionで再度resolveActionし、
+            // choiceを繰り返す（optional=trueのためスキップで終了する）
+            const player = state.players[owner]
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：対象がいなかった。`)
+                    return
+                }
+                player.hand.splice(chosenCardIndex, 1)
+                player.tegamoto.push(cardId)
+                draw(state, owner, 1)
+                log(
+                    state,
+                    `${player.name}は${getCard(cardId).name}を手元に置き、デッキから1枚引いた。`,
+                )
+                resolveAction(state, owner, self, action)
+                return
+            }
+            const indices: number[] = []
+            for (let i = 0; i < player.hand.length; i++) {
+                if (getCard(player.hand[i]!).type === "magic") indices.push(i)
+            }
+            if (indices.length === 0) {
+                log(state, `${sourceName}：手札にマジックカードがなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了）`,
+                    "hand",
+                    indices,
+                    true,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 非interactive時：手札のマジックカードすべてを一括で手元へ移動し、同数ドロー（決定的簡略化）
+            const movedNames: string[] = []
+            for (let i = player.hand.length - 1; i >= 0; i--) {
+                const cardId = player.hand[i]!
+                if (getCard(cardId).type !== "magic") continue
+                player.hand.splice(i, 1)
+                player.tegamoto.push(cardId)
+                movedNames.unshift(getCard(cardId).name)
+            }
+            if (movedNames.length > 0) draw(state, owner, movedNames.length)
+            log(
+                state,
+                `${player.name}は手元にマジックカード「${movedNames.join("、")}」を置き、デッキから${movedNames.length}枚引いた。`,
+            )
+            return
+        }
+
+        case "discardOpponentTegamotoDestroyPer": {
+            // 透明人間エクリア：相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ破棄し、
+            // その枚数ぶん相手のスピリットを破壊する（既存destroyアクションへcount委譲。BP不問=maxBpなし）
+            const target = state.players[opp]
+            const count = target.tegamoto.length
+            if (count === 0) {
+                log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
+                return
+            }
+            const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
+            target.trashCards.push(...target.tegamoto)
+            target.tegamoto = []
+            log(
+                state,
+                `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`,
+            )
+            resolveAction(state, owner, self, { type: "destroy", count })
             return
         }
     }

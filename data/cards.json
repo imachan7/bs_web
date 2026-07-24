@@ -11330,6 +11330,14 @@
      "type": "bpBuff",
      "amount": 4000
     }
+   },
+   {
+    "id": "BS02-108-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "handMagicToTegamotoDraw"
+    }
    }
   ]
  },
@@ -11659,6 +11667,14 @@
      "pickAllOfType": "magic"
     },
     "optional": false
+   },
+   {
+    "id": "BS02-X08-e2",
+    "kind": "magicFreeGrant",
+    "levels": [
+     2
+    ],
+    "scope": "allMagicHandAndTegamoto"
    }
   ]
  },
@@ -12440,7 +12456,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手がオープンして手元に置いてあるカードすべてを破棄し、そのカード1枚につき相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS03-016-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "discardOpponentTegamotoDestroyPer"
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS03-017",
