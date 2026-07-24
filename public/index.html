@@ -57,6 +57,9 @@
             <div id="event-layer"></div>
             <div id="opponent-area" class="player-area">
                 <div id="opp-info" class="player-info"></div>
+                <div class="opp-hand-area" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 4px;">
+                    <button id="btn-opp-tegamoto" class="log-toggle-btn hidden">相手の手元(0)</button>
+                </div>
                 <div class="field-row">
                     <div id="opp-nexuses" class="nexus-zone"></div>
                     <div id="opp-spirits" class="spirit-zone"></div>
@@ -103,13 +106,28 @@
                 <div id="trash-content"></div>
             </div>
 
+            <!-- 手元パネル -->
+            <div id="tegamoto-panel" class="hidden">
+                <div class="trash-header">
+                    <div class="trash-tabs">
+                        <button id="tab-my-tegamoto" class="active">自分</button>
+                        <button id="tab-opp-tegamoto">相手</button>
+                    </div>
+                    <button id="btn-close-tegamoto">✕</button>
+                </div>
+                <div id="tegamoto-content"></div>
+            </div>
+
             <div id="player-area" class="player-area">
                 <div class="field-row">
                     <div id="my-nexuses" class="nexus-zone"></div>
                     <div id="my-spirits" class="spirit-zone"></div>
                 </div>
                 <div id="my-info" class="player-info"></div>
-                <div id="hand"></div>
+                <div class="my-hand-area" style="display: flex; gap: 8px; align-items: flex-start; justify-content: center;">
+                    <button id="btn-my-tegamoto" class="log-toggle-btn hidden" style="margin-top: 8px;">手元(0)</button>
+                    <div id="hand"></div>
+                </div>
             </div>
         </div>
 

@@ -369,7 +369,7 @@ button:active {
 }
 .log-toggle-btn:hover { background: #2c3044; }
 
-#log-panel, #trash-panel {
+#log-panel, #trash-panel, #tegamoto-panel {
     position: fixed;
     right: 20px;
     bottom: 80px;
@@ -386,12 +386,12 @@ button:active {
     overflow: hidden;
 }
 
-#trash-panel {
+#trash-panel, #tegamoto-panel {
     right: 350px; /* offset from log panel */
 }
 
 #log-panel .log-header,
-#trash-panel .trash-header {
+#trash-panel .trash-header, #tegamoto-panel .trash-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -403,7 +403,7 @@ button:active {
 }
 
 #log-panel .log-header button,
-#trash-panel .trash-header button#btn-close-trash {
+#trash-panel .trash-header button#btn-close-trash, #tegamoto-panel .trash-header button#btn-close-tegamoto {
     background: transparent;
     padding: 4px 8px;
     border: none;
@@ -412,7 +412,7 @@ button:active {
     cursor: pointer;
 }
 #log-panel .log-header button:hover,
-#trash-panel .trash-header button#btn-close-trash:hover { color: #fff; transform: none; }
+#trash-panel .trash-header button#btn-close-trash:hover, #tegamoto-panel .trash-header button#btn-close-tegamoto:hover { color: #fff; transform: none; }
 
 .trash-tabs {
     display: flex;
@@ -1060,13 +1060,13 @@ button:active {
         padding: 8px 14px;
         font-size: 13px;
     }
-    #log-panel, #trash-panel {
+    #log-panel, #trash-panel, #tegamoto-panel {
         width: 260px;
         height: 300px;
         right: 8px;
         bottom: 60px;
     }
-    #trash-panel {
+    #trash-panel, #tegamoto-panel {
         right: 280px;
     }
     #targeting-info {
@@ -1123,13 +1123,13 @@ button:active {
     .player-info {
         font-size: 10px;
     }
-    #log-panel, #trash-panel {
+    #log-panel, #trash-panel, #tegamoto-panel {
         width: calc(100vw - 16px);
         right: 8px;
         left: 8px;
         height: 250px;
     }
-    #trash-panel {
+    #trash-panel, #tegamoto-panel {
         right: 8px;
     }
     #action-buttons-container {

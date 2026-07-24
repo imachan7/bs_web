@@ -934,6 +934,14 @@ export function render(view: GameView, ui: UiState): void {
     // 手札
     renderHand(view, ui)
 
+    // 手元ボタン
+    const myTegamotoCount = view.players[you].tegamoto?.length ?? 0
+    const oppTegamotoCount = view.players[opp].tegamoto?.length ?? 0
+    $("btn-my-tegamoto").textContent = `手元(${myTegamotoCount})`
+    show("btn-my-tegamoto", myTegamotoCount > 0)
+    $("btn-opp-tegamoto").textContent = `相手の手元(${oppTegamotoCount})`
+    show("btn-opp-tegamoto", oppTegamotoCount > 0)
+
     // バトル情報
     renderBattle(view)
 
