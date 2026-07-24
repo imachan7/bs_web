@@ -91,7 +91,7 @@ function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData):
 function hasMagicRestriction(
     state: GameState,
     usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent",
+    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
@@ -106,6 +106,28 @@ function hasMagicRestriction(
                 if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
                 return true
             }
+        }
+    }
+    return false
+}
+
+// マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
+// レベル有効・色一致・phaseTurn一致の発生源があるかを調べる（薔薇人バロッサ：自分のアタックステップに
+// 自分の黄マジックカードを無償化）
+function hasMagicFreeGrant(state: GameState, pid: PlayerId, card: CardData): boolean {
+    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicFreeGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.colorFilter !== card.color) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+            }
+            return true
         }
     }
     return false
@@ -131,6 +153,15 @@ export function effectiveCost(
     pid: PlayerId,
     card: CardData,
 ): number {
+    // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
+    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
+    if (
+        card.type === "magic" &&
+        hasMagicFreeGrant(state, pid, card) &&
+        !hasMagicRestriction(state, pid, "noFreeCastOpponent")
+    ) {
+        return 0
+    }
     const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
     const reductionBlocked = card.type === "magic" && hasMagicRestriction(state, pid, "noReductionOpponent")
     const symbols = reductionBlocked ? 0 : countSymbols(state.players[pid], reductionColors)

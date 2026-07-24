@@ -165,13 +165,17 @@
   kind "lifeDamageNegate"＝非ブロックアタッカーBPが発生源以下ならライフ減少無効（フレイア）、
   アクション discardOpponentDownTo（オリバー。捨てる側選択の discardOpponent に委譲）・
   bpBuffByExhaustOwn（ユナイテッドパワー。2段choice）・exhaustOpponentToMatch（セイムタイアード）を
-  新設）の計 **123枚** / 効果文持ち128枚。
-- **残り5枚は表示のみ（2026-07-24 時点）**:
-  ウッド・ゴレム（相手ネクサスLv2効果無効）・バロッサ（マジック無償化）・
-  テレポートチェンジ（バトル参加者の入れ替え）・極光の大地（相手効果によるコア移動の検知）・
-  エクリア（「手元」ゾーン参照＝エンジンにゾーン自体が無く対応予定なし）。
-  ほか部分構造化の残り: 果て無き地平線 e1（Lv1スピリットのLv2BP参照）・力奪う凱旋門 e2（無償化打ち消し）
-  （粉砕連動・バニラ参照・任意コスト支払い・マジック制約・色シンボル操作クラスタは対応済み）
+  新設）の計123枚＋最終バッチ4b の4枚＋凱旋門e2（BS03-064/085/109/138 と BS03-113 e2。
+  kind "magicFreeGrant"＝色指定マジック無償化（バロッサ）と magicRestriction "noFreeCastOpponent"＝
+  無償化打ち消し（凱旋門 e2。これで凱旋門は完全構造化）、levelAs の sourceLevels 完全一致・
+  target "opponentNexusesAll"（ウッド・ゴレム＝相手ネクサスをLv1扱いにして「Lv2効果は発揮されない」を
+  表現。レベル表示も1になる簡略化）、FieldEvent "ownSpiritCoresRemovedByOpponent"（極光の大地 e1。
+  コア除去6アクションに actorPid 伝播）・coreStepBonus condition ownFieldHasFamily（同 e2）、
+  アクション swapBattler（テレポートチェンジ＝バトル参加スピリットを疲労状態の自分のスピリットと
+  入れ替え）を新設）の計 **127枚** / 効果文持ち128枚。
+- **BS03 の構造化はこれで完了（2026-07-24）**。表示のみで残るのは
+  エクリア（BS03-016。「手元」ゾーン参照＝エンジンにゾーン自体が無く対応予定なし）の1枚と、
+  部分構造化の果て無き地平線 e1（Lv1スピリットのLv2BP参照）のみ
 
 ### デッキ
 

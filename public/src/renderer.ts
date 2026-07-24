@@ -519,7 +519,7 @@ function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): C
 function hasMagicRestriction(
     view: GameView,
     usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent",
+    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
@@ -534,6 +534,26 @@ function hasMagicRestriction(
                 if (effect.turn === "opponent" && ownerPid === view.turnPlayer) continue
                 return true
             }
+        }
+    }
+    return false
+}
+
+// マジック無償化（kind: "magicFreeGrant"）の判定（サーバー hasMagicFreeGrant と同じロジックの簡易版。薔薇人バロッサ）
+function hasMagicFreeGrant(view: GameView, pid: PlayerId, card: CardData): boolean {
+    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
+    for (const source of sources) {
+        const level = levelOf(source).level
+        for (const effect of master(source.cardId).effects) {
+            if (effect.kind !== "magicFreeGrant") continue
+            if (!(effect.levels === null || effect.levels.includes(level))) continue
+            if (effect.colorFilter !== card.color) continue
+            if (effect.phaseTurn) {
+                if (view.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
+            }
+            return true
         }
     }
     return false
@@ -554,6 +574,14 @@ export function effectiveCost(
     pid: PlayerId,
     card: CardData,
 ): number {
+    // マジック無償化（薔薇人バロッサ）：noFreeCastOpponent（力奪う凱旋門Lv2）がなければコスト0
+    if (
+        card.type === "magic" &&
+        hasMagicFreeGrant(view, pid, card) &&
+        !hasMagicRestriction(view, pid, "noFreeCastOpponent")
+    ) {
+        return 0
+    }
     const field = view.players[pid].field
     const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
     const reductionBlocked = card.type === "magic" && hasMagicRestriction(view, pid, "noReductionOpponent")

@@ -644,9 +644,13 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
             if (effect.kind !== "coreStepBonus") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.condition) {
-                const ok = effect.condition.ownFieldHasNames.every((name) =>
-                    player.field.spirits.some((s) => getCard(s.cardId).name === name),
-                )
+                const cond = effect.condition
+                const ok =
+                    "ownFieldHasNames" in cond
+                        ? cond.ownFieldHasNames.every((name) =>
+                              player.field.spirits.some((s) => getCard(s.cardId).name === name),
+                          )
+                        : player.field.spirits.some((s) => spiritHasFamily(state, pid, s, cond.ownFieldHasFamily))
                 if (!ok) continue
             }
             bonus += effect.amount
@@ -745,6 +749,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 ) {
                     continue
                 }
+                if (
+                    effect.sourceLevels !== undefined &&
+                    !effect.sourceLevels.includes(rawLevel(source))
+                ) {
+                    continue
+                }
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.condition) {
@@ -764,6 +774,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
                 } else if (effect.target === "ownNexusesAll") {
                     for (const nexus of player.field.nexuses) {
+                        nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
+                    }
+                } else if (effect.target === "opponentNexusesAll") {
+                    // 発生源の持ち主の相手の全ネクサス（ウッド・ゴレム：相手ネクサスのLv2効果を無効化する
+                    // 簡略化としてLv1扱いにする。ネクサスのレベル表示も1になる）
+                    for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
@@ -1119,11 +1135,15 @@ export function returnSpiritToDeckTop(
 }
 
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
+// actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
+// actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
+// フィールドイベント「ownSpiritCoresRemovedByOpponent」を発火する（極光の大地）
 export function removeCores(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
     count: number,
+    actorPid?: PlayerId,
 ): void {
     const player = state.players[ownerPid]
     const removed = Math.min(count, inst.cores)
@@ -1136,15 +1156,20 @@ export function removeCores(
     if (inst.cores < lv1Cores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
+    }
 }
 
 // コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
 // （魔帝の墓標Lv2「そのスピリット上のコア1個をトラッシュに置かなければならない」）
+// actorPidの扱いはremoveCoresと同じ
 export function removeCoresToTrash(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
     count: number,
+    actorPid?: PlayerId,
 ): void {
     const player = state.players[ownerPid]
     const removed = Math.min(count, inst.cores)
@@ -1156,6 +1181,9 @@ export function removeCoresToTrash(
     )
     if (inst.cores < lv1Cores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+    }
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
     }
 }
 
@@ -1875,7 +1903,7 @@ export function resolveAction(
                 return
             }
             // 維持コア割れの消滅処理は removeCores が担う
-            removeCores(state, found.pid, found.inst, action.count)
+            removeCores(state, found.pid, found.inst, action.count, owner)
             return
         }
 
@@ -2498,6 +2526,77 @@ export function resolveAction(
             return
         }
 
+        case "swapBattler": {
+            // テレポートチェンジ：バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と
+            // 入れ替える。使用者（owner）がアタッカー側かブロッカー側かで入れ替え対象を判定する
+            if (!state.battle) {
+                log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
+                return
+            }
+            const battleAttackerPid = state.turnPlayer
+            const battleDefenderPid = opponentOf(battleAttackerPid)
+            let swapSide: "attacker" | "blocker"
+            let currentBattlerId: string
+            if (owner === battleAttackerPid) {
+                swapSide = "attacker"
+                currentBattlerId = state.battle.attackerInstanceId
+            } else if (owner === battleDefenderPid && state.battle.blockerInstanceId) {
+                swapSide = "blocker"
+                currentBattlerId = state.battle.blockerInstanceId
+            } else {
+                log(state, `${sourceName}：使用者がバトルに参加していないため使用できなかった。`)
+                return
+            }
+            // pendingChoiceからの再突入：targetInstanceIdが選ばれた入れ替え先
+            if (targetInstanceId !== undefined) {
+                const replacement = state.players[owner].field.spirits.find(
+                    (s) => s.instanceId === targetInstanceId,
+                )
+                if (!replacement) {
+                    log(state, `${sourceName}：対象がいなかった。`)
+                    return
+                }
+                if (swapSide === "attacker") {
+                    state.battle.attackerInstanceId = replacement.instanceId
+                } else {
+                    state.battle.blockerInstanceId = replacement.instanceId
+                }
+                log(state, `${sourceName}：バトル中のスピリットを${getCard(replacement.cardId).name}と入れ替えた。`)
+                return
+            }
+            const restedOwn = state.players[owner].field.spirits.filter(
+                (s) => s.isRested && s.instanceId !== currentBattlerId,
+            )
+            if (state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：入れ替える疲労状態のスピリットを選んでください`,
+                    restedOwn.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 自動選択：実効BP最大の疲労状態のスピリット
+            let best: CardInstance | undefined
+            for (const s of restedOwn) {
+                if (!best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)) best = s
+            }
+            if (!best) {
+                log(state, `${sourceName}：入れ替えられる疲労状態のスピリットがいなかった。`)
+                return
+            }
+            if (swapSide === "attacker") {
+                state.battle.attackerInstanceId = best.instanceId
+            } else {
+                state.battle.blockerInstanceId = best.instanceId
+            }
+            log(state, `${sourceName}：バトル中のスピリットを${getCard(best.cardId).name}と入れ替えた。`)
+            return
+        }
+
         case "exhaustAllByColor": {
             const oppSpirits = state.players[opp].field.spirits
             if (oppSpirits.length === 0) {
@@ -2768,6 +2867,7 @@ export function resolveAction(
         case "coreSqueezeAll": {
             // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ
             let squeezed = 0
+            const affectedByPid: Record<PlayerId, number> = { p1: 0, p2: 0 }
             const toDeplete: { pid: PlayerId; instanceId: string }[] = []
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 const player = state.players[pid]
@@ -2777,6 +2877,7 @@ export function resolveAction(
                     inst.cores = 1
                     player.reserve += excess
                     squeezed++
+                    affectedByPid[pid]++
                     // 残った1個が維持コア数を下回るなら消滅対象（Lv1維持コアが2個以上のスピリット）
                     if (inst.cores < lv1Cores(getCard(inst.cardId))) {
                         toDeplete.push({ pid, instanceId: inst.instanceId })
@@ -2791,6 +2892,12 @@ export function resolveAction(
                 state,
                 `${sourceName}：すべてのスピリット上のコアを1個だけ残し、それ以外を持ち主のリザーブに置いた。（${squeezed}体が対象）`,
             )
+            // 相手（owner以外）の陣営が影響を受けたぶんは「相手の効果でコアが取り除かれた」として通知（極光の大地）
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                if (pid !== owner && affectedByPid[pid] > 0) {
+                    notifySpiritCoresRemovedByOpponent(state, pid, affectedByPid[pid])
+                }
+            }
             for (const { pid, instanceId } of toDeplete) {
                 destroySpirit(state, pid, instanceId, "deplete")
             }
@@ -2976,6 +3083,8 @@ export function resolveAction(
                         state,
                         `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}のリザーブに置いた。`,
                     )
+                    // 相手（opp）のスピリットのコアがownerの効果で取り除かれた（極光の大地）
+                    notifySpiritCoresRemovedByOpponent(state, opp, 1)
                 } else {
                     log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
                 }
@@ -3035,7 +3144,7 @@ export function resolveAction(
                 const target = spirits.reduce((best, s) =>
                     effectiveBp(state, pid, s) > effectiveBp(state, pid, best) ? s : best,
                 )
-                removeCoresToTrash(state, pid, target, action.count)
+                removeCoresToTrash(state, pid, target, action.count, owner)
             }
             return
         }
@@ -3078,7 +3187,7 @@ export function resolveAction(
                 )
                 if (!inst) continue // 途中の誘発等ですでにフィールドから消えている場合はスキップ
                 const before = state.players[pid].field.spirits.length
-                removeCores(state, pid, inst, 1)
+                removeCores(state, pid, inst, 1, owner)
                 if (state.players[pid].field.spirits.length < before) destroyed++
             }
             log(
@@ -3491,7 +3600,7 @@ export function resolveAction(
                 const oppPlayer = state.players[opp]
                 const spirit = oppPlayer.field.spirits.find((s) => s.instanceId === targetInstanceId)
                 if (spirit) {
-                    removeCoresToTrash(state, opp, spirit, action.count)
+                    removeCoresToTrash(state, opp, spirit, action.count, owner)
                     return
                 }
                 const nexus = oppPlayer.field.nexuses.find((n) => n.instanceId === targetInstanceId)
@@ -4389,6 +4498,26 @@ export function fireFieldEventTriggers(
 export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: number): void {
     if (count < 1 || state.winner) return
     fireFieldEventTriggers(state, opponentOf(gainerPid), "opponentHandAdded", undefined, undefined, undefined, count)
+}
+
+// フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
+// （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数。
+// removeCores / removeCoresToTrash（actorPid !== ownerPidのとき）から呼ばれる
+export function notifySpiritCoresRemovedByOpponent(
+    state: GameState,
+    spiritOwnerPid: PlayerId,
+    affectedCount: number,
+): void {
+    if (affectedCount < 1 || state.winner) return
+    fireFieldEventTriggers(
+        state,
+        spiritOwnerPid,
+        "ownSpiritCoresRemovedByOpponent",
+        undefined,
+        undefined,
+        undefined,
+        affectedCount,
+    )
 }
 
 // マジックカードの効果を実行する（timing に一致するすべての効果を配列順に実行）。
