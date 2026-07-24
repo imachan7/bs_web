@@ -18933,7 +18933,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、[ダークディノハウンド]以外の【覚醒】を持つ自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-004-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-005",
@@ -19296,7 +19307,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-013-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-014",
@@ -19329,7 +19350,30 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分はデッキから1枚ドローする。\nLv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-014-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-014-e2",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-015",
@@ -19866,7 +19910,25 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2\nこのスピリット上に、スピリット/ネクサス/マジックの効果によってコアが置かれるとき、その数を+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-028-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS04-028-e2",
+    "kind": "coreBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1
+   }
+  ]
  },
  {
   "cardId": "BS04-029",
@@ -20102,7 +20164,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2【装甲：紫】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-034-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "purple"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-035",
@@ -20357,7 +20432,21 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\n同じLvのスピリットをブロックしたとき、このスピリットをBP+3000する。\nLv2･Lv3【装甲：赤/緑】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-041-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     2,
+     3
+    ],
+    "colors": [
+     "red",
+     "green"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-042",
@@ -20594,7 +20683,16 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-047-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-048",
@@ -20992,7 +21090,17 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるコスト6以下の系統：「天霊」を持つスピリットカード1枚につき、自分のリザーブにあるコア1個を自分のトラッシュに置くことで、コストを支払わずに好きなだけ召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-057-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-058",
@@ -21197,7 +21305,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で破棄したスピリットカード1枚につき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-063-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-064",
@@ -21475,7 +21594,18 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2\nこのスピリットの【粉砕】の効果で相手のデッキを破棄したとき、破棄するカードを+1枚する。\nLv3\nこのスピリットの【粉砕】の効果で相手のデッキを破棄したとき、破棄するカードを+2枚する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-071-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-072",
@@ -21651,7 +21781,18 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で破棄したカードの中にネクサスカードがあったとき、このスピリットはバトル終了時に回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-075-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS04-076",
