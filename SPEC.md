@@ -234,8 +234,25 @@
 - **エンジン拡張バッチ2（2026-07-24）**: 破壊/疲労の costFilter（destroy/destroyExhausted/exhaust。
   matchesCostFilter）・手札任意破棄連動（coreRemovePerHandDiscard）・coreRemove の dest:"void"・
   destroyAll の anySide/colorExclude・destroyNexus の all・refreshOne の excludeSelf・
-  coreToTrashAllByCost・opponentTrashCores カウンタで7枚を全文構造化
-  （011/017/021/022/094/095/X13）。**BS04 構造化は effects付き 74枚に到達**
+  coreToTrashAllByCost・opponentTrashCores カウンタで7枚を全文構造化（011/017/021/022/094/095/X13）
+- **エンジン拡張バッチ3（2026-07-25）**: triggered 条件 ownFieldHasKeyword・汎用 exhaustAll（BP範囲・side）・
+  returnAllToHand（コスト条件・side）・refreshByFamily（OR配列・count）・trashCoresToKeywordSpirit で
+  5枚を全文構造化（001/089/099/102/103）
+- **エンジン拡張バッチ4（2026-07-25）**: levelAs 条件 ownFieldHasFamily・新アクション levelMaxAllOwnThisTurn・
+  millPer の multiplier/cap・EffectCounter ownColorSymbols で3枚を全文構造化（058/069/X16）。
+  **BS04 構造化は effects付き 70/97枚（効果文持ち）に到達。残る未構造化27枚は下記の末尾**
+- **未構造化で残る27枚（表示のみ。真に新概念が必要か、クライアント軽減/BPミラーと型連動するため見送り）**:
+  - トリガー無効化系（相手の破壊時/召喚時効果を発揮させない）: 086・093
+  - 【神速】効果テキストの書き換え: 033・080
+  - クライアント軽減シンボルミラー（renderer.ts）と型連動する reductionGrant 拡張: 049・077
+  - クライアントBPミラーと型連動する aura familyFilter OR: 076
+  - ドロー枚数修正（条件付き +1）: 052・079
+  - 相手マジック使用のコスト別検知: 045
+  - 手札枚数条件のステップ誘発バウンス: 018
+  - 復活/コア移譲などネクサス破壊反応: 059・061・082（装甲付与＋デッキ破棄上限）
+  - 条件付き costMod＋アタック課税: 085 / デッキ破棄でコスト代替＋ネクサス配置誘発: 088
+  - 対象/名前フィルタ・同系統全破壊など単発概念: 024（ターン最初のアタック検知）・027（一度に5枚以上破棄検知）・
+    037・042・054・081・083・090・101・110・112
 
 ### デッキ
 
