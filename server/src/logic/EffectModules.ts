@@ -2879,6 +2879,104 @@ export function resolveAction(
             return
         }
 
+        case "exhaustAll": {
+            // 指定側のスピリットをBP範囲で疲労させる（相手側のみ装甲・疲労免疫を尊重）
+            const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+            let exhausted = 0
+            for (const pid of sides) {
+                for (const s of state.players[pid].field.spirits) {
+                    if (s.isRested) continue
+                    const bp = effectiveBp(state, pid, s)
+                    if (action.minBp !== undefined && bp < action.minBp) continue
+                    if (action.maxBp !== undefined && bp > action.maxBp) continue
+                    if (pid !== owner && (hasArmorAgainst(s, srcColor) || isExhaustImmune(state, pid, s))) continue
+                    s.isRested = true
+                    exhausted++
+                }
+            }
+            log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
+            return
+        }
+
+        case "returnAllToHand": {
+            // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
+            const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+            let returned = 0
+            for (const pid of sides) {
+                // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
+                const targets = state.players[pid].field.spirits.filter((s) => {
+                    const cost = getCard(s.cardId).cost
+                    if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
+                    if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
+                    if (pid !== owner && (hasArmorAgainst(s, srcColor) || (srcType === "magic" && hasMagicImmunity(state, pid, s)))) return false
+                    return true
+                })
+                for (const s of targets) {
+                    returnSpiritToHand(state, pid, s)
+                    returned++
+                }
+            }
+            if (returned === 0) log(state, `${sourceName}：手札に戻す対象がいなかった。`)
+            return
+        }
+
+        case "refreshByFamily": {
+            // 自分の疲労スピリットのうちfamilyFilter一致（配列=OR）を実効BP最大からcount体まで回復
+            const candidates = state.players[owner].field.spirits
+                .filter((s) => s.isRested && matchesFamilyFilter(state, owner, s, action.familyFilter))
+                .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+                .slice(0, action.count)
+            if (candidates.length === 0) {
+                log(state, `${sourceName}の回復：対象がいなかった。`)
+                return
+            }
+            for (const s of candidates) s.isRested = false
+            log(state, `${sourceName}：${candidates.length}体を回復させた。`)
+            return
+        }
+
+        case "trashCoresToKeywordSpirit": {
+            // 自分のトラッシュのコアすべてを、指定キーワードを持つ自分のスピリット1体へ置く
+            const player = state.players[owner]
+            if (player.trashCores <= 0) {
+                log(state, `${sourceName}：トラッシュにコアがなかった。`)
+                return
+            }
+            const candidates = player.field.spirits.filter((s) =>
+                spiritHasKeyword(state, owner, s, action.keyword),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            // 対象指定（choice再入）があればその1体、なければ実効BP最大。候補複数かつinteractiveならまず選択させる
+            let target = targetInstanceId
+                ? candidates.find((s) => s.instanceId === targetInstanceId)
+                : undefined
+            if (!target) {
+                if (candidates.length >= 2 && state.interactiveTargets) {
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}：コアを置くスピリットを選んでください`,
+                        candidates.map((s) => s.instanceId),
+                        false,
+                        action,
+                        self,
+                    )
+                    return
+                }
+                target = candidates.reduce((best, s) =>
+                    effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                )
+            }
+            const amount = player.trashCores
+            player.trashCores = 0
+            placeCoresOnSpirit(state, target, amount)
+            log(state, `${player.name}はトラッシュのコア${amount}個を${getCard(target.cardId).name}に置いた。`)
+            return
+        }
+
         case "lockFlash": {
             if (!state.battle) {
                 log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
@@ -4690,6 +4788,16 @@ export function fireTrigger(
                 const target = findInstanceAnywhere(state, targetInstanceId)
                 if (!target) return false
                 if (currentLevel(target).level !== level) return false
+            } else if ("ownFieldHasKeyword" in effect.condition) {
+                // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
+                const kw = effect.condition.ownFieldHasKeyword
+                if (
+                    !state.players[owner].field.spirits.some((s) =>
+                        spiritHasKeyword(state, owner, s, kw),
+                    )
+                ) {
+                    return false
+                }
             }
         }
         return true

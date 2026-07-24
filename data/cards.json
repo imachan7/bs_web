@@ -18824,7 +18824,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドに【覚醒】を持つスピリットがいるとき、このスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-001-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownFieldHasKeyword": "awaken"
+    },
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-002",
@@ -22820,7 +22838,18 @@
   "rarity": "",
   "limited": true,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、【覚醒】を持つ自分のスピリット1体の上に置く。\nこの効果は、メインステップで使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-089-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "mainForbidden": true,
+    "action": {
+     "type": "trashCoresToKeywordSpirit",
+     "keyword": "awaken"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-090",
@@ -23122,7 +23151,31 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nBP4000以上の相手のスピリットすべてを疲労させる。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-099-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    },
+    "action": {
+     "type": "exhaustAll",
+     "side": "opponent",
+     "minBp": 4000
+    }
+   },
+   {
+    "id": "BS04-099-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "minSymbols": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-100",
@@ -23198,7 +23251,20 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nコスト1以下のスピリットすべてを持ち主の手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-102-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "returnAllToHand",
+     "side": "both",
+     "costFilter": {
+      "max": 1
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-103",
@@ -23217,7 +23283,21 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n系統：「巨獣」/「甲獣」を持つ自分のスピリット3体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-103-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshByFamily",
+     "familyFilter": [
+      "巨獣",
+      "甲獣"
+     ],
+     "count": 3
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-104",
