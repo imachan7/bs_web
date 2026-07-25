@@ -26,8 +26,22 @@ export interface ActionCtx {
     chosenOption: string | undefined
     chosenCardIndex: number | undefined
     // 効果解決中の再入（同一アクションの繰り返し・別アクションへの委譲）に使う。
-    // 旧実装で resolveAction を直接再帰呼び出ししていた箇所の置き換え
-    resolve: (action: EffectAction, selfOverride?: CardInstance | null) => void
+    // 旧実装の `resolveAction(state, owner, self, action, ...)` の置き換えで、
+    // **省略した引数は undefined が渡る**（呼び出し元の値を暗黙に引き継がない）。
+    // 移設前の挙動をそのまま保つための設計
+    resolve: (action: EffectAction, opts?: ResolveOpts) => void
+}
+
+// ctx.resolve の任意引数。旧 resolveAction の第3・5〜9引数に対応する
+export interface ResolveOpts {
+    // exactOptionalPropertyTypes 下でも ctx の値（undefined を含みうる）をそのまま渡せるよう
+    // 明示的に undefined を許容する
+    self?: CardInstance | null | undefined
+    targetInstanceId?: string | undefined
+    sourceColor?: Color | undefined
+    sourceType?: "spirit" | "nexus" | "magic" | undefined
+    chosenOption?: string | undefined
+    chosenCardIndex?: number | undefined
 }
 
 // 単一アクションのハンドラ。action は type で絞り込まれた具体型が渡る

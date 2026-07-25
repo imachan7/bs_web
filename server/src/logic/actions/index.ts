@@ -1,11 +1,23 @@
 // 分割されたアクションハンドラを合成する。
-// 移設が完了したら型注釈を Partial<ActionRegistry> から ActionRegistry に変えることで、
-// 全 EffectAction.type の網羅性がコンパイル時に検証される（旧 switch の網羅性チェックの代替）
+// ActionRegistry（全 EffectAction.type を網羅）として型注釈することで、
+// **ハンドラの書き漏れがコンパイル時に検出される**（旧 switch の網羅性チェックの代替）
 import type { ActionRegistry } from "./types"
+import battleFlow from "./battleFlow"
 import buff from "./buff"
+import cores from "./cores"
+import destroy from "./destroy"
+import exhaustRefresh from "./exhaustRefresh"
+import grant from "./grant"
+import handDeck from "./handDeck"
 
-const ACTION_HANDLERS: Partial<ActionRegistry> = {
+const ACTION_HANDLERS: ActionRegistry = {
+    ...battleFlow,
     ...buff,
+    ...cores,
+    ...destroy,
+    ...exhaustRefresh,
+    ...grant,
+    ...handDeck,
 }
 
 export default ACTION_HANDLERS
