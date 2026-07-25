@@ -10,7 +10,7 @@
 //   C. 軽減シンボルは色ごとに1個（OR にして2個数えてはいけない）
 //   D. ライフダメージはシンボル数（色は無関係）
 //   E. デッキビルダーの単色プリセットに多色カードが混ざらない
-import { assert, cardHasColor, createGame, createInstance, getCard, resolveAction } from "./helpers"
+import { assert, cardHasColor, createGame, createInstance, getCard, hasKeyword, resolveAction } from "./helpers"
 import { countSymbols, hasArmorAgainst, instanceSymbolCount, instColors, instHasColor } from "../../shared/rules"
 
 const MULTI_RW = "BS05-X19" // 聖皇ジークフリーデン（赤・白）
@@ -95,4 +95,27 @@ console.log("=== §E 単色プリセットの母集団に多色カードが混�
     assert(!redOnly, "聖皇ジークフリーデンは単色プールの条件（colors.length === 1）に合致しない")
     const singleRed = createInstance("BS01-002", 1, 1)
     assert(getCard(singleRed.cardId).colors.length === 1, "単色カードは条件に合致する")
+}
+
+console.log("=== §F BS05 のキーワード保持カード ===")
+{
+    // 新キーワードは無く、すべて実装済みのものを持つ。データ側のエントリが正しいことを押さえる
+    assert(hasKeyword("BS05-002", "awaken"), "扇竜ソルデスは【覚醒】を持つ")
+    assert(hasKeyword("BS05-011", "jugeki"), "レッドキャップは【呪撃】を持つ")
+    assert(hasKeyword("BS05-025", "soku"), "神樹ディオネアスは【神速】を持つ")
+    assert(hasKeyword("BS05-042", "kobo"), "天使長ソフィアは【光芒】を持つ")
+    assert(hasKeyword("BS05-047", "funsai"), "ブロンズ・ゴレムは【粉砕】を持つ")
+    assert(hasKeyword("BS05-X19", "tensho"), "聖皇ジークフリーデンは【転召】を持つ")
+
+    // 装甲は色指定つき。多色指定（赤/白）もそのまま持てる
+    const yellowArmor = createInstance("BS05-028", 1, 1)
+    assert(hasArmorAgainst(yellowArmor, ["yellow"]) === true, "アーメットクラブは黄の効果を受けない")
+    assert(hasArmorAgainst(yellowArmor, ["red"]) === false, "アーメットクラブは赤の効果は受ける")
+    const rwArmor = createInstance("BS05-032", 1, 1)
+    assert(hasArmorAgainst(rwArmor, ["red"]) === true, "珊瑚蟹シオマネキッドは赤の効果を受けない")
+    assert(hasArmorAgainst(rwArmor, ["white"]) === true, "珊瑚蟹シオマネキッドは白の効果も受けない")
+    assert(hasArmorAgainst(rwArmor, ["green"]) === false, "珊瑚蟹シオマネキッドは緑の効果は受ける")
+
+    // 参照するだけのカード（【粉砕】を持つ自分のスピリット〜）は保持者ではない
+    assert(!hasKeyword("BS05-022", "funsai"), "水馬ケルピーは【粉砕】を参照するだけで保持しない")
 }
