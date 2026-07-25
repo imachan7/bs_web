@@ -11,6 +11,8 @@ import {
     viewFor,
 } from "../../server/src/logic/GameState"
 import { runTurnStart as engineRunTurnStart } from "../../server/src/logic/PhaseManager"
+// 色判定は必ず述語経由にする（多色カード対応。MULTICOLOR.md）
+import { cardHasColor } from "../../shared/rules"
 
 // テスト用ラッパー: 1ターン目固有ルール（コアステップなし・アタック不可）の影響を受けずに
 // 既存テストを動かすため、ターン数を3（先攻の2ターン目相当）へ進めて通常ターンとして処理する。
@@ -118,6 +120,7 @@ export {
     spiritHasFamily,
     spiritHasKeyword,
     effectiveCost,
+    cardHasColor,
     DECK_RECIPES,
     DECK_SIZE,
     assert,

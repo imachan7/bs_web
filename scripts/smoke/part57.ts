@@ -6,7 +6,7 @@
 //
 // B が重要で、cards.json は無変更のまま（第1段階の方針）なので、
 // **新形式を通るコードパスは既存データからは一度も実行されない**。ここで初めて経路が通る。
-import { assert, createGame, createInstance, currentLevel, effectiveBp, getCard, resolveAction, runTurnStart } from "./helpers"
+import { assert, cardHasColor, createGame, createInstance, currentLevel, effectiveBp, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 // 相手フィールドにスピリットを1体置くヘルパー（cores はレベルが立つ数を渡す）
@@ -55,8 +55,8 @@ console.log("=== §B refreshOne: 新 filter.color が色で絞り込む ===")
     // 自分の場に赤と紫の疲労スピリットを1体ずつ置く
     const red = createInstance("BS01-002", s.turn, 1)
     const purple = createInstance("BS01-041", s.turn, 1)
-    assert(getCard(red.cardId).color === "red", `テスト前提: ${getCard(red.cardId).name} は赤`)
-    assert(getCard(purple.cardId).color === "purple", `テスト前提: ${getCard(purple.cardId).name} は紫`)
+    assert(cardHasColor(getCard(red.cardId), "red"), `テスト前提: ${getCard(red.cardId).name} は赤`)
+    assert(cardHasColor(getCard(purple.cardId), "purple"), `テスト前提: ${getCard(purple.cardId).name} は紫`)
     red.isRested = true
     purple.isRested = true
     s.players.p1.field.spirits.push(red, purple)
