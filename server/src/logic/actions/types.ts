@@ -1,0 +1,44 @@
+// resolveAction を分割したアクションハンドラの共通型。
+//
+// 旧実装は 3,000行超・105 case の単一 switch だった。分割にあたり、
+// 各 case 本体が参照していた closure ローカル（state / owner / opp / self / sourceName /
+// srcColor / srcType / destroyContext / targetInstanceId / chosenOption / chosenCardIndex）を
+// このコンテキストオブジェクト1個にまとめ、本体はそのまま移設できるようにしている。
+import type {
+    CardInstance,
+    Color,
+    DestroyContext,
+    EffectAction,
+    GameState,
+    PlayerId,
+} from "../../type"
+
+export interface ActionCtx {
+    state: GameState
+    owner: PlayerId
+    opp: PlayerId
+    self: CardInstance | null
+    sourceName: string
+    srcColor: Color | undefined
+    srcType: "spirit" | "nexus" | "magic" | undefined
+    destroyContext: DestroyContext
+    targetInstanceId: string | undefined
+    chosenOption: string | undefined
+    chosenCardIndex: number | undefined
+    // 効果解決中の再入（同一アクションの繰り返し・別アクションへの委譲）に使う。
+    // 旧実装で resolveAction を直接再帰呼び出ししていた箇所の置き換え
+    resolve: (action: EffectAction, selfOverride?: CardInstance | null) => void
+}
+
+// 単一アクションのハンドラ。action は type で絞り込まれた具体型が渡る
+export type ActionHandler<K extends EffectAction["type"]> = (
+    ctx: ActionCtx,
+    action: Extract<EffectAction, { type: K }>,
+) => void
+
+// 全 EffectAction.type を網羅するハンドラ表。
+// 分割モジュールは Partial<ActionRegistry> を返し、合成結果をこの型に代入することで
+// **case の書き漏れをコンパイル時に検出する**（旧 switch が持っていた網羅性チェックの代替）
+export type ActionRegistry = {
+    [K in EffectAction["type"]]: ActionHandler<K>
+}
