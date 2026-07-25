@@ -17,6 +17,7 @@ import type {
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { canBlock } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
     activeConstraints,
@@ -107,38 +108,8 @@ export function canBlockAttacker(
     attackerPid: PlayerId,
     attackerInst: CardInstance,
 ): boolean {
-    const blockerConstraints = activeConstraints(view, blockerPid, blockerInst)
-    // バーストファイアで無効化中は cantBlock/cantBlockLowerBp を無視
-    if (!blockerInst.blockConstraintNegatedThisTurn) {
-        if (blockerConstraints.some((c) => c.type === "cantBlock")) return false
-        if (
-            blockerConstraints.some((c) => c.type === "cantBlockLowerBp") &&
-            effectiveBp(view, attackerPid, attackerInst) < effectiveBp(view, blockerPid, blockerInst)
-        ) {
-            return false
-        }
-    }
-    const blockerCard = master(blockerInst.cardId)
-    const attackerConstraints = activeConstraints(view, attackerPid, attackerInst)
-    for (const c of attackerConstraints) {
-        if (c.type !== "unblockableBy") continue
-        if (c.colorFilter !== undefined && instHasColorView(blockerInst, c.colorFilter)) return false
-        if (
-            c.keywordFilter !== undefined &&
-            spiritHasKeywordView(view, blockerPid, blockerInst, c.keywordFilter)
-        ) {
-            return false
-        }
-        if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) return false
-        if (
-            c.levelFilter !== undefined &&
-            c.levelFilter.includes(levelOf(blockerInst).level)
-        ) {
-            return false
-        }
-        if (c.costNot !== undefined && blockerCard.cost !== c.costNot) return false
-    }
-    return true
+    // 判定はサーバーの validateBlock と同一の共有実装（shared/block.canBlock）
+    return canBlock(view, blockerPid, blockerInst, attackerPid, attackerInst) === null
 }
 
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）

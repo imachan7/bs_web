@@ -366,6 +366,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         you: viewer,
         turnConstraints: [...state.turnConstraints],
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
+        ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }

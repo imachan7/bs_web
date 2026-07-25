@@ -12,6 +12,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { cantActByCost } from "../../../shared/rules"
+import { canBlock } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -453,54 +454,9 @@ export function validateBlock(
         state.battle.attackerInstanceId,
     )
 
-    // ブロッカー側の制約（cantBlock / cantBlockLowerBp）。
-    // バーストファイアで無効化されている場合はこれらのチェックをスキップする。
-    const blockerConstraints = activeConstraints(state, pid, inst)
-    if (!inst.blockConstraintNegatedThisTurn) {
-        if (blockerConstraints.some((c) => c.type === "cantBlock")) {
-            return "このスピリットはブロックできません"
-        }
-        if (
-            attacker &&
-            blockerConstraints.some((c) => c.type === "cantBlockLowerBp") &&
-            effectiveBp(state, attackerPid, attacker) <
-                effectiveBp(state, pid, inst)
-        ) {
-            return "BPの低いスピリットはブロックできません"
-        }
-    }
-
-    // アタッカー側の制約（unblockableBy）。
-    // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
-    if (attacker && !state.ignoreUnblockableThisTurn.includes(pid)) {
-        const blockerCard = getCard(inst.cardId)
-        const attackerConstraints = activeConstraints(state, attackerPid, attacker)
-        for (const c of attackerConstraints) {
-            if (c.type !== "unblockableBy") continue
-            if (c.colorFilter !== undefined && instHasColor(inst, c.colorFilter)) {
-                return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
-            }
-            if (
-                c.keywordFilter !== undefined &&
-                spiritHasKeyword(state, pid, inst, c.keywordFilter)
-            ) {
-                return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
-            }
-            if (c.maxCores !== undefined && inst.cores <= c.maxCores) {
-                return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
-            }
-            if (
-                c.levelFilter !== undefined &&
-                c.levelFilter.includes(currentLevel(inst).level)
-            ) {
-                return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
-            }
-            if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
-                return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
-            }
-        }
-    }
-    return null
+    // 制約判定（cantBlock / cantBlockLowerBp / unblockableBy）はクライアントの
+    // ブロック可能ハイライトと同一の共有実装を使う
+    return canBlock(state, pid, inst, attackerPid, attacker)
 }
 
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック

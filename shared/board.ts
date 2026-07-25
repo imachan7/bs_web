@@ -30,6 +30,7 @@ export interface Board {
     battle: BattleState | null
     turnConstraints: TurnConstraintDef[]
     magicUsedThisTurn: Record<PlayerId, number>
+    ignoreUnblockableThisTurn: PlayerId[]
     players: Record<PlayerId, BoardPlayer>
 }
 
