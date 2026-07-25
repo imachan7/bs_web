@@ -1,31 +1,39 @@
 name: Azure App Service へデプロイ
 
-# main ブランチへの push で自動デプロイする
-# typecheck / smoke が失敗した場合はデプロイしない
+# main ブランチへの push で自動デプロイする（main = 本番の状態）。
+# 開発は gamestate で進め、リリースしたい時点で main へマージする運用。
+# typecheck / smoke / E2E のいずれかが失敗した場合はデプロイしない
 on:
   push:
     branches:
       - main
   workflow_dispatch: {}
 
-# Azure 側の Web App 名。ポータルで作成した Web App の名前に置き換えること
 env:
   AZURE_WEBAPP_NAME: "bs-web"
+  # Azure 側のランタイムに合わせる（az webapp show → siteConfig.linuxFxVersion = NODE|22-lts）
+  NODE_VERSION: "22"
 
 permissions:
   contents: read
+
+# デプロイの多重実行を防ぐ。実行中のものはキャンセルしない
+# （デプロイ途中で中断すると本番が不整合になるため、後続を待たせる）
+concurrency:
+  group: azure-deploy
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリを取得
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node.js をセットアップ
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
       - name: 依存関係をインストール
@@ -38,7 +46,7 @@ jobs:
         run: npm run typecheck
 
       - name: スモークテスト（エンジン単体）
-        run: npm run smoke
+        run: npm run smoke:quiet
 
       - name: E2Eテスト（サーバー起動 → 疎通確認）
         run: |
@@ -54,13 +62,28 @@ jobs:
           PORT=3100 npx tsx scripts/e2e.ts
           kill $SERVER_PID
 
-      # 発行プロファイルは Azure ポータルの Web App > 概要 >
-      # 「発行プロファイルの取得」からダウンロードし、
-      # 中身をそのまま GitHub リポジトリの
-      # Settings > Secrets and variables > Actions > New repository secret で
-      # 「AZURE_WEBAPP_PUBLISH_PROFILE」という名前で登録すること
+      # 発行プロファイルは Azure ポータルの Web App > 概要 > 「発行プロファイルの取得」、
+      # または次のコマンドで取得して GitHub の Secret に登録する:
+      #   az webapp deployment list-publishing-profiles -n bs-web -g bs-web-rg --xml \
+      #     | gh secret set AZURE_WEBAPP_PUBLISH_PROFILE -R imachan7/bs_web
       - name: Azure App Service へデプロイ
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+
+      # デプロイ後にサーバーが実際に起動したかを確認する。
+      # 依存の取りこぼし（例: shared/ の同梱漏れによる MODULE_NOT_FOUND）は
+      # ビルド・テストをすべて通過しても起動時に初めて失敗するため、ここで検知する
+      - name: デプロイ後のヘルスチェック
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" > /dev/null; then
+              echo "本番の /health が応答しました"
+              exit 0
+            fi
+            echo "起動待ち... ($i/30)"
+            sleep 10
+          done
+          echo "::error::デプロイ後に /health が応答しませんでした（サーバーが起動していない可能性）"
+          exit 1

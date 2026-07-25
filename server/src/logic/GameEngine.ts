@@ -2,6 +2,7 @@
 import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
+    coresForLevel,
     createInstance,
     currentLevel,
     findInstanceAnywhere,
@@ -12,7 +13,7 @@ import {
     lv1Cores,
     opponentOf,
 } from "./GameState"
-import { endTurn, toAttackPhase } from "./PhaseManager"
+import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
 import {
     activeConstraints,
     destroySpirit,
@@ -25,12 +26,14 @@ import {
     hasArmorAgainst,
     hasFunsaiOnBlock,
     hasLifeDamageNegate,
+    instanceSymbolCount,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
     resolveFunsai,
     resolveKoboOnBattleEnd,
     resolveMagic,
+    resolveTensho,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -78,11 +81,18 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
         case "castMagic":
-            return doCastMagic(state, pid, action.handIndex, action.targetInstanceId, action.paySources)
+            return doCastMagic(
+                state,
+                pid,
+                action.handIndex,
+                action.targetInstanceId,
+                action.paySources,
+                action.fromTegamoto,
+            )
         case "moveCore":
             return doMoveCore(state, pid, action.instanceId, action.direction)
         case "awaken":
@@ -180,8 +190,9 @@ function doSummon(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources)
+    const error = validateSummon(state, pid, handIndex, paySources, level)
     if (error) return error
 
     const player = state.players[pid]
@@ -189,19 +200,40 @@ function doSummon(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
+    // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
 
     payCost(state, pid, cost, paySources)
-    player.reserve -= maintain // 維持コアはリザーブから直接スピリットへ
+    player.reserve -= maintain // 置くコアはリザーブから直接スピリットへ
     player.hand.splice(handIndex, 1)
 
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
-    log(state, `${player.name}は${flashNote}${card.name}を召喚した。（コスト${cost}）`)
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
     fireTrigger(state, pid, inst, "onSummon")
+    // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
+    if (!state.winner) resolveTensho(state, pid, inst)
+    // フィールドからの「自分のスピリットが召喚されたとき」誘発（七龍帝の玉座Lv2／鋼葉の樹林Lv2）。
+    // self には召喚されたスピリットを渡す（maxBpFromSelf が「召喚されたスピリットのBP以下」を参照するため）。
+    // 転召でコアが尽きて消滅した場合は発火させない
+    const stillOnField = player.field.spirits.some((s) => s.instanceId === inst.instanceId)
+    if (!state.winner && stillOnField) {
+        fireFieldEventTriggers(
+            state,
+            pid,
+            "ownSpiritSummoned",
+            { pid, inst },
+            undefined,
+            undefined,
+            undefined,
+            { families: card.family },
+        )
+    }
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
@@ -213,8 +245,9 @@ function doSetNexus(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level)
     if (error) return error
 
     const player = state.players[pid]
@@ -222,14 +255,16 @@ function doSetNexus(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
 
     payCost(state, pid, cost, paySources)
     player.reserve -= maintain
     player.hand.splice(handIndex, 1)
 
     player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
-    log(state, `${player.name}は${card.name}を配置した。（コスト${cost}）`)
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
     return null
 }
 
@@ -239,18 +274,23 @@ function doCastMagic(
     handIndex: number,
     targetInstanceId?: string,
     paySources?: PaySource[],
+    fromTegamoto?: boolean,
 ): string | null {
-    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources)
+    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto)
     if (error) return error
 
     const player = state.players[pid]
-    const cardId = player.hand[handIndex]
-    if (cardId === undefined) return "手札にカードがありません"
+    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
+    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
 
     payCost(state, pid, cost, paySources)
-    player.hand.splice(handIndex, 1)
+    if (fromTegamoto) {
+        player.tegamoto.splice(handIndex, 1)
+    } else {
+        player.hand.splice(handIndex, 1)
+    }
     player.trashCards.push(cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
@@ -388,6 +428,9 @@ function doAttack(
         log(state, `${player.name}の${card.name}がアタックした！`)
     }
 
+    // このターンのアタック回数を加算する（「ターンの最初のアタック」判定に使う。誘発より前に更新する）
+    state.attacksThisTurn += 1
+
     fireTrigger(state, pid, inst, "onAttack")
 
     // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
@@ -422,8 +465,8 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     const blocker = findSpirit(state.players[pid], instanceId)
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
-    // ブロック時効果
-    if (blocker) fireTrigger(state, pid, blocker, "onBlock")
+    // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
+    if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
     if (state.winner) {
         state.battle = null
         return null
@@ -485,6 +528,16 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 
     // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
     // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
+    // ミストカーテン：指定されたアタッカーのアタックでは、このターン使用者のライフが減らない
+    if (attacker && attacker.lifeDamageNegatedFor === pid) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return null
+    }
     if (attacker && hasLifeDamageNegate(state, pid, attackerPid, attacker)) {
         log(
             state,
@@ -495,11 +548,9 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
         return null
     }
 
-    // ダメージ = アタックスピリットのシンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+    // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker
-        ? getCard(attacker.cardId).symbol.length + (attacker.tempExtraSymbols ?? 0)
-        : 1
+    const damage = attacker ? instanceSymbolCount(attacker) : 1
     const dealt = Math.min(damage, defender.life)
     const toVoid =
         attacker !== undefined &&
@@ -603,7 +654,7 @@ function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return drainChoiceQueue(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid, pending.queue)
     }
 
     if (pending.kind === "card") {
@@ -621,7 +672,7 @@ function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return drainChoiceQueue(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid, pending.queue)
     }
 
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
@@ -640,7 +691,22 @@ function doResolveChoice(
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
-    return drainChoiceQueue(state, pending.pid, pending.queue)
+    return finishChoiceResolution(state, pending.pid, pending.queue)
+}
+
+// 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
+// ステップ誘発の pendingChoice で中断していたターン開始処理を続きのステップから再開する
+// （百識の谷Lv1のドローステップ破棄選択など。中断していなければ resumeTurnStart は no-op）。
+function finishChoiceResolution(
+    state: GameState,
+    pid: PlayerId,
+    queue: { selfInstanceId: string | null; action: EffectAction }[],
+): string | null {
+    drainChoiceQueue(state, pid, queue)
+    if (!state.pendingChoice && !state.winner) {
+        resumeTurnStart(state)
+    }
+    return null
 }
 
 // 退避したqueue（同一トリガー内の残りの誘発）を先頭から順に消化する。

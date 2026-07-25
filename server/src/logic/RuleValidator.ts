@@ -2,6 +2,7 @@
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
 import type { CardData, CardInstance, Color, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import {
+    coresForLevel,
     countSymbols,
     currentLevel,
     findNexus,
@@ -10,6 +11,17 @@ import {
     lv1Cores,
     opponentOf,
 } from "./GameState"
+import { canAwaken, cantActByCost, directAttackFilter } from "../../../shared/rules"
+import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
+// コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
+// effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
+import {
+    effectiveCost,
+    hasMagicFreeGrant,
+    hasMagicRestriction,
+    ownFieldSymbolColors,
+} from "../../../shared/cost"
+export { effectiveCost }
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -20,155 +32,16 @@ import {
     instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
+    matchesFamilyFilter,
     spiritHasKeyword,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
-// コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
-// 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
-// 常に一致）に合うものの amount を合計する。usingPid は実際にそのカードを使おうとしているプレイヤー
-// （side:"opponent" の判定・validateSummon等の呼び出し元から渡る）
-// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く。
-//   螺旋の塔：「自分のアタックステップ中、相手のマジックは+1コスト」＝side:"opponent"＋phaseTurn）
-function costModTotal(state: GameState, usingPid: PlayerId, card: CardData): number {
-    let total = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = state.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            const sourceLevel = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "costMod") continue
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
-                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-                // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
-                if (effect.side === "opponent" && usingPid === pid) continue
-                if (effect.phaseTurn) {
-                    if (state.phase !== effect.phaseTurn.phase) continue
-                    if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                    if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-                }
-                total += effect.amount
-            }
-        }
-    }
-    return total
-}
 
-// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
-// pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
-// 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
-// （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
-function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData): Color[] {
-    const extra: Color[] = []
-    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "reductionGrant") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
-            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
-            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => getCard(s.cardId).color === color).length
-                if (total < count) continue
-            }
-            extra.push(...effect.symbols)
-        }
-    }
-    return extra
-}
 
-// マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
-// レベル有効・restriction一致・turn条件成立の発生源があるか調べる。
-// oncePerTurnAll は持ち主を問わず両陣営に効くため usingPid との一致チェックをしない。
-// noReductionOpponent / colorLockOpponent は「発生源の持ち主の相手」にのみ効くため、
-// 発生源の持ち主自身が使用者（usingPid === ownerPid）のときは対象外とする
-// （イワトビペンタン／作戦参謀フォクシン／力奪う凱旋門）
-function hasMagicRestriction(
-    state: GameState,
-    usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
-): boolean {
-    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
-        const sources = [...state.players[ownerPid].field.spirits, ...state.players[ownerPid].field.nexuses]
-        for (const source of sources) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "magicRestriction") continue
-                if (effect.restriction !== restriction) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
 
-// マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
-// レベル有効・色一致・phaseTurn一致の発生源があるかを調べる（薔薇人バロッサ：自分のアタックステップに
-// 自分の黄マジックカードを無償化）
-function hasMagicFreeGrant(state: GameState, pid: PlayerId, card: CardData): boolean {
-    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const source of sources) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "magicFreeGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.colorFilter !== card.color) continue
-            if (effect.phaseTurn) {
-                if (state.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-            }
-            return true
-        }
-    }
-    return false
-}
 
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
-// 軽減シンボルと同じシンボル集計対象を色の集合として求める）
-function ownFieldSymbolColors(state: GameState, pid: PlayerId): Set<Color> {
-    const colors = new Set<Color>()
-    const all = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const inst of all) {
-        for (const sym of getCard(inst.cardId).symbol) colors.add(sym)
-    }
-    return colors
-}
 
-// 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
-// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
-// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する。
-// noReductionOpponent（イワトビペンタン）が有効なマジックは軽減シンボルによる軽減自体ができない
-export function effectiveCost(
-    state: GameState,
-    pid: PlayerId,
-    card: CardData,
-): number {
-    // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
-    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
-    if (
-        card.type === "magic" &&
-        hasMagicFreeGrant(state, pid, card) &&
-        !hasMagicRestriction(state, pid, "noFreeCastOpponent")
-    ) {
-        return 0
-    }
-    const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
-    const reductionBlocked = card.type === "magic" && hasMagicRestriction(state, pid, "noReductionOpponent")
-    const symbols = reductionBlocked ? 0 : countSymbols(state.players[pid], reductionColors)
-    const reduction = reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)
-    const base = Math.max(card.cost - reduction, 0)
-    return base + costModTotal(state, pid, card)
-}
 
 function checkMainTiming(state: GameState, pid: PlayerId): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
@@ -216,6 +89,7 @@ export function validateSummon(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -241,15 +115,57 @@ export function validateSummon(
         }
     }
 
+    // フィールドのスピリット数上限（旋風渦巻く渓谷＝5体以上召喚できない）。
+    // 効果文が『お互いのメインステップ』のため、メインステップの通常召喚のみを制限する（神速召喚は対象外）
+    if (!flashSummon && state.phase === "main") {
+        const cap = maxSpiritsOnField(state)
+        if (cap !== null && player.field.spirits.length >= cap) {
+            return `効果により、スピリットは${cap}体までしか召喚できません`
+        }
+    }
+
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
+    const placeError = validateSummonLevel(card, level)
+    if (placeError) return placeError
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
-    // 維持コアは必ずリザーブから払うため、コアで賄えなかった分+維持コアがリザーブに残っているか検証
+    // 置くコアは必ずリザーブから払うため、コアで賄えなかった分+置くコアがリザーブに残っているか検証
     const total = paySourcesTotal(paySources)
     if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+維持コアで${cost + maintain}個必要）`
+        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
     }
+    return null
+}
+
+// フィールドに置けるスピリット数の上限（globalConstraint "maxSpiritsOnField"）。
+// 両陣営のフィールドを走査し、レベル有効な発生源があればその max を返す（複数あれば最も厳しい値）
+function maxSpiritsOnField(state: GameState): number | null {
+    let cap: number | null = null
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[ownerPid]
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            const level = currentLevel(inst).level
+            for (const effect of getCard(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "maxSpiritsOnField") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const max = effect.constraint.max
+                cap = cap === null ? max : Math.min(cap, max)
+            }
+        }
+    }
+    return cap
+}
+
+// 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
+// カードに存在しないレベルや、Lv1のコア数を下回るレベル指定を弾く
+function validateSummonLevel(card: CardData, level?: number): string | null {
+    if (level === undefined) return null
+    if (!Number.isInteger(level) || level < 1) return "レベルの指定が不正です"
+    const cores = coresForLevel(card, level)
+    if (cores === null) return `${card.name}にLv${level}はありません`
     return null
 }
 
@@ -258,6 +174,7 @@ export function validateSetNexus(
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
+    level?: number,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -268,12 +185,14 @@ export function validateSetNexus(
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
-    const maintain = lv1Cores(card)
+    const placeError = validateSummonLevel(card, level)
+    if (placeError) return placeError
+    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
     const total = paySourcesTotal(paySources)
     if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+維持コアで${cost + maintain}個必要）`
+        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
     }
     return null
 }
@@ -284,12 +203,24 @@ export function validateCastMagic(
     handIndex: number,
     targetInstanceId?: string,
     paySources?: PaySource[],
+    fromTegamoto?: boolean,
 ): string | null {
     const player = state.players[pid]
-    const cardId = player.hand[handIndex]
-    if (cardId === undefined) return "手札にカードがありません"
+    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
+    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "magic") return "マジックカードではありません"
+
+    // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
+    // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）
+    if (fromTegamoto) {
+        if (
+            !hasMagicFreeGrant(state, pid, card, true) ||
+            hasMagicRestriction(state, pid, "noFreeCastOpponent")
+        ) {
+            return "手元のマジックカードを無償使用できる効果がありません"
+        }
+    }
 
     // 作戦参謀フォクシン：フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
@@ -391,7 +322,8 @@ export function validateAwaken(
     const player = state.players[pid]
     const target = findSpirit(player, instanceId)
     if (!target) return "覚醒するスピリットが見つかりません"
-    if (!spiritHasKeyword(state, pid, target, "awaken")) return "このスピリットは【覚醒】を持ちません"
+    // 覚醒の保持判定はクライアントの覚醒バッジ表示と同一の共有実装（静的キーワードのレベル指定を尊重する）
+    if (!canAwaken(state, pid, target)) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
     const from = findSpirit(player, fromInstanceId)
@@ -471,23 +403,15 @@ export function validateAttack(
 
     if (targetSpiritInstanceId !== undefined) {
         // 指定アタック：canDirectAttack を持ち、指定した相手スピリットが targetFilter に合うかを検証する
-        const directConstraint = activeConstraints(state, pid, inst).find(
-            (c) => c.type === "canDirectAttack",
-        )
-        if (!directConstraint || directConstraint.type !== "canDirectAttack") {
+        const targetFilter = directAttackFilter(state, pid, inst)
+        if (targetFilter === null) {
             return "このスピリットは指定アタックできません"
         }
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
-        if (directConstraint.targetFilter === "rested" && !target.isRested) {
-            return "疲労状態のスピリットしか指定できません"
-        }
-        if (directConstraint.targetFilter === "singleCore" && target.cores !== 1) {
-            return "コア1個のスピリットしか指定できません"
-        }
-        if (directConstraint.targetFilter === "recovered" && target.isRested) {
-            return "回復状態のスピリットしか指定できません"
-        }
+        // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
+        const filterError = matchesDirectedAttackFilter(targetFilter, target)
+        if (filterError) return filterError
     }
     return null
 }
@@ -523,67 +447,13 @@ export function validateBlock(
         state.battle.attackerInstanceId,
     )
 
-    // ブロッカー側の制約（cantBlock / cantBlockLowerBp）。
-    // バーストファイアで無効化されている場合はこれらのチェックをスキップする。
-    const blockerConstraints = activeConstraints(state, pid, inst)
-    if (!inst.blockConstraintNegatedThisTurn) {
-        if (blockerConstraints.some((c) => c.type === "cantBlock")) {
-            return "このスピリットはブロックできません"
-        }
-        if (
-            attacker &&
-            blockerConstraints.some((c) => c.type === "cantBlockLowerBp") &&
-            effectiveBp(state, attackerPid, attacker) <
-                effectiveBp(state, pid, inst)
-        ) {
-            return "BPの低いスピリットはブロックできません"
-        }
-    }
-
-    // アタッカー側の制約（unblockableBy）
-    if (attacker) {
-        const blockerCard = getCard(inst.cardId)
-        const attackerConstraints = activeConstraints(state, attackerPid, attacker)
-        for (const c of attackerConstraints) {
-            if (c.type !== "unblockableBy") continue
-            if (c.colorFilter !== undefined && instHasColor(inst, c.colorFilter)) {
-                return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
-            }
-            if (
-                c.keywordFilter !== undefined &&
-                spiritHasKeyword(state, pid, inst, c.keywordFilter)
-            ) {
-                return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
-            }
-            if (c.maxCores !== undefined && inst.cores <= c.maxCores) {
-                return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
-            }
-            if (
-                c.levelFilter !== undefined &&
-                c.levelFilter.includes(currentLevel(inst).level)
-            ) {
-                return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
-            }
-            if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
-                return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
-            }
-        }
-    }
-    return null
+    // 制約判定（cantBlock / cantBlockLowerBp / unblockableBy）はクライアントの
+    // ブロック可能ハイライトと同一の共有実装を使う
+    return canBlock(state, pid, inst, attackerPid, attacker)
 }
 
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
 // できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
-function cantActByCost(state: GameState, inst: CardInstance): boolean {
-    const cost = getCard(inst.cardId).cost
-    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
-    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
-    return state.turnConstraints.some(
-        (c) =>
-            c.type === "cantActByCost" &&
-            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
-    )
-}
 
 // ブロック可能なスピリットがいるか（【激突】等の判定に使用）
 export function hasBlocker(state: GameState, pid: PlayerId): boolean {
@@ -631,6 +501,45 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     return null
 }
 
+// 強制ブロック（kind: "mustBlockGrant"）：アタッカーの持ち主のフィールドに、
+// レベル有効・phase/turn一致・familyFilter一致（省略時は全アタッカー）の発生源があるか判定する。
+// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象
+function hasMustBlockAgainst(
+    state: GameState,
+    attackerPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    const player = state.players[attackerPid]
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "mustBlockGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && attackerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && attackerPid === state.turnPlayer) continue
+            if (effect.firstAttackOnly && state.attacksThisTurn !== 1) continue
+            if (
+                effect.familyFilter !== undefined &&
+                !matchesFamilyFilter(state, attackerPid, attacker, effect.familyFilter)
+            ) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// 「可能ならば必ずブロックする」の判定用：実際にブロック宣言が通るスピリットが1体でもいるか。
+// hasBlocker（回復状態か見るだけ）と違い validateBlock を通すため、cantBlock や
+// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない
+function hasLegalBlocker(state: GameState, pid: PlayerId): boolean {
+    return state.players[pid].field.spirits.some(
+        (s) => validateBlock(state, pid, s.instanceId) === null,
+    )
+}
+
 export function validateTakeLife(state: GameState, pid: PlayerId): string | null {
     if (!state.battle) return "バトルが発生していません"
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
@@ -651,6 +560,15 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         hasBlocker(state, pid)
     ) {
         return "【激突】によりブロックしなければなりません"
+    }
+    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック）。
+    // ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
+    if (
+        attacker &&
+        hasMustBlockAgainst(state, state.turnPlayer, attacker) &&
+        hasLegalBlocker(state, pid)
+    ) {
+        return "相手の効果により、可能ならば必ずブロックしなければなりません"
     }
     return null
 }

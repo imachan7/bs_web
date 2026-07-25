@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>バトスピWeb対戦</title>
+    <title>バトスピWeb対戦｜ブラウザで遊べるバトルスピリッツ 非公式シミュレーター</title>
+    <meta name="description" content="バトルスピリッツのカードバトルをブラウザで対戦できる非公式ファンメイドシミュレーター。第一弾〜第四弾 全521枚収録、デッキ構築対応、登録不要ですぐ遊べます。" />
+    <meta property="og:title" content="バトスピWeb対戦｜ブラウザで遊べるバトルスピリッツ 非公式シミュレーター" />
+    <meta property="og:description" content="バトルスピリッツのカードバトルをブラウザで対戦できる非公式ファンメイドシミュレーター。第一弾〜第四弾 全521枚収録、デッキ構築対応、登録不要ですぐ遊べます。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bs-web.azurewebsites.net/" />
+    <link rel="canonical" href="https://bs-web.azurewebsites.net/" />
     <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -34,6 +40,36 @@
             <a id="deck-builder-link" href="/deck.html">デッキ構築（デッキビルダーを開く）</a>
         </div>
         <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
+        
+        <div style="text-align: center; margin-top: 16px;">
+            <a href="/bugreport.html" style="color: #66b3ff; text-decoration: none; font-size: 14px;">🐛 バグ報告</a>
+        </div>
+
+        <section class="seo-description" style="margin-top: 60px; text-align: left; padding: 20px; background: rgba(0,0,0,0.5); border-radius: 8px; font-size: 13px; color: #bbb; line-height: 1.6; max-width: 600px;">
+            <h2 style="font-size: 16px; color: #fff; margin-top: 0;">バトスピWeb対戦について</h2>
+            <p>バトスピWeb対戦は、バトルスピリッツのカードバトルをブラウザ上で楽しめる非公式ファンメイドシミュレーターです。</p>
+            
+            <h3 style="font-size: 14px; color: #fff; margin-top: 16px;">収録弾・特徴</h3>
+            <ul style="margin: 8px 0; padding-left: 20px;">
+                <li>BS01〜BS04までの全521枚を収録</li>
+                <li>面倒なユーザー登録は一切不要</li>
+                <li>ルームIDを共有するだけで友達とすぐに対戦可能</li>
+                <li>自由なデッキ構築ができるデッキビルダー機能搭載</li>
+            </ul>
+
+            <h3 style="font-size: 14px; color: #fff; margin-top: 16px;">遊び方</h3>
+            <ol style="margin: 8px 0; padding-left: 20px;">
+                <li>「デッキ構築」から好きなカードを選んでデッキを作成・保存</li>
+                <li>対戦相手と同じ「ルームID」を入力</li>
+                <li>「対戦ルームに入る」をクリックしてバトル開始！</li>
+            </ol>
+
+            <div style="margin-top: 20px; padding-top: 12px; border-top: 1px solid #444; font-size: 11px; color: #999;">
+                <strong>※免責事項・権利表記</strong><br>
+                本サイトはファンによる非公式シミュレーターであり、バンダイ等の公式とは一切関係ありません。<br>
+                カード名等の権利は各権利者に帰属します。
+            </div>
+        </section>
     </div>
 
     <!-- ゲーム画面 -->
@@ -57,6 +93,9 @@
             <div id="event-layer"></div>
             <div id="opponent-area" class="player-area">
                 <div id="opp-info" class="player-info"></div>
+                <div class="opp-hand-area" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 4px;">
+                    <button id="btn-opp-tegamoto" class="log-toggle-btn hidden">相手の手元(0)</button>
+                </div>
                 <div class="field-row">
                     <div id="opp-nexuses" class="nexus-zone"></div>
                     <div id="opp-spirits" class="spirit-zone"></div>
@@ -103,13 +142,28 @@
                 <div id="trash-content"></div>
             </div>
 
+            <!-- 手元パネル -->
+            <div id="tegamoto-panel" class="hidden">
+                <div class="trash-header">
+                    <div class="trash-tabs">
+                        <button id="tab-my-tegamoto" class="active">自分</button>
+                        <button id="tab-opp-tegamoto">相手</button>
+                    </div>
+                    <button id="btn-close-tegamoto">✕</button>
+                </div>
+                <div id="tegamoto-content"></div>
+            </div>
+
             <div id="player-area" class="player-area">
                 <div class="field-row">
                     <div id="my-nexuses" class="nexus-zone"></div>
                     <div id="my-spirits" class="spirit-zone"></div>
                 </div>
                 <div id="my-info" class="player-info"></div>
-                <div id="hand"></div>
+                <div class="my-hand-area" style="display: flex; gap: 8px; align-items: flex-start; justify-content: center;">
+                    <button id="btn-my-tegamoto" class="log-toggle-btn hidden" style="margin-top: 8px;">手元(0)</button>
+                    <div id="hand"></div>
+                </div>
             </div>
         </div>
 

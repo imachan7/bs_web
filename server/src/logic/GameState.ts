@@ -26,6 +26,11 @@ import {
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
+import { setCardLookup } from "../../../shared/cardDb"
+// 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
+// 再エクスポートで名前を残す
+import { countSymbols, currentLevel } from "../../../shared/rules"
+export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
 
@@ -42,6 +47,10 @@ export function getCard(cardId: string): CardData {
     if (!card) throw new Error(`カードが見つかりません: ${cardId}`)
     return card
 }
+
+// 共有ルール層（shared/）へカードマスタ参照を注入する。
+// shared/ は node:fs を使えないため、サーバー側の getCard をここで渡す
+setCardLookup(getCard)
 
 // ---- ユーティリティ ----
 
@@ -86,10 +95,12 @@ function shuffle<T>(array: T[]): T[] {
 const MAX_COPIES = 3
 
 // カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
-// 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど / 同名（カード名で合算）3枚まで / 禁止カード不可
+// 検証項目: cardId の実在 / 枚数が正の整数 / 合計40枚ちょうど /
+// 同名（カード名で合算）min(3, limitCount)枚まで（制限カードはlimitCountで3枚未満に絞る） / 禁止カード不可
 export function validateDeckCards(cards: Record<string, number>): string | null {
     let total = 0
     const byName = new Map<string, number>()
+    const nameLimit = new Map<string, number>()
     for (const [cardId, count] of Object.entries(cards)) {
         const card = CARD_DB.get(cardId)
         if (!card) return `存在しないカードIDが含まれています: ${cardId}`
@@ -101,10 +112,14 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
         }
         total += count
         byName.set(card.name, (byName.get(card.name) ?? 0) + count)
+        const limit =
+            card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
+        nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? MAX_COPIES, limit))
     }
     for (const [name, count] of byName) {
-        if (count > MAX_COPIES) {
-            return `同名カードは${MAX_COPIES}枚までです: ${name}（${count}枚）`
+        const limit = nameLimit.get(name) ?? MAX_COPIES
+        if (count > limit) {
+            return `同名カードは${limit}枚までです: ${name}（${count}枚）`
         }
     }
     if (total !== DECK_SIZE) {
@@ -145,6 +160,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         deck,
         hand,
         trashCards: [],
+        tegamoto: [],
         field: { spirits: [], nexuses: [] },
     }
 }
@@ -171,9 +187,14 @@ export function createGame(
         winner: null,
         endAttackStepAfterBattle: false,
         turnConstraints: [],
+        triggerSuppressionThisTurn: [],
+        attacksThisTurn: 0,
+        ignoreUnblockableThisTurn: [],
+        lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
         pendingChoice: null,
+        turnStartResumeStep: null,
         interactiveTargets: false,
         events: [],
         eventSeq: 0,
@@ -246,25 +267,7 @@ export function rawLevel(inst: CardInstance): number {
 // （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
 // 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
 // （該当レベルがカードに無ければ通常計算にフォールバック）
-export function currentLevel(inst: CardInstance): { level: number; bp: number } {
-    const master = getCard(inst.cardId)
-    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
-    if (override !== undefined) {
-        const lv = master.levels.find((l) => l.level === override)
-        if (lv) {
-            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
-        }
-    }
-    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
-    const coreCount = inst.coresOverride ?? inst.cores
-    let result = { level: 0, bp: 0 }
-    for (const lv of master.levels) {
-        if (coreCount >= lv.cores && lv.level > result.level) {
-            result = { level: lv.level, bp: lv.bp }
-        }
-    }
-    return { level: result.level, bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0) }
-}
+
 
 // レベル1の維持コア数
 export function lv1Cores(card: CardData): number {
@@ -272,25 +275,16 @@ export function lv1Cores(card: CardData): number {
     return lv1 ? lv1.cores : 0
 }
 
+// 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
+// （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）
+export function coresForLevel(card: CardData, level: number): number | null {
+    const def = card.levels.find((l) => l.level === level)
+    return def ? def.cores : null
+}
+
 // 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
 // tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
-export function countSymbols(player: PlayerState, colors: Color[]): number {
-    let count = 0
-    const all = [...player.field.spirits, ...player.field.nexuses]
-    for (const inst of all) {
-        const cardSymbols = getCard(inst.cardId).symbol
-        let matched = false
-        for (const sym of cardSymbols) {
-            if (colors.includes(sym)) {
-                count++
-                matched = true
-            }
-        }
-        if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
-    }
-    return count
-}
 
 export function findSpirit(
     player: PlayerState,
@@ -331,6 +325,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         hand: isSelf ? [...player.hand] : null,
         handCount: player.hand.length,
         trashCards: [...player.trashCards],
+        tegamoto: [...player.tegamoto],
         field: {
             spirits: player.field.spirits.map((s) => ({ ...s })),
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
@@ -370,6 +365,8 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        magicUsedThisTurn: { ...state.magicUsedThisTurn },
+        ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }

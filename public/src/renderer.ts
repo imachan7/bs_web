@@ -7,6 +7,7 @@ import type {
     CardInstance,
     Color,
     ConstraintDef,
+    FamilyFilter,
     GameEvent,
     GameView,
     GlobalConstraintDef,
@@ -14,6 +15,31 @@ import type {
     PlayerId,
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
+import { setCardLookup } from "../../shared/cardDb"
+import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
+// ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
+import {
+    activeConstraints,
+    cantActByCost,
+    currentLevel,
+    effectiveBp,
+    hasArmorAgainst,
+    hasGlobalConstraint,
+    hasKeyword,
+    hasMagicImmunity,
+    isUntargetableByOpponent,
+    activatableAbility as sharedActivatableAbility,
+    canAwaken as sharedCanAwaken,
+    directAttackFilter,
+    instHasColor,
+    instHasCost,
+    isVanillaCard,
+    matchesFamilyFilter,
+    spiritHasFamily,
+    spiritHasKeyword,
+} from "../../shared/rules"
+export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
 
@@ -21,6 +47,8 @@ let DB = new Map<string, CardData>()
 
 export function setCardDb(cards: CardData[]): void {
     DB = new Map(cards.map((c) => [c.cardId, c]))
+    // 共有ルール層（shared/）へカードマスタ参照を注入する（サーバーは GameState.getCard を注入）
+    setCardLookup(master)
 }
 
 export function master(cardId: string): CardData {
@@ -38,363 +66,36 @@ const COLOR_SYMBOLS: Record<string, string> = {
     blue: "💧"
 }
 
-// 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
-// 指定コストとして扱われるか（サーバー instHasCost と同じロジックの簡易版）
-export function instHasCost(inst: CardInstance, cost: number): boolean {
-    return master(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
-}
+// ---- ルール計算は shared/ の共有実装を使う（従来はここにサーバーのミラーを持っていた） ----
 
-// カードに効果の記述を持たない（バニラ）か（サーバー isVanillaCard と同じロジックの簡易版）
-function isVanillaCard(cardId: string): boolean {
-    return master(cardId).effect === ""
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.currentLevel）
+export const levelOf = currentLevel
 
-// ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
+// オーラ計算・実効BPはサーバーと同一の共有実装（shared/rules）を使う。
+// main.ts など既存の呼び出しを壊さないため effectiveBp の名前はここから再エクスポートする
+export { effectiveBp }
 
-// levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
-// （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
-// 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
-// （該当レベルがカードに無ければ通常計算にフォールバック。サーバーのcurrentLevelと同じロジック）
-export function levelOf(inst: CardInstance): { level: number; bp: number } {
-    const m = master(inst.cardId)
-    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
-    if (override !== undefined) {
-        const lv = m.levels.find((l) => l.level === override)
-        if (lv) {
-            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
-        }
-    }
-    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
-    const coreCount = inst.coresOverride ?? inst.cores
-    let result = { level: 0, bp: 0 }
-    for (const lv of m.levels) {
-        if (coreCount >= lv.cores && lv.level > result.level) {
-            result = { level: lv.level, bp: lv.bp }
-        }
-    }
-    return {
-        level: result.level,
-        bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0),
-    }
-}
 
-// ---- 常時BP修正（オーラ）：サーバー（EffectModules.effectiveBp）と同じロジックの簡易版 ----
 
-function isSpiritOnField(view: GameView, pid: PlayerId, instanceId: string): boolean {
-    return view.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
+export const spiritHasKeywordView = spiritHasKeyword
 
-function countAuraCounter(view: GameView, sourcePid: PlayerId, counter: AuraCounter): number {
-    if (counter === "ownReserve") return view.players[sourcePid].reserve
-    if (counter === "ownNexuses") return view.players[sourcePid].field.nexuses.length
-    if (counter === "allNexuses") {
-        return (
-            view.players.p1.field.nexuses.length + view.players.p2.field.nexuses.length
-        )
-    }
-    if (counter === "ownExhausted") {
-        return view.players[sourcePid].field.spirits.filter((s) => s.isRested).length
-    }
-    if ("ownNameIncludes" in counter) {
-        return view.players[sourcePid].field.spirits.filter((s) =>
-            master(s.cardId).name.includes(counter.ownNameIncludes),
-        ).length
-    }
-    return view.players[sourcePid].field.spirits.filter((s) =>
-        spiritHasFamilyView(view, sourcePid, s, counter.ownFamily),
-    ).length
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
+export const instHasColorView = instHasColor
 
-function checkAuraCondition(
-    view: GameView,
-    sourcePid: PlayerId,
-    condition: AuraCondition,
-): boolean {
-    const player = view.players[sourcePid]
-    if (condition === "ownReserveNotEmpty") return player.reserve >= 1
-    if ("hasOwnColor" in condition) {
-        const all = [...player.field.spirits, ...player.field.nexuses]
-        return all.some((inst) => master(inst.cardId).color === condition.hasOwnColor)
-    }
-    if ("hasOwnColorSpirit" in condition) {
-        return player.field.spirits.some(
-            (s) => master(s.cardId).color === condition.hasOwnColorSpirit,
-        )
-    }
-    if ("ownHasKeyword" in condition) {
-        return player.field.spirits.some((s) =>
-            spiritHasKeywordView(view, sourcePid, s, condition.ownHasKeyword),
-        )
-    }
-    return player.field.spirits.some((s) =>
-        master(s.cardId).family.includes(condition.hasOwnFamily),
-    )
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasFamily）
+export const spiritHasFamilyView = spiritHasFamily
 
-function auraAppliesTo(
-    view: GameView,
-    sourcePid: PlayerId,
-    sourceInst: CardInstance,
-    aura: AuraDef,
-    targetOwnerPid: PlayerId,
-    targetInst: CardInstance,
-): boolean {
-    // phaseTurn は target を問わず適用する（アルカナプリンス・オベロ：target:"self" での使用）
-    if (aura.phaseTurn) {
-        if (view.phase !== aura.phaseTurn.phase) return false
-        if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
-        if (aura.phaseTurn.turn === "opponent" && sourcePid === view.turnPlayer) return false
-    }
-    if (aura.target === "self") {
-        return sourceInst.instanceId === targetInst.instanceId
-    }
-    if (sourcePid !== targetOwnerPid) return false
-    if (!isSpiritOnField(view, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !instHasColorView(targetInst, aura.colorFilter)) {
-        return false
-    }
-    if (aura.battlingOnly) {
-        if (!view.battle) return false
-        if (
-            view.battle.attackerInstanceId !== targetInst.instanceId &&
-            view.battle.blockerInstanceId !== targetInst.instanceId
-        ) {
-            return false
-        }
-    }
-    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== view.turn) {
-        return false
-    }
-    if (
-        aura.keywordFilter &&
-        !spiritHasKeywordView(view, targetOwnerPid, targetInst, aura.keywordFilter)
-    ) {
-        return false
-    }
-    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
-        return false
-    }
-    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
-        return false
-    }
-    if (
-        aura.familyFilter &&
-        !spiritHasFamilyView(view, targetOwnerPid, targetInst, aura.familyFilter)
-    ) {
-        return false
-    }
-    if (aura.vanillaFilter && !isVanillaCard(targetInst.cardId)) {
-        return false
-    }
-    return true
-}
+// 実体は shared/rules.matchesFamilyFilter（配列＝OR判定）
+const matchesFamilyFilterView = matchesFamilyFilter
 
-function auraAmount(view: GameView, sourcePid: PlayerId, aura: AuraDef): number {
-    let amount = 0
-    if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(view, sourcePid, aura.counter)
-    }
-    if (aura.amount !== undefined) {
-        if (!aura.condition || checkAuraCondition(view, sourcePid, aura.condition)) {
-            amount += aura.amount
-        }
-    }
-    return amount
-}
 
-// 実効BP：levelOf の基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値
-export function effectiveBp(view: GameView, ownerPid: PlayerId, inst: CardInstance): number {
-    let total = levelOf(inst).bp
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
-                const sourceLevel = levelOf(source).level
-                if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-                if (!auraAppliesTo(view, pid, source, effect.aura, ownerPid, inst)) continue
-                total += auraAmount(view, pid, effect.aura)
-            }
-        }
-    }
-    return total
-}
 
-// 指定カードがそのキーワードを持つか（サーバー hasKeyword と同じロジックの簡易版）
-export function hasKeyword(cardId: string, keyword: Keyword): boolean {
-    return master(cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === keyword,
-    )
-}
 
-// 状態を考慮したキーワード判定（サーバー spiritHasKeyword のミラー）:
-// 静的キーワード ‖ 一時付与（tempKeywords） ‖ 持ち主フィールドからの継続付与（keywordGrant）
-export function spiritHasKeywordView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    keyword: Keyword,
-): boolean {
-    if (hasKeyword(inst.cardId, keyword)) return true
-    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "keywordGrant") continue
-            if (effect.keyword !== keyword) continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (
-                effect.familyFilter &&
-                !spiritHasFamilyView(view, ownerPid, inst, effect.familyFilter)
-            ) {
-                continue
-            }
-            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) continue
-            if (effect.phase && view.phase !== effect.phase) continue
-            return true
-        }
-    }
-    return false
-}
 
-// 状態を考慮した色判定（サーバー instHasColor のミラー）
-export function instHasColorView(inst: CardInstance, color: Color): boolean {
-    if (master(inst.cardId).color === color) return true
-    if (inst.tempColors.includes(color)) return true
-    return (inst.colorsAsContinuous ?? []).includes(color)
-}
 
-// 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
-// 静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
-export function spiritHasFamilyView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    family: string,
-): boolean {
-    if (master(inst.cardId).family.includes(family)) return true
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "familyGrant") continue
-            if (effect.family !== family) continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) {
-                continue
-            }
-            if (
-                effect.costFilter !== undefined &&
-                !instHasCost(inst, effect.costFilter)
-            ) {
-                continue
-            }
-            if (effect.phase && view.phase !== effect.phase) continue
-            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColorView(s, color)).length
-                if (total < count) continue
-            }
-            return true
-        }
-    }
-    return false
-}
-
-// フィールド全体制約（kind: "globalConstraint"）が現在有効か
-// （サーバー hasGlobalConstraint と同じロジックの簡易版。両陣営のフィールドを走査する）
-export function hasGlobalConstraint(
-    view: GameView,
-    type: GlobalConstraintDef["type"],
-): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
-            const { level } = levelOf(inst)
-            for (const effect of master(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!(effect.levels === null || effect.levels.includes(level))) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
-// このターンの間だけの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか
-// （サーバー cantActByCost と同じロジックの簡易版。ヘビィゲート）
-export function cantActByCost(view: GameView, inst: CardInstance): boolean {
-    const cost = master(inst.cardId).cost
-    return view.turnConstraints.some(
-        (c) =>
-            c.type === "cantActByCost" &&
-            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
-    )
-}
-
-// 指定インスタンスが現在レベルで持つ制約定義の一覧（サーバー activeConstraints と同じロジックの簡易版）
-export function activeConstraints(view: GameView, pid: PlayerId, inst: CardInstance): ConstraintDef[] {
-    const { level } = levelOf(inst)
-    const own = master(inst.cardId)
-        .effects.filter(
-            (e) => e.kind === "constraint" && (e.levels === null || e.levels.includes(level)),
-        )
-        .map((e) => (e as { constraint: ConstraintDef }).constraint)
-    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源からownAll/minLevel/phaseTurn条件に合う制約を合成する
-    const granted: ConstraintDef[] = []
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "constraintGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.minLevel !== undefined && level < effect.minLevel) continue
-            if (effect.phaseTurn) {
-                const { phase, turn } = effect.phaseTurn
-                if (view.phase !== phase) continue
-                if (turn === "own" && pid !== view.turnPlayer) continue
-                if (turn === "opponent" && pid === view.turnPlayer) continue
-            }
-            granted.push(effect.constraint)
-        }
-    }
-    return [...own, ...granted]
-}
-
-// 相手の対象を取る効果の対象にならないか（サーバー isUntargetableByOpponent のミラー）
-export function isUntargetableByOpponent(view: GameView, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.immuneToOpponentThisTurn) return true
-    return activeConstraints(view, pid, inst).some(
-        (c) => c.type === "untargetableByOpponent",
-    )
-}
-
-// 【装甲：色】：inst が sourceColor の相手効果を受けないか（サーバー hasArmorAgainst のミラー）
-export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
-    if (sourceColor === undefined) return false
-    const { level } = levelOf(inst)
-    const staticArmor = master(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "armor" &&
-            (e.levels === null || e.levels.includes(level)) &&
-            (e.colors?.includes(sourceColor) ?? false),
-    )
-    if (staticArmor) return true
-    // 一時付与の装甲（インビンシブルシールド）
-    return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
-    )
-}
-
-// ブロック可能ハイライト用: blocker が attacker をブロックできるか（サーバー validateBlock のブロック判定と同じロジックの簡易版。
-// 優先権・疲労・レベル等の前提条件は呼び出し側でチェック済みの前提）
+// ブロック可能ハイライト用: blocker が attacker をブロックできるか。
+// 判定はサーバー validateBlock と同一の共有実装（優先権・疲労・レベル等の前提条件は呼び出し側でチェック済み）
 export function canBlockAttacker(
     view: GameView,
     blockerPid: PlayerId,
@@ -402,209 +103,16 @@ export function canBlockAttacker(
     attackerPid: PlayerId,
     attackerInst: CardInstance,
 ): boolean {
-    const blockerConstraints = activeConstraints(view, blockerPid, blockerInst)
-    // バーストファイアで無効化中は cantBlock/cantBlockLowerBp を無視
-    if (!blockerInst.blockConstraintNegatedThisTurn) {
-        if (blockerConstraints.some((c) => c.type === "cantBlock")) return false
-        if (
-            blockerConstraints.some((c) => c.type === "cantBlockLowerBp") &&
-            effectiveBp(view, attackerPid, attackerInst) < effectiveBp(view, blockerPid, blockerInst)
-        ) {
-            return false
-        }
-    }
-    const blockerCard = master(blockerInst.cardId)
-    const attackerConstraints = activeConstraints(view, attackerPid, attackerInst)
-    for (const c of attackerConstraints) {
-        if (c.type !== "unblockableBy") continue
-        if (c.colorFilter !== undefined && instHasColorView(blockerInst, c.colorFilter)) return false
-        if (
-            c.keywordFilter !== undefined &&
-            spiritHasKeywordView(view, blockerPid, blockerInst, c.keywordFilter)
-        ) {
-            return false
-        }
-        if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) return false
-        if (
-            c.levelFilter !== undefined &&
-            c.levelFilter.includes(levelOf(blockerInst).level)
-        ) {
-            return false
-        }
-        if (c.costNot !== undefined && blockerCard.cost !== c.costNot) return false
-    }
-    return true
+    // 判定はサーバーの validateBlock と同一の共有実装（shared/block.canBlock）
+    return canBlock(view, blockerPid, blockerInst, attackerPid, attackerInst) === null
 }
 
-// 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）
-// サーバー hasMagicImmunity のミラー。対象選択ハイライトで、使用中のカードがマジックの場合に参照する
-export function hasMagicImmunityView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "immunityGrant") continue
-            if (effect.against !== "magic") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (
-                effect.familyFilter &&
-                !master(inst.cardId).family.includes(effect.familyFilter)
-            ) {
-                continue
-            }
-            return true
-        }
-    }
-    return false
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
+export const hasMagicImmunityView = hasMagicImmunity
 
-// コスト修正（kind: "costMod"）の合計（サーバー costModTotal と同じロジックの簡易版）。
-// 両プレイヤーのフィールド（スピリット＋ネクサス）を走査し、レベル有効な costMod のうち
-// 条件（colorFilter・cardType・side・phaseTurn。すべて省略時は常に一致）に合うものの amount を合計する
-function costModTotal(view: GameView, usingPid: PlayerId, card: CardData): number {
-    let total = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            const sourceLevel = levelOf(source).level
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "costMod") continue
-                if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
-                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-                if (effect.side === "opponent" && usingPid === pid) continue
-                if (effect.phaseTurn) {
-                    if (view.phase !== effect.phaseTurn.phase) continue
-                    if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
-                    if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
-                }
-                total += effect.amount
-            }
-        }
-    }
-    return total
-}
-
-// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボル
-// （サーバー reductionGrantSymbols と同じロジックの簡易版。ペンタン／天使バーチュ）
-function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): Color[] {
-    const extra: Color[] = []
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "reductionGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
-            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
-            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => master(s.cardId).color === color).length
-                if (total < count) continue
-            }
-            extra.push(...effect.symbols)
-        }
-    }
-    return extra
-}
-
-// マジック使用制約（kind: "magicRestriction"）の判定（サーバー hasMagicRestriction と同じロジックの簡易版）
-function hasMagicRestriction(
-    view: GameView,
-    usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
-): boolean {
-    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
-        const sources = [...view.players[ownerPid].field.spirits, ...view.players[ownerPid].field.nexuses]
-        for (const source of sources) {
-            const level = levelOf(source).level
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "magicRestriction") continue
-                if (effect.restriction !== restriction) continue
-                if (!(effect.levels === null || effect.levels.includes(level))) continue
-                if (effect.turn === "own" && ownerPid !== view.turnPlayer) continue
-                if (effect.turn === "opponent" && ownerPid === view.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
-// マジック無償化（kind: "magicFreeGrant"）の判定（サーバー hasMagicFreeGrant と同じロジックの簡易版。薔薇人バロッサ）
-function hasMagicFreeGrant(view: GameView, pid: PlayerId, card: CardData): boolean {
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const level = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "magicFreeGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(level))) continue
-            if (effect.colorFilter !== card.color) continue
-            if (effect.phaseTurn) {
-                if (view.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
-            }
-            return true
-        }
-    }
-    return false
-}
-
-// pidのフィールドが持つシンボルの色集合（サーバー ownFieldSymbolColors と同じロジックの簡易版。力奪う凱旋門）
-function ownFieldSymbolColors(view: GameView, pid: PlayerId): Set<Color> {
-    const colors = new Set<Color>()
-    const all = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const inst of all) {
-        for (const sym of master(inst.cardId).symbol) colors.add(sym)
-    }
-    return colors
-}
-
-export function effectiveCost(
-    view: GameView,
-    pid: PlayerId,
-    card: CardData,
-): number {
-    // マジック無償化（薔薇人バロッサ）：noFreeCastOpponent（力奪う凱旋門Lv2）がなければコスト0
-    if (
-        card.type === "magic" &&
-        hasMagicFreeGrant(view, pid, card) &&
-        !hasMagicRestriction(view, pid, "noFreeCastOpponent")
-    ) {
-        return 0
-    }
-    const field = view.players[pid].field
-    const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
-    const reductionBlocked = card.type === "magic" && hasMagicRestriction(view, pid, "noReductionOpponent")
-    let symbols = 0
-    if (!reductionBlocked) {
-        for (const inst of [...field.spirits, ...field.nexuses]) {
-            const cardSymbols = master(inst.cardId).symbol
-            let matched = false
-            for (const sym of cardSymbols) {
-                if (reductionColors.includes(sym)) {
-                    symbols++
-                    matched = true
-                }
-            }
-            if (matched && inst.tempExtraSymbols) symbols += inst.tempExtraSymbols
-        }
-    }
-    const base = Math.max(
-        card.cost - (reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)),
-        0,
-    )
-    return base + costModTotal(view, pid, card)
-}
+// コスト計算はサーバーと同一の共有実装（shared/cost）を使う。
+// main.ts が effectiveCost を import しているため、ここから再エクスポートする
+export { effectiveCost }
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
@@ -613,8 +121,9 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     if (cardId === undefined) return 0
     const card = master(cardId)
     const cost = effectiveCost(view, view.you, card)
-    const lv1 = card.levels.find((l) => l.level === 1)
-    const maintain = card.type === "magic" ? 0 : (lv1 ? lv1.cores : 0)
+    const targetLevel = paying.level || 1
+    const lv = card.levels.find((l) => l.level === targetLevel)
+    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     const need = cost + maintain
     const reserve = view.players[view.you].reserve
@@ -661,47 +170,26 @@ export function magicTargetSide(
     return null
 }
 
-// 【覚醒】を持っているか（静的キーワードは現在レベル限定、一時付与・keywordGrant も含む）
+// 【覚醒】を現在レベルで持っているか（判定はサーバー validateAwaken と同一の共有実装）
 export function canAwaken(view: GameView, inst: CardInstance): boolean {
-    const { level } = levelOf(inst)
-    const staticAwaken = master(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "awaken" &&
-            (e.levels === null || e.levels.includes(level)),
-    )
-    if (staticAwaken) return true
-    // 一時付与（スピリットリンク）・継続付与（ディラノス）。覚醒UIは自分のスピリット専用
-    return spiritHasKeywordView(view, view.you, inst, "awaken")
+    return sharedCanAwaken(view, view.you, inst)
 }
 
-// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
-// フラッシュ中・優先権保持・self がバトル当事者・コスト支払い可能を判定（サーバー validateActivateAbility のミラー）。
+// 起動能力が今このスピリットで発動可能なら {effectId, cost} を返す
+// （判定はサーバー validateActivateAbility と同一の共有実装）
 export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
 ): { effectId: string; cost: number } | null {
-    if (!view.battle || !view.isFlashTiming) return null
-    if (view.priorityPlayer !== you) return null
-    const inBattle =
-        view.battle.attackerInstanceId === inst.instanceId ||
-        view.battle.blockerInstanceId === inst.instanceId
-    if (!inBattle) return null
-    const { level } = levelOf(inst)
-    for (const e of master(inst.cardId).effects) {
-        if (e.kind !== "activated") continue
-        if (!(e.levels === null || e.levels.includes(level))) continue
-        if (view.players[you].reserve < e.cost.reserveToTrash) continue
-        return { effectId: e.id, cost: e.cost.reserveToTrash }
-    }
-    return null
+    return sharedActivatableAbility(view, you, inst)
 }
 
 // 支払いモード：不足コストをスピリット上のコアで賄うための一時状態
 export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
+    level?: number // 召喚レベル指定用
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
 }
 
@@ -712,27 +200,25 @@ export interface UiState {
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
+    // 召喚・配置レベル選択モード
+    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
 
-// 指定アタック（canDirectAttack）を現在レベルで持っているか（サーバー validateAttack と同じロジックの簡易版）
+// 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
     inst: CardInstance,
 ): "rested" | "singleCore" | "recovered" | null {
-    const constraint = activeConstraints(view, pid, inst).find((c) => c.type === "canDirectAttack")
-    if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetFilter
+    return directAttackFilter(view, pid, inst)
 }
 
-// 指定アタックの対象条件（rested/singleCore/recovered）に、相手スピリットが合致するか
+// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）
 export function matchesDirectedAttackFilter(
     filter: "rested" | "singleCore" | "recovered",
     target: CardInstance,
 ): boolean {
-    if (filter === "rested") return target.isRested
-    if (filter === "recovered") return !target.isRested
-    return target.cores === 1
+    return sharedMatchesDirectedAttackFilter(filter, target) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -866,7 +352,7 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
     show("btn-cancel-target", anyMode)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
@@ -895,6 +381,18 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (ui.summonLevelSelect) {
+        const card = master(ui.summonLevelSelect.cardId)
+        const cost = effectiveCost(view, view.you, card)
+        const reserve = view.players[view.you].reserve
+        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        for (const l of affordableLevels) {
+            const b = document.createElement("button")
+            b.dataset.summonLevel = String(l.level)
+            b.textContent = `Lv${l.level} (${l.cores}コア)`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else {
         show("choice-options", false)
     }
@@ -912,6 +410,9 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+    } else if (ui.summonLevelSelect) {
+        $("targeting-info").textContent =
+            `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -933,6 +434,14 @@ export function render(view: GameView, ui: UiState): void {
 
     // 手札
     renderHand(view, ui)
+
+    // 手元ボタン
+    const myTegamotoCount = view.players[you].tegamoto?.length ?? 0
+    const oppTegamotoCount = view.players[opp].tegamoto?.length ?? 0
+    $("btn-my-tegamoto").textContent = `手元(${myTegamotoCount})`
+    show("btn-my-tegamoto", myTegamotoCount > 0)
+    $("btn-opp-tegamoto").textContent = `相手の手元(${oppTegamotoCount})`
+    show("btn-opp-tegamoto", oppTegamotoCount > 0)
 
     // バトル情報
     renderBattle(view)
@@ -1246,7 +755,7 @@ function fieldCardEl(
         // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
         // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
         // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
-        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(view, ownerPid, inst)) {
+        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColor = usingCardId ? master(usingCardId).color : undefined
             if (!hasArmorAgainst(inst, usingColor) && !hasMagicImmunityView(view, ownerPid, inst)) {

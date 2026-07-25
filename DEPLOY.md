@@ -87,6 +87,34 @@ typecheck・smoke・E2E のいずれかが失敗した場合はデプロイさ�
 初回デプロイ後、`https://<your-app-name>.azurewebsites.net/health` にアクセスして
 `{"ok":true,"rooms":0}` が返ることを確認する。
 
+## 5.5 手動デプロイ（zip デプロイ）
+
+GitHub Actions を使わず、ローカルから直接デプロイする場合の手順。実際の運用ではこちらを使っている。
+
+```bash
+# 1) クライアントをビルドして public/dist を最新化する（これを忘れると古いUIが配信される）
+npm run build:client
+
+# 2) 配布物を固める
+#    ★ shared/ を必ず含めること。server/src が実行時に ../../../shared/* を import しているため、
+#      含め忘れるとデプロイ後にサーバーが MODULE_NOT_FOUND で起動しない
+#    ★ zip のファイル名は毎回変えるか、事前に削除する。同名ファイルが残っていると
+#      古い内容のまま再デプロイしてしまい「デプロイしたのに変わらない」事故になる
+rm -f /tmp/bs_web_deploy.zip
+zip -qr /tmp/bs_web_deploy.zip package.json package-lock.json tsconfig.json server shared public data
+
+# 3) デプロイ
+az webapp deploy -n bs-web -g bs-web-rg --src-path /tmp/bs_web_deploy.zip --type zip
+```
+
+デプロイ後の確認:
+
+```bash
+curl -s https://bs-web.azurewebsites.net/health                 # {"ok":true,...} が返るか
+curl -s https://bs-web.azurewebsites.net/data/cards.json | \
+  python3 -c "import json,sys; c=json.load(sys.stdin); print(len(c))"   # カード総数が想定どおりか
+```
+
 ## 6. 運用上の注意（再掲）
 
 - **F1 プランはアイドル20分でスリープする**。スリープ後の初回アクセスは起動待ちで数秒〜十数秒かかる

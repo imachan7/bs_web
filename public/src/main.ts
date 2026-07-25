@@ -26,8 +26,9 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null }
 let activeTrashTab: "mine" | "opp" = "mine"
+let activeTegamotoTab: "mine" | "opp" = "mine"
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -71,24 +72,57 @@ function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
     })
 }
 
+function renderTegamotoPanel(view: GameView, tab: "mine" | "opp"): void {
+    const tegamotoContent = document.getElementById("tegamoto-content")
+    if (!tegamotoContent) return
+    tegamotoContent.innerHTML = ""
+    
+    const pid = tab === "mine" ? view.you : opponentOf(view.you)
+    const tegamoto = view.players[pid].tegamoto || []
+    
+    tegamoto.forEach((cardId, index) => {
+        const m = master(cardId)
+        const el = document.createElement("div")
+        el.className = `card color-${m.color}`
+        
+        const name = document.createElement("div")
+        name.className = "name"
+        name.textContent = m.name
+        name.style.fontSize = "10px"
+        name.style.whiteSpace = "nowrap"
+        name.style.overflow = "hidden"
+        name.style.textOverflow = "ellipsis"
+        el.appendChild(name)
+        
+        el.dataset.cardId = cardId // enable tooltip
+        el.dataset.tegamotoIndex = String(index)
+        if (tab === "mine" && m.type === "magic") {
+            el.classList.add("clickable")
+        }
+        tegamotoContent.appendChild(el)
+    })
+}
+
 function rerender(): void {
     if (view) {
         render(view, ui)
         renderTrashPanel(view, activeTrashTab)
+        renderTegamotoPanel(view, activeTegamotoTab)
     }
 }
 
-// カード種別に応じたアクションを送信する（paySources/targetInstanceIdは値がある場合のみキーを含める）
+// カード種別に応じたアクションを送信する（paySources/targetInstanceId/levelは値がある場合のみキーを含める）
 function sendPlay(
     cardType: CardData["type"],
     handIndex: number,
     targetInstanceId?: string,
     paySources?: PaySource[],
+    level?: number,
 ): void {
     if (cardType === "spirit") {
-        send({ type: "summon", handIndex, ...(paySources ? { paySources } : {}) })
+        send({ type: "summon", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}) })
     } else if (cardType === "nexus") {
-        send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}) })
+        send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}) })
     } else {
         send({
             type: "castMagic",
@@ -100,20 +134,47 @@ function sendPlay(
 }
 
 // 軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
-function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined): void {
+function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number): void {
     if (!view) return
     const cost = effectiveCost(view, view.you, card)
-    const lv1 = card.levels.find((l) => l.level === 1)
-    const maintain = card.type === "magic" ? 0 : (lv1 ? lv1.cores : 0)
+    
+    if (level === undefined && (card.type === "spirit" || card.type === "nexus")) {
+        const reserve = view.players[view.you].reserve
+        // Check affordable levels (cost + level.cores <= reserve)
+        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        
+        // If they can afford Lv2 or higher, show level selection
+        if (affordableLevels.length > 1) {
+            const cardId = view.players[view.you].hand?.[handIndex]
+            if (!cardId) return
+            ui.targeting = null
+            ui.awakenTarget = null
+            ui.paying = null
+            ui.directedAttack = null
+            ui.summonLevelSelect = { handIndex, cardId, ...(targetInstanceId ? { targetInstanceId } : {}) }
+            rerender()
+            return
+        }
+        
+        // If they can't even afford Lv1 from reserve, affordableLevels.length is 0. 
+        // We just fall through and it will enter paying mode for Lv1.
+        // If they can afford exactly Lv1, it falls through and sends instantly.
+    }
+    
+    const targetLevel = level || 1
+    const lv = card.levels.find((l) => l.level === targetLevel)
+    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const reserve = view.players[view.you].reserve
+    
     if (reserve >= cost + maintain) {
-        sendPlay(card.type, handIndex, targetInstanceId)
+        sendPlay(card.type, handIndex, targetInstanceId, undefined, level)
         return
     }
     // コアが足りない → 支払いモードを開始（他のモードは排他的に解除する）
     ui.targeting = null
     ui.awakenTarget = null
-    ui.paying = { handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), assigned: {} }
+    ui.summonLevelSelect = null
+    ui.paying = { handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), assigned: {}, ...(level !== undefined ? { level } : {}) }
     rerender()
 }
 
@@ -129,6 +190,7 @@ socket.on("state", (v: GameView) => {
     ui.awakenTarget = null // 覚醒モードもリセット（続けて移す場合は再度バッジをクリック）
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
+    ui.summonLevelSelect = null // レベル選択もリセット
     rerender()
 })
 
@@ -317,8 +379,9 @@ function assignPayCore(instanceId: string): void {
     }
     const card = master(cardId)
     const cost = effectiveCost(view, view.you, card)
-    const lv1 = card.levels.find((l) => l.level === 1)
-    const maintain = card.type === "magic" ? 0 : (lv1 ? lv1.cores : 0)
+    const targetLevel = pay.level || 1
+    const lv = card.levels.find((l) => l.level === targetLevel)
+    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
     if (assignedTotal >= cost) return // コスト上限に到達済み（過払い防止）
@@ -331,7 +394,7 @@ function assignPayCore(instanceId: string): void {
         const paySources: PaySource[] = Object.entries(pay.assigned).map(
             ([id, count]) => ({ instanceId: id, count }),
         )
-        sendPlay(card.type, pay.handIndex, pay.targetInstanceId, paySources)
+        sendPlay(card.type, pay.handIndex, pay.targetInstanceId, paySources, pay.level)
         ui.paying = null
         return
     }
@@ -545,6 +608,7 @@ async function init(): Promise<void> {
         ui.awakenTarget = null
         ui.paying = null
         ui.directedAttack = null
+        ui.summonLevelSelect = null
         rerender()
     })
     byId("btn-skip-choice").addEventListener("click", () => {
@@ -557,7 +621,18 @@ async function init(): Promise<void> {
             return
         }
         const cardEl = closestData(e, "data-card-index")
-        if (cardEl) send({ type: "resolveChoice", cardIndex: Number(cardEl.dataset.cardIndex) })
+        if (cardEl) {
+            send({ type: "resolveChoice", cardIndex: Number(cardEl.dataset.cardIndex) })
+            return
+        }
+        const levelEl = closestData(e, "data-summon-level")
+        if (levelEl && ui.summonLevelSelect) {
+            const level = Number(levelEl.dataset.summonLevel)
+            const { handIndex, cardId, targetInstanceId } = ui.summonLevelSelect
+            ui.summonLevelSelect = null
+            tryPlay(handIndex, master(cardId), targetInstanceId, level)
+            return
+        }
     })
     
     byId("btn-toggle-log").addEventListener("click", () => {
@@ -586,6 +661,48 @@ async function init(): Promise<void> {
         byId("tab-opp-trash").classList.add("active")
         byId("tab-my-trash").classList.remove("active")
         rerender()
+    })
+
+    // 手元 UI
+    byId("btn-my-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "mine"
+        byId("tab-my-tegamoto").classList.add("active")
+        byId("tab-opp-tegamoto").classList.remove("active")
+        byId("tegamoto-panel").classList.remove("hidden")
+        rerender()
+    })
+    byId("btn-opp-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "opp"
+        byId("tab-opp-tegamoto").classList.add("active")
+        byId("tab-my-tegamoto").classList.remove("active")
+        byId("tegamoto-panel").classList.remove("hidden")
+        rerender()
+    })
+    byId("btn-close-tegamoto").addEventListener("click", () => {
+        byId("tegamoto-panel").classList.add("hidden")
+    })
+    byId("tab-my-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "mine"
+        byId("tab-my-tegamoto").classList.add("active")
+        byId("tab-opp-tegamoto").classList.remove("active")
+        rerender()
+    })
+    byId("tab-opp-tegamoto").addEventListener("click", () => {
+        activeTegamotoTab = "opp"
+        byId("tab-opp-tegamoto").classList.add("active")
+        byId("tab-my-tegamoto").classList.remove("active")
+        rerender()
+    })
+    
+    // 手元からのマジック使用
+    byId("tegamoto-content").addEventListener("click", (e) => {
+        if (activeTegamotoTab !== "mine") return
+        const cardEl = closestData(e, "data-tegamoto-index")
+        if (cardEl) {
+            const index = Number(cardEl.dataset.tegamotoIndex)
+            send({ type: "castMagic", handIndex: index, fromTegamoto: true })
+            byId("tegamoto-panel").classList.add("hidden")
+        }
     })
 }
 

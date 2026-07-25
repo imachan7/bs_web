@@ -75,11 +75,16 @@ function deckTotal(): number {
 
 // 同名カードのデッキ内合計枚数（cardId が違っても同名なら合算する）
 function nameCount(name: string): number {
-    let total = 0
-    for (const [cardId, count] of deck) {
-        if (master(cardId).name === name) total += count
+    let sum = 0
+    for (const [id, count] of deck) {
+        if (master(id).name === name) sum += count
     }
-    return total
+    return sum
+}
+
+function nameLimit(name: string): number {
+    const card = Array.from(db.values()).find(c => c.name === name)
+    return card?.limitCount ?? MAX_COPIES
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -135,9 +140,13 @@ function renderPool(): void {
         const info = document.createElement("div")
         info.className = "info"
 
-        const sym = document.createElement("span")
-        sym.className = `sym-icon bg-${card.color}`
-        info.appendChild(sym)
+        if (card.symbol && card.symbol.length > 0) {
+            card.symbol.forEach(symColor => {
+                const sym = document.createElement("span")
+                sym.className = `sym-icon bg-${symColor}`
+                info.appendChild(sym)
+            })
+        }
 
         const txt = document.createElement("span")
         const bp = maxBp(card)
@@ -199,10 +208,30 @@ function renderDetail(card: CardData): void {
     const panel = $("detail-panel")
     panel.textContent = ""
 
+    const titleArea = document.createElement("div")
+    titleArea.style.display = "flex"
+    titleArea.style.alignItems = "center"
+    titleArea.style.gap = "8px"
+    
     const title = document.createElement("div")
     title.className = "detail-title"
     title.textContent = `${card.name}（${card.cardId}）`
-    panel.appendChild(title)
+    title.style.margin = "0"
+    titleArea.appendChild(title)
+
+    if (card.symbol && card.symbol.length > 0) {
+        const syms = document.createElement("div")
+        syms.style.display = "flex"
+        syms.style.gap = "2px"
+        card.symbol.forEach(symColor => {
+            const sym = document.createElement("span")
+            sym.className = `sym-icon bg-${symColor}`
+            syms.appendChild(sym)
+        })
+        titleArea.appendChild(syms)
+    }
+
+    panel.appendChild(titleArea)
 
     const meta = document.createElement("div")
     meta.className = "detail-meta"
@@ -242,8 +271,8 @@ function addCard(cardId: string): void {
         showToast(`デッキは${DECK_SIZE}枚までです`)
         return
     }
-    if (nameCount(card.name) >= MAX_COPIES) {
-        showToast(`同名カードは${MAX_COPIES}枚までです（${card.name}）`)
+    if (nameCount(card.name) >= nameLimit(card.name)) {
+        showToast(`同名カードは${nameLimit(card.name)}枚までです（${card.name}）`)
         return
     }
     deck.set(cardId, (deck.get(cardId) ?? 0) + 1)
@@ -278,8 +307,9 @@ function validateDeck(target: Map<string, number>): string[] {
         }
     }
     for (const [name, count] of byName) {
-        if (count > MAX_COPIES) {
-            errors.push(`同名カードが${MAX_COPIES}枚を超えています: ${name}（${count}枚）`)
+        const limit = nameLimit(name)
+        if (count > limit) {
+            errors.push(`同名カードが${limit}枚を超えています: ${name}（${count}枚）`)
         }
     }
     if (total !== DECK_SIZE) {
@@ -638,8 +668,10 @@ function validateImport(data: unknown): {
         byName.set(card.name, (byName.get(card.name) ?? 0) + rawCount)
     }
     for (const [cardName, count] of byName) {
-        if (count > MAX_COPIES) {
-            errors.push(`同名カードが${MAX_COPIES}枚を超えています: ${cardName}（${count}枚）`)
+        const limit = nameLimit(cardName)
+        if (count > limit) {
+            errors.push(`同名カードが${limit}枚を超えています: ${cardName}（${count}枚）`)
+            continue
         }
     }
     if (errors.length === 0 && total !== DECK_SIZE) {

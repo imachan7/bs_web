@@ -131,7 +131,9 @@ async function main(): Promise<void> {
         w1.players.p1.deckCount + w1.players.p1.handCount === 40,
         `p1のデッキ+手札が40枚（デッキ${w1.players.p1.deckCount}+手札${w1.players.p1.handCount}）`,
     )
-    assert(w1.players.p1.handCount === 4, "p1の初期手札は4枚")
+    // 初期手札4枚 + 先攻1ターン目のドローステップ1枚 = 5枚。
+    // 「先攻1ターン目はコアステップなし・ドローあり」への修正（94b4099）以降はこれが正
+    assert(w1.players.p1.handCount === 5, "p1の初期手札は5枚（初期4＋ドローステップ1）")
 
     d1.socket.disconnect()
     d2.socket.disconnect()

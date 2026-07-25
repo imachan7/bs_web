@@ -4,6 +4,9 @@
 仕様が固まったり実装が進むたびにここへ追記していく。
 （データ構造そのものの定義は [data.md](./data.md)、公開用の紹介は [README.md](./README.md)）
 
+**進行中の計画**: [REFACTOR.md](./REFACTOR.md) — 共有ルール層の抽出（サーバー／クライアントのルール二重実装の解消）と
+`resolveAction`（3028行・100 case）の分割。**BS04 の残23枚の構造化を完了させてから着手する**。
+
 ---
 
 ## 1. カードプール
@@ -81,6 +84,8 @@
   **効果文を持つ全103枚の構造化が完了（2026-07-18）**。
 - 未対応として残る効果は2つのみ: ケルル・ベロス e2（強奪。禁止カードのため優先度なし）と
   紫水晶の森 Lv2（ステップ終了時ドロー。ステップ終了フック不在）
+  ※ 2026-07-24 追記: 手元ゾーン実装により マジックブック main（手札マジック→手元＋ドロー）と
+  ミカファール Lv2（手元/手札マジック無償使用）も構造化完了（2章「手元ゾーン」参照）
   ※「このスピリットの〜時に勝ったとき」系は battleWon（持ち主の全スピリット勝利で発火）ではなく
   `triggered onBattle + battleRole`（自身の勝利のみ）で構造化すること（BS02-036/041 で修正済みの罠）
 - BS02-X06 の効果文はリストページで「Lv2」と「スピリットすべてを疲労させる。」が
@@ -173,9 +178,122 @@
   コア除去6アクションに actorPid 伝播）・coreStepBonus condition ownFieldHasFamily（同 e2）、
   アクション swapBattler（テレポートチェンジ＝バトル参加スピリットを疲労状態の自分のスピリットと
   入れ替え）を新設）の計 **127枚** / 効果文持ち128枚。
-- **BS03 の構造化はこれで完了（2026-07-24）**。表示のみで残るのは
-  エクリア（BS03-016。「手元」ゾーン参照＝エンジンにゾーン自体が無く対応予定なし）の1枚と、
-  部分構造化の果て無き地平線 e1（Lv1スピリットのLv2BP参照）のみ
+- **BS03 の構造化はこれで完了（2026-07-24）**。同日中に公開ゾーン「手元」を実装し、
+  最後まで表示のみだったエクリア（BS03-016）も構造化済み（2章「手元ゾーン」参照）。
+  部分構造化で残るのは果て無き地平線 e1（Lv1スピリットのLv2BP参照）のみ
+
+### 第四弾：龍帝（BS04・118枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 青 | 19 | 3 | 6 | 28 |
+| 赤 | 12 | 2 | 4 | 18 |
+| 紫 | 12 | 2 | 4 | 18 |
+| 緑 | 12 | 2 | 4 | 18 |
+| 白 | 12 | 2 | 4 | 18 |
+| 黄 | 12 | 2 | 4 | 18 |
+
+（Xレア4枚 BS04-X13〜X16 は各色の内訳に含む。通常ナンバーは 001〜114 で欠番なし。全カード単色）
+
+- 取得元: `cmd=listcard&sdan=BS04&refer=第四弾：龍帝`（3ページ・BS02/BS03 と同じパーサーを流用。
+  タイプ行の「(禁止カード)」「(制限カード<1>)」表記への対応を追加）。**cards.json へ追加済み（2026-07-24）**
+- 禁止カード4枚: BS04-088（栄光の表彰台）・BS04-089（グレートリンク）・BS04-096（インフェルノアイズ）・
+  BS04-105（トリックプランク）。**制限カード1枚**: BS04-082（侵されざる聖域、1枚制限）—
+  カードデータに `limitCount: 1` を新設（デッキ検証への反映は今後）
+- 新キーワード **【転召：コストN以上/トラッシュorボイド】**: 召喚コスト支払い後、自分のコストN以上の
+  スピリット1体の上のコアすべてを指定先に置かなければならない。保持8枚＝六帝サイクル
+  （BS04-010/020/031/044/055/073、コスト5以上/トラッシュ）＋ Xレア2枚（X13/X15、コスト6以上/ボイド）
+- **ダブルシンボル初登場**: シンボル2つ持ち8枚（転召持ちと同一）。`symbol` 配列は2要素
+  （ライフダメージ・シンボル集計のエンジン対応は要確認）
+- 装甲の複数色表記が初登場: BS04-034（装甲：赤/緑）・BS04-082（装甲：紫/緑/白/黄/青、付与型）
+- 既存キーワード保持: 神速4・粉砕3・覚醒4・呪撃3・光芒3・装甲3。激突は今弾も未収録
+- 効果文なしのバニラ21枚（効果文持ち97枚）
+- 構造化の進捗: 転召8枚（基盤エンジンバッチ。上記）＋キーワードバッチ11枚
+  （soku/awaken/jugeki/armor/funsai/kobo の keyword エントリ＋セブンスポット coreBonus・
+  シャドウジャグラー破壊時ドロー）＋赤・紫バッチ（全文3枚: カメレウィップ・ゾン・サウル・アゼル、
+  部分9枚: ドラグノ近衛兵・バ・ゴゥ・ダンピール・ケツァルカトル・魔影街・ドラゴンズラッシュ・
+  ヴェノムショット・X13・X14。データのみ・既存アクションの範囲）
+- 緑・白バッチ（全文4: ファル・コンドル・槍蟲ルカニドス・オッドセイ・ジャングルロウ、
+  部分3: スカラベール・ワルキューレ・ヒルド・フルアッド）＋副産物として **onBlock トリガーの欠陥修正**
+  （fireTrigger が targetInstanceId＝アタッカーを渡しておらず targetSameLevelAsSelf 等の対象条件が
+  発火しなかった。修正のうえフェンリルキャノンMk-II e2 を構造化）＋黄・青バッチ
+  （全文7: BS04-051/067/068/071/074/111/113、部分9: 050/053/065/084/087/105/106/108/109）で
+  **全色一巡完了（2026-07-24）**
+- 赤・紫バッチのスキップ（新概念が必要。エンジン拡張バッチの設計候補）:
+  自陣キーワード有無の triggered 条件（001）・コストフィルタ付き破壊/疲労破壊（011/017/021）・
+  手札任意破棄→枚数連動（022/094）・ネクサス無条件全破壊（011）・手札枚数条件 step（018）・
+  系統OR配列の aura/bpBuffAll（076）・reductionGrant 系統フィルタ（077）・ドロー枚数修正（079）・
+  一時トリガー付与・トリガー付け替え（007/008/090/092/093）・シンボル数条件/制限マジック（091/096）・
+  相手コア単体ボイド送り（095）・両陣営色除外全体破壊（X13）・敗北時疲労/双方手札5枚破棄（X14）
+- 緑・白・黄・青バッチのスキップ（主な分類）: 系統OR配列の familyFilter（029/052/097/103）・
+  シンボル数条件/対象制限（091/096/104/107/114/X16）・光芒の一時付与が解決側未対応（106）・
+  levelAs の対象/条件拡張（058/069/087/107/114）・コスト閾値の keywordGrant とデッキ破棄上限（082）・
+  神速テキスト書換（033/080）・個別コスト付き複数無償召喚（057）・マジック対象リダイレクト（054）・
+  破壊ネクサス復活（061）・デッキ破棄代替支払い（088）・unblockable無効化（110）ほか
+- **エンジン拡張バッチ1（2026-07-24）**: familyFilter の OR 配列（bpBuff/bpBuffAll、共通ヘルパー
+  matchesFamilyFilter）・シンボル数条件（magic condition ownFieldHasMinSymbolSpirit・対象フィルタ minSymbols・
+  instanceSymbolCount 共通化）・光芒の一時/継続付与対応（resolveKoboOnBattleEnd が tempKeywords も参照。
+  レベル判定は保持）で8枚を構造化（029/091/097 全文、096/104/106/107/114 部分）
+- **エンジン拡張バッチ2（2026-07-24）**: 破壊/疲労の costFilter（destroy/destroyExhausted/exhaust。
+  matchesCostFilter）・手札任意破棄連動（coreRemovePerHandDiscard）・coreRemove の dest:"void"・
+  destroyAll の anySide/colorExclude・destroyNexus の all・refreshOne の excludeSelf・
+  coreToTrashAllByCost・opponentTrashCores カウンタで7枚を全文構造化（011/017/021/022/094/095/X13）
+- **エンジン拡張バッチ3（2026-07-25）**: triggered 条件 ownFieldHasKeyword・汎用 exhaustAll（BP範囲・side）・
+  returnAllToHand（コスト条件・side）・refreshByFamily（OR配列・count）・trashCoresToKeywordSpirit で
+  5枚を全文構造化（001/089/099/102/103）
+- **エンジン拡張バッチ4（2026-07-25）**: levelAs 条件 ownFieldHasFamily・新アクション levelMaxAllOwnThisTurn・
+  millPer の multiplier/cap・EffectCounter ownColorSymbols で3枚を全文構造化（058/069/X16）
+- **クライアント連動バッチ（2026-07-25）**: `reductionGrant` に familyFilter（OR配列。対象は手札カードの
+  静的系統）と条件 `ownColorSpiritsAtLeast`（ネクサスを数えない色別スピリット数）を追加、
+  `AuraDef.familyFilter` を FamilyFilter（OR配列）へ拡張。**tsconfig が public/src も型検査対象のため、
+  renderer.ts のクライアントミラー（reductionGrantSymbols / auraAppliesTo）も同一コミットで追随させた**
+  （`matchesFamilyFilterView` を新設）。049 全文・076/077 部分を構造化
+- **召喚時誘発バッチ（2026-07-25）**: FieldEvent `"ownSpiritSummoned"`（doSummon の召喚時効果・転召の解決後に
+  発火。転召でコアが尽きて消滅した場合は発火しない）と、destroy / returnToHand の `maxBpFromSelf` を新設。
+  **selfOverride で self に「召喚されたスピリット」を渡す**設計により「召喚されたスピリットのBP以下」を表現できる
+  （既存の anySpiritAttacked と同じ方式。発生源の色ではなく召喚スピリットの色が装甲判定に使われる簡略化あり）。
+  fieldEvent の familyFilter を OR 配列対応、recoverSpiritFromTrash に familyFilter を追加し、
+  **BS04-077 七龍帝の玉座・BS04-083 鋼葉の樹林を全文構造化**。
+  この効果は**召喚レベル指定（1章のルール参照）と組み合わせて初めて意味を持つ**
+  （Lv1召喚ならBP3000以下、Lv2召喚ならBP5000以下が対象になる）。
+- **トリガー無効化バッチ（2026-07-25）**: kind `"triggerSuppression"`（フィールド発生源からの継続抑止。
+  発生源の持ち主から見た相手のスピリットの指定トリガーを発揮させない）と、アクション
+  `suppressTriggerThisTurn`（`GameState.triggerSuppressionThisTurn`。ターン終了でリセット）を新設し、
+  `fireTrigger` 冒頭で `isTriggerSuppressed` を判定。BS04-093 ユーサネイジア（全文）・
+  BS04-086 古代闘技場 Lv2（部分）を構造化
+- **ドロー枚数修正バッチ（2026-07-25）**: step 誘発の condition に `ownFamilyCountAtLeast`（OR配列）・
+  `ownNameIncludesCountAtLeast` を追加。「ドローの枚数を+1枚」は既存の百識の谷と同じ
+  **「ドローステップに追加で1枚引く step 誘発」**で表現する。BS04-052 郵便ペンタン（全文）・
+  BS04-079 王蛇の住処のドロー行（部分）を構造化
+- **強制ブロックバッチ（2026-07-25）**: `GameState.attacksThisTurn`（doAttack で加算・ターン終了でリセット）を
+  新設し、kind `"mustBlockGrant"`（familyFilter / firstAttackOnly / phase / turn）を `validateTakeLife` で判定。
+  **「可能ならば」の解釈として `validateBlock` を通る実ブロッカーがいるときのみ強制する**
+  （cantBlock・unblockableBy で実際にブロックできない場合に詰まないようにするため。既存の【激突】判定は
+  従来の hasBlocker のまま据え置き）。triggered condition `firstAttackOfTurn` も追加。
+  BS04-076 翼持つ者の空域・**BS01-098 燃えさかる戦場**（BS01最後の未対応行）・BS04-024 ダックルを全文構造化。
+- **個別設計バッチA（2026-07-25）**: step condition `ownHandAtLeast`（018）／`voidCoreToOwnNexuses` の
+  single（059）／globalConstraint `maxSpiritsOnField`（080 Lv1。メインステップの通常召喚のみ制限し
+  神速召喚は対象外という簡略化）／`GameState.ignoreUnblockableThisTurn` とアクション（110）／
+  `levelOverrideTarget` の colorFilter・requireLevelExists（112）で5枚を構造化
+- **個別設計バッチB（2026-07-25）**: FieldEvent `"opponentDeckMilled"`（millDeck から発火。`minEventCount` で
+  「一度に◯枚以上」）・`"opponentMagicUsed"`（resolveMagic から発火。`magicCostEquals`／`magicTiming` で絞る）を
+  新設し、costMod と fieldEvent に条件 `ownFamilyCountAtLeast`、アクション `opponentCoresToTrash`・
+  `negateLifeDamageFromTarget`（CardInstance.lifeDamageNegatedFor）を追加。
+  027 アリゲイド・045 氷の女神フリッグ・085 魔力満ちる泉・101 ミストカーテンを全文構造化
+- **個別設計バッチC（2026-07-25）**: アクション `voidCoreToOwnByKeyword`（033 の召喚時行）・
+  `reviveLastDestroyedNexus` と `GameState.lastDestroyedNexus`（061。破壊されたネクサスの記録は
+  lastBattleDestroyedCores と同じ「直近の出来事を state に残す」パターン）・reviveOnDestroy の `minBp`（081 Lv1）で
+  3枚を構造化。**BS04 構造化は effects付き 91/97枚に到達。残る未着手6枚は下記**
+- **未着手で残る6枚（表示のみ。既存関数のシグネチャ変更が広範に及ぶか、単発概念のため見送り）**:
+  - **082 侵されざる聖域**: コスト8以上へ【装甲：5色】を継続付与。`hasArmorAgainst(inst, color)` が state を
+    受け取らない設計のため、keywordGrant 由来の装甲を見るには全呼び出し箇所の signature 変更が必要
+  - **090 ニーベルングリング**: ターン限定の誘発付与＋「破壊したスピリットと同じ系統」の伝播（新機構2つ）
+  - **037 鎧装獣ヘイズ・ルーン / 042 獣使いドヴェルグ**: 条件付き cantAttack と、その名前フィルタでの無効化（対）
+  - **054 アルカナソルジャー・サンク**: マジックの対象リダイレクト。現エンジンのマジックは単体対象のため
+    実質 no-op になる（構造化しても意味を持たない）
+  - **088 栄光の表彰台**: ネクサス配置コストのデッキ破棄による代替支払い（禁止カード）
+  - 各カードの一部の行のみ未対応: 033 Lv2-3・080 Lv2（【神速】テキストの書き換え）・081 Lv2・086 Lv1
+    （「BPを+する」効果そのものの無効化）・079 Lv2
 
 ### デッキ
 
@@ -201,6 +319,13 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
   ターン終了を妨げない。クライアントのアタック可能ハイライトにも同条件をミラー）
 - コスト軽減（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）
 - 維持コア（Lv1コア）、コア移動とレベル変動、維持コア割れでの消滅
+- **召喚・配置時のレベル指定**（2026-07-25）: `summon` / `setNexus` の `level?` で、そのレベルに必要な
+  コア数をリザーブから置いて場に出せる（省略時は従来どおり Lv1）。`coresForLevel` で必要数を求め、
+  カードに存在しないレベル・コア不足は `RuleValidator` が拒否する。召喚時効果はコア配置後に発火するため、
+  Lv2 以上で召喚すればそのレベルの効果・BPが適用される（七龍帝の玉座 Lv2「召喚されたスピリットのBP以下」
+  のような**召喚レベル依存の効果の前提**。従来は Lv1 固定でしか場に出せなかった）。
+  神速召喚（フラッシュ中）でも指定可能。`level` は任意パラメータのため既存クライアント呼び出しは無変更で動作し、
+  レベル選択UIは Gemini 側で実装（chatbox.md 参照）
 - バトル（BP比較・相打ち）、ライフダメージ（ライフのコアはリザーブへ）
 - バトル中フラッシュの交互優先権: アタック後は防御側から優先権を持ち、
   フラッシュマジック／神速召喚／覚醒を使うと優先権が相手へ移る（flashCount リセット、
@@ -326,6 +451,23 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 最初の1枚（省略時は先頭）を手札へ、残りを元の順で山札の下に戻す（公開はログで両者可視、選択は自動の簡略化）。
 スワロウアイヴィー。今後の「上N枚を見て〇〇を手札」系に再利用可。
 
+### 手元ゾーン（PlayerState.tegamoto）
+
+公開ゾーン「手元」（2026-07-24 実装）。`PlayerState.tegamoto: string[]`（cardId 配列）で、
+viewFor は公開ゾーンとして両者分をそのまま配信する（`GameView.players[pid].tegamoto`）。
+
+- `handMagicToTegamotoDraw` — 自分の手札のマジックカードを好きなだけ手元に置き、置いた枚数ぶんドロー
+  （マジックブック main。interactive 時は optional な card choice を1枚ずつ繰り返し、スキップで終了。
+  テスト時は全マジック一括の決定的簡略化）
+- `discardOpponentTegamotoDestroyPer` — 相手の手元すべてを相手トラッシュへ破棄し、枚数ぶん既存 `destroy`
+  に委譲（エクリア。装甲/免疫・interactive 対象選択は destroy 経路を継承。
+  「オープンして置かれたカードか」の由来は問わない簡略化）
+- `magicFreeGrant` の `scope: "allMagicHandAndTegamoto"` — 色を問わず持ち主の手札/手元のマジックを無償化
+  （ミカファール Lv2）。`castMagic` の `fromTegamoto: true` で手元のカードを使用（handIndex は手元の
+  インデックス）。手元からの使用はこの scope を持つ発生源が有効なときのみ許可され、
+  `noFreeCastOpponent`（凱旋門 e2）で打ち消される。使用後は通常どおり持ち主のトラッシュへ
+- クライアント UI（手元パネル・fromTegamoto 送信）は Gemini 担当で実装中（chatbox.md 参照）
+
 ### 起動能力（kind: "activated"）
 
 `{ kind: "activated", timing: "flashBattle", levels, cost: { reserveToTrash }, condition?, action }`。
@@ -445,10 +587,12 @@ handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安
 効果文『BPを比べ相手のスピリットだけを破壊したとき』と厳密に等価
 （フェニキオス・ナージャ・ブランボアーを構造化。『アタック時』限定は `battleRole` で対応済み）。
 
-未構造化の残り（31枚）:
+未構造化の残り（31枚）— **※ この一覧は当時（BS01作業中）の履歴。現在は BS01〜BS03 の効果文を持つ
+全カードが構造化済みで、ここに挙がったカードもすべて対応済み**:
 - マジック2枚: バーストファイア（効果無効）・フェザーバリア（効果耐性）
-- ネクサス3枚: 燃えさかる戦場Lv2（強制ブロック）・ルビーの太陽（コスト増ルール）・
-  百識の谷（ドロー枚数修正）・魔帝の墓標（全体アタック/ブロック制約＋アタック時コアボイド送り）等
+- ネクサス3枚: 燃えさかる戦場Lv2（強制ブロック。2026-07-25 に mustBlockGrant で対応）・
+  ルビーの太陽（コスト増ルール）・百識の谷（ドロー枚数修正）・
+  魔帝の墓標（全体アタック/ブロック制約＋アタック時コアボイド送り）等
 - スピリット: 効果耐性・破壊耐性、疲労スピリットへの指定アタック、トラッシュ回収（選択依存）、
   コア再配置（プレイヤー選択依存: 要塞龍ギガLv2・チェンジングコアmain等）、
   相手ドロー時誘発、条件付きバトル効果の一部など
@@ -520,9 +664,9 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 - コア整理（「コア1個を残す」「別のスピリットに置く」等。単純なコア除去は `coreRemove` で対応済み）
 - 疲労状態のスピリットへの指定アタック（キラーテレスコープ。疲労付与自体は `exhaust` で対応済み）
 - （必ずアタックは `mustAttack`、ブロック制限は `constraint`、手札破棄は `discardOpponent` で対応済み）
-- 破壊耐性（オーディーンLv2-3「ネクサスは破壊されない」）、コスト増ルール（ルビーの太陽）、
-  強制ブロック（燃えさかる戦場Lv2）、ドロー枚数修正（百識の谷）
-  （常時BP参照は `aura`、ステップ起点のネクサス効果は `step` で対応済み）
+- 破壊耐性（オーディーンLv2-3「ネクサスは破壊されない」）、コスト増ルール（ルビーの太陽）
+  （常時BP参照は `aura`、ステップ起点のネクサス効果は `step` で対応済み。
+  **強制ブロックは `mustBlockGrant`、ドロー枚数修正は step 誘発の condition で対応済み（2026-07-25）**）
 - バトル時の条件付き効果（「相手だけ破壊したとき〜」）の多く
 
 ---

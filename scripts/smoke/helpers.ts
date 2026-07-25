@@ -30,6 +30,7 @@ function runTurnStart(s: GameState): void {
 }
 import { handleAction } from "../../server/src/logic/GameEngine"
 import {
+    destroyNexus,
     destroySpirit,
     effectiveBp,
     fireStepTriggers,
@@ -107,6 +108,7 @@ export {
     viewFor,
     engineRunTurnStart,
     handleAction,
+    destroyNexus,
     destroySpirit,
     effectiveBp,
     fireStepTriggers,
