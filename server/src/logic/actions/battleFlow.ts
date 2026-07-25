@@ -304,6 +304,12 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 if (!selfFamily) return false
                 if (!candidate.family.some((f) => selfFamily.includes(f))) return false
             }
+            // familyFilter（配列＝OR）：selfの系統全部とのOR判定にしたくない場合の直接指定
+            // （BS05火龍王ボルケノス：系統「竜人」限定。カード静的な family のみ＝手札カード判定のため）
+            if (action.familyFilter !== undefined) {
+                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                if (!wanted.some((f) => candidate.family.includes(f))) return false
+            }
             return true
         }
         if (chosenCardIndex !== undefined) {

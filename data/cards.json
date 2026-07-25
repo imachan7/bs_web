@@ -25483,7 +25483,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\nコアが1個の相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-001-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [1, 2],
+    "optional": false,
+    "action": { "type": "destroy", "count": 1, "filter": { "cores": 1 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-002",
@@ -25738,7 +25747,26 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のアタックステップ』このスピリットをBP+3000する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-007-e2",
+    "kind": "aura",
+    "levels": [2, 3],
+    "aura": { "type": "bp", "target": "self", "amount": 3000, "phaseTurn": { "phase": "attack", "turn": "own" } }
+   },
+   {
+    "id": "BS05-007-e3",
+    "kind": "aura",
+    "levels": [2, 3],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": ["龍帝", "虚神"],
+     "amount": 3000,
+     "phaseTurn": { "phase": "attack", "turn": "own" }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS05-008",
@@ -25780,7 +25808,24 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\nこのターンの間、シンボル2つ以上を持つ自分のスピリットすべてをBP+5000する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-008-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "bpBuffAll", "amount": 5000, "filter": { "minSymbols": 2 } }
+   },
+   {
+    "id": "BS05-008-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2, 3],
+    "optional": false,
+    "action": { "type": "selfBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-009",
@@ -25818,7 +25863,24 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある系統：「竜人」を持つスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットの破壊時』\nBP7000以上の相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-009-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2],
+    "optional": true,
+    "action": { "type": "summonFromHandFree", "familyFilter": "竜人" }
+   },
+   {
+    "id": "BS05-009-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "destroy", "count": 1, "filter": { "minBp": 7000 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-010",
@@ -26016,7 +26078,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3『自分のドローステップ』\n自分のフィールドに系統：「楽族」/「想獣」を持つスピリットが合計3体以上いるとき、ドローの枚数を+1枚する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-014-e1",
+    "kind": "step",
+    "step": "draw",
+    "turn": "own",
+    "levels": [2, 3],
+    "action": { "type": "draw", "count": 1 },
+    "condition": { "ownFamilyCountAtLeast": { "family": ["楽族", "想獣"], "count": 3 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-015",
@@ -26101,7 +26173,24 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態のコスト1以下のスピリットすべてを破壊する。\nLv2『このスピリットのアタック時』\n疲労状態のコスト3以下のスピリットすべてを破壊する。\nLv3『このスピリットのアタック時』\nお互い、フィールドのスピリット1体を選び、破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-016-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "destroyAll", "anySide": true, "filter": { "rested": true, "cost": { "max": 1 } } }
+   },
+   {
+    "id": "BS05-016-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "destroyAll", "anySide": true, "filter": { "rested": true, "cost": { "max": 3 } } }
+   }
+  ]
  },
  {
   "cardId": "BS05-017",
@@ -26145,7 +26234,24 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』自分はデッキから1枚ドローする”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-017-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2, 3],
+    "optional": false,
+    "action": { "type": "draw", "count": 1 }
+   },
+   {
+    "id": "BS05-017-e2",
+    "kind": "effectGrant",
+    "levels": [2, 3],
+    "target": "ownAll",
+    "familyFilter": ["龍帝", "虚神"],
+    "granted": { "trigger": "onAttack", "action": { "type": "draw", "count": 1 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-018",
@@ -26187,7 +26293,38 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『このスピリットのアタック時』\nこのスピリットは、緑のスピリットからブロックされない。\nLv2『このスピリットのアタック時』\nこのスピリットは、白/青のスピリットからブロックされない。\nLv3『このスピリットのアタック時』\nこのスピリットは、赤/黄のスピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-018-e1",
+    "kind": "constraint",
+    "levels": [1],
+    "constraint": { "type": "unblockableBy", "colorFilter": "green" }
+   },
+   {
+    "id": "BS05-018-e2",
+    "kind": "constraint",
+    "levels": [2],
+    "constraint": { "type": "unblockableBy", "colorFilter": "white" }
+   },
+   {
+    "id": "BS05-018-e3",
+    "kind": "constraint",
+    "levels": [2],
+    "constraint": { "type": "unblockableBy", "colorFilter": "blue" }
+   },
+   {
+    "id": "BS05-018-e4",
+    "kind": "constraint",
+    "levels": [3],
+    "constraint": { "type": "unblockableBy", "colorFilter": "red" }
+   },
+   {
+    "id": "BS05-018-e5",
+    "kind": "constraint",
+    "levels": [3],
+    "constraint": { "type": "unblockableBy", "colorFilter": "yellow" }
+   }
+  ]
  },
  {
   "cardId": "BS05-019",
@@ -27725,7 +27862,18 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分のフィールドに【転召】を持つスピリットが召喚されたとき、BP6000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\nシンボル2つ以上を持つ自分のスピリットすべては、アタックするときBP4000以上の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-056-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [1, 2],
+    "phase": "main",
+    "turn": "own",
+    "keywordFilter": "tensho",
+    "action": { "type": "destroy", "count": 1, "filter": { "maxBp": 6000 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-057",
@@ -27759,7 +27907,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト1以下のスピリットが疲労したとき、そのスピリット上のコア2個を持ち主のトラッシュに置く。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手の疲労状態のスピリット1体を破壊する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-057-e1",
+    "kind": "effectGrant",
+    "levels": [2],
+    "target": "ownAll",
+    "keywordFilter": "tensho",
+    "granted": { "trigger": "onAttack", "action": { "type": "destroyExhausted", "count": 1 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-058",
@@ -27793,7 +27950,29 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「魔影」を持つ自分のスピリットすべてをBP+2000する。\nLv2『自分のスタートステップ』\n自分のフィールドに系統：「魔影」を持つスピリットがいるとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-058-e1",
+    "kind": "aura",
+    "levels": [1, 2],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "魔影",
+     "amount": 2000,
+     "phaseTurn": { "phase": "attack", "turn": "own" }
+    }
+   },
+   {
+    "id": "BS05-058-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [2],
+    "action": { "type": "exhaust", "count": 1 },
+    "condition": { "ownFamilyCountAtLeast": { "family": "魔影", "count": 1 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-059",
@@ -28087,7 +28266,14 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、系統：「翼竜」/「空牙」を持つ自分のスピリットのアタックに対して、相手は可能ならばBP3000以下のスピリットで必ずブロックする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-067-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-068",
@@ -28108,7 +28294,14 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、【覚醒】を持つ自分のスピリットすべては、アタックするときBP4000以上の相手のスピリットを指定し、そのスピリットにアタックできる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-068-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-069",
@@ -28130,7 +28323,14 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中に【転召】を持つスピリットカードがあれば、コストを支払わず、【転召】を発揮したものとして1体だけ召喚できる。\n残ったカードは破棄する。\nただし、この効果で召喚したスピリットは、エンドステップに自分のデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-069-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-070",
@@ -28150,7 +28350,14 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nこのターンの間、自分のフィールドにカード名に「魔界七将」と入っているスピリットが召喚されたとき、疲労状態のスピリットすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-070-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-071",
@@ -28630,6 +28837,14 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS05-X19-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [3],
+    "optional": false,
+    "action": { "type": "destroy", "count": 2, "filter": { "maxBp": 7000 } }
    }
   ]
  },
@@ -28691,6 +28906,23 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS05-X20-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "voidCoreToSelfPer", "counter": "allExhausted" }
+   },
+   {
+    "id": "BS05-X20-e3",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "battleRole": "attacker",
+    "levels": [3],
+    "optional": false,
+    "action": { "type": "coreRemove", "count": 2, "dest": "void" }
    }
   ]
  }

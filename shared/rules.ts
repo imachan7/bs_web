@@ -417,6 +417,7 @@ export function matchesTarget(
 ): boolean {
     if (!filter) return true
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp) return false
+    if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
@@ -427,6 +428,8 @@ export function matchesTarget(
     if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
+    if (filter.cores !== undefined && inst.cores !== filter.cores) return false
+    if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     return true
 }
 

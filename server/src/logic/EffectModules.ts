@@ -1311,6 +1311,13 @@ export function countEffectCounter(
     if (counter === "ownExhausted") {
         return state.players[owner].field.spirits.filter((s) => s.isRested).length
     }
+    if (counter === "allExhausted") {
+        // 両陣営の疲労スピリット数の合計（BS05大甲帝デスタウロス：疲労状態のスピリット1体につき）
+        return (
+            state.players[owner].field.spirits.filter((s) => s.isRested).length +
+            countExhaustedEnemies(state, opp)
+        )
+    }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
@@ -1673,6 +1680,13 @@ function collectGrantedTriggerActions(
                 continue
             }
             if (effect.colorFilter && !instHasColor(selfInstance, effect.colorFilter)) continue
+            if (
+                effect.familyFilter &&
+                !matchesFamilyFilter(state, owner, selfInstance, effect.familyFilter)
+            ) {
+                continue
+            }
+            if (effect.keywordFilter && !hasKeyword(selfInstance.cardId, effect.keywordFilter)) continue
             actions.push(effect.granted.action)
         }
     }
@@ -1847,6 +1861,13 @@ export function fireFieldEventTriggers(
                     ? effect.familyFilter
                     : [effect.familyFilter]
                 if (!wanted.some((f) => eventInfo?.families?.includes(f))) continue
+            }
+            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）
+            if (
+                effect.keywordFilter !== undefined &&
+                !hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
+            ) {
+                continue
             }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {

@@ -49,7 +49,7 @@ export function normalizeFilter(
 ): ResolvedTargetFilter | typeof SELF_REQUIRED {
     const spec: TargetFilter = action.filter ?? legacyToSpec(action)
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
-    const { maxBp, exactBp, ...rest } = spec
+    const { maxBp, minBp, exactBp, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる
@@ -60,6 +60,13 @@ export function normalizeFilter(
         resolved.maxBp = selfBp
     } else if (maxBp !== undefined) {
         resolved.maxBp = maxBp
+    }
+
+    if (minBp === "selfBp") {
+        if (selfBp === undefined) return SELF_REQUIRED
+        resolved.minBp = selfBp
+    } else if (minBp !== undefined) {
+        resolved.minBp = minBp
     }
 
     if (exactBp === "selfBp") {
