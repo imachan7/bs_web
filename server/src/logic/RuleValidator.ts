@@ -21,6 +21,7 @@ import {
     instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
+    matchesFamilyFilter,
     spiritHasKeyword,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -691,6 +692,45 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     return null
 }
 
+// 強制ブロック（kind: "mustBlockGrant"）：アタッカーの持ち主のフィールドに、
+// レベル有効・phase/turn一致・familyFilter一致（省略時は全アタッカー）の発生源があるか判定する。
+// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象
+function hasMustBlockAgainst(
+    state: GameState,
+    attackerPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    const player = state.players[attackerPid]
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "mustBlockGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && attackerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && attackerPid === state.turnPlayer) continue
+            if (effect.firstAttackOnly && state.attacksThisTurn !== 1) continue
+            if (
+                effect.familyFilter !== undefined &&
+                !matchesFamilyFilter(state, attackerPid, attacker, effect.familyFilter)
+            ) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// 「可能ならば必ずブロックする」の判定用：実際にブロック宣言が通るスピリットが1体でもいるか。
+// hasBlocker（回復状態か見るだけ）と違い validateBlock を通すため、cantBlock や
+// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない
+function hasLegalBlocker(state: GameState, pid: PlayerId): boolean {
+    return state.players[pid].field.spirits.some(
+        (s) => validateBlock(state, pid, s.instanceId) === null,
+    )
+}
+
 export function validateTakeLife(state: GameState, pid: PlayerId): string | null {
     if (!state.battle) return "バトルが発生していません"
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
@@ -711,6 +751,15 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         hasBlocker(state, pid)
     ) {
         return "【激突】によりブロックしなければなりません"
+    }
+    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック）。
+    // ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
+    if (
+        attacker &&
+        hasMustBlockAgainst(state, state.turnPlayer, attacker) &&
+        hasLegalBlocker(state, pid)
+    ) {
+        return "相手の効果により、可能ならば必ずブロックしなければなりません"
     }
     return null
 }

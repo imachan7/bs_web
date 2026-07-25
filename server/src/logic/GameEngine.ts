@@ -428,6 +428,9 @@ function doAttack(
         log(state, `${player.name}の${card.name}がアタックした！`)
     }
 
+    // このターンのアタック回数を加算する（「ターンの最初のアタック」判定に使う。誘発より前に更新する）
+    state.attacksThisTurn += 1
+
     fireTrigger(state, pid, inst, "onAttack")
 
     // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する

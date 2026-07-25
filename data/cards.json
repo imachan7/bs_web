@@ -4193,6 +4193,16 @@
      "battlingOnly": true,
      "amount": 1000
     }
+   },
+   {
+    "id": "BS01-098-e2",
+    "kind": "mustBlockGrant",
+    "levels": [
+     2
+    ],
+    "firstAttackOnly": true,
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },
@@ -20055,7 +20065,25 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のターンの最初のアタックのとき、このスピリットをBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-024-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "firstAttackOfTurn": true
+    },
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-025",
@@ -22477,6 +22505,19 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "id": "BS04-076-e2",
+    "kind": "mustBlockGrant",
+    "levels": [
+     2
+    ],
+    "familyFilter": [
+     "翼竜",
+     "空牙"
+    ],
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },

@@ -4887,6 +4887,9 @@ export function fireTrigger(
                 const target = findInstanceAnywhere(state, targetInstanceId)
                 if (!target) return false
                 if (currentLevel(target).level !== level) return false
+            } else if ("firstAttackOfTurn" in effect.condition) {
+                // ダックル：そのターンの最初のアタックのときのみ発火（doAttackが宣言時に加算する）
+                if (state.attacksThisTurn !== 1) return false
             } else if ("ownFieldHasKeyword" in effect.condition) {
                 // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
                 const kw = effect.condition.ownFieldHasKeyword
