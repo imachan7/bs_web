@@ -16,6 +16,7 @@ import type {
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
+import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
     activeConstraints,
@@ -143,164 +144,9 @@ export function canBlockAttacker(
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
 export const hasMagicImmunityView = hasMagicImmunity
 
-// コスト修正（kind: "costMod"）の合計（サーバー costModTotal と同じロジックの簡易版）。
-// 両プレイヤーのフィールド（スピリット＋ネクサス）を走査し、レベル有効な costMod のうち
-// 条件（colorFilter・cardType・side・phaseTurn。すべて省略時は常に一致）に合うものの amount を合計する
-function costModTotal(view: GameView, usingPid: PlayerId, card: CardData): number {
-    let total = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            const sourceLevel = levelOf(source).level
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "costMod") continue
-                if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
-                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-                if (effect.side === "opponent" && usingPid === pid) continue
-                if (effect.phaseTurn) {
-                    if (view.phase !== effect.phaseTurn.phase) continue
-                    if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
-                    if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
-                }
-                total += effect.amount
-            }
-        }
-    }
-    return total
-}
-
-// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボル
-// （サーバー reductionGrantSymbols と同じロジックの簡易版。ペンタン／天使バーチュ）
-function reductionGrantSymbols(view: GameView, pid: PlayerId, card: CardData): Color[] {
-    const extra: Color[] = []
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "reductionGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
-            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
-            // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
-            if (effect.familyFilter !== undefined) {
-                const families = Array.isArray(effect.familyFilter)
-                    ? effect.familyFilter
-                    : [effect.familyFilter]
-                if (!families.some((f) => card.family.includes(f))) continue
-            }
-            if (effect.condition) {
-                if ("ownColorSpiritsAtLeast" in effect.condition) {
-                    // ティ・ターニャ：ネクサスを数えず、指定色のスピリット数のみで判定
-                    const { color, count } = effect.condition.ownColorSpiritsAtLeast
-                    const total = view.players[pid].field.spirits.filter(
-                        (s) => master(s.cardId).color === color,
-                    ).length
-                    if (total < count) continue
-                } else {
-                    const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const total = sources.filter((s) => master(s.cardId).color === color).length
-                    if (total < count) continue
-                }
-            }
-            extra.push(...effect.symbols)
-        }
-    }
-    return extra
-}
-
-// マジック使用制約（kind: "magicRestriction"）の判定（サーバー hasMagicRestriction と同じロジックの簡易版）
-function hasMagicRestriction(
-    view: GameView,
-    usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
-): boolean {
-    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
-        const sources = [...view.players[ownerPid].field.spirits, ...view.players[ownerPid].field.nexuses]
-        for (const source of sources) {
-            const level = levelOf(source).level
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "magicRestriction") continue
-                if (effect.restriction !== restriction) continue
-                if (!(effect.levels === null || effect.levels.includes(level))) continue
-                if (effect.turn === "own" && ownerPid !== view.turnPlayer) continue
-                if (effect.turn === "opponent" && ownerPid === view.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
-// マジック無償化（kind: "magicFreeGrant"）の判定（サーバー hasMagicFreeGrant と同じロジックの簡易版。薔薇人バロッサ）
-function hasMagicFreeGrant(view: GameView, pid: PlayerId, card: CardData): boolean {
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const level = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "magicFreeGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(level))) continue
-            if (effect.colorFilter !== card.color) continue
-            if (effect.phaseTurn) {
-                if (view.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== view.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === view.turnPlayer) continue
-            }
-            return true
-        }
-    }
-    return false
-}
-
-// pidのフィールドが持つシンボルの色集合（サーバー ownFieldSymbolColors と同じロジックの簡易版。力奪う凱旋門）
-function ownFieldSymbolColors(view: GameView, pid: PlayerId): Set<Color> {
-    const colors = new Set<Color>()
-    const all = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const inst of all) {
-        for (const sym of master(inst.cardId).symbol) colors.add(sym)
-    }
-    return colors
-}
-
-export function effectiveCost(
-    view: GameView,
-    pid: PlayerId,
-    card: CardData,
-): number {
-    // マジック無償化（薔薇人バロッサ）：noFreeCastOpponent（力奪う凱旋門Lv2）がなければコスト0
-    if (
-        card.type === "magic" &&
-        hasMagicFreeGrant(view, pid, card) &&
-        !hasMagicRestriction(view, pid, "noFreeCastOpponent")
-    ) {
-        return 0
-    }
-    const field = view.players[pid].field
-    const reductionColors = [...card.reduction, ...reductionGrantSymbols(view, pid, card)]
-    const reductionBlocked = card.type === "magic" && hasMagicRestriction(view, pid, "noReductionOpponent")
-    let symbols = 0
-    if (!reductionBlocked) {
-        for (const inst of [...field.spirits, ...field.nexuses]) {
-            const cardSymbols = master(inst.cardId).symbol
-            let matched = false
-            for (const sym of cardSymbols) {
-                if (reductionColors.includes(sym)) {
-                    symbols++
-                    matched = true
-                }
-            }
-            if (matched && inst.tempExtraSymbols) symbols += inst.tempExtraSymbols
-        }
-    }
-    const base = Math.max(
-        card.cost - (reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)),
-        0,
-    )
-    return base + costModTotal(view, pid, card)
-}
+// コスト計算はサーバーと同一の共有実装（shared/cost）を使う。
+// main.ts が effectiveCost を import しているため、ここから再エクスポートする
+export { effectiveCost }
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {

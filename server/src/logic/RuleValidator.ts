@@ -12,6 +12,15 @@ import {
     opponentOf,
 } from "./GameState"
 import { cantActByCost } from "../../../shared/rules"
+// コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
+// effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
+import {
+    effectiveCost,
+    hasMagicFreeGrant,
+    hasMagicRestriction,
+    ownFieldSymbolColors,
+} from "../../../shared/cost"
+export { effectiveCost }
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -27,189 +36,11 @@ import {
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
-// コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
-// 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
-// 常に一致）に合うものの amount を合計する。usingPid は実際にそのカードを使おうとしているプレイヤー
-// （side:"opponent" の判定・validateSummon等の呼び出し元から渡る）
-// （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く。
-//   螺旋の塔：「自分のアタックステップ中、相手のマジックは+1コスト」＝side:"opponent"＋phaseTurn）
-function costModTotal(state: GameState, usingPid: PlayerId, card: CardData): number {
-    let total = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = state.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            const sourceLevel = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "costMod") continue
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (effect.colorFilter !== undefined && card.color !== effect.colorFilter) continue
-                if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-                // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
-                if (effect.side === "opponent" && usingPid === pid) continue
-                if (effect.phaseTurn) {
-                    if (state.phase !== effect.phaseTurn.phase) continue
-                    if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                    if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-                }
-                if (effect.condition) {
-                    // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ
-                    const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const owned = state.players[pid].field.spirits.filter((s) =>
-                        matchesFamilyFilter(state, pid, s, family),
-                    ).length
-                    if (owned < count) continue
-                }
-                total += effect.amount
-            }
-        }
-    }
-    return total
-}
 
-// 軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
-// pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
-// 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
-// （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
-function reductionGrantSymbols(state: GameState, pid: PlayerId, card: CardData): Color[] {
-    const extra: Color[] = []
-    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "reductionGrant") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.cardType !== undefined && card.type !== effect.cardType) continue
-            if (effect.cardColor !== undefined && card.color !== effect.cardColor) continue
-            if (effect.keywordFilter !== undefined && !hasKeyword(card.cardId, effect.keywordFilter)) continue
-            // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
-            if (effect.familyFilter !== undefined) {
-                const families = Array.isArray(effect.familyFilter)
-                    ? effect.familyFilter
-                    : [effect.familyFilter]
-                if (!families.some((f) => card.family.includes(f))) continue
-            }
-            if (effect.condition) {
-                if ("ownColorSpiritsAtLeast" in effect.condition) {
-                    // ティ・ターニャ：ネクサスを数えず、指定色のスピリット数のみで判定
-                    const { color, count } = effect.condition.ownColorSpiritsAtLeast
-                    const total = state.players[pid].field.spirits.filter(
-                        (s) => getCard(s.cardId).color === color,
-                    ).length
-                    if (total < count) continue
-                } else {
-                    const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const total = sources.filter((s) => getCard(s.cardId).color === color).length
-                    if (total < count) continue
-                }
-            }
-            extra.push(...effect.symbols)
-        }
-    }
-    return extra
-}
 
-// マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
-// レベル有効・restriction一致・turn条件成立の発生源があるか調べる。
-// oncePerTurnAll は持ち主を問わず両陣営に効くため usingPid との一致チェックをしない。
-// noReductionOpponent / colorLockOpponent は「発生源の持ち主の相手」にのみ効くため、
-// 発生源の持ち主自身が使用者（usingPid === ownerPid）のときは対象外とする
-// （イワトビペンタン／作戦参謀フォクシン／力奪う凱旋門）
-function hasMagicRestriction(
-    state: GameState,
-    usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
-): boolean {
-    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
-        const sources = [...state.players[ownerPid].field.spirits, ...state.players[ownerPid].field.nexuses]
-        for (const source of sources) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "magicRestriction") continue
-                if (effect.restriction !== restriction) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
 
-// マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
-// レベル有効・色一致（またはscope一致）・phaseTurn一致の発生源があるかを調べる
-// （薔薇人バロッサ：自分のアタックステップに自分の黄マジックカードを無償化）。
-// requireTegamotoScope=true のときは、手元(tegamoto)のカードを無償使用しようとしている呼び出しのため、
-// colorFilter指定の色限定バリアントは対象外とし、scope:"allMagicHandAndTegamoto"の発生源のみ有効とする
-// （大天使ミカファールLv2）。requireTegamotoScope=false（手札からの通常使用）は、色限定バリアントの
-// 色一致 or scope指定バリアント（色不問）のどちらでも成立する
-function hasMagicFreeGrant(
-    state: GameState,
-    pid: PlayerId,
-    card: CardData,
-    requireTegamotoScope = false,
-): boolean {
-    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const source of sources) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "magicFreeGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            const isAllScope = effect.scope === "allMagicHandAndTegamoto"
-            if (requireTegamotoScope) {
-                if (!isAllScope) continue
-            } else if (!isAllScope) {
-                if (effect.colorFilter !== card.color) continue
-            }
-            if (effect.phaseTurn) {
-                if (state.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-            }
-            return true
-        }
-    }
-    return false
-}
 
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
-// 軽減シンボルと同じシンボル集計対象を色の集合として求める）
-function ownFieldSymbolColors(state: GameState, pid: PlayerId): Set<Color> {
-    const colors = new Set<Color>()
-    const all = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const inst of all) {
-        for (const sym of getCard(inst.cardId).symbol) colors.add(sym)
-    }
-    return colors
-}
 
-// 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
-// costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
-// reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは card.reduction に連結してから計算する。
-// noReductionOpponent（イワトビペンタン）が有効なマジックは軽減シンボルによる軽減自体ができない
-export function effectiveCost(
-    state: GameState,
-    pid: PlayerId,
-    card: CardData,
-): number {
-    // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
-    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
-    if (
-        card.type === "magic" &&
-        hasMagicFreeGrant(state, pid, card) &&
-        !hasMagicRestriction(state, pid, "noFreeCastOpponent")
-    ) {
-        return 0
-    }
-    const reductionColors = [...card.reduction, ...reductionGrantSymbols(state, pid, card)]
-    const reductionBlocked = card.type === "magic" && hasMagicRestriction(state, pid, "noReductionOpponent")
-    const symbols = reductionBlocked ? 0 : countSymbols(state.players[pid], reductionColors)
-    const reduction = reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)
-    const base = Math.max(card.cost - reduction, 0)
-    return base + costModTotal(state, pid, card)
-}
 
 function checkMainTiming(state: GameState, pid: PlayerId): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
