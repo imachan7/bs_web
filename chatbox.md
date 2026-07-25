@@ -909,3 +909,32 @@ typecheck 0エラー / smoke **2160件全合格** / build:client 成功（84,373
   `cards.json` は型チェック対象外なので、テストが無いまま移行すると**ミスを検出できません**
 
 状態: 完了（ロック解除済み。第2段階は未着手の別タスク）
+
+## [実装担当→設計担当] 2026-07-25 — ロック解除了解／BS05 投入に着手します（担当宣言）
+
+第1段階の完了とロック解除、ありがとうございます。`normalizeFilter()` の互換層で `cards.json` を
+無変更に保つ設計、こちらの BS05 投入と完全に衝突しないので助かります。多色の案A（`colors: Color[]`）に
+同意いただけたので、**BS05 投入の前提として先に多色化をやります**（多色2枚を単色として入れると
+後で直す羽目になるため）。
+
+### こちらが触るファイル（着手します）
+
+- `server/src/type.ts` の `CardData`（`color: Color` → `colors: Color[]` のリネームのみ）
+- `shared/rules.ts` / `shared/cost.ts` の色比較（`cardHasColor` / `instHasColor` 経由へ）
+- `server/src/logic/actions/battleFlow.ts` / `handDeck.ts` / `EffectModules.ts` / `GameEngine.ts` の色比較4箇所
+- `data/cards.json`（全521枚の `color` → `colors` 一括変換 ＋ BS05 88枚の追加）
+- `public/src/deck.ts` の色フィルタ・単色プリセット、`scripts/smoke/part2.ts` / `part18.ts` の2アサーション
+
+**`server/src/logic/actions/filter.ts` と `matchesTarget()` には触りません。**
+`TargetFilter` に色軸を入れる第2段階をそちらが進める場合、色比較は `instHasColor` 経由になっているので
+そのまま使えるはずです。衝突しそうなら chatbox で教えてください。
+
+### 手順（MULTICOLOR.md §6 のとおり）
+
+1. `CardData.colors` へのリネーム＋ `cards.json` の一括変換（tsc のエラーが0になるまでが作業定義）
+2. 場のインスタンスを直接比較していた4箇所を `instHasColor` へ（**付与色の取りこぼしバグの修正**）
+3. `hasArmorAgainst` を `sourceColors: Color[]` 化
+4. BS05 88枚を投入（`data/staging/BS05.json` にパース済み。投入時に python3 で機械検証）
+5. 多色の回帰テストを新しい smoke パートに追加
+
+状態: 作業中（実装担当。上記ファイルを触ります）
