@@ -49,6 +49,7 @@ import {
     countSymbols,
     currentLevel as sharedCurrentLevel,
     effectActiveAtLevel,
+    hasContinuousKeywordGrant,
     hasKeyword,
     instanceSymbolCount,
     instHasColor,
@@ -56,16 +57,23 @@ import {
     isSpiritOnField,
     isVanillaCard,
     KEYWORDS,
+    matchesFamilyFilter,
+    spiritHasFamily,
+    spiritHasKeyword,
 } from "../../../shared/rules"
 export {
     countSymbols,
     effectActiveAtLevel,
+    hasContinuousKeywordGrant,
     hasKeyword,
     instanceSymbolCount,
     instHasColor,
     instHasCost,
     isVanillaCard,
     KEYWORDS,
+    matchesFamilyFilter,
+    spiritHasFamily,
+    spiritHasKeyword,
 }
 void sharedCurrentLevel
 
@@ -123,47 +131,10 @@ export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void 
 //   静的キーワード（hasKeyword） ‖ 一時付与（tempKeywords。スピリットリンク等） ‖
 //   持ち主フィールドからの継続付与（kind: "keywordGrant"。暴双龍ディラノス）
 // フィールド上のスピリットを判定する箇所はこちらを使う（手札の静的判定は hasKeyword のまま）。
-export function spiritHasKeyword(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    keyword: Keyword,
-): boolean {
-    if (hasKeyword(inst.cardId, keyword)) return true
-    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
-    return hasContinuousKeywordGrant(state, ownerPid, inst, keyword)
-}
 
 // spiritHasKeyword の「持ち主フィールドからの継続付与（kind: "keywordGrant"）」判定だけを切り出したもの。
 // レベル判定を保ったまま静的キーワード判定を別途行いたい呼び出し元（resolveKoboOnBattleEnd）が
 // 単独で参照できるようにする（BS04エンジン拡張バッチ1）
-function hasContinuousKeywordGrant(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    keyword: Keyword,
-): boolean {
-    const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "keywordGrant") continue
-            if (effect.keyword !== keyword) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (
-                effect.familyFilter &&
-                !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)
-            ) {
-                continue
-            }
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
-            if (effect.phase && state.phase !== effect.phase) continue
-            return true
-        }
-    }
-    return false
-}
 
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 // デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）。
@@ -344,56 +315,10 @@ function dumpAllCoresTensho(
 //   静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
 // aura の familyFilter・AuraCounter/EffectCounter の { ownFamily }・keywordGrant の familyFilter は
 // すべてこちらを参照する（familyGrant で付与された系統もカウントに含めるため）。
-export function spiritHasFamily(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    family: string,
-): boolean {
-    if (getCard(inst.cardId).family.includes(family)) return true
-    const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "familyGrant") continue
-            if (effect.family !== family) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
-                continue
-            }
-            if (
-                effect.costFilter !== undefined &&
-                !instHasCost(inst, effect.costFilter)
-            ) {
-                continue
-            }
-            if (effect.phase && state.phase !== effect.phase) continue
-            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColor(s, color)).length
-                if (total < count) continue
-            }
-            return true
-        }
-    }
-    return false
-}
 
 // FamilyFilter（string | string[]）共通の判定ヘルパー：配列指定時はいずれかの系統を持てばよい（OR）。
 // aura.familyFilter・AuraCounter の { ownFamily }・bpBuffAll/bpBuff.familyFilter・keywordGrant.familyFilter は
 // すべてこちらを参照する（BS04エンジン拡張バッチ1）
-export function matchesFamilyFilter(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    filter: FamilyFilter,
-): boolean {
-    if (Array.isArray(filter)) {
-        return filter.some((f) => spiritHasFamily(state, ownerPid, inst, f))
-    }
-    return spiritHasFamily(state, ownerPid, inst, filter)
-}
 
 // ---- 常時BP修正（オーラ） ----
 

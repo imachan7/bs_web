@@ -10,6 +10,7 @@ import type {
     CardData,
     CardInstance,
     Color,
+    FamilyFilter,
     Keyword,
     PlayerId,
 } from "../server/src/type"
@@ -122,4 +123,98 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
 // 指定インスタンスがそのプレイヤーのフィールドにスピリットとして存在するか
 export function isSpiritOnField(board: Board, pid: PlayerId, instanceId: string): boolean {
     return board.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
+}
+
+// ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
+
+// 状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
+// フィールド上のスピリットを判定する箇所はすべてこちらを使う（手札の神速判定はカード静的な hasKeyword のまま）
+export function spiritHasKeyword(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
+    if (hasKeyword(inst.cardId, keyword)) return true
+    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// 継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）
+export function hasContinuousKeywordGrant(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
+    const player = board.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "keywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (
+                effect.familyFilter &&
+                !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
+            ) {
+                continue
+            }
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            if (effect.phase && board.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵）
+export function spiritHasFamily(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    family: string,
+): boolean {
+    if (card(inst.cardId).family.includes(family)) return true
+    const player = board.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "familyGrant") continue
+            if (effect.family !== family) continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
+                continue
+            }
+            if (
+                effect.costFilter !== undefined &&
+                !instHasCost(inst, effect.costFilter)
+            ) {
+                continue
+            }
+            if (effect.phase && board.phase !== effect.phase) continue
+            if (effect.condition) {
+                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const total = sources.filter((s) => instHasColor(s, color)).length
+                if (total < count) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
+export function matchesFamilyFilter(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    filter: FamilyFilter,
+): boolean {
+    if (Array.isArray(filter)) {
+        return filter.some((f) => spiritHasFamily(board, ownerPid, inst, f))
+    }
+    return spiritHasFamily(board, ownerPid, inst, filter)
 }

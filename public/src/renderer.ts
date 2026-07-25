@@ -23,6 +23,9 @@ import {
     instHasColor,
     instHasCost,
     isVanillaCard,
+    matchesFamilyFilter,
+    spiritHasFamily,
+    spiritHasKeyword,
 } from "../../shared/rules"
 export { hasKeyword, instHasCost, instHasColor }
 
@@ -202,92 +205,18 @@ export function effectiveBp(view: GameView, ownerPid: PlayerId, inst: CardInstan
 // 指定カードがそのキーワードを持つか（サーバー hasKeyword と同じロジックの簡易版）
 
 
-// 状態を考慮したキーワード判定（サーバー spiritHasKeyword のミラー）:
-// 静的キーワード ‖ 一時付与（tempKeywords） ‖ 持ち主フィールドからの継続付与（keywordGrant）
-export function spiritHasKeywordView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    keyword: Keyword,
-): boolean {
-    if (hasKeyword(inst.cardId, keyword)) return true
-    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "keywordGrant") continue
-            if (effect.keyword !== keyword) continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (
-                effect.familyFilter &&
-                !spiritHasFamilyView(view, ownerPid, inst, effect.familyFilter)
-            ) {
-                continue
-            }
-            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) continue
-            if (effect.phase && view.phase !== effect.phase) continue
-            return true
-        }
-    }
-    return false
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
+export const spiritHasKeywordView = spiritHasKeyword
 
 // 状態を考慮した色判定（サーバー instHasColor のミラー）
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
 export const instHasColorView = instHasColor
 
-// 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
-// 静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）
-export function spiritHasFamilyView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    family: string,
-): boolean {
-    if (master(inst.cardId).family.includes(family)) return true
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "familyGrant") continue
-            if (effect.family !== family) continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.colorFilter && !instHasColorView(inst, effect.colorFilter)) {
-                continue
-            }
-            if (
-                effect.costFilter !== undefined &&
-                !instHasCost(inst, effect.costFilter)
-            ) {
-                continue
-            }
-            if (effect.phase && view.phase !== effect.phase) continue
-            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColorView(s, color)).length
-                if (total < count) continue
-            }
-            return true
-        }
-    }
-    return false
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasFamily）
+export const spiritHasFamilyView = spiritHasFamily
 
-// FamilyFilter（string | string[]）共通の判定（サーバー matchesFamilyFilter のミラー。配列＝OR）
-function matchesFamilyFilterView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    filter: FamilyFilter,
-): boolean {
-    if (Array.isArray(filter)) {
-        return filter.some((f) => spiritHasFamilyView(view, ownerPid, inst, f))
-    }
-    return spiritHasFamilyView(view, ownerPid, inst, filter)
-}
+// 実体は shared/rules.matchesFamilyFilter（配列＝OR判定）
+const matchesFamilyFilterView = matchesFamilyFilter
 
 // フィールド全体制約（kind: "globalConstraint"）が現在有効か
 // （サーバー hasGlobalConstraint と同じロジックの簡易版。両陣営のフィールドを走査する）
