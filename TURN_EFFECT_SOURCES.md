@@ -6,13 +6,19 @@
 
 ---
 
+> **改訂履歴**: 初版は `GameState.turnEffectSources` に `EffectDef[]` を直接持つ案だったが、
+> chatbox に別案（`PlayerState.turnVirtualInstances: CardInstance[]`）が寄せられたため、
+> **両案を統合した**のが本版。統合の判断根拠は §7 を参照。
+
 ## 0. 結論（先に4行）
 
-1. `GameState.turnEffectSources` に「**このターンだけ有効な仮想発生源**」を持たせる
-2. 貸す効果は **`levels: null`（レベル不問）の既存 `EffectDef` をそのまま入れる**。
-   これにより `mustBlockGrant` / `constraint` / `reviveOnDestroy` / `aura` などが**一斉に**マジックから使えるようになる
-3. 走査は `effectSources(board, pid)` に寄せる。**ただし全31箇所ではなく「効果発生源の走査」22箇所だけ**。
-   `countSymbols` / `ownFieldSymbolColors` は**物理的に場にあるカードを数える**処理なので寄せてはいけない
+1. `PlayerState.turnVirtualInstances: CardInstance[]` に「**このターンだけ有効な仮想発生源**」を持たせる。
+   保存する値は**通常の `CardInstance`**（合成したマジックのインスタンス）
+2. 貸す継続効果は**そのマジックカード自身の `effects` に `levels: null` で書く**。
+   これにより `mustBlockGrant` / `constraint` / `reviveOnDestroy` / `aura` などが**一斉に**マジックから使えるようになる。
+   **`levels: null` は必須**（理由は §2.2。ここを外すと無言で発火しなくなる）
+3. 走査は `effectSources(board, pid): CardInstance[]` に寄せる。**「効果発生源の走査」22関数が対象**で、
+   `countSymbols` / `ownFieldSymbolColors` の2つは寄せない（§1 の分類）
 4. 移行は段階式。**必要な kind の走査から順に差し替える**（一括置換はしない）
 
 ---
@@ -48,34 +54,43 @@
 
 ## 2. データ構造
 
-### 2.1 `GameState` への追加
+### 2.1 `PlayerState` への追加
 
 ```ts
-// このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。
-// ターン終了でリセットする。フィールドには存在しないため、
-// シンボル集計（countSymbols / ownFieldSymbolColors）の対象にはならない
-turnEffectSources: TurnEffectSource[]
-
-export interface TurnEffectSource {
-    ownerPid: PlayerId   // 効果の持ち主（「自分の〜」の基準になる）
-    cardId: string       // 貸し元のカード（ログ表示・色・種別の参照用）
-    instanceId: string   // 仮想の一意ID（"turnsrc-1" など。既存コードが instanceId で同一性を見るため必要）
-    effects: EffectDef[] // 貸す継続効果。**levels は必ず null（レベル不問）にする**
-}
+// このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源
+// （マジックが貸した継続効果）。ターン終了でリセットする。
+// フィールドには実在しないため、シンボル集計（countSymbols / ownFieldSymbolColors）の対象にはならない
+turnVirtualInstances: CardInstance[]
 ```
 
-### 2.2 なぜ `levels: null` を必須にするか
+値は `createInstance(cardId, turn, 0)` で作った**通常の `CardInstance`**。
+デバッグしやすいよう `instanceId` に `virtual-` 接頭辞を付ける。
 
-既存の走査コードはすべてこの形をしている。
+`Board`（`GameState` / `GameView` 共通のビュー型）にも足す。クライアントもブロック可否ハイライト等で
+参照するため **`viewFor` で配信する**（隠匿情報なし）。
+
+### 2.2 ⚠️ 貸す効果の `levels` は **必ず `null`**
+
+**ここが本設計で最も踏みやすい罠。** 既存の走査はすべてこの形をしている。
 
 ```ts
 const sourceLevel = currentLevel(source).level
 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
 ```
 
-マジックは `levels: []` なので `currentLevel()` は `level: 0` を返す。
-`effectActiveAtLevel(null, 0)` は `true` なので、**貸す効果の `levels` を `null` にしておけば
-走査側にレベルの特別扱いを一切入れずに済む**。これが本設計の要。
+マジックの `CardData.levels` は `[]` なので `currentLevel()` は `{ level: 0 }` を返す。
+そこに `effectActiveAtLevel(effect.levels, 0)` が掛かる。**実測値**:
+
+```
+effectActiveAtLevel(null, 0) = true    ← levels:null は常に有効
+effectActiveAtLevel([],   0) = false   ← 空配列は false
+effectActiveAtLevel([1],  0) = false   ← Lv指定は仮想発生源では絶対に成立しない
+```
+
+つまり **`levels: null` 以外で書くと、エラーも出ずに一度も発火しない**。
+スピリットのカードから `"levels": [1, 2]` の形をコピーしてくると確実に踏む。
+
+> 補足: 「空配列は常に true」という記述が chatbox の別案にあったが、実測のとおり **false** である。
 
 ### 2.3 走査ヘルパー
 
@@ -87,40 +102,50 @@ if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
 //
 // ⚠️ 「場に実在するカードを数える」用途には使わないこと。
 //    軽減シンボル集計（countSymbols）・色ロック（ownFieldSymbolColors）は
-//    物理的な存在を見る処理なので、仮想発生源を混ぜると誤動作する
-export function effectSources(board: Board, pid: PlayerId): EffectSource[]
-
-export interface EffectSource {
-    inst: CardInstance      // 仮想発生源は合成インスタンス（cores:0 / isRested:false / tempKeywords:[] …）
-    effects: EffectDef[]    // card(inst.cardId).effects か、仮想発生源の effects
-    virtual: boolean        // true なら仮想（self を参照する効果を弾く判定に使う）
+//    物理的な存在を見る処理であり、意味的に発生源とは別物（§1 の分類B）
+export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
+    const player = board.players[pid]
+    return [...player.field.spirits, ...player.field.nexuses, ...player.turnVirtualInstances]
 }
 ```
 
-`Board` に `turnEffectSources` を足す必要がある（`GameState` と `GameView` の双方が持つ。
-クライアントもブロック可否ハイライト等で参照するため **`viewFor` で配信する**。隠匿情報なし）。
+**戻り値を `CardInstance[]` にするのが要点**で、既存の 22箇所は
+`[...field.spirits, ...field.nexuses]` を `effectSources(board, pid)` に置き換えるだけで済む
+（ループ本体は無変更）。
 
----
+### 2.4 仮想かどうかの判定
 
-## 3. 効果を貸すアクション
+`self` の扱い（§4.1）とデバッグのために、仮想発生源を見分ける述語を用意する。
 
 ```ts
-| { type: "grantTurnEffects"; effects: EffectDef[] } // このターンの間、自分の仮想発生源として effects を有効にする
-```
-
-データの書き方（例: 「このターンの間、相手は◯◯を必ずブロックする」）:
-
-```jsonc
-{
-  "kind": "magic", "timing": "main",
-  "action": {
-    "type": "grantTurnEffects",
-    "effects": [
-      { "id": "BS05-0XX-t1", "kind": "mustBlockGrant", "levels": null, /* 既存 kind の中身をそのまま */ }
-    ]
-  }
+export function isVirtualSource(inst: CardInstance): boolean {
+    return inst.instanceId.startsWith("virtual-")
 }
 ```
+
+## 3. 効果の貸し方
+
+### 3.1 データの書き方
+
+**貸す継続効果は、そのマジックカード自身の `effects` に `levels: null` で並べる。**
+`kind: "magic"` のエントリは `resolveMagic` だけが読み、継続効果の走査は無視するので共存できる。
+
+```jsonc
+// 例: 「このターンの間、相手は◯◯を必ずブロックする」マジック
+"effects": [
+  { "id": "BS05-0XX-e1", "kind": "magic", "timing": "main",
+    "action": { "type": "lendSelfThisTurn" } },        // ← 貸与を発動する
+  { "id": "BS05-0XX-e2", "kind": "mustBlockGrant", "levels": null, /* 既存 kind の中身をそのまま */ }
+]                                                       // ↑ 貸される継続効果
+```
+
+### 3.2 アクション
+
+```ts
+| { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源として場に置いたものとして扱う
+```
+
+`resolveMagic` は使用中のカードを知っているので、`cardId` を引数に取る必要はない。
 
 **新しい kind を作らずに済むのが最大の利点**で、`mustBlockGrant` / `constraint`（`canDirectAttack`）/
 `reviveOnDestroy` / `aura` / `keywordGrant` などが一度に使えるようになる。
@@ -136,16 +161,17 @@ export interface EffectSource {
 `selfBuff` ・ aura の `target:"self"` など）。仮想発生源は場に存在しないため、
 これらは意味を成さないか、最悪クラッシュする。
 
-- `resolveAction` に渡す `self` は **`null`** にする（`EffectSource.virtual` で判定）
+- `resolveAction` に渡す `self` は **`null`** にする（`isVirtualSource()` で判定）
 - `aura` の `target:"self"` は仮想発生源では**常に不成立**として扱う
-- **`validate-cards.ts` に「`grantTurnEffects.effects` に self 参照アクションが入っていないか」の検査を足す**
+- **`validate-cards.ts` に検査を足す**: `lendSelfThisTurn` を持つカードの継続効果エントリが
+  すべて `levels: null` であること、および self 参照アクションを含まないこと
   （データで踏みやすい罠なので、実行時ではなく検証で落とす）
 
 ### 4.2 リセット位置
 
 `PhaseManager.ts` のターン終了処理、`state.turnConstraints = []`（158行付近）・
 `state.triggerSuppressionThisTurn = []`（160行付近）と同じ場所に
-`state.turnEffectSources = []` を足す。**`tempKeywords` のリセット（131行付近）と同じタイミング**。
+各プレイヤーの `turnVirtualInstances = []` を足す。**`tempKeywords` のリセット（131行付近）と同じタイミング**。
 
 ### 4.3 発生源の色・種別
 
@@ -163,8 +189,8 @@ export interface EffectSource {
 
 | 段 | 内容 | 検証 |
 | --: | :-- | :-- |
-| 1 | 型・`turnEffectSources`・`effectSources()`・リセット処理を追加。**走査側はまだ差し替えない** | 既存 smoke が無変更で通る（何も変わらないため） |
-| 2 | `grantTurnEffects` アクションを追加。`effectSources()` を **A分類のうち対象カードが必要とする kind の走査だけ**差し替える（`mustBlockGrant` ・ `activeConstraints` ・ `tryReviveOnDestroy` ・ `effectiveBp`） | 新規 smoke で貸与が効くこと＋既存が無変更で通ること |
+| 1 | 型・`turnVirtualInstances`・`effectSources()`・`isVirtualSource()`・リセット処理を追加。**走査側はまだ差し替えない** | 既存 smoke が無変更で通る（何も変わらないため） |
+| 2 | `lendSelfThisTurn` アクションを追加。`effectSources()` を **A分類のうち対象カードが必要とする kind の走査だけ**差し替える（`mustBlockGrant` ・ `activeConstraints` ・ `tryReviveOnDestroy` ・ `effectiveBp`） | 新規 smoke で貸与が効くこと＋既存が無変更で通ること |
 | 3 | 対象カード（赤・紫5枚＋BS05 各色の同型）を構造化 | カードごとの smoke |
 | 4 | 残る A分類の走査を順次 `effectSources()` へ寄せる（急がない） | 各回 smoke 緑 |
 
@@ -176,13 +202,48 @@ export interface EffectSource {
 
 | 案 | 内容 | 判定 |
 | :-- | :-- | :-- |
-| **A. 仮想発生源**（本設計） | `GameState` にターン限定の発生源を持つ | **採用**。既存 kind をそのまま再利用でき、走査側の変更が最小 |
-| B. インスタンスへの個別付与 | `tempKeywords` のように各スピリットへ効果を配る | 却下。「相手全体」「これから場に出るもの」に効かない（貸与時に存在しないインスタンスを拾えない） |
-| C. kind ごとに `thisTurn` フラグ付き配列を増やす | `turnConstraints` の方式を kind の数だけ増やす | 却下。`turnConstraints` ・ `triggerSuppressionThisTurn` で既に2つあり、これ以上増やすと同じ形の配列が乱立する |
+| **仮想発生源**（本設計） | ターン限定の `CardInstance` を発生源の走査に混ぜる | **採用** |
+| インスタンスへの個別付与 | `tempKeywords` のように各スピリットへ効果を配る | 却下。「相手全体」「これから場に出るもの」に効かない（貸与時に存在しないインスタンスを拾えない） |
+| kind ごとに `thisTurn` 配列を増やす | `turnConstraints` の方式を kind の数だけ増やす | 却下。`turnConstraints` ・ `triggerSuppressionThisTurn` で既に2つあり、これ以上増やすと同じ形の配列が乱立する |
 
 ---
 
-## 7. 未解決（実装時に判断が要る点）
+## 7. 2案の統合について（判断根拠）
+
+同じ問題に対して chatbox に2つの設計が並んだため、統合した。
+
+### 別案から採用した点（そちらが優れていた）
+
+1. **保存する値を `CardInstance` にし、`effectSources()` の戻り値を `CardInstance[]` にする**。
+   初版は `{ inst, effects, virtual }` というラッパ型を返す設計だったが、それだと
+   **22箇所すべてのループ本体を書き換える**必要があった。`CardInstance[]` を返せば
+   `[...field.spirits, ...field.nexuses]` を `effectSources(...)` に置換するだけで済む。
+   移行コストが大幅に小さく、差分も読みやすい
+2. **保存先を `PlayerState` にする**。持ち主が構造から自明になり、`GameState` に横断的な配列を
+   増やすより素直
+3. **貸す効果をカード自身の `effects` に書く**。初版はアクションに `EffectDef[]` を埋める形だったが、
+   「データに効果を書き、エンジンが読む」という3層設計の原則に沿うのはこちら
+
+### 初版から維持した点（安全性のため必須）
+
+1. **`levels: null` の必須化**（§2.2）。別案には「空配列は常に true」という記述があったが、
+   実測では **false**。この誤解のまま `"levels": []` や `[1]` で書くと**無言で発火しない**
+2. **走査の A/B 分類**（§1）。別案は置換対象を「`activeConstraints` など」と例示するに留まり、
+   `countSymbols` / `ownFieldSymbolColors` を除外する指示が無かった。
+   マジックは `symbol: []` なので実害は出にくいが、**意味的に別物**であり、
+   将来スピリットを発生源にする拡張が入ると壊れる。境界は明示しておく
+3. **`self` の禁止**（§4.1）と `validate-cards.ts` での検査。別案には言及が無かった
+4. **段階移行**（§5）。一括置換ではなく、各段で既存 smoke が無変更で通ることを確認する
+
+### 訂正（初版の記述の行き過ぎ）
+
+初版で「B分類に仮想発生源が混ざると**軽減シンボルが増える**」と書いたが、
+**マジックの `symbol` は空配列なので、マジック由来の仮想発生源では実害は出ない**。
+分類を維持する理由は「実害が出るから」ではなく「**意味的に別物で、将来の拡張で壊れるから**」が正確。
+
+---
+
+## 8. 未解決（実装時に判断が要る点）
 
 - **フィールドの発生源と仮想発生源の適用順序**。現状の走査は「スピリット→ネクサス」順で、
   同種の効果が複数あっても順序に依存しない実装になっている（加算・OR判定のみ）。
