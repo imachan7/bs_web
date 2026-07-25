@@ -11,7 +11,12 @@
 
 ## 1. カードプール
 
-`data/cards.json` に第一弾135枚＋第二弾115枚＋第三弾153枚の全 **403枚** を収録。
+`data/cards.json` に第一弾135枚＋第二弾115枚＋第三弾153枚＋第四弾118枚＋第五弾88枚の全 **609枚** を収録。
+
+Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した（弾ごとに `--set` / `--refer` / `--pages` を渡す）。
+`--verify` を付けると既存 `data/cards.json` と全項目を突き合わせて差分を報告するので、
+**パーサーを変更したら既存の弾で差分0を確認してから新しい弾に使うこと**
+（BS04 118枚・BS03 153枚・BS05 88枚で差分0を確認済み。BS02 のみ既知の Wiki 表記ゆれ1件）。
 
 ### 第一弾（BS01・135枚）
 
@@ -294,6 +299,53 @@
   - **088 栄光の表彰台**: ネクサス配置コストのデッキ破棄による代替支払い（禁止カード）
   - 各カードの一部の行のみ未対応: 033 Lv2-3・080 Lv2（【神速】テキストの書き換え）・081 Lv2・086 Lv1
     （「BPを+する」効果そのものの無効化）・079 Lv2
+
+### 第五弾：皇騎（BS05・88枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 黄 | 10 | 2 | 3 | 15 |
+| 青 | 10 | 2 | 3 | 15 |
+| 赤 | 9 | 2 | 3 | 14 |
+| 紫 | 9 | 2 | 3 | 14 |
+| 緑 | 9 | 2 | 3 | 14 |
+| 白 | 9 | 2 | 3 | 14 |
+| 多色 | 2 | - | - | 2 |
+
+（Xレア4枚 BS05-X17〜X20 は各色の内訳に含む。通常ナンバーは 001〜084 で欠番なし）
+
+- 取得元: `cmd=listcard&sdan=BS05&refer=第五弾：皇騎`（2ページ）。**`scripts/fetch_wiki_cards.py` でパース**し、
+  投入後に `--verify` で Wiki と突き合わせて差分0を確認済み
+- **禁止カード・制限カードはゼロ**。効果文なしのバニラ18枚（効果文持ち70枚）
+- **新キーワードなし**。保持は11枚（転召4＝Xレア全部がコスト6以上/ボイド、覚醒1・呪撃1・神速1・
+  装甲2・光芒1・粉砕1）。**BS05-032 珊瑚蟹シオマネキッドは【装甲：赤/白】の複数色指定**
+- **多色カードが初登場**（下記）
+
+#### 多色カード（BS05-X19 / BS05-X20）
+
+| cardId | 名前 | 色 | コスト | 軽減シンボル | シンボル |
+| :-- | :-- | :-- | --: | :-- | :-- |
+| BS05-X19 | 聖皇ジークフリーデン | 赤・白 | 9 | 赤3＋白3（**混色**） | 赤白 |
+| BS05-X20 | 大甲帝デスタウロス | 紫・緑 | 9 | 紫3＋緑3（**混色**） | 紫緑 |
+
+これに合わせて `CardData.color: Color` を **`colors: Color[]` へ置換**した（2026-07-25。設計は削除前の
+`MULTICOLOR.md` に記録）。要点:
+
+- **色の一致判定は必ず述語を通す**。場のインスタンスは `instHasColor(inst, color)`、
+  手札・デッキ側のカードは `cardHasColor(cardData, color)`、色の一覧が要るときは `instColors(inst)`。
+  **`card.colors[0] === c` のような直接比較を新しく書かないこと**（多色で静かに壊れる）
+- 判定はすべて **OR**（多色カードは両方の色を完全に持つ）。ただし次の3つは OR にしてはいけない:
+  - **軽減シンボル集計**（`countSymbols`）— 赤/白スピリットは「赤1個・白1個」を別々に供給する
+  - **ライフダメージ**（`instanceSymbolCount`）— シンボル数そのもの。色は無関係
+  - **デッキビルダーの単色プリセット**（`buildPreset`）— `colors.length === 1` で多色を除外する
+- **装甲は発生源の色を配列で運ぶ**: `hasArmorAgainst(inst, sourceColors: Color[])`。
+  `resolveAction` の `sourceColors`・`ActionCtx.srcColors`・`DestroyContext.battle.attackerColors`・
+  `fireFieldEventTriggers` の `eventColors` がすべて `Color[]`。多色の発生源はいずれの色の装甲でも防がれる
+- 「最多色の自動選択」（ケンドラゴス等）では**多色カードは各色に1票**を入れる
+- クライアントは表示のみ主色 `colors[0]` を使い、デッキビルダーの色フィルタは OR、
+  色内訳は「赤・白」の複合ラベルで1件計上する（両方に数えると合計が40を超えるため）
+- 回帰テストは `scripts/smoke/part58.ts`（色の両方ヒット・装甲・軽減・ライフダメージ・単色プリセット・
+  BS05 のキーワード保持）
 
 ### デッキ
 
@@ -771,9 +823,13 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 | `npm run smoke` | エンジン単体の動作確認（召喚時破壊・アタック時BP+・神速召喚など） |
 | E2E | `PORT=3100 npx tsx server/src/index.ts` 起動後に `PORT=3100 npx tsx scripts/e2e.ts` |
 
-smoke テストの本体は `scripts/smoke/part1〜6.ts` に分割（`scripts/smoke.ts` はランナー、
+| `npm run smoke:quiet` | 失敗と集計のみ表示（全 ✅ 行を出さない。委譲時はこちらを使わせる） |
+| データ取り込みの検証 | `python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify` |
+
+smoke テストの本体は `scripts/smoke/part1〜58.ts` に分割（`scripts/smoke.ts` はランナー、
 共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
 テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
+現在の合格数は **2,194件**（part57＝TargetFilter 直交化の回帰、part58＝多色カード対応の回帰）。
 
 ---
 
