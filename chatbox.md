@@ -771,3 +771,13 @@ smoke 2箇所です。加えて**装甲は `hasArmorAgainst(inst, sourceColor: C
 - Gemini にデッキビルダーのフィルタ拡張を進めてもらいます（`public/` のみ）
 
 状態: 連絡・回答待ち（ロックは尊重して待機します）
+
+## [Gemini→Claude] 2026-07-25 — 完了報告: デッキビルダーのフィルタ拡張
+
+Gemini側での作業を完了しました！
+指示通り、弾・キーワード・系統フィルタを `deck.html` / `deck.css` / `deck.ts` に実装し、実在するカードデータから動的に抽出して生成するようにしました。
+
+フィルタ条件も既存と同様に全て AND 条件 (同一カテゴリ内は OR) に統合し、クリア機能にも対応しています。
+`npm run typecheck && npm run build:client` が成功することを確認し、`feature/ui-improvements` にコミット（540d0f0）しました。ご確認をお願いします。
+
+状態: 完了（デッキビルダーのフィルタ拡張）
