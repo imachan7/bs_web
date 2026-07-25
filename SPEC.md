@@ -4,6 +4,9 @@
 仕様が固まったり実装が進むたびにここへ追記していく。
 （データ構造そのものの定義は [data.md](./data.md)、公開用の紹介は [README.md](./README.md)）
 
+**進行中の計画**: [REFACTOR.md](./REFACTOR.md) — 共有ルール層の抽出（サーバー／クライアントのルール二重実装の解消）と
+`resolveAction`（3028行・100 case）の分割。**BS04 の残23枚の構造化を完了させてから着手する**。
+
 ---
 
 ## 1. カードプール
@@ -268,16 +271,29 @@
   （cantBlock・unblockableBy で実際にブロックできない場合に詰まないようにするため。既存の【激突】判定は
   従来の hasBlocker のまま据え置き）。triggered condition `firstAttackOfTurn` も追加。
   BS04-076 翼持つ者の空域・**BS01-098 燃えさかる戦場**（BS01最後の未対応行）・BS04-024 ダックルを全文構造化。
-  **BS04 構造化は effects付き 79/97枚（効果文持ち）に到達。残る未着手18枚は下記の末尾**
-- **未着手で残る18枚（表示のみ。真に新概念が必要）**:
-  - 【神速】効果テキストの書き換え: 033・080
-  - 相手マジック使用のコスト別検知: 045
-  - 手札枚数条件のステップ誘発バウンス: 018
-  - 復活/コア移譲などネクサス破壊反応: 059・061・082（装甲付与＋デッキ破棄上限）
-  - 条件付き costMod＋アタック課税: 085 / デッキ破棄でコスト代替＋ネクサス配置誘発: 088
-  - 「BPを+する」効果そのものの無効化: 086 Lv1（Lv2は構造化済み）
-  - 対象/名前フィルタ・同系統全破壊など単発概念: 027（一度に5枚以上破棄検知）・037・042・054・081・
-    090・101・110・112
+- **個別設計バッチA（2026-07-25）**: step condition `ownHandAtLeast`（018）／`voidCoreToOwnNexuses` の
+  single（059）／globalConstraint `maxSpiritsOnField`（080 Lv1。メインステップの通常召喚のみ制限し
+  神速召喚は対象外という簡略化）／`GameState.ignoreUnblockableThisTurn` とアクション（110）／
+  `levelOverrideTarget` の colorFilter・requireLevelExists（112）で5枚を構造化
+- **個別設計バッチB（2026-07-25）**: FieldEvent `"opponentDeckMilled"`（millDeck から発火。`minEventCount` で
+  「一度に◯枚以上」）・`"opponentMagicUsed"`（resolveMagic から発火。`magicCostEquals`／`magicTiming` で絞る）を
+  新設し、costMod と fieldEvent に条件 `ownFamilyCountAtLeast`、アクション `opponentCoresToTrash`・
+  `negateLifeDamageFromTarget`（CardInstance.lifeDamageNegatedFor）を追加。
+  027 アリゲイド・045 氷の女神フリッグ・085 魔力満ちる泉・101 ミストカーテンを全文構造化
+- **個別設計バッチC（2026-07-25）**: アクション `voidCoreToOwnByKeyword`（033 の召喚時行）・
+  `reviveLastDestroyedNexus` と `GameState.lastDestroyedNexus`（061。破壊されたネクサスの記録は
+  lastBattleDestroyedCores と同じ「直近の出来事を state に残す」パターン）・reviveOnDestroy の `minBp`（081 Lv1）で
+  3枚を構造化。**BS04 構造化は effects付き 91/97枚に到達。残る未着手6枚は下記**
+- **未着手で残る6枚（表示のみ。既存関数のシグネチャ変更が広範に及ぶか、単発概念のため見送り）**:
+  - **082 侵されざる聖域**: コスト8以上へ【装甲：5色】を継続付与。`hasArmorAgainst(inst, color)` が state を
+    受け取らない設計のため、keywordGrant 由来の装甲を見るには全呼び出し箇所の signature 変更が必要
+  - **090 ニーベルングリング**: ターン限定の誘発付与＋「破壊したスピリットと同じ系統」の伝播（新機構2つ）
+  - **037 鎧装獣ヘイズ・ルーン / 042 獣使いドヴェルグ**: 条件付き cantAttack と、その名前フィルタでの無効化（対）
+  - **054 アルカナソルジャー・サンク**: マジックの対象リダイレクト。現エンジンのマジックは単体対象のため
+    実質 no-op になる（構造化しても意味を持たない）
+  - **088 栄光の表彰台**: ネクサス配置コストのデッキ破棄による代替支払い（禁止カード）
+  - 各カードの一部の行のみ未対応: 033 Lv2-3・080 Lv2（【神速】テキストの書き換え）・081 Lv2・086 Lv1
+    （「BPを+する」効果そのものの無効化）・079 Lv2
 
 ### デッキ
 
