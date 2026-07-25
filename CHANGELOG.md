@@ -167,3 +167,23 @@
 - BS03仕上げ拡張バッチ: 汎用ミル（mill/millPer）・EffectCounter ownColor・bpBuffAll familyFilter・
   deployNexus all を新設し8枚を追加構造化。BS03 は 78/128 で区切り（残り50枚は任意コスト誘発・
   効果無効・手札加入検知など深い新概念。smoke 1512件・E2E 全合格）
+- **リファクタリング: 共有ルール層の抽出と `resolveAction` の分割**（REFACTOR.md の計画を完遂し同ファイルは削除）
+  - **Phase A**: サーバーとクライアントで二重実装されていたルール判定を `shared/` に一本化。
+    `shared/cardDb.ts`（カードマスタ参照の注入。`shared/` は node:fs 非依存でクライアントにもバンドルできる）・
+    `shared/board.ts`（`GameState` と `GameView` が両方満たす読み取り専用インターフェース。適合をコンパイル時に固定）・
+    `shared/rules.ts`（キーワード／系統／オーラ／実効BP／制約・免疫の約25関数）・
+    `shared/cost.ts`（軽減・コスト修正・マジック制約・無償化）・`shared/block.ts`（ブロック可否）。
+    `renderer.ts` 1731→1214行、`RuleValidator.ts` 803→625行。サーバー側の実装を正として統合した
+  - この過程で**クライアント表示バグ3件が解消**: ①ミカファールLv2下で色の合わない手札マジックが
+    コスト0表示・使用可能ハイライトにならない ②`GameView` に `magicUsedThisTurn` が無くフォクシンの
+    使用制限が表示されない ③レッドウォール使用中もブロック可能ハイライトが「ブロックされない」効果を
+    無視できない。回帰テストを `scripts/smoke/part56.ts` に追加（共有実装になったため
+    サーバー側テストがそのままクライアント挙動の保証になる）
+  - **Phase B**: 3,189行・105 case の単一関数だった `resolveAction` を
+    `server/src/logic/actions/` の6モジュール（destroy / cores / exhaustRefresh / handDeck / grant /
+    battleFlow ＋ buff）へ分割し、本体は54行のディスパッチャに。`ActionRegistry`（全 `EffectAction.type` を
+    網羅する型）により**旧 switch の網羅性チェックを型で維持**。`EffectModules.ts` 5469→2017行
+  - 移設は機械変換でロジック不変。closure ローカル11個は `ActionCtx` に集約し、再帰呼び出しは
+    `ctx.resolve` へ（省略引数を暗黙に引き継がない設計で移設前の挙動を厳密に保持）
+  - 検証: typecheck 0エラー・smoke 2144件全合格・build:client 成功・E2E 合格。
+    あわせて E2E の陳腐化していた期待値（初期手札4枚 → 先攻1ターン目のドロー込みで5枚）を現行ルールに追随
