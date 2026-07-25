@@ -8,6 +8,8 @@
 // カードマスタは shared/cardDb.ts の注入経由で参照する。
 import type {
     AuraCondition,
+    ConstraintDef,
+    GlobalConstraintDef,
     AuraCounter,
     AuraDef,
     CardData,
@@ -377,4 +379,121 @@ export function effectiveBp(
         }
     }
     return total
+}
+
+// ---- 制約・免疫 ----
+
+// 指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
+export function activeConstraints(
+    board: Board,
+    pid: PlayerId,
+    inst: CardInstance,
+): ConstraintDef[] {
+    const level = currentLevel(inst).level
+    const own = card(inst.cardId)
+        .effects.filter(
+            (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
+        )
+        .map((e) => (e as { constraint: ConstraintDef }).constraint)
+    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
+    // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
+    const granted: ConstraintDef[] = []
+    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraintGrant") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (board.phase !== phase) continue
+                if (turn === "own" && pid !== board.turnPlayer) continue
+                if (turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            granted.push(effect.constraint)
+        }
+    }
+    return [...own, ...granted]
+}
+export function isUntargetableByOpponent(inst: CardInstance): boolean {
+    if (inst.immuneToOpponentThisTurn) return true
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "constraint" &&
+            e.constraint.type === "untargetableByOpponent" &&
+            effectActiveAtLevel(e.levels, level),
+    )
+}
+export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
+    if (sourceColor === undefined) return false
+    const level = currentLevel(inst).level
+    const staticArmor = card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "armor" &&
+            effectActiveAtLevel(e.levels, level) &&
+            (e.colors?.includes(sourceColor) ?? false),
+    )
+    if (staticArmor) return true
+    // 一時付与の装甲（インビンシブルシールド）
+    return inst.tempKeywords.some(
+        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
+    )
+}
+export function hasGlobalConstraint(
+    board: Board,
+    type: GlobalConstraintDef["type"],
+): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = board.players[pid]
+        const instances = [...player.field.spirits, ...player.field.nexuses]
+        for (const inst of instances) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== type) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+export function hasMagicImmunity(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    const player = board.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "immunityGrant") continue
+            if (effect.against !== "magic") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (
+                effect.familyFilter &&
+                !card(inst.cardId).family.includes(effect.familyFilter)
+            ) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
+// このターン限りの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか（ヘビィゲート）
+export function cantActByCost(board: Board, inst: CardInstance): boolean {
+    const cost = card(inst.cardId).cost
+    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
+    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "cantActByCost" &&
+            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
+    )
 }

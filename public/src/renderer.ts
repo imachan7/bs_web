@@ -18,9 +18,15 @@ import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
+    activeConstraints,
+    cantActByCost,
     currentLevel,
     effectiveBp,
+    hasArmorAgainst,
+    hasGlobalConstraint,
     hasKeyword,
+    hasMagicImmunity,
+    isUntargetableByOpponent,
     instHasColor,
     instHasCost,
     isVanillaCard,
@@ -28,7 +34,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
 } from "../../shared/rules"
-export { hasKeyword, instHasCost, instHasColor }
+export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
 
@@ -86,93 +92,10 @@ export const spiritHasFamilyView = spiritHasFamily
 // 実体は shared/rules.matchesFamilyFilter（配列＝OR判定）
 const matchesFamilyFilterView = matchesFamilyFilter
 
-// フィールド全体制約（kind: "globalConstraint"）が現在有効か
-// （サーバー hasGlobalConstraint と同じロジックの簡易版。両陣営のフィールドを走査する）
-export function hasGlobalConstraint(
-    view: GameView,
-    type: GlobalConstraintDef["type"],
-): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
-            const { level } = levelOf(inst)
-            for (const effect of master(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!(effect.levels === null || effect.levels.includes(level))) continue
-                return true
-            }
-        }
-    }
-    return false
-}
 
-// このターンの間だけの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか
-// （サーバー cantActByCost と同じロジックの簡易版。ヘビィゲート）
-export function cantActByCost(view: GameView, inst: CardInstance): boolean {
-    const cost = master(inst.cardId).cost
-    return view.turnConstraints.some(
-        (c) =>
-            c.type === "cantActByCost" &&
-            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
-    )
-}
 
-// 指定インスタンスが現在レベルで持つ制約定義の一覧（サーバー activeConstraints と同じロジックの簡易版）
-export function activeConstraints(view: GameView, pid: PlayerId, inst: CardInstance): ConstraintDef[] {
-    const { level } = levelOf(inst)
-    const own = master(inst.cardId)
-        .effects.filter(
-            (e) => e.kind === "constraint" && (e.levels === null || e.levels.includes(level)),
-        )
-        .map((e) => (e as { constraint: ConstraintDef }).constraint)
-    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源からownAll/minLevel/phaseTurn条件に合う制約を合成する
-    const granted: ConstraintDef[] = []
-    const sources = [...view.players[pid].field.spirits, ...view.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "constraintGrant") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (effect.minLevel !== undefined && level < effect.minLevel) continue
-            if (effect.phaseTurn) {
-                const { phase, turn } = effect.phaseTurn
-                if (view.phase !== phase) continue
-                if (turn === "own" && pid !== view.turnPlayer) continue
-                if (turn === "opponent" && pid === view.turnPlayer) continue
-            }
-            granted.push(effect.constraint)
-        }
-    }
-    return [...own, ...granted]
-}
 
-// 相手の対象を取る効果の対象にならないか（サーバー isUntargetableByOpponent のミラー）
-export function isUntargetableByOpponent(view: GameView, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.immuneToOpponentThisTurn) return true
-    return activeConstraints(view, pid, inst).some(
-        (c) => c.type === "untargetableByOpponent",
-    )
-}
 
-// 【装甲：色】：inst が sourceColor の相手効果を受けないか（サーバー hasArmorAgainst のミラー）
-export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
-    if (sourceColor === undefined) return false
-    const { level } = levelOf(inst)
-    const staticArmor = master(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "armor" &&
-            (e.levels === null || e.levels.includes(level)) &&
-            (e.colors?.includes(sourceColor) ?? false),
-    )
-    if (staticArmor) return true
-    // 一時付与の装甲（インビンシブルシールド）
-    return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
-    )
-}
 
 // ブロック可能ハイライト用: blocker が attacker をブロックできるか（サーバー validateBlock のブロック判定と同じロジックの簡易版。
 // 優先権・疲労・レベル等の前提条件は呼び出し側でチェック済みの前提）
@@ -217,32 +140,8 @@ export function canBlockAttacker(
     return true
 }
 
-// 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）
-// サーバー hasMagicImmunity のミラー。対象選択ハイライトで、使用中のカードがマジックの場合に参照する
-export function hasMagicImmunityView(
-    view: GameView,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
-    const player = view.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = levelOf(source).level
-        for (const effect of master(source.cardId).effects) {
-            if (effect.kind !== "immunityGrant") continue
-            if (effect.against !== "magic") continue
-            if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-            if (
-                effect.familyFilter &&
-                !master(inst.cardId).family.includes(effect.familyFilter)
-            ) {
-                continue
-            }
-            return true
-        }
-    }
-    return false
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
+export const hasMagicImmunityView = hasMagicImmunity
 
 // コスト修正（kind: "costMod"）の合計（サーバー costModTotal と同じロジックの簡易版）。
 // 両プレイヤーのフィールド（スピリット＋ネクサス）を走査し、レベル有効な costMod のうち
@@ -1070,7 +969,7 @@ function fieldCardEl(
         // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
         // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
         // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
-        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(view, ownerPid, inst)) {
+        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColor = usingCardId ? master(usingCardId).color : undefined
             if (!hasArmorAgainst(inst, usingColor) && !hasMagicImmunityView(view, ownerPid, inst)) {

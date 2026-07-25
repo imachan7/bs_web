@@ -11,6 +11,7 @@ import {
     lv1Cores,
     opponentOf,
 } from "./GameState"
+import { cantActByCost } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -673,16 +674,6 @@ export function validateBlock(
 
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
 // できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
-function cantActByCost(state: GameState, inst: CardInstance): boolean {
-    const cost = getCard(inst.cardId).cost
-    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
-    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
-    return state.turnConstraints.some(
-        (c) =>
-            c.type === "cantActByCost" &&
-            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
-    )
-}
 
 // ブロック可能なスピリットがいるか（【激突】等の判定に使用）
 export function hasBlocker(state: GameState, pid: PlayerId): boolean {

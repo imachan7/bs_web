@@ -46,6 +46,7 @@ import {
 import type { KeywordInfo } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
+    activeConstraints,
     auraAmount,
     auraAppliesTo,
     checkAuraCondition,
@@ -54,12 +55,16 @@ import {
     currentLevel as sharedCurrentLevel,
     effectActiveAtLevel,
     effectiveBp,
+    hasArmorAgainst,
     hasContinuousKeywordGrant,
+    hasGlobalConstraint,
+    hasMagicImmunity,
     hasKeyword,
     instanceSymbolCount,
     instHasColor,
     instHasCost,
     isSpiritOnField,
+    isUntargetableByOpponent,
     isVanillaCard,
     KEYWORDS,
     matchesFamilyFilter,
@@ -67,6 +72,7 @@ import {
     spiritHasKeyword,
 } from "../../../shared/rules"
 export {
+    activeConstraints,
     auraAmount,
     auraAppliesTo,
     checkAuraCondition,
@@ -74,11 +80,15 @@ export {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    hasArmorAgainst,
     hasContinuousKeywordGrant,
+    hasGlobalConstraint,
+    hasMagicImmunity,
     hasKeyword,
     instanceSymbolCount,
     instHasColor,
     instHasCost,
+    isUntargetableByOpponent,
     isVanillaCard,
     KEYWORDS,
     matchesFamilyFilter,
@@ -342,52 +352,9 @@ function dumpAllCoresTensho(
 
 // ---- 制約（ブロック可否など） ----
 
-// 指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
-export function activeConstraints(
-    state: GameState,
-    pid: PlayerId,
-    inst: CardInstance,
-): ConstraintDef[] {
-    const level = currentLevel(inst).level
-    const own = getCard(inst.cardId)
-        .effects.filter(
-            (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
-        )
-        .map((e) => (e as { constraint: ConstraintDef }).constraint)
-    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
-    // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
-    const granted: ConstraintDef[] = []
-    const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "constraintGrant") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.minLevel !== undefined && level < effect.minLevel) continue
-            if (effect.phaseTurn) {
-                const { phase, turn } = effect.phaseTurn
-                if (state.phase !== phase) continue
-                if (turn === "own" && pid !== state.turnPlayer) continue
-                if (turn === "opponent" && pid === state.turnPlayer) continue
-            }
-            granted.push(effect.constraint)
-        }
-    }
-    return [...own, ...granted]
-}
 
 // 相手の「対象を取る」効果の対象にならないか（クイーン・ワルキューレの常時、
 // またはフェザーバリアの一時免疫）。対象自動選択・明示ターゲットの両方で参照する。
-export function isUntargetableByOpponent(inst: CardInstance): boolean {
-    if (inst.immuneToOpponentThisTurn) return true
-    const level = currentLevel(inst).level
-    return getCard(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "untargetableByOpponent" &&
-            effectActiveAtLevel(e.levels, level),
-    )
-}
 
 // 相手のカード効果を一切受けないか（フェザーバリア）。範囲効果（destroyAll 等）にも免疫。
 // ワルキューレの untargetable は範囲には無力なので、こちらは immuneToOpponentThisTurn のみ。
@@ -397,22 +364,6 @@ function isImmuneToArea(inst: CardInstance): boolean {
 
 // 【装甲：色】：inst が sourceColor の相手効果を受けないか（対象・範囲の両方から参照する）。
 // sourceColor が不明（undefined）な場合は装甲を判定できないため false（＝防がない）とする。
-export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
-    if (sourceColor === undefined) return false
-    const level = currentLevel(inst).level
-    const staticArmor = getCard(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "armor" &&
-            effectActiveAtLevel(e.levels, level) &&
-            (e.colors?.includes(sourceColor) ?? false),
-    )
-    if (staticArmor) return true
-    // 一時付与の装甲（インビンシブルシールド）
-    return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
-    )
-}
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
@@ -428,30 +379,6 @@ export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefin
 // immunityGrant（against: "magic"）を持つ発生源が1つでもあれば、inst は相手のマジックの効果を受けない。
 // 呼び出し側は「効果の発生源が実際にマジックか（sourceType === "magic"）」を先に判定してから呼ぶこと
 // （装甲の hasArmorAgainst が sourceColor を受け取るのと同じ考え方で、対象側にだけ知識を閉じる）。
-export function hasMagicImmunity(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
-    const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "immunityGrant") continue
-            if (effect.against !== "magic") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (
-                effect.familyFilter &&
-                !getCard(inst.cardId).family.includes(effect.familyFilter)
-            ) {
-                continue
-            }
-            return true
-        }
-    }
-    return false
-}
 
 // 【疲労しない】（kind: "exhaustImmunityGrant"）：inst（targetOwnerPidの持ち主）が、相手の効果による
 // 疲労を受けないか。呼び出し側は「疲労させようとしている側がtargetOwnerPidと異なる場合のみ」呼ぶこと
@@ -571,25 +498,6 @@ function placeCoresOnSpirit(
 // フィールド発生源から全スピリット／全ネクサスに効くグローバル制約（kind: "globalConstraint"）が
 // 現在有効か判定する。両陣営のフィールド（スピリット＋ネクサス）を走査し、
 // レベル条件を満たす該当制約が1つでもあれば true（発生源の持ち主は問わない）。
-export function hasGlobalConstraint(
-    state: GameState,
-    type: GlobalConstraintDef["type"],
-): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = state.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
-            const level = currentLevel(inst).level
-            for (const effect of getCard(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                return true
-            }
-        }
-    }
-    return false
-}
 
 // 継続的なレベル置換（kind: "levelAs"）を再計算する。
 // 全インスタンスの levelAsContinuous を一旦クリアしてから、両陣営フィールドの levelAs 効果を
