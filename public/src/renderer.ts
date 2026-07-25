@@ -15,6 +15,7 @@ import type {
     PlayerId,
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
+import { setCardLookup } from "../../shared/cardDb"
 
 // ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
 
@@ -22,6 +23,8 @@ let DB = new Map<string, CardData>()
 
 export function setCardDb(cards: CardData[]): void {
     DB = new Map(cards.map((c) => [c.cardId, c]))
+    // 共有ルール層（shared/）へカードマスタ参照を注入する（サーバーは GameState.getCard を注入）
+    setCardLookup(master)
 }
 
 export function master(cardId: string): CardData {

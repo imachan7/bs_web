@@ -26,5 +26,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["server/**/*.ts", "public/src/**/*.ts", "data/**/*.ts", "scripts/**/*.ts"]
+  "include": ["shared/**/*.ts", "server/**/*.ts", "public/src/**/*.ts", "data/**/*.ts", "scripts/**/*.ts"]
 }

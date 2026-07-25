@@ -26,6 +26,7 @@ import {
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
+import { setCardLookup } from "../../../shared/cardDb"
 
 // ---- カードマスターデータの読み込み ----
 
@@ -42,6 +43,10 @@ export function getCard(cardId: string): CardData {
     if (!card) throw new Error(`カードが見つかりません: ${cardId}`)
     return card
 }
+
+// 共有ルール層（shared/）へカードマスタ参照を注入する。
+// shared/ は node:fs を使えないため、サーバー側の getCard をここで渡す
+setCardLookup(getCard)
 
 // ---- ユーティリティ ----
 
@@ -390,6 +395,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        magicUsedThisTurn: { ...state.magicUsedThisTurn },
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }
