@@ -3,7 +3,9 @@
   "cardId": "BS01-001",
   "name": "ゴラドン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -34,7 +36,9 @@
   "cardId": "BS01-002",
   "name": "ロクケラトプス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 1,
   "reduction": [
    "red"
@@ -72,7 +76,9 @@
   "cardId": "BS01-003",
   "name": "テラノセイバー",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [],
   "family": [
@@ -114,7 +120,9 @@
   "cardId": "BS01-004",
   "name": "ドラグノ偵察兵",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red"
@@ -162,7 +170,9 @@
   "cardId": "BS01-005",
   "name": "アイバーン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red"
@@ -195,7 +205,9 @@
   "cardId": "BS01-006",
   "name": "メラット",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red",
@@ -244,7 +256,9 @@
   "cardId": "BS01-007",
   "name": "ハンマドレイク",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red",
@@ -299,7 +313,9 @@
   "cardId": "BS01-008",
   "name": "メタルバーン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -337,7 +353,9 @@
   "cardId": "BS01-009",
   "name": "ヴォルク・バブーン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -382,7 +400,9 @@
   "cardId": "BS01-010",
   "name": "チャクラムバット",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -431,7 +451,9 @@
   "cardId": "BS01-011",
   "name": "ドラグサウルス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -487,7 +509,9 @@
   "cardId": "BS01-012",
   "name": "トライソードン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -532,7 +556,9 @@
   "cardId": "BS01-013",
   "name": "タウロスナイト",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -582,7 +608,9 @@
   "cardId": "BS01-014",
   "name": "ドラグノ祈祷師",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -631,7 +659,9 @@
   "cardId": "BS01-015",
   "name": "スピノアックス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -678,7 +708,9 @@
   "cardId": "BS01-016",
   "name": "スケルトン・ジョウ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -733,7 +765,9 @@
   "cardId": "BS01-017",
   "name": "ランスラプトル",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -783,7 +817,9 @@
   "cardId": "BS01-018",
   "name": "リザードマン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -836,7 +872,9 @@
   "cardId": "BS01-019",
   "name": "ジュラシックル",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -887,7 +925,9 @@
   "cardId": "BS01-020",
   "name": "翼刃竜スティラノドン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -931,7 +971,9 @@
   "cardId": "BS01-021",
   "name": "焔竜魔人マ・グー",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -989,7 +1031,9 @@
   "cardId": "BS01-022",
   "name": "大鎌フール・ジョーカー",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -1039,7 +1083,9 @@
   "cardId": "BS01-023",
   "name": "原始鳥フェニキオス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -1102,7 +1148,9 @@
   "cardId": "BS01-024",
   "name": "晶輝龍ディアマット",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -1158,7 +1206,9 @@
   "cardId": "BS01-025",
   "name": "要塞龍ギガ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 8,
   "reduction": [
    "red",
@@ -1210,7 +1260,9 @@
   "cardId": "BS01-027",
   "name": "ウィル・オーブ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -1257,7 +1309,9 @@
   "cardId": "BS01-029",
   "name": "リブ・リーパー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 2,
   "reduction": [
    "purple"
@@ -1307,7 +1361,9 @@
   "cardId": "BS01-030",
   "name": "グリプ・ハンズ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple"
@@ -1355,7 +1411,9 @@
   "cardId": "BS01-031",
   "name": "デス・ハーデス",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple"
@@ -1388,7 +1446,9 @@
   "cardId": "BS01-032",
   "name": "ガウルム",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -1435,7 +1495,9 @@
   "cardId": "BS01-033",
   "name": "ディザスター",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -1486,7 +1548,9 @@
   "cardId": "BS01-034",
   "name": "バイ・パイソン",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -1535,7 +1599,9 @@
   "cardId": "BS01-035",
   "name": "ボーン・グラディエイター",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -1588,7 +1654,9 @@
   "cardId": "BS01-036",
   "name": "シャ・ズー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -1637,7 +1705,9 @@
   "cardId": "BS01-037",
   "name": "イリュージョナ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple"
@@ -1688,7 +1758,9 @@
   "cardId": "BS01-038",
   "name": "スケル・バイパー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -1737,7 +1809,9 @@
   "cardId": "BS01-040",
   "name": "ダークウィッチ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -1792,7 +1866,9 @@
   "cardId": "BS01-041",
   "name": "コブライガ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -1842,7 +1918,9 @@
   "cardId": "BS01-042",
   "name": "ミストウィゼル",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple"
@@ -1890,7 +1968,9 @@
   "cardId": "BS01-044",
   "name": "牛霊スモゥグ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -1943,7 +2023,9 @@
   "cardId": "BS01-045",
   "name": "切り裂きヘディレス",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -1992,7 +2074,9 @@
   "cardId": "BS01-046",
   "name": "幻龍シェイロン",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -2052,7 +2136,9 @@
   "cardId": "BS01-047",
   "name": "魔女ナージャ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -2101,7 +2187,9 @@
   "cardId": "BS01-048",
   "name": "吸血姫ヴァンピレス",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -2157,7 +2245,9 @@
   "cardId": "BS01-049",
   "name": "幽騎士ナイトライダー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -2211,7 +2301,9 @@
   "cardId": "BS01-050",
   "name": "ビートビートル",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -2242,7 +2334,9 @@
   "cardId": "BS01-051",
   "name": "フライングミラージュ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [
    "green"
@@ -2275,7 +2369,9 @@
   "cardId": "BS01-052",
   "name": "ペリリィフ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [],
   "family": [
@@ -2320,7 +2416,9 @@
   "cardId": "BS01-053",
   "name": "リーヴォルフ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green"
@@ -2368,7 +2466,9 @@
   "cardId": "BS01-054",
   "name": "ショックイーター",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green"
@@ -2401,7 +2501,9 @@
   "cardId": "BS01-055",
   "name": "エメアント",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green",
@@ -2450,7 +2552,9 @@
   "cardId": "BS01-056",
   "name": "マッチュラ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -2498,7 +2602,9 @@
   "cardId": "BS01-057",
   "name": "グラーバ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -2541,7 +2647,9 @@
   "cardId": "BS01-058",
   "name": "ヘラクレス・ジオ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -2580,7 +2688,9 @@
   "cardId": "BS01-059",
   "name": "シダフクロウ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -2627,7 +2737,9 @@
   "cardId": "BS01-060",
   "name": "イーグラス",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -2675,7 +2787,9 @@
   "cardId": "BS01-061",
   "name": "エイプウィップ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green"
@@ -2723,7 +2837,9 @@
   "cardId": "BS01-062",
   "name": "ハングリートゥリー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -2772,7 +2888,9 @@
   "cardId": "BS01-063",
   "name": "エメラルドシーザー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -2821,7 +2939,9 @@
   "cardId": "BS01-064",
   "name": "ジガ・ワスプ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -2865,7 +2985,9 @@
   "cardId": "BS01-065",
   "name": "キリカブト",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -2920,7 +3042,9 @@
   "cardId": "BS01-066",
   "name": "スタッグローブ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -2969,7 +3093,9 @@
   "cardId": "BS01-067",
   "name": "スワロウアイヴィー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -3019,7 +3145,9 @@
   "cardId": "BS01-068",
   "name": "風虎ティガルド",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -3062,7 +3190,9 @@
   "cardId": "BS01-069",
   "name": "征空の翼アクィリーズ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -3111,7 +3241,9 @@
   "cardId": "BS01-070",
   "name": "月甲モノケイロス",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -3161,7 +3293,9 @@
   "cardId": "BS01-071",
   "name": "爆進獣ブランボアー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -3208,7 +3342,9 @@
   "cardId": "BS01-072",
   "name": "ガウシルヴィア",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -3263,7 +3399,9 @@
   "cardId": "BS01-073",
   "name": "極彩鳥ヴァルペルチャー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 8,
   "reduction": [
    "green",
@@ -3307,7 +3445,9 @@
   "cardId": "BS01-074",
   "name": "バーサーカー・ガン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -3338,7 +3478,9 @@
   "cardId": "BS01-076",
   "name": "レイ・ブレット",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [],
   "family": [
@@ -3386,7 +3528,9 @@
   "cardId": "BS01-077",
   "name": "ベビー・ロキ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white"
@@ -3433,7 +3577,9 @@
   "cardId": "BS01-079",
   "name": "レインボウパピヨン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white"
@@ -3483,7 +3629,9 @@
   "cardId": "BS01-081",
   "name": "銀燐竜ニーズホッグ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white"
@@ -3532,7 +3680,9 @@
   "cardId": "BS01-082",
   "name": "ウル・ディーネ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -3581,7 +3731,9 @@
   "cardId": "BS01-083",
   "name": "ラビクリスタ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -3628,7 +3780,9 @@
   "cardId": "BS01-084",
   "name": "ガトリングスタンド",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -3662,7 +3816,9 @@
   "cardId": "BS01-086",
   "name": "クイーン・ワルキューレ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -3708,7 +3864,9 @@
   "cardId": "BS01-087",
   "name": "メタルディー・バグ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -3757,7 +3915,9 @@
   "cardId": "BS01-088",
   "name": "タワーミットクラブ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -3806,7 +3966,9 @@
   "cardId": "BS01-089",
   "name": "デュアルキャノン・ベル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -3842,7 +4004,9 @@
   "cardId": "BS01-090",
   "name": "ヘル・ブリンディ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -3892,7 +4056,9 @@
   "cardId": "BS01-091",
   "name": "機人ラグーナ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white"
@@ -3939,7 +4105,9 @@
   "cardId": "BS01-093",
   "name": "甲精ディース",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -3987,7 +4155,9 @@
   "cardId": "BS01-094",
   "name": "グラン・ドルバルカン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -4046,7 +4216,9 @@
   "cardId": "BS01-096",
   "name": "妖機妃ソール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -4095,7 +4267,9 @@
   "cardId": "BS01-097",
   "name": "飛龍ヴァルキュリウス",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -4153,7 +4327,9 @@
   "cardId": "BS01-098",
   "name": "燃えさかる戦場",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -4210,7 +4386,9 @@
   "cardId": "BS01-099",
   "name": "百識の谷",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -4269,7 +4447,9 @@
   "cardId": "BS01-100",
   "name": "ルビーの太陽",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -4313,7 +4493,9 @@
   "cardId": "BS01-101",
   "name": "古龍の縄張り",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -4359,7 +4541,9 @@
   "cardId": "BS01-102",
   "name": "主無き古城",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -4420,7 +4604,9 @@
   "cardId": "BS01-105",
   "name": "魔帝の墓標",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -4477,7 +4663,9 @@
   "cardId": "BS01-106",
   "name": "隠されたる賢者の樹",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -4537,7 +4725,9 @@
   "cardId": "BS01-107",
   "name": "命の果実",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -4596,7 +4786,9 @@
   "cardId": "BS01-108",
   "name": "無限蟲の蟻塚",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -4652,7 +4844,9 @@
   "cardId": "BS01-109",
   "name": "風吹く丘陵",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -4712,7 +4906,9 @@
   "cardId": "BS01-112",
   "name": "千年雪の尖塔",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -4773,7 +4969,9 @@
   "cardId": "BS01-113",
   "name": "侵食されゆく銀世界",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -4834,7 +5032,9 @@
   "cardId": "BS01-114",
   "name": "バスタースピア",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -4864,7 +5064,9 @@
   "cardId": "BS01-115",
   "name": "アウェイクン",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -4901,7 +5103,9 @@
   "cardId": "BS01-116",
   "name": "オフェンシブオーラ",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -4931,7 +5135,9 @@
   "cardId": "BS01-117",
   "name": "ダブルドロー",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -4969,7 +5175,9 @@
   "cardId": "BS01-118",
   "name": "コールオブロスト",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -4998,7 +5206,9 @@
   "cardId": "BS01-119",
   "name": "バーストファイア",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -5026,7 +5236,9 @@
   "cardId": "BS01-120",
   "name": "バスターファランクス",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -5055,7 +5267,9 @@
   "cardId": "BS01-121",
   "name": "フレイムダンス",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -5086,7 +5300,9 @@
   "cardId": "BS01-122",
   "name": "フレイムテンペスト",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -5115,7 +5331,9 @@
   "cardId": "BS01-123",
   "name": "リターンドロー",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 2,
   "reduction": [
    "purple",
@@ -5144,7 +5362,9 @@
   "cardId": "BS01-126",
   "name": "シャドウエリクサー",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -5173,7 +5393,9 @@
   "cardId": "BS01-127",
   "name": "キラーテレスコープ",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -5202,7 +5424,9 @@
   "cardId": "BS01-128",
   "name": "カオスドロー",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -5241,7 +5465,9 @@
   "cardId": "BS01-129",
   "name": "ポイズンシュート",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -5271,7 +5497,9 @@
   "cardId": "BS01-130",
   "name": "チェンジングコア",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -5301,7 +5529,9 @@
   "cardId": "BS01-131",
   "name": "ダークコフィン",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -5340,7 +5570,9 @@
   "cardId": "BS01-132",
   "name": "ストームドロー",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green"
@@ -5368,7 +5600,9 @@
   "cardId": "BS01-133",
   "name": "ワイルドパワー",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green",
@@ -5397,7 +5631,9 @@
   "cardId": "BS01-134",
   "name": "バインディングソーン",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green",
@@ -5426,7 +5662,9 @@
   "cardId": "BS01-135",
   "name": "パワーオーラ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -5463,7 +5701,9 @@
   "cardId": "BS01-136",
   "name": "ギャザーフォース",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -5501,7 +5741,9 @@
   "cardId": "BS01-137",
   "name": "リレイションソウル",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -5532,7 +5774,9 @@
   "cardId": "BS01-138",
   "name": "ハンドリバース",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -5578,7 +5822,9 @@
   "cardId": "BS01-139",
   "name": "フェザーバリア",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -5607,7 +5853,9 @@
   "cardId": "BS01-140",
   "name": "バインディングウッズ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 7,
   "reduction": [
    "green",
@@ -5645,7 +5893,9 @@
   "cardId": "BS01-142",
   "name": "ピュアエリクサー",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -5673,7 +5923,9 @@
   "cardId": "BS01-143",
   "name": "ディバインチェイン",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -5702,7 +5954,9 @@
   "cardId": "BS01-144",
   "name": "サイレントウォール",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -5730,7 +5984,9 @@
   "cardId": "BS01-146",
   "name": "ドリームリボン",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -5760,7 +6016,9 @@
   "cardId": "BS01-147",
   "name": "ドリームチェスト",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -5789,7 +6047,9 @@
   "cardId": "BS01-148",
   "name": "ラークドライブ",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -5818,7 +6078,9 @@
   "cardId": "BS01-149",
   "name": "アタックシフト",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 7,
   "reduction": [
    "white",
@@ -5848,7 +6110,9 @@
   "cardId": "BS01-X01",
   "name": "龍皇ジークフリード",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -5925,7 +6189,9 @@
   "cardId": "BS01-X02",
   "name": "魔界七将デスペラード",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 8,
   "reduction": [
    "purple",
@@ -5988,7 +6254,9 @@
   "cardId": "BS01-X03",
   "name": "キングタウロス大公",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 8,
   "reduction": [
    "green",
@@ -6061,7 +6329,9 @@
   "cardId": "BS01-X04",
   "name": "要塞皇オーディーン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -6129,7 +6399,9 @@
   "cardId": "BS02-001",
   "name": "リザドエッジ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -6165,7 +6437,9 @@
   "cardId": "BS02-002",
   "name": "ナイフ投げのジャグリーン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -6212,7 +6486,9 @@
   "cardId": "BS02-003",
   "name": "ディノハウンド",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red",
@@ -6246,7 +6522,9 @@
   "cardId": "BS02-004",
   "name": "オルカリア",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -6291,7 +6569,9 @@
   "cardId": "BS02-005",
   "name": "ドラグノ突撃兵",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -6350,7 +6630,9 @@
   "cardId": "BS02-006",
   "name": "プテラトマホーク",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red"
@@ -6405,7 +6687,9 @@
   "cardId": "BS02-007",
   "name": "昇龍バルムンク",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -6456,7 +6740,9 @@
   "cardId": "BS02-008",
   "name": "フィスドラグーン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -6510,7 +6796,9 @@
   "cardId": "BS02-009",
   "name": "竜狩りのアーケオルニ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -6558,7 +6846,9 @@
   "cardId": "BS02-010",
   "name": "溶海竜プレシオス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -6629,7 +6919,9 @@
   "cardId": "BS02-011",
   "name": "ツヴァイ・ハウル",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -6695,7 +6987,9 @@
   "cardId": "BS02-012",
   "name": "地龍王ケンドラゴス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -6758,7 +7052,9 @@
   "cardId": "BS02-013",
   "name": "バット・バット",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -6803,7 +7099,9 @@
   "cardId": "BS02-014",
   "name": "ファンタズマ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 2,
   "reduction": [
    "purple"
@@ -6836,7 +7134,9 @@
   "cardId": "BS02-015",
   "name": "ハンプダンプ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple"
@@ -6878,7 +7178,9 @@
   "cardId": "BS02-016",
   "name": "スライミー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -6928,7 +7230,9 @@
   "cardId": "BS02-017",
   "name": "マミーラ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple"
@@ -6976,7 +7280,9 @@
   "cardId": "BS02-018",
   "name": "悪魔スプラー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -7043,7 +7349,9 @@
   "cardId": "BS02-019",
   "name": "悪魔デースペル",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -7110,7 +7418,9 @@
   "cardId": "BS02-020",
   "name": "レディ・フランケリー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -7172,7 +7482,9 @@
   "cardId": "BS02-021",
   "name": "髑髏騎士ズ・ガイン",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -7240,7 +7552,9 @@
   "cardId": "BS02-022",
   "name": "魔界侯爵コキュートス",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -7310,7 +7624,9 @@
   "cardId": "BS02-023",
   "name": "双蛇ヒュドラム",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -7352,7 +7668,9 @@
   "cardId": "BS02-024",
   "name": "暗黒将軍ブラッディ・シーザー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -7416,7 +7734,9 @@
   "cardId": "BS02-025",
   "name": "シープル",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -7447,7 +7767,9 @@
   "cardId": "BS02-026",
   "name": "マッハジー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -7488,7 +7810,9 @@
   "cardId": "BS02-027",
   "name": "カプリホルン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [
    "green"
@@ -7536,7 +7860,9 @@
   "cardId": "BS02-028",
   "name": "クロスシザース",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green"
@@ -7589,7 +7915,9 @@
   "cardId": "BS02-029",
   "name": "バットホッパー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -7637,7 +7965,9 @@
   "cardId": "BS02-030",
   "name": "兵隊アントマン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -7681,7 +8011,9 @@
   "cardId": "BS02-031",
   "name": "スコルピード",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green"
@@ -7739,7 +8071,9 @@
   "cardId": "BS02-032",
   "name": "ダッチョーノ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green"
@@ -7787,7 +8121,9 @@
   "cardId": "BS02-033",
   "name": "騎獣スレイプホース",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green"
@@ -7848,7 +8184,9 @@
   "cardId": "BS02-034",
   "name": "老賢樹トレントン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -7911,7 +8249,9 @@
   "cardId": "BS02-035",
   "name": "漆黒鳥ヤタグロス",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -7967,7 +8307,9 @@
   "cardId": "BS02-036",
   "name": "カイザレオン大帝",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 7,
   "reduction": [
    "green",
@@ -8026,7 +8368,9 @@
   "cardId": "BS02-037",
   "name": "スフィアロイド",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 1,
   "reduction": [
    "white"
@@ -8073,7 +8417,9 @@
   "cardId": "BS02-038",
   "name": "盾精ラングリーズ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white"
@@ -8130,7 +8476,9 @@
   "cardId": "BS02-039",
   "name": "神機ミョルニール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white",
@@ -8169,7 +8517,9 @@
   "cardId": "BS02-040",
   "name": "ロブスターク",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white"
@@ -8216,7 +8566,9 @@
   "cardId": "BS02-041",
   "name": "ライオライダー",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -8264,7 +8616,9 @@
   "cardId": "BS02-042",
   "name": "スクルディア",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -8315,7 +8669,9 @@
   "cardId": "BS02-043",
   "name": "アルマ・ジール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -8367,7 +8723,9 @@
   "cardId": "BS02-044",
   "name": "魔砲神メガロック",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -8428,7 +8786,9 @@
   "cardId": "BS02-045",
   "name": "装甲機竜ファーブニル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -8488,7 +8848,9 @@
   "cardId": "BS02-046",
   "name": "ウィンガル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -8528,7 +8890,9 @@
   "cardId": "BS02-047",
   "name": "機神官フレイ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 7,
   "reduction": [
    "white",
@@ -8582,7 +8946,9 @@
   "cardId": "BS02-048",
   "name": "竜戦車アースガルド",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -8643,7 +9009,9 @@
   "cardId": "BS02-049",
   "name": "ピヨン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -8674,7 +9042,9 @@
   "cardId": "BS02-050",
   "name": "コリスタル",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -8719,7 +9089,9 @@
   "cardId": "BS02-051",
   "name": "チュンポポ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -8755,7 +9127,9 @@
   "cardId": "BS02-052",
   "name": "チャガマル",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -8813,7 +9187,9 @@
   "cardId": "BS02-053",
   "name": "妖精ターニャ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [
    "yellow"
@@ -8851,7 +9227,9 @@
   "cardId": "BS02-054",
   "name": "ポム",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow"
@@ -8918,7 +9296,9 @@
   "cardId": "BS02-055",
   "name": "チャウー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow"
@@ -8961,7 +9341,9 @@
   "cardId": "BS02-056",
   "name": "アルカナビースト・ケン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow",
@@ -9017,7 +9399,9 @@
   "cardId": "BS02-057",
   "name": "妖精女王ティ・ターニャ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow"
@@ -9070,7 +9454,9 @@
   "cardId": "BS02-058",
   "name": "ペンタン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow"
@@ -9140,7 +9526,9 @@
   "cardId": "BS02-059",
   "name": "ロム",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -9179,7 +9567,9 @@
   "cardId": "BS02-060",
   "name": "道化師クラン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -9234,7 +9624,9 @@
   "cardId": "BS02-061",
   "name": "天使エンジュ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -9290,7 +9682,9 @@
   "cardId": "BS02-062",
   "name": "ポークン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow"
@@ -9340,7 +9734,9 @@
   "cardId": "BS02-063",
   "name": "冥犬ケルル・ベロス",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -9402,7 +9798,9 @@
   "cardId": "BS02-064",
   "name": "音鳥クルーク",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -9457,7 +9855,9 @@
   "cardId": "BS02-065",
   "name": "花の子リップ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -9512,7 +9912,9 @@
   "cardId": "BS02-066",
   "name": "アルカナドール・パン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -9562,7 +9964,9 @@
   "cardId": "BS02-067",
   "name": "天使バーチュ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow"
@@ -9614,7 +10018,9 @@
   "cardId": "BS02-068",
   "name": "白虎ハック",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -9666,7 +10072,9 @@
   "cardId": "BS02-069",
   "name": "黒虎クロン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -9718,7 +10126,9 @@
   "cardId": "BS02-070",
   "name": "アルカナプリンス・オベロ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -9779,7 +10189,9 @@
   "cardId": "BS02-071",
   "name": "宝石の獣カーバルク",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -9853,7 +10265,9 @@
   "cardId": "BS02-072",
   "name": "トリックスター",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -9902,7 +10316,9 @@
   "cardId": "BS02-073",
   "name": "皇帝アンプルール",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -9959,7 +10375,9 @@
   "cardId": "BS02-074",
   "name": "風船魔人バーバル",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -10000,7 +10418,9 @@
   "cardId": "BS02-075",
   "name": "天使長プリンシパール",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 8,
   "reduction": [
    "yellow",
@@ -10058,7 +10478,9 @@
   "cardId": "BS02-076",
   "name": "太古の断層",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -10134,7 +10556,9 @@
   "cardId": "BS02-077",
   "name": "決闘台地",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -10194,7 +10618,9 @@
   "cardId": "BS02-078",
   "name": "夢魔の寝所",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -10252,7 +10678,9 @@
   "cardId": "BS02-079",
   "name": "紫水晶の森",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -10307,7 +10735,9 @@
   "cardId": "BS02-080",
   "name": "エメラルドに輝く鍾乳洞",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -10358,7 +10788,9 @@
   "cardId": "BS02-081",
   "name": "緑芽吹く原野",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -10406,7 +10838,9 @@
   "cardId": "BS02-082",
   "name": "生み出される尖兵",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -10452,7 +10886,9 @@
   "cardId": "BS02-083",
   "name": "鏡の回廊",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -10500,7 +10936,9 @@
   "cardId": "BS02-084",
   "name": "祝福されし大聖堂",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -10562,7 +11000,9 @@
   "cardId": "BS02-085",
   "name": "トパーズの流星",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -10617,7 +11057,9 @@
   "cardId": "BS02-086",
   "name": "螺旋の塔",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -10665,7 +11107,9 @@
   "cardId": "BS02-087",
   "name": "封印された魔導書",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -10710,7 +11154,9 @@
   "cardId": "BS02-088",
   "name": "クロスファイア",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red",
@@ -10739,7 +11185,9 @@
   "cardId": "BS02-089",
   "name": "スピリットリンク",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -10769,7 +11217,9 @@
   "cardId": "BS02-090",
   "name": "マインドフレア",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -10799,7 +11249,9 @@
   "cardId": "BS02-091",
   "name": "セブンスクリムゾン",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -10828,7 +11280,9 @@
   "cardId": "BS02-092",
   "name": "エナジードレイン",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -10858,7 +11312,9 @@
   "cardId": "BS02-093",
   "name": "マインドコントロール",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -10888,7 +11344,9 @@
   "cardId": "BS02-094",
   "name": "ブラッディレイン",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -10917,7 +11375,9 @@
   "cardId": "BS02-095",
   "name": "サクリファイス",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -10947,7 +11407,9 @@
   "cardId": "BS02-096",
   "name": "ディバインウィンド",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green",
@@ -10976,7 +11438,9 @@
   "cardId": "BS02-097",
   "name": "ネイチャーフォース",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -11005,7 +11469,9 @@
   "cardId": "BS02-098",
   "name": "キャストオフ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -11035,7 +11501,9 @@
   "cardId": "BS02-099",
   "name": "ライフチェイン",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -11067,7 +11535,9 @@
   "cardId": "BS02-100",
   "name": "インビンシブルシールド",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -11102,7 +11572,9 @@
   "cardId": "BS02-101",
   "name": "リフレクションアーマー",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -11138,7 +11610,9 @@
   "cardId": "BS02-102",
   "name": "ホワイトポーション",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -11167,7 +11641,9 @@
   "cardId": "BS02-103",
   "name": "リロードコア",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -11196,7 +11672,9 @@
   "cardId": "BS02-104",
   "name": "アディショナルカラー",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow",
@@ -11224,7 +11702,9 @@
   "cardId": "BS02-105",
   "name": "グレートウォール",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -11253,7 +11733,9 @@
   "cardId": "BS02-106",
   "name": "ローヤルポーション",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -11282,7 +11764,9 @@
   "cardId": "BS02-107",
   "name": "タイムリープ",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -11319,7 +11803,9 @@
   "cardId": "BS02-108",
   "name": "マジックブック",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -11356,7 +11842,9 @@
   "cardId": "BS02-109",
   "name": "エンジェルボイス",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -11384,7 +11872,9 @@
   "cardId": "BS02-110",
   "name": "ヘビィゲート",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -11415,7 +11905,9 @@
   "cardId": "BS02-111",
   "name": "スピリットイリュージョン",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -11445,7 +11937,9 @@
   "cardId": "BS02-X05",
   "name": "暴双龍ディラノス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -11514,7 +12008,9 @@
   "cardId": "BS02-X06",
   "name": "魔界七将デストロード",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -11578,7 +12074,9 @@
   "cardId": "BS02-X07",
   "name": "巨神機トール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 7,
   "reduction": [
    "white",
@@ -11632,7 +12130,9 @@
   "cardId": "BS02-X08",
   "name": "大天使ミカファール",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 7,
   "reduction": [
    "yellow",
@@ -11693,7 +12193,9 @@
   "cardId": "BS03-001",
   "name": "火精サラマンダート",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -11724,7 +12226,9 @@
   "cardId": "BS03-002",
   "name": "エッジホッグ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 1,
   "reduction": [
    "red"
@@ -11771,7 +12275,9 @@
   "cardId": "BS03-003",
   "name": "ドラグノ暗殺者",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red"
@@ -11838,7 +12344,9 @@
   "cardId": "BS03-004",
   "name": "ブロントライデント",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -11888,7 +12396,9 @@
   "cardId": "BS03-005",
   "name": "エンチュウ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -11927,7 +12437,9 @@
   "cardId": "BS03-006",
   "name": "ランカフォリンクス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -11992,7 +12504,9 @@
   "cardId": "BS03-007",
   "name": "フレイム・エルク",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -12046,7 +12560,9 @@
   "cardId": "BS03-008",
   "name": "剣竜ステゴラーサウルス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -12104,7 +12620,9 @@
   "cardId": "BS03-009",
   "name": "火吹きメルト",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -12144,7 +12662,9 @@
   "cardId": "BS03-010",
   "name": "黒竜ヴリトラ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -12194,7 +12714,9 @@
   "cardId": "BS03-011",
   "name": "竜騎将ディライダロス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -12246,7 +12768,9 @@
   "cardId": "BS03-012",
   "name": "水龍王リヴァイア",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 8,
   "reduction": [
    "red",
@@ -12303,7 +12827,9 @@
   "cardId": "BS03-013",
   "name": "ヘルスコルピオ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -12339,7 +12865,9 @@
   "cardId": "BS03-014",
   "name": "スカル・フィッシュ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 2,
   "reduction": [
    "purple"
@@ -12391,7 +12919,9 @@
   "cardId": "BS03-015",
   "name": "魔草マインドラゴラ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple"
@@ -12438,7 +12968,9 @@
   "cardId": "BS03-016",
   "name": "透明人間エクリア",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -12487,7 +13019,9 @@
   "cardId": "BS03-017",
   "name": "幽霊船長シルバーシャーク",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -12531,7 +13065,9 @@
   "cardId": "BS03-018",
   "name": "ダークレイス",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -12571,7 +13107,9 @@
   "cardId": "BS03-019",
   "name": "魔界軍師ヘルミア",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -12640,7 +13178,9 @@
   "cardId": "BS03-020",
   "name": "メガ・ハンプダンプ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -12681,7 +13221,9 @@
   "cardId": "BS03-021",
   "name": "魔界伯爵ヴィール",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -12735,7 +13277,9 @@
   "cardId": "BS03-022",
   "name": "暗礁の歌姫セレン",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -12784,7 +13328,9 @@
   "cardId": "BS03-023",
   "name": "人造生命体No.44",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -12843,7 +13389,9 @@
   "cardId": "BS03-024",
   "name": "吸血騎士ノスフェラト",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 8,
   "reduction": [
    "purple",
@@ -12894,7 +13442,9 @@
   "cardId": "BS03-025",
   "name": "スタッグシザー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -12925,7 +13475,9 @@
   "cardId": "BS03-026",
   "name": "木精ドリアドナ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [
    "green"
@@ -12959,7 +13511,9 @@
   "cardId": "BS03-027",
   "name": "フルミンゴ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green"
@@ -13005,7 +13559,9 @@
   "cardId": "BS03-028",
   "name": "モグランナー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -13059,7 +13615,9 @@
   "cardId": "BS03-029",
   "name": "マッハフライ",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -13098,7 +13656,9 @@
   "cardId": "BS03-030",
   "name": "調教師ライナ兄弟",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -13147,7 +13707,9 @@
   "cardId": "BS03-031",
   "name": "黒風のパンター",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -13196,7 +13758,9 @@
   "cardId": "BS03-032",
   "name": "蜘蛛女アラクネット",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -13247,7 +13811,9 @@
   "cardId": "BS03-033",
   "name": "ビートプリースト",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -13300,7 +13866,9 @@
   "cardId": "BS03-034",
   "name": "闘鶏ビシャモン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -13355,7 +13923,9 @@
   "cardId": "BS03-035",
   "name": "太陽花ゾンネ・ブルム",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 7,
   "reduction": [
    "green",
@@ -13409,7 +13979,9 @@
   "cardId": "BS03-036",
   "name": "神鳥ピーゴッド",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 8,
   "reduction": [
    "green",
@@ -13462,7 +14034,9 @@
   "cardId": "BS03-037",
   "name": "ラタトスカ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -13506,7 +14080,9 @@
   "cardId": "BS03-038",
   "name": "アンジェラフィッシュ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [],
   "family": [
@@ -13537,7 +14113,9 @@
   "cardId": "BS03-039",
   "name": "笛吹きのヘイムダル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white"
@@ -13583,7 +14161,9 @@
   "cardId": "BS03-040",
   "name": "ベル・ダンディア",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -13652,7 +14232,9 @@
   "cardId": "BS03-041",
   "name": "機人アスク",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -13687,7 +14269,9 @@
   "cardId": "BS03-042",
   "name": "海獣ジューゴン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white"
@@ -13725,7 +14309,9 @@
   "cardId": "BS03-043",
   "name": "ホタルリ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -13773,7 +14359,9 @@
   "cardId": "BS03-044",
   "name": "鋼人スルト",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -13833,7 +14421,9 @@
   "cardId": "BS03-045",
   "name": "銀狐ハティ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -13883,7 +14473,9 @@
   "cardId": "BS03-046",
   "name": "一角獣アインホルン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -13934,7 +14526,9 @@
   "cardId": "BS03-047",
   "name": "硝子の女神フレイア",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 7,
   "reduction": [
    "white",
@@ -13988,7 +14582,9 @@
   "cardId": "BS03-048",
   "name": "鎧蛇竜ミッドガルズ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -14056,7 +14652,9 @@
   "cardId": "BS03-049",
   "name": "ミケネ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -14101,7 +14699,9 @@
   "cardId": "BS03-050",
   "name": "キノコノコ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [
    "yellow"
@@ -14148,7 +14748,9 @@
   "cardId": "BS03-051",
   "name": "ドングリン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow"
@@ -14186,7 +14788,9 @@
   "cardId": "BS03-052",
   "name": "フロッガー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow"
@@ -14224,7 +14828,9 @@
   "cardId": "BS03-053",
   "name": "百面相のフラットフェイス",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow",
@@ -14284,7 +14890,9 @@
   "cardId": "BS03-054",
   "name": "アルカナドール・トリア",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow"
@@ -14326,7 +14934,9 @@
   "cardId": "BS03-055",
   "name": "ゴマザラシ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -14398,7 +15008,9 @@
   "cardId": "BS03-056",
   "name": "オチョゴ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -14450,7 +15062,9 @@
   "cardId": "BS03-057",
   "name": "ジェルフィ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -14501,7 +15115,9 @@
   "cardId": "BS03-058",
   "name": "妖精ティングリー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -14551,7 +15167,9 @@
   "cardId": "BS03-059",
   "name": "アルカナビースト・ペイラ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow"
@@ -14599,7 +15217,9 @@
   "cardId": "BS03-060",
   "name": "ランプキン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -14633,7 +15253,9 @@
   "cardId": "BS03-061",
   "name": "苺っ娘ストロベリ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -14681,7 +15303,9 @@
   "cardId": "BS03-062",
   "name": "チワール",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -14736,7 +15360,9 @@
   "cardId": "BS03-063",
   "name": "ポニサス",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -14771,7 +15397,9 @@
   "cardId": "BS03-064",
   "name": "薔薇人バロッサ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -14819,7 +15447,9 @@
   "cardId": "BS03-065",
   "name": "天使キュリオ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -14895,7 +15525,9 @@
   "cardId": "BS03-066",
   "name": "天使アルケー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -14958,7 +15590,9 @@
   "cardId": "BS03-067",
   "name": "アルカナプリンセス・アン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -15019,7 +15653,9 @@
   "cardId": "BS03-068",
   "name": "フォルトロス",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 7,
   "reduction": [
    "yellow",
@@ -15060,7 +15696,9 @@
   "cardId": "BS03-069",
   "name": "イワトビペンタン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 7,
   "reduction": [
    "yellow",
@@ -15117,7 +15755,9 @@
   "cardId": "BS03-070",
   "name": "天使長エクスシア",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 8,
   "reduction": [
    "yellow",
@@ -15169,7 +15809,9 @@
   "cardId": "BS03-071",
   "name": "戦闘獣ブルトップ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 0,
   "reduction": [],
   "family": [
@@ -15200,7 +15842,9 @@
   "cardId": "BS03-072",
   "name": "槍兵のジェフリー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -15231,7 +15875,9 @@
   "cardId": "BS03-073",
   "name": "ストン・スタチュー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [
    "blue"
@@ -15279,7 +15925,9 @@
   "cardId": "BS03-074",
   "name": "戦闘獣ドーベン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [
    "blue"
@@ -15327,7 +15975,9 @@
   "cardId": "BS03-075",
   "name": "犬人マードック",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -15376,7 +16026,9 @@
   "cardId": "BS03-076",
   "name": "爪剣のラザラス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -15425,7 +16077,9 @@
   "cardId": "BS03-077",
   "name": "強襲兵のノーマン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -15476,7 +16130,9 @@
   "cardId": "BS03-078",
   "name": "暴れトロル",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue",
@@ -15510,7 +16166,9 @@
   "cardId": "BS03-079",
   "name": "作戦参謀フォクシン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15554,7 +16212,9 @@
   "cardId": "BS03-080",
   "name": "ロック・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15604,7 +16264,9 @@
   "cardId": "BS03-081",
   "name": "人馬巨兵ダンストン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15638,7 +16300,9 @@
   "cardId": "BS03-082",
   "name": "シャークハンマー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15685,7 +16349,9 @@
   "cardId": "BS03-083",
   "name": "熊男ベアード",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15725,7 +16391,9 @@
   "cardId": "BS03-084",
   "name": "巨猫ブリンクス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -15774,7 +16442,9 @@
   "cardId": "BS03-085",
   "name": "ウッド・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue"
@@ -15818,7 +16488,9 @@
   "cardId": "BS03-086",
   "name": "修理屋バラン・バラン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -15871,7 +16543,9 @@
   "cardId": "BS03-087",
   "name": "戦闘獣ライノ・セーラス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -15926,7 +16600,9 @@
   "cardId": "BS03-088",
   "name": "城壊しのデニス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -15977,7 +16653,9 @@
   "cardId": "BS03-089",
   "name": "ディープ・アーノルド",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -16012,7 +16690,9 @@
   "cardId": "BS03-090",
   "name": "斬竜刀のガイ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -16065,7 +16745,9 @@
   "cardId": "BS03-091",
   "name": "戦闘獣バン・ファロー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -16099,7 +16781,9 @@
   "cardId": "BS03-092",
   "name": "島持ちのフランシス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -16150,7 +16834,9 @@
   "cardId": "BS03-093",
   "name": "牛人ブルタニア",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -16207,7 +16893,9 @@
   "cardId": "BS03-094",
   "name": "偉大なる鍛冶師バギン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 6,
   "reduction": [
    "blue",
@@ -16271,7 +16959,9 @@
   "cardId": "BS03-095",
   "name": "奇術師オリバー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 6,
   "reduction": [
    "blue",
@@ -16321,7 +17011,9 @@
   "cardId": "BS03-096",
   "name": "巨人王ランドルフ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 6,
   "reduction": [
    "blue",
@@ -16374,7 +17066,9 @@
   "cardId": "BS03-097",
   "name": "鷹人ホークアイ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 7,
   "reduction": [
    "blue",
@@ -16423,7 +17117,9 @@
   "cardId": "BS03-098",
   "name": "戦闘竜ワイヴァーン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 7,
   "reduction": [
    "blue",
@@ -16484,7 +17180,9 @@
   "cardId": "BS03-099",
   "name": "虎拳士タイガ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 7,
   "reduction": [
    "blue",
@@ -16526,7 +17224,9 @@
   "cardId": "BS03-100",
   "name": "武器コレクターのゴドフリー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 8,
   "reduction": [
    "blue",
@@ -16592,7 +17292,9 @@
   "cardId": "BS03-101",
   "name": "ボルカノ・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 8,
   "reduction": [
    "blue",
@@ -16651,7 +17353,9 @@
   "cardId": "BS03-102",
   "name": "無法者の荒野",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -16722,7 +17426,9 @@
   "cardId": "BS03-103",
   "name": "熾烈極める最前線",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -16770,7 +17476,9 @@
   "cardId": "BS03-104",
   "name": "運命分かつ岐路",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -16833,7 +17541,9 @@
   "cardId": "BS03-105",
   "name": "暗礁海域",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -16881,7 +17591,9 @@
   "cardId": "BS03-106",
   "name": "深緑の樹海",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -16950,7 +17662,9 @@
   "cardId": "BS03-107",
   "name": "果て無き地平線",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -17005,7 +17719,9 @@
   "cardId": "BS03-108",
   "name": "鋼に覆われた高空",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -17066,7 +17782,9 @@
   "cardId": "BS03-109",
   "name": "極光の大地",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -17124,7 +17842,9 @@
   "cardId": "BS03-110",
   "name": "星降る巡礼地",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow"
@@ -17174,7 +17894,9 @@
   "cardId": "BS03-111",
   "name": "子供部屋 午前0時",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -17247,7 +17969,9 @@
   "cardId": "BS03-112",
   "name": "トランプの王国",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -17310,7 +18034,9 @@
   "cardId": "BS03-113",
   "name": "力奪う凱旋門",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -17360,7 +18086,9 @@
   "cardId": "BS03-114",
   "name": "サファイアの城壁",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -17416,7 +18144,9 @@
   "cardId": "BS03-115",
   "name": "崩壊する戦線",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -17469,7 +18199,9 @@
   "cardId": "BS03-116",
   "name": "英雄の喪失",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -17532,7 +18264,9 @@
   "cardId": "BS03-117",
   "name": "士気高き大本営",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -17587,7 +18321,9 @@
   "cardId": "BS03-118",
   "name": "フォースドロー",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -17616,7 +18352,9 @@
   "cardId": "BS03-119",
   "name": "バスターランス",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -17646,7 +18384,9 @@
   "cardId": "BS03-120",
   "name": "フレイムサイクロン",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -17676,7 +18416,9 @@
   "cardId": "BS03-121",
   "name": "ダブルハート",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 8,
   "reduction": [
    "red",
@@ -17705,7 +18447,9 @@
   "cardId": "BS03-122",
   "name": "フォールダウン",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -17735,7 +18479,9 @@
   "cardId": "BS03-123",
   "name": "ネクロマンシー",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -17764,7 +18510,9 @@
   "cardId": "BS03-124",
   "name": "ポイズンミスト",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -17793,7 +18541,9 @@
   "cardId": "BS03-125",
   "name": "ウィークネス",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -17823,7 +18573,9 @@
   "cardId": "BS03-126",
   "name": "ポーションベリー",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -17853,7 +18605,9 @@
   "cardId": "BS03-127",
   "name": "アイビィーケイジ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -17882,7 +18636,9 @@
   "cardId": "BS03-128",
   "name": "マルチプルコア",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -17912,7 +18668,9 @@
   "cardId": "BS03-129",
   "name": "フロックリカバリー",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -17941,7 +18699,9 @@
   "cardId": "BS03-130",
   "name": "メビウスリング",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -17970,7 +18730,9 @@
   "cardId": "BS03-131",
   "name": "ユナイテッドパワー",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -17999,7 +18761,9 @@
   "cardId": "BS03-132",
   "name": "パーフェクトガード",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -18029,7 +18793,9 @@
   "cardId": "BS03-133",
   "name": "ハイエリクサー",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -18059,7 +18825,9 @@
   "cardId": "BS03-134",
   "name": "パペットストリング",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow",
@@ -18088,7 +18856,9 @@
   "cardId": "BS03-135",
   "name": "エスケープルート",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -18118,7 +18888,9 @@
   "cardId": "BS03-136",
   "name": "フォーカスライト",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -18147,7 +18919,9 @@
   "cardId": "BS03-137",
   "name": "フォーカード",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -18176,7 +18950,9 @@
   "cardId": "BS03-138",
   "name": "テレポートチェンジ",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -18204,7 +18980,9 @@
   "cardId": "BS03-139",
   "name": "セイムタイアード",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -18233,7 +19011,9 @@
   "cardId": "BS03-140",
   "name": "シャイニングマジック",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 8,
   "reduction": [
    "yellow",
@@ -18271,7 +19051,9 @@
   "cardId": "BS03-141",
   "name": "ビルドアップ",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -18299,7 +19081,9 @@
   "cardId": "BS03-142",
   "name": "サルベージ",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -18338,7 +19122,9 @@
   "cardId": "BS03-143",
   "name": "ブリッツ",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -18367,7 +19153,9 @@
   "cardId": "BS03-144",
   "name": "マジックハンマー",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -18405,7 +19193,9 @@
   "cardId": "BS03-145",
   "name": "スクランブル",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -18444,7 +19234,9 @@
   "cardId": "BS03-146",
   "name": "ネクサスレジスター",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -18473,7 +19265,9 @@
   "cardId": "BS03-147",
   "name": "ゴーレムクラフト",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -18503,7 +19297,9 @@
   "cardId": "BS03-148",
   "name": "コンストラクション",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 6,
   "reduction": [
    "blue",
@@ -18548,7 +19344,9 @@
   "cardId": "BS03-149",
   "name": "デルタクラッシュ",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 7,
   "reduction": [
    "blue",
@@ -18585,7 +19383,9 @@
   "cardId": "BS03-X09",
   "name": "蛮騎士ハーキュリー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 7,
   "reduction": [
    "green",
@@ -18630,7 +19430,9 @@
   "cardId": "BS03-X10",
   "name": "凍獣マン・モール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 8,
   "reduction": [
    "white",
@@ -18690,7 +19492,9 @@
   "cardId": "BS03-X11",
   "name": "大天使ヴァリエル",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 8,
   "reduction": [
    "yellow",
@@ -18741,7 +19545,9 @@
   "cardId": "BS03-X12",
   "name": "英雄巨人タイタス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 8,
   "reduction": [
    "blue",
@@ -18807,7 +19613,9 @@
   "cardId": "BS04-001",
   "name": "クナノミ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 1,
   "reduction": [
    "red"
@@ -18858,7 +19666,9 @@
   "cardId": "BS04-002",
   "name": "カメレウィップ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red"
@@ -18915,7 +19725,9 @@
   "cardId": "BS04-003",
   "name": "ダークゴラドン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 2,
   "reduction": [
    "red",
@@ -18954,7 +19766,9 @@
   "cardId": "BS04-004",
   "name": "ダークディノハウンド",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red"
@@ -19003,7 +19817,9 @@
   "cardId": "BS04-005",
   "name": "チェイン・ドラゴン",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -19037,7 +19853,9 @@
   "cardId": "BS04-006",
   "name": "骸竜ゾン・サウル",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -19111,7 +19929,9 @@
   "cardId": "BS04-007",
   "name": "ドラグノ近衛兵",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -19159,7 +19979,9 @@
   "cardId": "BS04-008",
   "name": "古竜魔人バ・ゴゥ",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red"
@@ -19214,7 +20036,9 @@
   "cardId": "BS04-009",
   "name": "炎皇クジャラク",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -19256,7 +20080,9 @@
   "cardId": "BS04-010",
   "name": "雷帝エール・クレル",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -19312,7 +20138,9 @@
   "cardId": "BS04-011",
   "name": "風龍王フージャオス",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 7,
   "reduction": [
    "red",
@@ -19402,7 +20230,9 @@
   "cardId": "BS04-012",
   "name": "バンシィ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 1,
   "reduction": [
    "purple"
@@ -19440,7 +20270,9 @@
   "cardId": "BS04-013",
   "name": "スカルデーモン",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 2,
   "reduction": [
    "purple"
@@ -19488,7 +20320,9 @@
   "cardId": "BS04-014",
   "name": "シャドウジャグラー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple"
@@ -19544,7 +20378,9 @@
   "cardId": "BS04-015",
   "name": "サイクロ・ワインダー",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -19579,7 +20415,9 @@
   "cardId": "BS04-016",
   "name": "堕天使アゼル",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -19639,7 +20477,9 @@
   "cardId": "BS04-017",
   "name": "ヘルウィッチ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -19712,7 +20552,9 @@
   "cardId": "BS04-018",
   "name": "水蛇シーサーペンタ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -19800,7 +20642,9 @@
   "cardId": "BS04-019",
   "name": "首無し馬車",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -19835,7 +20679,9 @@
   "cardId": "BS04-020",
   "name": "闇帝オプス・キュリテ",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 6,
   "reduction": [
    "purple",
@@ -19891,7 +20737,9 @@
   "cardId": "BS04-021",
   "name": "吸血鬼ダンピール",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 7,
   "reduction": [
    "purple",
@@ -19977,7 +20825,9 @@
   "cardId": "BS04-022",
   "name": "王蛇ケツァルカトル",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 8,
   "reduction": [
    "purple",
@@ -20048,7 +20898,9 @@
   "cardId": "BS04-023",
   "name": "ジラーファン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 1,
   "reduction": [
    "green"
@@ -20086,7 +20938,9 @@
   "cardId": "BS04-024",
   "name": "ダックル",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 2,
   "reduction": [
    "green",
@@ -20138,7 +20992,9 @@
   "cardId": "BS04-025",
   "name": "ファル・コンドル",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green"
@@ -20200,7 +21056,9 @@
   "cardId": "BS04-026",
   "name": "ブラックマッハジー",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -20234,7 +21092,9 @@
   "cardId": "BS04-027",
   "name": "アリゲイド",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -20285,7 +21145,9 @@
   "cardId": "BS04-028",
   "name": "セブンスポット",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -20337,7 +21199,9 @@
   "cardId": "BS04-029",
   "name": "ブラックモノケイロス",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -20390,7 +21254,9 @@
   "cardId": "BS04-030",
   "name": "食蟲花バグ・レシア",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -20429,7 +21295,9 @@
   "cardId": "BS04-031",
   "name": "陸帝フォン・ダシオン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -20485,7 +21353,9 @@
   "cardId": "BS04-032",
   "name": "槍蟲ルカニドス",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 7,
   "reduction": [
    "green",
@@ -20533,7 +21403,9 @@
   "cardId": "BS04-033",
   "name": "甲殻戦士ロングホーン",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 8,
   "reduction": [
    "green",
@@ -20591,7 +21463,9 @@
   "cardId": "BS04-034",
   "name": "ヴィゾフニル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -20635,7 +21509,9 @@
   "cardId": "BS04-035",
   "name": "バーサーカー・マグナム",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white"
@@ -20668,7 +21544,9 @@
   "cardId": "BS04-036",
   "name": "オッドセイ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white",
@@ -20726,7 +21604,9 @@
   "cardId": "BS04-037",
   "name": "鎧装獣ヘイズ・ルーン",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white"
@@ -20759,7 +21639,9 @@
   "cardId": "BS04-038",
   "name": "偵察機マグニ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -20798,7 +21680,9 @@
   "cardId": "BS04-039",
   "name": "宝石虫スカラベール",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -20853,7 +21737,9 @@
   "cardId": "BS04-040",
   "name": "鎧装獣グリン・ブルスティ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -20894,7 +21780,9 @@
   "cardId": "BS04-041",
   "name": "フェンリルキャノンMk-II",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -20965,7 +21853,9 @@
   "cardId": "BS04-042",
   "name": "獣使いドヴェルグ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -21005,7 +21895,9 @@
   "cardId": "BS04-043",
   "name": "ワルキューレ・ヒルド",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -21052,7 +21944,9 @@
   "cardId": "BS04-044",
   "name": "空帝ル・シエル",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 6,
   "reduction": [
    "white",
@@ -21108,7 +22002,9 @@
   "cardId": "BS04-045",
   "name": "氷の女神フリッグ",
   "type": "spirit",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 7,
   "reduction": [
    "white",
@@ -21175,7 +22071,9 @@
   "cardId": "BS04-046",
   "name": "妖精ドロシー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 1,
   "reduction": [
    "yellow"
@@ -21213,7 +22111,9 @@
   "cardId": "BS04-047",
   "name": "ワイズレス・スケアクロウ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow"
@@ -21255,7 +22155,9 @@
   "cardId": "BS04-048",
   "name": "ダークピヨン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 2,
   "reduction": [
    "yellow",
@@ -21294,7 +22196,9 @@
   "cardId": "BS04-049",
   "name": "黒の妖精ティ・ターニャ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -21348,7 +22252,9 @@
   "cardId": "BS04-050",
   "name": "ハートレス・ティン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -21403,7 +22309,9 @@
   "cardId": "BS04-051",
   "name": "アルカナビースト・ハルト",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -21459,7 +22367,9 @@
   "cardId": "BS04-052",
   "name": "郵便ペンタン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -21523,7 +22433,9 @@
   "cardId": "BS04-053",
   "name": "天使スローン",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -21573,7 +22485,9 @@
   "cardId": "BS04-054",
   "name": "アルカナソルジャー・サンク",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -21608,7 +22522,9 @@
   "cardId": "BS04-055",
   "name": "光帝リュミエール",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 6,
   "reduction": [
    "yellow",
@@ -21664,7 +22580,9 @@
   "cardId": "BS04-056",
   "name": "ブレイブレス・レオ",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 7,
   "reduction": [
    "yellow",
@@ -21701,7 +22619,9 @@
   "cardId": "BS04-057",
   "name": "天使長セラフィー",
   "type": "spirit",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 8,
   "reduction": [
    "yellow",
@@ -21752,7 +22672,9 @@
   "cardId": "BS04-058",
   "name": "鼠人チューリヒ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -21794,7 +22716,9 @@
   "cardId": "BS04-059",
   "name": "薬師ギルママール",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [],
   "family": [
@@ -21841,7 +22765,9 @@
   "cardId": "BS04-060",
   "name": "戦士グスタフ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [
    "blue"
@@ -21879,7 +22805,9 @@
   "cardId": "BS04-061",
   "name": "戦闘獣ジャッカー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 1,
   "reduction": [
    "blue"
@@ -21925,7 +22853,9 @@
   "cardId": "BS04-062",
   "name": "猿人モンゴクウ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -21959,7 +22889,9 @@
   "cardId": "BS04-063",
   "name": "二刀流のアムブローズ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -22008,7 +22940,9 @@
   "cardId": "BS04-064",
   "name": "ウガルルム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue",
@@ -22042,7 +22976,9 @@
   "cardId": "BS04-065",
   "name": "機織のハーフェレシテ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue"
@@ -22097,7 +23033,9 @@
   "cardId": "BS04-066",
   "name": "猫人アビシニア",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue"
@@ -22130,7 +23068,9 @@
   "cardId": "BS04-067",
   "name": "ドラ・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -22180,7 +23120,9 @@
   "cardId": "BS04-068",
   "name": "アイアン・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -22244,7 +23186,9 @@
   "cardId": "BS04-069",
   "name": "幻影士のミラージ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -22292,7 +23236,9 @@
   "cardId": "BS04-070",
   "name": "戦闘獣ディアトリマー",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -22326,7 +23272,9 @@
   "cardId": "BS04-071",
   "name": "スチーム・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -22393,7 +23341,9 @@
   "cardId": "BS04-072",
   "name": "ラビラビ",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -22433,7 +23383,9 @@
   "cardId": "BS04-073",
   "name": "海帝クラン・マラン",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 6,
   "reduction": [
    "blue",
@@ -22483,7 +23435,9 @@
   "cardId": "BS04-074",
   "name": "異合竜ハイドラス",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 7,
   "reduction": [
    "blue",
@@ -22546,7 +23500,9 @@
   "cardId": "BS04-075",
   "name": "伝説巨人ジュード",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 8,
   "reduction": [
    "blue",
@@ -22600,7 +23556,9 @@
   "cardId": "BS04-076",
   "name": "翼持つ者の空域",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 4,
   "reduction": [
    "red",
@@ -22667,7 +23625,9 @@
   "cardId": "BS04-077",
   "name": "七龍帝の玉座",
   "type": "nexus",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -22736,7 +23696,9 @@
   "cardId": "BS04-078",
   "name": "魔影街",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -22776,7 +23738,9 @@
   "cardId": "BS04-079",
   "name": "王蛇の住処",
   "type": "nexus",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -22832,7 +23796,9 @@
   "cardId": "BS04-080",
   "name": "旋風渦巻く渓谷",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 3,
   "reduction": [
    "green",
@@ -22877,7 +23843,9 @@
   "cardId": "BS04-081",
   "name": "強者統べる大地",
   "type": "nexus",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -22931,7 +23899,9 @@
   "cardId": "BS04-082",
   "name": "侵されざる聖域",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 3,
   "reduction": [
    "white",
@@ -22964,7 +23934,9 @@
   "cardId": "BS04-083",
   "name": "鋼葉の樹林",
   "type": "nexus",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -23031,7 +24003,9 @@
   "cardId": "BS04-084",
   "name": "奇跡の丘",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -23082,7 +24056,9 @@
   "cardId": "BS04-085",
   "name": "魔力満ちる泉",
   "type": "nexus",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -23156,7 +24132,9 @@
   "cardId": "BS04-086",
   "name": "古代闘技場",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -23199,7 +24177,9 @@
   "cardId": "BS04-087",
   "name": "心臓破りの巨大坂",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -23246,7 +24226,9 @@
   "cardId": "BS04-088",
   "name": "栄光の表彰台",
   "type": "nexus",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -23279,7 +24261,9 @@
   "cardId": "BS04-089",
   "name": "グレートリンク",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -23309,7 +24293,9 @@
   "cardId": "BS04-090",
   "name": "ニーベルングリング",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 3,
   "reduction": [
    "red",
@@ -23328,7 +24314,9 @@
   "cardId": "BS04-091",
   "name": "ライトニングバリスタ",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 5,
   "reduction": [
    "red",
@@ -23374,7 +24362,9 @@
   "cardId": "BS04-092",
   "name": "ドラゴンズラッシュ",
   "type": "magic",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 6,
   "reduction": [
    "red",
@@ -23405,7 +24395,9 @@
   "cardId": "BS04-093",
   "name": "ユーサネイジア",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 3,
   "reduction": [
    "purple",
@@ -23434,7 +24426,9 @@
   "cardId": "BS04-094",
   "name": "ダンスマカブル",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 4,
   "reduction": [
    "purple",
@@ -23462,7 +24456,9 @@
   "cardId": "BS04-095",
   "name": "ヴェノムショット",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -23501,7 +24497,9 @@
   "cardId": "BS04-096",
   "name": "インフェルノアイズ",
   "type": "magic",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 5,
   "reduction": [
    "purple",
@@ -23535,7 +24533,9 @@
   "cardId": "BS04-097",
   "name": "フォレストオーラ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 4,
   "reduction": [
    "green",
@@ -23569,7 +24569,9 @@
   "cardId": "BS04-098",
   "name": "フルアッド",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -23599,7 +24601,9 @@
   "cardId": "BS04-099",
   "name": "グラウンドハウリング",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 5,
   "reduction": [
    "green",
@@ -23645,7 +24649,9 @@
   "cardId": "BS04-100",
   "name": "ジャングルロウ",
   "type": "magic",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 6,
   "reduction": [
    "green",
@@ -23683,7 +24689,9 @@
   "cardId": "BS04-101",
   "name": "ミストカーテン",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 2,
   "reduction": [
    "white",
@@ -23711,7 +24719,9 @@
   "cardId": "BS04-102",
   "name": "ドリームハンド",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 4,
   "reduction": [
    "white",
@@ -23743,7 +24753,9 @@
   "cardId": "BS04-103",
   "name": "ハイエーテル",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -23776,7 +24788,9 @@
   "cardId": "BS04-104",
   "name": "グラシアルブレス",
   "type": "magic",
-  "color": "white",
+  "colors": [
+   "white"
+  ],
   "cost": 5,
   "reduction": [
    "white",
@@ -23810,7 +24824,9 @@
   "cardId": "BS04-105",
   "name": "トリックプランク",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 3,
   "reduction": [
    "yellow",
@@ -23839,7 +24855,9 @@
   "cardId": "BS04-106",
   "name": "グリームホープ",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 4,
   "reduction": [
    "yellow",
@@ -23877,7 +24895,9 @@
   "cardId": "BS04-107",
   "name": "ジャッジメントライツ",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -23911,7 +24931,9 @@
   "cardId": "BS04-108",
   "name": "ストレートフラッシュ",
   "type": "magic",
-  "color": "yellow",
+  "colors": [
+   "yellow"
+  ],
   "cost": 5,
   "reduction": [
    "yellow",
@@ -23943,7 +24965,9 @@
   "cardId": "BS04-109",
   "name": "スイッチヒッター",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -23971,7 +24995,9 @@
   "cardId": "BS04-110",
   "name": "レッドウォール",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 2,
   "reduction": [
    "blue"
@@ -23998,7 +25024,9 @@
   "cardId": "BS04-111",
   "name": "マジックドリル",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -24036,7 +25064,9 @@
   "cardId": "BS04-112",
   "name": "マッシブアップ",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 3,
   "reduction": [
    "blue",
@@ -24068,7 +25098,9 @@
   "cardId": "BS04-113",
   "name": "ネクサスリペアー",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 4,
   "reduction": [
    "blue",
@@ -24115,7 +25147,9 @@
   "cardId": "BS04-114",
   "name": "タイダルタイド",
   "type": "magic",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 5,
   "reduction": [
    "blue",
@@ -24149,7 +25183,9 @@
   "cardId": "BS04-X13",
   "name": "魔龍帝ジークフリード",
   "type": "spirit",
-  "color": "red",
+  "colors": [
+   "red"
+  ],
   "cost": 9,
   "reduction": [
    "red",
@@ -24236,7 +25272,9 @@
   "cardId": "BS04-X14",
   "name": "魔界七将パンデミウム",
   "type": "spirit",
-  "color": "purple",
+  "colors": [
+   "purple"
+  ],
   "cost": 8,
   "reduction": [
    "purple",
@@ -24294,7 +25332,9 @@
   "cardId": "BS04-X15",
   "name": "カイザーアトラス皇帝",
   "type": "spirit",
-  "color": "green",
+  "colors": [
+   "green"
+  ],
   "cost": 9,
   "reduction": [
    "green",
@@ -24345,7 +25385,9 @@
   "cardId": "BS04-X16",
   "name": "機動要塞キャッスル・ゴレム",
   "type": "spirit",
-  "color": "blue",
+  "colors": [
+   "blue"
+  ],
   "cost": 8,
   "reduction": [
    "blue",
@@ -24409,5 +25451,3116 @@
     "optional": false
    }
   ]
+ },
+ {
+  "cardId": "BS05-001",
+  "name": "ドラグノ爆弾兵",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\nコアが1個の相手のスピリット1体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-002",
+  "name": "扇竜ソルデス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-003",
+  "name": "ディメトロドロン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-004",
+  "name": "妖狐キュービック",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣",
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のトラッシュにあるコスト5/6/7の紫のスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-005",
+  "name": "ワイアーム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-006",
+  "name": "城塞龍メガロン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "機竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-007",
+  "name": "真紅の竜使いロッソ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜騎",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のアタックステップ』このスピリットをBP+3000する”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-008",
+  "name": "一角竜ヴォルスング",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\nこのターンの間、シンボル2つ以上を持つ自分のスピリットすべてをBP+5000する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-009",
+  "name": "火龍王ボルケノス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある系統：「竜人」を持つスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットの破壊時』\nBP7000以上の相手のスピリット1体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-010",
+  "name": "サンドマン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "幽魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-011",
+  "name": "レッドキャップ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-012",
+  "name": "メナシヘビ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-013",
+  "name": "ガストラス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n相手のコスト1以下のスピリット2体の上から、コア2個ずつを相手のトラッシュに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-014",
+  "name": "悪戯妖精インプ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族",
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『自分のドローステップ』\n自分のフィールドに系統：「楽族」/「想獣」を持つスピリットが合計3体以上いるとき、ドローの枚数を+1枚する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-015",
+  "name": "フォールンパラディン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-016",
+  "name": "吸血女王カーミラ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態のコスト1以下のスピリットすべてを破壊する。\nLv2『このスピリットのアタック時』\n疲労状態のコスト3以下のスピリットすべてを破壊する。\nLv3『このスピリットのアタック時』\nお互い、フィールドのスピリット1体を選び、破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-017",
+  "name": "紫煙の竜使いヴァイオレット",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "竜騎",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』自分はデッキから1枚ドローする”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-018",
+  "name": "魔界元帥ネガプルート",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このスピリットのアタック時』\nこのスピリットは、緑のスピリットからブロックされない。\nLv2『このスピリットのアタック時』\nこのスピリットは、白/青のスピリットからブロックされない。\nLv3『このスピリットのアタック時』\nこのスピリットは、赤/黄のスピリットからブロックされない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-019",
+  "name": "パイナッポポタマス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-020",
+  "name": "ポルック＆カスター",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のリザーブに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-021",
+  "name": "ゲンゴロン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-022",
+  "name": "水馬ケルピー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "遊精",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、【粉砕】を持つ自分の青のスピリットすべてを回復させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-023",
+  "name": "モスリーフ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個をこのスピリット上に置く。\nLv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-024",
+  "name": "用心棒アントマン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人",
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-025",
+  "name": "神樹ディオネアス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2『このスピリットのバトル時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-026",
+  "name": "碧緑の竜使いグリューン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "竜騎",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』ボイドから、このスピリットのシンボルと同じ数のコアを自分のリザーブに置く”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-027",
+  "name": "双剣虎ジェン・フー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのスピリット以外の、コアが1個しか置かれていないスピリットすべてを疲労させる。\nLv2『このスピリットのアタック時』\n【神速】を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-028",
+  "name": "アーメットクラブ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：黄】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-029",
+  "name": "機人エムブラ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-030",
+  "name": "パントマイスター",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2\n自分の手札にある系統：「氷姫」を持つスピリットカードすべてのコストを5にする。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-031",
+  "name": "銃騎士ヘビーバレル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-032",
+  "name": "珊瑚蟹シオマネキッド",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲獣",
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤/白】\nこのスピリットは、相手の赤/白のスピリット/ネクサス/マジックの効果を受けない。\nLv2\n自分の緑のスピリットすべてに【装甲：赤/白】を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-033",
+  "name": "巨人機ユミール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-034",
+  "name": "白亜の竜使いアルブス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "竜騎",
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべては、相手のマジックの効果を受けない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-035",
+  "name": "魔神機ビッグ・ロキ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器",
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nLv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、[魔神機ビッグ・ロキ]以外のシンボル2つ以上を持つ自分のスピリット1体を回復させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-036",
+  "name": "氷の魔女ヘル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある系統：「氷姫」を持つスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『お互いのアタックステップ』\n[氷の魔女ヘル]以外の系統：「氷姫」を持つ自分のスピリットすべては、破壊されたとき手札に戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-037",
+  "name": "天使クレイオ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\nコスト2の自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-038",
+  "name": "シーサーズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分の手札にあるコスト2のスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2\n自分のスピリット/マジックの効果でスピリットの数を数えるとき、このスピリットはスピリット2体分として数える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-039",
+  "name": "アサガオの妖精ナパルコ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-040",
+  "name": "プリンセス・スノーホワイト",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族",
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手のターン』\n相手が系統：「氷姫」を持つ自分の白のスピリットを対象に含むスピリット/マジックの効果を使用したとき、そのスピリット/マジックの効果の対象をこのスピリットのみにできる。\nLv2･Lv3『このスピリットの破壊時』\n自分のフィールドに[ドワッフー・セブン]がいるとき、このスピリットは手札に戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-041",
+  "name": "アルカナファイター・カトル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-042",
+  "name": "天使長ソフィア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「想獣」を持つスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-043",
+  "name": "黄昏の竜使いフラウム",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "竜騎",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のエンドステップ』このスピリットを回復させる”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-044",
+  "name": "リトルナイト・ランスロット",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のフィールドにコスト2のスピリットが3体以上いる間、自分の黄のスピリットすべては、相手のマジックの効果を受けない。\nLv3\nこのスピリットは相手のスピリットすべての『このスピリットの召喚時』効果を受けない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-045",
+  "name": "ドワッフー・セブン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-046",
+  "name": "戦闘獣バビーバー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-047",
+  "name": "ブロンズ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv1･Lv2･Lv3\n自分のネクサスが破壊されたとき、このスピリット上のコア1個を自分のトラッシュに置くことで、破壊されたネクサス1つを自分のフィールドに戻す。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-048",
+  "name": "合成恐竜ディノゾール",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2\n自分のスピリットすべての【覚醒】の効果を“【覚醒】自分のスピリット上か自分のリザーブから、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”に変更する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-049",
+  "name": "狼人ウルフィ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-050",
+  "name": "MCパンサー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このスピリットのアタック時』\n相手のコスト1以下のスピリット1体を破壊する。\nLv2『このスピリットのアタック時』\nコスト1以下のスピリットすべてを破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-051",
+  "name": "巨人騎士アルダス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のネクサスすべては相手のスピリット/ネクサス/マジックの効果では破壊されない。\nLv2『このスピリットのアタック時』\n自分のネクサス1つにつき、相手のデッキを上から2枚破棄する。(上限6枚)",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-052",
+  "name": "ミスリル・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-053",
+  "name": "蒼海の竜使いアズール",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "竜騎",
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのバトル時』相手のデッキを上から5枚破棄する”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-054",
+  "name": "鉄槌のオズワルド",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分か相手のネクサス1つを破壊する。\nLv2\nこのスピリットの効果で、自分か相手のネクサスを破壊したとき、相手は手札1枚を選んで破棄する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-055",
+  "name": "紅蓮の虚空",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のフィールドに系統：「龍帝」/「竜騎」/「虚神」を持つスピリットがいる間、自分のスピリットすべてをBP+2000する。\nLv2\n【転召】を持つ自分のスピリットすべてに“【覚醒】自分のスピリット上から、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-056",
+  "name": "最古龍の顎",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分のフィールドに【転召】を持つスピリットが召喚されたとき、BP6000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\nシンボル2つ以上を持つ自分のスピリットすべては、アタックするときBP4000以上の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-057",
+  "name": "藍紫の虚空",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト1以下のスピリットが疲労したとき、そのスピリット上のコア2個を持ち主のトラッシュに置く。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手の疲労状態のスピリット1体を破壊する”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-058",
+  "name": "打ち棄てられた処刑場",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「魔影」を持つ自分のスピリットすべてをBP+2000する。\nLv2『自分のスタートステップ』\n自分のフィールドに系統：「魔影」を持つスピリットがいるとき、相手のスピリット1体を疲労させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-059",
+  "name": "緑眼の虚空",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/3のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手のスピリット1体を疲労させる”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-060",
+  "name": "茨の決戦地",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nバトルをしているお互いのスピリット上に置いてあるコアは取り除くことができない。\nLv2『自分のアタックステップ』\nバトルをしているお互いのスピリットは、お互いのスピリット/マジックの効果を受けない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-061",
+  "name": "白夜の虚空",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/1のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“【装甲：赤/紫/緑/白】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-062",
+  "name": "永久氷殿",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「氷姫」を持つ自分のスピリットすべてをBP+1000する。\nLv2『お互いのアタックステップ』\n系統：「氷姫」を持つ自分のスピリットが破壊されたとき、その破壊されたスピリットのBP以下のBPを持つ相手のスピリット1体を手札に戻す。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-063",
+  "name": "黄道の虚空",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のフィールドに系統：「龍帝」/「竜騎」/「虚神」を持つスピリットがいる間、自分のスピリットすべてをBP+2000する。\nLv2\n【転召】を持つ自分のスピリットすべてに“【光芒】『このスピリットのアタック時』バトル終了時、自分が使用したマジックカードすべては手札に戻る”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-064",
+  "name": "ペンタン帝国",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n自分の黄のスピリットが破壊されたとき、自分の手札にあるカード名に「ペンタン」を含むスピリットカード1枚をコストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\nアタックしているカード名に「ペンタン」/「アンプルール」を含む自分のスピリットは、同じLvの相手のスピリットにブロックされたとき回復する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-065",
+  "name": "青嵐の虚空",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/2のスピリットすべては、アタックとブロックができない。\nLv2『お互いのアタックステップ』\n自分のフィールドに【転召】を持つスピリットがいる間、お互い、コスト4以下のマジックの効果を使用できない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-066",
+  "name": "天焦がす大聖火",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分の青のスピリットがアタックしたとき、自分のデッキを上から1枚オープンできる。\nそのカードがカード名に「巨人」と入っているスピリットカードのとき手札に加える。\n他のカードのときは破棄する。\nLv2『自分のアタックステップ』\nカード名に「巨人」と入っている自分のスピリットすべては、アタックするときコスト5以上の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-067",
+  "name": "ワーニングアタック",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、系統：「翼竜」/「空牙」を持つ自分のスピリットのアタックに対して、相手は可能ならばBP3000以下のスピリットで必ずブロックする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-068",
+  "name": "シンクロニシティ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【覚醒】を持つ自分のスピリットすべては、アタックするときBP4000以上の相手のスピリットを指定し、そのスピリットにアタックできる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-069",
+  "name": "トランスマイグレーション",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中に【転召】を持つスピリットカードがあれば、コストを支払わず、【転召】を発揮したものとして1体だけ召喚できる。\n残ったカードは破棄する。\nただし、この効果で召喚したスピリットは、エンドステップに自分のデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-070",
+  "name": "ソウルクラッシュ",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のフィールドにカード名に「魔界七将」と入っているスピリットが召喚されたとき、疲労状態のスピリットすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-071",
+  "name": "リアニメイト",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、【呪撃】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-072",
+  "name": "アブソーブシンボル",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、相手のスピリットすべては、スピリット/ネクサス/マジックの効果で、コアを置く、または取り除くと疲労する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-073",
+  "name": "ゴッドスピード",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分の手札にある【神速】を持つコスト6以上のスピリットカードすべてのコストを4にする。\nこの効果は、メインステップで使用できない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-074",
+  "name": "ブランチロック",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のフィールドにシンボルが2色以上あるとき、相手のスピリット2体を疲労させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-075",
+  "name": "ブレイブチャージ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体の、『このスピリットのアタック時』と指定されている効果はすべて、『このスピリットのブロック時』に発揮される。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-076",
+  "name": "エターナルシールド",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のデッキは、相手のスピリット/ネクサス/マジックの効果では6枚以上破棄されない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-077",
+  "name": "クリスタルオーラ",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nボイドから、コア1個ずつを系統：「氷姫」を持つ自分のスピリットすべての上に置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-078",
+  "name": "アイシクルアサルト",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【装甲】を持つ自分のスピリットすべてを、それぞれが持つ【装甲】で指定された1色につき、BP+1000する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-079",
+  "name": "スリーカード",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nスピリット1体を指定する。\nこのターンの間、その指定されたスピリットは、自分のスピリット/ネクサスの効果で数を数えるとき、3体分として数える。\nこの効果は、メインステップで使用できない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-080",
+  "name": "コーラスバード",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにある系統：「歌鳥」を持つスピリットカード3枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-081",
+  "name": "ネクサスブロケイド",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のフィールドに系統：「想獣」を持つスピリットが3体以上いるとき、このターンの間、相手のネクサスすべての効果は発揮されない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-082",
+  "name": "サーキュラーソー・アーム",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、カードに効果の記述を持たない自分のスピリットすべてに“【粉砕】『このスピリットのアタック時』相手のデッキを上から、このスピリットのLvと同じ枚数破棄する”という効果を与える。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-083",
+  "name": "マジックスパナ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n系統：「造兵」を持つ自分のスピリット1体のコアすべてをボイドに置く。\n相手のデッキを上から、そのスピリットのコストと同じ枚数破棄する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-084",
+  "name": "ポテンシャルパワー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、カードに効果の記述を持たない自分のスピリットすべてのアタックは、同じコスト以下のスピリットからブロックされない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-X17",
+  "name": "幻獣王リーン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 9,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、コスト6以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のネクサス1つにつき、相手のスピリット1体を手札に戻す。\nLv3『このスピリットのアタック時』\nコスト2の自分のスピリットが3体以上いる間、このスピリットは効果の記述を持つスピリットからブロックされない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-X18",
+  "name": "超獣王ベヒードス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 9,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、コスト6以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のトラッシュにあるマジックカード1色につき、相手のスピリット1体を破壊する。\nLv3『このスピリットのアタック/ブロック時』\nこのバトルの間、相手はフラッシュタイミングでマジックカードを使用できない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-X19",
+  "name": "聖皇ジークフリーデン",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "white"
+  ],
+  "cost": 9,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "古竜",
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "red",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、コスト6以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nコスト合計5まで相手のスピリットを好きなだけ破壊する。\n[龍皇ジークフリード]/[要塞皇オーディーン]で【転召】したとき、コスト合計8まで破壊する。\nLv3『このスピリットのアタック時』\nBP7000以下の相手のスピリット2体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS05-X20",
+  "name": "大甲帝デスタウロス",
+  "type": "spirit",
+  "colors": [
+   "purple",
+   "green"
+  ],
+  "cost": 9,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "呪鬼",
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "purple",
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、自分のコスト6以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態のスピリット1体につき、ボイドからコア1個をこのスピリット上に置く。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット上のコア2個をボイドに置く。",
+  "effects": []
  }
 ]

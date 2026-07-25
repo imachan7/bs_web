@@ -227,7 +227,11 @@ export function validateCastMagic(
         return "このターンはすでにマジックの効果を使用しているため使用できません"
     }
     // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない色のマジックは使用できない
-    if (hasMagicRestriction(state, pid, "colorLockOpponent") && !ownFieldSymbolColors(state, pid).has(card.color)) {
+    const fieldSymbolColors = ownFieldSymbolColors(state, pid)
+    if (
+        hasMagicRestriction(state, pid, "colorLockOpponent") &&
+        !card.colors.some((c) => fieldSymbolColors.has(c))
+    ) {
         return "このマジックの色と一致するシンボルが自分のフィールドにないため使用できません"
     }
 

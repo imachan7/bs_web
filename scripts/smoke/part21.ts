@@ -62,17 +62,17 @@ console.log("=== BS03-037 ラタトスカ／BS03-044 鋼人スルト：【装甲
     runTurnStart(s)
     const rata = createInstance("BS03-037", s.turn, 1) // Lv1 cores1
     s.players.p1.field.spirits.push(rata)
-    assert(hasArmorAgainst(rata, "red") === true, "ラタトスカは赤の効果を受けない")
-    assert(hasArmorAgainst(rata, "purple") === false, "ラタトスカは紫の効果を防げない")
+    assert(hasArmorAgainst(rata, ["red"]) === true, "ラタトスカは赤の効果を受けない")
+    assert(hasArmorAgainst(rata, ["purple"]) === false, "ラタトスカは紫の効果を防げない")
 
     const surtLv1 = createInstance("BS03-044", s.turn, 1) // Lv1 cores1：装甲は赤/白のみ
     s.players.p1.field.spirits.push(surtLv1)
-    assert(hasArmorAgainst(surtLv1, "red") === true, "鋼人スルトLv1は赤の効果を受けない")
-    assert(hasArmorAgainst(surtLv1, "purple") === false, "鋼人スルトLv1はまだ紫を防げない")
+    assert(hasArmorAgainst(surtLv1, ["red"]) === true, "鋼人スルトLv1は赤の効果を受けない")
+    assert(hasArmorAgainst(surtLv1, ["purple"]) === false, "鋼人スルトLv1はまだ紫を防げない")
 
     const surtLv2 = createInstance("BS03-044", s.turn, 3) // Lv2 cores3：装甲が赤/紫/白に拡大
     s.players.p1.field.spirits.push(surtLv2)
-    assert(hasArmorAgainst(surtLv2, "purple") === true, "鋼人スルトLv2は紫の効果も受けない")
+    assert(hasArmorAgainst(surtLv2, ["purple"]) === true, "鋼人スルトLv2は紫の効果も受けない")
 }
 
 console.log("=== BS03-039 笛吹きのヘイムダル：Lv2ブロック時にフラッシュ封印 ===")

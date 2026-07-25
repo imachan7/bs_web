@@ -316,7 +316,7 @@ export type GlobalConstraintDef =
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: "spirit" | "nexus" | "magic"
-    battle?: { attackerColor: Color; attackerLevel?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
+    battle?: { attackerColors: Color[]; attackerLevel?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }
 
 // 効果定義（kind による判別ユニオン）。
@@ -648,9 +648,9 @@ export interface CardData {
     cardId: string
     name: string
     type: CardType
-    color: Color
+    colors: Color[] // カードの色（単色なら要素1。多色は表記順。BS05-X19 聖皇ジークフリーデン＝["red","white"]）
     cost: number
-    reduction: Color[] // 軽減シンボル（色の配列。長さ=軽減数）
+    reduction: Color[] // 軽減シンボル（色の配列。長さ=軽減数。多色カードは混色になる）
     family: string[] // 系統（日本語のまま）
     levels: LevelDef[] // magic は空配列
     symbol: Color[] // magic は空配列

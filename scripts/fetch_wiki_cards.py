@@ -24,8 +24,7 @@ BS01〜BS05 のデータ投入で毎回セッション固有の使い捨てス�
 
 出力は cards.json のスキーマに合わせるが、**effects（構造化された効果）は含まない**。
 効果の構造化は人手の作業なので、投入後に別途行う。
-また多色対応の過渡期のため color（単数・従来）と colors（配列・新）の両方を出す。
-CardData が colors へ移行したら color の出力を落とすこと（MULTICOLOR.md 参照）。
+色は CardData と同じ colors（配列。単色なら要素1）で出す。
 """
 import argparse
 import html
@@ -168,7 +167,6 @@ def parse_row(row_html):
         "cardId": card_id,
         "name": name,
         "type": card_type,
-        "color": colors[0],  # 過渡期の互換フィールド（MULTICOLOR.md 参照）
         "colors": colors,
         "cost": cost,
         "reduction": reduction,
@@ -194,7 +192,7 @@ def verify_against_cards_json(parsed, cards_json_path):
     """既存 data/cards.json と突き合わせて差分を報告する（パーサーの正しさの検証）"""
     with open(cards_json_path, encoding="utf-8") as f:
         existing = {c["cardId"]: c for c in json.load(f)}
-    fields = ["name", "type", "color", "cost", "reduction", "family", "levels", "symbol", "flash", "rarity", "limited", "effect"]
+    fields = ["name", "type", "colors", "cost", "reduction", "family", "levels", "symbol", "flash", "rarity", "limited", "effect"]
     diffs = 0
     missing = 0
     for card in parsed:

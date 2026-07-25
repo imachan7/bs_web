@@ -156,7 +156,7 @@ console.log("=== BS02-033 騎獣スレイプホース：緑マジックのBP+に
         null,
         { type: "bpBuff", amount: 2000 },
         sleipnir.instanceId,
-        "green",
+        ["green"],
         "magic",
     )
     assert(
@@ -173,7 +173,7 @@ console.log("=== BS02-033 騎獣スレイプホース：緑マジックのBP+に
         null,
         { type: "bpBuff", amount: 2000 },
         sleipnir.instanceId,
-        "green",
+        ["green"],
         "magic",
     )
     assert(
@@ -190,7 +190,7 @@ console.log("=== BS02-033 騎獣スレイプホース：緑マジックのBP+に
         null,
         { type: "bpBuff", amount: 1000 },
         sleipnir.instanceId,
-        "red",
+        ["red"],
         "magic",
     )
     assert(

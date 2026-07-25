@@ -106,14 +106,14 @@ console.log("=== 英雄の喪失Lv2：familyFilter「勇傑」のバトル破壊
     destroySpirit(s, "p1", hero.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 1 },
+        battle: { attackerColors: ["blue"], attackerLevel: 1 },
     })
     assert(s.players.p2.trashCards.length === trashBefore + 5, "勇傑がバトル破壊されると相手のデッキを5枚ミルする")
     const trashAfterFirst = s.players.p2.trashCards.length
     destroySpirit(s, "p1", other.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 1 },
+        battle: { attackerColors: ["blue"], attackerLevel: 1 },
     })
     assert(s.players.p2.trashCards.length === trashAfterFirst, "勇傑を持たないスピリットの破壊では発火しない")
 }

@@ -92,7 +92,7 @@ console.log("=== 拡張E: BS04-089 グレートリンク（トラッシュのコ
     s.players.p1.field.spirits.push(awakenSpirit)
     s.players.p1.trashCores = 3
     const before = awakenSpirit.cores
-    resolveAction(s, "p1", null, { type: "trashCoresToKeywordSpirit", keyword: "awaken" }, undefined, "red", "magic")
+    resolveAction(s, "p1", null, { type: "trashCoresToKeywordSpirit", keyword: "awaken" }, undefined, ["red"], "magic")
     assert(awakenSpirit.cores === before + 3, "トラッシュのコア3個が覚醒スピリットへ置かれる")
     assert(s.players.p1.trashCores === 0, "トラッシュのコアは0になる")
 }

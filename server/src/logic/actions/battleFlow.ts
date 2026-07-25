@@ -13,10 +13,10 @@ import {
     resolveKoboOnBattleEnd,
     summonFreeFromHandIndex,
 } from "../EffectModules"
-import { effectiveBp } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp } from "../../../../shared/rules"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!state.battle) {
             log(state, `${sourceName}：バトルが発生していないため終了できなかった。`)
             return
@@ -30,7 +30,7 @@ const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
 }
 
 const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 妖機妃ソール：破壊時に相手ターンのアタックステップを終了させる（onlyOpponentTurn）。
         // 既存の endAttackStepAfterBattle フラグ（forceEndTurnIfFlagged）をそのまま再利用する。
         if (action.onlyOpponentTurn === true && owner === state.turnPlayer) {
@@ -47,7 +47,7 @@ const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
 }
 
 const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // バトル中のみ有効：フラグを立て、バトル終了直後にターン終了処理側で強制実行する
         if (!state.battle) {
             log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
@@ -62,7 +62,7 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
 }
 
 const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // テレポートチェンジ：バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と
         // 入れ替える。使用者（owner）がアタッカー側かブロッカー側かで入れ替え対象を判定する
         if (!state.battle) {
@@ -134,7 +134,7 @@ const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
 }
 
 const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // エンジェルボイス：現在のバトルにフラグを立て、解決時にBPの代わりにLvを比較させる
         if (!state.battle) {
             log(state, `${sourceName}：バトル外のため不発。`)
@@ -146,7 +146,7 @@ const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx,
 }
 
 const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!state.battle) {
             log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
             return
@@ -160,7 +160,7 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
 }
 
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
         const dealt = Math.min(action.count, player.life)
@@ -182,7 +182,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
 }
 
 const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに
         // 自分のフィールドに配置する（スコルピード／白虎ハック／黒虎クロン。
         // 本来は「できる」＝任意発動だが、自動処理では常に発動する簡略化。
@@ -190,7 +190,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         const player = state.players[owner]
         const isMatch = (cardId: string): boolean => {
             const c = getCard(cardId)
-            return c.type === "nexus" && action.colors.includes(c.color)
+            return c.type === "nexus" && action.colors.some((col) => cardHasColor(c, col))
         }
         const deployFromIndex = (idx: number): void => {
             const zone = action.from === "hand" ? player.hand : player.trashCards
@@ -287,7 +287,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
 }
 
 const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
         // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
         // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
@@ -299,7 +299,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         const matchesCardId = (candidateId: string): boolean => {
             const candidate = getCard(candidateId)
             if (candidate.type !== "spirit") return false
-            if (action.colorFilter !== undefined && candidate.color !== action.colorFilter) return false
+            if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
             if (action.sameFamilyAsSelf) {
                 if (!selfFamily) return false
                 if (!candidate.family.some((f) => selfFamily.includes(f))) return false
@@ -350,7 +350,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
 }
 
 const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）の
         // onSummon効果を再発揮する（タイムリープ。効果を持たなければ何も起きない）
         const mine = state.players[owner].field.spirits

@@ -69,7 +69,7 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 // **色の一致判定は必ずこの述語か instHasColor を通すこと**（`card.color === c` を直接書かない）。
 // BS05 で多色カードが入ると CardData の色が配列になるため、直接比較は静かに壊れる（MULTICOLOR.md 参照）
 export function cardHasColor(cardData: CardData, color: Color): boolean {
-    return cardData.color === color
+    return cardData.colors.includes(color)
 }
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
@@ -78,6 +78,15 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
+}
+
+// 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
+// （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+export function instColors(inst: CardInstance): Color[] {
+    const colors = new Set<Color>(card(inst.cardId).colors)
+    for (const c of inst.tempColors) colors.add(c)
+    for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+    return [...colors]
 }
 
 // 現在のレベルとBP。levelOverrideThisTurn（このターンの上書き）または levelAsContinuous（継続置換）が
@@ -272,12 +281,10 @@ export function checkAuraCondition(
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
     if ("hasOwnColor" in condition) {
         const all = [...player.field.spirits, ...player.field.nexuses]
-        return all.some((inst) => card(inst.cardId).color === condition.hasOwnColor)
+        return all.some((inst) => instHasColor(inst, condition.hasOwnColor))
     }
     if ("hasOwnColorSpirit" in condition) {
-        return player.field.spirits.some(
-            (s) => card(s.cardId).color === condition.hasOwnColorSpirit,
-        )
+        return player.field.spirits.some((s) => instHasColor(s, condition.hasOwnColorSpirit))
     }
     // { ownHasKeyword: Keyword }：自分フィールドに指定キーワード持ちのスピリットがいる（一時付与・継続付与も考慮）
     if ("ownHasKeyword" in condition) {
@@ -477,20 +484,20 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
             effectActiveAtLevel(e.levels, level),
     )
 }
-export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
-    if (sourceColor === undefined) return false
+export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+    if (sourceColors === undefined || sourceColors.length === 0) return false
     const level = currentLevel(inst).level
     const staticArmor = card(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
             effectActiveAtLevel(e.levels, level) &&
-            (e.colors?.includes(sourceColor) ?? false),
+            (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
     return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
+        (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
 }
 export function hasGlobalConstraint(

@@ -15,7 +15,7 @@ import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, 
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // スピリットリンク／インビンシブルシールド：自分のスピリット1体に一時的にキーワードを付与
         const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
         if (!target) {
@@ -34,7 +34,7 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
 }
 
 const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // リフレクションアーマー：自分のスピリット全員（costFilter指定時はコスト一致のみ）に
         // このターンの間キーワードを付与する（grantKeywordの全体版）
         const targets = state.players[owner].field.spirits.filter(
@@ -60,7 +60,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
 }
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 手札の条件一致カード1枚に、このターンの間キーワードを付与する
         const player = state.players[owner]
         const label = KEYWORDS[action.keyword].label
@@ -115,7 +115,7 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
 }
 
 const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 第3段階を先に判定する：doResolveChoiceのoption応答はtargetInstanceIdを渡さず
         // （selfに退避済みの対象を積んでchosenOptionだけを渡す）resolveActionを呼ぶため、
         // 「targetInstanceId未指定なら第1段階」という判定を先にしてしまうと
@@ -160,7 +160,7 @@ const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action)
 }
 
 const grantColorAllHandler: ActionHandler<"grantColorAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このターンの間、自分のスピリットすべてを指定色のスピリットとしても扱う（妖精ティングリー）
         for (const s of state.players[owner].field.spirits) {
             if (!s.tempColors.includes(action.color)) s.tempColors.push(action.color)
@@ -173,7 +173,7 @@ const grantColorAllHandler: ActionHandler<"grantColorAll"> = (ctx, action) => {
 }
 
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
         const holders = state.players[owner].field.spirits.filter((s) =>
             spiritHasFamily(state, owner, s, action.targetFamily),
@@ -206,7 +206,7 @@ const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx,
 }
 
 const grantAlsoCostAllHandler: ActionHandler<"grantAlsoCostAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 道化師クラン：自分のスピリットすべてを、このターンの間コストaction.costのスピリットとしても扱う
         const targets = state.players[owner].field.spirits
         for (const t of targets) t.tempAlsoCosts.push(action.cost)
@@ -218,7 +218,7 @@ const grantAlsoCostAllHandler: ActionHandler<"grantAlsoCostAll"> = (ctx, action)
 }
 
 const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentNexuses"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 皇帝アンプルール：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
         // 足りればその数のコアをリザーブからボイドへ送ってから、相手の全ネクサスの
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
@@ -246,7 +246,7 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
 }
 
 const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
         const found = targetInstanceId
@@ -286,7 +286,7 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
 }
 
 const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリットのLvをこのターンの間1つ上として扱う（カードの最大Lvでキャップ。未指定時は自分の実効BP最大。ビルドアップ）
         const target = targetInstanceId
             ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
@@ -312,7 +312,7 @@ const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) =
 }
 
 const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のスピリットすべてを、各カードの最高Lvとして扱う（このターンの間。levelOverrideThisTurnはターン終了でリセット）
         const player = state.players[owner]
         let count = 0
@@ -326,7 +326,7 @@ const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (
 }
 
 const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
         const target = targetInstanceId
             ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
@@ -350,7 +350,7 @@ const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, actio
 }
 
 const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ユーサネイジア：このターンの間、相手のスピリットの指定トリガーを発揮させない
         const already = state.triggerSuppressionThisTurn.some(
             (e) => e.pid === opp && e.trigger === action.trigger,
@@ -361,7 +361,7 @@ const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> =
 }
 
 const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可
         state.turnConstraints.push({ type: "cantActByCost", maxCost: action.maxCost })
         log(
@@ -372,7 +372,7 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
 }
 
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
         const mine = state.players[owner].field.spirits
         let target: CardInstance | null = null
@@ -398,7 +398,7 @@ const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx,
 }
 
 const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // バーストファイア：cantBlock/cantBlockLowerBp を持つ自分スピリット優先、なければ先頭
         const mine = state.players[owner].field.spirits
         const target =
@@ -424,7 +424,7 @@ const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint">
 }
 
 const ignoreUnblockableThisTurnHandler: ActionHandler<"ignoreUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // レッドウォール：このターンの間、自分のスピリットは「ブロックされない」効果を無視してブロックできる
         if (!state.ignoreUnblockableThisTurn.includes(owner)) {
             state.ignoreUnblockableThisTurn.push(owner)
@@ -434,12 +434,12 @@ const ignoreUnblockableThisTurnHandler: ActionHandler<"ignoreUnblockableThisTurn
 }
 
 const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ミストカーテン：対象の相手スピリットのアタックでは、このターン使用者のライフが減らない
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
+                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
                   return t ? { pid: opp, inst: t } : null
               })()
         if (!found) {

@@ -123,7 +123,7 @@ console.log("=== BS03-107 果て無き地平線：神速持ちがバトル破壊
     destroySpirit(s, "p1", sokuSpirit.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === sokuSpirit.instanceId),
@@ -150,7 +150,7 @@ console.log("=== BS03-107 果て無き地平線：神速持ちがバトル破壊
     destroySpirit(s2, "p1", sokuSpirit2.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(s2.players.p1.hand.includes("BS03-028"), "相手のターンでも turn:both のため手札に戻る")
 
@@ -171,7 +171,7 @@ console.log("=== BS03-107 果て無き地平線：神速持ちがバトル破壊
     destroySpirit(s3, "p1", sokuSpirit3.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(s3.players.p1.trashCards.includes("BS03-028"), "リザーブ不足で不発、通常通りトラッシュへ")
     assert(!s3.players.p1.hand.includes("BS03-028"), "手札には戻らない")
@@ -194,7 +194,7 @@ console.log("=== BS03-107 果て無き地平線：神速持ちがバトル破壊
     destroySpirit(s4, "p1", plain.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(s4.players.p1.trashCards.includes("BS01-001"), "神速を持たないため対象外、通常通りトラッシュへ")
 }

@@ -549,7 +549,7 @@ function fieldCardEl(
         : undefined
 
     const el = document.createElement("div")
-    el.className = `card color-${m.color}`
+    el.className = `card color-${m.colors[0]}`
     if (inst.isRested) el.classList.add("rested")
     el.dataset.instanceId = inst.instanceId
     el.dataset.cardId = inst.cardId
@@ -757,8 +757,8 @@ function fieldCardEl(
         // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
         if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
-            const usingColor = usingCardId ? master(usingCardId).color : undefined
-            if (!hasArmorAgainst(inst, usingColor) && !hasMagicImmunityView(view, ownerPid, inst)) {
+            const usingColors = usingCardId ? master(usingCardId).colors : undefined
+            if (!hasArmorAgainst(inst, usingColors) && !hasMagicImmunityView(view, ownerPid, inst)) {
                 el.classList.add("targetable", "clickable")
             }
         }
@@ -823,7 +823,7 @@ function renderHand(view: GameView, ui: UiState): void {
         const magicColorLocked =
             m.type === "magic" &&
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
-            !ownFieldSymbolColors(view, view.you).has(m.color)
+            !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
 
         const usable =
             !view.pendingChoice &&
@@ -845,7 +845,7 @@ function renderHand(view: GameView, ui: UiState): void {
         }
 
         const el = document.createElement("div")
-        el.className = `card color-${m.color}`
+        el.className = `card color-${m.colors[0]}`
         el.dataset.handIndex = String(activeIndex)
         el.dataset.cardId = cardId
         if (usable) el.classList.add("usable", "clickable")
@@ -871,7 +871,7 @@ function renderHand(view: GameView, ui: UiState): void {
 
         const stats = document.createElement("div")
         stats.className = "stats"
-        stats.textContent = `${COLOR_LABELS[m.color]}/${typeLabel}`
+        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
         el.appendChild(stats)
 
         if (m.levels.length > 0) {

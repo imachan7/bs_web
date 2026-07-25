@@ -112,7 +112,7 @@ function showToast(message: string): void {
 // ---- カードプール面 ----
 
 function passesFilter(card: CardData): boolean {
-    if (filterColors.size > 0 && !filterColors.has(card.color)) return false
+    if (filterColors.size > 0 && !card.colors.some((c) => filterColors.has(c))) return false
     if (filterTypes.size > 0 && !filterTypes.has(card.type)) return false
     if (filterCosts.size > 0) {
         let hit = false
@@ -147,7 +147,7 @@ function renderPool(): void {
 
     for (const card of visible) {
         const el = document.createElement("div")
-        el.className = `pool-card color-${card.color}`
+        el.className = `pool-card color-${card.colors[0]}`
         if (card.limited) el.classList.add("limited")
 
         // コストバッジ
@@ -261,7 +261,7 @@ function renderDetail(card: CardData): void {
     meta.className = "detail-meta"
     const bp = maxBp(card)
     const parts = [
-        `${COLOR_LABELS[card.color]} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
+        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
     if (card.type === "spirit") {
@@ -386,7 +386,7 @@ function renderDeck(): void {
     for (const [cardId, count] of entries) {
         const card = master(cardId)
         const row = document.createElement("div")
-        row.className = `deck-row color-${card.color}`
+        row.className = `deck-row color-${card.colors[0]}`
 
         const cost = document.createElement("span")
         cost.className = "row-cost"
@@ -466,24 +466,29 @@ function renderStats(): void {
     })
 
     // 色内訳・タイプ内訳
-    const byColor = new Map<Color, number>()
+    const byColor = new Map<string, { colors: Color[]; count: number }>()
     const byType = new Map<CardType, number>()
     for (const [cardId, count] of deck) {
         const card = master(cardId)
-        byColor.set(card.color, (byColor.get(card.color) ?? 0) + count)
+        const colorKey = card.colors.join("/")
+        const entry = byColor.get(colorKey)
+        byColor.set(colorKey, { colors: card.colors, count: (entry?.count ?? 0) + count })
         byType.set(card.type, (byType.get(card.type) ?? 0) + count)
     }
 
     const colorStats = $("color-stats")
     colorStats.textContent = ""
-    for (const [color, count] of byColor) {
+    for (const [, { colors, count }] of byColor) {
         const row = document.createElement("div")
         row.className = "stat-row"
-        const dot = document.createElement("span")
-        dot.className = `stat-dot dot-${color}`
-        row.appendChild(dot)
+        // 多色カードは色の数だけドットを並べる
+        for (const color of colors) {
+            const dot = document.createElement("span")
+            dot.className = `stat-dot dot-${color}`
+            row.appendChild(dot)
+        }
         const text = document.createElement("span")
-        text.textContent = `${COLOR_LABELS[color]}: ${count}枚`
+        text.textContent = `${colors.map((c) => COLOR_LABELS[c]).join("・")}: ${count}枚`
         row.appendChild(text)
         colorStats.appendChild(row)
     }
@@ -799,7 +804,8 @@ function importDeckFile(file: File): void {
 // data/constants.ts の DECK_RECIPES と同じ構成方針で自動生成する:
 // その色の低コスト順に スピリット9種×3 + ネクサス2種（3+1）+ マジック3種×3 = 40枚
 function buildPreset(color: Color): Record<string, number> | null {
-    const pool = cards.filter((c) => c.color === color && !c.limited)
+    // 単色サンプルなので多色カードは対象外にする（colors.length === 1 の判定）
+    const pool = cards.filter((c) => c.colors.length === 1 && c.colors[0] === color && !c.limited)
     const byCost = (a: CardData, b: CardData) =>
         a.cost - b.cost || a.cardId.localeCompare(b.cardId)
     const spirits = pool

@@ -27,6 +27,7 @@ import {
     hasFunsaiOnBlock,
     hasLifeDamageNegate,
     instanceSymbolCount,
+    instColors,
     millDeck,
     refreshLevelAsOverrides,
     resolveAction,
@@ -498,7 +499,7 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
             attackerPid,
             "ownSpiritBlocked",
             undefined,
-            getCard(attacker.cardId).color,
+            instColors(attacker),
             instanceId,
         )
     }
@@ -774,9 +775,9 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedLevel = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
-    const attackerColor = getCard(attacker.cardId).color
+    const attackerColors = instColors(attacker)
     const skipRest = activeConstraints(state, defenderPid, blocker).some(
-        (c) => c.type === "noRestWhenBlockingColor" && c.color === attackerColor,
+        (c) => c.type === "noRestWhenBlockingColor" && attackerColors.includes(c.color),
     )
     if (!skipRest) blocker.isRested = true
     const attackerBp = effectiveBp(state, attackerPid, attacker)
@@ -806,7 +807,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor, attackerLevel },
+            battle: { attackerColors, attackerLevel },
         })
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
@@ -814,7 +815,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
         })
         fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
@@ -822,12 +823,12 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColor, attackerLevel },
+            battle: { attackerColors, attackerLevel },
         })
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColor: getCard(blocker.cardId).color, attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
         })
     }
 
@@ -844,7 +845,7 @@ function resolveBattle(state: GameState): void {
     if (hasJugeki) {
         const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
         if (stillOnField) {
-            if (hasArmorAgainst(stillOnField, attackerColor)) {
+            if (hasArmorAgainst(stillOnField, attackerColors)) {
                 log(
                     state,
                     `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`,
@@ -857,7 +858,7 @@ function resolveBattle(state: GameState): void {
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
-                    battle: { attackerColor, attackerLevel },
+                    battle: { attackerColors, attackerLevel },
                 })
             }
         }
