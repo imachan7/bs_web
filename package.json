@@ -12,7 +12,8 @@
         "start": "tsx server/src/index.ts",
         "typecheck": "tsc --noEmit",
         "smoke": "tsx scripts/smoke.ts",
-        "smoke:quiet": "tsx scripts/smoke.ts --quiet"
+        "smoke:quiet": "tsx scripts/smoke.ts --quiet",
+        "validate:cards": "tsx scripts/validate-cards.ts"
     },
     "engines": {
         "node": ">=20"
