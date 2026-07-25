@@ -17,7 +17,7 @@ import type {
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
-import { canBlock } from "../../shared/block"
+import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
     activeConstraints,
@@ -68,17 +68,10 @@ const COLOR_SYMBOLS: Record<string, string> = {
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.currentLevel）
 export const levelOf = currentLevel
 
-// ---- 常時BP修正（オーラ）：サーバー（EffectModules.effectiveBp）と同じロジックの簡易版 ----
-
-function isSpiritOnField(view: GameView, pid: PlayerId, instanceId: string): boolean {
-    return view.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
-}
-
 // オーラ計算・実効BPはサーバーと同一の共有実装（shared/rules）を使う。
 // main.ts など既存の呼び出しを壊さないため effectiveBp の名前はここから再エクスポートする
 export { effectiveBp }
 
-// 指定カードがそのキーワードを持つか（サーバー hasKeyword と同じロジックの簡易版）
 
 
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
@@ -99,8 +92,8 @@ const matchesFamilyFilterView = matchesFamilyFilter
 
 
 
-// ブロック可能ハイライト用: blocker が attacker をブロックできるか（サーバー validateBlock のブロック判定と同じロジックの簡易版。
-// 優先権・疲労・レベル等の前提条件は呼び出し側でチェック済みの前提）
+// ブロック可能ハイライト用: blocker が attacker をブロックできるか。
+// 判定はサーバー validateBlock と同一の共有実装（優先権・疲労・レベル等の前提条件は呼び出し側でチェック済み）
 export function canBlockAttacker(
     view: GameView,
     blockerPid: PlayerId,
@@ -231,7 +224,7 @@ export interface UiState {
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
 
-// 指定アタック（canDirectAttack）を現在レベルで持っているか（サーバー validateAttack と同じロジックの簡易版）
+// 指定アタック（canDirectAttack）を現在レベルで持っているか（判定は共有実装 activeConstraints を参照）
 export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
@@ -242,14 +235,12 @@ export function canDirectAttack(
     return constraint.targetFilter
 }
 
-// 指定アタックの対象条件（rested/singleCore/recovered）に、相手スピリットが合致するか
+// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）
 export function matchesDirectedAttackFilter(
     filter: "rested" | "singleCore" | "recovered",
     target: CardInstance,
 ): boolean {
-    if (filter === "rested") return target.isRested
-    if (filter === "recovered") return !target.isRested
-    return target.cores === 1
+    return sharedMatchesDirectedAttackFilter(filter, target) === null
 }
 
 // ---- DOM ヘルパー ----

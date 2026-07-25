@@ -54,7 +54,6 @@ import {
     checkAuraCondition,
     countAuraCounter,
     countSymbols,
-    currentLevel as sharedCurrentLevel,
     effectActiveAtLevel,
     effectiveBp,
     hasArmorAgainst,
@@ -65,7 +64,6 @@ import {
     instanceSymbolCount,
     instHasColor,
     instHasCost,
-    isSpiritOnField,
     isUntargetableByOpponent,
     isVanillaCard,
     KEYWORDS,
@@ -97,7 +95,6 @@ export {
     spiritHasFamily,
     spiritHasKeyword,
 }
-void sharedCurrentLevel
 
 
 // 音鳥クルークのgrantFamilyChoiceAll用: 全カードの系統を重複なく集めたソート済みリスト。
@@ -1185,7 +1182,7 @@ export function findSpiritAny(
 // 条件を満たせばさらに magicBuffBonus 分のBP+を追加する。
 // 効果文の『このスピリットのアタック時』／『自分のアタックステップ』条件は「バトル中または
 // 自分のアタックステップ」で近似する簡略化とし、判定は state.phase === "attack" のみとする。
-// eslint-disable-next-line -- actions/* から参照するため export する
+// actions/* の分割モジュールから参照するため export している
 export function applyMagicBuffBonus(
     state: GameState,
     target: CardInstance,
@@ -1224,7 +1221,7 @@ export function applyMagicBuffBonus(
 // いなければ自分フィールドの先頭スピリット
 // minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
 // （ライトニングバリスタ等。BS04エンジン拡張バッチ1）
-// eslint-disable-next-line -- actions/* から参照するため export する
+// actions/* の分割モジュールから参照するため export している
 export function pickBpBuffTarget(
     state: GameState,
     owner: PlayerId,
@@ -1290,7 +1287,7 @@ function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
 // ownReserve / ownNexuses / ownExhausted / ownOtherSpirits / { ownFamily } / { ownNameIncludes } は
 // 自分（owner）のフィールド基準、allNexuses は両者基準、selfCoresAtDestruction は
 // self（破壊時点のコア数を destroySpirit が記録済み）基準、lastBattleDestroyedCores は state 直下の記録値
-// eslint-disable-next-line -- actions/* から参照するため export する
+// actions/* の分割モジュールから参照するため export している
 export function countEffectCounter(
     state: GameState,
     owner: PlayerId,

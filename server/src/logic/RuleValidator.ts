@@ -12,7 +12,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { cantActByCost } from "../../../shared/rules"
-import { canBlock } from "../../../shared/block"
+import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -410,15 +410,9 @@ export function validateAttack(
         }
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
-        if (directConstraint.targetFilter === "rested" && !target.isRested) {
-            return "疲労状態のスピリットしか指定できません"
-        }
-        if (directConstraint.targetFilter === "singleCore" && target.cores !== 1) {
-            return "コア1個のスピリットしか指定できません"
-        }
-        if (directConstraint.targetFilter === "recovered" && target.isRested) {
-            return "回復状態のスピリットしか指定できません"
-        }
+        // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
+        const filterError = matchesDirectedAttackFilter(directConstraint.targetFilter, target)
+        if (filterError) return filterError
     }
     return null
 }

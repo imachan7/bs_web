@@ -71,3 +71,16 @@ export function canBlock(
     }
     return null
 }
+
+// 指定アタック（canDirectAttack）の対象条件に、指定された相手スピリットが合致するか。
+// サーバー（validateAttack）は拒否理由の文字列を、クライアントは対象ハイライトの可否を
+// この同一実装から得る（合致すれば null）
+export function matchesDirectedAttackFilter(
+    filter: "rested" | "singleCore" | "recovered",
+    target: CardInstance,
+): string | null {
+    if (filter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
+    if (filter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
+    if (filter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"
+    return null
+}
