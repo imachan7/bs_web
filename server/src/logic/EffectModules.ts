@@ -1022,12 +1022,7 @@ export function removeCoresToVoid(
 
 // destroy/destroyExhausted/exhaust の costFilter 共通判定（BS04エンジン拡張バッチ2）。
 // 指定なしは常にtrue、max/minはそれぞれ対象コストの上限/下限
-export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {
-    if (!costFilter) return true
-    if (costFilter.max !== undefined && cost > costFilter.max) return false
-    if (costFilter.min !== undefined && cost < costFilter.min) return false
-    return true
-}
+
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 // （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）

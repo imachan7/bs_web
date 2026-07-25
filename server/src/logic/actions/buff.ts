@@ -14,6 +14,8 @@ import {
     requestChoice,
     spiritHasKeyword,
 } from "../EffectModules"
+import { matchesTarget } from "../../../../shared/rules"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -52,12 +54,17 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
         if (action.attackingAll) {
             // オフェンシブオーラ／フォレストオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
             // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）。
-            // familyFilter指定時は該当系統持ちのみ（フォレストオーラ＝爪鳥/樹魔）
+            // 絞り込みは共通の TargetFilter に一本化（family 軸。フォレストオーラ＝爪鳥/樹魔）
+            const buffFilter = normalizeFilter(ctx, action)
+            if (buffFilter === SELF_REQUIRED) {
+                log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
+                return
+            }
             const attackers = state.players[owner].field.spirits.filter(
                 (s) =>
                     state.battle &&
                     s.instanceId === state.battle.attackerInstanceId &&
-                    (!action.familyFilter || matchesFamilyFilter(state, owner, s, action.familyFilter)),
+                    matchesTarget(state, owner, s, buffFilter, self?.instanceId),
             )
             if (attackers.length === 0) {
                 log(state, `${sourceName}のBP増加：アタックしている自分のスピリットがいなかった。`)
@@ -89,10 +96,14 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
 
 const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const spirits = state.players[owner].field.spirits.filter(
-            (s) =>
-                !action.familyFilter ||
-                matchesFamilyFilter(state, owner, s, action.familyFilter),
+        // 絞り込みは共通の TargetFilter に一本化（family 軸）
+        const allFilter = normalizeFilter(ctx, action)
+        if (allFilter === SELF_REQUIRED) {
+            log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
+            return
+        }
+        const spirits = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, allFilter, self?.instanceId),
         )
         for (const s of spirits) {
             s.tempBpBuff += action.amount

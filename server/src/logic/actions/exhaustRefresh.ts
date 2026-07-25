@@ -6,19 +6,23 @@ import { currentLevel, getCard, log } from "../GameState"
 import {
     findSpiritAny,
     isExhaustImmune,
-    matchesCostFilter,
     pickEnemyByBp,
     pickEnemyCandidates,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isVanillaCard, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // levelFilter 指定時はcurrentLevelがこれに含まれるスピリットのみ対象（蜘蛛女アラクネット：相手のLv1限定）
-        const matchesLevel = (s: CardInstance) =>
-            action.levelFilter === undefined || action.levelFilter.includes(currentLevel(s).level)
+        // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の疲労付与：BP参照元がいなかった。`)
+            return
+        }
+        const matchesLevel = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -35,7 +39,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
             }
-            if (!matchesLevel(found.inst) || !matchesCostFilter(getCard(found.inst.cardId).cost, action.costFilter)) {
+            if (!matchesLevel(found.inst)) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
@@ -50,13 +54,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
             return
         }
-        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする。
-        // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04エンジン拡張バッチ2）
+        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
         const matchesCandidate = (s: CardInstance) =>
-            !s.isRested &&
-            matchesLevel(s) &&
-            !isExhaustImmune(state, opp, s) &&
-            matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
+            !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColor, srcType)
             if (
@@ -198,19 +198,16 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
 }
 
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分の疲労スピリットから（keywordFilter/colorFilter/vanillaFilter/familyFilter指定時はそれぞれの条件持ちのみ）実効BP最大の1体を回復
+    const { state, owner, self, sourceName } = ctx
+        // 絞り込みは共通の TargetFilter に一本化（keyword/color/vanilla/family/excludeSelf の5軸。
+        // 旧フィールドは normalizeFilter が畳み込むためデータは無変更）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の回復：BP参照元がいなかった。`)
+            return
+        }
         const candidates = state.players[owner].field.spirits.filter(
-            (s) =>
-                s.isRested &&
-                (action.keywordFilter === undefined ||
-                    spiritHasKeyword(state, owner, s, action.keywordFilter)) &&
-                (action.colorFilter === undefined ||
-                    instHasColor(s, action.colorFilter)) &&
-                (action.vanillaFilter === undefined || isVanillaCard(getCard(s.cardId))) &&
-                (action.familyFilter === undefined ||
-                    spiritHasFamily(state, owner, s, action.familyFilter)) &&
-                (!action.excludeSelf || s.instanceId !== self?.instanceId),
+            (s) => s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}の回復：対象がいなかった。`)
