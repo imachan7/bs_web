@@ -670,7 +670,9 @@ export function destroySpirit(
     // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
     // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
     // バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.colors, undefined, undefined, {
+    // selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで「破壊されたスピリットのBP以下」を
+    // 参照できるようにする。既存カードはselfを参照しないアクションのみのため挙動は変わらない）
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         vanilla: isVanillaCard(master),
         byBattle: context?.battle !== undefined,
         families: master.family,
@@ -795,6 +797,8 @@ function tryReviveOnDestroy(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesWhen(effect.when)) continue
@@ -1321,6 +1325,14 @@ export function countEffectCounter(
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
+    // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
+    if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
+    if ("ownKeyword" in counter) {
+        return state.players[owner].field.spirits.filter((s) =>
+            spiritHasKeyword(state, owner, s, counter.ownKeyword),
+        ).length
+    }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
@@ -1981,7 +1993,7 @@ export function resolveMagic(
                     )
                     continue
                 }
-            } else {
+            } else if ("ownFieldHasMinSymbolSpirit" in effect.condition) {
                 // ライトニングバリスタ等：自分のフィールドにシンボル数がこれ以上のスピリットが
                 // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
                 const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
@@ -1992,6 +2004,23 @@ export function resolveMagic(
                     log(
                         state,
                         `${card.name}：シンボル${minSymbols}個以上を持つスピリットがいないため発動しなかった。`,
+                    )
+                    continue
+                }
+            } else {
+                // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
+                const minColors = effect.condition.ownFieldSymbolColorsAtLeast
+                const colors = new Set<Color>()
+                for (const s of [
+                    ...state.players[owner].field.spirits,
+                    ...state.players[owner].field.nexuses,
+                ]) {
+                    for (const c of getCard(s.cardId).symbol) colors.add(c)
+                }
+                if (colors.size < minColors) {
+                    log(
+                        state,
+                        `${card.name}：シンボルの色が${minColors}色未満のため発動しなかった。`,
                     )
                     continue
                 }

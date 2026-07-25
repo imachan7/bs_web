@@ -98,7 +98,7 @@ export type EffectAction =
     | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
     | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
     | { type: "exhaustAllByColor" } // 相手フィールドで最多の色を自動選択し、その色を持つ両陣営のスピリットを疲労させる
-    | { type: "exhaustAll"; side: "opponent" | "both"; minBp?: number; maxBp?: number } // 指定側（相手/両陣営）のスピリットをBP範囲（minBp以上/maxBp以下）で疲労させる。装甲・疲労免疫は相手側のみ尊重（BS04グラウンドハウリング）
+    | { type: "exhaustAll"; side: "opponent" | "both"; minBp?: number; maxBp?: number; filter?: TargetFilter } // 指定側（相手/両陣営）のスピリットをBP範囲（minBp以上/maxBp以下）で疲労させる。装甲・疲労免疫は相手側のみ尊重（BS04グラウンドハウリング）。filter指定時はcores/excludeSelfのみ追加で判定する（他の軸は未対応。BS05双剣虎ジェン・フー：コア1個のみ・自分自身を除く）
     | { type: "returnAllToHand"; side: "opponent" | "both"; costFilter?: { max?: number; min?: number } } // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（バウンス＝onDestroy不発火。装甲/免疫は相手側のみ尊重。BS04ドリームハンド）
     | { type: "refreshByFamily"; familyFilter: FamilyFilter; count: number } // 自分の疲労スピリットのうちfamilyFilter一致（配列=OR）をcount体まで回復（実効BP最大から。cantAttackThisTurnは付与しない。BS04ハイエーテル）
     | { type: "trashCoresToKeywordSpirit"; keyword: Keyword } // 自分のトラッシュのコアすべてを、指定キーワードを持つ自分のスピリット1体へ置く（候補複数かつinteractiveならpendingChoice、そうでなければ実効BP最大へ。BS04グレートリンク）
@@ -180,6 +180,7 @@ export type EffectAction =
     | { type: "discardOpponentTegamotoDestroyPer" } // 相手の手元（tegamoto）にあるカードすべてを相手のトラッシュへ破棄し、その枚数を既存のdestroyアクション（count=枚数、maxBpなし=BP不問）へ委譲して相手スピリットを破壊する（interactive時の連続対象選択・装甲/免疫判定はdestroy側の経路をそのまま再利用）。相手の手元が0枚ならno-op。透明人間エクリア
     | { type: "coreToTrashAllByCost"; maxCost: number } // 相手のコストmaxCost以下のスピリットすべての上から、コア1個ずつを相手のトラッシュへ置く（範囲効果。装甲・マジック効果耐性・immuneToOpponentThisTurnは対象から除外。BS04風龍王フージャオス）
     | { type: "coreRemovePerHandDiscard" } // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体（実効BP最大を自動選択、同一解決内で既に選んだ個体は除外して異なる個体へ広げる）のコアを1個、相手のトラッシュへ置く。interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）を1枚ずつ繰り返し発行し、選ぶたび即座にコア除去を実行する（対象選択自体は毎回自動）。自動時は手札をすべて破棄し、破棄枚数ぶん一括でコア除去する（決定的簡略化）。王蛇ケツァルカトル／ダンスマカブル
+    | { type: "bpBuffAllByArmorColors"; amountPer: number } // 自分の【装甲】を持つスピリットすべてを、それぞれが持つ装甲の指定色数×amountPerだけBP+（ターン終了時まで。静的keyword＋一時付与tempKeywordsの装甲colorsを合算して色数を数える。BS05アイシクルアサルト）
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ定義（BS03バッチで統一）。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数、{ ownNameIncludes: string } は
@@ -198,10 +199,12 @@ export type EffectCounter =
     | "selfCoresAtDestruction" // 破壊時点でこのスピリット上に置かれていたコア数（destroySpiritが破壊直前に記録。漆黒鳥ヤタグロス）
     | "lastBattleDestroyedCores" // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（GameEngine.resolveBattleが記録、次のバトル解決の冒頭でリセット。魔界七将デストロード）
     | "opponentTrashCores" // 相手のトラッシュに置かれているコア数（PlayerState.trashCores。BS04吸血鬼ダンピール）
+    | "selfSymbols" // このスピリット（self）自身が持つシンボル数（instanceSymbolCount。selfがnullなら0。BS05碧緑の竜使いグリューン：「このスピリットのシンボルと同じ数」）
     | { ownFamily: string }
     | { ownNameIncludes: string }
     | { ownColor: Color } // 自分のフィールドの指定色スピリット数
     | { ownColorSymbols: Color } // 自分のフィールドのスピリットが持つ指定色シンボルの合計数（BS04機動要塞キャッスル・ゴレム＝青シンボル）
+    | { ownKeyword: Keyword } // 自分のフィールドで指定キーワードを持つスピリット数（静的・一時付与・継続付与すべて考慮。spiritHasKeywordで判定。BS05双剣虎ジェン・フー：【神速】持ち1体につき）
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
@@ -361,6 +364,7 @@ export type EffectDef =
           condition?:
               | { ownFamilyCountAtLeast: { family: string; count: number } } // 指定系統を持つ自分のスピリットがcount体以上のときのみ実行（spiritHasFamilyで判定。デルタクラッシュ）
               | { ownFieldHasMinSymbolSpirit: number } // 自分のフィールドにシンボル数がこれ以上のスピリットが1体以上いるときのみ実行（instanceSymbolCountで判定。ライトニングバリスタ／インフェルノアイズ等）
+              | { ownFieldSymbolColorsAtLeast: number } // 自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上のときのみ実行（BS05ブランチロック）
       }
     | {
           id: string
@@ -487,6 +491,7 @@ export type EffectDef =
           vanillaFilter?: true // scope:"ownAll" 用：カードに効果の記述を持たない（バニラ）スピリットのみ対象
           keywordFilter?: Keyword // scope:"ownAll" 用：このキーワードエントリを静的に持つカードのみ対象（vanillaFilterと同列。tempKeywords等の一時付与は見ない。果て無き地平線）
           minBp?: number // scope:"ownAll" 用：対象スピリットの実効BPがこれ以上のときのみ（BS04強者統べる大地＝BP6000以上）
+          familyFilter?: FamilyFilter // scope:"ownAll" 用：指定系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ対象（BS05氷の魔女ヘル）。発生源自身は呼び出し側のループが除外済み（「[カード名]以外」の簡略化）
           when: {
               byOpponentEffect?: boolean // 相手の効果による破壊のみ（context.sourcePidが相手のとき）
               byBattleVsArmorColor?: boolean // 装甲で指定した色の相手とのBP比較による破壊のみ

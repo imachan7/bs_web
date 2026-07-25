@@ -26394,7 +26394,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-020-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "coreGain", "count": 1 }
+   }
+  ]
  },
  {
   "cardId": "BS05-021",
@@ -26472,7 +26481,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、【粉砕】を持つ自分の青のスピリットすべてを回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-022-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [2],
+    "optional": false,
+    "battleRole": "attacker",
+    "action": { "type": "refreshOne", "all": true, "filter": { "color": "blue", "keyword": "funsai" } }
+   }
+  ]
  },
  {
   "cardId": "BS05-023",
@@ -26508,7 +26527,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個をこのスピリット上に置く。\nLv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-023-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [1, 2],
+    "optional": false,
+    "action": { "type": "voidCoreToSelf", "count": 1 }
+   },
+   {
+    "id": "BS05-023-e2",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "exhaust", "count": 1 }
+   }
+  ]
  },
  {
   "cardId": "BS05-024",
@@ -26633,7 +26669,24 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』ボイドから、このスピリットのシンボルと同じ数のコアを自分のリザーブに置く”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-026-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "coreGainPer", "counter": "selfSymbols" }
+   },
+   {
+    "id": "BS05-026-e2",
+    "kind": "effectGrant",
+    "levels": [2],
+    "target": "ownAll",
+    "familyFilter": ["龍帝", "虚神"],
+    "granted": { "trigger": "onAttack", "action": { "type": "coreGainPer", "counter": "selfSymbols" } }
+   }
+  ]
  },
  {
   "cardId": "BS05-027",
@@ -26671,7 +26724,24 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのスピリット以外の、コアが1個しか置かれていないスピリットすべてを疲労させる。\nLv2『このスピリットのアタック時』\n【神速】を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-027-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2],
+    "optional": false,
+    "action": { "type": "exhaustAll", "side": "both", "filter": { "cores": 1, "excludeSelf": true } }
+   },
+   {
+    "id": "BS05-027-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "selfBuffPer", "counter": { "ownKeyword": "soku" }, "amountPer": 1000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-028",
@@ -27011,7 +27081,24 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nLv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、[魔神機ビッグ・ロキ]以外のシンボル2つ以上を持つ自分のスピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-035-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "selfBuff", "amount": 3000 }
+   },
+   {
+    "id": "BS05-035-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [3],
+    "optional": false,
+    "action": { "type": "refreshOne", "filter": { "minSymbols": 2, "excludeSelf": true } }
+   }
+  ]
  },
  {
   "cardId": "BS05-036",
@@ -27049,7 +27136,26 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にある系統：「氷姫」を持つスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2『お互いのアタックステップ』\n[氷の魔女ヘル]以外の系統：「氷姫」を持つ自分のスピリットすべては、破壊されたとき手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-036-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2],
+    "optional": true,
+    "action": { "type": "summonFromHandFree", "familyFilter": "氷姫" }
+   },
+   {
+    "id": "BS05-036-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [2],
+    "scope": "ownAll",
+    "familyFilter": "氷姫",
+    "when": {},
+    "phaseTurn": { "phase": "attack", "turn": "both" },
+    "revived": { "toHand": true }
+   }
+  ]
  },
  {
   "cardId": "BS05-037",
@@ -28006,7 +28112,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/3のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手のスピリット1体を疲労させる”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-059-e2",
+    "kind": "effectGrant",
+    "levels": [2],
+    "target": "ownAll",
+    "keywordFilter": "tensho",
+    "granted": { "trigger": "onAttack", "action": { "type": "exhaust", "count": 1 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-060",
@@ -28109,7 +28224,23 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2\n系統：「氷姫」を持つ自分のスピリットすべてをBP+1000する。\nLv2『お互いのアタックステップ』\n系統：「氷姫」を持つ自分のスピリットが破壊されたとき、その破壊されたスピリットのBP以下のBPを持つ相手のスピリット1体を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-062-e1",
+    "kind": "aura",
+    "levels": [1, 2],
+    "aura": { "type": "bp", "target": "ownAll", "familyFilter": "氷姫", "amount": 1000 }
+   },
+   {
+    "id": "BS05-062-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [2],
+    "phase": "attack",
+    "familyFilter": "氷姫",
+    "action": { "type": "returnToHand", "count": 1, "maxBpFromSelf": true }
+   }
+  ]
  },
  {
   "cardId": "BS05-063",
@@ -28443,7 +28574,15 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分のフィールドにシンボルが2色以上あるとき、相手のスピリット2体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-074-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "condition": { "ownFieldSymbolColorsAtLeast": 2 },
+    "action": { "type": "exhaust", "count": 2 }
+   }
+  ]
  },
  {
   "cardId": "BS05-075",
@@ -28508,7 +28647,20 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\nボイドから、コア1個ずつを系統：「氷姫」を持つ自分のスピリットすべての上に置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-077-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": { "type": "voidCoreToAllOwnByFamily", "families": ["氷姫"], "count": 1 }
+   },
+   {
+    "id": "BS05-077-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-078",
@@ -28531,7 +28683,20 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、【装甲】を持つ自分のスピリットすべてを、それぞれが持つ【装甲】で指定された1色につき、BP+1000する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-078-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": { "type": "bpBuffAllByArmorColors", "amountPer": 1000 }
+   },
+   {
+    "id": "BS05-078-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 3000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-079",

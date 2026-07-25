@@ -104,6 +104,9 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 const bp = effectiveBp(state, pid, s)
                 if (action.minBp !== undefined && bp < action.minBp) continue
                 if (action.maxBp !== undefined && bp > action.maxBp) continue
+                // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
+                if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
+                if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s))) continue
                 s.isRested = true
                 exhausted++
