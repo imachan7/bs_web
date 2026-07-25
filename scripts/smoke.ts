@@ -53,6 +53,7 @@ import "./smoke/part50"
 import "./smoke/part51"
 import "./smoke/part52"
 import "./smoke/part53"
+import "./smoke/part54"
 import { summary } from "./smoke/helpers"
 
 summary()

@@ -51,6 +51,14 @@ function costModTotal(state: GameState, usingPid: PlayerId, card: CardData): num
                     if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                 }
+                if (effect.condition) {
+                    // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ
+                    const { family, count } = effect.condition.ownFamilyCountAtLeast
+                    const owned = state.players[pid].field.spirits.filter((s) =>
+                        matchesFamilyFilter(state, pid, s, family),
+                    ).length
+                    if (owned < count) continue
+                }
                 total += effect.amount
             }
         }

@@ -528,6 +528,16 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 
     // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
     // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
+    // ミストカーテン：指定されたアタッカーのアタックでは、このターン使用者のライフが減らない
+    if (attacker && attacker.lifeDamageNegatedFor === pid) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return null
+    }
     if (attacker && hasLifeDamageNegate(state, pid, attackerPid, attacker)) {
         log(
             state,

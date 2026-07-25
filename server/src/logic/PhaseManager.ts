@@ -127,6 +127,7 @@ export function endTurn(state: GameState): void {
             inst.cantAttackThisTurn = false
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
+            delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
             inst.tempColors = []

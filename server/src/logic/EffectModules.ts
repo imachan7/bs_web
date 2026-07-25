@@ -174,6 +174,11 @@ export function millDeck(state: GameState, pid: PlayerId, count: number): number
         player.trashCards.push(cardId)
     }
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
+    // 「相手のデッキを一度に◯枚以上破棄したとき」（アリゲイド）：破棄された側の相手のフィールドから発火する。
+    // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する
+    if (actual > 0 && !state.winner) {
+        fireFieldEventTriggers(state, opponentOf(pid), "opponentDeckMilled", undefined, undefined, undefined, actual)
+    }
     return actual
 }
 
@@ -4197,6 +4202,56 @@ export function resolveAction(
             return
         }
 
+        case "opponentCoresToTrash": {
+            // 氷の女神フリッグ：相手のリザーブ→相手スピリット上（コアの多い順）の順にコアを相手のトラッシュへ
+            const target = state.players[opp]
+            let remaining = action.count
+            const fromReserve = Math.min(remaining, target.reserve)
+            target.reserve -= fromReserve
+            target.trashCores += fromReserve
+            remaining -= fromReserve
+            while (remaining > 0) {
+                const richest = target.field.spirits
+                    .filter((s) => s.cores > 0)
+                    .reduce<CardInstance | undefined>(
+                        (best, s) => (best === undefined || s.cores > best.cores ? s : best),
+                        undefined,
+                    )
+                if (!richest) break
+                const take = Math.min(remaining, richest.cores)
+                richest.cores -= take
+                target.trashCores += take
+                remaining -= take
+                // 維持コア（Lv1）を下回ったスピリットは消滅する
+                if (richest.cores < lv1Cores(getCard(richest.cardId))) {
+                    destroySpirit(state, opp, richest.instanceId, "deplete")
+                }
+            }
+            const moved = action.count - remaining
+            log(state, `${sourceName}：${target.name}のコア${moved}個をトラッシュに置いた。`)
+            return
+        }
+
+        case "negateLifeDamageFromTarget": {
+            // ミストカーテン：対象の相手スピリットのアタックでは、このターン使用者のライフが減らない
+            const found = targetInstanceId
+                ? findSpiritAny(state, targetInstanceId)
+                : (() => {
+                      const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
+                      return t ? { pid: opp, inst: t } : null
+                  })()
+            if (!found) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            found.inst.lifeDamageNegatedFor = owner
+            log(
+                state,
+                `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタックでは${state.players[owner].name}のライフは減らない。`,
+            )
+            return
+        }
+
         case "ignoreUnblockableThisTurn": {
             // レッドウォール：このターンの間、自分のスピリットは「ブロックされない」効果を無視してブロックできる
             if (!state.ignoreUnblockableThisTurn.includes(owner)) {
@@ -5164,7 +5219,13 @@ export function fireFieldEventTriggers(
     eventColor?: Color,
     targetInstanceId?: string,
     eventCount?: number,
-    eventInfo?: { vanilla?: boolean; byBattle?: boolean; families?: string[] },
+    eventInfo?: {
+        vanilla?: boolean
+        byBattle?: boolean
+        families?: string[]
+        magicCost?: number
+        magicTiming?: "main" | "flash"
+    },
 ): void {
     const player = state.players[pid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -5181,6 +5242,11 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
+            if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
+            // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
+            if (effect.magicCostEquals !== undefined && eventInfo?.magicCost !== effect.magicCostEquals) continue
+            if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
             if (effect.familyFilter !== undefined) {
                 // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
                 const wanted = Array.isArray(effect.familyFilter)
@@ -5197,6 +5263,13 @@ export function fireFieldEventTriggers(
                     const { color, count } = effect.condition.ownColorTotalAtLeast
                     const sources = [...player.field.spirits, ...player.field.nexuses]
                     const total = sources.filter((s) => instHasColor(s, color)).length
+                    if (total < count) continue
+                } else if ("ownFamilyCountAtLeast" in effect.condition) {
+                    // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上
+                    const { family, count } = effect.condition.ownFamilyCountAtLeast
+                    const total = player.field.spirits.filter((s) =>
+                        matchesFamilyFilter(state, pid, s, family),
+                    ).length
                     if (total < count) continue
                 } else {
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
@@ -5323,5 +5396,19 @@ export function resolveMagic(
     // （opponentDrewの実装を踏襲。緑芽吹く原野）
     if (!state.winner) {
         fireFieldEventTriggers(state, owner, "ownMagicUsed")
+    }
+    // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
+    // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む
+    if (!state.winner) {
+        fireFieldEventTriggers(
+            state,
+            opponentOf(owner),
+            "opponentMagicUsed",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { magicCost: card.cost, magicTiming: timing },
+        )
     }
 }

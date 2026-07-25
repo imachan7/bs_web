@@ -20264,7 +20264,22 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv2『自分のターン』\n相手のデッキを上から一度に5枚以上破棄したとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-027-e1",
+    "kind": "fieldEvent",
+    "event": "opponentDeckMilled",
+    "levels": [
+     2
+    ],
+    "turn": "own",
+    "minEventCount": 5,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-028",
@@ -21105,7 +21120,39 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n相手がコスト4のマジックの効果をフラッシュタイミングで使用したとき、自分は相手のフィールド/リザーブからコア4個を相手のトラッシュに置く。\nLv2『お互いのアタックステップ』\n相手がコスト3のマジックの効果をフラッシュタイミングで使用したとき、自分は相手のフィールド/リザーブからコア3個を相手のトラッシュに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-045-e1",
+    "kind": "fieldEvent",
+    "event": "opponentMagicUsed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "magicCostEquals": 4,
+    "magicTiming": "flash",
+    "action": {
+     "type": "opponentCoresToTrash",
+     "count": 4
+    }
+   },
+   {
+    "id": "BS04-045-e2",
+    "kind": "fieldEvent",
+    "event": "opponentMagicUsed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "magicCostEquals": 3,
+    "magicTiming": "flash",
+    "action": {
+     "type": "opponentCoresToTrash",
+     "count": 3
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-046",
@@ -23010,7 +23057,49 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のメインステップ』\n自分のフィールドに系統：「四道」を持つスピリットが3体以上いる間、相手はスピリットを召喚するとき、1コスト余分に支払わなければならない。\nLv2『相手のアタックステップ』\n自分のフィールドに系統：「四道」を持つスピリットが3体以上いる間、相手はアタックをするとき、相手のフィールド/リザーブにあるコア1個を相手のトラッシュに置かなければならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-085-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "spirit",
+    "side": "opponent",
+    "amount": 1,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "opponent"
+    },
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 3
+     }
+    }
+   },
+   {
+    "id": "BS04-085-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "coreToTrashSelf",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-086",
@@ -23556,7 +23645,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n相手のスピリット1体を指定する。\nこのターンの間、ブロックされなかったそのスピリットのアタックでは、自分のライフは減らない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-101-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "negateLifeDamageFromTarget"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-102",
