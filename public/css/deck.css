@@ -706,6 +706,24 @@ input[type="text"] {
     white-space: nowrap;
 }
 
+.saved-badge {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    margin: 0 4px;
+}
+
+.saved-badge.valid {
+    background: #2f7a3a;
+    color: #fff;
+}
+
+.saved-badge.invalid {
+    background: #ffd968;
+    color: #1a1d2b;
+}
+
 .saved-row button {
     padding: 3px 8px;
     font-size: 11px;

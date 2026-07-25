@@ -593,13 +593,55 @@ function renderSavedDecks(): void {
         const date = saved.updatedAt
             ? new Date(saved.updatedAt).toLocaleString("ja-JP")
             : ""
-        info.textContent = `${saved.name}（${total}枚） ${date}`
+
+        info.textContent = `${saved.name} `
+
+        const badge = document.createElement("span")
+        badge.className = `saved-badge ${total === 40 ? "valid" : "invalid"}`
+        badge.textContent = `${total}/40`
+        info.appendChild(badge)
+        
+        info.appendChild(document.createTextNode(` ${date}`))
         row.appendChild(info)
 
         const loadBtn = document.createElement("button")
         loadBtn.textContent = "読込"
         loadBtn.addEventListener("click", () => loadDeckByName(saved.name))
         row.appendChild(loadBtn)
+
+        const dupBtn = document.createElement("button")
+        dupBtn.textContent = "複製"
+        dupBtn.addEventListener("click", () => {
+            const newName = `${saved.name}のコピー`
+            const newDeck = { name: newName, cards: { ...saved.cards }, updatedAt: new Date().toISOString() }
+            const currentDecks = loadSavedDecks()
+            const filtered = currentDecks.filter(d => d.name !== newName)
+            filtered.push(newDeck)
+            persistSavedDecks(filtered)
+            renderSavedDecks()
+            showToast(`「${newName}」として複製しました`)
+        })
+        row.appendChild(dupBtn)
+
+        const renameBtn = document.createElement("button")
+        renameBtn.textContent = "名前"
+        renameBtn.addEventListener("click", () => {
+            const newName = prompt("新しいデッキ名を入力してください", saved.name)?.trim()
+            if (!newName || newName === saved.name) return
+            const currentDecks = loadSavedDecks()
+            if (currentDecks.some(d => d.name === newName)) {
+                showToast("同名のデッキが既に存在します")
+                return
+            }
+            const target = currentDecks.find(d => d.name === saved.name)
+            if (target) {
+                target.name = newName
+                persistSavedDecks(currentDecks)
+                renderSavedDecks()
+                showToast("名前を変更しました")
+            }
+        })
+        row.appendChild(renameBtn)
 
         const deleteBtn = document.createElement("button")
         deleteBtn.className = "danger"
