@@ -28,6 +28,8 @@ export interface Board {
     turnPlayer: PlayerId
     phase: Phase
     battle: BattleState | null
+    isFlashTiming: boolean
+    priorityPlayer: PlayerId
     turnConstraints: TurnConstraintDef[]
     magicUsedThisTurn: Record<PlayerId, number>
     ignoreUnblockableThisTurn: PlayerId[]

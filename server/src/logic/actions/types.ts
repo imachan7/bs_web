@@ -26,9 +26,11 @@ export interface ActionCtx {
     chosenOption: string | undefined
     chosenCardIndex: number | undefined
     // 効果解決中の再入（同一アクションの繰り返し・別アクションへの委譲）に使う。
-    // 旧実装の `resolveAction(state, owner, self, action, ...)` の置き換えで、
-    // **省略した引数は undefined が渡る**（呼び出し元の値を暗黙に引き継がない）。
-    // 移設前の挙動をそのまま保つための設計
+    // 旧実装の `resolveAction(state, owner, self, action, ...)` の置き換え。
+    // **self だけは省略時に呼び出し元の self を引き継ぎ**（旧実装が常に self を渡していたため）、
+    // targetInstanceId / sourceColor / sourceType / chosenOption / chosenCardIndex は
+    // **省略すると undefined が渡る**（呼び出し元の値を暗黙に引き継がない）。
+    // 引き継ぎたい場合は opts に明示的に渡すこと。移設前の挙動をそのまま保つための設計
     resolve: (action: EffectAction, opts?: ResolveOpts) => void
 }
 
@@ -36,6 +38,7 @@ export interface ActionCtx {
 export interface ResolveOpts {
     // exactOptionalPropertyTypes 下でも ctx の値（undefined を含みうる）をそのまま渡せるよう
     // 明示的に undefined を許容する
+    // self のみ「省略時は呼び出し元の self を引き継ぐ」（null を渡せば self なしにできる）
     self?: CardInstance | null | undefined
     targetInstanceId?: string | undefined
     sourceColor?: Color | undefined

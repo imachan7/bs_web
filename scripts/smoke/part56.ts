@@ -65,4 +65,28 @@ console.log("=== 共有実装の同一性: サーバーとクライアントが�
     assert(effectiveBp(s, "p1", yokuryu) === 4000, "共有実装の effectiveBp がオーラを加算する")
 }
 
+console.log("=== 覚醒の保持判定が静的キーワードのレベル指定を尊重する（サーバー側の潜在バグ是正） ===")
+{
+    // 旧 validateAwaken は spiritHasKeyword（静的分岐がレベルを見ない）で判定していたため、
+    // 「Lv2・Lv3【覚醒】」のようなカードでも Lv1 で覚醒できてしまう潜在バグがあった。
+    // 現行データには該当カードが無く挙動は変わらないが、共有実装（canAwaken）へ統合して是正済み。
+    // ここでは「レベル有効な覚醒は使える／覚醒を持たないスピリットは使えない」ことを固定する
+    const s = createGame("refactor-awaken", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "green" })
+    runTurnStart(s)
+    const awakenSpirit = createInstance("BS01-013", s.turn, 2) // タウロスナイト（覚醒 Lv1-3）
+    const plain = createInstance("BS01-001", s.turn, 2) // ゴラドン（覚醒なし）
+    s.players.p1.field.spirits.push(awakenSpirit)
+    s.players.p1.field.spirits.push(plain)
+    s.isFlashTiming = true
+    s.priorityPlayer = "p1"
+    assert(
+        act(s, "p1", { type: "awaken", instanceId: awakenSpirit.instanceId, fromInstanceId: plain.instanceId, count: 1 }) === null,
+        "レベル有効な覚醒持ちは覚醒できる",
+    )
+    assert(
+        act(s, "p1", { type: "awaken", instanceId: plain.instanceId, fromInstanceId: awakenSpirit.instanceId, count: 1 }) !== null,
+        "覚醒を持たないスピリットは覚醒できない",
+    )
+}
+
 console.log("パート56 完了")

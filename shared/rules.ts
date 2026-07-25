@@ -497,3 +497,53 @@ export function cantActByCost(board: Board, inst: CardInstance): boolean {
             (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
     )
 }
+
+// ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
+
+// 【覚醒】を現在レベルで持っているか。
+// 静的キーワードは **effects の levels を尊重する**（「Lv2・Lv3【覚醒】」を Lv1 で使えないようにする）。
+// 一時付与（スピリットリンク）・継続付与（ディラノス）はレベル指定を持たないためそのまま有効。
+// なお spiritHasKeyword の静的分岐はレベルを見ないため、レベルを尊重したい呼び出しはこちらを使う
+export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    const level = currentLevel(inst).level
+    const staticAwaken = card(inst.cardId).effects.some(
+        (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, level),
+    )
+    if (staticAwaken) return true
+    return inst.tempKeywords.some((k) => k.keyword === "awaken")
+        || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
+}
+
+// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
+// フラッシュ中・優先権保持・self がバトル当事者・コスト支払い可能をすべて満たす必要がある
+export function activatableAbility(
+    board: Board,
+    pid: PlayerId,
+    inst: CardInstance,
+): { effectId: string; cost: number } | null {
+    if (!board.battle || !board.isFlashTiming) return null
+    if (board.priorityPlayer !== pid) return null
+    const inBattle =
+        board.battle.attackerInstanceId === inst.instanceId ||
+        board.battle.blockerInstanceId === inst.instanceId
+    if (!inBattle) return null
+    const level = currentLevel(inst).level
+    for (const e of card(inst.cardId).effects) {
+        if (e.kind !== "activated") continue
+        if (!effectActiveAtLevel(e.levels, level)) continue
+        if (board.players[pid].reserve < e.cost.reserveToTrash) continue
+        return { effectId: e.id, cost: e.cost.reserveToTrash }
+    }
+    return null
+}
+
+// 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
+export function directAttackFilter(
+    board: Board,
+    pid: PlayerId,
+    inst: CardInstance,
+): "rested" | "singleCore" | "recovered" | null {
+    const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
+    if (!constraint || constraint.type !== "canDirectAttack") return null
+    return constraint.targetFilter
+}

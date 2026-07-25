@@ -29,6 +29,9 @@ import {
     hasKeyword,
     hasMagicImmunity,
     isUntargetableByOpponent,
+    activatableAbility as sharedActivatableAbility,
+    canAwaken as sharedCanAwaken,
+    directAttackFilter,
     instHasColor,
     instHasCost,
     isVanillaCard,
@@ -77,7 +80,6 @@ export { effectiveBp }
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
 export const spiritHasKeywordView = spiritHasKeyword
 
-// 状態を考慮した色判定（サーバー instHasColor のミラー）
 // main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
 export const instHasColorView = instHasColor
 
@@ -168,41 +170,19 @@ export function magicTargetSide(
     return null
 }
 
-// 【覚醒】を持っているか（静的キーワードは現在レベル限定、一時付与・keywordGrant も含む）
+// 【覚醒】を現在レベルで持っているか（判定はサーバー validateAwaken と同一の共有実装）
 export function canAwaken(view: GameView, inst: CardInstance): boolean {
-    const { level } = levelOf(inst)
-    const staticAwaken = master(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "awaken" &&
-            (e.levels === null || e.levels.includes(level)),
-    )
-    if (staticAwaken) return true
-    // 一時付与（スピリットリンク）・継続付与（ディラノス）。覚醒UIは自分のスピリット専用
-    return spiritHasKeywordView(view, view.you, inst, "awaken")
+    return sharedCanAwaken(view, view.you, inst)
 }
 
-// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
-// フラッシュ中・優先権保持・self がバトル当事者・コスト支払い可能を判定（サーバー validateActivateAbility のミラー）。
+// 起動能力が今このスピリットで発動可能なら {effectId, cost} を返す
+// （判定はサーバー validateActivateAbility と同一の共有実装）
 export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
 ): { effectId: string; cost: number } | null {
-    if (!view.battle || !view.isFlashTiming) return null
-    if (view.priorityPlayer !== you) return null
-    const inBattle =
-        view.battle.attackerInstanceId === inst.instanceId ||
-        view.battle.blockerInstanceId === inst.instanceId
-    if (!inBattle) return null
-    const { level } = levelOf(inst)
-    for (const e of master(inst.cardId).effects) {
-        if (e.kind !== "activated") continue
-        if (!(e.levels === null || e.levels.includes(level))) continue
-        if (view.players[you].reserve < e.cost.reserveToTrash) continue
-        return { effectId: e.id, cost: e.cost.reserveToTrash }
-    }
-    return null
+    return sharedActivatableAbility(view, you, inst)
 }
 
 // 支払いモード：不足コストをスピリット上のコアで賄うための一時状態
@@ -224,15 +204,13 @@ export interface UiState {
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
 
-// 指定アタック（canDirectAttack）を現在レベルで持っているか（判定は共有実装 activeConstraints を参照）
+// 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
     inst: CardInstance,
 ): "rested" | "singleCore" | "recovered" | null {
-    const constraint = activeConstraints(view, pid, inst).find((c) => c.type === "canDirectAttack")
-    if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetFilter
+    return directAttackFilter(view, pid, inst)
 }
 
 // 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）

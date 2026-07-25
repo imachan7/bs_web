@@ -11,7 +11,7 @@ import {
     lv1Cores,
     opponentOf,
 } from "./GameState"
-import { cantActByCost } from "../../../shared/rules"
+import { canAwaken, cantActByCost, directAttackFilter } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -322,7 +322,8 @@ export function validateAwaken(
     const player = state.players[pid]
     const target = findSpirit(player, instanceId)
     if (!target) return "覚醒するスピリットが見つかりません"
-    if (!spiritHasKeyword(state, pid, target, "awaken")) return "このスピリットは【覚醒】を持ちません"
+    // 覚醒の保持判定はクライアントの覚醒バッジ表示と同一の共有実装（静的キーワードのレベル指定を尊重する）
+    if (!canAwaken(state, pid, target)) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
     const from = findSpirit(player, fromInstanceId)
@@ -402,16 +403,14 @@ export function validateAttack(
 
     if (targetSpiritInstanceId !== undefined) {
         // 指定アタック：canDirectAttack を持ち、指定した相手スピリットが targetFilter に合うかを検証する
-        const directConstraint = activeConstraints(state, pid, inst).find(
-            (c) => c.type === "canDirectAttack",
-        )
-        if (!directConstraint || directConstraint.type !== "canDirectAttack") {
+        const targetFilter = directAttackFilter(state, pid, inst)
+        if (targetFilter === null) {
             return "このスピリットは指定アタックできません"
         }
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
         // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
-        const filterError = matchesDirectedAttackFilter(directConstraint.targetFilter, target)
+        const filterError = matchesDirectedAttackFilter(targetFilter, target)
         if (filterError) return filterError
     }
     return null
