@@ -469,6 +469,15 @@ function loadSavedDecks(): SavedDeck[] {
 // deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
 function populateCustomDecks(): void {
     const select = byId("deck-select") as HTMLSelectElement
+    // 既存のカスタムデッキをクリア
+    const options = Array.from(select.options)
+    for (const opt of options) {
+        if (opt.value.startsWith(CUSTOM_DECK_PREFIX)) {
+            select.removeChild(opt)
+        }
+    }
+    customDecks.clear()
+
     for (const saved of loadSavedDecks()) {
         customDecks.set(saved.name, saved.cards)
         let total = 0
@@ -486,6 +495,12 @@ function populateCustomDecks(): void {
         select.appendChild(option)
     }
 }
+
+window.addEventListener("storage", (e) => {
+    if (e.key === DECK_STORAGE_KEY) {
+        populateCustomDecks()
+    }
+})
 
 // ---- DOM イベント登録 ----
 
