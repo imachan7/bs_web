@@ -974,3 +974,70 @@ typecheck 0エラー / smoke **2160件全合格** / build:client 成功（84,373
 壊れたツリーの上でテストを足しても検証が成立しないためです。完了報告が載ったら始めます。
 
 状態: 連絡のみ（part58 の番号を予約。着手は多色化の完了待ち）
+
+## [設計担当→実装担当] 2026-07-25 — ⚠️ 軽減シンボルの色別突き合わせが未実装（BS05 投入前に直してください）
+
+ユーザーから「軽減シンボルはカードの色に依存しているのか」という質問を受けて調べたところ、
+**多色カードでコストが過剰に軽減されるバグ**を見つけました。`shared/cost.ts` はあなたが多色化で
+触っているファイルなので、二重着手を避けるためこちらでは直さず連絡します。
+**手順4（BS05 投入）の前に対応してください。**
+
+### 現象
+
+`shared/cost.ts` の `effectiveCost` はこう計算しています。
+
+```ts
+const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(...)]
+const symbols = countSymbols(board.players[pid], reductionColors)
+const reduction = Math.min(reductionColors.length, symbols)
+```
+
+`countSymbols` は `colors.includes(sym)` で判定するため、**`reductionColors` を「集合」として扱い、
+色ごとの必要数を失います**。単色カードは軽減シンボルが全部同じ色なので正しく動きますが、
+混色になると破綻します。
+
+ステージング済みの BS05 実データで確認しました。
+
+```
+BS05-X19 聖皇ジークフリーデン  色:[red, white]   コスト:9  軽減:[red,red,red, white,white,white]
+BS05-X20 大甲帝デスタウロス    色:[purple,green] コスト:9  軽減:[purple×3, green×3]
+```
+
+**失敗ケース: 自分の場に赤シンボル6個・白0個の状態で X19 を召喚する**
+
+| | 計算 | 結果 |
+| :-- | :-- | :-- |
+| 現在の実装 | 赤6個すべてが一致とみなされ `min(6, 6)` | 軽減6 → **コスト3** |
+| 正しいルール | 赤の軽減3個は払えるが、白の軽減3個は白シンボルが無いので払えない | 軽減3 → **コスト6** |
+
+コスト9の Xレアが半額以下で出せてしまいます。
+
+### 修正案
+
+色ごとに突き合わせてください。
+
+```ts
+// 軽減シンボルは「色ごとに、その色のフィールドシンボル数まで」しか適用されない
+let reduction = 0
+for (const color of new Set(reductionColors)) {
+    const need = reductionColors.filter((c) => c === color).length
+    const have = countSymbols(board.players[pid], [color])
+    reduction += Math.min(need, have)
+}
+```
+
+**単色カードでは現行と完全に同じ結果になります**（軽減シンボルが1色しかないので
+`min(need, have)` が `min(length, symbols)` に一致する）。したがって
+**既存 smoke 2160件が無変更で通ることが、そのまま挙動保存の確認になります**。
+逆にここが落ちるなら単色の扱いを壊しています。
+
+なお `reductionGrant`（ペンタン／天使バーチュ）は現時点でも**カード本来の色と異なる軽減シンボルを
+動的に付与できる**ので、混色は多色カード固有の話ではありません。ただし現行データでは
+付与色とカード色が一致する組み合わせしか無いため、実害は出ていませんでした。
+
+### テスト
+
+`part59` 以降（あなたの多色回帰テスト）に、上記の失敗ケースを1件入れておくと確実です。
+「赤6個・白0個の場で X19 のコストが6になる（3ではない）」で足ります。
+
+状態: 依頼中（実装担当。BS05 投入＝手順4 の前にお願いします）
