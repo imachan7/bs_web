@@ -16,6 +16,15 @@ import type {
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
+// ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
+import {
+    currentLevel,
+    hasKeyword,
+    instHasColor,
+    instHasCost,
+    isVanillaCard,
+} from "../../shared/rules"
+export { hasKeyword, instHasCost, instHasColor }
 
 // ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
 
@@ -42,45 +51,10 @@ const COLOR_SYMBOLS: Record<string, string> = {
     blue: "💧"
 }
 
-// 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
-// 指定コストとして扱われるか（サーバー instHasCost と同じロジックの簡易版）
-export function instHasCost(inst: CardInstance, cost: number): boolean {
-    return master(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
-}
+// ---- ルール計算は shared/ の共有実装を使う（従来はここにサーバーのミラーを持っていた） ----
 
-// カードに効果の記述を持たない（バニラ）か（サーバー isVanillaCard と同じロジックの簡易版）
-function isVanillaCard(cardId: string): boolean {
-    return master(cardId).effect === ""
-}
-
-// ---- クライアント側でも使うルール計算（サーバーと同じロジックの簡易版） ----
-
-// levelOverrideThisTurn（このターンの上書き。皇帝アンプルール）または levelAsContinuous
-// （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
-// 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
-// （該当レベルがカードに無ければ通常計算にフォールバック。サーバーのcurrentLevelと同じロジック）
-export function levelOf(inst: CardInstance): { level: number; bp: number } {
-    const m = master(inst.cardId)
-    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
-    if (override !== undefined) {
-        const lv = m.levels.find((l) => l.level === override)
-        if (lv) {
-            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
-        }
-    }
-    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
-    const coreCount = inst.coresOverride ?? inst.cores
-    let result = { level: 0, bp: 0 }
-    for (const lv of m.levels) {
-        if (coreCount >= lv.cores && lv.level > result.level) {
-            result = { level: lv.level, bp: lv.bp }
-        }
-    }
-    return {
-        level: result.level,
-        bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0),
-    }
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.currentLevel）
+export const levelOf = currentLevel
 
 // ---- 常時BP修正（オーラ）：サーバー（EffectModules.effectiveBp）と同じロジックの簡易版 ----
 
@@ -187,7 +161,7 @@ function auraAppliesTo(
     ) {
         return false
     }
-    if (aura.vanillaFilter && !isVanillaCard(targetInst.cardId)) {
+    if (aura.vanillaFilter && !isVanillaCard(master(targetInst.cardId))) {
         return false
     }
     return true
@@ -226,11 +200,7 @@ export function effectiveBp(view: GameView, ownerPid: PlayerId, inst: CardInstan
 }
 
 // 指定カードがそのキーワードを持つか（サーバー hasKeyword と同じロジックの簡易版）
-export function hasKeyword(cardId: string, keyword: Keyword): boolean {
-    return master(cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === keyword,
-    )
-}
+
 
 // 状態を考慮したキーワード判定（サーバー spiritHasKeyword のミラー）:
 // 静的キーワード ‖ 一時付与（tempKeywords） ‖ 持ち主フィールドからの継続付与（keywordGrant）
@@ -265,11 +235,8 @@ export function spiritHasKeywordView(
 }
 
 // 状態を考慮した色判定（サーバー instHasColor のミラー）
-export function instHasColorView(inst: CardInstance, color: Color): boolean {
-    if (master(inst.cardId).color === color) return true
-    if (inst.tempColors.includes(color)) return true
-    return (inst.colorsAsContinuous ?? []).includes(color)
-}
+// main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
+export const instHasColorView = instHasColor
 
 // 状態を考慮した系統判定（サーバー spiritHasFamily のミラー）:
 // 静的系統（CardData.family） ‖ 持ち主フィールドからの継続付与（kind: "familyGrant"。ポム／生み出される尖兵）

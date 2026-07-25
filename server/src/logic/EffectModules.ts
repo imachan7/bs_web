@@ -41,6 +41,34 @@ import {
     opponentOf,
     rawLevel,
 } from "./GameState"
+// 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
+// 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
+import type { KeywordInfo } from "../../../shared/rules"
+export type { KeywordInfo }
+import {
+    countSymbols,
+    currentLevel as sharedCurrentLevel,
+    effectActiveAtLevel,
+    hasKeyword,
+    instanceSymbolCount,
+    instHasColor,
+    instHasCost,
+    isSpiritOnField,
+    isVanillaCard,
+    KEYWORDS,
+} from "../../../shared/rules"
+export {
+    countSymbols,
+    effectActiveAtLevel,
+    hasKeyword,
+    instanceSymbolCount,
+    instHasColor,
+    instHasCost,
+    isVanillaCard,
+    KEYWORDS,
+}
+void sharedCurrentLevel
+
 
 // 音鳥クルークのgrantFamilyChoiceAll用: 全カードの系統を重複なく集めたソート済みリスト。
 // GameState.ts とはモジュール相互importの関係にあり、モジュール読み込み時点では
@@ -72,49 +100,24 @@ export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void 
 // ---- キーワードレジストリ ----
 // 挙動（召喚やコア移動の可否）は GameEngine / RuleValidator が hasKeyword で参照する。
 // ここではキーワードの存在と表示名を一元管理する。
-export interface KeywordInfo {
-    id: Keyword
-    label: string
-}
 
-export const KEYWORDS: Record<Keyword, KeywordInfo> = {
-    soku: { id: "soku", label: "神速" },
-    awaken: { id: "awaken", label: "覚醒" },
-    clash: { id: "clash", label: "激突" },
-    armor: { id: "armor", label: "装甲" },
-    jugeki: { id: "jugeki", label: "呪撃" },
-    funsai: { id: "funsai", label: "粉砕" },
-    kobo: { id: "kobo", label: "光芒" },
-    tensho: { id: "tensho", label: "転召" },
-}
+
+
 
 // 指定カードがそのキーワードを持つか。
 // 「神速を持つスピリット」を参照する効果など、他カードの判定にも使い回せる。
-export function hasKeyword(cardId: string, keyword: Keyword): boolean {
-    return getCard(cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === keyword,
-    )
-}
+
 
 // カードに効果の記述を持たない（＝バニラ）か。Wiki由来の効果原文（card.effect）が空文字のカードを指す
 // （無法者の荒野／運命分かつ岐路／深緑の樹海／鋼に覆われた高空／子供部屋 午前0時／サファイアの城壁が参照）。
-export function isVanillaCard(card: CardData): boolean {
-    return card.effect === ""
-}
+
 
 // 指定インスタンスが、実コストまたは道化師クランの tempAlsoCosts のいずれかで
 // 指定コストとして扱われるか（コスト一致判定を行う既存箇所はすべてこちらを参照する）
-export function instHasCost(inst: CardInstance, cost: number): boolean {
-    return getCard(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
-}
+
 
 // 効果が現在のレベルで有効か（levels が null ならレベル不問）
-export function effectActiveAtLevel(
-    levels: number[] | null,
-    level: number,
-): boolean {
-    return levels === null || levels.includes(level)
-}
+
 
 // 状態を考慮したキーワード判定：
 //   静的キーワード（hasKeyword） ‖ 一時付与（tempKeywords。スピリットリンク等） ‖
@@ -395,9 +398,7 @@ export function matchesFamilyFilter(
 // ---- 常時BP修正（オーラ） ----
 
 // フィールド上の指定インスタンスがスピリットとして存在するか
-function isSpiritOnField(state: GameState, pid: PlayerId, instanceId: string): boolean {
-    return state.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
-}
+
 
 // オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える
 function countAuraCounter(
@@ -634,24 +635,12 @@ export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefin
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
-export function instHasColor(inst: CardInstance, color: Color): boolean {
-    if (getCard(inst.cardId).color === color) return true
-    if (inst.tempColors.includes(color)) return true
-    return (inst.colorsAsContinuous ?? []).includes(color)
-}
+
 
 // インスタンスのシンボル数：カードの静的シンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
 // GameEngineのライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
 // （BS04エンジン拡張バッチ1。state/ownerPidは将来の拡張用に受け取るが現状は未使用）
-export function instanceSymbolCount(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): number {
-    void state
-    void ownerPid
-    return getCard(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
-}
+
 
 // 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
 // ownerPid のフィールド（スピリット＋ネクサス）を走査し、レベル有効・familyFilter一致（省略時は不問）の
@@ -1552,13 +1541,13 @@ function pickBpBuffTarget(
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null
-        if (minSymbols !== undefined && instanceSymbolCount(state, owner, found.inst) < minSymbols) {
+        if (minSymbols !== undefined && instanceSymbolCount(found.inst) < minSymbols) {
             return null
         }
         return found.inst
     }
     const mine = state.players[owner].field.spirits.filter(
-        (s) => minSymbols === undefined || instanceSymbolCount(state, owner, s) >= minSymbols,
+        (s) => minSymbols === undefined || instanceSymbolCount(s) >= minSymbols,
     )
     let target: CardInstance | null = null
     if (state.battle) {
@@ -5426,7 +5415,7 @@ export function resolveMagic(
                 // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
                 const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
                 const has = state.players[owner].field.spirits.some(
-                    (s) => instanceSymbolCount(state, owner, s) >= minSymbols,
+                    (s) => instanceSymbolCount(s) >= minSymbols,
                 )
                 if (!has) {
                     log(

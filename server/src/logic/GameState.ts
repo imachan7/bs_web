@@ -27,6 +27,10 @@ import {
 // 呼ぶために必要
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 import { setCardLookup } from "../../../shared/cardDb"
+// 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
+// 再エクスポートで名前を残す
+import { countSymbols, currentLevel } from "../../../shared/rules"
+export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
 
@@ -263,25 +267,7 @@ export function rawLevel(inst: CardInstance): number {
 // （継続的な「Lv◯として扱う」。ジャグリーン／トパーズの流星）が設定されていれば、
 // 優先順位 levelOverrideThisTurn > levelAsContinuous でそのレベルのLevelDefを返す
 // （該当レベルがカードに無ければ通常計算にフォールバック）
-export function currentLevel(inst: CardInstance): { level: number; bp: number } {
-    const master = getCard(inst.cardId)
-    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
-    if (override !== undefined) {
-        const lv = master.levels.find((l) => l.level === override)
-        if (lv) {
-            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
-        }
-    }
-    // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
-    const coreCount = inst.coresOverride ?? inst.cores
-    let result = { level: 0, bp: 0 }
-    for (const lv of master.levels) {
-        if (coreCount >= lv.cores && lv.level > result.level) {
-            result = { level: lv.level, bp: lv.bp }
-        }
-    }
-    return { level: result.level, bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0) }
-}
+
 
 // レベル1の維持コア数
 export function lv1Cores(card: CardData): number {
@@ -299,22 +285,6 @@ export function coresForLevel(card: CardData, level: number): number | null {
 // 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
 // tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
-export function countSymbols(player: PlayerState, colors: Color[]): number {
-    let count = 0
-    const all = [...player.field.spirits, ...player.field.nexuses]
-    for (const inst of all) {
-        const cardSymbols = getCard(inst.cardId).symbol
-        let matched = false
-        for (const sym of cardSymbols) {
-            if (colors.includes(sym)) {
-                count++
-                matched = true
-            }
-        }
-        if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
-    }
-    return count
-}
 
 export function findSpirit(
     player: PlayerState,

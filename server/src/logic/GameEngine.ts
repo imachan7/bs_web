@@ -550,7 +550,7 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 
     // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker ? instanceSymbolCount(state, attackerPid, attacker) : 1
+    const damage = attacker ? instanceSymbolCount(attacker) : 1
     const dealt = Math.min(damage, defender.life)
     const toVoid =
         attacker !== undefined &&
