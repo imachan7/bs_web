@@ -145,7 +145,52 @@ export function isVirtualSource(inst: CardInstance): boolean {
 | { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源として場に置いたものとして扱う
 ```
 
-`resolveMagic` は使用中のカードを知っているので、`cardId` を引数に取る必要はない。
+### 3.3 ⚠️ **マジックの `self` は `null`**。ハンドラは `self` から cardId を取れない
+
+**実装で最も踏みやすい罠。** `resolveMagic` はマジックの効果をこう解決している
+（`EffectModules.ts:2030`、実測で確認）。
+
+```ts
+resolveAction(state, owner, null, effect.action, targetInstanceId, card.colors, "magic")
+//                          ^^^^ マジックの self は常に null
+```
+
+したがって `lendSelfThisTurn` のハンドラを
+
+```ts
+if (!self) return                                   // ❌ これを書くと
+const inst = createInstance(self.cardId, ...)       //    唯一の用途で必ず no-op になる
+```
+
+の形で書くと、**マジックから使ったときに必ず何もせずに終了する**。
+エラーも警告も出ず、smoke を書いても「効果が出ない」ことしか分からない。
+
+**対処**: 発生源の cardId を `ActionCtx` に載せて渡すこと。
+
+```ts
+// server/src/logic/actions/types.ts
+export interface ActionCtx {
+    // ...既存
+    sourceCardId: string | undefined // 発生源のカードID。マジックは self が null のため、
+                                     // resolveMagic が使用中のカードの cardId をここに入れる
+}
+```
+
+`resolveAction` のシグネチャに `sourceCardId?: string` を足し、`resolveMagic` が
+`card.cardId` を渡す。スピリット/ネクサス発生源では `self?.cardId` をそのまま入れればよい。
+
+ハンドラ側は `ctx.sourceCardId` を使う（`self` は参照しない）。
+
+```ts
+const cardId = ctx.sourceCardId
+if (cardId === undefined) return
+const inst = createInstance(cardId, state.turn, 0)
+inst.instanceId = `virtual-${inst.instanceId}`
+state.players[owner].turnVirtualInstances.push(inst)
+```
+
+**この経路は必ず smoke で押さえること**（実際にマジックを使って継続効果が有効になることを確認する）。
+「ハンドラが呼ばれる」だけのテストでは no-op を見逃す。
 
 **新しい kind を作らずに済むのが最大の利点**で、`mustBlockGrant` / `constraint`（`canDirectAttack`）/
 `reviveOnDestroy` / `aura` / `keywordGrant` などが一度に使えるようになる。
