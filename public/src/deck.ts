@@ -1,7 +1,8 @@
 // デッキビルダーページのロジック
 // カードプールの表示・フィルタ、デッキ編集、制約検証、保存・書き出しを担当する
-import type { CardData, CardType, Color } from "../../server/src/type"
+import type { CardData, CardType, Color, Keyword } from "../../server/src/type"
 import { COLOR_LABELS, DECK_SIZE } from "../../data/constants"
+import { KEYWORDS } from "../../shared/rules"
 
 // ---- 定数 ----
 
@@ -23,6 +24,14 @@ const COST_BANDS: ReadonlyArray<{ min: number; max: number }> = [
     { min: 7, max: Infinity },
 ]
 
+const SERIES_LABELS: Record<string, string> = {
+    "BS01": "第一弾",
+    "BS02": "激翔",
+    "BS03": "覇闘",
+    "BS04": "龍帝",
+    "BS05": "皇騎",
+}
+
 // ---- 状態 ----
 
 let cards: CardData[] = []
@@ -35,6 +44,9 @@ let deck = new Map<string, number>()
 const filterColors = new Set<Color>()
 const filterTypes = new Set<CardType>()
 const filterCosts = new Set<number>() // COST_BANDS のインデックス
+const filterSeries = new Set<string>()
+const filterKeywords = new Set<Keyword>()
+let filterFamily = ""
 let searchText = ""
 
 // 詳細パネルに固定表示するカード（クリックで選択）
@@ -112,6 +124,18 @@ function passesFilter(card: CardData): boolean {
         }
         if (!hit) return false
     }
+    if (filterSeries.size > 0 && !filterSeries.has(card.cardId.substring(0, 4))) return false
+    if (filterKeywords.size > 0) {
+        let hasKw = false
+        for (const kw of filterKeywords) {
+            if (card.effects.some(e => e.kind === "keyword" && e.keyword === kw)) {
+                hasKw = true
+                break
+            }
+        }
+        if (!hasKw) return false
+    }
+    if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
     if (searchText !== "" && !card.name.includes(searchText)) return false
     return true
 }
@@ -569,13 +593,55 @@ function renderSavedDecks(): void {
         const date = saved.updatedAt
             ? new Date(saved.updatedAt).toLocaleString("ja-JP")
             : ""
-        info.textContent = `${saved.name}（${total}枚） ${date}`
+
+        info.textContent = `${saved.name} `
+
+        const badge = document.createElement("span")
+        badge.className = `saved-badge ${total === 40 ? "valid" : "invalid"}`
+        badge.textContent = `${total}/40`
+        info.appendChild(badge)
+        
+        info.appendChild(document.createTextNode(` ${date}`))
         row.appendChild(info)
 
         const loadBtn = document.createElement("button")
         loadBtn.textContent = "読込"
         loadBtn.addEventListener("click", () => loadDeckByName(saved.name))
         row.appendChild(loadBtn)
+
+        const dupBtn = document.createElement("button")
+        dupBtn.textContent = "複製"
+        dupBtn.addEventListener("click", () => {
+            const newName = `${saved.name}のコピー`
+            const newDeck = { name: newName, cards: { ...saved.cards }, updatedAt: new Date().toISOString() }
+            const currentDecks = loadSavedDecks()
+            const filtered = currentDecks.filter(d => d.name !== newName)
+            filtered.push(newDeck)
+            persistSavedDecks(filtered)
+            renderSavedDecks()
+            showToast(`「${newName}」として複製しました`)
+        })
+        row.appendChild(dupBtn)
+
+        const renameBtn = document.createElement("button")
+        renameBtn.textContent = "名前"
+        renameBtn.addEventListener("click", () => {
+            const newName = prompt("新しいデッキ名を入力してください", saved.name)?.trim()
+            if (!newName || newName === saved.name) return
+            const currentDecks = loadSavedDecks()
+            if (currentDecks.some(d => d.name === newName)) {
+                showToast("同名のデッキが既に存在します")
+                return
+            }
+            const target = currentDecks.find(d => d.name === saved.name)
+            if (target) {
+                target.name = newName
+                persistSavedDecks(currentDecks)
+                renderSavedDecks()
+                showToast("名前を変更しました")
+            }
+        })
+        row.appendChild(renameBtn)
 
         const deleteBtn = document.createElement("button")
         deleteBtn.className = "danger"
@@ -773,6 +839,75 @@ function applyPreset(color: Color): void {
 // ---- イベント登録 ----
 
 function setupFilterChips(): void {
+    const availableSeries = new Set<string>()
+    const availableKeywords = new Set<Keyword>()
+    const availableFamilies = new Set<string>()
+
+    for (const card of cards) {
+        availableSeries.add(card.cardId.substring(0, 4))
+        for (const effect of card.effects) {
+            if (effect.kind === "keyword") {
+                availableKeywords.add(effect.keyword)
+            }
+        }
+        for (const fam of card.family) {
+            availableFamilies.add(fam)
+        }
+    }
+
+    const seriesContainer = $("filter-series")
+    const sortedSeries = Array.from(availableSeries).sort()
+    for (const s of sortedSeries) {
+        const btn = document.createElement("button")
+        btn.className = "chip"
+        btn.dataset.series = s
+        btn.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
+        btn.addEventListener("click", () => {
+            if (filterSeries.has(s)) {
+                filterSeries.delete(s)
+                btn.classList.remove("active")
+            } else {
+                filterSeries.add(s)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+        seriesContainer.appendChild(btn)
+    }
+
+    const kwContainer = $("filter-keywords")
+    const sortedKw = Array.from(availableKeywords).sort()
+    for (const kw of sortedKw) {
+        const btn = document.createElement("button")
+        btn.className = "chip"
+        btn.dataset.keyword = kw
+        btn.textContent = KEYWORDS[kw]?.label ?? kw
+        btn.addEventListener("click", () => {
+            if (filterKeywords.has(kw)) {
+                filterKeywords.delete(kw)
+                btn.classList.remove("active")
+            } else {
+                filterKeywords.add(kw)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+        kwContainer.appendChild(btn)
+    }
+
+    const familySelect = $("filter-family") as HTMLSelectElement
+    const sortedFamilies = Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))
+    for (const fam of sortedFamilies) {
+        const option = document.createElement("option")
+        option.value = fam
+        option.textContent = fam
+        familySelect.appendChild(option)
+    }
+    familySelect.addEventListener("change", () => {
+        filterFamily = familySelect.value
+        renderPool()
+    })
+
     for (const btn of $("filter-colors").querySelectorAll<HTMLButtonElement>(".chip")) {
         btn.addEventListener("click", () => {
             const color = btn.dataset.color as Color
@@ -823,6 +958,11 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
+        filterSeries.clear()
+        filterKeywords.clear()
+        filterFamily = ""
+        const familySelect = $("filter-family") as HTMLSelectElement
+        familySelect.value = ""
         searchText = ""
         search.value = ""
         for (const btn of document.querySelectorAll("#filters .chip")) {

@@ -8,40 +8,27 @@ import {
     destroySpirit,
     findSpiritAny,
     isImmuneToArea,
-    matchesCostFilter,
     pickEnemyByBp,
     pickEnemyCandidates,
     returnNexusToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // bpEqualsSelf 指定時は self の実効BPが確定しないと対象を選べない（selfがnullならno-op）
-        if (action.bpEqualsSelf && !self) {
-            log(state, `${sourceName}の破壊効果：selfが不在のため対象がいなかった。`)
-            return
-        }
-        // maxBpFromSelf：selfの実効BP以下の相手のみを対象にする（selfが「召喚されたスピリット」になる
-        // fieldEvent "ownSpiritSummoned" 用。BS04七龍帝の玉座Lv2）
-        if (action.maxBpFromSelf && !self) {
+        // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
+        // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
+        // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
             return
         }
-        const limitBp =
-            action.maxBpFromSelf && self
-                ? effectiveBp(state, owner, self)
-                : (action.maxBp ?? Infinity)
-        const selfBp = action.bpEqualsSelf && self ? effectiveBp(state, owner, self) : undefined
-        // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
-        // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）。
-        // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04風龍王フージャオス）
-        const matchesFilter = (s: CardInstance) =>
-            (action.keywordFilter === undefined ||
-                spiritHasKeyword(state, opp, s, action.keywordFilter)) &&
-            (selfBp === undefined || effectiveBp(state, opp, s) === selfBp) &&
-            matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
+        // BP上限も filter 側で判定するため、候補列挙には上限を渡さない（Infinity）
+        const limitBp = Infinity
+        const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         if (targetInstanceId !== undefined) {
             // pendingChoice解決：選ばれた1体のみ破壊する
             const target = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
@@ -83,24 +70,27 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
         // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
-        // colorExclude 指定時はその色のスピリットを対象から除外する（BS04魔龍帝ジークフリードLv3）
-        const colorOk = (s: CardInstance) =>
-            action.colorExclude === undefined || !instHasColor(s, action.colorExclude)
+        // 絞り込み（maxBp / colorExclude）は共通の TargetFilter に一本化。
+        // anySide は「どちらのフィールドを見るか」＝対象プールの選択なので filter には含めない
+        const areaFilter = normalizeFilter(ctx, action)
+        if (areaFilter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
         const oppTargets = state.players[opp].field.spirits
             .filter(
                 (s) =>
-                    effectiveBp(state, opp, s) <= action.maxBp &&
+                    matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
                     !isImmuneToArea(s) &&
                     !hasArmorAgainst(s, srcColor) &&
-                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
-                    colorOk(s),
+                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
             )
             .map((s) => ({ pid: opp, inst: s }))
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
         // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
         const ownTargets = action.anySide
             ? state.players[owner].field.spirits
-                  .filter((s) => effectiveBp(state, owner, s) <= action.maxBp && !isImmuneToArea(s) && colorOk(s))
+                  .filter((s) => matchesTarget(state, owner, s, areaFilter, self?.instanceId) && !isImmuneToArea(s))
                   .map((s) => ({ pid: owner, inst: s }))
             : []
         const targets = [...oppTargets, ...ownTargets]
@@ -239,6 +229,12 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
 
 const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 絞り込みは共通の TargetFilter に一本化（cost 軸）。対象指定パスからも使うため冒頭で解決する
+        const exhaustedFilter = normalizeFilter(ctx, action)
+        if (exhaustedFilter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
         // 対象指定時はその1体のみ処理（疲労状態でなければログを出して何もしない）
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -261,7 +257,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
                 )
                 return
             }
-            if (!matchesCostFilter(getCard(found.inst.cardId).cost, action.costFilter)) {
+            if (!matchesTarget(state, found.pid, found.inst, exhaustedFilter, self?.instanceId)) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
@@ -270,7 +266,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         }
         // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04ヘルウィッチ）
         const matchesExhaustedCandidate = (s: CardInstance) =>
-            s.isRested && matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
+            s.isRested && matchesTarget(state, opp, s, exhaustedFilter, self?.instanceId)
         if (action.anySide) {
             // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
             // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、

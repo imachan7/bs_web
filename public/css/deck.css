@@ -144,6 +144,20 @@ input[type="text"] {
     color: #b8bdd4;
 }
 
+.family-select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1d2b;
+    color: #e8e8f0;
+    font-size: 13px;
+    outline: none;
+}
+
+.family-select:focus {
+    border-color: #4a6cd4;
+}
+
 .chip-group {
     display: flex;
     gap: 4px;
@@ -690,6 +704,24 @@ input[type="text"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.saved-badge {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    margin: 0 4px;
+}
+
+.saved-badge.valid {
+    background: #2f7a3a;
+    color: #fff;
+}
+
+.saved-badge.invalid {
+    background: #ffd968;
+    color: #1a1d2b;
 }
 
 .saved-row button {

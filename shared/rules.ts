@@ -18,6 +18,7 @@ import type {
     FamilyFilter,
     Keyword,
     PlayerId,
+    ResolvedTargetFilter,
 } from "../server/src/type"
 import type { Board, BoardPlayer } from "./board"
 import { card } from "./cardDb"
@@ -64,10 +65,17 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
     return card(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
 }
 
+// カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
+// **色の一致判定は必ずこの述語か instHasColor を通すこと**（`card.color === c` を直接書かない）。
+// BS05 で多色カードが入ると CardData の色が配列になるため、直接比較は静かに壊れる（MULTICOLOR.md 参照）
+export function cardHasColor(cardData: CardData, color: Color): boolean {
+    return cardData.color === color
+}
+
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 export function instHasColor(inst: CardInstance, color: Color): boolean {
-    if (card(inst.cardId).color === color) return true
+    if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
 }
@@ -379,6 +387,49 @@ export function effectiveBp(
         }
     }
     return total
+}
+
+// ---- 対象選択の絞り込み（TargetFilter） ----
+
+// 対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
+//
+// **これが直交化の中核**: 従来は destroy / exhaust / refreshOne … の各ハンドラが
+// 同じ軸（色・系統・コスト・レベル・キーワード・バニラ）を**それぞれ独自にインラインで**
+// 判定していたため、新しい軸が必要になるたびにアクションごとの後付けフィールドが増えていた。
+// 以後は軸をここへ足せば、filter を受け取る全アクションが自動的にその軸を扱える。
+//
+// 注意: BP の self 相対指定（"selfBp"）は normalizeFilter が数値へ解決済みである前提。
+// 装甲・免疫・untargetable の判定はここには含まない（対象の「絞り込み」ではなく
+// 「そもそも対象に取れるか」の判定であり、pickEnemyCandidates 側の責務）
+export function matchesTarget(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    filter: ResolvedTargetFilter | undefined,
+    selfInstanceId?: string,
+): boolean {
+    if (!filter) return true
+    if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp) return false
+    if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
+    if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
+    if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
+    if (filter.cost !== undefined && !matchesCostFilter(card(inst.cardId).cost, filter.cost)) return false
+    if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
+    if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
+    if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
+    if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
+    if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
+    return true
+}
+
+// コスト範囲の判定（TargetFilter.cost）。
+// 従来 EffectModules 側にあった matchesCostFilter をここへ移し、matchesTarget から使う
+export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {
+    if (!costFilter) return true
+    if (costFilter.max !== undefined && cost > costFilter.max) return false
+    if (costFilter.min !== undefined && cost < costFilter.min) return false
+    return true
 }
 
 // ---- 制約・免疫 ----
