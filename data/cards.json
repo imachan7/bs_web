@@ -21353,7 +21353,30 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv3『自分のドローステップ』\n自分のフィールドに、カード名に「ペンタン」/「アンプルール」と入っているスピリットが合計3体以上いるとき、ドローの枚数を+1枚する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-052-e1",
+    "kind": "step",
+    "step": "draw",
+    "turn": "own",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "ownNameIncludesCountAtLeast": {
+      "names": [
+       "ペンタン",
+       "アンプルール"
+      ],
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-053",
@@ -22596,7 +22619,31 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のドローステップ』\n自分のフィールドに系統「妖蛇」/「無魔」を持つスピリットが合計3体以上いるとき、ドローの枚数を+1枚する。\nLv2『自分のスタートステップ』\n相手のスピリット1体の上から、自分のフィールドにいる系統：「妖蛇」を持つスピリット1体につき、コア1個を相手のリザーブに置く。\n(この効果で相手のスピリット上のコアを0個にはできない)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-079-e1",
+    "kind": "step",
+    "step": "draw",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": [
+       "妖蛇",
+       "無魔"
+      ],
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-080",

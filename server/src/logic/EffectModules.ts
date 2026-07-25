@@ -5047,6 +5047,22 @@ export function fireStepTriggers(
                     const total = instances.filter((s) => instHasColor(s, color)).length
                     if (total < count) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "ownFamilyCountAtLeast" in effect.condition) {
+                    // 王蛇の住処：自分のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるときのみ発火
+                    const { family, count } = effect.condition.ownFamilyCountAtLeast
+                    const total = state.players[pid].field.spirits.filter((s) =>
+                        matchesFamilyFilter(state, pid, s, family),
+                    ).length
+                    if (total < count) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
+                    // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
+                    const { names, count } = effect.condition.ownNameIncludesCountAtLeast
+                    const total = state.players[pid].field.spirits.filter((s) =>
+                        names.some((n) => getCard(s.cardId).name.includes(n)),
+                    ).length
+                    if (total < count) continue
+                }
                 resolveAction(state, pid, inst, effect.action)
                 if (state.winner) return
                 if (state.pendingChoice) return
