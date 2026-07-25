@@ -178,6 +178,7 @@ export function createGame(
         winner: null,
         endAttackStepAfterBattle: false,
         turnConstraints: [],
+        triggerSuppressionThisTurn: [],
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
         pendingChoice: null,

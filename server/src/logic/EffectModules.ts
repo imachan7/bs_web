@@ -4174,6 +4174,16 @@ export function resolveAction(
             return
         }
 
+        case "suppressTriggerThisTurn": {
+            // ユーサネイジア：このターンの間、相手のスピリットの指定トリガーを発揮させない
+            const already = state.triggerSuppressionThisTurn.some(
+                (e) => e.pid === opp && e.trigger === action.trigger,
+            )
+            if (!already) state.triggerSuppressionThisTurn.push({ pid: opp, trigger: action.trigger })
+            log(state, `${sourceName}：このターンの間、${state.players[opp].name}のスピリットの誘発効果は発揮されない。`)
+            return
+        }
+
         case "levelMaxAllOwnThisTurn": {
             // 自分のスピリットすべてを、各カードの最高Lvとして扱う（このターンの間。levelOverrideThisTurnはターン終了でリセット）
             const player = state.players[owner]
@@ -4794,6 +4804,37 @@ export function requestCardChoice(
 // battleRole は onBattle 専用の追加引数：勝利した側の役割（attacker/blocker）を渡す。
 // 効果側に battleRole の指定があれば、渡された役割と一致する場合のみ発火する
 // （指定なしの効果は従来通り常に発火＝相打ちを含まない「勝った側」全体で発火）。
+// 指定プレイヤーのスピリットの指定トリガーが「発揮されない」状態か判定する。
+// ①このターン限りの抑止（ユーサネイジア＝suppressTriggerThisTurn）
+// ②フィールドの発生源による継続抑止（kind:"triggerSuppression"。古代闘技場Lv2）
+// ②は「発生源の持ち主から見た相手」のスピリットに効くため、ownerPid が発生源の持ち主の相手であるものを探す
+export function isTriggerSuppressed(
+    state: GameState,
+    ownerPid: PlayerId,
+    event: TriggerEvent,
+): boolean {
+    if (state.triggerSuppressionThisTurn.some((e) => e.pid === ownerPid && e.trigger === event)) {
+        return true
+    }
+    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
+        if (opponentOf(sourcePid) !== ownerPid) continue
+        const player = state.players[sourcePid]
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            const level = currentLevel(inst).level
+            for (const effect of getCard(inst.cardId).effects) {
+                if (effect.kind !== "triggerSuppression") continue
+                if (effect.trigger !== event) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 export function fireTrigger(
     state: GameState,
     owner: PlayerId,
@@ -4802,6 +4843,11 @@ export function fireTrigger(
     battleRole?: "attacker" | "blocker",
     targetInstanceId?: string,
 ): void {
+    // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
+    if (isTriggerSuppressed(state, owner, event)) {
+        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
+        return
+    }
     const card = getCard(selfInstance.cardId)
     const level = currentLevel(selfInstance).level
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {

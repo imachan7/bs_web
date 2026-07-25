@@ -155,6 +155,8 @@ export function endTurn(state: GameState): void {
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
     state.turnConstraints = []
+    // このターン限りのトリガー抑止（ユーサネイジア）もリセット
+    state.triggerSuppressionThisTurn = []
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
 

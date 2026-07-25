@@ -22876,7 +22876,18 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n相手のスピリット/ネクサス/マジックの「BPを+する」効果は発揮されない。\nLv2『相手のメインステップ』\n相手のスピリットすべての『このスピリットの召喚時』効果は発揮されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-086-e1",
+    "kind": "triggerSuppression",
+    "levels": [
+     2
+    ],
+    "trigger": "onSummon",
+    "phase": "main",
+    "turn": "opponent"
+   }
+  ]
  },
  {
   "cardId": "BS04-087",
@@ -23101,7 +23112,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、相手のスピリットすべての『このスピリットの破壊時』効果は発揮されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-093-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "suppressTriggerThisTurn",
+     "trigger": "onDestroy"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-094",
