@@ -181,6 +181,7 @@ export function createGame(
         triggerSuppressionThisTurn: [],
         attacksThisTurn: 0,
         ignoreUnblockableThisTurn: [],
+        lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
         pendingChoice: null,

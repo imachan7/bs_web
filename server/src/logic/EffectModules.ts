@@ -1116,6 +1116,8 @@ function tryReviveOnDestroy(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
+            if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (!applyCost(effect)) continue
@@ -1197,6 +1199,8 @@ export function destroyNexus(
     // （竜狩りのアーケオルニ）。バウンス（returnNexusToHand）はここを通らないため対象外
     fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
     fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
+    // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが「その破壊されたネクサス」を参照するため）
+    state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
     // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）
     fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed")
     return true
@@ -4199,6 +4203,57 @@ export function resolveAction(
             }
             const targetPid = action.side === "own" ? owner : opponentOf(owner)
             millDeck(state, targetPid, count)
+            return
+        }
+
+        case "voidCoreToOwnByKeyword": {
+            // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ
+            const targets = state.players[owner].field.spirits.filter((s) =>
+                spiritHasKeyword(state, owner, s, action.keyword),
+            )
+            if (targets.length === 0) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            for (const t of targets) placeCoresOnSpirit(state, t, action.count)
+            log(
+                state,
+                `${sourceName}：ボイドからコア${action.count}個ずつを【${KEYWORDS[action.keyword].label}】を持つ${targets.length}体の上に置いた。`,
+            )
+            return
+        }
+
+        case "reviveLastDestroyedNexus": {
+            // 戦闘獣ジャッカー：self上のコアすべてをトラッシュに置くことで、直近に破壊された自分のネクサスを戻す
+            const last = state.lastDestroyedNexus
+            if (!self || self.cores <= 0) {
+                log(state, `${sourceName}：支払えるコアがなかった。`)
+                return
+            }
+            if (!last || last.pid !== owner) {
+                log(state, `${sourceName}：戻せるネクサスがなかった。`)
+                return
+            }
+            const player = state.players[owner]
+            const trashIndex = player.trashCards.lastIndexOf(last.cardId)
+            if (trashIndex === -1) {
+                log(state, `${sourceName}：戻せるネクサスがトラッシュになかった。`)
+                return
+            }
+            // コストの支払い：self上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
+            const paid = self.cores
+            self.cores = 0
+            player.trashCores += paid
+            player.trashCards.splice(trashIndex, 1)
+            player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))
+            state.lastDestroyedNexus = null
+            log(
+                state,
+                `${sourceName}：コア${paid}個をトラッシュに置き、${getCard(last.cardId).name}をフィールドに戻した。`,
+            )
+            if (self.cores < lv1Cores(getCard(self.cardId))) {
+                destroySpirit(state, owner, self.instanceId, "deplete")
+            }
             return
         }
 

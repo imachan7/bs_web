@@ -20568,7 +20568,24 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nボイドからコア1個ずつを【神速】を持つ自分のスピリットすべての上に置く。\nLv2･Lv3『自分のアタックステップ』\n自分の手札にあるスピリットカードすべての【神速】の効果を“【神速】このスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべて［甲殻戦士ロングホーン］上か自分のリザーブから支払われなくてはならない”に変更する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-033-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToOwnByKeyword",
+     "keyword": "soku",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-034",
@@ -21889,7 +21906,20 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のネクサス1つが破壊されたとき、このスピリット上のコアすべてを自分のトラッシュに置くことで、その破壊されたネクサス1つを自分のフィールドに戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-061-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "reviveLastDestroyedNexus"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-062",
@@ -22874,7 +22904,28 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\nBP6000以上の自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。\nLv2『自分のアタックステップ』\nステップ開始時、BP10000以上の自分のスピリット1体を指定する。\n指定されたスピリットは、ターンに1回、相手のスピリットにブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-081-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "minBp": 6000,
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-082",
