@@ -180,8 +180,18 @@ export function effectiveCost(
     }
     const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
     const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
-    const symbols = reductionBlocked ? 0 : countSymbols(board.players[pid], reductionColors)
-    const reduction = reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)
+    // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
+    // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
+    // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
+    // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
+    let reduction = 0
+    if (!reductionBlocked) {
+        for (const color of new Set(reductionColors)) {
+            const need = reductionColors.filter((c) => c === color).length
+            const have = countSymbols(board.players[pid], [color])
+            reduction += Math.min(need, have)
+        }
+    }
     const base = Math.max(cardData.cost - reduction, 0)
     return base + costModTotal(board, pid, cardData)
 }
