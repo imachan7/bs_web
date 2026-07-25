@@ -274,6 +274,15 @@ export function validateSummon(
         }
     }
 
+    // フィールドのスピリット数上限（旋風渦巻く渓谷＝5体以上召喚できない）。
+    // 効果文が『お互いのメインステップ』のため、メインステップの通常召喚のみを制限する（神速召喚は対象外）
+    if (!flashSummon && state.phase === "main") {
+        const cap = maxSpiritsOnField(state)
+        if (cap !== null && player.field.spirits.length >= cap) {
+            return `効果により、スピリットは${cap}体までしか召喚できません`
+        }
+    }
+
     const cost = effectiveCost(state, pid, card)
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
     const placeError = validateSummonLevel(card, level)
@@ -287,6 +296,26 @@ export function validateSummon(
         return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
     }
     return null
+}
+
+// フィールドに置けるスピリット数の上限（globalConstraint "maxSpiritsOnField"）。
+// 両陣営のフィールドを走査し、レベル有効な発生源があればその max を返す（複数あれば最も厳しい値）
+function maxSpiritsOnField(state: GameState): number | null {
+    let cap: number | null = null
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[ownerPid]
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            const level = currentLevel(inst).level
+            for (const effect of getCard(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "maxSpiritsOnField") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const max = effect.constraint.max
+                cap = cap === null ? max : Math.min(cap, max)
+            }
+        }
+    }
+    return cap
 }
 
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
@@ -601,8 +630,9 @@ export function validateBlock(
         }
     }
 
-    // アタッカー側の制約（unblockableBy）
-    if (attacker) {
+    // アタッカー側の制約（unblockableBy）。
+    // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
+    if (attacker && !state.ignoreUnblockableThisTurn.includes(pid)) {
         const blockerCard = getCard(inst.cardId)
         const attackerConstraints = activeConstraints(state, attackerPid, attacker)
         for (const c of attackerConstraints) {

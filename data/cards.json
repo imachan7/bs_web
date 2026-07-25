@@ -19745,7 +19745,56 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『相手のスタートステップ』\n自分の手札が10枚以上のとき、相手のスピリット1体を相手の手札に戻す。\nLv2『相手のスタートステップ』\n自分の手札が8枚以上のとき、相手のスピリット1体を相手の手札に戻す。\nLv3『相手のスタートステップ』\n自分の手札が6枚以上のとき、相手のスピリット1体を相手の手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-018-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1
+    ],
+    "condition": {
+     "ownHandAtLeast": 10
+    },
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS04-018-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownHandAtLeast": 8
+    },
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS04-018-e3",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "ownHandAtLeast": 6
+    },
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-019",
@@ -21706,7 +21755,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\nボイドからコア1個を自分のネクサス1つの上に置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-059-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "count": 1,
+     "single": true
+    },
+    "optional": false
+   }
+  ]
  },
  {
   "cardId": "BS04-060",
@@ -22716,7 +22781,20 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのメインステップ』\nお互いは、それぞれのフィールドにスピリットを5体以上召喚できない。\nLv2『自分のアタックステップ』\n自分の手札にあるスピリットカードすべての【神速】の効果を“【神速】このスピリットは手札からフラッシュのタイミングで召喚できる”に変更する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-080-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "maxSpiritsOnField",
+     "max": 4
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-081",
@@ -23756,7 +23834,16 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリットすべては、「ブロックされない」効果を持つスピリットをブロックできる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-110-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "ignoreUnblockableThisTurn"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-111",
@@ -23814,7 +23901,19 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、Lv3を持つ青のスピリット1体をLv3として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-112-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "levelOverrideTarget",
+     "level": 3,
+     "colorFilter": "blue",
+     "requireLevelExists": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-113",

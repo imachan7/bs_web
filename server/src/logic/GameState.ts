@@ -180,6 +180,7 @@ export function createGame(
         turnConstraints: [],
         triggerSuppressionThisTurn: [],
         attacksThisTurn: 0,
+        ignoreUnblockableThisTurn: [],
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
         pendingChoice: null,

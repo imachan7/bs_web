@@ -3927,9 +3927,32 @@ export function resolveAction(
         case "levelOverrideTarget": {
             // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
             // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
-            const found = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
+            const found = targetInstanceId
+                ? findSpiritAny(state, targetInstanceId)
+                : (() => {
+                      // 未指定時は自分のフィールドから条件を満たすスピリットを1体自動選択する（マッシブアップ）
+                      const cand = state.players[owner].field.spirits.find(
+                          (s) =>
+                              (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
+                              (!action.requireLevelExists ||
+                                  getCard(s.cardId).levels.some((l) => l.level === action.level)),
+                      )
+                      return cand ? { pid: owner, inst: cand } : null
+                  })()
             if (!found) {
                 log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            // 対象フィルタ（色・そのレベルをカードが持つか）を満たさない対象には効果がない
+            if (action.colorFilter !== undefined && !instHasColor(found.inst, action.colorFilter)) {
+                log(state, `${sourceName}：対象の色が条件と合わなかった。`)
+                return
+            }
+            if (
+                action.requireLevelExists &&
+                !getCard(found.inst.cardId).levels.some((l) => l.level === action.level)
+            ) {
+                log(state, `${sourceName}：対象はLv${action.level}を持っていなかった。`)
                 return
             }
             found.inst.levelOverrideThisTurn = action.level
@@ -4174,6 +4197,15 @@ export function resolveAction(
             return
         }
 
+        case "ignoreUnblockableThisTurn": {
+            // レッドウォール：このターンの間、自分のスピリットは「ブロックされない」効果を無視してブロックできる
+            if (!state.ignoreUnblockableThisTurn.includes(owner)) {
+                state.ignoreUnblockableThisTurn.push(owner)
+            }
+            log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットは「ブロックされない」効果を無視してブロックできる。`)
+            return
+        }
+
         case "suppressTriggerThisTurn": {
             // ユーサネイジア：このターンの間、相手のスピリットの指定トリガーを発揮させない
             const already = state.triggerSuppressionThisTurn.some(
@@ -4241,6 +4273,34 @@ export function resolveAction(
             )
             if (nexuses.length === 0) {
                 log(state, `${sourceName}：対象のネクサスがなかった。`)
+                return
+            }
+            // single 指定時は1つだけに置く（薬師ギルママール）。対象指定・選択・自動選択の順で決める
+            if (action.single) {
+                let target = targetInstanceId
+                    ? nexuses.find((n) => n.instanceId === targetInstanceId)
+                    : undefined
+                if (!target) {
+                    if (nexuses.length >= 2 && state.interactiveTargets) {
+                        requestChoice(
+                            state,
+                            owner,
+                            `${sourceName}：コアを置くネクサスを選んでください`,
+                            nexuses.map((n) => n.instanceId),
+                            false,
+                            action,
+                            self,
+                        )
+                        return
+                    }
+                    // 自動時はコアが最も少ないネクサス（レベルアップにつながりやすい方）を選ぶ
+                    target = nexuses.reduce((best, n) => (n.cores < best.cores ? n : best))
+                }
+                placeCoresOnSpirit(state, target, action.count)
+                log(
+                    state,
+                    `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
+                )
                 return
             }
             for (const n of nexuses) placeCoresOnSpirit(state, n, action.count)
@@ -5057,6 +5117,10 @@ export function fireStepTriggers(
                         matchesFamilyFilter(state, pid, s, family),
                     ).length
                     if (total < count) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownHandAtLeast" in effect.condition) {
+                    // 水蛇シーサーペンタ：持ち主の手札が指定枚数以上のときのみ発火（Lvごとに閾値が変わる）
+                    if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火

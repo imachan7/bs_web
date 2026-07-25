@@ -111,7 +111,8 @@ export type EffectAction =
     | { type: "summonFromHandFree"; colorFilter?: Color; sameFamilyAsSelf?: boolean } // 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド）
     | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
     | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
-    | { type: "levelOverrideTarget"; level: number } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）
+    | { type: "levelOverrideTarget"; level: number; colorFilter?: Color; requireLevelExists?: boolean } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）。colorFilter/requireLevelExists指定時は、対象が指定色でない／そのレベルをカードに持たない場合は不発（BS04マッシブアップ＝Lv3を持つ青のスピリット）
+    | { type: "ignoreUnblockableThisTurn" } // このターンの間、自分のスピリットは「ブロックされない」効果を無視してブロックできる（GameState.ignoreUnblockableThisTurn。BS04レッドウォール）
     | { type: "coreToOpponentTrashChoice"; count: number } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）
     | { type: "battleCompareByLevel" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにLvを比較させる（バトル外は不発。エンジェルボイス）
     | { type: "grantAlsoCostAll"; cost: number } // 自分のスピリットすべての tempAlsoCosts に cost を追加する（このターンの間、実コストに加えてこのコストとしても扱われる。道化師クラン）
@@ -129,7 +130,7 @@ export type EffectAction =
     | { type: "selfBuffByHandDiscard"; discardCardType: "spirit" | "nexus" | "magic"; amount: number } // 手札の指定種別カード1枚を破棄することで、このスピリット自身をBP+amountできる（任意コスト。interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）で破棄カードを選ぶ、自動時は手札末尾の該当カードを破棄して発動。該当カードなしはno-op。城壊しのデニス／島持ちのフランシス）
     | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: string; cardType?: "spirit" | "nexus" | "magic" } // 手札の条件一致（cardType/familyFilter）カード1枚に、このターンの間キーワードを付与する（PlayerState.tempHandKeywordGrants。interactiveTargets時はcard choiceで選択、自動時は手札末尾の該当カード。該当なしはno-op。付与はcardId単位＝同名重複カードにも効く簡略化。ビートプリースト）
     | { type: "coreTradeToOpponentTrash" } // 自分のリザーブのコアをX個自分のトラッシュへ置き、同数だけ相手のリザーブのコアを相手のトラッシュへ置く（Xの上限はmin(自分のリザーブ,相手のリザーブ)。interactiveTargets時はkind:"option"のoption choice（「1個」〜「上限個」、optional=スキップ可＝0個）、自動時は上限個。ポイズンミスト）
-    | { type: "voidCoreToOwnNexuses"; colorFilter?: Color; count: number } // ボイドからコアcount個ずつを、指定色（省略時は色不問）の自分のネクサスすべての上に置く（該当ネクサス0はログのみ。ボルカノ・ゴレム）
+    | { type: "voidCoreToOwnNexuses"; colorFilter?: Color; count: number; single?: boolean } // ボイドからコアcount個ずつを、指定色（省略時は色不問）の自分のネクサスすべての上に置く（該当ネクサス0はログのみ。ボルカノ・ゴレム）。single指定時は1つだけ（interactive時はpendingChoice、そうでなければコアが最も少ないネクサス。BS04薬師ギルママール）
     | { type: "grantColorAll"; color: Color } // このターンの間、自分のスピリットすべての tempColors に color を追加する（妖精ティングリー）
     | { type: "addSymbolThisTurn" } // 対象の自分スピリットの tempExtraSymbols をこのターンの間+1する（targetInstanceId優先、未指定時は自分の実効BP最大。「自分か相手」は自分側のみの簡略化。ダブルハート）
     | { type: "levelUpThisTurn" } // 対象の自分スピリットの levelOverrideThisTurn を currentLevel+1（カードの最大Lvでキャップ）に設定する（targetInstanceId優先、未指定時は自分の実効BP最大。「自分か相手」は自分側のみの簡略化。ビルドアップ）
@@ -273,6 +274,7 @@ export type GlobalConstraintDef =
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
     | { type: "ownNexusIndestructible" } // 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない
       // （hasGlobalConstraintの両陣営走査とは異なり、destroyNexusが破壊対象ネクサスの持ち主のフィールドのみを判定する。サファイアの城壁）
+    | { type: "maxSpiritsOnField"; max: number } // 両陣営とも、フィールドのスピリットがmax体以上のときは召喚できない（メインステップの通常召喚のみ。BS04旋風渦巻く渓谷＝5体以上召喚できない＝max4）
 
 // 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 export interface DestroyContext {
@@ -331,6 +333,7 @@ export type EffectDef =
               | "selfWasRefreshedThisStep" // 発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
               | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上（道化師クラン）
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上（BS04王蛇の住処＝妖蛇/無魔）
+              | { ownHandAtLeast: number } // 発生源の持ち主の手札がこの枚数以上（BS04水蛇シーサーペンタ＝Lvごとに10/8/6枚以上）
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 発生源の持ち主のフィールドに、カード名にいずれかの文字列を含むスピリットが合計count体以上（BS04郵便ペンタン＝ペンタン/アンプルール）
       }
     | {
@@ -707,6 +710,7 @@ export interface GameState {
     turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
     triggerSuppressionThisTurn: { pid: PlayerId; trigger: TriggerEvent }[] // このターンの間、pid のスピリットの指定トリガーを発揮させない（ターン終了でリセット。ユーサネイジア）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
+    ignoreUnblockableThisTurn: PlayerId[] // このターンの間、ここに含まれるプレイヤーのスピリットは「ブロックされない」効果を無視してブロックできる（ターン終了でリセット。BS04レッドウォール）
     lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
     lastBattleDestroyedLevel: number // 直前のバトル解決でBP比較により破壊されたブロッカーのcurrentLevel（次のバトル解決の冒頭でリセット。0=まだ発生していない。魔界伯爵ヴィール）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
