@@ -643,8 +643,9 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     if (cardId === undefined) return 0
     const card = master(cardId)
     const cost = effectiveCost(view, view.you, card)
-    const lv1 = card.levels.find((l) => l.level === 1)
-    const maintain = card.type === "magic" ? 0 : (lv1 ? lv1.cores : 0)
+    const targetLevel = paying.level || 1
+    const lv = card.levels.find((l) => l.level === targetLevel)
+    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     const need = cost + maintain
     const reserve = view.players[view.you].reserve
@@ -732,6 +733,7 @@ export function activatableAbility(
 export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
+    level?: number // 召喚レベル指定用
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
 }
 
@@ -742,6 +744,8 @@ export interface UiState {
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
+    // 召喚・配置レベル選択モード
+    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っているか（サーバー validateAttack と同じロジックの簡易版）
@@ -896,7 +900,7 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
     show("btn-cancel-target", anyMode)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
@@ -925,6 +929,18 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (ui.summonLevelSelect) {
+        const card = master(ui.summonLevelSelect.cardId)
+        const cost = effectiveCost(view, view.you, card)
+        const reserve = view.players[view.you].reserve
+        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        for (const l of affordableLevels) {
+            const b = document.createElement("button")
+            b.dataset.summonLevel = String(l.level)
+            b.textContent = `Lv${l.level} (${l.cores}コア)`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else {
         show("choice-options", false)
     }
@@ -942,6 +958,9 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+    } else if (ui.summonLevelSelect) {
+        $("targeting-info").textContent =
+            `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
