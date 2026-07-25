@@ -22504,6 +22504,25 @@
     "symbols": [
      "red"
     ]
+   },
+   {
+    "id": "BS04-077-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "main",
+    "turn": "own",
+    "familyFilter": [
+     "古竜",
+     "龍帝"
+    ],
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "maxBpFromSelf": true
+    }
    }
   ]
  },
@@ -22707,7 +22726,42 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のスタートステップ』\n自分のトラッシュにある系統：「甲獣」を持つスピリットカード1枚を選んで手札に戻す。\nLv2『自分のメインステップ』\n自分のフィールドに系統：「甲獣」/「巨獣」を持つスピリットが召喚されたとき、召喚されたスピリットのBP以下のBPを持つ相手のスピリット1体を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-083-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "familyFilter": "甲獣"
+    }
+   },
+   {
+    "id": "BS04-083-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "main",
+    "turn": "own",
+    "familyFilter": [
+     "甲獣",
+     "巨獣"
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 1,
+     "maxBpFromSelf": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-084",

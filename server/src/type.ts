@@ -42,7 +42,7 @@ export type FamilyFilter = string | string[]
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
     | { type: "draw"; count: number } // 自分がデッキから引く
-    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean; costFilter?: { max?: number; min?: number } } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op。costFilter指定時は対象スピリットのコストがmax以下/min以上のみ。BS04風龍王フージャオス）
+    | { type: "destroy"; maxBp?: number; count: number; keywordFilter?: Keyword; bpEqualsSelf?: boolean; maxBpFromSelf?: boolean; costFilter?: { max?: number; min?: number } } // 相手スピリットを破壊（maxBp 省略=BP不問、keywordFilter=指定キーワード持ちのみ、bpEqualsSelf=selfと実効BPが同じ相手のみ。selfがnullならno-op。maxBpFromSelf=selfの実効BP以下の相手のみ＝fieldEvent "ownSpiritSummoned" のように self が「召喚されたスピリット」になる文脈で使う（BS04七龍帝の玉座Lv2）。costFilter指定時は対象スピリットのコストがmax以下/min以上のみ。BS04風龍王フージャオス）
     | { type: "destroyAll"; maxBp: number; anySide?: boolean; colorExclude?: Color } // BP以下の相手スピリットを全破壊。anySide指定時は両陣営が対象、colorExclude指定時はその色のスピリットを除外する（BS04魔龍帝ジークフリードLv3：赤以外のBP4000以下すべて）
     | { type: "selfBuff"; amount: number } // このスピリット自身をBP+（ターン終了時まで）
     | { type: "destroyNexus"; count: number; drawPerDestroyed?: number; all?: boolean } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）。all指定時はcountを無視し相手のネクサスすべてを破壊する（BS04風龍王フージャオス）
@@ -55,7 +55,7 @@ export type EffectAction =
     | { type: "bpBuffPer"; counter: EffectCounter; amountPer: number } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
     | { type: "bpBuffAll"; amount: number; familyFilter?: FamilyFilter } // 自分のフィールドのスピリットすべてをBP+（ターン終了時まで。familyFilter指定時は指定系統持ちのみ。配列＝いずれかの系統でOR）
-    | { type: "returnToHand"; count: number } // 対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）
+    | { type: "returnToHand"; count: number; maxBpFromSelf?: boolean } // 対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf=selfの実効BP以下の相手のみ（BS04鋼葉の樹林Lv2）
     | { type: "returnToDeckTop" } // 対象スピリットを持ち主のデッキの一番上に戻す
     | { type: "coreCharge"; count: number } // 自分のリザーブから対象の自分スピリットへコアを最大count個置く
     | { type: "lifeCharge"; count: number } // 自分のリザーブから自分のライフへコアをcount個置く（不足なら可能な分だけ）
@@ -83,7 +83,7 @@ export type EffectAction =
     | { type: "coreSqueezeAll" } // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ（1個未満で維持コア割れになる場合は消滅処理を適用）
     | { type: "endAttackStepAfterBattle" } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op）
     | { type: "coreToTrashSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のトラッシュへ（維持コア割れの消滅処理を含む。selfがnullならno-op）
-    | { type: "recoverSpiritFromTrash"; count: number } // 自分のトラッシュにあるスピリットカードをcount枚、手札に戻す（末尾＝新しい方から自動選択。本来は選択の簡略化。該当なしはno-op）
+    | { type: "recoverSpiritFromTrash"; count: number; familyFilter?: FamilyFilter } // 自分のトラッシュにあるスピリットカードをcount枚、手札に戻す（末尾＝新しい方から自動選択。本来は選択の簡略化。該当なしはno-op）。familyFilter指定時はその系統を持つカードのみ（配列＝OR。カード静的な family で判定。BS04鋼葉の樹林）
     | { type: "coreSqueezeOne"; count: number } // 相手フィールドの実効BP最大のスピリットをcount体選び、それぞれコアを1個だけ残して超過分を持ち主のリザーブへ（coreSqueezeAllの単体版。対象なしはno-op）
     | { type: "coreToVoidOwn"; count: number } // 自分のコアcount個をボイドへ置く（消す）。trashCoresから優先的に減らし、足りなければ自分フィールドのスピリット（実効BP最小）から取る。維持コア割れは消滅処理
     | { type: "bothSidesCoreToTrash"; count: number } // 両プレイヤーのフィールドから各自の実効BP最大スピリット1体を選び、そのコアcount個を各持ち主のトラッシュへ（維持コア割れは消滅処理。片側のみ対象がいてもその側は処理する）
@@ -190,6 +190,7 @@ export type FieldEvent =
     | "ownFunsaiMilled" // 自分のスピリットの【粉砕】が相手のデッキをトラッシュへ送ったとき（発火は粉砕解決ごとに1回。repeatPerCount指定時は実破棄枚数ぶんアクションを繰り返す）
     | "opponentHandAdded" // 持ち主から見て相手の手札にカードが加えられたとき（notifyHandGainedから発火。犬人マードック／英雄の喪失）
     | "ownSpiritCoresRemovedByOpponent" // 自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき（eventCount=影響を受けた自分のスピリット数。極光の大地）
+    | "ownSpiritSummoned" // 自分のフィールドにスピリットが召喚されたとき（doSummonの召喚時効果・転召の解決後に発火）。**self には召喚されたスピリットが渡る**（selfOverride）ため、maxBpFromSelf で「召喚されたスピリットのBP以下」を表現できる（BS04七龍帝の玉座Lv2／鋼葉の樹林Lv2）
 
 // キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
@@ -366,7 +367,7 @@ export type EffectDef =
               | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（instHasColor判定。修理屋バラン・バラン）
               | "selfIsAttacking" // 発生源自身が現在のバトル（state.battle）のアタッカーであるときのみ発火（キノコノコ）
           repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック）
-          familyFilter?: string // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの系統がこれを含むときのみ発火（英雄の喪失）
+          familyFilter?: FamilyFilter // event: "ownSpiritDestroyed" | "ownSpiritSummoned" 限定：破壊/召喚されたスピリットの系統がこれを含むときのみ発火（配列＝いずれかの系統でOR。英雄の喪失／BS04七龍帝の玉座・鋼葉の樹林）
       }
     | {
           id: string

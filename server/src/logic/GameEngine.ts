@@ -218,6 +218,22 @@ function doSummon(
     fireTrigger(state, pid, inst, "onSummon")
     // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
     if (!state.winner) resolveTensho(state, pid, inst)
+    // フィールドからの「自分のスピリットが召喚されたとき」誘発（七龍帝の玉座Lv2／鋼葉の樹林Lv2）。
+    // self には召喚されたスピリットを渡す（maxBpFromSelf が「召喚されたスピリットのBP以下」を参照するため）。
+    // 転召でコアが尽きて消滅した場合は発火させない
+    const stillOnField = player.field.spirits.some((s) => s.instanceId === inst.instanceId)
+    if (!state.winner && stillOnField) {
+        fireFieldEventTriggers(
+            state,
+            pid,
+            "ownSpiritSummoned",
+            { pid, inst },
+            undefined,
+            undefined,
+            undefined,
+            { families: card.family },
+        )
+    }
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null

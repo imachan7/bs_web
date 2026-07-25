@@ -1712,6 +1712,16 @@ export function resolveAction(
                 log(state, `${sourceName}の破壊効果：selfが不在のため対象がいなかった。`)
                 return
             }
+            // maxBpFromSelf：selfの実効BP以下の相手のみを対象にする（selfが「召喚されたスピリット」になる
+            // fieldEvent "ownSpiritSummoned" 用。BS04七龍帝の玉座Lv2）
+            if (action.maxBpFromSelf && !self) {
+                log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
+                return
+            }
+            const limitBp =
+                action.maxBpFromSelf && self
+                    ? effectiveBp(state, owner, self)
+                    : (action.maxBp ?? Infinity)
             const selfBp = action.bpEqualsSelf && self ? effectiveBp(state, owner, self) : undefined
             // maxBp 省略時はBP不問。keywordFilter 指定時はそのキーワード持ちのみ対象。
             // bpEqualsSelf 指定時はselfと実効BPが同じ相手のみ対象（プテラトマホーク）。
@@ -1732,7 +1742,7 @@ export function resolveAction(
                 return
             }
             if (state.interactiveTargets) {
-                const candidates = pickEnemyCandidates(state, opp, action.maxBp ?? Infinity, matchesFilter, srcColor, srcType)
+                const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColor, srcType)
                 if (
                     tryInteractiveTargetChoice(
                         state,
@@ -1748,7 +1758,7 @@ export function resolveAction(
                 }
             }
             for (let i = 0; i < action.count; i++) {
-                const target = pickEnemyByBp(state, opp, action.maxBp ?? Infinity, matchesFilter, srcColor, srcType)
+                const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColor, srcType)
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
@@ -2558,8 +2568,15 @@ export function resolveAction(
                 returnSpiritToHand(state, found.pid, found.inst)
                 return
             }
+            // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
+            // fieldEvent "ownSpiritSummoned" 用。BS04鋼葉の樹林Lv2）
+            if (action.maxBpFromSelf && !self) {
+                log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
+                return
+            }
+            const limitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
             if (state.interactiveTargets) {
-                const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColor, srcType)
+                const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColor, srcType)
                 if (
                     tryInteractiveTargetChoice(
                         state,
@@ -2576,7 +2593,7 @@ export function resolveAction(
             }
             // 未指定時は相手フィールドのBP最大をcount回自動選択
             for (let i = 0; i < action.count; i++) {
-                const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
+                const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColor, srcType)
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
@@ -3360,10 +3377,21 @@ export function resolveAction(
                 notifyHandGained(state, owner, 1)
                 return
             }
+            // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
+            // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
+            const familyOk = (cardId: string): boolean => {
+                if (action.familyFilter === undefined) return true
+                const wanted = Array.isArray(action.familyFilter)
+                    ? action.familyFilter
+                    : [action.familyFilter]
+                return wanted.some((f) => getCard(cardId).family.includes(f))
+            }
+            const isRecoverable = (cardId: string): boolean =>
+                getCard(cardId).type === "spirit" && familyOk(cardId)
             if (state.interactiveTargets) {
                 const indices = player.trashCards
                     .map((id, i) => ({ id, i }))
-                    .filter(({ id }) => getCard(id).type === "spirit")
+                    .filter(({ id }) => isRecoverable(id))
                     .map(({ i }) => i)
                 if (
                     tryInteractiveCardChoice(
@@ -3373,10 +3401,8 @@ export function resolveAction(
                         `${sourceName}のスピリット回収：手札に戻すカードを選んでください`,
                         "trash",
                         indices,
-                        { type: "recoverSpiritFromTrash", count: 1 },
-                        action.count > 1
-                            ? { type: "recoverSpiritFromTrash", count: action.count - 1 }
-                            : null,
+                        { ...action, count: 1 },
+                        action.count > 1 ? { ...action, count: action.count - 1 } : null,
                     )
                 ) {
                     return
@@ -3388,7 +3414,7 @@ export function resolveAction(
             for (let i = 0; i < action.count; i++) {
                 let idx = -1
                 for (let j = player.trashCards.length - 1; j >= 0; j--) {
-                    if (getCard(player.trashCards[j]!).type === "spirit") {
+                    if (isRecoverable(player.trashCards[j]!)) {
                         idx = j
                         break
                     }
@@ -5026,7 +5052,13 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
-            if (effect.familyFilter !== undefined && !eventInfo?.families?.includes(effect.familyFilter)) continue
+            if (effect.familyFilter !== undefined) {
+                // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
+                const wanted = Array.isArray(effect.familyFilter)
+                    ? effect.familyFilter
+                    : [effect.familyFilter]
+                if (!wanted.some((f) => eventInfo?.families?.includes(f))) continue
+            }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {
                     // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
