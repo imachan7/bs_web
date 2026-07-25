@@ -19,6 +19,7 @@ import { setCardLookup } from "../../shared/cardDb"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
     currentLevel,
+    effectiveBp,
     hasKeyword,
     instHasColor,
     instHasCost,
@@ -65,142 +66,9 @@ function isSpiritOnField(view: GameView, pid: PlayerId, instanceId: string): boo
     return view.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
 }
 
-function countAuraCounter(view: GameView, sourcePid: PlayerId, counter: AuraCounter): number {
-    if (counter === "ownReserve") return view.players[sourcePid].reserve
-    if (counter === "ownNexuses") return view.players[sourcePid].field.nexuses.length
-    if (counter === "allNexuses") {
-        return (
-            view.players.p1.field.nexuses.length + view.players.p2.field.nexuses.length
-        )
-    }
-    if (counter === "ownExhausted") {
-        return view.players[sourcePid].field.spirits.filter((s) => s.isRested).length
-    }
-    if ("ownNameIncludes" in counter) {
-        return view.players[sourcePid].field.spirits.filter((s) =>
-            master(s.cardId).name.includes(counter.ownNameIncludes),
-        ).length
-    }
-    return view.players[sourcePid].field.spirits.filter((s) =>
-        spiritHasFamilyView(view, sourcePid, s, counter.ownFamily),
-    ).length
-}
-
-function checkAuraCondition(
-    view: GameView,
-    sourcePid: PlayerId,
-    condition: AuraCondition,
-): boolean {
-    const player = view.players[sourcePid]
-    if (condition === "ownReserveNotEmpty") return player.reserve >= 1
-    if ("hasOwnColor" in condition) {
-        const all = [...player.field.spirits, ...player.field.nexuses]
-        return all.some((inst) => master(inst.cardId).color === condition.hasOwnColor)
-    }
-    if ("hasOwnColorSpirit" in condition) {
-        return player.field.spirits.some(
-            (s) => master(s.cardId).color === condition.hasOwnColorSpirit,
-        )
-    }
-    if ("ownHasKeyword" in condition) {
-        return player.field.spirits.some((s) =>
-            spiritHasKeywordView(view, sourcePid, s, condition.ownHasKeyword),
-        )
-    }
-    return player.field.spirits.some((s) =>
-        master(s.cardId).family.includes(condition.hasOwnFamily),
-    )
-}
-
-function auraAppliesTo(
-    view: GameView,
-    sourcePid: PlayerId,
-    sourceInst: CardInstance,
-    aura: AuraDef,
-    targetOwnerPid: PlayerId,
-    targetInst: CardInstance,
-): boolean {
-    // phaseTurn は target を問わず適用する（アルカナプリンス・オベロ：target:"self" での使用）
-    if (aura.phaseTurn) {
-        if (view.phase !== aura.phaseTurn.phase) return false
-        if (aura.phaseTurn.turn === "own" && sourcePid !== view.turnPlayer) return false
-        if (aura.phaseTurn.turn === "opponent" && sourcePid === view.turnPlayer) return false
-    }
-    if (aura.target === "self") {
-        return sourceInst.instanceId === targetInst.instanceId
-    }
-    if (sourcePid !== targetOwnerPid) return false
-    if (!isSpiritOnField(view, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !instHasColorView(targetInst, aura.colorFilter)) {
-        return false
-    }
-    if (aura.battlingOnly) {
-        if (!view.battle) return false
-        if (
-            view.battle.attackerInstanceId !== targetInst.instanceId &&
-            view.battle.blockerInstanceId !== targetInst.instanceId
-        ) {
-            return false
-        }
-    }
-    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== view.turn) {
-        return false
-    }
-    if (
-        aura.keywordFilter &&
-        !spiritHasKeywordView(view, targetOwnerPid, targetInst, aura.keywordFilter)
-    ) {
-        return false
-    }
-    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
-        return false
-    }
-    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
-        return false
-    }
-    if (
-        aura.familyFilter &&
-        !matchesFamilyFilterView(view, targetOwnerPid, targetInst, aura.familyFilter)
-    ) {
-        return false
-    }
-    if (aura.vanillaFilter && !isVanillaCard(master(targetInst.cardId))) {
-        return false
-    }
-    return true
-}
-
-function auraAmount(view: GameView, sourcePid: PlayerId, aura: AuraDef): number {
-    let amount = 0
-    if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(view, sourcePid, aura.counter)
-    }
-    if (aura.amount !== undefined) {
-        if (!aura.condition || checkAuraCondition(view, sourcePid, aura.condition)) {
-            amount += aura.amount
-        }
-    }
-    return amount
-}
-
-// 実効BP：levelOf の基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値
-export function effectiveBp(view: GameView, ownerPid: PlayerId, inst: CardInstance): number {
-    let total = levelOf(inst).bp
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = view.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            for (const effect of master(source.cardId).effects) {
-                if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
-                const sourceLevel = levelOf(source).level
-                if (!(effect.levels === null || effect.levels.includes(sourceLevel))) continue
-                if (!auraAppliesTo(view, pid, source, effect.aura, ownerPid, inst)) continue
-                total += auraAmount(view, pid, effect.aura)
-            }
-        }
-    }
-    return total
-}
+// オーラ計算・実効BPはサーバーと同一の共有実装（shared/rules）を使う。
+// main.ts など既存の呼び出しを壊さないため effectiveBp の名前はここから再エクスポートする
+export { effectiveBp }
 
 // 指定カードがそのキーワードを持つか（サーバー hasKeyword と同じロジックの簡易版）
 

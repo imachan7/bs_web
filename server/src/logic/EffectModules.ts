@@ -46,9 +46,14 @@ import {
 import type { KeywordInfo } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
+    auraAmount,
+    auraAppliesTo,
+    checkAuraCondition,
+    countAuraCounter,
     countSymbols,
     currentLevel as sharedCurrentLevel,
     effectActiveAtLevel,
+    effectiveBp,
     hasContinuousKeywordGrant,
     hasKeyword,
     instanceSymbolCount,
@@ -62,8 +67,13 @@ import {
     spiritHasKeyword,
 } from "../../../shared/rules"
 export {
+    auraAmount,
+    auraAppliesTo,
+    checkAuraCondition,
+    countAuraCounter,
     countSymbols,
     effectActiveAtLevel,
+    effectiveBp,
     hasContinuousKeywordGrant,
     hasKeyword,
     instanceSymbolCount,
@@ -325,164 +335,10 @@ function dumpAllCoresTensho(
 // フィールド上の指定インスタンスがスピリットとして存在するか
 
 
-// オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える
-function countAuraCounter(
-    state: GameState,
-    sourcePid: PlayerId,
-    counter: AuraCounter,
-): number {
-    if (counter === "ownReserve") return state.players[sourcePid].reserve
-    if (counter === "ownNexuses") return state.players[sourcePid].field.nexuses.length
-    if (counter === "allNexuses") {
-        return (
-            state.players.p1.field.nexuses.length +
-            state.players.p2.field.nexuses.length
-        )
-    }
-    if (counter === "ownExhausted") {
-        return state.players[sourcePid].field.spirits.filter((s) => s.isRested).length
-    }
-    // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
-    if ("ownNameIncludes" in counter) {
-        return state.players[sourcePid].field.spirits.filter((s) =>
-            getCard(s.cardId).name.includes(counter.ownNameIncludes),
-        ).length
-    }
-    // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
-    return state.players[sourcePid].field.spirits.filter((s) =>
-        matchesFamilyFilter(state, sourcePid, s, counter.ownFamily),
-    ).length
-}
 
-// オーラの発動条件を、発生源の持ち主（sourcePid）基準で判定する
-function checkAuraCondition(
-    state: GameState,
-    sourcePid: PlayerId,
-    condition: AuraCondition,
-): boolean {
-    const player = state.players[sourcePid]
-    if (condition === "ownReserveNotEmpty") return player.reserve >= 1
-    if ("hasOwnColor" in condition) {
-        const all = [...player.field.spirits, ...player.field.nexuses]
-        return all.some((inst) => getCard(inst.cardId).color === condition.hasOwnColor)
-    }
-    if ("hasOwnColorSpirit" in condition) {
-        return player.field.spirits.some(
-            (s) => getCard(s.cardId).color === condition.hasOwnColorSpirit,
-        )
-    }
-    // { ownHasKeyword: Keyword }：自分フィールドに指定キーワード持ちのスピリットがいる（一時付与・継続付与も考慮）
-    if ("ownHasKeyword" in condition) {
-        return player.field.spirits.some((s) =>
-            spiritHasKeyword(state, sourcePid, s, condition.ownHasKeyword),
-        )
-    }
-    // { hasOwnFamily: string }：発生源自身を含んでよい
-    return player.field.spirits.some((s) =>
-        getCard(s.cardId).family.includes(condition.hasOwnFamily),
-    )
-}
 
-// オーラ1件が対象インスタンス（targetOwnerPid が持ち主）に効くか判定する
-function auraAppliesTo(
-    state: GameState,
-    sourcePid: PlayerId,
-    sourceInst: CardInstance,
-    aura: AuraDef,
-    targetOwnerPid: PlayerId,
-    targetInst: CardInstance,
-): boolean {
-    // phaseTurn は target を問わず適用する（アルカナプリンス・オベロ：target:"self" での使用）
-    if (aura.phaseTurn) {
-        if (state.phase !== aura.phaseTurn.phase) return false
-        if (aura.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) return false
-        if (aura.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) return false
-    }
-    if (aura.target === "self") {
-        return sourceInst.instanceId === targetInst.instanceId
-    }
-    // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
-    if (sourcePid !== targetOwnerPid) return false
-    if (!isSpiritOnField(state, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
-        return false
-    }
-    if (aura.battlingOnly) {
-        if (!state.battle) return false
-        if (
-            state.battle.attackerInstanceId !== targetInst.instanceId &&
-            state.battle.blockerInstanceId !== targetInst.instanceId
-        ) {
-            return false
-        }
-    }
-    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== state.turn) {
-        return false
-    }
-    if (
-        aura.keywordFilter &&
-        !spiritHasKeyword(state, targetOwnerPid, targetInst, aura.keywordFilter)
-    ) {
-        return false
-    }
-    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
-        return false
-    }
-    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
-        return false
-    }
-    if (
-        aura.familyFilter &&
-        !matchesFamilyFilter(state, targetOwnerPid, targetInst, aura.familyFilter)
-    ) {
-        return false
-    }
-    if (aura.vanillaFilter && !isVanillaCard(getCard(targetInst.cardId))) {
-        return false
-    }
-    return true
-}
 
-// オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）
-function auraAmount(state: GameState, sourcePid: PlayerId, aura: AuraDef): number {
-    let amount = 0
-    if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(state, sourcePid, aura.counter)
-    }
-    if (aura.amount !== undefined) {
-        if (!aura.condition || checkAuraCondition(state, sourcePid, aura.condition)) {
-            amount += aura.amount
-        }
-    }
-    return amount
-}
 
-// 実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
-// 戦闘のBP比較・BPを条件にした対象選択はすべてこの値を使う（レベル判定・維持コアは対象外）。
-export function effectiveBp(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): number {
-    let total = currentLevel(inst).bp
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = state.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
-        for (const source of sources) {
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
-                // 発生源のレベル判定は素の currentLevel を使う（effectiveBp の再帰を避ける）
-                const sourceLevel = currentLevel(source).level
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (!auraAppliesTo(state, pid, source, effect.aura, ownerPid, inst)) {
-                    continue
-                }
-                total += auraAmount(state, pid, effect.aura)
-            }
-        }
-    }
-    return total
-}
 
 // ---- 制約（ブロック可否など） ----
 
