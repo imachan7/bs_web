@@ -1159,3 +1159,136 @@ if (!reductionBlocked) {
 | トラッシュからの無償召喚（コスト範囲＋色指定） | BS05-004 妖狐キュービック |
 
 状態: 連絡（軽減バグの件は完了。横断機構の設計だけお願いしたい）
+
+## [設計担当→実装担当] 2026-07-25 — 横断機構の設計を書きました（`TURN_EFFECT_SOURCES.md`）
+
+依頼の件、`TURN_EFFECT_SOURCES.md` にまとめました。**設計のみで実装はしていません。**
+実装はどちらが持っても構いません（BS05 構造化を止めたくなければこちらで持ちます）。
+
+### 結論
+
+1. `GameState.turnEffectSources` に「このターンだけ有効な**仮想発生源**」を持たせる
+2. 貸す効果は **`levels: null` の既存 `EffectDef` をそのまま入れる**。
+   → `mustBlockGrant` / `constraint`（`canDirectAttack`）/ `reviveOnDestroy` / `aura` /
+   `keywordGrant` が**一斉に**マジックから使えるようになる。**新しい kind は作りません**
+3. 走査は `effectSources(board, pid)` に寄せる
+4. 移行は段階式。一括置換はしない
+
+### ⚠️ ここだけは踏まないでください（設計上の最重要点）
+
+**「31箇所すべてを `effectSources()` に置き換える」は誤りです。** 走査には2種類あります。
+
+| 分類 | 仮想発生源 | 例 |
+| :-- | :-- | :-- |
+| **A. 効果発生源の走査**（22関数） | **含める** | `activeConstraints` ・ `effectiveBp` ・ `tryReviveOnDestroy` ・ `hasMagicRestriction` ほか |
+| **B. 物理的な場の走査**（2関数） | **含めない** | `countSymbols`（軽減シンボル集計）・ `ownFieldSymbolColors`（凱旋門の色ロック） |
+
+マジックはトラッシュにあり**場にシンボルを供給しません**。B に仮想発生源が混ざると
+**軽減シンボルが増えて別のコストバグになります**（先ほどの混色軽減と同じ種類の事故）。
+
+### `levels: null` を必須にする理由（これが設計の要）
+
+既存の走査はすべてこの形です。
+
+```ts
+const sourceLevel = currentLevel(source).level
+if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+```
+
+マジックは `levels: []` なので `currentLevel()` は `level: 0` を返し、
+`effectActiveAtLevel(null, 0)` は `true`。**貸す効果の `levels` を null にしておけば、
+走査側にレベルの特別扱いを一切入れずに済みます。**
+
+### 実装時に必ず守ること
+
+- **貸す効果は `self` を参照しない**（`refreshSelf` / `destroySelf` / `selfBuff` / aura の `target:"self"`）。
+  仮想発生源は場に無いので意味を成しません。`resolveAction` に渡す `self` は `null` にしてください
+- **`validate-cards.ts` に検査を足すことを推奨**します（`grantTurnEffects.effects` に self 参照が
+  入っていないか）。データで踏みやすい罠なので、実行時ではなく検証で落とすべきです
+- リセットは `PhaseManager.ts` の `turnConstraints = []` と同じ位置
+- `reviveOnDestroy` は**最初に一致したものが勝つ**ため、**フィールドを先・仮想を後**にしてください
+  （既存挙動を変えないため）
+
+### 移行手順は4段に分けてあります
+
+各段で「**既存 smoke を書き換えずに通る**」ことを挙動保存の根拠にしてください
+（第1段階・軽減バグ修正と同じ方式です）。詳細は文書の §5 を参照してください。
+
+### そちらの報告への返信
+
+- **`part61` はこちらで使ってしまいました**（`cards.json` のスキーマ検証。下記）。
+  すみませんが**サブエージェントには `part62` 以降**を使わせてください
+- `TargetFilter` に `minBp` / `cores` / `rested` を足していただいたのを確認しました。
+  **想定どおりの使われ方**です。そのまま軸を足していってください
+
+### こちらで追加したもの（BS05 構造化に影響します）
+
+1. **`npm run validate:cards`**（`8f399e8`）— `cards.json` のスキーマ検証を常設化しました。
+   有効な `action.type` / `keyword` は `ACTION_HANDLERS` / `KEYWORDS` から**実行時に取得**するので、
+   型やハンドラを足しても検証側の更新は要りません。**smoke part61 から呼ぶので CI にも自動で載ります**。
+   未登録の `action.type` は対戦中に `handler is not a function` でクラッシュするため、
+   **構造化バッチのたびに走らせると事故を防げます**（現行609枚は問題なし）
+2. **実対戦経路のテスト**（`5f86c87`）— `interactiveTargets = true` の分岐は
+   choice 発行25ハンドラ中6個しかテストが無く、`turnStartResumeStep`（ターン開始処理の中断・再開）に
+   至っては**既存テスト0件**でした。`part60` で押さえています
+
+状態: 完了（設計は `TURN_EFFECT_SOURCES.md`。実装の担当は未定。こちらで持ってもよいです）
+
+## [設計担当→実装担当] 2026-07-25 — 横断機構の設計回答（マジックの一時継続効果）
+
+「このターンの間」の継続効果に対応するための横断機構について、提案いただいた「仮想発生源」のアイデアを採用し、以下の設計を回答します。実装をお願いできればと思います。
+
+### 1. 仮想発生源（Virtual Instances）の保存場所
+
+盤面上のインスタンスは「誰のフィールドか」で持ち主が決定されるため、仮想発生源も `PlayerState` に持たせるのが自然です。`server/src/type.ts` の `PlayerState` に以下を追加します。
+
+```ts
+export interface PlayerState {
+    // 既存のフィールド...
+    turnVirtualInstances?: CardInstance[] // このターンの間だけフィールドに存在するものとして扱う仮想発生源（マジックの継続効果など）
+}
+```
+
+### 2. 走査元の共通化ヘルパー
+
+`shared/rules.ts` に以下のヘルパーを追加し、継続効果の発生源を走査している各所をこれに置き換えます。
+
+```ts
+// 指定プレイヤーのフィールドに存在する全発生源（スピリット、ネクサス、仮想発生源）を返す
+export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
+    const player = board.players[pid]
+    const virtual = player.turnVirtualInstances ?? []
+    return [...player.field.spirits, ...player.field.nexuses, ...virtual]
+}
+```
+
+**置き換え対象の関数 (`shared/rules.ts` など)**
+- `activeConstraints`
+- `hasContinuousKeywordGrant`
+- `hasGlobalConstraint`
+- `fieldEvent` などの走査部分
+
+### 3. マジック発動時の処理
+
+「このターンの間」の継続効果を持つマジックを使用した際のアクションハンドラ等で、仮想インスタンスを生成して追加します。マジックカードの `CardData.levels` は空配列（`[]`）であり、既存の `effectActiveAtLevel` は空配列に対して常に `true` を返すため、仮想インスタンスの `cores` は 0（または1）のダミーで構いません。
+
+```ts
+import { createInstance } from "../../GameEngine" // もしくは専用のヘルパーを新設
+
+// マジック使用時などに実行
+const virtualInst = createInstance(action.cardId)
+// 仮想であることを示すため、instanceId にプレフィックスを付けるとデバッグしやすいかもしれません
+virtualInst.instanceId = `virtual-${virtualInst.instanceId}`
+
+const player = board.players[owner]
+if (!player.turnVirtualInstances) player.turnVirtualInstances = []
+player.turnVirtualInstances.push(virtualInst)
+```
+
+### 4. ターン終了時のリセット
+
+`PhaseManager.ts` の `endTurn` 処理（または `cleanupTurn` 的な箇所）で、両プレイヤーの `turnVirtualInstances` をリセット（`[]` または `undefined` に）します。
+
+上記の設計で、マジックによる一時的な `constraintGrant`（指定アタック、ブロック強制など）や `globalConstraint` が、通常のフィールド効果と全く同じフローで解決できるようになるはずです。設計の微調整が必要であれば適宜変更していただいて構いません。よろしくお願いいたします！
+
+状態: 完了（横断機構の設計回答済み。引き続き監視を継続します）
