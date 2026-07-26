@@ -415,7 +415,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | :-- | :-- | :-- |
 | 神速 | `soku` | 実装済み（バトル中のフラッシュタイミングで手札から召喚可能） |
 | 覚醒 | `awaken` | 実装済み（サーバーAPI＋クライアントUI。優先権整合済み） |
-| 激突 | `clash` | 予約（第一・二弾未収録。将来弾向け） |
+| 激突 | `clash` | 実装済み（保持カードは未収録。part65 で一時付与により動作確認済み） |
 | 装甲 | `armor` | 実装済み（BS02。keyword エントリの `colors` に対象色を持つ） |
 | 呪撃 | `jugeki` | 実装済み（BS02。アタック時のみ、バトル終了時にブロッカーを破壊） |
 
@@ -425,6 +425,13 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
   対象自動選択（pickEnemyByBp）・範囲効果（destroyAll / exhaustAllByColor）・明示ターゲット
   （coreRemove / exhaust / destroyExhausted / returnToHand / returnToDeckTop）の全経路で防ぐ。
   バトルによる破壊・BP比較は効果ではないため防がない。クライアントのマジック対象選択にもミラー
+- **激突（【激突】）**: アタック時、相手はブロックできるなら必ずブロックしなければならない
+  （`validateTakeLife` がライフ受けを拒否する）。**保持カードはまだ1枚も収録されていない**ため、
+  `grantKeyword` による一時付与で `scripts/smoke/part65.ts` が経路を通している。
+  判定は `hasLegalBlocker`（`validateBlock` を実際に通る個体がいるか）で行うこと。
+  かつて `hasBlocker`（疲労とレベルしか見ない）を使っていたため、`cantBlock` 持ちしか
+  場にいない場合に**ブロックもライフ受けもできない詰み**になっていた（2026-07-26 修正）。
+  強制ブロック（`mustBlockGrant`）と同じ「可能ならば」の解釈に揃えてある
 - **呪撃（【呪撃】）**: アタッカーが呪撃を現レベルで持ちブロックされたバトルの解決後、
   BP比較の結果に関係なく（アタッカー自身が破壊されていても）ブロッカーを破壊する
   （`resolveBattle` 末尾フック、onDestroy 誘発あり）。ブロッカーがアタッカー色への装甲を持てば防がれる
@@ -519,6 +526,33 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
   インデックス）。手元からの使用はこの scope を持つ発生源が有効なときのみ許可され、
   `noFreeCastOpponent`（凱旋門 e2）で打ち消される。使用後は通常どおり持ち主のトラッシュへ
 - クライアント UI（手元パネル・fromTegamoto 送信）は Gemini 担当で実装中（chatbox.md 参照）
+
+### マジックが「このターンの間」継続効果を貸す（turnVirtualInstances / lendSelfThisTurn）
+
+マジックは使用後トラッシュへ行くため、従来は「このターンの間、〜する」という**継続効果**を
+表現できなかった（BS05 だけで10枚前後がこれで構造化できずにいた）。
+`PlayerState.turnVirtualInstances: CardInstance[]` に**このターンだけの仮想発生源**を持たせて解決する。
+設計の全文は `TURN_EFFECT_SOURCES.md`。
+
+- **データの書き方**: マジック自身の `effects` に `kind:"magic"` の `{ type: "lendSelfThisTurn" }` と、
+  貸したい継続効果を **`levels: null`** で並べる。実例は BS05-071 リアニメイト
+  （`reviveOnDestroy` を貸して「【呪撃】持ちが破壊されたら疲労状態で戻る」を1ターンだけ成立させる）
+- **新しい kind を作らなくてよい**のが利点。`reviveOnDestroy` / `constraint` / `aura` /
+  `keywordGrant` / `mustBlockGrant` などが一斉にマジックから使えるようになる
+- 走査は `shared/rules.ts` の **`effectSources(board, pid)`** に集約する。
+  「フィールドに実在する発生源＋実在しないが効果を出す発生源」を返す器で、将来ここに種類が増える
+
+#### ⚠️ 3つの罠（いずれも「無言で壊れる」ため必ず守ること）
+
+| 罠 | 内容 |
+| :-- | :-- |
+| **`levels: null` 必須** | 既存の走査はすべて `effectActiveAtLevel(effect.levels, currentLevel(source).level)` を通す。仮想発生源はコア0なのでレベル0になり、`levels` を書くと**無言で発火しない**。`scripts/validate-cards.ts` が検査する |
+| **`self` は使えない** | マジックの `resolveAction` は `self = null` で呼ばれる。ハンドラで `if (!self) return` と書くと**唯一の用途で必ず no-op** になる（型検査も smoke も通ってしまう）。発生源は **`ctx.sourceCardId`** から取る |
+| **走査の A/B 分類** | 「誰が継続効果を出しているか」＝A（`effectSources` を使う）。「盤面に何が存在するか」＝B（`player.field` を直接見る）。**関数単位ではなく、その走査が何を問うているかで判定する**。`countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（色ロック）・`checkAuraCondition` の `hasOwnColor` 分岐はB。混ぜると「場に赤が1枚も無いのに赤のマジックを貸しただけで条件成立」「軽減シンボルが増える」といった別のバグになる |
+
+現在 `effectSources` へ差し替え済みのA分類は6つ（`tryReviveOnDestroy` / `activeConstraints` /
+`hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査）。
+残りは段階移行の対象。
 
 ### 起動能力（kind: "activated"）
 
