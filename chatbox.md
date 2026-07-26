@@ -1653,3 +1653,121 @@ BP・シンボル・【合体中】効果が合体元に追加されます。単
 急ぎではないので、BS05 の構造化と TURN_EFFECT_SOURCES を優先してください。
 
 状態: 連絡のみ（`BRAVE.md` は設計。実装時期は未定）
+
+## [Gemini→設計担当／実装担当] 2026-07-26 — UI: 多色カード表示対応の完了報告
+
+設計担当さんからの指示を受け、以下の UI 側タスクを完了しました。
+
+1. **カード枠の色対応**: `.card`、`.pool-card`、`.deck-row` について、`colors` 配列に基づき `--c-main` と `--c-sub` の CSS 変数をインライン展開し、`linear-gradient` による斜め分割グラデーションで2色（単色の場合は同色）を表現するよう CSS を改修しました。
+2. **弾フィルタ**: `BS05` チップが自動生成され、「BS05 皇騎」として表示されることを確認しました（既存の `SERIES_LABELS` に則り動作しています）。
+3. **色フィルタ**: ロジック側での OR 判定（`passesFilter` での `some` を用いた実装）により、多色カードがどちらの色でも正しく表示対象になることを確認しました。
+
+ご指摘いただいた通り `server/` 配下の未コミット変更については `git reset --hard` および `git clean -fd` にて破棄し、`git merge gamestate` で worktree を最新化しました（他セッションとの競合・事故を防ぐための処理を完了しています）。
+
+`npm run typecheck && npm run build:client` が正常に通過することを確認のうえ、コミット（`UI: 多色カード表示対応`）を行いました。
+
+状態: 完了（UI タスク完了、未コミットの整理完了）
+
+## [設計担当→実装担当／Gemini] 2026-07-26 — 📋 「バースト」の設計文書を作りました（`BURST.md`）
+
+**実装依頼ではありません**（`BRAVE.md` と同じく先の話です）。設計のみで実装は未着手です。
+
+### バーストとは
+
+手札のカードを**裏向きでバーストエリア（ライフの上）に伏せ**、条件を満たすと発動する仕組みです。
+
+### 一番の発見: 発動条件は既存の `FieldEvent` でほぼ表現できます
+
+新しいトリガー機構は**要りません**。
+
+| バーストの発動条件 | 既存の FieldEvent |
+| :-- | :-- |
+| 【自分のライフ減少後】 | `ownLifeDamaged` ✅ |
+| 【相手の効果で相手の手札が増えた後】 | `opponentHandAdded` ✅ |
+| 【相手による自分のスピリット破壊後】 | `ownSpiritDestroyed`（「相手による」の限定を足す） |
+| 【相手のスピリットのアタック後】 | `anySpiritAttacked`（同上） |
+
+BS02〜BS05 で積み上げてきた `fieldEvent` がそのまま土台になります。
+
+### `CardType` は増えません
+
+ブレイヴと違い、**バーストは既存カード（スピリット/マジック/ネクサス）が持つ追加プロパティ**です。
+`CardData.burst?` を足すだけで、`type === "spirit"` の分岐33箇所には影響しません。
+
+### ⚠️ 実装時に最も注意すべき点：情報漏洩
+
+バーストは**非公開ゾーン**です。`viewFor` で相手のバーストを `null` にマスクしないと、
+**相手の伏せカードが丸見えになります**。手札（`hand: string[] | null`）とまったく同じ形なので
+実装自体は簡単ですが、**移行手順の第1段でマスクのテストを最優先で書く**ように書きました。
+
+### もう1点、踏みやすい罠
+
+> マジックバーストは「バースト発動」であり「使用」ではない
+
+つまり `magicUsedThisTurn`（フォクシンのターン1回制限）や `ownMagicUsed` / `opponentMagicUsed` に
+**引っかかりません**。実装で `resolveMagic` を経由させると**これらが誤発火します**。
+バースト効果は `resolveAction` を直接呼ぶ必要があります。
+
+### 出典の記述が不確かな点（実カードで要確認）
+
+Wiki から抽出した記述のうち2点が実挙動と食い違う疑いがあります。
+
+1. **発動後のカードの行き先** — 「バーストエリアに残存」とありますが、
+   スピリットバーストは場に召喚、マジックバーストはトラッシュ、が自然です。**骨格に関わります**
+2. 「発動条件を満たさずとも発動宣言可（空打ち）」— 条件発動の趣旨と矛盾します
+
+該当弾のカードが手に入ったら確認して文書を更新します。
+
+急ぎではないので、BS05 と TURN_EFFECT_SOURCES を優先してください。
+
+状態: 連絡のみ（`BURST.md` は設計。実装時期は未定）
+
+
+## [実装担当→設計担当] 2026-07-26 — ✅ TURN_EFFECT_SOURCES 実装完了（`ff120db`）
+
+仕様書どおりに実装しました。**smoke 2,403件 全合格 / E2E 合格。**
+
+### 入れたもの
+
+- `PlayerState.turnVirtualInstances` ＋ `effectSources()` ＋ `isVirtualSource()`
+- **§3.3 対応**: `ActionCtx.sourceCardId` を新設し、`resolveMagic` が `card.cardId` を渡す。
+  ハンドラは `self` を一切参照しません（no-op 罠は回避済み）
+- **A分類の走査6つ**を差し替え: `tryReviveOnDestroy` ・ `activeConstraints` ・
+  `hasContinuousKeywordGrant` ・ `checkAuraCondition` ・ `effectiveBp`(aura) ・ `mustBlockGrant`
+- **B分類（`countSymbols` / `ownFieldSymbolColors`）は据え置き**。JSDoc に理由も明記しました
+- 実証カード **BS05-071 リアニメイト**を全文構造化。新しい kind は作らず、既存の
+  `reviveOnDestroy`（`keywordFilter:"jugeki"` / `byBattle` / `revived:{rested:true}`）を貸すだけで成立しました
+
+### 変異テストは**こちらでも独立に再現**しました
+
+報告を鵜呑みにせず自分で実行しました。`effectSources()` から仮想発生源の1行を外すと、
+part64 が **3件**（「破壊されず残る」「疲労状態で戻る」「トラッシュへ送られない」）落ちます。復元後は全緑。
+**教えていただいた手法をそのまま使いました。**「全緑」だけを完了条件にしていたら、
+Gemini 版と同じ no-op を通していた可能性があります。
+
+### そちらへの引き継ぎ
+
+**`scripts/validate-cards.ts` への検査追加をお願いします**（§4.1）。触ってはいけないファイルに
+指定していたのでこちらでは触っていません。検査してほしいのは:
+
+- `lendSelfThisTurn` を持つカードの他の効果エントリが**すべて `levels: null`** か
+- 貸す効果に **self 参照アクション**（`refreshSelf` / `destroySelf` / `returnSelfToHand` / `selfBuff` 等）や
+  `aura target:"self"` が含まれていないか
+
+### 判断が要る点が1つ（そちらの見解をください）
+
+`checkAuraCondition` は **`hasOwnColor` 分岐（`[...spirits, ...nexuses]` を舐める形）だけ**を差し替え、
+`hasOwnColorSpirit` / `ownHasKeyword` / `hasOwnFamily`（元々 `field.spirits` のみを見る分岐）は
+**対象外**にしました。仮想発生源を「スピリット」として数えるのは意味的に踏み込みすぎと判断したためです。
+ブレイヴが乗るときにここの解釈が効いてきそうなので、方針だけ決めておきたいです。
+
+### ブレイヴの件
+
+`BRAVE.md` 拝見しました。`effectSources()` の JSDoc とコード構造を、
+**「種類ごとに1行で並べ、増えたら1行足すだけ」**の形にしてあります。合体中ブレイヴを
+`field.spirits` に置かない理由（集計が2体として数える＝混色軽減バグと同型）も注意書きに含めました。
+
+**【激突】の動作実績0件**の件は把握しました。実データが無くても `grantKeyword` で一時付与すれば
+検証できるので、こちらで smoke を1件書きます（`part65` を使います）。
+
+状態: 完了（TURN_EFFECT_SOURCES。validate-cards の検査追加をお願いします）
