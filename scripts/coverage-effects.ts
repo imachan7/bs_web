@@ -40,8 +40,8 @@ const ACTION_BEARING_KINDS = new Set([
 //   aura           → effectiveBp（全37件が aura.type:"bp" なのでこれで網羅できる）
 //   constraint     → activeConstraints ＋ isUntargetableByOpponent（**別経路が1つある**）
 //   reviveOnDestroy→ tryReviveOnDestroy（実際に復活が確定した時点。経路は2つ）
-// これ以外の継続 kind（keywordGrant / costMod / globalConstraint / levelAs / reductionGrant …）は
-// 走査点がそれぞれ別なので未対応。**測れていないものを「カバー済み」と誤読しないよう、
+// これ以外の継続 kind（keyword / globalConstraint / levelAs / effectGrant / colorAs …）は
+// 走査点がそれぞれ別か複数に分かれているため未対応。**測れていないものを「カバー済み」と誤読しないよう、
 // 集計から明示的に外して「未計測」として件数だけ出す**
 //
 // ⚠️ `keyword` は意図的に外している（初版では入れていたが撤回した）。
@@ -49,7 +49,15 @@ const ACTION_BEARING_KINDS = new Set([
 // 【粉砕】【光芒】【転召】は EffectModules の専用走査から読まれるため **hasKeyword を通らない経路が
 // 7箇所以上ある**。その状態で計測すると「未適用」の誤検出が大量に出て、リストの信頼性が落ちる。
 // 全経路に計測を入れるまでは「未計測」に置いておくほうが実害が小さい
-const MEASURED_CONTINUOUS_KINDS = new Set(["aura", "constraint", "reviveOnDestroy"])
+const MEASURED_CONTINUOUS_KINDS = new Set([
+    "aura",
+    "constraint",
+    "reviveOnDestroy",
+    "costMod", // costModTotal（加算）と costSetOverride（置換）の2経路
+    "reductionGrant", // reductionGrantSymbols
+    "magicRestriction", // hasMagicRestriction
+    "keywordGrant", // spiritHasKeyword の継続付与分岐
+])
 
 type Measurability = "action" | "continuous" | "unmeasured"
 
@@ -133,6 +141,15 @@ const __covEid = (e: unknown): string =>
 `
     fs.writeFileSync(f, header + fs.readFileSync(f, "utf-8"))
 
+    // shared/cost.ts 側にも同じ記録器を注入する（別ファイルなので import せず自前で持つ）
+    const fc = f.replace("rules.ts", "cost.ts")
+    const headerC = header
+        .replace(/__covSet2/g, "__covSet2C")
+        .replace(/__covRec2/g, "__covRec2C")
+        .replace(/__covEid/g, "__covEid2C")
+        .replace(JSON.stringify(out + ".shared"), JSON.stringify(out + ".cost"))
+    fs.writeFileSync(fc, headerC + fs.readFileSync(fc, "utf-8"))
+
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
         f,
@@ -145,6 +162,45 @@ const __covEid = (e: unknown): string =>
         f,
         `        .map((e) => (e as { constraint: ConstraintDef }).constraint)`,
         `        .map((e) => { __covRec2("cont\\t" + __covEid(e)); return (e as { constraint: ConstraintDef }).constraint })`,
+    )
+    // costMod（加算）: 実際にコストへ加算する時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `                total += effect.amount`,
+        `                __covRec2C("cont\t" + __covEid2C(effect))
+                total += effect.amount`,
+    )
+    // costMod（置換 mode:"set"）: 採用値を決める時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `            if (result === undefined || effect.amount < result) result = effect.amount`,
+        `            __covRec2C("cont\t" + __covEid2C(effect))
+            if (result === undefined || effect.amount < result) result = effect.amount`,
+    )
+    // reductionGrant: 軽減シンボルを実際に足す時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `            extra.push(...effect.symbols)`,
+        `            __covRec2C("cont\t" + __covEid2C(effect))
+            extra.push(...effect.symbols)`,
+    )
+    // magicRestriction: 制限が成立して true を返す時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                return true`,
+        `                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                __covRec2C("cont\t" + __covEid2C(effect))
+                return true`,
+    )
+    // keywordGrant: 継続付与が成立して true を返す時点
+    patch(
+        f,
+        `            if (effect.phase && board.phase !== effect.phase) continue
+            return true`,
+        `            if (effect.phase && board.phase !== effect.phase) continue
+            __covRec2("cont\t" + __covEid(effect))
+            return true`,
     )
     // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
     // isUntargetableByOpponent が直接 effects を走査する。ここを入れないと
@@ -283,7 +339,11 @@ process.on("exit", () => {
 
         const readRecords = (file: string): string[] =>
             fs.existsSync(file) ? fs.readFileSync(file, "utf-8").split("\n") : []
-        for (const line of [...readRecords(outFile), ...readRecords(outFile + ".shared")]) {
+        for (const line of [
+            ...readRecords(outFile),
+            ...readRecords(outFile + ".shared"),
+            ...readRecords(outFile + ".cost"),
+        ]) {
             const [tag, a, b] = line.split("\t")
             if (tag === "act") {
                 if (a === "?" || a === undefined) {
@@ -339,7 +399,7 @@ function report(
     const notFiredCont = summarize("  継続効果（計測対応済み）", contEntries, firedEids)
     console.log(
         `  継続効果（未計測の kind）: ${unmeasured.length}件 ` +
-            `※ keywordGrant / costMod / globalConstraint / levelAs 等。走査点が別なので**測れていない**`,
+            `※ keyword / globalConstraint / levelAs / effectGrant 等。走査点が複数に分かれており**測れていない**`,
     )
 
     // 未適用の内訳（kind 別）。どの層が薄いのかを一目で見るため
