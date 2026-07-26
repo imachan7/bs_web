@@ -46,6 +46,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
+import { cardHasColor } from "../../shared/rules"
 
 console.log("=== フラッシュ封じアクション（lockFlash） ===")
 {
@@ -601,7 +602,7 @@ console.log("=== 第二弾（BS02）データの検証 ===")
     const bs02 = ["001", "050", "063", "111", "X05", "X08"].map((n) => `BS02-${n}`)
     for (const cardId of bs02) getCard(cardId) // 実在チェック（無ければ throw）
     assert(getCard("BS02-063").limited === true, "冥犬ケルル・ベロスは禁止カード")
-    assert(getCard("BS02-049").color === "yellow", "ピヨンは黄")
+    assert(cardHasColor(getCard("BS02-049"), "yellow"), "ピヨンは黄")
     assert(getCard("BS02-X05").name === "暴双龍ディラノス", "XレアのID・名前が一致")
 
     // 黄デッキでゲームを開始できる

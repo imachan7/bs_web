@@ -60,6 +60,34 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+// 前者はスピリット・ネクサス。後者は現時点ではターン限定の仮想発生源（マジックが貸した継続効果。
+// PlayerState.turnVirtualInstances）のみだが、**今後ここに種類が追加される想定**（例: 次弾以降の新カードタイプ
+// 「ブレイヴ」＝スピリットに合体して1体として扱われるカード。合体中は field.spirits に置かず
+// ホストの入れ子として持たせ、その【合体中】効果はここ経由で発揮させる設計になる）。
+// 発生源の種類が増えたら下の配列に1行足すだけで済むよう、種類ごとに1行で並べておくこと。
+//
+// ⚠️ 「場に実在するカードを数える」用途には使わないこと。
+//    軽減シンボル集計（countSymbols）・色ロック（ownFieldSymbolColors）は
+//    物理的な存在を見る処理であり、意味的に発生源とは別物（TURN_EFFECT_SOURCES.md §1 の分類B）。
+//    それらは player.field を直接見ること。この区別は将来ブレイヴが乗っても効く
+//    （合体中のブレイヴを軽減シンボル集計に混ぜると、実在しないもう1体として数えてしまう事故になる）
+export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
+    const player = board.players[pid]
+    return [
+        ...player.field.spirits, // フィールドに実在するスピリット
+        ...player.field.nexuses, // フィールドに実在するネクサス
+        ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
+    ]
+}
+
+// このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
+// 仮想発生源は場に実在しないため、self参照アクション（refreshSelf等）やaura target:"self"の対象にしてはいけない
+// （TURN_EFFECT_SOURCES.md §4.1）
+export function isVirtualSource(inst: CardInstance): boolean {
+    return inst.instanceId.startsWith("virtual-")
+}
+
 // 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（道化師クラン）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
     return card(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
@@ -69,7 +97,7 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 // **色の一致判定は必ずこの述語か instHasColor を通すこと**（`card.color === c` を直接書かない）。
 // BS05 で多色カードが入ると CardData の色が配列になるため、直接比較は静かに壊れる（MULTICOLOR.md 参照）
 export function cardHasColor(cardData: CardData, color: Color): boolean {
-    return cardData.color === color
+    return cardData.colors.includes(color)
 }
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
@@ -78,6 +106,15 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
+}
+
+// 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
+// （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+export function instColors(inst: CardInstance): Color[] {
+    const colors = new Set<Color>(card(inst.cardId).colors)
+    for (const c of inst.tempColors) colors.add(c)
+    for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+    return [...colors]
 }
 
 // 現在のレベルとBP。levelOverrideThisTurn（このターンの上書き）または levelAsContinuous（継続置換）が
@@ -160,8 +197,7 @@ export function hasContinuousKeywordGrant(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
-    const player = board.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -175,6 +211,8 @@ export function hasContinuousKeywordGrant(
                 continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
+            if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
             return true
         }
@@ -271,13 +309,15 @@ export function checkAuraCondition(
     const player = board.players[sourcePid]
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
     if ("hasOwnColor" in condition) {
+        // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
+        // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
+        // 含めると、場に赤のカードが1枚も無いのに赤のマジックを貸しただけで成立してしまう
+        // （TURN_EFFECT_SOURCES.md §1。同じ関数の中でも、外側のオーラ発生源探索はAで、この条件はB）
         const all = [...player.field.spirits, ...player.field.nexuses]
-        return all.some((inst) => card(inst.cardId).color === condition.hasOwnColor)
+        return all.some((inst) => instHasColor(inst, condition.hasOwnColor))
     }
     if ("hasOwnColorSpirit" in condition) {
-        return player.field.spirits.some(
-            (s) => card(s.cardId).color === condition.hasOwnColorSpirit,
-        )
+        return player.field.spirits.some((s) => instHasColor(s, condition.hasOwnColorSpirit))
     }
     // { ownHasKeyword: Keyword }：自分フィールドに指定キーワード持ちのスピリットがいる（一時付与・継続付与も考慮）
     if ("ownHasKeyword" in condition) {
@@ -285,9 +325,9 @@ export function checkAuraCondition(
             spiritHasKeyword(board, sourcePid, s, condition.ownHasKeyword),
         )
     }
-    // { hasOwnFamily: string }：発生源自身を含んでよい
+    // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
-        card(s.cardId).family.includes(condition.hasOwnFamily),
+        matchesFamilyFilter(board, sourcePid, s, condition.hasOwnFamily),
     )
 }
 // オーラ1件が対象インスタンス（targetOwnerPid が持ち主）に効くか判定する
@@ -371,8 +411,7 @@ export function effectiveBp(
 ): number {
     let total = currentLevel(inst).bp
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = board.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
+        const sources = effectSources(board, pid)
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
@@ -410,6 +449,7 @@ export function matchesTarget(
 ): boolean {
     if (!filter) return true
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp) return false
+    if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
@@ -420,6 +460,8 @@ export function matchesTarget(
     if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
+    if (filter.cores !== undefined && inst.cores !== filter.cores) return false
+    if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     return true
 }
 
@@ -449,7 +491,7 @@ export function activeConstraints(
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -477,20 +519,20 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
             effectActiveAtLevel(e.levels, level),
     )
 }
-export function hasArmorAgainst(inst: CardInstance, sourceColor: Color | undefined): boolean {
-    if (sourceColor === undefined) return false
+export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+    if (sourceColors === undefined || sourceColors.length === 0) return false
     const level = currentLevel(inst).level
     const staticArmor = card(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
             effectActiveAtLevel(e.levels, level) &&
-            (e.colors?.includes(sourceColor) ?? false),
+            (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
     return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.includes(sourceColor) ?? false),
+        (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
 }
 export function hasGlobalConstraint(

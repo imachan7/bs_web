@@ -638,7 +638,7 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
         colors: ["red", "purple", "green", "blue"],
     }, guard.instanceId)
     // p1の赤ソースの破壊効果は装甲で対象に取れない
-    resolveAction(s2, "p1", null, { type: "destroy", count: 1 }, undefined, "red")
+    resolveAction(s2, "p1", null, { type: "destroy", count: 1 }, undefined, ["red"])
     assert(s2.players.p2.field.spirits.length === 1, "付与された装甲が赤の破壊効果を防ぐ")
 }
 

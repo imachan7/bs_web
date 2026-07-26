@@ -56,17 +56,21 @@ import {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
     hasGlobalConstraint,
     hasMagicImmunity,
     hasKeyword,
     instanceSymbolCount,
+    instColors,
     instHasColor,
     instHasCost,
     isUntargetableByOpponent,
     isVanillaCard,
+    isVirtualSource,
     KEYWORDS,
+    matchesCostFilter,
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
@@ -80,16 +84,19 @@ export {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
     hasGlobalConstraint,
     hasMagicImmunity,
     hasKeyword,
     instanceSymbolCount,
+    instColors,
     instHasColor,
     instHasCost,
     isUntargetableByOpponent,
     isVanillaCard,
+    isVirtualSource,
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasFamily,
@@ -361,8 +368,8 @@ export function isImmuneToArea(inst: CardInstance): boolean {
     return inst.immuneToOpponentThisTurn
 }
 
-// 【装甲：色】：inst が sourceColor の相手効果を受けないか（対象・範囲の両方から参照する）。
-// sourceColor が不明（undefined）な場合は装甲を判定できないため false（＝防がない）とする。
+// 【装甲：色】：inst が sourceColors の相手効果を受けないか（対象・範囲の両方から参照する）。
+// sourceColors が不明（undefined）な場合は装甲を判定できないため false（＝防がない）とする。
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
@@ -377,7 +384,7 @@ export function isImmuneToArea(inst: CardInstance): boolean {
 // ownerPid のフィールド（スピリット＋ネクサス）を走査し、レベル有効・familyFilter一致（省略時は不問）の
 // immunityGrant（against: "magic"）を持つ発生源が1つでもあれば、inst は相手のマジックの効果を受けない。
 // 呼び出し側は「効果の発生源が実際にマジックか（sourceType === "magic"）」を先に判定してから呼ぶこと
-// （装甲の hasArmorAgainst が sourceColor を受け取るのと同じ考え方で、対象側にだけ知識を閉じる）。
+// （装甲の hasArmorAgainst が sourceColors を受け取るのと同じ考え方で、対象側にだけ知識を閉じる）。
 
 // 【疲労しない】（kind: "exhaustImmunityGrant"）：inst（targetOwnerPidの持ち主）が、相手の効果による
 // 疲労を受けないか。呼び出し側は「疲労させようとしている側がtargetOwnerPidと異なる場合のみ」呼ぶこと
@@ -668,10 +675,13 @@ export function destroySpirit(
     // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
     // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
     // バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", undefined, master.color, undefined, undefined, {
+    // selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで「破壊されたスピリットのBP以下」を
+    // 参照できるようにする。既存カードはselfを参照しないアクションのみのため挙動は変わらない）
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         vanilla: isVanillaCard(master),
         byBattle: context?.battle !== undefined,
         families: master.family,
+        cost: master.cost,
     })
 }
 
@@ -696,8 +706,8 @@ function tryReviveOnDestroy(
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
         }
         if (when.byBattleVsArmorColor) {
-            const attackerColor = context?.battle?.attackerColor
-            if (attackerColor === undefined || !hasArmorAgainst(inst, attackerColor)) return false
+            const attackerColors = context?.battle?.attackerColors
+            if (attackerColors === undefined || !hasArmorAgainst(inst, attackerColors)) return false
         }
         if (when.byBattle && context?.battle === undefined) return false
         if (
@@ -759,9 +769,17 @@ function tryReviveOnDestroy(
     const revivedLabel = (revived: { rested: boolean } | { toHand: true }): string =>
         "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
+    // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
+    // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
+    const matchesRequireOwnFieldHasName = (name?: string): boolean => {
+        if (name === undefined) return true
+        return player.field.spirits.some((s) => getCard(s.cardId).name === name)
+    }
+
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) return false
+        if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (!applyCost(effect)) return false
@@ -782,8 +800,9 @@ function tryReviveOnDestroy(
     }
 
     // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
-    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
+    // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
+    const sources = effectSources(state, ownerPid)
     for (const source of sources) {
         if (source.instanceId === inst.instanceId) continue
         const sourceLevel = currentLevel(source).level
@@ -793,6 +812,8 @@ function tryReviveOnDestroy(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesWhen(effect.when)) continue
@@ -1026,14 +1047,14 @@ export function removeCoresToVoid(
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 // （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）
-// sourceColor: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
+// sourceColors: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
 // sourceType: 効果発生源の種別（マジック効果耐性判定用。"magic" のときのみ hasMagicImmunity を追加チェック）
 export function pickEnemyCandidates(
     state: GameState,
     targetPid: PlayerId,
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
-    sourceColor?: Color,
+    sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
 ): CardInstance[] {
     return state.players[targetPid].field.spirits.filter(
@@ -1041,7 +1062,7 @@ export function pickEnemyCandidates(
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isUntargetableByOpponent(s) &&
-            !hasArmorAgainst(s, sourceColor) &&
+            !hasArmorAgainst(s, sourceColors) &&
             !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
             extraPredicate(s),
     )
@@ -1054,10 +1075,10 @@ export function pickEnemyByBp(
     targetPid: PlayerId,
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
-    sourceColor?: Color,
+    sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
 ): CardInstance | null {
-    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColor, sourceType)
+    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType)
     if (candidates.length === 0) return null
     return candidates.reduce((best, s) =>
         effectiveBp(state, targetPid, s) > effectiveBp(state, targetPid, best) ? s : best,
@@ -1182,25 +1203,24 @@ export function applyMagicBuffBonus(
     state: GameState,
     target: CardInstance,
     srcType?: "spirit" | "nexus" | "magic",
-    srcColor?: Color,
+    srcColors?: Color[],
 ): void {
     if (srcType !== "magic") return
     if (state.phase !== "attack") return
     const found = findSpiritAny(state, target.instanceId)
     if (!found) return
     const targetOwner = found.pid
-    const targetColor = getCard(target.cardId).color
     for (const source of state.players[targetOwner].field.spirits) {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicBuffBonus") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-            if (effect.colorFilter && srcColor !== effect.colorFilter) continue
+            if (effect.colorFilter && !(srcColors ?? []).includes(effect.colorFilter)) continue
             if (effect.target === "self") {
                 if (source.instanceId !== target.instanceId) continue
             } else {
                 // ownOthers：発生源以外の、持ち主の緑スピリットが対象のときのみ
                 if (source.instanceId === target.instanceId) continue
-                if (targetColor !== "green") continue
+                if (!instHasColor(target, "green")) continue
             }
             target.tempBpBuff += effect.amountBonus
             log(
@@ -1310,9 +1330,24 @@ export function countEffectCounter(
     if (counter === "ownExhausted") {
         return state.players[owner].field.spirits.filter((s) => s.isRested).length
     }
+    if (counter === "allExhausted") {
+        // 両陣営の疲労スピリット数の合計（BS05大甲帝デスタウロス：疲労状態のスピリット1体につき）
+        return (
+            state.players[owner].field.spirits.filter((s) => s.isRested).length +
+            countExhaustedEnemies(state, opp)
+        )
+    }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
+    // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
+    if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
+    if ("ownKeyword" in counter) {
+        return state.players[owner].field.spirits.filter((s) =>
+            spiritHasKeyword(state, owner, s, counter.ownKeyword),
+        ).length
+    }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
@@ -1361,24 +1396,28 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
 
 // 効果アクションを実行する。
 //   owner = 効果の使用者、self = 効果の発生源スピリット（マジックは null）
-//   sourceColor = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
+//   sourceColors = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
+//   sourceCardId = 発生源のカードID。省略時は self.cardId から求める。マジックはselfがnullのため
+//     resolveMagicが明示的にcard.cardIdを渡す（lendSelfThisTurn専用。TURN_EFFECT_SOURCES.md §3.3）
 export function resolveAction(
     state: GameState,
     owner: PlayerId,
     self: CardInstance | null,
     action: EffectAction,
     targetInstanceId?: string,
-    sourceColor?: Color,
+    sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
     chosenOption?: string,
     chosenCardIndex?: number,
+    sourceCardId?: string,
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
-    const srcColor = sourceColor ?? (self ? getCard(self.cardId).color : undefined)
+    const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
+    const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
     const destroyContext: DestroyContext =
@@ -1393,8 +1432,9 @@ export function resolveAction(
         opp,
         self,
         sourceName,
-        srcColor,
+        srcColors,
         srcType,
+        sourceCardId: srcCardId,
         destroyContext,
         targetInstanceId,
         chosenOption,
@@ -1406,7 +1446,7 @@ export function resolveAction(
                 opts?.self === undefined ? self : opts.self,
                 next,
                 opts?.targetInstanceId,
-                opts?.sourceColor,
+                opts?.sourceColors,
                 opts?.sourceType,
                 opts?.chosenOption,
                 opts?.chosenCardIndex,
@@ -1570,7 +1610,7 @@ export function fireTrigger(
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
                 // opponentNexusColorsAtLeast 以上のときのみ発火
                 const oppNexuses = state.players[opponentOf(owner)].field.nexuses
-                const colors = new Set(oppNexuses.map((n) => getCard(n.cardId).color))
+                const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
                 if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
             } else if ("ownFieldHasColorSpirit" in effect.condition) {
                 // オチョゴ／ジェルフィ：発生源の持ち主のフィールドに指定色のスピリットがいるときのみ発火
@@ -1584,9 +1624,7 @@ export function fireTrigger(
                 // 天使キュリオ：発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火
                 const color = effect.condition.ownFieldHasColorNexus
                 if (
-                    !state.players[owner].field.nexuses.some(
-                        (n) => getCard(n.cardId).color === color,
-                    )
+                    !state.players[owner].field.nexuses.some((n) => instHasColor(n, color))
                 ) {
                     return false
                 }
@@ -1674,6 +1712,13 @@ function collectGrantedTriggerActions(
                 continue
             }
             if (effect.colorFilter && !instHasColor(selfInstance, effect.colorFilter)) continue
+            if (
+                effect.familyFilter &&
+                !matchesFamilyFilter(state, owner, selfInstance, effect.familyFilter)
+            ) {
+                continue
+            }
+            if (effect.keywordFilter && !hasKeyword(selfInstance.cardId, effect.keywordFilter)) continue
             actions.push(effect.granted.action)
         }
     }
@@ -1811,7 +1856,7 @@ export function fireFieldEventTriggers(
     pid: PlayerId,
     event: FieldEvent,
     selfOverride?: { pid: PlayerId; inst: CardInstance },
-    eventColor?: Color,
+    eventColors?: Color[],
     targetInstanceId?: string,
     eventCount?: number,
     eventInfo?: {
@@ -1820,6 +1865,7 @@ export function fireFieldEventTriggers(
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
+        cost?: number
     },
 ): void {
     const player = state.players[pid]
@@ -1834,9 +1880,11 @@ export function fireFieldEventTriggers(
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-            if (effect.colorFilter !== undefined && effect.colorFilter !== eventColor) continue
+            if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）
+            if (effect.costFilter !== undefined && !matchesCostFilter(eventInfo?.cost ?? -1, effect.costFilter)) continue
             // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
             if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
@@ -1848,6 +1896,13 @@ export function fireFieldEventTriggers(
                     ? effect.familyFilter
                     : [effect.familyFilter]
                 if (!wanted.some((f) => eventInfo?.families?.includes(f))) continue
+            }
+            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）
+            if (
+                effect.keywordFilter !== undefined &&
+                !hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
+            ) {
+                continue
             }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {
@@ -1961,7 +2016,7 @@ export function resolveMagic(
                     )
                     continue
                 }
-            } else {
+            } else if ("ownFieldHasMinSymbolSpirit" in effect.condition) {
                 // ライトニングバリスタ等：自分のフィールドにシンボル数がこれ以上のスピリットが
                 // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
                 const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
@@ -1975,10 +2030,39 @@ export function resolveMagic(
                     )
                     continue
                 }
+            } else {
+                // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
+                const minColors = effect.condition.ownFieldSymbolColorsAtLeast
+                const colors = new Set<Color>()
+                for (const s of [
+                    ...state.players[owner].field.spirits,
+                    ...state.players[owner].field.nexuses,
+                ]) {
+                    for (const c of getCard(s.cardId).symbol) colors.add(c)
+                }
+                if (colors.size < minColors) {
+                    log(
+                        state,
+                        `${card.name}：シンボルの色が${minColors}色未満のため発動しなかった。`,
+                    )
+                    continue
+                }
             }
         }
-        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す
-        resolveAction(state, owner, null, effect.action, targetInstanceId, card.color, "magic")
+        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
+        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
+        resolveAction(
+            state,
+            owner,
+            null,
+            effect.action,
+            targetInstanceId,
+            card.colors,
+            "magic",
+            undefined,
+            undefined,
+            card.cardId,
+        )
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
             state.pendingChoice.queue.push(

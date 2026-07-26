@@ -2,7 +2,7 @@
 //
 // 旧実装は 3,000行超・105 case の単一 switch だった。分割にあたり、
 // 各 case 本体が参照していた closure ローカル（state / owner / opp / self / sourceName /
-// srcColor / srcType / destroyContext / targetInstanceId / chosenOption / chosenCardIndex）を
+// srcColors / srcType / destroyContext / targetInstanceId / chosenOption / chosenCardIndex）を
 // このコンテキストオブジェクト1個にまとめ、本体はそのまま移設できるようにしている。
 import type {
     CardInstance,
@@ -19,8 +19,10 @@ export interface ActionCtx {
     opp: PlayerId
     self: CardInstance | null
     sourceName: string
-    srcColor: Color | undefined
+    srcColors: Color[] | undefined
     srcType: "spirit" | "nexus" | "magic" | undefined
+    sourceCardId: string | undefined // 発生源のカードID。マジックはselfがnullのため、resolveMagicが使用中のカードのcardIdをここに入れる
+    // （スピリット/ネクサス発生源はself.cardIdからのフォールバックで自動的に入る）。lendSelfThisTurn専用（TURN_EFFECT_SOURCES.md §3.3）
     destroyContext: DestroyContext
     targetInstanceId: string | undefined
     chosenOption: string | undefined
@@ -28,7 +30,7 @@ export interface ActionCtx {
     // 効果解決中の再入（同一アクションの繰り返し・別アクションへの委譲）に使う。
     // 旧実装の `resolveAction(state, owner, self, action, ...)` の置き換え。
     // **self だけは省略時に呼び出し元の self を引き継ぎ**（旧実装が常に self を渡していたため）、
-    // targetInstanceId / sourceColor / sourceType / chosenOption / chosenCardIndex は
+    // targetInstanceId / sourceColors / sourceType / chosenOption / chosenCardIndex は
     // **省略すると undefined が渡る**（呼び出し元の値を暗黙に引き継がない）。
     // 引き継ぎたい場合は opts に明示的に渡すこと。移設前の挙動をそのまま保つための設計
     resolve: (action: EffectAction, opts?: ResolveOpts) => void
@@ -41,7 +43,7 @@ export interface ResolveOpts {
     // self のみ「省略時は呼び出し元の self を引き継ぐ」（null を渡せば self なしにできる）
     self?: CardInstance | null | undefined
     targetInstanceId?: string | undefined
-    sourceColor?: Color | undefined
+    sourceColors?: Color[] | undefined
     sourceType?: "spirit" | "nexus" | "magic" | undefined
     chosenOption?: string | undefined
     chosenCardIndex?: number | undefined

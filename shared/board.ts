@@ -21,6 +21,7 @@ export interface BoardPlayer {
     trashCards: string[]
     tegamoto: string[]
     field: { spirits: CardInstance[]; nexuses: CardInstance[] }
+    turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する
 }
 
 export interface Board {

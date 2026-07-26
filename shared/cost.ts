@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { countSymbols, currentLevel, effectActiveAtLevel, hasKeyword, matchesFamilyFilter } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, hasKeyword, instHasColor, matchesFamilyFilter } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -23,7 +23,7 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "costMod") continue
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-                if (effect.colorFilter !== undefined && cardData.color !== effect.colorFilter) continue
+                if (effect.colorFilter !== undefined && !cardHasColor(cardData, effect.colorFilter)) continue
                 if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
                 // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
                 if (effect.side === "opponent" && usingPid === pid) continue
@@ -59,7 +59,7 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
             if (effect.kind !== "reductionGrant") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
-            if (effect.cardColor !== undefined && cardData.color !== effect.cardColor) continue
+            if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
             // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
             if (effect.familyFilter !== undefined) {
@@ -72,13 +72,13 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
                 if ("ownColorSpiritsAtLeast" in effect.condition) {
                     // ティ・ターニャ：ネクサスを数えず、指定色のスピリット数のみで判定
                     const { color, count } = effect.condition.ownColorSpiritsAtLeast
-                    const total = board.players[pid].field.spirits.filter(
-                        (s) => card(s.cardId).color === color,
+                    const total = board.players[pid].field.spirits.filter((s) =>
+                        instHasColor(s, color),
                     ).length
                     if (total < count) continue
                 } else {
                     const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const total = sources.filter((s) => card(s.cardId).color === color).length
+                    const total = sources.filter((s) => instHasColor(s, color)).length
                     if (total < count) continue
                 }
             }
@@ -138,7 +138,7 @@ export function hasMagicFreeGrant(
             if (requireTegamotoScope) {
                 if (!isAllScope) continue
             } else if (!isAllScope) {
-                if (effect.colorFilter !== cardData.color) continue
+                if (effect.colorFilter === undefined || !cardHasColor(cardData, effect.colorFilter)) continue
             }
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
@@ -180,8 +180,18 @@ export function effectiveCost(
     }
     const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
     const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
-    const symbols = reductionBlocked ? 0 : countSymbols(board.players[pid], reductionColors)
-    const reduction = reductionBlocked ? 0 : Math.min(reductionColors.length, symbols)
+    // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
+    // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
+    // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
+    // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
+    let reduction = 0
+    if (!reductionBlocked) {
+        for (const color of new Set(reductionColors)) {
+            const need = reductionColors.filter((c) => c === color).length
+            const have = countSymbols(board.players[pid], [color])
+            reduction += Math.min(need, have)
+        }
+    }
     const base = Math.max(cardData.cost - reduction, 0)
     return base + costModTotal(board, pid, cardData)
 }

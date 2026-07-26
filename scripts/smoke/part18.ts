@@ -5,6 +5,7 @@ import {
     engineRunTurnStart,
     getCard,
 } from "./helpers"
+import { cardHasColor } from "../../shared/rules"
 
 console.log("=== 第三弾（BS03）データの検証 ===")
 {
@@ -12,7 +13,7 @@ console.log("=== 第三弾（BS03）データの検証 ===")
     const probes = ["001", "030", "071", "121", "141", "X09", "X12"].map((n) => `BS03-${n}`)
     for (const cardId of probes) getCard(cardId) // 実在チェック（無ければ throw）
     assert(getCard("BS03-030").limited === true, "BS03-030 は禁止カード")
-    assert(getCard("BS03-071").color === "blue", "戦闘獣ブルトップは青")
+    assert(cardHasColor(getCard("BS03-071"), "blue"), "戦闘獣ブルトップは青")
     assert(getCard("BS03-071").name === "戦闘獣ブルトップ", "青デッキ採用カードの ID・名前が一致")
     assert(getCard("BS03-121").rarity === "C,R", "複数レアリティ表記（C,R）を取り込めている")
 

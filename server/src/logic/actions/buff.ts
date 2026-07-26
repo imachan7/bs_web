@@ -1,10 +1,12 @@
 // BP修正系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     applyMagicBuffBonus,
     countEffectCounter,
+    effectActiveAtLevel,
     effectiveBp,
     instHasColor,
     instanceSymbolCount,
@@ -17,8 +19,25 @@ import {
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
+// BS05アイシクルアサルト用: このスピリットが持つ【装甲】の指定色数（静的keyword＋一時付与tempKeywordsを合算、重複除く）
+function armorColorCount(inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    const colors = new Set<string>()
+    for (const e of getCard(inst.cardId).effects) {
+        if (e.kind === "keyword" && e.keyword === "armor" && effectActiveAtLevel(e.levels, level)) {
+            for (const c of e.colors ?? []) colors.add(c)
+        }
+    }
+    for (const k of inst.tempKeywords) {
+        if (k.keyword === "armor") {
+            for (const c of k.colors ?? []) colors.add(c)
+        }
+    }
+    return colors.size
+}
+
 const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
         self.tempBpBuff += action.amount
         log(
@@ -29,7 +48,7 @@ const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
 }
 
 const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット自身を「カウント値×amountPer」だけBP+
         if (!self) {
             log(state, `${sourceName}：バフ対象がいなかった。`)
@@ -50,7 +69,7 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 }
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (action.attackingAll) {
             // オフェンシブオーラ／フォレストオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
             // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）。
@@ -76,7 +95,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                     state,
                     `${getCard(t.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
                 )
-                applyMagicBuffBonus(state, t, srcType, srcColor)
+                applyMagicBuffBonus(state, t, srcType, srcColors)
             }
             return
         }
@@ -90,12 +109,12 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             state,
             `${getCard(target.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
         )
-        applyMagicBuffBonus(state, target, srcType, srcColor)
+        applyMagicBuffBonus(state, target, srcType, srcColors)
         return
 }
 
 const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（family 軸）
         const allFilter = normalizeFilter(ctx, action)
         if (allFilter === SELF_REQUIRED) {
@@ -120,8 +139,29 @@ const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
         return
 }
 
+const bpBuffAllByArmorColors: ActionHandler<"bpBuffAllByArmorColors"> = (ctx, action) => {
+    const { state, owner } = ctx
+        // 自分の【装甲】を持つスピリットすべてを、それぞれが持つ装甲の色数×amountPerだけBP+
+        let count = 0
+        for (const s of state.players[owner].field.spirits) {
+            const colors = armorColorCount(s)
+            if (colors === 0) continue
+            s.tempBpBuff += action.amountPer * colors
+            count++
+        }
+        if (count === 0) {
+            log(state, `${state.players[owner].name}：【装甲】を持つスピリットがいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${state.players[owner].name}の【装甲】を持つスピリット${count}体が、装甲の色数に応じてBP増加（ターン終了時まで）。`,
+        )
+        return
+}
+
 const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const count = countEffectCounter(state, owner, self, action.counter)
         if (count === 0) {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
@@ -138,12 +178,12 @@ const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
             state,
             `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
         )
-        applyMagicBuffBonus(state, target, srcType, srcColor)
+        applyMagicBuffBonus(state, target, srcType, srcColors)
         return
 }
 
 const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ユナイテッドパワー：回復状態の自分スピリット1体を疲労させ、その実効BP分だけ
         // 自分のスピリット1体をバフする。段階判定は「最も進んだ段階の指標を先に見る」方式
         // （grantColorChoiceと同じ考え方）: selfが埋まっていれば第2段階（疲労元は既に確定）、
@@ -162,7 +202,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 state,
                 `${getCard(self.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
             )
-            applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+            applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
             return
         }
         if (targetInstanceId !== undefined) {
@@ -199,7 +239,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 state,
                 `${getCard(exhaustTarget.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
             )
-            applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+            applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
             return
         }
         // 最初の呼び出し：疲労させる自分のスピリット（回復状態のみ）を選ぶ
@@ -235,12 +275,12 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
             state,
             `${getCard(auto.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
         )
-        applyMagicBuffBonus(state, buffTarget, srcType, srcColor)
+        applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
         return
 }
 
 const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
         if (!self) {
             log(state, `${sourceName}：バフ対象がいなかった。`)
@@ -306,6 +346,7 @@ const handlers = {
     selfBuffPer,
     bpBuff,
     bpBuffAll,
+    bpBuffAllByArmorColors,
     bpBuffPer,
     bpBuffByExhaustOwn,
     selfBuffByHandDiscard,

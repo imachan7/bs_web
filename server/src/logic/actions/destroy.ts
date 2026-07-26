@@ -1,7 +1,7 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
+import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, draw, getCard, log, lv1Cores } from "../GameState"
 import {
     destroyNexus,
@@ -13,11 +13,22 @@ import {
     returnNexusToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
+// 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
+function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): number {
+    const colors = new Set<Color>()
+    for (const cardId of state.players[opp].trashCards) {
+        const card = getCard(cardId)
+        if (card.type !== "magic") continue
+        for (const c of card.colors) colors.add(c)
+    }
+    return colors.size
+}
+
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
@@ -39,8 +50,17 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             }
             return
         }
+        // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
+        // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
+        const resolvedCount = action.countPerOpponentTrashMagicColors
+            ? distinctOpponentTrashMagicColors(state, opp)
+            : action.count
+        if (resolvedCount === 0) {
+            log(state, `${sourceName}の破壊効果：カウントが0のため発動しなかった。`)
+            return
+        }
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColor, srcType)
+            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -49,14 +69,14 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
                     { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
                 )
             ) {
                 return
             }
         }
-        for (let i = 0; i < action.count; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColor, srcType)
+        for (let i = 0; i < resolvedCount; i++) {
+            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
@@ -67,7 +87,7 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
 }
 
 const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
         // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
         // 絞り込み（maxBp / colorExclude）は共通の TargetFilter に一本化。
@@ -82,7 +102,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
                     !isImmuneToArea(s) &&
-                    !hasArmorAgainst(s, srcColor) &&
+                    !hasArmorAgainst(s, srcColors) &&
                     !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
             )
             .map((s) => ({ pid: opp, inst: s }))
@@ -103,7 +123,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
 }
 
 const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // お互い自分のフィールドで最多のスピリット色を1色ずつ自動指定する
         // （同数の場合はColor定義順=red,purple,green,white,yellow,blueの先頭を採用。
         // フィールドが空のプレイヤーは指定なし。プレイヤー選択の決定的簡略化）
@@ -113,8 +133,8 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
             if (spirits.length === 0) return null
             const counts = new Map<Color, number>()
             for (const s of spirits) {
-                const c = getCard(s.cardId).color
-                counts.set(c, (counts.get(c) ?? 0) + 1)
+                // 多色スピリットはどちらの色にも1票を入れる
+                for (const c of instColors(s)) counts.set(c, (counts.get(c) ?? 0) + 1)
             }
             let best: Color | null = null
             let bestCount = 0
@@ -138,10 +158,10 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
         // 相手フィールドは既存の免疫（isImmuneToArea）・装甲チェックを適用、自分フィールドは適用しない
         // （destroyExhaustedのanySideと同じ非対称ルール＝自分の効果は自分のスピリットには免疫が働かない）
         const oppTargets = state.players[opp].field.spirits.filter(
-            (s) => !safeColors.has(getCard(s.cardId).color) && !isImmuneToArea(s) && !hasArmorAgainst(s, srcColor),
+            (s) => !instColors(s).some((c) => safeColors.has(c)) && !isImmuneToArea(s) && !hasArmorAgainst(s, srcColors),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
-            (s) => !safeColors.has(getCard(s.cardId).color),
+            (s) => !instColors(s).some((c) => safeColors.has(c)),
         )
         for (const t of oppTargets) destroySpirit(state, opp, t.instanceId, "destroy", destroyContext)
         for (const t of ownTargets) destroySpirit(state, owner, t.instanceId)
@@ -149,7 +169,7 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
 }
 
 const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexusesExceptChosenColors"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // destroyAllExceptChosenColorsのネクサス版。両者フィールドのネクサスの色数合計
         // （重複除く）がminTotalColors未満なら不発（ログのみ）。
         // お互い自分フィールドで最多のネクサス色を1色ずつ自動指定し（同数はcolorOrder先頭、
@@ -161,8 +181,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
             if (nexuses.length === 0) return null
             const counts = new Map<Color, number>()
             for (const n of nexuses) {
-                const c = getCard(n.cardId).color
-                counts.set(c, (counts.get(c) ?? 0) + 1)
+                for (const c of instColors(n)) counts.set(c, (counts.get(c) ?? 0) + 1)
             }
             let best: Color | null = null
             let bestCount = 0
@@ -178,7 +197,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
         const allNexusColors = new Set<Color>()
         for (const pid of ["p1", "p2"] as PlayerId[]) {
             for (const n of state.players[pid].field.nexuses) {
-                allNexusColors.add(getCard(n.cardId).color)
+                for (const c of instColors(n)) allNexusColors.add(c)
             }
         }
         if (allNexusColors.size < action.minTotalColors) {
@@ -198,7 +217,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
         )
         for (const pid of ["p1", "p2"] as PlayerId[]) {
             const targets = state.players[pid].field.nexuses.filter(
-                (n) => !safeColors.has(getCard(n.cardId).color),
+                (n) => !instColors(n).some((c) => safeColors.has(c)),
             )
             for (const t of targets) destroyNexus(state, pid, t.instanceId)
         }
@@ -206,7 +225,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
 }
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         let destroyed = 0
         // all指定時はcountを無視し、開始時点の相手ネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
         const iterations = action.all ? state.players[opp].field.nexuses.length : action.count
@@ -228,7 +247,7 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
 }
 
 const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（cost 軸）。対象指定パスからも使うため冒頭で解決する
         const exhaustedFilter = normalizeFilter(ctx, action)
         if (exhaustedFilter === SELF_REQUIRED) {
@@ -244,7 +263,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
             }
             if (
                 found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColor) ||
+                (hasArmorAgainst(found.inst, srcColors) ||
                     (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
@@ -271,7 +290,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
             // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
             // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、
             // 自分側には適用しない＝pickEnemyByBpと同じ非対称ルール。同値の場合は相手側を優先する）
-            const oppCandidate = pickEnemyByBp(state, opp, Infinity, matchesExhaustedCandidate, srcColor, srcType)
+            const oppCandidate = pickEnemyByBp(state, opp, Infinity, matchesExhaustedCandidate, srcColors, srcType)
             const ownCandidates = state.players[owner].field.spirits.filter(matchesExhaustedCandidate)
             const ownCandidate =
                 ownCandidates.length > 0
@@ -298,7 +317,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
             return
         }
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesExhaustedCandidate, srcColor, srcType)
+            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesExhaustedCandidate, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -320,7 +339,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
                 opp,
                 Infinity,
                 matchesExhaustedCandidate,
-                srcColor,
+                srcColors,
                 srcType,
             )
             if (!target) {
@@ -333,7 +352,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
 }
 
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する
         // （本来はプレイヤーが選ぶ処理だが、決定的な自動選択で簡略化）
         const candidates = state.players[owner].field.spirits.filter(
@@ -363,7 +382,7 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
 }
 
 const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
         if (!self) {
             log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
@@ -374,7 +393,7 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
 }
 
 const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCores"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（フレイム・エルク）。
         // 破壊耐性（nexusIndestructible）はdestroyNexus内で尊重される
         let destroyed = 0
@@ -393,7 +412,7 @@ const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCor
 }
 
 const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexusThenWipeEnemyNexusCores"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // サクリファイス：自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、
         // 相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスを選ぶのは
         // 本来プレイヤーの選択だが、コア数最小を自動選択する決定的な簡略化）
@@ -428,7 +447,7 @@ const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexu
 }
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         for (let i = 0; i < action.count; i++) {
             const nexus = state.players[opp].field.nexuses[0]
             if (!nexus) {
@@ -441,10 +460,12 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
 }
 
 const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 戦闘獣ジャッカー：self上のコアすべてをトラッシュに置くことで、直近に破壊された自分のネクサスを戻す
+        // BS05ブロンズ・ゴレム：coreCost指定時はその数だけを支払う（不足なら不発）
         const last = state.lastDestroyedNexus
-        if (!self || self.cores <= 0) {
+        const requiredCost = action.coreCost
+        if (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost)) {
             log(state, `${sourceName}：支払えるコアがなかった。`)
             return
         }
@@ -458,9 +479,9 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             log(state, `${sourceName}：戻せるネクサスがトラッシュになかった。`)
             return
         }
-        // コストの支払い：self上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
-        const paid = self.cores
-        self.cores = 0
+        // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
+        const paid = requiredCost ?? self.cores
+        self.cores -= paid
         player.trashCores += paid
         player.trashCards.splice(trashIndex, 1)
         player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))

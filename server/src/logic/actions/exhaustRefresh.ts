@@ -10,12 +10,12 @@ import {
     pickEnemyCandidates,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
@@ -32,7 +32,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             }
             if (
                 found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColor) ||
+                (hasArmorAgainst(found.inst, srcColors) ||
                     (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)) ||
                     isExhaustImmune(state, found.pid, found.inst))
             ) {
@@ -58,7 +58,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         const matchesCandidate = (s: CardInstance) =>
             !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColor, srcType)
+            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -80,7 +80,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 opp,
                 Infinity,
                 matchesCandidate,
-                srcColor,
+                srcColors,
                 srcType,
             )
             if (!target) {
@@ -94,7 +94,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
 }
 
 const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットをBP範囲で疲労させる（相手側のみ装甲・疲労免疫を尊重）
         const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
         let exhausted = 0
@@ -104,7 +104,10 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 const bp = effectiveBp(state, pid, s)
                 if (action.minBp !== undefined && bp < action.minBp) continue
                 if (action.maxBp !== undefined && bp > action.maxBp) continue
-                if (pid !== owner && (hasArmorAgainst(s, srcColor) || isExhaustImmune(state, pid, s))) continue
+                // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
+                if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
+                if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s))) continue
                 s.isRested = true
                 exhausted++
             }
@@ -114,7 +117,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
 }
 
 const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）。
         // "lastBattleDestroyed"指定時は直前のバトル解決で破壊されたブロッカーのLvを使用（0=まだ発生していない=不発。魔界伯爵ヴィール）
         const level =
@@ -139,7 +142,7 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
 }
 
 const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const oppSpirits = state.players[opp].field.spirits
         if (oppSpirits.length === 0) {
             log(state, `${sourceName}：相手フィールドにスピリットがいなかった。`)
@@ -148,7 +151,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
         // 相手フィールドで最多の色を選ぶ（同数なら先に見つかった色。Map は挿入順を保持する）
         const tally = new Map<Color, number>()
         for (const s of oppSpirits) {
-            const colors = new Set<Color>([getCard(s.cardId).color, ...s.tempColors])
+            const colors = new Set<Color>(instColors(s))
             for (const color of colors) {
                 tally.set(color, (tally.get(color) ?? 0) + 1)
             }
@@ -170,7 +173,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
             for (const s of state.players[pid].field.spirits) {
                 if (!instHasColor(s, chosen)) continue
                 // 装甲・疲労免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
-                if (pid !== owner && (hasArmorAgainst(s, srcColor) || isExhaustImmune(state, pid, s))) continue
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s))) continue
                 s.isRested = true
                 exhausted++
             }
@@ -183,7 +186,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
 }
 
 const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // セイムタイアード：自分の疲労スピリット数と同数になるまで相手のスピリットを疲労させる。
         // 差分をcountとして既存"exhaust"の単体処理へ委譲し、armor/免疫/interactive choiceを自然に通す
         const ownExhausted = state.players[owner].field.spirits.filter((s) => s.isRested).length
@@ -193,7 +196,7 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
             log(state, `${sourceName}：相手の疲労スピリットが自分以上のため発動しなかった。`)
             return
         }
-        ctx.resolve({ type: "exhaust", count: diff }, { targetInstanceId, sourceColor: srcColor, sourceType: srcType })
+        ctx.resolve({ type: "exhaust", count: diff }, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
         return
 }
 
@@ -228,7 +231,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
 }
 
 const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
         let count = 0
         for (const s of player.field.spirits) {
@@ -249,7 +252,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
 }
 
 const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない）
         let count = 0
         for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -269,7 +272,7 @@ const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action)
 }
 
 const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 「相手だけ破壊したとき、このスピリットは回復する」等のバトル勝利時効果
         if (!self) {
             log(state, `${sourceName}：回復対象がいなかった。`)
@@ -285,7 +288,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
 }
 
 const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分の疲労スピリットのうちfamilyFilter一致（配列=OR）を実効BP最大からcount体まで回復
         const candidates = state.players[owner].field.spirits
             .filter((s) => s.isRested && matchesFamilyFilter(state, owner, s, action.familyFilter))
@@ -301,7 +304,7 @@ const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) =
 }
 
 const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる
         // （プレイヤー選択の決定的簡略化。フロックリカバリー）
         const rested = state.players[owner].field.spirits.filter((s) => s.isRested)

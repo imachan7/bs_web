@@ -46,7 +46,7 @@ console.log("=== BS04-081 強者統べる大地: BP6000以上ならBP比較の�
     const big = createInstance("BS01-025", s.turn, 3) // 要塞龍ギガ Lv2 BP10000（6000以上）
     s.players.p1.field.spirits.push(big)
     s.phase = "attack" // 『自分のアタックステップ』条件
-    destroySpirit(s, "p1", big.instanceId, "destroy", { sourcePid: "p2", battle: { attackerColor: "red", attackerLevel: 1 } })
+    destroySpirit(s, "p1", big.instanceId, "destroy", { sourcePid: "p2", battle: { attackerColors: ["red"], attackerLevel: 1 } })
     assert(
         s.players.p1.field.spirits.some((x) => x.instanceId === big.instanceId),
         "BP6000以上なのでBP比較の破壊では場に戻る",
@@ -60,7 +60,7 @@ console.log("=== BS04-081 強者統べる大地: BP6000以上ならBP比較の�
     const small = createInstance("BS01-001", s.turn, 1) // ゴラドン BP1000（6000未満）
     s.players.p1.field.spirits.push(small)
     s.phase = "attack"
-    destroySpirit(s, "p1", small.instanceId, "destroy", { sourcePid: "p2", battle: { attackerColor: "red", attackerLevel: 1 } })
+    destroySpirit(s, "p1", small.instanceId, "destroy", { sourcePid: "p2", battle: { attackerColors: ["red"], attackerLevel: 1 } })
     assert(
         !s.players.p1.field.spirits.some((x) => x.instanceId === small.instanceId),
         "BP6000未満のスピリットは通常どおり破壊される",

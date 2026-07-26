@@ -18,16 +18,16 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor } from "../../../../shared/rules"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
         return
 }
 
 const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const count = countEffectCounter(state, owner, self, action.counter)
         if (count === 0) {
             log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
@@ -38,7 +38,7 @@ const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
 }
 
 const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
         const count = player.hand.length
         player.trashCards.push(...player.hand)
@@ -48,7 +48,7 @@ const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => 
 }
 
 const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPid指定時＝
         // 選択式の再突入呼び出し。選択者=破棄される相手本人のため、pendingChoice解決時に
         // resolveActionへ渡るowner引数は常にpending.pid（=破棄される側）になり、
@@ -106,7 +106,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
 }
 
 const discardOpponentDownToHandler: ActionHandler<"discardOpponentDownTo"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 奇術師オリバー：相手の手札がlimit枚を超えている場合のみ、limit枚になるまで破棄する
         const count = state.players[opp].hand.length - action.limit
         if (count <= 0) {
@@ -118,7 +118,7 @@ const discardOpponentDownToHandler: ActionHandler<"discardOpponentDownTo"> = (ct
 }
 
 const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分の手札1枚をトラッシュへ（手札0ならno-op）。
         // interactiveTargets時は選択式（選択者＝効果所有者本人。cardZone:"hand"）
         const player = state.players[owner]
@@ -166,7 +166,7 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
 }
 
 const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // スワロウアイヴィー：自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の
         // 1枚（省略時は先頭）を手札に加える。残りは元の順で山札の下に戻す。
         // 大天使ミカファール：countPer指定時は自分の指定色スピリット/ネクサス合計数ぶん公開し、
@@ -175,7 +175,7 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         const player = state.players[owner]
         const count = action.countPer
             ? [...player.field.spirits, ...player.field.nexuses].filter(
-                  (s) => getCard(s.cardId).color === action.countPer!.ownColorTotal,
+                  (s) => instHasColor(s, action.countPer!.ownColorTotal),
               ).length
             : action.count ?? 0
         const revealed = player.deck.splice(0, count)
@@ -229,7 +229,7 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
 }
 
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -301,7 +301,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
 }
 
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -358,7 +358,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
 }
 
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         millDeck(state, targetPid, action.count)
@@ -366,7 +366,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
 }
 
 const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const raw = countEffectCounter(state, owner, self, action.counter)
         let count = raw * (action.multiplier ?? 1)
         if (action.cap !== undefined) count = Math.min(count, action.cap)
@@ -380,7 +380,7 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
 }
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -390,7 +390,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             if (
                 found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColor) ||
+                (hasArmorAgainst(found.inst, srcColors) ||
                     (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
@@ -406,8 +406,17 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             return
         }
         const limitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
+        // countPerOpponentNexus指定時はcountを無視し、相手のネクサス数を対象数として使う
+        // （BS05幻獣王リーン：相手のネクサス1つにつき）
+        const resolvedCount = action.countPerOpponentNexus
+            ? state.players[opp].field.nexuses.length
+            : action.count
+        if (resolvedCount === 0) {
+            log(state, `${sourceName}の手札戻し：相手にネクサスがなかった。`)
+            return
+        }
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColor, srcType)
+            const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -416,15 +425,15 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     `${sourceName}の手札戻し：対象を選んでください`,
                     candidates,
                     { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
                 )
             ) {
                 return
             }
         }
-        // 未指定時は相手フィールドのBP最大をcount回自動選択
-        for (let i = 0; i < action.count; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColor, srcType)
+        // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        for (let i = 0; i < resolvedCount; i++) {
+            const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
@@ -435,7 +444,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
 }
 
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
         const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
         let returned = 0
@@ -445,7 +454,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 const cost = getCard(s.cardId).cost
                 if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
                 if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColor) || (srcType === "magic" && hasMagicImmunity(state, pid, s)))) return false
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)))) return false
                 return true
             })
             for (const s of targets) {
@@ -458,9 +467,9 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
 }
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColor, srcType)
+            const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
             if (candidates.length >= 2) {
                 requestChoice(
                     state,
@@ -477,7 +486,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColor, srcType)
+                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
                   return t ? { pid: opp, inst: t } : null
               })()
         if (!found) {
@@ -487,7 +496,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         if (
             targetInstanceId &&
             found.pid !== owner &&
-            (hasArmorAgainst(found.inst, srcColor) ||
+            (hasArmorAgainst(found.inst, srcColors) ||
                 (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
         ) {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
@@ -498,7 +507,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
 }
 
 const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
         const player = state.players[owner]
         // 破壊時に呼ばれるため、直前にトラッシュへ送られた自分のカードを手札へ戻す
@@ -513,7 +522,7 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 }
 
 const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // マジックブック：自分の手札にあるマジックカードを好きなだけ手元(tegamoto)に置き、
         // 置いた枚数ぶんデッキから引く。chosenCardIndexが渡された＝choiceで1枚選ばれた経路。
         // 1枚移動+1ドロー後、手札にまだマジックカードが残っていれば同じactionで再度resolveActionし、
@@ -574,7 +583,7 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
 }
 
 const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTegamotoDestroyPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColor, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 透明人間エクリア：相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ破棄し、
         // その枚数ぶん相手のスピリットを破壊する（既存destroyアクションへcount委譲。BP不問=maxBpなし）
         const target = state.players[opp]

@@ -33,7 +33,7 @@ console.log("=== オフェンシブオーラ: アタック中の自分スピリ�
         null,
         { type: "bpBuff", amount: 2000, attackingAll: true },
         bystander.instanceId,
-        "red",
+        ["red"],
         "magic",
     )
     assert(attacker.tempBpBuff === 2000, "アタッカーにBP+2000が乗る")
@@ -58,7 +58,7 @@ console.log("=== オフェンシブオーラ: アタックしている自分ス�
         null,
         { type: "bpBuff", amount: 2000, attackingAll: true },
         undefined,
-        "red",
+        ["red"],
         "magic",
     )
     assert(idle.tempBpBuff === 0, "アタック中でなければ誰にも乗らない")

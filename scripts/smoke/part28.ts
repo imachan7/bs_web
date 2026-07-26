@@ -57,7 +57,7 @@ console.log("=== 無法者の荒野Lv2：byBattle破壊で疲労状態のまま�
     destroySpirit(s, "p1", vanilla.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === vanilla.instanceId),
@@ -84,7 +84,7 @@ console.log("=== 深緑の樹海Lv2：byBattle破壊で手札に戻る（toHand�
     destroySpirit(s, "p1", vanilla.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === vanilla.instanceId),
@@ -113,17 +113,17 @@ console.log("=== 子供部屋 午前0時：byBattleKillerLevelの一致・不一
     destroySpirit(s, "p1", v1.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 1 },
+        battle: { attackerColors: ["blue"], attackerLevel: 1 },
     })
     destroySpirit(s, "p1", v3.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 3 },
+        battle: { attackerColors: ["blue"], attackerLevel: 3 },
     })
     destroySpirit(s, "p1", v2.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 2 },
+        battle: { attackerColors: ["blue"], attackerLevel: 2 },
     })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === v1.instanceId),
@@ -157,14 +157,14 @@ console.log("=== 運命分かつ岐路：fieldEvent vanillaOnly/byBattleOnlyの�
     destroySpirit(s, "p1", vanilla.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 1 },
+        battle: { attackerColors: ["blue"], attackerLevel: 1 },
     })
     assert(s.players.p1.hand.length === handBefore + 1, "バニラ＋バトル破壊：1枚ドローする")
     const handAfterFirst = s.players.p1.hand.length
     destroySpirit(s, "p1", nonVanilla.instanceId, "destroy", {
         sourcePid: "p2",
         sourceType: "spirit",
-        battle: { attackerColor: "blue", attackerLevel: 1 },
+        battle: { attackerColors: ["blue"], attackerLevel: 1 },
     })
     assert(s.players.p1.hand.length === handAfterFirst, "非バニラは対象外：ドローしない")
 }
