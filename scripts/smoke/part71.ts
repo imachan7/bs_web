@@ -1,6 +1,10 @@
-// smoke パート71（未通過経路の回帰: negateOwnBlockConstraint / grantBlockerImmunity）
+// smoke パート71（未通過経路の回帰）
 //
-// どちらも「実装済みだが、使用カードが一度も smoke/E2E に登場しない」経路だった
+//   §A negateOwnBlockConstraint（ブロック制約の無効化）
+//   §B grantBlockerImmunity（ブロッカーへの効果免疫）
+//   §C returnSelfToHand（破壊時に手札へ戻る。実行時カバレッジ計測で発見）
+//
+// §A・§B は「実装済みだが、使用カードが一度も smoke/E2E に登場しない」経路だった
 // （実装担当の棚卸しによる。9件のうち、制約無効化・免疫の2件をこちらで担当）。
 // この2つを選んだ理由は、**【激突】の詰みバグと同型**だから:
 //   - negateOwnBlockConstraint（BS01-119 バーストファイア）＝ブロック制約の無効化
@@ -207,5 +211,65 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     assert(
         survived === undefined || survived.immuneToOpponentThisTurn === false,
         "ターン終了で免疫フラグがリセットされる",
+    )
+}
+
+// ---------------------------------------------------------------------------
+// §C returnSelfToHand（破壊時に自分の手札へ戻る）
+//
+// `npm run coverage:effects`（実行時カバレッジ計測）で、**この action.type だけ
+// 実行実績が0件**だと判明した。使用3枚（BS01-032 ガウルム／BS01-045 切り裂きヘディレス／
+// BS02-020 レディ・フランケリー）はいずれも smoke に登場するため、
+// 「機構の使用カードが smoke に出てくるか」の静的な棚卸しでは見つからなかった層。
+//
+// 実装は「破壊で**すでにトラッシュへ送られた**自分のカードを lastIndexOf で拾い直す」形なので、
+// **破壊処理とトリガー発火の順序**に依存する。順序が変わると log も出さず無言で不発になる。
+console.log("=== §C returnSelfToHand: 破壊時に手札へ戻る（実行実績0だった経路） ===")
+{
+    // ガウルムは Lv2（コア3個）でのみ発揮する
+    const s = setupAttackStep("returnself-effect")
+    const gaurum = put(s, "p2", "BS01-032", 3)
+    const before = s.players.p2.hand.length
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+
+    assert(findSpiritById(s, "p2", gaurum) === undefined, "破壊されてフィールドを離れる")
+    assert(
+        s.players.p2.hand.filter((c) => c === "BS01-032").length === 1,
+        "破壊時に手札へ戻る（効果による破壊）",
+    )
+    assert(s.players.p2.hand.length === before + 1, "手札が1枚増えている")
+    assert(
+        !s.players.p2.trashCards.includes("BS01-032"),
+        "トラッシュには残らない（拾い直しが効いている）",
+    )
+}
+{
+    // レベル条件: Lv1（コア1個）では発揮しない＝トラッシュに残る
+    const s = setupAttackStep("returnself-level")
+    put(s, "p2", "BS01-032", 1)
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    assert(
+        !s.players.p2.hand.includes("BS01-032"),
+        "Lv1 では手札に戻らない（levels 条件が効いている）",
+    )
+    assert(s.players.p2.trashCards.includes("BS01-032"), "Lv1 ではトラッシュに残る")
+}
+{
+    // バトルによる破壊（BP比較）でも戻る＝効果破壊とは別経路
+    const s = setupAttackStep("returnself-battle")
+    const attacker = put(s, "p1", "BS01-002", 1)
+    const gaurum = put(s, "p2", "BS01-032", 3) // Lv2 BP5000
+    resolveAction(s, "p1", null, { type: "bpBuff", amount: 10000 }, attacker) // BP勝ちさせる
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "block", instanceId: gaurum }) === null, "ガウルムがブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
+    assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")
+
+    assert(findSpiritById(s, "p2", gaurum) === undefined, "バトルで破壊された")
+    assert(
+        s.players.p2.hand.filter((c) => c === "BS01-032").length === 1,
+        "バトルによる破壊でも手札へ戻る",
     )
 }
