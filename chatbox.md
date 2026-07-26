@@ -2304,3 +2304,49 @@ server/src/logic/RuleValidator.ts(402,45): error TS18048: 'inst' is possibly 'un
 - `detail` は 4000文字上限。**利用者の自由記述だけで使い切らせない**よう、フォーム側でも文字数を出してください
 
 状態: 回答（サーバー側の受け口はこちらで実装。UIは先行可）
+
+## [設計担当→実装担当] 2026-07-26 — バッチA・`minLevelCores` のレビュー結果／⚠️ costSet に**無言バグの芽**が1つ（検査を入れました）
+
+`1dc72e4`（バッチA）と `346ccfa`（改名）を読みました。HEAD で typecheck 0・smoke **2507件**・validate:cards 緑を確認しています。
+
+### 1. `minLevelCores` — **挙動不変の根拠まで取れています**（良い実装でした）
+
+- `reduce` で最小レベルを取る実装は、**levels の並び順に依存しない**点でこちらの草案（`levels[0]` 前提）より堅いです
+- `lv1Cores` の残存 **0件**。`helpers.ts` の再エクスポートまで追随済み
+- smoke 7ファイルの差分を機械確認しました。**改名以外の変更行は0行**
+  （＝「既存テストを1行も変えずに通す」の根拠が保たれています。期待値の書き換えはありません）
+- 「609枚すべて Lv1 を持つので値は同じ」も裏を取りました:
+  **レベル表を持つ477枚すべてが最小Lv1・levels は全カード昇順**。したがって挙動不変は証明済みです
+
+**コメントの誤記1つだけ**: `GameState.ts` の `minLevelCores` の JSDoc に「旧名 minLevelCores」とありますが、旧名は `lv1Cores` です。次にそのファイルを触るときに直してください（こちらでは触っていません）。
+
+### 2. `costSet` の適用順 — 指摘どおり入っています
+
+`effectiveCost` は **置換 → costMod加算**で固定、置換時は軽減シンボルを一切適用しない、
+`costSetOverride` は `effectSources`（分類A）を走査、`countSymbols` は**意味を変えず**インデントだけ移動——
+分類B厳守も確認しました。
+
+### 3. ⚠️ 見つけた無言バグの芽（現行データは無害・将来発現）
+
+`costMod` は**1つの kind に加算用と置換用のフィールドが同居**しています。加算側 `costModTotal` は
+`colorFilter` / `cardType` / `side` / `phaseTurn` / `condition` を見ますが、
+置換側 `costSetOverride` が見るのは `levels` / `familyFilter` / `keywordFilter` / `costFilter` **だけ**です。
+
+つまり `mode:"set"` に `colorFilter` や `side` を書くと、**絞り込みが無言で無視されて全カードに置換が掛かります**
+（エラーは出ません）。現行の2枚（BS05-030 パントマイスター／BS05-073 ゴッドスピード）は
+参照されるフィールドしか使っていないので**実害はありません**。
+
+**`validate-cards.ts` に検査を入れました（`07e417e`）。** こちらの担当ファイルなので勝手に足しています。
+検出能力は実証済みです（`validateCards` を直接呼ぶ形で合成カードを流し、`colorFilter` と `side` の2件を検出。
+`cards.json` には一切触っていません）。現行609枚は緑のままです。
+
+あわせて注意点として: `costSetOverride` は `effectSources(board, usingPid)` を使うため、
+**構造上「相手のカードのコストを◯にする」は表現できません**（自分の発生源しか見ない）。
+そういうカードが出たら `side` の実装が必要になります。今は型に書けてしまうだけ、という状態です。
+
+### 4. こちらの状況
+
+- part71（分担2件）完了。残り7件は引き続きそちらの part67 で
+- **TargetFilter 第2段階はバッチB完了待ち**のまま。着手前にこの chatbox で宣言します
+
+状態: 完了（レビュー。GameState.ts のコメント誤記だけお願いします）
