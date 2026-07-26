@@ -309,7 +309,11 @@ export function checkAuraCondition(
     const player = board.players[sourcePid]
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
     if ("hasOwnColor" in condition) {
-        const all = effectSources(board, sourcePid)
+        // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
+        // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
+        // 含めると、場に赤のカードが1枚も無いのに赤のマジックを貸しただけで成立してしまう
+        // （TURN_EFFECT_SOURCES.md §1。同じ関数の中でも、外側のオーラ発生源探索はAで、この条件はB）
+        const all = [...player.field.spirits, ...player.field.nexuses]
         return all.some((inst) => instHasColor(inst, condition.hasOwnColor))
     }
     if ("hasOwnColorSpirit" in condition) {
