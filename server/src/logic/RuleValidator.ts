@@ -8,7 +8,7 @@ import {
     findNexus,
     findSpirit,
     getCard,
-    lv1Cores,
+    minLevelCores,
     opponentOf,
 } from "./GameState"
 import { canAwaken, cantActByCost, directAttackFilter } from "../../../shared/rules"
@@ -130,7 +130,7 @@ export function validateSummon(
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
     // 置くコアは必ずリザーブから払うため、コアで賄えなかった分+置くコアがリザーブに残っているか検証
@@ -189,7 +189,7 @@ export function validateSetNexus(
     const cost = effectiveCost(state, pid, card)
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
     const payError = validatePaySources(state, pid, cost, paySources)
     if (payError) return payError
     const total = paySourcesTotal(paySources)
@@ -304,7 +304,7 @@ export function validateMoveCore(
     if (direction === "add") {
         if (player.reserve < 1) return "リザーブにコアがありません"
     } else {
-        const need = lv1Cores(getCard(inst.cardId))
+        const need = minLevelCores(getCard(inst.cardId))
         if (inst.cores - 1 < need) {
             return "維持コア（Lv1）を下回るためコアを取り除けません"
         }

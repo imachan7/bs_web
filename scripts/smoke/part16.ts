@@ -12,7 +12,7 @@ import {
     currentLevel,
     effectiveCost,
     getCard,
-    lv1Cores,
+    minLevelCores,
     runTurnStart,
 } from "./helpers"
 
@@ -26,7 +26,7 @@ console.log("=== ネクサス上のコアのみで支払い（BS01-098 燃えさ
     runTurnStart(s)
 
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     // p1フィールドにネクサス支払い元（燃えさかる戦場、コア3個＝Lv2状態）を配置
     const nexus = createInstance("BS01-098", s.turn, 3)
@@ -62,7 +62,7 @@ console.log("=== スピリット＋ネクサス併用でコストを分割払い
     runTurnStart(s)
 
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     const spiritPayer = createInstance("BS01-001", s.turn, 5)
     s.players.p1.field.spirits.push(spiritPayer)

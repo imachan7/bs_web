@@ -28,7 +28,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -566,11 +566,11 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
     s.players.p1.field.spirits.push(other1, other2)
     s.players.p1.hand[0] = "BS01-X03" // キングタウロス大公: コスト8・緑軽減4
     s.players.p1.reserve = 20
-    const reserveAfterPay = 20 - effectiveCost(s, "p1", getCard("BS01-X03")) - lv1Cores(getCard("BS01-X03"))
+    const reserveAfterPay = 20 - effectiveCost(s, "p1", getCard("BS01-X03")) - minLevelCores(getCard("BS01-X03"))
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "キングタウロス大公を召喚できる")
     const king = s.players.p1.field.spirits.find((x) => x.cardId === "BS01-X03")!
     // 維持コア1 ＋ onSummonで「自分の他スピリット数（sp/other1/other2の3体）」ぶんボイドから追加
-    assert(king.cores === lv1Cores(getCard("BS01-X03")) + 3, "自分の他スピリット3体ぶんコアが増える（維持1+3）")
+    assert(king.cores === minLevelCores(getCard("BS01-X03")) + 3, "自分の他スピリット3体ぶんコアが増える（維持1+3）")
     assert(s.players.p1.reserve === reserveAfterPay, "増えたコアはボイド由来（リザーブはコスト・維持分のみ減る）")
 
     // 他スピリットが0体なら no-op（ログのみ）

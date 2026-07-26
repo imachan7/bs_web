@@ -37,7 +37,7 @@ import {
     findInstanceAnywhere,
     getCard,
     log,
-    lv1Cores,
+    minLevelCores,
     opponentOf,
     rawLevel,
 } from "./GameState"
@@ -360,7 +360,7 @@ export function dumpAllCoresTensho(
     } else {
         log(state, `【転召】${getCard(inst.cardId).name}のコア${count}個をボイドに置いた。`)
     }
-    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
 }
@@ -1027,7 +1027,7 @@ export function removeCores(
         state,
         `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
     )
-    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -1053,7 +1053,7 @@ export function removeCoresToTrash(
         state,
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をトラッシュに置いた。`,
     )
-    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -1077,7 +1077,7 @@ export function removeCoresToVoid(
         state,
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をボイドに置いた。`,
     )
-    if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -1210,7 +1210,7 @@ export function summonFreeFromHandIndex(
         return
     }
     const card = getCard(cardId)
-    const maintain = lv1Cores(card)
+    const maintain = minLevelCores(card)
     if (player.reserve < maintain) {
         log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
         return
@@ -1242,7 +1242,7 @@ export function summonFreeFromTrashIndex(
         return
     }
     const card = getCard(cardId)
-    const maintain = lv1Cores(card)
+    const maintain = minLevelCores(card)
     if (player.reserve < maintain) {
         log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
         return

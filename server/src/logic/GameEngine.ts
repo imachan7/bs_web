@@ -10,7 +10,7 @@ import {
     findSpirit,
     getCard,
     log,
-    lv1Cores,
+    minLevelCores,
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
@@ -158,7 +158,7 @@ function payCost(
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
-            if (inst && inst.cores < lv1Cores(getCard(inst.cardId))) {
+            if (inst && inst.cores < minLevelCores(getCard(inst.cardId))) {
                 destroySpirit(state, pid, inst.instanceId, "deplete")
             }
         }
@@ -203,7 +203,7 @@ function doSummon(
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
     payCost(state, pid, cost, paySources)
     player.reserve -= maintain // 置くコアはリザーブから直接スピリットへ
@@ -257,7 +257,7 @@ function doSetNexus(
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? lv1Cores(card))
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
     payCost(state, pid, cost, paySources)
     player.reserve -= maintain
@@ -387,7 +387,7 @@ function doAwaken(
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
     // 移動元が維持コア（Lv1）を下回ったら消滅
-    if (from.cores < lv1Cores(getCard(from.cardId))) {
+    if (from.cores < minLevelCores(getCard(from.cardId))) {
         destroySpirit(state, pid, from.instanceId, "deplete")
     }
     // バトル中のフラッシュで覚醒したら優先権を相手へ移す（フラッシュマジックと同じ扱い）

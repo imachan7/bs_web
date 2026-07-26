@@ -6,7 +6,7 @@ import {
     currentLevel,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
@@ -105,7 +105,7 @@ export {
     currentLevel,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,

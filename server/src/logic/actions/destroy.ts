@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, draw, getCard, log, lv1Cores } from "../GameState"
+import { createInstance, draw, getCard, log, minLevelCores } from "../GameState"
 import {
     destroyNexus,
     destroySpirit,
@@ -490,7 +490,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             state,
             `${sourceName}：コア${paid}個をトラッシュに置き、${getCard(last.cardId).name}をフィールドに戻した。`,
         )
-        if (self.cores < lv1Cores(getCard(self.cardId))) {
+        if (self.cores < minLevelCores(getCard(self.cardId))) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
         return

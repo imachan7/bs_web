@@ -12,7 +12,7 @@ import {
     createInstance,
     effectiveCost,
     getCard,
-    lv1Cores,
+    minLevelCores,
     runTurnStart,
     validateDeckCards,
 } from "./helpers"
@@ -78,7 +78,7 @@ console.log("=== 【転召】(void): 候補1体、コアが消滅（トラッシ
     const reserveBeforeSummon = s.players.p1.reserve
     const card = getCard("BS04-X13")
     const cost = effectiveCost(s, "p1", card)
-    const maintain = lv1Cores(card)
+    const maintain = minLevelCores(card)
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "BS04-X13を召喚できる")
     assert(s.players.p1.field.spirits.length === 1, "候補スピリットは維持コア割れで消滅する")
     assert(s.players.p1.field.spirits[0]?.cardId === "BS04-X13", "残っているのは魔龍帝ジークフリード")

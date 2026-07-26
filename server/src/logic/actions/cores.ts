@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { getCard, log, lv1Cores } from "../GameState"
+import { getCard, log, minLevelCores } from "../GameState"
 import {
     countEffectCounter,
     destroySpirit,
@@ -312,7 +312,7 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
                 squeezed++
                 affectedByPid[pid]++
                 // 残った1個が維持コア数を下回るなら消滅対象（Lv1維持コアが2個以上のスピリット）
-                if (inst.cores < lv1Cores(getCard(inst.cardId))) {
+                if (inst.cores < minLevelCores(getCard(inst.cardId))) {
                     toDeplete.push({ pid, instanceId: inst.instanceId })
                 }
             }
@@ -368,7 +368,7 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
             } else {
                 log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
             }
-            if (target.cores < lv1Cores(getCard(target.cardId))) {
+            if (target.cores < minLevelCores(getCard(target.cardId))) {
                 destroySpirit(state, opp, target.instanceId, "deplete")
             }
         }
@@ -403,7 +403,7 @@ const coreToVoidOwnHandler: ActionHandler<"coreToVoidOwn"> = (ctx, action) => {
             target.cores -= taken
             remaining -= taken
             log(state, `${getCard(target.cardId).name}のコア${taken}個をボイドに置いた。`)
-            if (target.cores < lv1Cores(getCard(target.cardId))) {
+            if (target.cores < minLevelCores(getCard(target.cardId))) {
                 destroySpirit(state, owner, target.instanceId, "deplete")
             }
         }
@@ -585,7 +585,7 @@ const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (
         const name = getCard(target.cardId).name
         target.cores = 0
         log(state, `${player.name}は${name}のコア${voided}個をボイドに置いた。`)
-        if (voided < lv1Cores(getCard(target.cardId))) {
+        if (voided < minLevelCores(getCard(target.cardId))) {
             destroySpirit(state, owner, target.instanceId, "deplete")
         }
         millDeck(state, opp, cost, owner)
@@ -913,7 +913,7 @@ const opponentCoresToTrashHandler: ActionHandler<"opponentCoresToTrash"> = (ctx,
             target.trashCores += take
             remaining -= take
             // 維持コア（Lv1）を下回ったスピリットは消滅する
-            if (richest.cores < lv1Cores(getCard(richest.cardId))) {
+            if (richest.cores < minLevelCores(getCard(richest.cardId))) {
                 destroySpirit(state, opp, richest.instanceId, "deplete")
             }
         }

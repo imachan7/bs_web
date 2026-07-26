@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
-import { clearBattle, createInstance, getCard, log, lv1Cores, opponentOf } from "../GameState"
+import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     emitEvent,
     findSpiritAny,
@@ -201,7 +201,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 return
             }
             zone.splice(idx, 1)
-            const maintain = lv1Cores(getCard(cardId))
+            const maintain = minLevelCores(getCard(cardId))
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
             log(
@@ -277,7 +277,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             player.trashCards.splice(idx, 1)
         }
         if (cardId === undefined) return
-        const maintain = lv1Cores(getCard(cardId))
+        const maintain = minLevelCores(getCard(cardId))
         const inst = createInstance(cardId, state.turn, maintain)
         player.field.nexuses.push(inst)
         log(

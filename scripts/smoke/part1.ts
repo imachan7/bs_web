@@ -27,7 +27,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -538,7 +538,7 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     // リーヴォルフ（コスト2・維持1、緑軽減1）。緑シンボル持ちが場に出るたびに軽減が乗るため、
     // 実コストは召喚のたびに effectiveCost で動的に取得する（ハードコードしない）
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     // p1フィールドに支払い元スピリット（ゴラドン: 維持コア1、コア5個）を直接配置
     const payer = createInstance("BS01-001", s.turn, 5)
