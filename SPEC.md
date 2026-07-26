@@ -7,6 +7,12 @@
 **進行中の計画**: [REFACTOR.md](./REFACTOR.md) — 共有ルール層の抽出（サーバー／クライアントのルール二重実装の解消）と
 `resolveAction`（3028行・100 case）の分割。**BS04 の残23枚の構造化を完了させてから着手する**。
 
+**先行設計（いずれも設計のみ・実装未着手）**: [BRAVE.md](./BRAVE.md)（ブレイヴ。§11＝異魔神ブレイヴ）・
+[ULTIMATE.md](./ULTIMATE.md)（アルティメット）・[SOULCORE.md](./SOULCORE.md)（ソウルコア）・
+[BURST.md](./BURST.md)（バースト）。**Wiki を出典に「確定した事実」と「未確定」を分けて記録**してあり、
+実装順の依存関係は ULTIMATE ↔ SOULCORE が `minLevelCores` を共有、異魔神ブレイヴは BRAVE の
+データモデル選択に影響する（詳細は各文書の §0）。
+
 ---
 
 ## 1. カードプール
