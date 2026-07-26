@@ -11,7 +11,7 @@ import {
     requestCardChoice,
     requestChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, isVanillaCard, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
@@ -37,10 +37,11 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // リフレクションアーマー：自分のスピリット全員（costFilter指定時はコスト一致のみ）に
         // このターンの間キーワードを付与する（grantKeywordの全体版）
+        // vanillaFilter指定時は効果の記述を持たないスピリットのみ（BS05サーキュラーソー・アーム）
         const targets = state.players[owner].field.spirits.filter(
             (s) =>
-                action.costFilter === undefined ||
-                instHasCost(s, action.costFilter),
+                (action.costFilter === undefined || instHasCost(s, action.costFilter)) &&
+                (!action.vanillaFilter || isVanillaCard(getCard(s.cardId))),
         )
         if (targets.length === 0) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -54,7 +55,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
         }
         log(
             state,
-            `${state.players[owner].name}の${action.costFilter !== undefined ? `コスト${action.costFilter}の` : ""}スピリットすべてに【${KEYWORDS[action.keyword].label}】を付与した。（${targets.length}体）`,
+            `${state.players[owner].name}の${action.costFilter !== undefined ? `コスト${action.costFilter}の` : ""}${action.vanillaFilter ? "効果の記述を持たない" : ""}スピリットすべてに【${KEYWORDS[action.keyword].label}】を付与した。（${targets.length}体）`,
         )
         return
 }

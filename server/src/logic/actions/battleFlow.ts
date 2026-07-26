@@ -310,6 +310,10 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
                 if (!wanted.some((f) => candidate.family.includes(f))) return false
             }
+            // costFilter：コストが完全一致するもののみ（BS05シーサーズ：コスト2）
+            if (action.costFilter !== undefined && candidate.cost !== action.costFilter) return false
+            // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
+            if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             return true
         }
         if (chosenCardIndex !== undefined) {

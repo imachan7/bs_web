@@ -68,6 +68,7 @@ import {
     isUntargetableByOpponent,
     isVanillaCard,
     KEYWORDS,
+    matchesCostFilter,
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
@@ -676,6 +677,7 @@ export function destroySpirit(
         vanilla: isVanillaCard(master),
         byBattle: context?.battle !== undefined,
         families: master.family,
+        cost: master.cost,
     })
 }
 
@@ -763,9 +765,17 @@ function tryReviveOnDestroy(
     const revivedLabel = (revived: { rested: boolean } | { toHand: true }): string =>
         "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
+    // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
+    // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
+    const matchesRequireOwnFieldHasName = (name?: string): boolean => {
+        if (name === undefined) return true
+        return player.field.spirits.some((s) => getCard(s.cardId).name === name)
+    }
+
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) return false
+        if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (!applyCost(effect)) return false
@@ -1845,6 +1855,7 @@ export function fireFieldEventTriggers(
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
+        cost?: number
     },
 ): void {
     const player = state.players[pid]
@@ -1862,6 +1873,8 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）
+            if (effect.costFilter !== undefined && !matchesCostFilter(eventInfo?.cost ?? -1, effect.costFilter)) continue
             // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
             if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る

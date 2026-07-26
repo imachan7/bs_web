@@ -1,7 +1,7 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
+import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, draw, getCard, log, lv1Cores } from "../GameState"
 import {
     destroyNexus,
@@ -15,6 +15,17 @@ import {
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+
+// 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
+function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): number {
+    const colors = new Set<Color>()
+    for (const cardId of state.players[opp].trashCards) {
+        const card = getCard(cardId)
+        if (card.type !== "magic") continue
+        for (const c of card.colors) colors.add(c)
+    }
+    return colors.size
+}
 
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -39,6 +50,15 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             }
             return
         }
+        // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
+        // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
+        const resolvedCount = action.countPerOpponentTrashMagicColors
+            ? distinctOpponentTrashMagicColors(state, opp)
+            : action.count
+        if (resolvedCount === 0) {
+            log(state, `${sourceName}の破壊効果：カウントが0のため発動しなかった。`)
+            return
+        }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (
@@ -49,13 +69,13 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
                     { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
                 )
             ) {
                 return
             }
         }
-        for (let i = 0; i < action.count; i++) {
+        for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
@@ -442,8 +462,10 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
 const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 戦闘獣ジャッカー：self上のコアすべてをトラッシュに置くことで、直近に破壊された自分のネクサスを戻す
+        // BS05ブロンズ・ゴレム：coreCost指定時はその数だけを支払う（不足なら不発）
         const last = state.lastDestroyedNexus
-        if (!self || self.cores <= 0) {
+        const requiredCost = action.coreCost
+        if (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost)) {
             log(state, `${sourceName}：支払えるコアがなかった。`)
             return
         }
@@ -457,9 +479,9 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             log(state, `${sourceName}：戻せるネクサスがトラッシュになかった。`)
             return
         }
-        // コストの支払い：self上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
-        const paid = self.cores
-        self.cores = 0
+        // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
+        const paid = requiredCost ?? self.cores
+        self.cores -= paid
         player.trashCores += paid
         player.trashCards.splice(trashIndex, 1)
         player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))

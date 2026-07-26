@@ -27195,7 +27195,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\nコスト2の自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-037-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [1, 2, 3],
+    "phase": "attack",
+    "costFilter": { "max": 2, "min": 2 },
+    "action": { "type": "draw", "count": 1 }
+   }
+  ]
  },
  {
   "cardId": "BS05-038",
@@ -27230,7 +27240,16 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分の手札にあるコスト2のスピリットカード1枚をコストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。\nLv2\n自分のスピリット/マジックの効果でスピリットの数を数えるとき、このスピリットはスピリット2体分として数える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-038-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [1, 2],
+    "optional": true,
+    "action": { "type": "summonFromHandFree", "costFilter": 2 }
+   }
+  ]
  },
  {
   "cardId": "BS05-039",
@@ -27314,7 +27333,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『相手のターン』\n相手が系統：「氷姫」を持つ自分の白のスピリットを対象に含むスピリット/マジックの効果を使用したとき、そのスピリット/マジックの効果の対象をこのスピリットのみにできる。\nLv2･Lv3『このスピリットの破壊時』\n自分のフィールドに[ドワッフー・セブン]がいるとき、このスピリットは手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-040-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [2, 3],
+    "scope": "self",
+    "requireOwnFieldHasName": "ドワッフー・セブン",
+    "when": {},
+    "revived": { "toHand": true }
+   }
+  ]
  },
  {
   "cardId": "BS05-041",
@@ -27402,6 +27431,14 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS05-042-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2, 3],
+    "optional": true,
+    "action": { "type": "summonFromHandFree", "familyFilter": "想獣" }
    }
   ]
  },
@@ -27447,7 +27484,24 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のエンドステップ』このスピリットを回復させる”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-043-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [3],
+    "action": { "type": "refreshSelf" }
+   },
+   {
+    "id": "BS05-043-e2",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [3],
+    "action": { "type": "refreshByFamily", "familyFilter": ["龍帝", "虚神"], "count": 99 }
+   }
+  ]
  },
  {
   "cardId": "BS05-044",
@@ -27626,6 +27680,13 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS05-047-e2",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [1, 2, 3],
+    "action": { "type": "reviveLastDestroyedNexus", "coreCost": 1 }
    }
   ]
  },
@@ -27742,7 +27803,24 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1『このスピリットのアタック時』\n相手のコスト1以下のスピリット1体を破壊する。\nLv2『このスピリットのアタック時』\nコスト1以下のスピリットすべてを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-050-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [1],
+    "optional": false,
+    "action": { "type": "destroy", "count": 1, "filter": { "cost": { "max": 1 } } }
+   },
+   {
+    "id": "BS05-050-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "destroyAll", "anySide": true, "filter": { "cost": { "max": 1 } } }
+   }
+  ]
  },
  {
   "cardId": "BS05-051",
@@ -27780,7 +27858,22 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のネクサスすべては相手のスピリット/ネクサス/マジックの効果では破壊されない。\nLv2『このスピリットのアタック時』\n自分のネクサス1つにつき、相手のデッキを上から2枚破棄する。(上限6枚)",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-051-e1",
+    "kind": "globalConstraint",
+    "levels": [1, 2],
+    "constraint": { "type": "ownNexusIndestructible" }
+   },
+   {
+    "id": "BS05-051-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "millPer", "counter": "ownNexuses", "multiplier": 2, "cap": 6 }
+   }
+  ]
  },
  {
   "cardId": "BS05-052",
@@ -27862,7 +27955,24 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのバトル時』相手のデッキを上から5枚破棄する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-053-e1",
+    "kind": "triggered",
+    "trigger": "onBattle",
+    "levels": [2],
+    "optional": false,
+    "action": { "type": "mill", "count": 5 }
+   },
+   {
+    "id": "BS05-053-e2",
+    "kind": "effectGrant",
+    "levels": [2],
+    "target": "ownAll",
+    "familyFilter": ["龍帝", "虚神"],
+    "granted": { "trigger": "onBattle", "action": { "type": "mill", "count": 5 } }
+   }
+  ]
  },
  {
   "cardId": "BS05-054",
@@ -27900,7 +28010,16 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分か相手のネクサス1つを破壊する。\nLv2\nこのスピリットの効果で、自分か相手のネクサスを破壊したとき、相手は手札1枚を選んで破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-054-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [1, 2],
+    "optional": false,
+    "action": { "type": "destroyNexus", "count": 1 }
+   }
+  ]
  },
  {
   "cardId": "BS05-055",
@@ -28274,7 +28393,28 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のフィールドに系統：「龍帝」/「竜騎」/「虚神」を持つスピリットがいる間、自分のスピリットすべてをBP+2000する。\nLv2\n【転召】を持つ自分のスピリットすべてに“【光芒】『このスピリットのアタック時』バトル終了時、自分が使用したマジックカードすべては手札に戻る”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-063-e1",
+    "kind": "aura",
+    "levels": [1, 2],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 2000,
+     "phaseTurn": { "phase": "attack", "turn": "opponent" },
+     "condition": { "hasOwnFamily": ["龍帝", "竜騎", "虚神"] }
+    }
+   },
+   {
+    "id": "BS05-063-e2",
+    "kind": "keywordGrant",
+    "levels": [2],
+    "keyword": "kobo",
+    "target": "ownAll",
+    "keywordFilter": "tensho"
+   }
+  ]
  },
  {
   "cardId": "BS05-064",
@@ -28308,7 +28448,17 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のターン』\n自分の黄のスピリットが破壊されたとき、自分の手札にあるカード名に「ペンタン」を含むスピリットカード1枚をコストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\nアタックしているカード名に「ペンタン」/「アンプルール」を含む自分のスピリットは、同じLvの相手のスピリットにブロックされたとき回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-064-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [1, 2],
+    "turn": "opponent",
+    "colorFilter": "yellow",
+    "action": { "type": "summonFromHandFree", "nameIncludes": "ペンタン" }
+   }
+  ]
  },
  {
   "cardId": "BS05-065",
@@ -28738,7 +28888,20 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにある系統：「歌鳥」を持つスピリットカード3枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-080-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": { "type": "recoverSpiritFromTrash", "count": 3, "familyFilter": "歌鳥" }
+   },
+   {
+    "id": "BS05-080-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 2000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-081",
@@ -28760,7 +28923,14 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のフィールドに系統：「想獣」を持つスピリットが3体以上いるとき、このターンの間、相手のネクサスすべての効果は発揮されない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-081-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 2000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-082",
@@ -28781,7 +28951,14 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、カードに効果の記述を持たない自分のスピリットすべてに“【粉砕】『このスピリットのアタック時』相手のデッキを上から、このスピリットのLvと同じ枚数破棄する”という効果を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-082-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "grantKeywordAll", "keyword": "funsai", "vanillaFilter": true }
+   }
+  ]
  },
  {
   "cardId": "BS05-083",
@@ -28802,7 +28979,14 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n系統：「造兵」を持つ自分のスピリット1体のコアすべてをボイドに置く。\n相手のデッキを上から、そのスピリットのコストと同じ枚数破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-083-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "voidCoresAndMillByCost", "familyFilter": "造兵" }
+   }
+  ]
  },
  {
   "cardId": "BS05-084",
@@ -28825,7 +29009,14 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\nこのターンの間、カードに効果の記述を持たない自分のスピリットすべてのアタックは、同じコスト以下のスピリットからブロックされない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-084-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": { "type": "bpBuff", "amount": 4000 }
+   }
+  ]
  },
  {
   "cardId": "BS05-X17",
@@ -28882,6 +29073,14 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS05-X17-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "returnToHand", "count": 1, "countPerOpponentNexus": true }
    }
   ]
  },
@@ -28941,6 +29140,30 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS05-X18-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [1, 2, 3],
+    "optional": false,
+    "action": { "type": "destroy", "count": 1, "countPerOpponentTrashMagicColors": true }
+   },
+   {
+    "id": "BS05-X18-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [3],
+    "optional": false,
+    "action": { "type": "lockFlash" }
+   },
+   {
+    "id": "BS05-X18-e4",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [3],
+    "optional": false,
+    "action": { "type": "lockFlash" }
    }
   ]
  },

@@ -9,6 +9,7 @@ import {
     dumpAllCoresTensho,
     findSpiritAny,
     isImmuneToArea,
+    millDeck,
     notifySpiritCoresRemovedByOpponent,
     pickBpBuffTarget,
     pickEnemyByBp,
@@ -20,7 +21,7 @@ import {
     requestCardChoice,
     requestChoice,
 } from "../EffectModules"
-import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -469,6 +470,51 @@ const trashCoresToKeywordSpiritHandler: ActionHandler<"trashCoresToKeywordSpirit
         return
 }
 
+const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+        // BS05マジックスパナ：familyFilter一致の自分のスピリット1体のコアすべてをボイドに置き、
+        // そのスピリットのコストと同じ枚数だけ相手のデッキをトラッシュへ送る
+        const player = state.players[owner]
+        const candidates = player.field.spirits.filter((s) =>
+            matchesFamilyFilter(state, owner, s, action.familyFilter),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        let target = targetInstanceId
+            ? candidates.find((s) => s.instanceId === targetInstanceId)
+            : undefined
+        if (!target) {
+            if (candidates.length >= 2 && state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コアをボイドに置くスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+            // 決定的自動選択：コスト最大（破棄枚数を最大化する）
+            target = candidates.reduce((best, s) =>
+                getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
+            )
+        }
+        const voided = target.cores
+        const cost = getCard(target.cardId).cost
+        const name = getCard(target.cardId).name
+        target.cores = 0
+        log(state, `${player.name}は${name}のコア${voided}個をボイドに置いた。`)
+        if (voided < lv1Cores(getCard(target.cardId))) {
+            destroySpirit(state, owner, target.instanceId, "deplete")
+        }
+        millDeck(state, opp, cost)
+        return
+}
+
 const reclaimTrashCoresHandler: ActionHandler<"reclaimTrashCores"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -890,6 +936,7 @@ const handlers = {
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
     lifeCharge: lifeChargeHandler,
+    voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -184,6 +184,8 @@ export function hasContinuousKeywordGrant(
                 continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
+            if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
             return true
         }
@@ -292,9 +294,9 @@ export function checkAuraCondition(
             spiritHasKeyword(board, sourcePid, s, condition.ownHasKeyword),
         )
     }
-    // { hasOwnFamily: string }：発生源自身を含んでよい
+    // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
-        card(s.cardId).family.includes(condition.hasOwnFamily),
+        matchesFamilyFilter(board, sourcePid, s, condition.hasOwnFamily),
     )
 }
 // オーラ1件が対象インスタンス（targetOwnerPid が持ち主）に効くか判定する

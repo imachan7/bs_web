@@ -406,6 +406,15 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             return
         }
         const limitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
+        // countPerOpponentNexus指定時はcountを無視し、相手のネクサス数を対象数として使う
+        // （BS05幻獣王リーン：相手のネクサス1つにつき）
+        const resolvedCount = action.countPerOpponentNexus
+            ? state.players[opp].field.nexuses.length
+            : action.count
+        if (resolvedCount === 0) {
+            log(state, `${sourceName}の手札戻し：相手にネクサスがなかった。`)
+            return
+        }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColors, srcType)
             if (
@@ -416,14 +425,14 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     `${sourceName}の手札戻し：対象を選んでください`,
                     candidates,
                     { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
                 )
             ) {
                 return
             }
         }
-        // 未指定時は相手フィールドのBP最大をcount回自動選択
-        for (let i = 0; i < action.count; i++) {
+        // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
