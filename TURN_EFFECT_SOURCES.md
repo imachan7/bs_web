@@ -36,7 +36,26 @@
 | `server/src/logic/PhaseManager.ts` | 1 |
 | `server/src/logic/actions/handDeck.ts` | 1 |
 
-### ⚠️ ここが設計上の分岐点：走査には2種類ある
+### ⚠️⚠️ 分類は「関数単位」ではなく「**その走査が何を問うているか**」で決める
+
+**初版のこの節は関数名で分類していたが、それは誤り。** 同じ関数の中に A と B が混在しうる。
+
+判定基準はこう。
+
+| その走査が問うていること | 分類 | 仮想発生源 |
+| :-- | :-- | :-- |
+| 「**誰が継続効果を出しているか**」 | A | **含める** |
+| 「**盤面に何が存在するか**」（数える・色を見る・シンボルを数える） | B | **含めない** |
+
+実例（`checkAuraCondition`）: 外側の `effectiveBp` が「オーラの発生源を探す」のは **A**。
+しかし `checkAuraCondition` 内部の `hasOwnColor`（＝自分の場に◯色のカードがあるか）は
+**盤面の存在を問うている B** であり、**仮想発生源を含めてはいけない**。
+含めると「赤のマジックを貸しただけで、場に赤のカードが無いのに `hasOwnColor:"red"` が成立する」。
+
+**マジックはトラッシュにあり、場には存在しない。** この一線を越えると、
+混色軽減バグ（`be97938`）と同じ「集計が意味を潰す」事故になる。
+
+### 走査には2種類ある
 
 **一括で `effectSources()` に置き換えてはいけない。** マジックはトラッシュにあり、場にシンボルを
 供給しない。物理的な存在を数える処理に仮想発生源が混ざると、**軽減シンボルが増える・
@@ -44,8 +63,8 @@
 
 | 分類 | 仮想発生源を含める | 関数 |
 | :-- | :-- | :-- |
-| **A. 効果発生源の走査**（対象） | **含める** | `activeConstraints` ・ `checkAuraCondition` ・ `effectiveBp` ・ `hasContinuousKeywordGrant` ・ `hasGlobalConstraint` ・ `hasMagicImmunity` ・ `spiritHasFamily` ・ `costModTotal` ・ `hasMagicFreeGrant` ・ `hasMagicRestriction` ・ `reductionGrantSymbols` ・ `coreStepBonusFor` ・ `drawDoubleMultiplier` ・ `fireFieldEventTriggers` ・ `fireStepTriggers` ・ `funsaiBonusTotal` ・ `hasFunsaiOnBlock` ・ `hasLifeDamageNegate` ・ `hasOwnNexusIndestructible` ・ `isExhaustImmune` ・ `isTriggerSuppressed` ・ `tryReviveOnDestroy` ・ `refreshLevelAsOverrides` ・ `mustBlockGrant` 走査（`RuleValidator.ts:508`） |
-| **B. 物理的な場の走査**（対象外） | **含めない** | `countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（力奪う凱旋門の色ロック） |
+| **A. 効果発生源の走査**（対象） | **含める** | `activeConstraints` ・ `effectiveBp` ・ `hasContinuousKeywordGrant` ・ `hasGlobalConstraint` ・ `hasMagicImmunity` ・ `spiritHasFamily` ・ `costModTotal` ・ `hasMagicFreeGrant` ・ `hasMagicRestriction` ・ `reductionGrantSymbols` ・ `coreStepBonusFor` ・ `drawDoubleMultiplier` ・ `fireFieldEventTriggers` ・ `fireStepTriggers` ・ `funsaiBonusTotal` ・ `hasFunsaiOnBlock` ・ `hasLifeDamageNegate` ・ `hasOwnNexusIndestructible` ・ `isExhaustImmune` ・ `isTriggerSuppressed` ・ `tryReviveOnDestroy` ・ `refreshLevelAsOverrides` ・ `mustBlockGrant` 走査（`RuleValidator.ts:508`） |
+| **B. 物理的な場の走査**（対象外） | **含めない** | `countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（力奪う凱旋門の色ロック）・**`checkAuraCondition` の `hasOwnColor` / `hasOwnColorSpirit` / `ownHasKeyword` / `hasOwnFamily`**（いずれも「場に何がいるか」を問う条件） |
 
 **B は現状のまま `player.field` を直接見ること。** 混同を防ぐため、`effectSources` の JSDoc に
 この区別を明記する。

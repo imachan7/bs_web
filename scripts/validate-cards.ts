@@ -55,6 +55,61 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
     }
 }
 
+// 仮想発生源では意味を成さない「self を参照するアクション」。
+// 仮想発生源は場に存在せず resolveAction に self=null が渡るため、これらは不発か誤動作になる
+// （TURN_EFFECT_SOURCES.md §4.1）
+const SELF_REFERENCING_ACTIONS = new Set([
+    "selfBuff",
+    "selfBuffPer",
+    "selfBuffByHandDiscard",
+    "refreshSelf",
+    "destroySelf",
+    "returnSelfToHand",
+    "coreRemoveSelf",
+    "coreToTrashSelf",
+    "voidCoreToSelf",
+    "voidCoreToSelfPer",
+    "tenshoCoreDump",
+])
+
+// lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。
+// 貸与は kind:"magic" のエントリが発動し、それ以外の継続効果エントリが仮想発生源として有効になる
+function checkLentEffects(
+    c: CardData,
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
+        // 発動そのもの（kind:"magic"）とキーワード宣言は貸与対象ではない
+        if (e.kind === "magic" || e.kind === "keyword") continue
+
+        // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
+        // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**
+        if (e.levels !== null) {
+            add(
+                c.cardId,
+                `貸与効果 ${e.id ?? e.kind} の levels が null でない（仮想発生源は Lv0 のため無言で発火しなくなる。TURN_EFFECT_SOURCES.md §2.2）`,
+            )
+        }
+
+        // §4.1: aura の target:"self" は仮想発生源では常に不成立
+        if (e.kind === "aura" && e.aura?.target === "self") {
+            add(c.cardId, `貸与効果 ${e.id ?? e.kind} の aura target が "self"（仮想発生源では成立しない）`)
+        }
+
+        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない
+        const lent: { type?: unknown }[] = []
+        collectActions([e], lent)
+        for (const a of lent) {
+            if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
+                add(
+                    c.cardId,
+                    `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
+                )
+            }
+        }
+    }
+}
+
 export function validateCards(cards: CardData[]): ValidationIssue[] {
     const issues: ValidationIssue[] = []
     const add = (cardId: string, message: string): void => {
@@ -145,6 +200,13 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
             }
+        }
+
+        // --- lendSelfThisTurn（マジックの一時継続効果貸与）の検査 ---
+        // TURN_EFFECT_SOURCES.md §2.2 / §4.1。どちらもエラーが出ずに「無言で壊れる」ため、
+        // 実行時ではなくここで落とす
+        if (actions.some((a) => a.type === "lendSelfThisTurn")) {
+            checkLentEffects(c, add)
         }
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
