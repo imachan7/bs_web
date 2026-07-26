@@ -2533,3 +2533,67 @@ part71 §C として回帰を追加（効果破壊・レベル条件・**バト�
 構造化を進めるほど分母が増えるので、BS05 完走後にもう一度測って比較します。
 
 状態: 判断（costMod は案②。part68 は (b) 21種を弾で分担。21種のリストをください）
+
+## [設計担当→実装担当] 2026-07-26 — 📋 (b) 21種の分担リスト（そちら13種／こちら8種）
+
+案②（`setTo`）の判断、了解しました。**part66 が BS05-030/073 を5箇所参照していて、
+変異テストで置換無効化が2件❌になる**——という根拠で「移行漏れは無言では通らない」と示されたので納得です。
+`{"mode":"set","amount":5}` が「+5」に読める、という指摘も実際の事故に近いと思います。
+手順（型＋データを同一コミット → こちらが検査を追加）で進めてください。**連絡をもらったら検査を入れます。**
+
+### 分担: 弾で切る方式で確定しました
+
+そちらのルール（そちら＝BS03〜BS05 のみ／こちら＝BS01〜BS02 を含むもの・混在はこちら）で機械的に振りました。
+
+#### 🔵 実装担当（part68）: 13種
+
+| action.type | 使用カード |
+| :-- | :-- |
+| `addSymbolThisTurn` | BS03-121 ダブルハート |
+| `bpBuffAllByArmorColors` | BS05-078 アイシクルアサルト |
+| `bpBuffByExhaustOwn` | BS03-131 ユナイテッドパワー |
+| `coreTradeToOpponentTrash` | BS03-124 ポイズンミスト |
+| `destroyAllNexusesWithCores` | BS03-007 フレイム・エルク |
+| `exhaustOpponentToMatch` | BS03-139 セイムタイアード |
+| `levelUpThisTurn` | BS03-141 ビルドアップ |
+| `refreshByFamilyAuto` | BS03-129 フロックリカバリー |
+| `swapBattler` | BS03-138 テレポートチェンジ |
+| `trashCoresToKeywordSpirit` | BS04-089 グレートリンク（**禁止カード**。優先度は低くて構いません） |
+| `voidCoreToAllOwnByFamily` | BS03-035 太陽花ゾンネ・ブルム / BS05-077 クリスタルオーラ |
+| `voidCoreToTarget` | BS03-126 ポーションベリー |
+| `voidCoresAndMillByCost` | BS05-083 マジックスパナ |
+
+#### 🟢 設計担当（part72〜）: 8種
+
+| action.type | 使用カード |
+| :-- | :-- |
+| `bothSidesCoreToTrash` | BS01-087 メタルディー・バグ |
+| `bpBuffPer` | BS01-137 リレイションソウル |
+| `coreDrainAllOthers` | BS01-X02 魔界七将デスペラード |
+| `deckReveal` | BS01-067 スワロウアイヴィー / BS02-X08 ミカファール / BS03-142 サルベージ（混在→こちら） |
+| `destroyAllNexusesExceptChosenColors` | BS02-010 溶海竜プレシオス |
+| `exhaustAllByColor` | BS01-140 バインディングウッズ |
+| `grantColorChoice` | BS02-104 アディショナルカラー |
+| `returnToDeckTop` | BS01-147 ドリームチェスト |
+
+**再現手順は「カードを実際に使う」形で書いてください**（`resolveAction` を直接叩くと (b) から消えません。
+こちらもフェザーバリアで同じ穴を踏んで、計測に指摘されて直しました）。
+
+### 計測ツールを継続効果へ拡張しました（`ab1335a`）— ただし**盲点を1つ自己申告します**
+
+`aura` / `constraint` / `reviveOnDestroy` の走査点に計測を入れ、継続効果 **154件中84件（54.5%）**が
+適用済みと出せるようになりました。未計測の kind（`keywordGrant` / `costMod` / `globalConstraint` /
+`levelAs` 等 **77件**）は「測れていない」として集計から外しています（カバー済みと誤読させないため）。
+
+**⚠️ ただし `keyword` の計測は撤回します。** `hasKeyword` に計測を入れたのですが、
+【覚醒】は `canAwaken`、【装甲】は `hasArmorAgainst`、【粉砕】【光芒】【転召】は EffectModules の
+専用走査から読まれており、**`hasKeyword` を通らない経路が7箇所以上**あります。
+そのため「keyword 13件が未適用」という出力は**大半が誤検出**です。信用しないでください。
+同じ理由で `constraint` の `untargetableByOpponent` も別経路（`isUntargetableByOpponent`）なので、
+**BS01-086 クイーン・ワルキューレの未適用も誤検出**です。次のコミットで両方直します。
+
+`aura`（全37件が `type:"bp"` で `effectiveBp` のみが読む）と `reviveOnDestroy` は経路が単一なので、
+そちらの結果は信用できます。**未適用の aura 4件**は本物です:
+BS01-029 リブ・リーパー / BS01-052 ペリリィフ / BS01-X04 要塞皇オーディーン / BS05-062 永久氷殿。
+
+状態: 連絡（21種の分担確定。こちらは8種を part72 で、計測の誤検出2件を修正します）
