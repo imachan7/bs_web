@@ -52,6 +52,7 @@ import {
     auraAmount,
     auraAppliesTo,
     checkAuraCondition,
+    costCantAct,
     countAuraCounter,
     countSymbols,
     effectActiveAtLevel,
@@ -80,6 +81,7 @@ export {
     auraAmount,
     auraAppliesTo,
     checkAuraCondition,
+    costCantAct,
     countAuraCounter,
     countSymbols,
     effectActiveAtLevel,
@@ -162,12 +164,38 @@ export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void 
 // レベル判定を保ったまま静的キーワード判定を別途行いたい呼び出し元（resolveKoboOnBattleEnd）が
 // 単独で参照できるようにする（BS04エンジン拡張バッチ1）
 
+// globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
+// このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
+// 最も厳しい（小さい）maxCountを返す（無ければInfinity）。ownNexusIndestructibleと同じく
+// 発生源の持ち主のみに効く制約のため、両陣営を見るhasGlobalConstraintとは別の専用判定にしている
+function millCapFor(state: GameState, pid: PlayerId): number {
+    let cap = Infinity
+    const sources = effectSources(state, pid)
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "millCap") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            cap = Math.min(cap, effect.constraint.maxCount)
+        }
+    }
+    return cap
+}
+
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 // デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）。
+// actorPid（このミルを引き起こした実行者）を渡すと、actorPid !== pid（相手の効果による）のときのみ
+// millCapFor(pid) の上限で count をクランプする（BS05エターナルシールド。自分自身のミル＝粉砕を
+// 自分のデッキに向ける等では上限を適用しない。省略時は従来どおり上限なし）。
 // 戻り値は実際に破棄した枚数（ownFunsaiMilledの発火判定・repeatPerCountに使う）
-export function millDeck(state: GameState, pid: PlayerId, count: number): number {
+export function millDeck(state: GameState, pid: PlayerId, count: number, actorPid?: PlayerId): number {
+    let effectiveCount = count
+    if (actorPid !== undefined && actorPid !== pid) {
+        effectiveCount = Math.min(effectiveCount, millCapFor(state, pid))
+    }
     const player = state.players[pid]
-    const actual = Math.min(count, player.deck.length)
+    const actual = Math.min(effectiveCount, player.deck.length)
     for (let i = 0; i < actual; i++) {
         const cardId = player.deck.shift()
         if (cardId === undefined) break
@@ -226,7 +254,7 @@ export function resolveFunsai(
     )
     if (!hasFunsai) return
     const bonus = funsaiBonusTotal(state, ownerPid)
-    const actual = millDeck(state, opponentOf(ownerPid), level + bonus)
+    const actual = millDeck(state, opponentOf(ownerPid), level + bonus, ownerPid)
     if (actual > 0) {
         fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
     }
@@ -519,6 +547,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
         ]) {
             delete inst.levelAsContinuous
             delete inst.colorsAsContinuous
+            delete inst.armorColorsGranted
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
@@ -539,6 +568,23 @@ export function refreshLevelAsOverrides(state: GameState): void {
         const sources = [...player.field.spirits, ...player.field.nexuses]
         for (const source of sources) {
             for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind === "keywordGrant" && effect.keyword === "armor") {
+                    // 継続付与の装甲（BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）。
+                    // hasArmorAgainstはstateを受け取らない設計のため、対象スピリットのCardInstance.armorColorsGrantedへ
+                    // 毎回再計算して反映する（levelAsContinuous/colorsAsContinuousと同じ「都度再構築」方式）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                    for (const spirit of player.field.spirits) {
+                        if (effect.familyFilter && !spiritHasFamily(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
+                        if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
+                        for (const c of effect.colors ?? []) {
+                            if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
+                        }
+                    }
+                    continue
+                }
                 if (effect.kind === "colorAs") {
                     // 発生源自身が指定色のスピリットとしても扱われる（継続。百面相のフラットフェイス）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
@@ -1176,6 +1222,38 @@ export function summonFreeFromHandIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+            "（このスピリットの召喚時効果は発揮されない）",
+    )
+}
+
+// summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
+// 指定したトラッシュインデックスのスピリットを、維持コアのみリザーブから払ってフィールドへ配置する
+// （onSummon効果は発揮させない）。プレイヤー選択（chosenCardIndex）・自動選択（コスト最大）どちらの経路からも呼ぶ
+export function summonFreeFromTrashIndex(
+    state: GameState,
+    owner: PlayerId,
+    sourceName: string,
+    trashIndex: number,
+): void {
+    const player = state.players[owner]
+    const cardId = player.trashCards[trashIndex]
+    if (cardId === undefined) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    const maintain = lv1Cores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+        return
+    }
+    player.trashCards.splice(trashIndex, 1)
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。` +
             "（このスピリットの召喚時効果は発揮されない）",
     )
 }

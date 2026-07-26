@@ -531,9 +531,16 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
     )
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
-    return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
-    )
+    if (
+        inst.tempKeywords.some(
+            (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
+        )
+    ) {
+        return true
+    }
+    // 継続付与の装甲（kind:"keywordGrant"のkeyword:"armor"。refreshLevelAsOverridesが
+    // armorColorsGrantedへ毎回再計算する。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白）
+    return (inst.armorColorsGranted ?? []).some((c) => sourceColors.includes(c))
 }
 export function hasGlobalConstraint(
     board: Board,
@@ -554,6 +561,26 @@ export function hasGlobalConstraint(
     }
     return false
 }
+// フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下のスピリットはアタック/ブロックができない
+// （BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2）。hasGlobalConstraintの単純boolean判定と異なり、
+// 具体的なmaxCostのしきい値を比較する必要があるため専用の判定関数にする
+export function costCantAct(board: Board, cost: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = board.players[pid]
+        const instances = [...player.field.spirits, ...player.field.nexuses]
+        for (const inst of instances) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "costCantAct") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (cost <= effect.constraint.maxCost) return true
+            }
+        }
+    }
+    return false
+}
+
 export function hasMagicImmunity(
     board: Board,
     ownerPid: PlayerId,

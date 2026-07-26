@@ -361,7 +361,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, action.count)
+        millDeck(state, targetPid, action.count, owner)
         return
 }
 
@@ -375,7 +375,7 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, count)
+        millDeck(state, targetPid, count, owner)
         return
 }
 

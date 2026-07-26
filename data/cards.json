@@ -25631,7 +25631,20 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のトラッシュにあるコスト5/6/7の紫のスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-004-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [1, 2],
+        "optional": true,
+        "action": {
+          "type": "summonFromTrashFree",
+          "colorFilter": "purple",
+          "costFilter": { "min": 5, "max": 7 }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS05-005",
@@ -26094,7 +26107,22 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの破壊時』\n相手のコスト1以下のスピリット2体の上から、コア2個ずつを相手のトラッシュに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-013-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [1, 2],
+        "optional": false,
+        "action": {
+          "type": "coreRemoveMulti",
+          "targets": 2,
+          "count": 2,
+          "dest": "trash",
+          "costFilter": { "max": 1 }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS05-014",
@@ -27063,7 +27091,16 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv2\n自分の手札にある系統：「氷姫」を持つスピリットカードすべてのコストを5にする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-030-e1",
+        "kind": "costMod",
+        "levels": [2],
+        "mode": "set",
+        "familyFilter": "氷姫",
+        "amount": 5
+      }
+    ]
   },
   {
     "cardId": "BS05-031",
@@ -28382,7 +28419,28 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のフィールドに系統：「龍帝」/「竜騎」/「虚神」を持つスピリットがいる間、自分のスピリットすべてをBP+2000する。\nLv2\n【転召】を持つ自分のスピリットすべてに“【覚醒】自分のスピリット上から、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”という効果を与える。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-055-e1",
+        "kind": "aura",
+        "levels": [1, 2],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 2000,
+          "condition": { "hasOwnFamily": ["龍帝", "竜騎", "虚神"] },
+          "phaseTurn": { "phase": "attack", "turn": "own" }
+        }
+      },
+      {
+        "id": "BS05-055-e2",
+        "kind": "keywordGrant",
+        "levels": [2],
+        "keyword": "awaken",
+        "target": "ownAll",
+        "keywordFilter": "tensho"
+      }
+    ]
   },
   {
     "cardId": "BS05-056",
@@ -28679,7 +28737,23 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/1のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“【装甲：赤/紫/緑/白】このスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-061-e1",
+        "kind": "globalConstraint",
+        "levels": [1, 2],
+        "constraint": { "type": "costCantAct", "maxCost": 1 }
+      },
+      {
+        "id": "BS05-061-e2",
+        "kind": "keywordGrant",
+        "levels": [2],
+        "keyword": "armor",
+        "target": "ownAll",
+        "keywordFilter": "tensho",
+        "colors": ["red", "purple", "green", "white"]
+      }
+    ]
   },
   {
     "cardId": "BS05-062",
@@ -28896,7 +28970,14 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/2のスピリットすべては、アタックとブロックができない。\nLv2『お互いのアタックステップ』\n自分のフィールドに【転召】を持つスピリットがいる間、お互い、コスト4以下のマジックの効果を使用できない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-065-e1",
+        "kind": "globalConstraint",
+        "levels": [1, 2],
+        "constraint": { "type": "costCantAct", "maxCost": 2 }
+      }
+    ]
   },
   {
     "cardId": "BS05-066",
@@ -29141,7 +29222,24 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、自分の手札にある【神速】を持つコスト6以上のスピリットカードすべてのコストを4にする。\nこの効果は、メインステップで使用できない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-073-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "mainForbidden": true,
+        "action": { "type": "lendSelfThisTurn" }
+      },
+      {
+        "id": "BS05-073-e2",
+        "kind": "costMod",
+        "levels": null,
+        "mode": "set",
+        "keywordFilter": "soku",
+        "costFilter": { "min": 6 },
+        "amount": 4
+      }
+    ]
   },
   {
     "cardId": "BS05-074",
@@ -29218,7 +29316,21 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、自分のデッキは、相手のスピリット/ネクサス/マジックの効果では6枚以上破棄されない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-076-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "mainForbidden": true,
+        "action": { "type": "lendSelfThisTurn" }
+      },
+      {
+        "id": "BS05-076-e2",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": { "type": "millCap", "maxCount": 5 }
+      }
+    ]
   },
   {
     "cardId": "BS05-077",

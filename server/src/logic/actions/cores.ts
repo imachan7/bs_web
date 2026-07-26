@@ -1,7 +1,7 @@
 // コア操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, PlayerId } from "../../type"
+import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { getCard, log, lv1Cores } from "../GameState"
 import {
     countEffectCounter,
@@ -20,8 +20,9 @@ import {
     removeCoresToVoid,
     requestCardChoice,
     requestChoice,
+    tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesCostFilter, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -66,6 +67,82 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             removeCoresToVoid(state, found.pid, found.inst, action.count, owner)
         } else {
             removeCores(state, found.pid, found.inst, action.count, owner)
+        }
+        return
+}
+
+// coreRemoveMulti の対象1体への適用（装甲・マジック効果耐性の判定を含む）。
+// pickEnemyCandidates/pickEnemyByBp経由の自動選択はこれらを既に除外済みだが、
+// pendingChoice解決経由（targetInstanceId指定）はここで改めて判定する（coreRemoveHandlerと同じ考え方）
+function applyCoreRemoveMultiTarget(
+    state: GameState,
+    opp: PlayerId,
+    found: CardInstance,
+    action: Extract<EffectAction, { type: "coreRemoveMulti" }>,
+    srcColors: Color[] | undefined,
+    srcType: "spirit" | "nexus" | "magic" | undefined,
+    owner: PlayerId,
+    sourceName: string,
+): void {
+    if (
+        hasArmorAgainst(found, srcColors) ||
+        (srcType === "magic" && hasMagicImmunity(state, opp, found))
+    ) {
+        log(state, `${getCard(found.cardId).name}は${sourceName}の効果を受けなかった。`)
+        return
+    }
+    if (action.dest === "void") removeCoresToVoid(state, opp, found, action.count, owner)
+    else if (action.dest === "trash") removeCoresToTrash(state, opp, found, action.count, owner)
+    else removeCores(state, opp, found, action.count, owner)
+}
+
+const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // pendingChoice解決：選ばれた1体のみ処理する（tryInteractiveTargetChoiceのfirstAction経由）
+        if (targetInstanceId !== undefined) {
+            const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+            if (!found) {
+                log(state, `${sourceName}のコア除去：対象がいなかった。`)
+                return
+            }
+            applyCoreRemoveMultiTarget(state, opp, found, action, srcColors, srcType, owner, sourceName)
+            return
+        }
+        if (action.targets <= 0) return
+        const matchesFilter = (s: CardInstance) => matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
+        if (state.interactiveTargets) {
+            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType)
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}のコア除去：対象を選んでください`,
+                    candidates,
+                    { ...action, targets: 1 },
+                    action.targets > 1 ? { ...action, targets: action.targets - 1 } : null,
+                )
+            ) {
+                return
+            }
+        }
+        // 決定的自動選択：実効BP上位からtargets体を重複なく選ぶ（プレイヤー選択の簡略化）
+        const chosen = new Set<string>()
+        for (let i = 0; i < action.targets; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => matchesFilter(s) && !chosen.has(s.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) {
+                log(state, `${sourceName}のコア除去：対象がいなかった。`)
+                break
+            }
+            chosen.add(target.instanceId)
+            applyCoreRemoveMultiTarget(state, opp, target, action, srcColors, srcType, owner, sourceName)
         }
         return
 }
@@ -511,7 +588,7 @@ const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (
         if (voided < lv1Cores(getCard(target.cardId))) {
             destroySpirit(state, owner, target.instanceId, "deplete")
         }
-        millDeck(state, opp, cost)
+        millDeck(state, opp, cost, owner)
         return
 }
 
@@ -907,6 +984,7 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
 
 const handlers = {
     coreRemove: coreRemoveHandler,
+    coreRemoveMulti: coreRemoveMultiHandler,
     coreRemoveSelf: coreRemoveSelfHandler,
     coreToTrashSelf: coreToTrashSelfHandler,
     tenshoCoreDump: tenshoCoreDumpHandler,

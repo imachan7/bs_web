@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, hasKeyword, instHasColor, matchesFamilyFilter } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, matchesCostFilter, matchesFamilyFilter } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -22,6 +22,9 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
             const sourceLevel = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "costMod") continue
+                // mode:"set"（コスト置換。BS05パントマイスター／ゴッドスピード）はcostSetOverride側が
+                // 別途処理するため、加算合計のこちらでは読み飛ばす（二重適用を防ぐ）
+                if (effect.mode === "set") continue
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
                 if (effect.colorFilter !== undefined && !cardHasColor(cardData, effect.colorFilter)) continue
                 if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
@@ -160,6 +163,34 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
     }
     return colors
 }
+// コスト置換（kind:"costMod"のmode:"set"）を求める。pid自身のeffectSources（フィールド＋
+// このターンの仮想発生源。lendSelfThisTurnでマジックが貸与するBS05ゴッドスピードに対応）を走査し、
+// レベル有効・familyFilter/keywordFilter/costFilter一致の値を返す（複数重なる状況は現状無いが、
+// 決定的にするため最小値を採用する）。該当なしはundefined
+export function costSetOverride(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+): number | undefined {
+    let result: number | undefined
+    const sources = effectSources(board, pid)
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "costMod" || effect.mode !== "set") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.familyFilter !== undefined) {
+                const wanted = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
+                if (!wanted.some((f) => cardData.family.includes(f))) continue
+            }
+            if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
+            if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
+            if (result === undefined || effect.amount < result) result = effect.amount
+        }
+    }
+    return result
+}
+
 // 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 // costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
 // reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは cardData.reduction に連結してから計算する。
@@ -178,20 +209,30 @@ export function effectiveCost(
     ) {
         return 0
     }
-    const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
-    const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
-    // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
-    // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
-    // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
-    // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
-    let reduction = 0
-    if (!reductionBlocked) {
-        for (const color of new Set(reductionColors)) {
-            const need = reductionColors.filter((c) => c === color).length
-            const have = countSymbols(board.players[pid], [color])
-            reduction += Math.min(need, have)
+    // コスト置換（BS05パントマイスター／ゴッドスピード）：適用順は「置換 → costMod加算」で固定する
+    // （costSetとcostModが同時に効く場合、発生源の走査順に依存しない決定的な結果にするため）。
+    // 置換値は軽減後の値ではなく置換後の値をそのまま使う（原文「コストを◯にする」の忠実化）ので、
+    // 軽減シンボル（reductionGrant含む）はここでは一切適用しない
+    const setOverride = costSetOverride(board, pid, cardData)
+    let base: number
+    if (setOverride !== undefined) {
+        base = setOverride
+    } else {
+        const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
+        const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
+        // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
+        // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
+        // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
+        // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
+        let reduction = 0
+        if (!reductionBlocked) {
+            for (const color of new Set(reductionColors)) {
+                const need = reductionColors.filter((c) => c === color).length
+                const have = countSymbols(board.players[pid], [color])
+                reduction += Math.min(need, have)
+            }
         }
+        base = Math.max(cardData.cost - reduction, 0)
     }
-    const base = Math.max(cardData.cost - reduction, 0)
-    return base + costModTotal(board, pid, cardData)
+    return Math.max(base + costModTotal(board, pid, cardData), 0)
 }
