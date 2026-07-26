@@ -460,13 +460,6 @@ export function validateBlock(
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
 // できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
 
-// ブロック可能なスピリットがいるか（【激突】等の判定に使用）
-export function hasBlocker(state: GameState, pid: PlayerId): boolean {
-    return state.players[pid].field.spirits.some(
-        (s) => !s.isRested && currentLevel(s).level >= 1,
-    )
-}
-
 // フラッシュの優先権を相手に渡す（パス）
 export function validatePass(state: GameState, pid: PlayerId): string | null {
     if (!state.battle || !state.isFlashTiming) return "フラッシュタイミングではありません"
@@ -558,11 +551,15 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.players[state.turnPlayer],
         state.battle.attackerInstanceId,
     )
-    // 【激突】持ちのアタック時はブロック強制（第一弾には未収録だが将来弾向けに残す）
+    // 【激突】持ちのアタック時はブロック強制。
+    // 判定は hasLegalBlocker（validateBlock を実際に通る個体がいるか）で行う。
+    // hasBlocker（疲労とレベルしか見ない）だと、cantBlock 等で実際にはブロックできない個体を
+    // 「ブロックできる」と誤判定し、防御側がブロックもライフ受けもできない詰みになる（part65 §C）。
+    // 強制ブロック（mustBlockGrant）と同じ「可能ならば」の解釈に揃えてある
     if (
         attacker &&
         spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
-        hasBlocker(state, pid)
+        hasLegalBlocker(state, pid)
     ) {
         return "【激突】によりブロックしなければなりません"
     }
