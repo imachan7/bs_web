@@ -26,6 +26,7 @@ import {
     activeConstraints,
     effectActiveAtLevel,
     effectiveBp,
+    effectSources,
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
@@ -513,8 +514,8 @@ function hasMustBlockAgainst(
     attackerPid: PlayerId,
     attacker: CardInstance,
 ): boolean {
-    const player = state.players[attackerPid]
-    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+    // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含めて走査する
+    for (const inst of effectSources(state, attackerPid)) {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "mustBlockGrant") continue

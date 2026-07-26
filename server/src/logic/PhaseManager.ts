@@ -122,6 +122,8 @@ export function endTurn(state: GameState): void {
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
         state.players[pid].tempHandKeywordGrants = []
+        // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
+        state.players[pid].turnVirtualInstances = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
             inst.cantAttackThisTurn = false

@@ -56,6 +56,7 @@ import {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
     hasGlobalConstraint,
@@ -67,6 +68,7 @@ import {
     instHasCost,
     isUntargetableByOpponent,
     isVanillaCard,
+    isVirtualSource,
     KEYWORDS,
     matchesCostFilter,
     matchesFamilyFilter,
@@ -82,6 +84,7 @@ export {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
     hasGlobalConstraint,
@@ -93,6 +96,7 @@ export {
     instHasCost,
     isUntargetableByOpponent,
     isVanillaCard,
+    isVirtualSource,
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasFamily,
@@ -796,8 +800,9 @@ function tryReviveOnDestroy(
     }
 
     // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
-    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
+    // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
+    const sources = effectSources(state, ownerPid)
     for (const source of sources) {
         if (source.instanceId === inst.instanceId) continue
         const sourceLevel = currentLevel(source).level
@@ -1392,6 +1397,8 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
 // 効果アクションを実行する。
 //   owner = 効果の使用者、self = 効果の発生源スピリット（マジックは null）
 //   sourceColors = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
+//   sourceCardId = 発生源のカードID。省略時は self.cardId から求める。マジックはselfがnullのため
+//     resolveMagicが明示的にcard.cardIdを渡す（lendSelfThisTurn専用。TURN_EFFECT_SOURCES.md §3.3）
 export function resolveAction(
     state: GameState,
     owner: PlayerId,
@@ -1402,6 +1409,7 @@ export function resolveAction(
     sourceType?: "spirit" | "nexus" | "magic",
     chosenOption?: string,
     chosenCardIndex?: number,
+    sourceCardId?: string,
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
@@ -1409,6 +1417,7 @@ export function resolveAction(
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
+    const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
     const destroyContext: DestroyContext =
@@ -1425,6 +1434,7 @@ export function resolveAction(
         sourceName,
         srcColors,
         srcType,
+        sourceCardId: srcCardId,
         destroyContext,
         targetInstanceId,
         chosenOption,
@@ -2039,8 +2049,20 @@ export function resolveMagic(
                 }
             }
         }
-        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別を明示的に渡す
-        resolveAction(state, owner, null, effect.action, targetInstanceId, card.colors, "magic")
+        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
+        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
+        resolveAction(
+            state,
+            owner,
+            null,
+            effect.action,
+            targetInstanceId,
+            card.colors,
+            "magic",
+            undefined,
+            undefined,
+            card.cardId,
+        )
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
             state.pendingChoice.queue.push(

@@ -162,6 +162,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         trashCards: [],
         tegamoto: [],
         field: { spirits: [], nexuses: [] },
+        turnVirtualInstances: [],
     }
 }
 
@@ -330,6 +331,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             spirits: player.field.spirits.map((s) => ({ ...s })),
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
         },
+        turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),

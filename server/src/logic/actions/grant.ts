@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color } from "../../type"
-import { currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
+import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
 import {
     findSpiritAny,
     getAllFamilies,
@@ -455,6 +455,24 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         return
 }
 
+// マジックが「このターンの間」継続効果を貸す機構（TURN_EFFECT_SOURCES.md）。
+// マジックのselfは常にnull（resolveMagicがself=nullで呼ぶ）ため、ctx.sourceCardIdを使うこと。
+// ここでselfを参照すると（マジックの唯一の用途で）必ずno-opになる罠なので注意（§3.3）
+const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (sourceCardId === undefined) {
+        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
+        return
+    }
+    const inst = createInstance(sourceCardId, state.turn, 0)
+    inst.instanceId = `virtual-${inst.instanceId}`
+    state.players[owner].turnVirtualInstances.push(inst)
+    log(
+        state,
+        `${getCard(sourceCardId).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+    )
+}
+
 const handlers = {
     grantKeyword: grantKeywordHandler,
     grantKeywordAll: grantKeywordAllHandler,
@@ -474,6 +492,7 @@ const handlers = {
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
+    lendSelfThisTurn: lendSelfThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -60,6 +60,34 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+// 前者はスピリット・ネクサス。後者は現時点ではターン限定の仮想発生源（マジックが貸した継続効果。
+// PlayerState.turnVirtualInstances）のみだが、**今後ここに種類が追加される想定**（例: 次弾以降の新カードタイプ
+// 「ブレイヴ」＝スピリットに合体して1体として扱われるカード。合体中は field.spirits に置かず
+// ホストの入れ子として持たせ、その【合体中】効果はここ経由で発揮させる設計になる）。
+// 発生源の種類が増えたら下の配列に1行足すだけで済むよう、種類ごとに1行で並べておくこと。
+//
+// ⚠️ 「場に実在するカードを数える」用途には使わないこと。
+//    軽減シンボル集計（countSymbols）・色ロック（ownFieldSymbolColors）は
+//    物理的な存在を見る処理であり、意味的に発生源とは別物（TURN_EFFECT_SOURCES.md §1 の分類B）。
+//    それらは player.field を直接見ること。この区別は将来ブレイヴが乗っても効く
+//    （合体中のブレイヴを軽減シンボル集計に混ぜると、実在しないもう1体として数えてしまう事故になる）
+export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
+    const player = board.players[pid]
+    return [
+        ...player.field.spirits, // フィールドに実在するスピリット
+        ...player.field.nexuses, // フィールドに実在するネクサス
+        ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
+    ]
+}
+
+// このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
+// 仮想発生源は場に実在しないため、self参照アクション（refreshSelf等）やaura target:"self"の対象にしてはいけない
+// （TURN_EFFECT_SOURCES.md §4.1）
+export function isVirtualSource(inst: CardInstance): boolean {
+    return inst.instanceId.startsWith("virtual-")
+}
+
 // 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（道化師クラン）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
     return card(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
@@ -169,8 +197,7 @@ export function hasContinuousKeywordGrant(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
-    const player = board.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -282,7 +309,7 @@ export function checkAuraCondition(
     const player = board.players[sourcePid]
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
     if ("hasOwnColor" in condition) {
-        const all = [...player.field.spirits, ...player.field.nexuses]
+        const all = effectSources(board, sourcePid)
         return all.some((inst) => instHasColor(inst, condition.hasOwnColor))
     }
     if ("hasOwnColorSpirit" in condition) {
@@ -380,8 +407,7 @@ export function effectiveBp(
 ): number {
     let total = currentLevel(inst).bp
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = board.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
+        const sources = effectSources(board, pid)
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
@@ -461,7 +487,7 @@ export function activeConstraints(
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
