@@ -175,13 +175,20 @@ export const __covRecord = (line: string): void => {
 
         const firedEids = new Set<string>()
         const firedTypes = new Set<string>()
+        // カードデータ由来（id が刻まれている）で実行された action.type。
+        // テストが手で組んだ action（id なし）だけで動いている型は、
+        // 「機構は通っているがカードのデータ経由では一度も通っていない」＝データ側が未検証
+        const firedTypesFromCards = new Set<string>()
         const instantiated = new Set<string>()
         let unknownEid = 0
         for (const line of fs.readFileSync(outFile, "utf-8").split("\n")) {
             const [tag, a, b] = line.split("\t")
             if (tag === "act") {
                 if (a === "?" || a === undefined) unknownEid++
-                else firedEids.add(a)
+                else {
+                    firedEids.add(a)
+                    if (b !== undefined) firedTypesFromCards.add(b)
+                }
                 if (b !== undefined) firedTypes.add(b)
             } else if (tag === "inst" && a !== undefined) {
                 instantiated.add(a)
@@ -191,7 +198,7 @@ export const __covRecord = (line: string): void => {
             throw new Error("記録が空です。計測コードの差し込みが効いていません（no-op 事故）")
         }
 
-        report(entries, firedEids, firedTypes, instantiated, unknownEid)
+        report(entries, firedEids, firedTypes, firedTypesFromCards, instantiated, unknownEid)
     } finally {
         try {
             execFileSync("git", ["worktree", "remove", "--force", tree], { cwd: REPO, stdio: "pipe" })
@@ -206,6 +213,7 @@ function report(
     entries: EffectEntry[],
     firedEids: Set<string>,
     firedTypes: Set<string>,
+    firedTypesFromCards: Set<string>,
     instantiated: Set<string>,
     unknownEid: number,
 ): void {
@@ -229,14 +237,30 @@ function report(
     }
     if (silent.length > 40) console.log(`  …ほか${silent.length - 40}件`)
 
-    // action.type 単位で一度も実行されていない機構（静的棚卸しの実測版）
+    // action.type 単位の機構カバレッジ。2段階で見る:
+    //   (a) 一度も実行されていない＝機構そのものが未検証（【激突】と同型。最優先）
+    //   (b) テストが手で組んだ action でしか実行されていない＝**カードのデータ経由が未検証**
+    //       （effects の書き方の誤り——レベル指定漏れ・フィルタの取り違え——はここでしか出ない）
     const allTypes = new Set<string>()
     for (const e of entries) for (const t of e.actionTypes) allTypes.add(t)
+    const usersOf = (t: string): string[] =>
+        entries.filter((e) => e.actionTypes.includes(t)).map((e) => e.cardId)
     const deadTypes = [...allTypes].filter((t) => !firedTypes.has(t)).sort()
-    console.log(`\n一度も実行されていない action.type: ${deadTypes.length}種`)
+    const onlyDirect = [...allTypes]
+        .filter((t) => firedTypes.has(t) && !firedTypesFromCards.has(t))
+        .sort()
+
+    console.log(`\n(a) 一度も実行されていない action.type: ${deadTypes.length}種`)
     for (const t of deadTypes) {
-        const users = entries.filter((e) => e.actionTypes.includes(t)).map((e) => e.cardId)
-        console.log(`  ${t}（使用: ${users.slice(0, 4).join(", ")}${users.length > 4 ? " ほか" : ""}）`)
+        const u = usersOf(t)
+        console.log(`  ${t}（使用: ${u.slice(0, 4).join(", ")}${u.length > 4 ? " ほか" : ""}）`)
+    }
+    console.log(
+        `\n(b) テストが手で組んだ action でしか実行されていない（カードデータ経由が未検証）: ${onlyDirect.length}種`,
+    )
+    for (const t of onlyDirect) {
+        const u = usersOf(t)
+        console.log(`  ${t}（使用: ${u.slice(0, 4).join(", ")}${u.length > 4 ? " ほか" : ""}）`)
     }
 
     console.log(

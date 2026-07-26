@@ -185,6 +185,28 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     )
 }
 {
+    // 実対戦経路（カードデータ経由）: ブロック後のフラッシュでフェザーバリアを使用する。
+    // ※ この節は `npm run coverage:effects` の (b)「テストが手で組んだ action でしか
+    //    実行されていない」に grantBlockerImmunity が出ていたため追加した。
+    //    action を直接叩くテストだけでは、cards.json 側の記述（timing/flash）が検証されない
+    const { s, blocker } = setupBlocked("immunity-castmagic")
+    s.players.p2.hand = ["BS01-139"] // フェザーバリア（緑・コスト5・フラッシュ）
+    s.players.p2.reserve = 10
+    assert(
+        act(s, "p2", { type: "castMagic", handIndex: 0 }) === null,
+        "フェザーバリアをブロック後のフラッシュで使用できる",
+    )
+    assert(
+        findSpiritById(s, "p2", blocker)?.immuneToOpponentThisTurn === true,
+        "カード使用でもブロッカーに免疫が付く",
+    )
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    assert(
+        findSpiritById(s, "p2", blocker) !== undefined,
+        "カード経由の免疫でも破壊されない",
+    )
+}
+{
     const { s, blocker } = setupBlocked("immunity-range")
     resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
     // 範囲効果（destroyAll）も受けない＝untargetableByOpponent との違い
