@@ -38,13 +38,18 @@ const ACTION_BEARING_KINDS = new Set([
 
 // 継続効果のうち**この計測が対応済み**の kind（走査側に計測点を入れたもの）。
 //   aura           → effectiveBp（全37件が aura.type:"bp" なのでこれで網羅できる）
-//   constraint     → activeConstraints
-//   keyword        → hasKeyword（静的キーワード判定）
-//   reviveOnDestroy→ tryReviveOnDestroy（実際に復活が確定した時点）
+//   constraint     → activeConstraints ＋ isUntargetableByOpponent（**別経路が1つある**）
+//   reviveOnDestroy→ tryReviveOnDestroy（実際に復活が確定した時点。経路は2つ）
 // これ以外の継続 kind（keywordGrant / costMod / globalConstraint / levelAs / reductionGrant …）は
 // 走査点がそれぞれ別なので未対応。**測れていないものを「カバー済み」と誤読しないよう、
 // 集計から明示的に外して「未計測」として件数だけ出す**
-const MEASURED_CONTINUOUS_KINDS = new Set(["aura", "constraint", "keyword", "reviveOnDestroy"])
+//
+// ⚠️ `keyword` は意図的に外している（初版では入れていたが撤回した）。
+// `hasKeyword` に計測を入れても、【覚醒】は canAwaken、【装甲】は hasArmorAgainst、
+// 【粉砕】【光芒】【転召】は EffectModules の専用走査から読まれるため **hasKeyword を通らない経路が
+// 7箇所以上ある**。その状態で計測すると「未適用」の誤検出が大量に出て、リストの信頼性が落ちる。
+// 全経路に計測を入れるまでは「未計測」に置いておくほうが実害が小さい
+const MEASURED_CONTINUOUS_KINDS = new Set(["aura", "constraint", "reviveOnDestroy"])
 
 type Measurability = "action" | "continuous" | "unmeasured"
 
@@ -141,12 +146,25 @@ const __covEid = (e: unknown): string =>
         `        .map((e) => (e as { constraint: ConstraintDef }).constraint)`,
         `        .map((e) => { __covRec2("cont\\t" + __covEid(e)); return (e as { constraint: ConstraintDef }).constraint })`,
     )
-    // keyword: 静的キーワード判定が true を返す時点
+    // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
+    // isUntargetableByOpponent が直接 effects を走査する。ここを入れないと
+    // 「ワルキューレの制約が一度も適用されていない」という誤検出が出る
     patch(
         f,
-        `    return card(cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword)`,
-        `    return card(cardId).effects.some((e) => {
-        if (e.kind !== "keyword" || e.keyword !== keyword) return false
+        `    return card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "constraint" &&
+            e.constraint.type === "untargetableByOpponent" &&
+            effectActiveAtLevel(e.levels, level),
+    )`,
+        `    return card(inst.cardId).effects.some((e) => {
+        if (
+            e.kind !== "constraint" ||
+            e.constraint.type !== "untargetableByOpponent" ||
+            !effectActiveAtLevel(e.levels, level)
+        ) {
+            return false
+        }
         __covRec2("cont\\t" + __covEid(e))
         return true
     })`,
@@ -324,15 +342,32 @@ function report(
             `※ keywordGrant / costMod / globalConstraint / levelAs 等。走査点が別なので**測れていない**`,
     )
 
-    // ★ 最重要: 場に出ている（＝テストに登場する）のに、その効果だけ発火していないもの。
-    // 「カードごと未登場」は単に未テストなだけだが、こちらは**通っているつもりで通っていない**形
-    const silent = [...notFiredAction, ...notFiredCont].filter((e) => instantiated.has(e.cardId))
-    console.log(`\n★ 場に出ているのに一度も適用されていない効果: ${silent.length}件`)
-    for (const e of silent.slice(0, 40)) {
-        const detail = e.actionTypes.length > 0 ? ` → ${e.actionTypes.join(", ")}` : ""
-        console.log(`  ${e.cardId} ${e.cardName} [${e.kind}] ${e.eid}${detail}`)
+    // 未適用の内訳（kind 別）。どの層が薄いのかを一目で見るため
+    const byKind = (list: EffectEntry[]): string => {
+        const c = new Map<string, number>()
+        for (const e of list) c.set(e.kind, (c.get(e.kind) ?? 0) + 1)
+        return [...c.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, n]) => `${k}=${n}`)
+            .join(" / ")
     }
-    if (silent.length > 40) console.log(`  …ほか${silent.length - 40}件`)
+    console.log(`  未実行の内訳: ${byKind([...notFiredAction, ...notFiredCont])}`)
+
+    // ★ 最重要: 場に出ている（＝テストに登場する）のに、その効果だけ発火していないもの。
+    // 「カードごと未登場」は単に未テストなだけだが、こちらは**通っているつもりで通っていない**形。
+    // kind ごとにまとめて出す（全件を並べると読めないため、各 kind 先頭8件まで）
+    const silent = [...notFiredAction, ...notFiredCont].filter((e) => instantiated.has(e.cardId))
+    console.log(`\n★ 場に出ているのに一度も適用されていない効果: ${silent.length}件（${byKind(silent)}）`)
+    const kinds = [...new Set(silent.map((e) => e.kind))]
+    for (const kind of kinds) {
+        const list = silent.filter((e) => e.kind === kind)
+        console.log(`  [${kind}] ${list.length}件`)
+        for (const e of list.slice(0, 8)) {
+            const detail = e.actionTypes.length > 0 ? ` → ${e.actionTypes.join(", ")}` : ""
+            console.log(`    ${e.cardId} ${e.cardName} ${e.eid}${detail}`)
+        }
+        if (list.length > 8) console.log(`    …ほか${list.length - 8}件`)
+    }
 
     // action.type 単位の機構カバレッジ。2段階で見る:
     //   (a) 一度も実行されていない＝機構そのものが未検証（【激突】と同型。最優先）
