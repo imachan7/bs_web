@@ -274,7 +274,7 @@ export function rawLevel(inst: CardInstance): number {
 // これを下回るとスピリットは消滅する（ネクサスはレベルが下がるだけ）。
 // 現行カードはすべて Lv1 を持つため値は Lv1 のコア数と一致するが、Lv3 から始まるカード
 // （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
-// 旧名 minLevelCores（2026-07-26 改名。挙動は不変）
+// 旧名 lv1Cores（2026-07-26 改名。挙動は不変）
 export function minLevelCores(card: CardData): number {
     const min = card.levels.reduce<{ level: number; cores: number } | null>(
         (best, l) => (best === null || l.level < best.level ? l : best),
