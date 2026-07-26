@@ -147,7 +147,9 @@ function renderPool(): void {
 
     for (const card of visible) {
         const el = document.createElement("div")
-        el.className = `pool-card color-${card.colors[0]}`
+        el.className = "pool-card"
+        el.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
+        el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
 
         // コストバッジ
@@ -386,7 +388,9 @@ function renderDeck(): void {
     for (const [cardId, count] of entries) {
         const card = master(cardId)
         const row = document.createElement("div")
-        row.className = `deck-row color-${card.colors[0]}`
+        row.className = "deck-row"
+        row.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
+        row.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
 
         const cost = document.createElement("span")
         cost.className = "row-cost"
