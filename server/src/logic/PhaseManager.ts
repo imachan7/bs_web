@@ -166,6 +166,8 @@ export function endTurn(state: GameState): void {
     state.ignoreUnblockableThisTurn = []
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
+    // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
+    state.millCountThisTurn = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

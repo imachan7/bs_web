@@ -200,7 +200,7 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
             state,
             `${getCard(target.cardId).name}にリザーブからコア${amount}個を置いた。`,
         )
-        placeCoresOnSpirit(state, target, amount)
+        placeCoresOnSpirit(state, target, amount, owner)
         return
 }
 
@@ -242,7 +242,7 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
             state,
             `${getCard(self.cardId).name}は、ボイドからコア${action.count}個を自身の上に置いた。`,
         )
-        placeCoresOnSpirit(state, self, action.count)
+        placeCoresOnSpirit(state, self, action.count, owner)
         return
 }
 
@@ -292,7 +292,7 @@ const voidCoreToOtherHandler: ActionHandler<"voidCoreToOther"> = (ctx, action) =
             state,
             `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
         )
-        placeCoresOnSpirit(state, target, action.count)
+        placeCoresOnSpirit(state, target, action.count, owner)
         return
 }
 
@@ -500,7 +500,7 @@ const trashCoresToSpiritHandler: ActionHandler<"trashCoresToSpirit"> = (ctx, act
             state,
             `${player.name}はトラッシュのコア${amount}個を${getCard(target.cardId).name}の上に置いた。`,
         )
-        placeCoresOnSpirit(state, target, amount)
+        placeCoresOnSpirit(state, target, amount, owner)
         return
 }
 
@@ -542,7 +542,7 @@ const trashCoresToKeywordSpiritHandler: ActionHandler<"trashCoresToKeywordSpirit
         }
         const amount = player.trashCores
         player.trashCores = 0
-        placeCoresOnSpirit(state, target, amount)
+        placeCoresOnSpirit(state, target, amount, owner)
         log(state, `${player.name}はトラッシュのコア${amount}個を${getCard(target.cardId).name}に置いた。`)
         return
 }
@@ -673,7 +673,7 @@ const voidCoreToAllOwnByFamilyHandler: ActionHandler<"voidCoreToAllOwnByFamily">
             return
         }
         for (const target of candidates) {
-            placeCoresOnSpirit(state, target, action.count)
+            placeCoresOnSpirit(state, target, action.count, owner)
         }
         log(
             state,
@@ -713,14 +713,14 @@ const voidCoreToOwnNexusesHandler: ActionHandler<"voidCoreToOwnNexuses"> = (ctx,
                 // 自動時はコアが最も少ないネクサス（レベルアップにつながりやすい方）を選ぶ
                 target = nexuses.reduce((best, n) => (n.cores < best.cores ? n : best))
             }
-            placeCoresOnSpirit(state, target, action.count)
+            placeCoresOnSpirit(state, target, action.count, owner)
             log(
                 state,
                 `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
             )
             return
         }
-        for (const n of nexuses) placeCoresOnSpirit(state, n, action.count)
+        for (const n of nexuses) placeCoresOnSpirit(state, n, action.count, owner)
         log(
             state,
             `${sourceName}：ボイドからコア${action.count}個ずつを${nexuses.length}枚のネクサスの上に置いた。`,
@@ -748,7 +748,7 @@ const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action)
             state,
             `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
         )
-        placeCoresOnSpirit(state, target, action.count)
+        placeCoresOnSpirit(state, target, action.count, owner)
         return
 }
 
@@ -943,7 +943,7 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
         }
         const moveCount = Math.min(coreCount, player.reserve)
         player.reserve -= moveCount
-        placeCoresOnSpirit(state, target, moveCount)
+        placeCoresOnSpirit(state, target, moveCount, owner)
         log(
             state,
             `${sourceName}：リザーブのコア${moveCount}個を${getCard(target.cardId).name}へ移した。`,
@@ -961,7 +961,7 @@ const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
         }
-        for (const t of targets) placeCoresOnSpirit(state, t, action.count)
+        for (const t of targets) placeCoresOnSpirit(state, t, action.count, owner)
         log(
             state,
             `${sourceName}：ボイドからコア${action.count}個ずつを【${KEYWORDS[action.keyword].label}】を持つ${targets.length}体の上に置いた。`,

@@ -206,8 +206,8 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         }
         const pickIndex = revealed.findIndex(
             (id) =>
-                action.pickType === undefined ||
-                getCard(id).type === action.pickType,
+                (action.pickType === undefined || getCard(id).type === action.pickType) &&
+                (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes)),
         )
         if (pickIndex === -1) {
             log(
@@ -223,8 +223,16 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             )
             notifyHandGained(state, owner, 1)
         }
-        // 残ったカードは公開順のまま山札の下に戻す（下に戻す＝push）
-        for (const id of revealed) player.deck.push(id)
+        // 残ったカードの処理：discardNonMatching指定時はトラッシュへ破棄（BS05天焦がす大聖火）、
+        // それ以外は公開順のまま山札の下に戻す（下に戻す＝push）
+        if (action.discardNonMatching) {
+            for (const id of revealed) player.trashCards.push(id)
+            if (revealed.length > 0) {
+                log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+            }
+        } else {
+            for (const id of revealed) player.deck.push(id)
+        }
         return
 }
 

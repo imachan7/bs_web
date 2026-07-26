@@ -23927,7 +23927,34 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nコスト8以上の自分のスピリットすべてに“【装甲：紫/緑/白/黄/青】このスピリットは、相手の紫/緑/白/黄/青のスピリット/ネクサス/マジックの効果を受けない”を与える。\nLv2\n自分のデッキは、相手のスピリット/ネクサス/マジックの効果では、ターンに5枚までしか破棄されない。",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS04-082-e1",
+        "kind": "keywordGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "keyword": "armor",
+        "target": "ownAll",
+        "costFilter": { "min": 8 },
+        "colors": [
+          "purple",
+          "green",
+          "white",
+          "yellow",
+          "blue"
+        ]
+      },
+      {
+        "id": "BS04-082-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": { "type": "millCap", "maxCount": 5, "perTurn": true }
+      }
+    ],
     "limitCount": 1
   },
   {
@@ -27273,7 +27300,33 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべては、相手のマジックの効果を受けない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-034-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": { "type": "tenshoCoreSubstitute" }
+      },
+      {
+        "id": "BS05-034-e2",
+        "kind": "immunityGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "familyFilter": [
+          "龍帝",
+          "虚神"
+        ],
+        "includeSelf": true,
+        "against": "magic"
+      }
+    ]
   },
   {
     "cardId": "BS05-035",
@@ -27849,7 +27902,21 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\n自分のフィールドにコスト2のスピリットが3体以上いる間、自分の黄のスピリットすべては、相手のマジックの効果を受けない。\nLv3\nこのスピリットは相手のスピリットすべての『このスピリットの召喚時』効果を受けない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-044-e1",
+        "kind": "immunityGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "colorFilter": "yellow",
+        "against": "magic",
+        "condition": { "ownCostCountAtLeast": { "cost": 2, "count": 3 } }
+      }
+    ]
   },
   {
     "cardId": "BS05-045",
@@ -28703,7 +28770,19 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\nバトルをしているお互いのスピリット上に置いてあるコアは取り除くことができない。\nLv2『自分のアタックステップ』\nバトルをしているお互いのスピリットは、お互いのスピリット/マジックの効果を受けない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-060-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": { "type": "battlingCoresProtected" },
+        "phase": "attack",
+        "turn": "own"
+      }
+    ]
   },
   {
     "cardId": "BS05-061",
@@ -29011,7 +29090,27 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n自分の青のスピリットがアタックしたとき、自分のデッキを上から1枚オープンできる。\nそのカードがカード名に「巨人」と入っているスピリットカードのとき手札に加える。\n他のカードのときは破棄する。\nLv2『自分のアタックステップ』\nカード名に「巨人」と入っている自分のスピリットすべては、アタックするときコスト5以上の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-066-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "colorFilter": "blue",
+        "action": {
+          "type": "deckReveal",
+          "count": 1,
+          "pickType": "spirit",
+          "nameIncludes": "巨人",
+          "discardNonMatching": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS05-067",
@@ -29200,7 +29299,22 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、相手のスピリットすべては、スピリット/ネクサス/マジックの効果で、コアを置く、または取り除くと疲労する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS05-072-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "mainForbidden": true,
+        "action": { "type": "lendSelfThisTurn" }
+      },
+      {
+        "id": "BS05-072-e2",
+        "kind": "exhaustOnManualCoreAdd",
+        "levels": null,
+        "trigger": "effect",
+        "onRemove": true
+      }
+    ]
   },
   {
     "cardId": "BS05-073",

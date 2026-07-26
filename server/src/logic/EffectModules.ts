@@ -183,6 +183,90 @@ function millCapFor(state: GameState, pid: PlayerId): number {
     return cap
 }
 
+// globalConstraint "millCap" の perTurn:true 版（BS04侵されざる聖域Lv2）：pidのデッキが
+// 相手の効果によって「このターンあと何枚まで」破棄可能かを返す（state.millCountThisTurnで累計管理。
+// 無ければInfinity）。millCapForは1回のミル呼び出しあたりの上限（perTurn省略時）を返す既存の判定で、
+// 両者は独立に適用する（perTurn:trueのエントリはmillCapForの対象にもなるため、1回のミルでも
+// ターン上限を超える枚数は自動的に制限される）
+function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number {
+    let remaining = Infinity
+    const usedSoFar = state.millCountThisTurn[pid] ?? 0
+    const sources = effectSources(state, pid)
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "millCap") continue
+            if (!effect.constraint.perTurn) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
+        }
+    }
+    return Math.max(remaining, 0)
+}
+
+// バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
+// 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
+// phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
+function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
+    if (!state.battle) return false
+    if (
+        inst.instanceId !== state.battle.attackerInstanceId &&
+        inst.instanceId !== state.battle.blockerInstanceId
+    ) {
+        return false
+    }
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+        for (const source of sources) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "battlingCoresProtected") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
+// 発生源（レベル有効。effectSources経由でlendSelfThisTurnの貸与も対応）があれば、
+// そのスピリットを疲労させる。
+// opts省略時（従来のmoveCore/awaken呼び出し）＝手動操作かつ増加時のみ、持ち主の相手のメインステップ限定
+// （夢魔の寝所）。opts.viaEffect:true＝効果（EffectAction）による増減時に判定し、フェーズ不問
+// （BS05アブソーブシンボル。isRemoval:trueの減少側はeffect.onRemoveがある場合のみ反応する）
+export function checkExhaustOnCoreChange(
+    state: GameState,
+    affectedPid: PlayerId,
+    affectedInst: CardInstance,
+    opts: { viaEffect: boolean; isRemoval: boolean } = { viaEffect: false, isRemoval: false },
+): void {
+    if (affectedInst.isRested) return
+    if (!opts.viaEffect && state.phase !== "main") return
+    const sourcePid = opponentOf(affectedPid)
+    for (const source of effectSources(state, sourcePid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "exhaustOnManualCoreAdd") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            const wantsEffect = effect.trigger === "effect"
+            if (wantsEffect !== opts.viaEffect) continue
+            if (opts.viaEffect && opts.isRemoval && !effect.onRemove) continue
+            affectedInst.isRested = true
+            log(
+                state,
+                `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
+            )
+            return
+        }
+    }
+}
+
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 // デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）。
 // actorPid（このミルを引き起こした実行者）を渡すと、actorPid !== pid（相手の効果による）のときのみ
@@ -193,6 +277,8 @@ export function millDeck(state: GameState, pid: PlayerId, count: number, actorPi
     let effectiveCount = count
     if (actorPid !== undefined && actorPid !== pid) {
         effectiveCount = Math.min(effectiveCount, millCapFor(state, pid))
+        // ターン累計の上限（BS04侵されざる聖域Lv2：ターンに5枚まで）
+        effectiveCount = Math.min(effectiveCount, millCapPerTurnRemaining(state, pid))
     }
     const player = state.players[pid]
     const actual = Math.min(effectiveCount, player.deck.length)
@@ -202,6 +288,9 @@ export function millDeck(state: GameState, pid: PlayerId, count: number, actorPi
         player.trashCards.push(cardId)
     }
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
+    if (actorPid !== undefined && actorPid !== pid && actual > 0) {
+        state.millCountThisTurn[pid] = (state.millCountThisTurn[pid] ?? 0) + actual
+    }
     // 「相手のデッキを一度に◯枚以上破棄したとき」（アリゲイド）：破棄された側の相手のフィールドから発火する。
     // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する
     if (actual > 0 && !state.winner) {
@@ -351,6 +440,13 @@ export function dumpAllCoresTensho(
     inst: CardInstance,
     dest: "trash" | "void",
 ): void {
+    // constraint "tenshoCoreSubstitute"（BS05白亜の竜使いアルブス）：疲労していなければ、
+    // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）
+    if (!inst.isRested && activeConstraints(state, ownerPid, inst).some((c) => c.type === "tenshoCoreSubstitute")) {
+        inst.isRested = true
+        log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
+        return
+    }
     const player = state.players[ownerPid]
     const count = inst.cores
     inst.cores = 0
@@ -513,10 +609,12 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
 }
 
 // 対象スピリットへ「効果で」コアを置く共通処理。coreBonus（グラーバ）ぶんをボイドから追加する。
+// ownerPid: inst の持ち主（checkExhaustOnCoreChange のviaEffect判定に使う。BS05アブソーブシンボル）
 export function placeCoresOnSpirit(
     state: GameState,
     inst: CardInstance,
     baseCount: number,
+    ownerPid: PlayerId,
 ): void {
     inst.cores += baseCount
     const bonus = coreBonusFor(inst)
@@ -527,6 +625,7 @@ export function placeCoresOnSpirit(
             `${getCard(inst.cardId).name}の効果で、置かれるコアが${bonus}個追加された。`,
         )
     }
+    checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: false })
 }
 
 // フィールド発生源から全スピリット／全ネクサスに効くグローバル制約（kind: "globalConstraint"）が
@@ -578,6 +677,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.familyFilter && !spiritHasFamily(state, pid, spirit, effect.familyFilter)) continue
                         if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (effect.costFilter && !matchesCostFilter(getCard(spirit.cardId).cost, effect.costFilter)) continue
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
@@ -1019,6 +1119,10 @@ export function removeCores(
     count: number,
     actorPid?: PlayerId,
 ): void {
+    if (isBattlingCoreProtected(state, inst)) {
+        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
+        return
+    }
     const player = state.players[ownerPid]
     const removed = Math.min(count, inst.cores)
     inst.cores -= removed
@@ -1027,6 +1131,7 @@ export function removeCores(
         state,
         `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
     )
+    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
@@ -1045,6 +1150,10 @@ export function removeCoresToTrash(
     count: number,
     actorPid?: PlayerId,
 ): void {
+    if (isBattlingCoreProtected(state, inst)) {
+        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
+        return
+    }
     const player = state.players[ownerPid]
     const removed = Math.min(count, inst.cores)
     inst.cores -= removed
@@ -1053,6 +1162,7 @@ export function removeCoresToTrash(
         state,
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をトラッシュに置いた。`,
     )
+    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
@@ -1070,6 +1180,10 @@ export function removeCoresToVoid(
     count: number,
     actorPid?: PlayerId,
 ): void {
+    if (isBattlingCoreProtected(state, inst)) {
+        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
+        return
+    }
     const player = state.players[ownerPid]
     const removed = Math.min(count, inst.cores)
     inst.cores -= removed
@@ -1077,6 +1191,7 @@ export function removeCoresToVoid(
         state,
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をボイドに置いた。`,
     )
+    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < minLevelCores(getCard(inst.cardId))) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }

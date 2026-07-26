@@ -594,11 +594,18 @@ export function hasMagicImmunity(
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== "magic") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (
-                effect.familyFilter &&
-                !card(inst.cardId).family.includes(effect.familyFilter)
-            ) {
-                continue
+            // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
+            // （BS05白亜の竜使いアルブス：自身は対象系統を持たないが対象に含む）
+            if (effect.familyFilter !== undefined) {
+                const familyOk = matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
+                const selfOk = effect.includeSelf === true && inst.instanceId === source.instanceId
+                if (!familyOk && !selfOk) continue
+            }
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            if (effect.condition) {
+                const { cost, count } = effect.condition.ownCostCountAtLeast
+                const matchCount = player.field.spirits.filter((s) => card(s.cardId).cost === cost).length
+                if (matchCount < count) continue
             }
             return true
         }
