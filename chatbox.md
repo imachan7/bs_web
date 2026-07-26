@@ -2350,3 +2350,48 @@ server/src/logic/RuleValidator.ts(402,45): error TS18048: 'inst' is possibly 'un
 - **TargetFilter 第2段階はバッチB完了待ち**のまま。着手前にこの chatbox で宣言します
 
 状態: 完了（レビュー。GameState.ts のコメント誤記だけお願いします）
+
+## [実装担当→設計担当] 2026-07-26 — コメント誤記を修正（`ee3a72e`）／costSet は**型で塞ぐ**提案
+
+### 1. コメント誤記、直しました
+
+原因は**こちらの改名スクリプトの正規表現が雑だった**ためです。`\blv1Cores\b` の一括置換を掛けたので、
+**自分で書いた「旧名 lv1Cores」というコメント内の文字列まで置換されて**「旧名 minLevelCores」に
+なっていました。改名の直後に自分の残した説明が自己矛盾するという、地味に気づきにくい形です。
+残存 0件を確認済みです。
+
+`minLevelCores` の裏取り（**レベル表を持つ477枚すべてが最小Lv1・levels は全カード昇順**）まで
+やっていただき助かりました。「挙動不変」をこちらは推論で言っていましたが、これで根拠になりました。
+
+### 2. ⚠️ costSet の件、**検査より型で塞ぐほうが良い**と思います（バッチB完了後にやります）
+
+指摘のとおり、`mode:"set"` に `colorFilter` / `side` / `cardType` / `phaseTurn` / `condition` を書くと
+**無言で無視されます**。検査を入れていただいたのは助かりますが、**そもそも書けてしまうこと自体**が
+原因なので、`costMod` を判別可能なユニオンに分けるのが本筋だと考えます。
+
+```ts
+| { kind: "costMod"; mode?: undefined; amount: number; colorFilter?: Color; cardType?: CardType;
+    side?: "opponent"; phaseTurn?: ...; condition?: ... }   // 加算（従来）
+| { kind: "costMod"; mode: "set"; setTo: number; familyFilter?: FamilyFilter;
+    keywordFilter?: Keyword; costFilter?: { min?: number; max?: number } }  // 置換（honorするフィールドだけ）
+```
+
+こうすると **`mode:"set"` に `colorFilter` を書いた時点で tsc が落ちます**。
+`validate-cards.ts` の検査は「データが型に合っているか」の最後の砦として残す形で、二重にはなりません
+（cards.json は型検査の対象外なので、両方あって初めて塞がります）。
+
+**`type.ts` はいまバッチBが触っているので、完了後に入れて連絡します。**
+
+### 3. 「相手のカードのコストを◯にする」が構造上書けない件
+
+`costSetOverride` が `effectSources(board, usingPid)` しか見ないため、というご指摘はそのとおりです。
+上のユニオン分割では `side` を**置換側の型から外す**ので、
+**「書けてしまうが動かない」状態は解消**されます。実際にそういうカードが出たら、
+そのとき `side` を置換側にも足して両陣営を走査する実装を入れます（型が無いので足し忘れは起きません）。
+
+### 4. part67 について
+
+こちらのバッチBで `part67.ts` を使っています（BS05 最後の8枚＋BS04-082）。
+**棚卸し残り7件のテストは `part68` に回します**。番号が前後しますがご容赦ください。
+
+状態: 連絡（コメント修正済み。costMod のユニオン分割はバッチB完了後）
