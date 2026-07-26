@@ -277,28 +277,9 @@ input[type="text"] {
     gap: 4px;
 }
 
-.pool-card.color-red {
-    border-color: #d4564a;
-}
-
-.pool-card.color-purple {
-    border-color: #9a4ad4;
-}
-
-.pool-card.color-green {
-    border-color: #4ad45e;
-}
-
-.pool-card.color-white {
-    border-color: #d8dcef;
-}
-
-.pool-card.color-yellow {
-    border-color: #e8cf4a;
-}
-
-.pool-card.color-blue {
-    border-color: #4a6cd4;
+.pool-card {
+    border-color: transparent;
+    border-image: linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) 1;
 }
 
 .pool-card.limited {
@@ -498,28 +479,9 @@ input[type="text"] {
     background: #2c3044;
 }
 
-.deck-row.color-red {
-    border-left-color: #d4564a;
-}
-
-.deck-row.color-purple {
-    border-left-color: #9a4ad4;
-}
-
-.deck-row.color-green {
-    border-left-color: #4ad45e;
-}
-
-.deck-row.color-white {
-    border-left-color: #d8dcef;
-}
-
-.deck-row.color-yellow {
-    border-left-color: #e8cf4a;
-}
-
-.deck-row.color-blue {
-    border-left-color: #4a6cd4;
+.deck-row {
+    border-left-color: transparent;
+    border-image: linear-gradient(to bottom, var(--c-main, #333), var(--c-sub, #333)) 1 0 0 1;
 }
 
 .row-cost {

@@ -549,7 +549,9 @@ function fieldCardEl(
         : undefined
 
     const el = document.createElement("div")
-    el.className = `card color-${m.colors[0]}`
+    el.className = "card"
+    el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+    el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
     if (inst.isRested) el.classList.add("rested")
     el.dataset.instanceId = inst.instanceId
     el.dataset.cardId = inst.cardId
@@ -845,7 +847,9 @@ function renderHand(view: GameView, ui: UiState): void {
         }
 
         const el = document.createElement("div")
-        el.className = `card color-${m.colors[0]}`
+        el.className = "card"
+        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         el.dataset.handIndex = String(activeIndex)
         el.dataset.cardId = cardId
         if (usable) el.classList.add("usable", "clickable")

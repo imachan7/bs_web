@@ -50,7 +50,9 @@ function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
     groupedTrash.forEach((count, cardId) => {
         const m = master(cardId)
         const el = document.createElement("div")
-        el.className = `card color-${m.colors[0]}`
+        el.className = "card"
+        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         const name = document.createElement("div")
         name.className = "name"
         name.textContent = m.name
@@ -83,7 +85,9 @@ function renderTegamotoPanel(view: GameView, tab: "mine" | "opp"): void {
     tegamoto.forEach((cardId, index) => {
         const m = master(cardId)
         const el = document.createElement("div")
-        el.className = `card color-${m.colors[0]}`
+        el.className = "card"
+        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         
         const name = document.createElement("div")
         name.className = "name"
