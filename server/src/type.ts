@@ -470,22 +470,32 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "costMod" // 加算：軽減後コストに amount を足す（ルビーの太陽：白のカード全体+1）
+          levels: number[] | null
+          mode?: undefined // 置換は下の mode:"set" 側の枝。ここで set を書けないようにして両者を排他にする
+          amount: number // 軽減後コストに加算する量
+          colorFilter?: Color // 対象カードの色（省略時は色不問。発生源・対象カードの持ち主は問わない＝両陣営に効く）
+          cardType?: CardType // 対象カードの種別（省略時は種別不問。螺旋の塔：マジック限定）
+          side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 発生源の持ち主基準のステップ・turn条件（螺旋の塔）
+          condition?: { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統がcount体以上（BS04魔力満ちる泉）
+      }
+    | {
+          id: string
+          // 置換：使用コストを setTo にする（BS05パントマイスター＝手札の系統「氷姫」を5に／
+          // ゴッドスピード＝手札の【神速】コスト6以上を4に）。effectiveCost は「置換 → costMod加算」の順で
+          // 適用し、置換が効くときは軽減シンボルを一切適用しない（原文「コストを◯にする」の値をそのまま使う）。
+          // **加算側のフィールド（colorFilter / cardType / side / phaseTurn / condition）はここには書けない**。
+          // costSetOverride が読まないため、書けてしまうと絞り込みが無言で無視される（型で塞いである）。
+          // また costSetOverride は effectSources(board, usingPid)＝自分の発生源しか見ないため、
+          // 「相手のカードのコストを◯にする」は構造上表現できない（必要になったら side をこの枝に足す）
           kind: "costMod"
           levels: number[] | null
-          mode?: "set" // 指定時は加算でなく「使用コストをamountにする」置換（BS05パントマイスター＝手札の系統「氷姫」／
-          // ゴッドスピード＝手札の【神速】コスト6以上を4に。effectiveCostが軽減シンボル計算より先に適用し、
-          // 置換後は軽減を適用しない＝原文「コストを◯にする」の値をそのまま使う）。familyFilter/keywordFilter/costFilterで
-          // 対象の手札カードを絞る（colorFilter/cardType/sideはmode省略時＝加算専用）。
-          // costModTotal（両陣営走査の加算合計）はmode:"set"エントリを読み飛ばす（costSetOverride側が別途処理）
-          familyFilter?: FamilyFilter // mode:"set"用：対象カードが持つ系統（カード静的familyのみ。配列＝OR。BS05パントマイスター＝氷姫）
-          keywordFilter?: Keyword // mode:"set"用：対象カードが静的に持つキーワード（hasKeywordで判定。BS05ゴッドスピード＝神速）
-          costFilter?: { max?: number; min?: number } // mode:"set"用：対象カードの元コストの範囲（BS05ゴッドスピード：6以上）
-          colorFilter?: Color // このコスト修正が効く、使用されるカードの色（省略時は色不問。発生源の持ち主・対象カードの持ち主は問わない＝両陣営に効く）
-          cardType?: CardType // 対象カードの種別（省略時は種別不問。螺旋の塔：マジック限定）
-          side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用（省略時は両陣営に適用＝従来通り）
-          amount: number // mode省略時：軽減後コストに加算する量（ルビーの太陽：白のカード全体+1）。mode:"set"時：置換後のコスト値
-          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効（螺旋の塔：自分のアタックステップ）
-          condition?: { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ有効（BS04魔力満ちる泉＝四道3体以上）
+          mode: "set"
+          setTo: number // 置換後のコスト値（旧 amount。2026-07-26 改名。「+5」と読み違えないため）
+          familyFilter?: FamilyFilter // 対象カードが持つ系統（カード静的 family のみ。配列＝OR。パントマイスター＝氷姫）
+          keywordFilter?: Keyword // 対象カードが静的に持つキーワード（hasKeyword で判定。ゴッドスピード＝神速）
+          costFilter?: { max?: number; min?: number } // 対象カードの元コストの範囲（ゴッドスピード：6以上）
       }
     | {
           id: string

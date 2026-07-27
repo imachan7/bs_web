@@ -185,7 +185,8 @@ export function costSetOverride(
             }
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
             if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
-            if (result === undefined || effect.amount < result) result = effect.amount
+            // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
+            if (result === undefined || effect.setTo < result) result = effect.setTo
         }
     }
     return result
