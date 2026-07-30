@@ -7,6 +7,7 @@ import {
     countEffectCounter,
     drawDoubleMultiplier,
     findSpiritAny,
+    isImmuneToArea,
     millDeck,
     notifyHandGained,
     pickEnemyByBp,
@@ -462,7 +463,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 const cost = getCard(s.cardId).cost
                 if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
                 if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)))) return false
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
                 return true
             })
             for (const s of targets) {
