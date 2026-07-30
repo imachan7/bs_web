@@ -14,6 +14,7 @@
         "smoke": "tsx scripts/smoke.ts",
         "smoke:quiet": "tsx scripts/smoke.ts --quiet",
         "validate:cards": "tsx scripts/validate-cards.ts",
+        "validate:notes": "tsx scripts/validate-card-notes.ts",
         "coverage:effects": "tsx scripts/coverage-effects.ts"
     },
     "engines": {
