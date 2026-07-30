@@ -299,6 +299,17 @@ process.on("exit", () => {
             )
         }
 
+        // (4.5) keywordGrant（装甲）は shared/ の hasContinuousKeywordGrant を通らない。
+        //     refreshLevelAsOverrides が CardInstance.armorColorsGranted へ毎回再計算して
+        //     materialize する別経路なので、そこにも計測点を入れる（片方だけだと
+        //     「侵されざる聖域／白夜の虚空の装甲付与が一度も適用されていない」という誤検出が出る）
+        patch(
+            path.join(tree, "server/src/logic/EffectModules.ts"),
+            `                        if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
+        )
+
         // (5) EffectModules 側で __covRecord を使うための import 追記
         patch(
             path.join(tree, "server/src/logic/EffectModules.ts"),
