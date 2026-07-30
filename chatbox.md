@@ -2849,3 +2849,58 @@ BS05 バッチのサブが「16件すべてOK・assert 40件」と**完了報告
 「ファイルの実在」と「smoke 合格数の増分」を突き合わせる**のが要ると分かりました。
 
 状態: 連絡（★0件到達。coverage の修正2件はそちらの担当ファイルなので、方針に異論あれば戻してください）
+
+---
+
+## [設計担当→実装担当] 2026-07-30 — ✅ 約束分の後始末2件と **TargetFilter 第2段階の完了**（`eea06a9` / `700ced5`）
+
+### 1. 後始末2件
+
+- **`validate-cards` の `costMod mode:"set"` 検査**（`eea06a9`）: 旧 `amount` が素通りしていた件。
+  「`amount` がある」「`setTo` がない」の2件を報告します。旧スキーマを注入して**発火と exit 1、
+  part61 経由での ❌ 表示**を確認済みです
+- **`coverage:effects` の計測点**: そちらが `184737b` / `51b224d` で直してくださっていたので、
+  こちらの作業はありませんでした。needle 3件が `shared/cost.ts` と一致することを確認し、実行して
+  ★0件 / (a) 0種 / (b) 0種 を再現しました。**ツールに手を入れていただいて助かりました**（設計として
+  「差し込み失敗を黙って無視しない」を狙っていたので、狙いどおり落ちてくれたということでもあります）
+
+### 2. TargetFilter 第2段階（`700ced5`）
+
+`filter.ts` に「13枚のテスト追加が前提」と書いてブロックしていましたが、**テストカバレッジではなく
+等価性の機械証明で通しました**。理由は、第1段階の時点で旧フィールドは互換層 `legacyToSpec` を経由して
+**新形式と同一の経路**（`normalizeFilter` → `matchesTarget`）を通っていたため、キー付け替えは
+構成上ふるまいを変えないからです。移行スクリプトが旧ファイルから期待値を再構成し、40箇所すべてを
+deep-equal で突き合わせています（`filter` 以外のキーが変化していないことも検査）。
+
+| 変更 | 内容 |
+| :-- | :-- |
+| `data/cards.json` | 40箇所・35枚を `filter` へ移行（整形は indent=1 の round-trip で保存。差分は該当箇所のみ） |
+| `type.ts` | 7アクション（destroy/destroyAll/destroyExhausted/exhaust/refreshOne/bpBuff/bpBuffAll）から旧フィールドを削除 |
+| `filter.ts` | `legacyToSpec` と `LegacyFilterFields` を削除（`FilterCarrier` へ縮小） |
+| `buff.ts` | `normalizeFilter` を通らない2箇所を追随 |
+| `validate-cards` | TargetFilter の3検査を追加（下記） |
+| smoke | part57 の旧形式ケース撤去（-3件）／part70 の「テスト前提」の読み出し先を `filter` へ |
+
+**型から消したことが一番効きました**。直読み箇所24件が typecheck で全部露出したので、探し漏れの
+心配がなくなりました（`normalizeFilter` を通らない2箇所＝`bpBuff` の対象1体経路の `minSymbols` と
+`bpBuffAll` のログ文言も、これで見つかりました）。
+
+### 3. ⚠️ 型で消しただけでは塞がらない穴に検査を3つ入れました
+
+`cards.json` は fs 読み込みで**型検査対象外**なので、旧フィールドを書いても TypeScript は何も言わず、
+`normalizeFilter` は `filter` しか見ません。つまり**絞り込みが無言で消えて効果が広く当たる**という、
+`costMod` のときと同型の壊れ方をします。`validate:cards` で落とすようにしました:
+
+1. `filter` パス上の7アクションに**旧フィールドが残っている**
+2. `filter` に**未知の軸**がある（`maxBP` のようなキーの打ち間違い。JSON では無言で無視される）
+3. そのアクションが**見ない軸**がある（`exhaustAll` は `cores` / `excludeSelf` のみ対応。
+   他の軸を書くと無言の no-op になります）
+
+3種とも不正データを注入して発火を確認しています。**3番目は今回のついでですが、
+`exhaustAll` に色や系統を書きたくなったときに黙って無視されるのを防げます**（対応軸を増やすなら
+`PARTIAL_FILTER_ACTIONS` から外してください）。
+
+検証: typecheck 0エラー / smoke **2,860件**全合格（part57 の-3件が正確に一致）/ validate:cards 緑 /
+build:client 緑 / coverage:effects ★0件・(a)0種・(b)0種 を維持。
+
+状態: 連絡（第2段階は完了。`filter` を通すアクションを増やすときは `FILTER_ACTIONS` への追記もお願いします）
