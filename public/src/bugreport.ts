@@ -18,13 +18,30 @@ function initBugReport() {
         resultDiv.className = ""
         resultDiv.style.display = "none"
 
+        let gameId = undefined
+        let you = undefined
+        let clientContext = undefined
+        try {
+            const contextStr = localStorage.getItem("bs_bug_report_context")
+            if (contextStr) {
+                const context = JSON.parse(contextStr)
+                gameId = context.gameId
+                you = context.you
+                clientContext = context.clientContext
+                // Remove so we don't accidentally send it for unrelated future reports
+                localStorage.removeItem("bs_bug_report_context")
+            }
+        } catch (e) {
+            console.error("Failed to parse bug report context", e)
+        }
+
         try {
             const response = await fetch("/api/bug-report", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ category, summary, detail, contact }),
+                body: JSON.stringify({ category, summary, detail, contact, gameId, you, clientContext }),
             })
 
             const data = await response.json()
