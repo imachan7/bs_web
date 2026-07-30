@@ -873,10 +873,35 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 | `npm run smoke:quiet` | 失敗と集計のみ表示（全 ✅ 行を出さない。委譲時はこちらを使わせる） |
 | データ取り込みの検証 | `python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify` |
 
-smoke テストの本体は `scripts/smoke/part1〜58.ts` に分割（`scripts/smoke.ts` はランナー、
+| `npm run validate:cards` | cards.json の構造検査（型検査では止まらないデータ誤りの本体。costMod mode:"set" の setTo 必須など） |
+| `npm run coverage:effects` | **実行時カバレッジ**。HEAD の使い捨て worktree に計測コードを差し込んで smoke を回し、どの効果エントリが実際に適用されたかを数える（`--all` で ★一覧を全件表示） |
+
+smoke テストの本体は `scripts/smoke/part1〜74.ts` に分割（`scripts/smoke.ts` はランナー、
 共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
 テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
-現在の合格数は **2,194件**（part57＝TargetFilter 直交化の回帰、part58＝多色カード対応の回帰）。
+現在の合格数は **2,863件**（part57＝TargetFilter 直交化、part58＝多色カード対応、
+part68＝カードデータ経由で未検証だった action 13種、part69/part73/part74＝
+「場に出ているのに発火していない効果」48件の回帰）。
+
+### 実行時カバレッジの読み方（2026-07-30 時点）
+
+`coverage:effects` は3つの指標を出す。**★が最重要**で、「カードは場に出ているのに
+その効果行だけ一度も適用されていない＝通っているつもりで通っていない」を指す。
+
+| 指標 | 現在値 |
+| :-- | :-- |
+| ★ 場に出ているのに未適用 | **0件**（48件を part68/69/73/74 で解消） |
+| (a) 一度も実行されていない action.type | 0種 |
+| (b) 手で組んだ action でしか実行されていない（カードデータ経由が未検証） | 0種 |
+| action を持つ効果の実行率 | 299/443（67.5%） |
+| 継続効果（計測対応済み）の実行率 | 99/117（84.6%） |
+| 継続効果（未計測の kind） | 121件 ※ keyword / globalConstraint / levelAs / effectGrant 等 |
+
+**⚠️ 計測点の追随が要る**: 走査点を増やす／改名するとカバレッジが誤検出になる。実例2件——
+`costMod` の `amount` → `setTo` 改名で計測スクリプトが起動時に落ちた（2026-07-30 修正）。
+装甲の `keywordGrant` は `hasContinuousKeywordGrant` を通らず
+`refreshLevelAsOverrides` が `armorColorsGranted` へ materialize する別経路のため、
+実際に効いているのに「未適用」と出ていた（同日、materialize 地点にも計測点を追加）。
 
 ---
 
