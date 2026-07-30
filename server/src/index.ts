@@ -4,9 +4,9 @@ import * as http from "node:http"
 import * as path from "node:path"
 import express from "express"
 import { Server, type Socket } from "socket.io"
-import type { DeckSpec, GameAction, PlayerId } from "./type"
+import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
 import { RoomManager, type Room } from "./roomManager"
-import { createGame, validateDeckCards, viewFor } from "./logic/GameState"
+import { createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
 import { DECK_RECIPES } from "../../data/constants"
@@ -43,6 +43,82 @@ function bugReportAllowed(ip: string): boolean {
     return true
 }
 
+// クライアントから送られた画面状況（任意）。長さを切り詰めて保存する
+function sanitizeClientContext(raw: unknown): Record<string, unknown> | undefined {
+    if (!raw || typeof raw !== "object") return undefined
+    const c = raw as Record<string, unknown>
+    const out: Record<string, unknown> = {}
+    if (typeof c.phase === "string") out.phase = c.phase.slice(0, 32)
+    if (typeof c.turn === "number" && Number.isFinite(c.turn)) out.turn = c.turn
+    if (typeof c.uiMode === "string") out.uiMode = c.uiMode.slice(0, 32)
+    if (typeof c.lastError === "string" && c.lastError !== "") out.lastError = c.lastError.slice(0, 300)
+    return Object.keys(out).length > 0 ? out : undefined
+}
+
+// スピリット／ネクサス1体を1行の文字列にする（"BS01-001 花丸ガンダーラ Lv2 コア3 疲労"）
+function describeInstance(inst: CardInstance): string {
+    let name = inst.cardId
+    try {
+        name = `${inst.cardId} ${getCard(inst.cardId).name}`
+    } catch {
+        // 未知の cardId（データ差し替え中など）は ID のみ
+    }
+    const parts = [name, `Lv${rawLevel(inst)}`, `コア${inst.cores}`]
+    if (inst.isRested) parts.push("疲労")
+    if (inst.tempBpBuff !== 0) parts.push(`BP${inst.tempBpBuff > 0 ? "+" : ""}${inst.tempBpBuff}`)
+    return parts.join(" ")
+}
+
+// cardId 配列を「ID 名前」の配列にする（手札・トラッシュ・手元）
+function describeCards(cardIds: string[]): string[] {
+    return cardIds.map((cardId) => {
+        try {
+            return `${cardId} ${getCard(cardId).name}`
+        } catch {
+            return cardId
+        }
+    })
+}
+
+// gameId から進行中の対戦を引いて、バグ調査に使う盤面サマリとログ末尾を作る。
+// 相手の手札・デッキも含める（サーバー内のみに保存する調査用データで、配信はしない）
+function buildGameAttachment(gameId: string): Record<string, unknown> | null {
+    const room = roomManager.findByGameId(gameId)
+    const state = room?.game
+    if (!state) return null
+    const players: Record<string, unknown> = {}
+    for (const pid of ["p1", "p2"] as const) {
+        const p = state.players[pid]
+        players[pid] = {
+            name: p.name,
+            life: p.life,
+            reserve: p.reserve,
+            trashCores: p.trashCores,
+            deckCount: p.deck.length,
+            hand: describeCards(p.hand),
+            spirits: p.field.spirits.map(describeInstance),
+            nexuses: p.field.nexuses.map(describeInstance),
+            tegamoto: describeCards(p.tegamoto),
+            trashCards: describeCards(p.trashCards.slice(-20)), // 全部は多すぎるので直近20枚
+        }
+    }
+    return {
+        gameId: state.gameId,
+        roomId: room.roomId,
+        turn: state.turn,
+        turnPlayer: state.turnPlayer,
+        phase: state.phase,
+        priorityPlayer: state.priorityPlayer,
+        isFlashTiming: state.isFlashTiming,
+        battle: state.battle,
+        pendingChoice: state.pendingChoice,
+        turnConstraints: state.turnConstraints,
+        winner: state.winner,
+        players,
+        logTail: state.log.slice(-200), // 全文ではなく末尾200行（jsonl 1行が肥大しすぎないように）
+    }
+}
+
 app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
     const ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "unknown").split(",")[0] ?? "unknown"
     if (!bugReportAllowed(ip)) {
@@ -70,6 +146,13 @@ app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
         res.status(400).json({ ok: false, error: "連絡先が長すぎます" })
         return
     }
+    // 対戦中からの報告（任意）。gameId が一致する対戦が生きていればサーバー側でログと盤面を添付する。
+    // 一致しない・すでに解散済みの場合は attachedGame を付けずに受理する（報告自体は失敗させない）
+    const gameId = String(body.gameId ?? "").slice(0, 100)
+    const you = body.you === "p1" || body.you === "p2" ? (body.you as PlayerId) : undefined
+    const clientContext = sanitizeClientContext(body.clientContext)
+    const attachedGame = gameId !== "" ? buildGameAttachment(gameId) : null
+
     const entry = {
         ts: new Date().toISOString(),
         category,
@@ -77,6 +160,11 @@ app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
         detail,
         contact: contact || undefined,
         ua: String(req.headers["user-agent"] ?? "").slice(0, 300),
+        gameId: gameId || undefined,
+        you,
+        clientContext,
+        attachedGame: attachedGame ?? undefined,
+        attachError: gameId !== "" && !attachedGame ? "該当する対戦が見つかりませんでした（終了済み・再起動後など）" : undefined,
     }
     try {
         fs.mkdirSync(BUG_REPORT_DIR, { recursive: true })
@@ -86,7 +174,7 @@ app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
         res.status(500).json({ ok: false, error: "保存に失敗しました。時間をおいて再送してください" })
         return
     }
-    console.log(`バグ報告を受信: [${category}] ${summary}`)
+    console.log(`バグ報告を受信: [${category}] ${summary}${attachedGame ? "（対戦ログ添付あり）" : ""}`)
     res.json({ ok: true })
 })
 

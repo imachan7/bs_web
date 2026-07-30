@@ -173,9 +173,9 @@ const __covEid = (e: unknown): string =>
     // costMod（置換 mode:"set"）: 採用値を決める時点
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `            if (result === undefined || effect.amount < result) result = effect.amount`,
+        `            if (result === undefined || effect.setTo < result) result = effect.setTo`,
         `            __covRec2C("cont\t" + __covEid2C(effect))
-            if (result === undefined || effect.amount < result) result = effect.amount`,
+            if (result === undefined || effect.setTo < result) result = effect.setTo`,
     )
     // reductionGrant: 軽減シンボルを実際に足す時点
     patch(
