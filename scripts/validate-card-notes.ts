@@ -27,7 +27,9 @@ interface CardLike {
 }
 
 const problems: string[] = []
-const add = (cardId: string, message: string): void => problems.push(`${cardId}: ${message}`)
+const add = (cardId: string, message: string): void => {
+    problems.push(`${cardId}: ${message}`)
+}
 
 const cards = JSON.parse(fs.readFileSync(CARDS_PATH, "utf-8")) as CardLike[]
 const byId = new Map(cards.map((c) => [c.cardId, c]))
