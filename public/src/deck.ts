@@ -59,6 +59,15 @@ interface SavedDeck {
     updatedAt: string
 }
 
+type NoteStatus = "unimplemented" | "partial" | "simplified"
+interface CardNote {
+    status: NoteStatus
+    note: string
+}
+let cardNotes: Record<string, CardNote> = {}
+const filterNotes = new Set<NoteStatus>()
+
+
 // ---- ユーティリティ ----
 
 function $(id: string): HTMLElement {
@@ -137,6 +146,12 @@ function passesFilter(card: CardData): boolean {
     }
     if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
     if (searchText !== "" && !card.name.includes(searchText)) return false
+    
+    if (filterNotes.size > 0) {
+        const note = cardNotes[card.cardId]
+        if (!note || !filterNotes.has(note.status)) return false
+    }
+
     return true
 }
 
@@ -151,6 +166,16 @@ function renderPool(): void {
         el.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
         el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
+
+        const note = cardNotes[card.cardId]
+        if (note) {
+            const noteBadge = document.createElement("span")
+            noteBadge.className = `note-badge ${note.status}`
+            if (note.status === "unimplemented") noteBadge.textContent = "未実装"
+            else if (note.status === "partial") noteBadge.textContent = "一部未実装"
+            else if (note.status === "simplified") noteBadge.textContent = "簡略化"
+            el.appendChild(noteBadge)
+        }
 
         // コストバッジ
         const costBadge = document.createElement("span")
@@ -283,6 +308,15 @@ function renderDetail(card: CardData): void {
     effect.className = "detail-effect"
     effect.textContent = card.effect !== "" ? card.effect : "（効果なし）"
     panel.appendChild(effect)
+
+    const note = cardNotes[card.cardId]
+    if (note) {
+        const noteEl = document.createElement("div")
+        noteEl.className = `detail-note ${note.status}`
+        const statusLabel = note.status === "unimplemented" ? "未実装" : note.status === "partial" ? "一部未実装" : "簡略化"
+        noteEl.textContent = `【${statusLabel}】 ${note.note}`
+        panel.appendChild(noteEl)
+    }
 }
 
 // ---- デッキ面 ----
@@ -401,6 +435,14 @@ function renderDeck(): void {
         name.className = "row-name"
         name.textContent = card.name
         row.appendChild(name)
+
+        const note = cardNotes[card.cardId]
+        if (note) {
+            const rowNote = document.createElement("span")
+            rowNote.className = `row-note ${note.status}`
+            rowNote.textContent = note.status === "unimplemented" ? "未" : note.status === "partial" ? "一部" : "簡"
+            row.appendChild(rowNote)
+        }
 
         const type = document.createElement("span")
         type.className = "row-type"
@@ -1025,6 +1067,16 @@ function renderAll(): void {
 }
 
 async function init(): Promise<void> {
+    try {
+        const notesRes = await fetch("/data/card-notes.json")
+        if (notesRes.ok) {
+            const data = await notesRes.json()
+            cardNotes = data.notes ?? {}
+        }
+    } catch (e) {
+        console.warn("Failed to fetch card-notes.json", e)
+    }
+
     const res = await fetch("/data/cards.json")
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")

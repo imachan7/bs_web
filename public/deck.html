@@ -65,6 +65,13 @@
                         <option value="">すべて</option>
                     </select>
 
+                    <span class="filter-label">注意あり</span>
+                    <div class="chip-group" id="filter-notes">
+                        <button class="chip" data-note="unimplemented">未実装</button>
+                        <button class="chip" data-note="partial">一部未実装</button>
+                        <button class="chip" data-note="simplified">簡略化</button>
+                    </div>
+
                     <input id="search-input" type="text" placeholder="カード名で検索" />
                     <button id="filter-reset">条件クリア</button>
                     <span id="pool-count"></span>
