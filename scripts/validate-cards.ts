@@ -124,7 +124,7 @@ function checkCostSetEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
-    for (const e of c.effects as { id?: string; kind?: string; mode?: string }[]) {
+    for (const e of c.effects as { id?: string; kind?: string; mode?: string; amount?: unknown; setTo?: unknown }[]) {
         if (e.kind !== "costMod" || e.mode !== "set") continue
         for (const field of COST_SET_UNSUPPORTED) {
             if (field in e) {
@@ -133,6 +133,12 @@ function checkCostSetEffects(
                     `costMod mode:"set" の ${e.id ?? e.kind} に ${field} がある（costSetOverride は参照しないため絞り込みが無言で無視される）`,
                 )
             }
+        }
+        if ("amount" in e) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に amount がある（置換には setTo を使用してください）`)
+        }
+        if (!("setTo" in e)) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に setTo がない（置換先を指定してください）`)
         }
     }
 }
