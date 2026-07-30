@@ -157,7 +157,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     // 対照実験: 免疫を付けなければ、相手の破壊効果でブロッカーは破壊される
     const { s, blocker } = setupBlocked("immunity-control")
     assert(s.battle?.blockerInstanceId === blocker, "ブロック宣言済み（対照）")
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { maxBp: 99999 } })
     assert(
         findSpiritById(s, "p2", blocker) === undefined,
         "免疫なしならブロッカーは破壊される（対照実験）",
@@ -178,7 +178,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     )
 
     // 対象を取る効果（destroy は実効BP最大を自動選択＝本来ブロッカーが選ばれる）
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { maxBp: 99999 } })
     assert(
         findSpiritById(s, "p2", blocker) !== undefined,
         "免疫中は相手の対象を取る破壊で破壊されない",
@@ -200,7 +200,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
         findSpiritById(s, "p2", blocker)?.immuneToOpponentThisTurn === true,
         "カード使用でもブロッカーに免疫が付く",
     )
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { maxBp: 99999 } })
     assert(
         findSpiritById(s, "p2", blocker) !== undefined,
         "カード経由の免疫でも破壊されない",
@@ -210,7 +210,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     const { s, blocker } = setupBlocked("immunity-range")
     resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
     // 範囲効果（destroyAll）も受けない＝untargetableByOpponent との違い
-    resolveAction(s, "p1", null, { type: "destroyAll", maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 99999 } })
     assert(
         findSpiritById(s, "p2", blocker) !== undefined,
         "免疫中は範囲効果（destroyAll）でも破壊されない",
@@ -252,7 +252,7 @@ console.log("=== §C returnSelfToHand: 破壊時に手札へ戻る（実行実�
     const s = setupAttackStep("returnself-effect")
     const gaurum = put(s, "p2", "BS01-032", 3)
     const before = s.players.p2.hand.length
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { maxBp: 99999 } })
 
     assert(findSpiritById(s, "p2", gaurum) === undefined, "破壊されてフィールドを離れる")
     assert(
@@ -269,7 +269,7 @@ console.log("=== §C returnSelfToHand: 破壊時に手札へ戻る（実行実�
     // レベル条件: Lv1（コア1個）では発揮しない＝トラッシュに残る
     const s = setupAttackStep("returnself-level")
     put(s, "p2", "BS01-032", 1)
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, maxBp: 99999 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { maxBp: 99999 } })
     assert(
         !s.players.p2.hand.includes("BS01-032"),
         "Lv1 では手札に戻らない（levels 条件が効いている）",

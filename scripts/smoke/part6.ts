@@ -191,7 +191,7 @@ console.log("=== BS02-101 リフレクションアーマー：コスト2の自�
     s.players.p1.reserve = 10
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "リフレクションアーマーを使用")
     // p2からの赤ソースの破壊効果（フレイムダンス相当）を直接シミュレート
-    resolveAction(s, "p2", null, { type: "destroy", maxBp: 4000, count: 1 }, undefined, ["red"])
+    resolveAction(s, "p2", null, { type: "destroy", filter: { maxBp: 4000 }, count: 1 }, undefined, ["red"])
     assert(s.players.p1.field.spirits.includes(cost2a), "コスト2のドラグノ偵察兵は装甲で赤の破壊効果を防ぐ")
     assert(s.players.p1.field.spirits.includes(cost2b), "コスト2のテラノセイバーも装甲で赤の破壊効果を防ぐ")
     assert(!s.players.p1.field.spirits.includes(cost0), "コスト2以外のゴラドンは装甲が付与されず破壊される")

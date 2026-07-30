@@ -1,11 +1,11 @@
-// smoke パート57（TargetFilter 直交化 第1段階の回帰テスト）
+// smoke パート57（TargetFilter 直交化の回帰テスト）
 //
-// 対象選択の絞り込み軸を共通の TargetFilter に一本化した。検証したいのは2点:
-//   A. 旧形式（destroy.maxBp / refreshOne.colorFilter など）が従来どおり動くこと（後方互換）
-//   B. 新形式（filter: {...}）が同じ結果を出すこと（新旧の等価性）
+// 対象選択の絞り込み軸（BP・色・系統・コスト・レベル・キーワード・バニラ）を
+// 共通の TargetFilter に一本化した。ここでは各軸が `filter` 形式で正しく効くことを検証する。
 //
-// B が重要で、cards.json は無変更のまま（第1段階の方針）なので、
-// **新形式を通るコードパスは既存データからは一度も実行されない**。ここで初めて経路が通る。
+// 第1段階では旧形式（destroy.maxBp / refreshOne.colorFilter など）との後方互換も検証していたが、
+// 第2段階（2026-07-30）で cards.json を filter へ移行して旧フィールドを削除したため、
+// 旧形式のケースは撤去した（型に存在しないので書けない）。
 import { assert, cardHasColor, createGame, createInstance, currentLevel, effectiveBp, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -16,36 +16,20 @@ function putEnemy(s: GameState, pid: PlayerId, cardId: string, cores: number): s
     return inst.instanceId
 }
 
-console.log("=== §A destroy: 旧 maxBp と 新 filter.maxBp が同じ対象を破壊する ===")
+console.log("=== §A destroy: filter.maxBp がBP以下だけを破壊する ===")
 {
-    // 旧形式 maxBp:3000
-    const s1 = createGame("tf-destroy-legacy", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
-    runTurnStart(s1)
-    const weak1 = putEnemy(s1, "p2", "BS01-002", 1) // 低BPのスピリット
-    const strong1 = putEnemy(s1, "p2", "BS01-025", 3) // 高BPのスピリット
-    const weakBp = effectiveBp(s1, "p2", s1.players.p2.field.spirits.find((x) => x.instanceId === weak1)!)
-    const strongBp = effectiveBp(s1, "p2", s1.players.p2.field.spirits.find((x) => x.instanceId === strong1)!)
+    const s = createGame("tf-destroy-new", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    const weak = putEnemy(s, "p2", "BS01-002", 1) // 低BPのスピリット
+    const strong = putEnemy(s, "p2", "BS01-025", 3) // 高BPのスピリット
+    const weakBp = effectiveBp(s, "p2", s.players.p2.field.spirits.find((x) => x.instanceId === weak)!)
+    const strongBp = effectiveBp(s, "p2", s.players.p2.field.spirits.find((x) => x.instanceId === strong)!)
     assert(weakBp < strongBp, `テスト前提: 弱いほうのBPが低い（${weakBp} < ${strongBp}）`)
 
-    resolveAction(s1, "p1", null, { type: "destroy", maxBp: weakBp, count: 1 })
-    const survived1 = s1.players.p2.field.spirits.map((x) => x.instanceId)
-    assert(!survived1.includes(weak1), "旧形式 maxBp: BP以下のスピリットが破壊された")
-    assert(survived1.includes(strong1), "旧形式 maxBp: BP超過のスピリットは残った")
-
-    // 新形式 filter:{ maxBp }
-    const s2 = createGame("tf-destroy-new", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
-    runTurnStart(s2)
-    const weak2 = putEnemy(s2, "p2", "BS01-002", 1)
-    const strong2 = putEnemy(s2, "p2", "BS01-025", 3)
-
-    resolveAction(s2, "p1", null, { type: "destroy", filter: { maxBp: weakBp }, count: 1 })
-    const survived2 = s2.players.p2.field.spirits.map((x) => x.instanceId)
-    assert(!survived2.includes(weak2), "新形式 filter.maxBp: BP以下のスピリットが破壊された")
-    assert(survived2.includes(strong2), "新形式 filter.maxBp: BP超過のスピリットは残った")
-    assert(
-        survived1.length === survived2.length,
-        `新旧で結果が一致する（残存数 ${survived1.length} = ${survived2.length}）`,
-    )
+    resolveAction(s, "p1", null, { type: "destroy", filter: { maxBp: weakBp }, count: 1 })
+    const survived = s.players.p2.field.spirits.map((x) => x.instanceId)
+    assert(!survived.includes(weak), "filter.maxBp: BP以下のスピリットが破壊された")
+    assert(survived.includes(strong), "filter.maxBp: BP超過のスピリットは残った")
 }
 
 console.log("=== §B refreshOne: 新 filter.color が色で絞り込む ===")

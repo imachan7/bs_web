@@ -582,6 +582,28 @@ resolveAction→passFlashPriority）。個別効果は `action` に載せるだ�
 **マジックは32枚すべて構造化完了。**
 fieldEvent に `opponentDrew`（相手のドロー時に発火。シダフクロウ）を追加。
 
+### 対象選択の絞り込み軸（TargetFilter）— 直交化完了
+
+対象の絞り込み（BP・色・系統・コスト・レベル・キーワード・バニラ・シンボル数・コア数・疲労・self除外）は
+`server/src/type.ts` の **`TargetFilter`** に一本化されている。アクションは `filter?: TargetFilter` を持つだけでよく、
+新しい軸の組み合わせを表現するのにエンジン改修は要らない。
+
+- 判定は `shared/rules.ts` の `matchesTarget(state, pid, inst, filter, selfInstanceId?)`
+- self 相対のBP指定（`maxBp: "selfBp"` / `minBp` / `exactBp`）は
+  `server/src/logic/actions/filter.ts` の **`normalizeFilter`** が数値へ解決する
+  （self 不在なら `SELF_REQUIRED` を返し、呼び出し側は「対象がいなかった」で no-op）
+- `filter` を通るアクション: `destroy` / `destroyAll` / `destroyExhausted` / `exhaust` /
+  `refreshOne` / `bpBuff` / `bpBuffAll`。**新しいアクションはこの形で書く**
+
+経緯: 従来は `destroy.maxBp` / `refreshOne.colorFilter` のように**同じ軸がアクションごとに個別フィールドとして
+後付け**されていた（BS01〜BS04 で計28個）。第1段階で互換層 `legacyToSpec` を挟んで経路を新形式へ一本化し、
+**第2段階（2026-07-30）で cards.json の40箇所・35枚を `filter` へ移行し、旧フィールドと互換層を削除**した。
+
+⚠️ **cards.json は tsc の型検査対象外**なので、旧フィールドを書いても TypeScript は何も言わず、
+`normalizeFilter` は `filter` しか見ないため**絞り込みが無言で消えて効果が広く当たる**。
+`npm run validate:cards` が (1) 旧フィールドの残存、(2) `filter` の未知の軸（キーの打ち間違い）、
+(3) そのアクションが見ない軸（`exhaustAll` は `cores` / `excludeSelf` のみ対応）の3つを検査する。
+
 ### 免疫・効果無効
 
 - `constraint untargetableByOpponent`（ワルキューレ）: 相手の**対象を取る**効果（`pickEnemyByBp` 自動選択・
@@ -873,13 +895,13 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 | `npm run smoke:quiet` | 失敗と集計のみ表示（全 ✅ 行を出さない。委譲時はこちらを使わせる） |
 | データ取り込みの検証 | `python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify` |
 
-| `npm run validate:cards` | cards.json の構造検査（型検査では止まらないデータ誤りの本体。costMod mode:"set" の setTo 必須など） |
+| `npm run validate:cards` | cards.json の構造検査（型検査では止まらないデータ誤りの本体。costMod mode:"set" の setTo 必須、TargetFilter の旧フィールド残存・未知の軸など） |
 | `npm run coverage:effects` | **実行時カバレッジ**。HEAD の使い捨て worktree に計測コードを差し込んで smoke を回し、どの効果エントリが実際に適用されたかを数える（`--all` で ★一覧を全件表示） |
 
 smoke テストの本体は `scripts/smoke/part1〜74.ts` に分割（`scripts/smoke.ts` はランナー、
 共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
 テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
-現在の合格数は **2,863件**（part57＝TargetFilter 直交化、part58＝多色カード対応、
+現在の合格数は **2,860件**（part57＝TargetFilter 直交化。第2段階で旧形式ケース3件を撤去、part58＝多色カード対応、
 part68＝カードデータ経由で未検証だった action 13種、part69/part73/part74＝
 「場に出ているのに発火していない効果」48件の回帰）。
 

@@ -99,7 +99,9 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             }
             return
         }
-        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.minSymbols)
+        // 対象1体の経路は matchesTarget を通らないため、シンボル数の軸だけ filter から取り出して渡す
+        // （ライトニングバリスタ等＝シンボル2個以上のスピリットのみ対象）
+        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.filter?.minSymbols)
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
@@ -127,11 +129,8 @@ const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
         for (const s of spirits) {
             s.tempBpBuff += action.amount
         }
-        const familyLabel = action.familyFilter
-            ? Array.isArray(action.familyFilter)
-                ? action.familyFilter.join("/")
-                : action.familyFilter
-            : ""
+        const family = action.filter?.family
+        const familyLabel = family ? (Array.isArray(family) ? family.join("/") : family) : ""
         log(
             state,
             `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,

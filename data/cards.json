@@ -806,7 +806,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 2000,
+     "filter": {
+      "maxBp": 2000
+     },
      "count": 1
     },
     "optional": true
@@ -1072,7 +1074,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 3000,
+     "filter": {
+      "maxBp": 3000
+     },
      "count": 1
     },
     "optional": true
@@ -1125,7 +1129,9 @@
     ],
     "action": {
      "type": "destroyAll",
-     "maxBp": 3000,
+     "filter": {
+      "maxBp": 3000
+     },
      "anySide": true
     },
     "optional": false
@@ -1196,8 +1202,10 @@
     ],
     "action": {
      "type": "destroy",
-     "count": 1,
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     },
+     "count": 1
     },
     "optional": true
    }
@@ -1250,7 +1258,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 6000,
+     "filter": {
+      "maxBp": 6000
+     },
      "count": 1
     },
     "optional": true
@@ -4885,7 +4895,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     }
    },
    {
@@ -5291,7 +5303,9 @@
     "timing": "flash",
     "action": {
      "type": "destroy",
-     "maxBp": 4000,
+     "filter": {
+      "maxBp": 4000
+     },
      "count": 1
     }
    }
@@ -5323,7 +5337,9 @@
     "timing": "flash",
     "action": {
      "type": "destroyAll",
-     "maxBp": 3000,
+     "filter": {
+      "maxBp": 3000
+     },
      "anySide": true
     }
    }
@@ -6678,8 +6694,10 @@
     ],
     "action": {
      "type": "destroy",
-     "count": 1,
-     "bpEqualsSelf": true
+     "filter": {
+      "exactBp": "selfBp"
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -6978,7 +6996,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 2000,
+     "filter": {
+      "maxBp": 2000
+     },
      "count": 1
     },
     "optional": true
@@ -9674,7 +9694,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "colorFilter": "yellow"
+     "filter": {
+      "color": "yellow"
+     }
     },
     "optional": false
    }
@@ -10597,7 +10619,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "keywordFilter": "awaken"
+     "filter": {
+      "keyword": "awaken"
+     }
     }
    },
    {
@@ -10610,7 +10634,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "keywordFilter": "awaken",
+     "filter": {
+      "keyword": "awaken"
+     },
      "all": true
     }
    }
@@ -12495,8 +12521,10 @@
     ],
     "action": {
      "type": "destroy",
-     "count": 1,
-     "bpEqualsSelf": true
+     "filter": {
+      "exactBp": "selfBp"
+     },
+     "count": 1
     },
     "optional": true
    }
@@ -12706,7 +12734,9 @@
     ],
     "action": {
      "type": "destroyAll",
-     "maxBp": 2000,
+     "filter": {
+      "maxBp": 2000
+     },
      "anySide": true
     },
     "optional": false
@@ -12760,7 +12790,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 2000,
+     "filter": {
+      "maxBp": 2000
+     },
      "count": 1
     },
     "optional": true
@@ -13801,10 +13833,12 @@
     ],
     "action": {
      "type": "exhaust",
-     "count": 1,
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -14211,7 +14245,9 @@
     "optional": false,
     "action": {
      "type": "refreshOne",
-     "familyFilter": "巨獣"
+     "filter": {
+      "family": "巨獣"
+     }
     }
    },
    {
@@ -15296,7 +15332,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "keywordFilter": "kobo"
+     "filter": {
+      "keyword": "kobo"
+     }
     },
     "optional": false
    }
@@ -17469,7 +17507,9 @@
     ],
     "action": {
      "type": "destroy",
-     "maxBp": 1000,
+     "filter": {
+      "maxBp": 1000
+     },
      "count": 1
     }
    }
@@ -17762,7 +17802,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "vanillaFilter": true
+     "filter": {
+      "vanilla": true
+     }
     }
    },
    {
@@ -17775,7 +17817,9 @@
     ],
     "action": {
      "type": "refreshOne",
-     "vanillaFilter": true,
+     "filter": {
+      "vanilla": true
+     },
      "all": true
     }
    }
@@ -18028,7 +18072,9 @@
     "colorFilter": "yellow",
     "action": {
      "type": "refreshOne",
-     "familyFilter": "四道"
+     "filter": {
+      "family": "四道"
+     }
     }
    }
   ]
@@ -18409,7 +18455,9 @@
     "timing": "flash",
     "action": {
      "type": "destroy",
-     "maxBp": 5000,
+     "filter": {
+      "maxBp": 5000
+     },
      "count": 1
     }
    }
@@ -19227,8 +19275,10 @@
     "timing": "main",
     "action": {
      "type": "bpBuffAll",
-     "amount": 3000,
-     "familyFilter": "闘神"
+     "filter": {
+      "family": "闘神"
+     },
+     "amount": 3000
     }
    }
   ]
@@ -20205,8 +20255,10 @@
     ],
     "action": {
      "type": "refreshOne",
-     "familyFilter": "翼竜",
-     "excludeSelf": true
+     "filter": {
+      "family": "翼竜",
+      "excludeSelf": true
+     }
     },
     "optional": false
    },
@@ -20220,10 +20272,12 @@
     ],
     "action": {
      "type": "destroy",
-     "count": 1,
-     "costFilter": {
-      "max": 3
-     }
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -20526,10 +20580,12 @@
     ],
     "action": {
      "type": "destroyExhausted",
-     "count": 1,
-     "costFilter": {
-      "max": 6
-     }
+     "filter": {
+      "cost": {
+       "max": 6
+      }
+     },
+     "count": 1
     },
     "optional": false
    },
@@ -20542,10 +20598,12 @@
     ],
     "action": {
      "type": "destroyExhausted",
-     "count": 1,
-     "costFilter": {
-      "max": 1
-     }
+     "filter": {
+      "cost": {
+       "max": 1
+      }
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -21243,11 +21301,13 @@
     ],
     "action": {
      "type": "bpBuffAll",
-     "amount": 3000,
-     "familyFilter": [
-      "殻人",
-      "殻虫"
-     ]
+     "filter": {
+      "family": [
+       "殻人",
+       "殻虫"
+      ]
+     },
+     "amount": 3000
     },
     "optional": false
    }
@@ -23689,8 +23749,10 @@
     ],
     "action": {
      "type": "destroy",
-     "count": 1,
-     "maxBpFromSelf": true
+     "filter": {
+      "maxBp": "selfBp"
+     },
+     "count": 1
     }
    }
   ]
@@ -24375,7 +24437,9 @@
     "timing": "main",
     "action": {
      "type": "destroy",
-     "maxBp": 7000,
+     "filter": {
+      "maxBp": 7000
+     },
      "count": 1
     },
     "condition": {
@@ -24388,8 +24452,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     }
    }
   ]
@@ -24558,8 +24624,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     },
     "mainForbidden": true
    }
@@ -24591,12 +24659,14 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
+     "filter": {
+      "family": [
+       "爪鳥",
+       "樹魔"
+      ]
+     },
      "amount": 3000,
-     "attackingAll": true,
-     "familyFilter": [
-      "爪鳥",
-      "樹魔"
-     ]
+     "attackingAll": true
     }
    }
   ]
@@ -24675,8 +24745,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     }
    }
   ]
@@ -24849,8 +24921,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     },
     "mainForbidden": true
    }
@@ -24956,8 +25030,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     },
     "mainForbidden": true
    }
@@ -25208,8 +25284,10 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 5000,
-     "minSymbols": 2
+     "filter": {
+      "minSymbols": 2
+     },
+     "amount": 5000
     },
     "mainForbidden": true
    }
@@ -25296,9 +25374,11 @@
     ],
     "action": {
      "type": "destroyAll",
-     "maxBp": 4000,
-     "anySide": true,
-     "colorExclude": "red"
+     "filter": {
+      "maxBp": 4000,
+      "colorExclude": "red"
+     },
+     "anySide": true
     },
     "optional": false
    }

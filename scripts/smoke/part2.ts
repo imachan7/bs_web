@@ -671,7 +671,7 @@ console.log("=== destroy のキーワードフィルタ（ディアマット） 
     s.players.p2.field.spirits.push(soku, plain)
 
     // keywordFilter: "soku" → BPが低くても神速持ちだけが対象になる
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, keywordFilter: "soku" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { keyword: "soku" } })
     assert(s.players.p2.field.spirits.length === 1, "1体だけ破壊される")
     assert(
         s.players.p2.field.spirits[0]!.instanceId === plain.instanceId,
@@ -680,7 +680,7 @@ console.log("=== destroy のキーワードフィルタ（ディアマット） 
 
     // 神速持ちがいなくなったら no-op
     const logLen = s.log.length
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, keywordFilter: "soku" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { keyword: "soku" } })
     assert(s.players.p2.field.spirits.length === 1, "神速持ち不在なら破壊されない")
     assert(s.log.length === logLen + 1, "対象なしのログが出る")
 

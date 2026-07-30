@@ -143,6 +143,75 @@ function checkCostSetEffects(
     }
 }
 
+// TargetFilter（対象選択の絞り込み軸）の検査。
+//
+// 直交化 第2段階（2026-07-30）で cards.json の旧個別フィールド（maxBp / colorFilter …）を
+// filter へ移行し、型からも削除した。**JSON は型検査が効かない**ため、旧フィールドを書いても
+// TypeScript は何も言わず、normalizeFilter は filter だけを見るので
+// 「絞り込みが無言で消えて効果が広く当たる」という最悪の壊れ方をする。ここで落とす。
+const LEGACY_FILTER_FIELDS = [
+    "maxBp", "maxBpFromSelf", "bpEqualsSelf", "keywordFilter", "colorFilter",
+    "colorExclude", "familyFilter", "costFilter", "levelFilter", "vanillaFilter",
+    "minSymbols", "excludeSelf",
+] as const
+
+// normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
+// 新しく filter へ移すアクションを増やしたらここに追記する
+const FILTER_ACTIONS = new Set([
+    "destroy", "destroyAll", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
+])
+
+// TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
+const VALID_FILTER_KEYS = new Set([
+    "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
+    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "rested",
+])
+
+// filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
+const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
+    exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+}
+
+function checkTargetFilters(
+    cardId: string,
+    actions: { type?: unknown }[],
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const a of actions) {
+        if (typeof a.type !== "string") continue
+        const entry = a as Record<string, unknown>
+
+        if (FILTER_ACTIONS.has(a.type)) {
+            for (const f of LEGACY_FILTER_FIELDS) {
+                if (f in entry) {
+                    add(
+                        cardId,
+                        `${a.type} に旧フィールド ${f} がある（第2段階で filter へ移行済み。normalizeFilter は filter しか見ないため絞り込みが無言で消える）`,
+                    )
+                }
+            }
+        }
+
+        const filter = entry["filter"]
+        if (filter === undefined) continue
+        if (typeof filter !== "object" || filter === null || Array.isArray(filter)) {
+            add(cardId, `${a.type} の filter がオブジェクトでない`)
+            continue
+        }
+        const allowed = PARTIAL_FILTER_ACTIONS[a.type]
+        for (const key of Object.keys(filter)) {
+            if (!VALID_FILTER_KEYS.has(key)) {
+                add(cardId, `${a.type} の filter に未知の軸 "${key}" がある（TargetFilter に無いキーは無言で無視される）`)
+            } else if (allowed && !allowed.includes(key)) {
+                add(
+                    cardId,
+                    `${a.type} の filter の軸 "${key}" はこのアクションが見ない（対応は ${allowed.join(" / ")} のみ）`,
+                )
+            }
+        }
+    }
+}
+
 export function validateCards(cards: CardData[]): ValidationIssue[] {
     const issues: ValidationIssue[] = []
     const add = (cardId: string, message: string): void => {
@@ -244,6 +313,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 
         // --- costMod mode:"set"（コスト置換）の検査 ---
         checkCostSetEffects(c, add)
+
+        // --- TargetFilter（旧フィールド残存・未知の軸・無視される軸）の検査 ---
+        checkTargetFilters(id, actions, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
