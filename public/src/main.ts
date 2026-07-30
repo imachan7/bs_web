@@ -29,6 +29,7 @@ let view: GameView | null = null
 const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
+let lastErrorText: string = ""
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -199,6 +200,7 @@ socket.on("state", (v: GameView) => {
 })
 
 socket.on("errorMessage", (message: string) => {
+    lastErrorText = message
     showToast(message)
 })
 
@@ -660,6 +662,31 @@ async function init(): Promise<void> {
     })
     byId("btn-close-log").addEventListener("click", () => {
         byId("log-panel").classList.add("hidden")
+    })
+    
+    byId("btn-bug-report").addEventListener("click", () => {
+        // 現在のゲームコンテキストをlocalStorageに保存してバグ報告画面へ渡す
+        if (view) {
+            const uiMode = ui.targeting ? "targeting" 
+                           : ui.awakenTarget ? "awakenTarget" 
+                           : ui.paying ? "paying" 
+                           : ui.directedAttack ? "directedAttack" 
+                           : ui.summonLevelSelect ? "summonLevelSelect" 
+                           : "normal"
+            const clientContext = {
+                phase: view.phase,
+                turn: view.turn,
+                uiMode: uiMode,
+                lastError: lastErrorText
+            }
+            const bugReportData = {
+                gameId: view.gameId,
+                you: view.you,
+                clientContext
+            }
+            localStorage.setItem("bs_bug_report_context", JSON.stringify(bugReportData))
+        }
+        window.open("/bugreport.html", "_blank")
     })
     
     byId("btn-toggle-trash").addEventListener("click", () => {

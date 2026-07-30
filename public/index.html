@@ -41,8 +41,20 @@
         </div>
         <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
         
-        <div style="text-align: center; margin-top: 16px;">
+        <!-- お知らせ・リポジトリリンク -->
+        <div class="lobby-announcements" style="margin-top: 20px; text-align: left; background: rgba(30, 30, 30, 0.8); border: 1px solid #444; border-radius: 8px; padding: 15px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <h3 style="margin-top: 0; color: #66b3ff; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 5px;">📢 お知らせ</h3>
+            <ul style="margin: 10px 0 0; padding-left: 20px; font-size: 14px; color: #eee; line-height: 1.5;">
+                <li>[2026/07/30] バグ報告フォームへの導線を追加・改善しました。</li>
+                <li>[2026/07/26] デッキビルダーに「弾」フィルタを追加しました。</li>
+                <li>第五弾のカード追加を準備中です。お楽しみに！</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin-top: 16px; display: flex; justify-content: center; gap: 24px;">
             <a href="/bugreport.html" style="color: #66b3ff; text-decoration: none; font-size: 14px;">🐛 バグ報告</a>
+            <a href="https://github.com/imachan/bs_web" target="_blank" style="color: #66b3ff; text-decoration: none; font-size: 14px;">💻 GitHub リポジトリ</a>
+            <a href="#" id="coffee-link" style="color: #ffaa00; text-decoration: none; font-size: 14px;" title="外部サイトへ移動します">☕ 開発者を支援する</a>
         </div>
 
         <section class="seo-description" style="margin-top: 60px; text-align: left; padding: 20px; background: rgba(0,0,0,0.5); border-radius: 8px; font-size: 13px; color: #bbb; line-height: 1.6; max-width: 600px;">
@@ -77,6 +89,7 @@
         <div id="status-bar">
             <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
             <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
+            <button id="btn-bug-report" class="log-toggle-btn" style="color: #ffcc00; border-color: #ffaa00;">🐛 バグ報告</button>
             <span id="turn-info"></span>
             <div id="phase-bar">
                 <span class="phase-step" data-phase="start" data-short="開">開始</span>

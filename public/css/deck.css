@@ -245,12 +245,16 @@ input[type="text"] {
 
 .pool-card {
     position: relative;
-    background: #2c3044;
-    border: 2px solid #555;
-    border-radius: 8px;
-    padding: 8px 8px 8px 10px;
+    border: 1px solid var(--c-main);
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     cursor: pointer;
-    transition: transform 0.1s;
+    user-select: none;
+    overflow: hidden;
 }
 
 .pool-card:hover {
@@ -779,3 +783,42 @@ input[type="text"] {
         scroll-behavior: auto !important;
     }
 }
+
+/* ---- Note Badge ---- */
+.note-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #fff;
+    pointer-events: none;
+    z-index: 10;
+}
+.note-badge.unimplemented { background: #d44a4a; }
+.note-badge.partial { background: #d48a4a; }
+.note-badge.simplified { background: #d4c44a; color: #333; }
+
+.detail-note {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.detail-note.unimplemented { background: rgba(212, 74, 74, 0.2); border: 1px solid #d44a4a; }
+.detail-note.partial { background: rgba(212, 138, 74, 0.2); border: 1px solid #d48a4a; }
+.detail-note.simplified { background: rgba(212, 196, 74, 0.2); border: 1px solid #d4c44a; }
+
+.row-note {
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #fff;
+    margin-left: 4px;
+}
+.row-note.unimplemented { background: #d44a4a; }
+.row-note.partial { background: #d48a4a; }
+.row-note.simplified { background: #d4c44a; color: #333; }
