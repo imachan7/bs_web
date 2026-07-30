@@ -415,18 +415,19 @@ function report(
 
     // ★ 最重要: 場に出ている（＝テストに登場する）のに、その効果だけ発火していないもの。
     // 「カードごと未登場」は単に未テストなだけだが、こちらは**通っているつもりで通っていない**形。
-    // kind ごとにまとめて出す（全件を並べると読めないため、各 kind 先頭8件まで）
+    // kind ごとにまとめて出す（全件を並べると読めないため、各 kind 先頭8件まで。--all で全件）
+    const showAll = process.argv.includes("--all")
     const silent = [...notFiredAction, ...notFiredCont].filter((e) => instantiated.has(e.cardId))
     console.log(`\n★ 場に出ているのに一度も適用されていない効果: ${silent.length}件（${byKind(silent)}）`)
     const kinds = [...new Set(silent.map((e) => e.kind))]
     for (const kind of kinds) {
         const list = silent.filter((e) => e.kind === kind)
         console.log(`  [${kind}] ${list.length}件`)
-        for (const e of list.slice(0, 8)) {
+        for (const e of showAll ? list : list.slice(0, 8)) {
             const detail = e.actionTypes.length > 0 ? ` → ${e.actionTypes.join(", ")}` : ""
             console.log(`    ${e.cardId} ${e.cardName} ${e.eid}${detail}`)
         }
-        if (list.length > 8) console.log(`    …ほか${list.length - 8}件`)
+        if (!showAll && list.length > 8) console.log(`    …ほか${list.length - 8}件（全件は --all）`)
     }
 
     // action.type 単位の機構カバレッジ。2段階で見る:
