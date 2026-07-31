@@ -248,13 +248,11 @@ input[type="text"] {
     border: 1px solid var(--c-main);
     border-radius: 6px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    padding: 8px 8px 8px 10px;
     cursor: pointer;
     user-select: none;
     overflow: hidden;
+    transition: transform 0.1s;
 }
 
 .pool-card:hover {
