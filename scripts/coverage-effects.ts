@@ -86,6 +86,7 @@ const MEASURED_CONTINUOUS_KINDS = new Set([
     "drawDouble", // drawDoubleMultiplier の return 2 判定
     "exhaustImmunityGrant", // isExhaustImmune の true 判定
     "triggerSuppression", // isTriggerSuppressed の true 判定
+    "alsoCostGrant", // instHasCost / instMatchesCostFilter が alsoCostsContinuous でマッチした時点（読む側で計測）
 ])
 
 type Measurability = "action" | "continuous" | "unmeasured"
@@ -289,6 +290,26 @@ const __covEid = (e: unknown): string =>
             }
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
+    )
+    // alsoCostGrant: instHasCost / instMatchesCostFilter が alsoCostsContinuous を採用して true を返す時点。
+    // 付与元の __eid は EffectModules 側の差し込みが __covAlsoCostEid として載せている
+    patch(
+        f,
+        `    if (inst.tempAlsoCosts.includes(cost)) return true
+    return (inst.alsoCostsContinuous ?? []).includes(cost)`,
+        `    if (inst.tempAlsoCosts.includes(cost)) return true
+    const __covHit = (inst.alsoCostsContinuous ?? []).includes(cost)
+    if (__covHit) __covRec2("cont\\t" + String((inst as unknown as Record<string, unknown>)["__covAlsoCostEid"] ?? "?"))
+    return __covHit`,
+    )
+    patch(
+        f,
+        `    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
+    return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))`,
+        `    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
+    const __covHit2 = (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
+    if (__covHit2) __covRec2("cont\\t" + String((inst as unknown as Record<string, unknown>)["__covAlsoCostEid"] ?? "?"))
+    return __covHit2`,
     )
     // constraintGrant: activeConstraints が付与制約を合成する時点
     patch(
@@ -622,6 +643,18 @@ process.on("exit", () => {
                     __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
                     const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+        )
+        // alsoCostGrant: 付与時点ではなく**読む側**（rules.ts の instHasCost / instMatchesCostFilter）で
+        // 計測する。ただし alsoCostsContinuous は付与元を残さないため、ここで付与元の __eid を
+        // 対象インスタンスへ載せておき、読む側がそれを引く（tempFamilies の教訓＝書くだけの状態を実行済みにしない）
+        patch(
+            em,
+            `                    for (const spirit of player.field.spirits) {
+                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+            `                    for (const spirit of player.field.spirits) {
+                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
+                            String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
+                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
         )
         // levelAs: refreshLevelAsOverrides の5つの levelAsContinuous 代入点（target ごと）
         patch(
