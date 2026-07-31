@@ -211,6 +211,11 @@ export function hasContinuousKeywordGrant(
                 continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // costFilter（BS02-101リフレクションアーマー：コスト2のスピリットのみ）。
+            // 従来はここが未対応で、armorColorsGranted経由のhasArmorAgainst（refreshLevelAsOverridesが
+            // costFilterを見て構築）は正しくコスト絞り込みできる一方、spiritHasKeyword経由のこちらは
+            // costFilter を無視してすべてのスピリットにマッチしてしまっていた（2026-07-31 発見・修正）
+            if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) continue
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
@@ -513,6 +518,20 @@ export function matchesCostFilter(cost: number, costFilter?: { max?: number; min
     if (costFilter.max !== undefined && cost > costFilter.max) return false
     if (costFilter.min !== undefined && cost < costFilter.min) return false
     return true
+}
+
+// フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
+// **「このターンの間、コストNとしても扱う」（tempAlsoCosts。道化師クラン）も見る**。
+// 場のスピリットを絞る costFilter は必ずこちらを通すこと（instHasCost が単一コスト用なのと同じ理由）。
+// 静的コストだけで判定すると、クラン下のリフレクションアーマー（コスト2のスピリットに装甲）が
+// 無言で対象を取り落とす
+export function instMatchesCostFilter(
+    inst: CardInstance,
+    costFilter?: { max?: number; min?: number },
+): boolean {
+    if (!costFilter) return true
+    if (matchesCostFilter(card(inst.cardId).cost, costFilter)) return true
+    return inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))
 }
 
 // ---- 制約・免疫 ----

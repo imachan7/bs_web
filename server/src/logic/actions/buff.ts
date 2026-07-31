@@ -70,35 +70,6 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (action.attackingAll) {
-            // オフェンシブオーラ／フォレストオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
-            // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）。
-            // 絞り込みは共通の TargetFilter に一本化（family 軸。フォレストオーラ＝爪鳥/樹魔）
-            const buffFilter = normalizeFilter(ctx, action)
-            if (buffFilter === SELF_REQUIRED) {
-                log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
-                return
-            }
-            const attackers = state.players[owner].field.spirits.filter(
-                (s) =>
-                    state.battle &&
-                    s.instanceId === state.battle.attackerInstanceId &&
-                    matchesTarget(state, owner, s, buffFilter, self?.instanceId),
-            )
-            if (attackers.length === 0) {
-                log(state, `${sourceName}のBP増加：アタックしている自分のスピリットがいなかった。`)
-                return
-            }
-            for (const t of attackers) {
-                t.tempBpBuff += action.amount
-                log(
-                    state,
-                    `${getCard(t.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
-                )
-                applyMagicBuffBonus(state, t, srcType, srcColors)
-            }
-            return
-        }
         // 対象1体の経路は matchesTarget を通らないため、シンボル数の軸だけ filter から取り出して渡す
         // （ライトニングバリスタ等＝シンボル2個以上のスピリットのみ対象）
         const target = pickBpBuffTarget(state, owner, targetInstanceId, action.filter?.minSymbols)

@@ -2552,10 +2552,20 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 1000
+     "type": "lendSelfThisTurn"
     },
     "optional": false
+   },
+   {
+    "id": "BS01-055-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 1000,
+     "lentOnly": true
+    }
    }
   ]
  },
@@ -2787,10 +2797,20 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 2000
+     "type": "lendSelfThisTurn"
     },
     "optional": false
+   },
+   {
+    "id": "BS01-060-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 2000,
+     "lentOnly": true
+    }
    }
   ]
  },
@@ -3293,10 +3313,20 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 2000
+     "type": "lendSelfThisTurn"
     },
     "optional": false
+   },
+   {
+    "id": "BS01-070-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 2000,
+     "lentOnly": true
+    }
    }
   ]
  },
@@ -11641,15 +11671,24 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantKeywordAll",
-     "keyword": "armor",
-     "colors": [
-      "red",
-      "purple",
-      "green",
-      "blue"
-     ],
-     "costFilter": 2
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS02-101-e2",
+    "kind": "keywordGrant",
+    "levels": null,
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green",
+     "blue"
+    ],
+    "costFilter": {
+     "max": 2,
+     "min": 2
     }
    }
   ]
@@ -19294,11 +19333,19 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bpBuffAll",
-     "filter": {
-      "family": "闘神"
-     },
-     "amount": 3000
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-145-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "闘神",
+     "amount": 3000,
+     "lentOnly": true
     }
    }
   ]
@@ -21320,16 +21367,24 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
-     "filter": {
-      "family": [
-       "殻人",
-       "殻虫"
-      ]
-     },
-     "amount": 3000
+     "type": "lendSelfThisTurn"
     },
     "optional": false
+   },
+   {
+    "id": "BS04-029-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": [
+      "殻人",
+      "殻虫"
+     ],
+     "amount": 3000,
+     "lentOnly": true
+    }
    }
   ]
  },
@@ -24678,15 +24733,23 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "filter": {
-      "family": [
-       "爪鳥",
-       "樹魔"
-      ]
-     },
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS04-097-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
+     "familyFilter": [
+      "爪鳥",
+      "樹魔"
+     ],
      "amount": 3000,
-     "attackingAll": true
+     "lentOnly": true
     }
    }
   ]
@@ -26004,11 +26067,19 @@
     ],
     "optional": false,
     "action": {
-     "type": "bpBuffAll",
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-008-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "minSymbols": 2,
      "amount": 5000,
-     "filter": {
-      "minSymbols": 2
-     }
+     "lentOnly": true
     }
    },
    {
@@ -29692,8 +29763,19 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bpBuffAllByArmorColors",
-     "amountPer": 1000
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-078-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amountPer": 1000,
+     "counter": "targetArmorColors",
+     "lentOnly": true
     }
    },
    {

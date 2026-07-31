@@ -6,19 +6,19 @@
 // kind:"aura"（lentOnly:true）へ移行することで、召喚済みかどうかを問わず毎回動的に評価されるようにした。
 // AuraDef.lentOnly / attackingOnly の回帰。
 //
-// ⚠️ 12枚中 3枚（BS01-135パワーオーラ／BS01-116オフェンシブオーラ／BS05-082サーキュラーソー・アーム）のみ
-// data/cards.json を移行している。残り9枚（BS02-101／BS03-145／BS04-029／BS05-078／BS04-097／
-// BS01-055／BS01-060／BS01-070／BS05-008）は既存の smoke/part12・part43・part68・part70 が
-// 旧データ形状（tempBpBuff直書き・tempKeywords・real castMagic経由の断定）を前提に固定回帰しており、
-// かつ validate-cards.ts の checkLentEffects が kind:"triggered" の貸与エントリを「貸される側」と
-// 誤認識して levels:null 要求を出す（自身は貸す側の呼び出しエントリ）ため、既存の触ってはいけないファイルを
-// 壊さずに移行できなかった。詳細は完了報告を参照。ここでは移行できた3枚とエンジン機構そのものを検証する。
+// 2026-07-31: 残り9枚（BS02-101／BS03-145／BS04-029／BS05-078／BS04-097／
+// BS01-055／BS01-060／BS01-070／BS05-008）も移行完了（validate-cards.ts の checkLentEffects の
+// 誤検出は先に修正済み）。既存 smoke/part12・part43・part68・part70 も新データ形状（effectiveBp /
+// spiritHasKeyword による動的評価）に合わせて更新した。ここでは移行できた3枚とエンジン機構そのものに加え、
+// 「triggered から lendSelfThisTurn を撃つ」形の代表2枚（BS01-055 エメアント／BS05-078 アイシクルアサルト）で
+// 「使用後に召喚したスピリットにも乗る」ことを追加確認する。
 import {
     act,
     assert,
     createGame,
     createInstance,
     currentLevel,
+    destroySpirit,
     effectiveBp,
     resolveAction,
 } from "./helpers"
@@ -123,5 +123,47 @@ console.log("=== 4. attackingOnly と battlingOnly の違い：自分のブロ�
     assert(
         effectiveBp(s, "p1", blocker) === currentLevel(blocker).bp,
         "attackingOnlyはアタッカー限定のため、自分のブロッカーには乗らない（battlingOnlyとの違い）",
+    )
+}
+
+console.log("=== 5. エメアント（triggeredからのlendSelfThisTurn。破壊時貸与）：使用後に召喚したスピリットにも+1000が乗る ===")
+{
+    const s = setup("lend-emeant-summon-after", "green", "red")
+    const ally = put(s, "p1", "BS01-050", 1) // 破壊前からいたスピリット
+    const emeant = put(s, "p1", "BS01-055", 1) // エメアント Lv1
+    destroySpirit(s, "p1", emeant.instanceId) // onDestroy発火 → triggered.action の lendSelfThisTurn
+    assert(effectiveBp(s, "p1", ally) === currentLevel(ally).bp + 1000, "破壊前からいたスピリットは+1000")
+
+    // 破壊後に手札から召喚する（新しいインスタンスは lendSelfThisTurn 呼び出し時点では存在しなかった）
+    s.players.p1.hand = ["BS01-051"]
+    const beforeIds = new Set(s.players.p1.field.spirits.map((sp) => sp.instanceId))
+    const err = act(s, "p1", { type: "summon", handIndex: 0 })
+    assert(err === null, `召喚が成功する（${err}）`)
+    const after = s.players.p1.field.spirits.find((sp) => !beforeIds.has(sp.instanceId))!
+    assert(
+        effectiveBp(s, "p1", after) === currentLevel(after).bp + 1000,
+        "破壊後に召喚したスピリットにも+1000が乗る（triggeredからの貸与でも成立）",
+    )
+}
+
+console.log("=== 6. アイシクルアサルト（counter:targetArmorColors）：対象ごとに量が変わり、使用後に召喚したスピリットにも動的に乗る ===")
+{
+    const s = setup("lend-icicle-summon-after", "white", "red")
+    const twoColor = put(s, "p1", "BS03-044", 1) // 鋼人スルト（装甲：赤/白＝2色）
+    lendMagic(s, "p1", "BS05-078", ["white"])
+    assert(
+        effectiveBp(s, "p1", twoColor) === currentLevel(twoColor).bp + 2000,
+        "装甲2色のスピリットは+2000（1000×2、対象ごとに量が変わる）",
+    )
+
+    // 使用後に、装甲1色のスピリットを新たに召喚する（再キャストなしで動的に量が決まる）
+    s.players.p1.hand = ["BS02-040"] // ロブスターク（装甲：赤＝1色）
+    const beforeIds = new Set(s.players.p1.field.spirits.map((sp) => sp.instanceId))
+    const err = act(s, "p1", { type: "summon", handIndex: 0 })
+    assert(err === null, `召喚が成功する（${err}）`)
+    const oneColor = s.players.p1.field.spirits.find((sp) => !beforeIds.has(sp.instanceId))!
+    assert(
+        effectiveBp(s, "p1", oneColor) === currentLevel(oneColor).bp + 1000,
+        "使用後に召喚した装甲1色のスピリットには+1000（再キャスト不要で動的に評価される）",
     )
 }

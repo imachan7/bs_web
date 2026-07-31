@@ -143,13 +143,19 @@ console.log("=== minSymbols 軸: シンボル数が足りる対象のみ（BS04-
 
 console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-097 フォレストオーラ） ===")
 {
+    // 2026-07-31: bpBuff(attackingAll)+filter.family から lendSelfThisTurn + kind:"aura"
+    // （attackingOnly + familyFilter）へ移行済み（part76参照）。テスト前提は新データ形状で読む
     const card = getCard("BS04-097")
-    const eff = card.effects[0] as { action?: { filter?: { family?: string[] }; amount?: number } }
-    const families = eff.action?.filter?.family
+    const eff = card.effects.find((e) => e.kind === "aura") as
+        | { aura?: { familyFilter?: string[]; attackingOnly?: boolean; amount?: number } }
+        | undefined
+    const families = eff?.aura?.familyFilter
     assert(
         Array.isArray(families) && families.includes("爪鳥") && families.includes("樹魔"),
-        `テスト前提: ${card.name} は filter.family [爪鳥, 樹魔]`,
+        `テスト前提: ${card.name} は aura.familyFilter [爪鳥, 樹魔]`,
     )
+    assert(eff?.aura?.attackingOnly === true, `テスト前提: ${card.name} は aura.attackingOnly`)
+    assert(eff?.aura?.amount === 3000, `テスト前提: ${card.name} は aura.amount 3000`)
 
     const s = newGame("axis-family-forestaura")
     const bird = getCard("BS01-059") // シダフクロウ（爪鳥）
@@ -158,22 +164,23 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
     const otherId = putOwn(s, other.cardId, 1)
     assert(spiritHasFamily(s, "p1", s.players.p1.field.spirits[0]!, "爪鳥"), "テスト前提: 爪鳥を持つ")
 
-    // attackingAll はアタック中のスピリットが対象。バトルを立ててアタッカーを爪鳥にする
+    // attackingOnly はアタック中のスピリットが対象。バトルを立ててアタッカーを爪鳥にする
     s.battle = {
         attackerInstanceId: birdId,
         blockerInstanceId: null,
         flashLockedPlayer: null,
         directed: false,
     }
-    resolveAction(s, "p1", null, {
-        type: "bpBuff",
-        amount: 3000,
-        attackingAll: true,
-        filter: { family: ["爪鳥", "樹魔"] },
-    })
+    resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")
     const find = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
-    assert(find(birdId).tempBpBuff === 3000, "系統一致のアタッカーにBP+3000が乗る")
-    assert(find(otherId).tempBpBuff === 0, "アタックしていない／系統不一致には乗らない")
+    assert(
+        effectiveBp(s, "p1", find(birdId)) === currentLevel(find(birdId)).bp + 3000,
+        "系統一致のアタッカーにBP+3000が乗る",
+    )
+    assert(
+        effectiveBp(s, "p1", find(otherId)) === currentLevel(find(otherId)).bp,
+        "アタックしていない／系統不一致には乗らない",
+    )
 
     // 系統が一致しないアタッカーには効かないことも確認する
     const s2 = newGame("axis-family-forestaura-miss")
@@ -184,14 +191,10 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
         flashLockedPlayer: null,
         directed: false,
     }
-    resolveAction(s2, "p1", null, {
-        type: "bpBuff",
-        amount: 3000,
-        attackingAll: true,
-        filter: { family: ["爪鳥", "樹魔"] },
-    })
+    resolveAction(s2, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")
+    const plain = s2.players.p1.field.spirits[0]!
     assert(
-        s2.players.p1.field.spirits[0]!.tempBpBuff === 0,
+        effectiveBp(s2, "p1", plain) === currentLevel(plain).bp,
         "系統が一致しないアタッカーには乗らない",
     )
 }

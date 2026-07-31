@@ -78,11 +78,14 @@ console.log("=== addSymbolThisTurn（BS03-121 ダブルハート） ===")
 
 console.log("=== bpBuffAllByArmorColors（BS05-078 アイシクルアサルト メイン） ===")
 {
+    // 2026-07-31: bpBuffAllByArmorColors（tempBpBuff直書き）から lendSelfThisTurn + kind:"aura"
+    // （counter:"targetArmorColors"・lentOnly）へ移行（part76参照）。実効値は effectiveBp で確認する
     const s = setupMain("icicle-assault")
     const armored = put(s, "p1", "BS03-044", 1) // 鋼人スルト Lv1【装甲：赤/白】
     assert(castFromHand(s, "p1", "BS05-078") === null, "アイシクルアサルトを使用（メイン）")
+    const inst = spiritOf(s, "p1", armored)!
     assert(
-        spiritOf(s, "p1", armored)!.tempBpBuff === 2000,
+        effectiveBp(s, "p1", inst) === currentLevel(inst).bp + 2000,
         "装甲2色ぶん（1000×2）BP増加した",
     )
 }
