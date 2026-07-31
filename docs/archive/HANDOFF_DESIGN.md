@@ -65,9 +65,9 @@
 
 | 文書 | 状態 |
 | :-- | :-- |
-| [TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md) | **実装済み**（実装担当が `ff120db`）。文書は分類基準の訂正入り |
-| [BRAVE.md](./BRAVE.md) | 設計のみ。次年度の新カードタイプ |
-| [BURST.md](./BURST.md) | 設計のみ。次年度の新機構 |
+| [TURN_EFFECT_SOURCES.md](../design/TURN_EFFECT_SOURCES.md) | **実装済み**（実装担当が `ff120db`）。文書は分類基準の訂正入り |
+| [BRAVE.md](../design/BRAVE.md) | 設計のみ。次年度の新カードタイプ |
+| [BURST.md](../design/BURST.md) | 設計のみ。次年度の新機構 |
 | [MULTICOLOR.md](./MULTICOLOR.md) | 実装担当が作成・実装済み |
 
 ---
@@ -89,9 +89,9 @@
 
 ### 3.2 その他
 
-- `BRAVE.md` / `BURST.md` は**実カードのデータが手に入ってから**未確定事項を埋める
+- `docs/design/BRAVE.md` / `docs/design/BURST.md` は**実カードのデータが手に入ってから**未確定事項を埋める
   （それぞれの文書の「未確定」節を参照）
-- `BURST.md` は Wiki の記述に不確かな点が2つある（発動後のカードの行き先・空打ちの可否）
+- `docs/design/BURST.md` は Wiki の記述に不確かな点が2つある（発動後のカードの行き先・空打ちの可否）
 
 ---
 

@@ -3,8 +3,8 @@
 - 作成: 2026-07-26
 - **この文書は設計のみ。実装は未着手**
 - 出典: [バトスピ Wiki「ソウルコア」](https://batspi.com/index.php?%E3%82%BD%E3%82%A6%E3%83%AB%E3%82%B3%E3%82%A2)
-- 関連: [ULTIMATE.md](./ULTIMATE.md)（`minLevelCores` を共有する）、[SPEC.md](./SPEC.md)、
-  [HANDOFF_DESIGN.md](./HANDOFF_DESIGN.md) §4.4（走査の A/B 分類）
+- 関連: [ULTIMATE.md](./ULTIMATE.md)（`minLevelCores` を共有する）、[SPEC.md](../../SPEC.md)、
+  [HANDOFF_DESIGN.md](../archive/HANDOFF_DESIGN.md) §4.4（走査の A/B 分類）
 
 ---
 
@@ -128,7 +128,7 @@ export function assertSoulCoreConsistent(state: GameState): void {
 ```
 
 **全 smoke に自動で掛かる形にする**のが要点（個別テストで書くと掛け忘れる）。
-これは「実装されているが誰も通っていない経路」（`HANDOFF_DESIGN.md` §4.3）の予防でもある。
+これは「実装されているが誰も通っていない経路」（`docs/archive/HANDOFF_DESIGN.md` §4.3）の予防でもある。
 
 ### 2.3 公開情報なのでマスクしない
 
@@ -137,7 +137,7 @@ export function assertSoulCoreConsistent(state: GameState): void {
 
 ### 2.4 対案（案B）: 型を変えてコンパイラに全箇所を列挙させる
 
-実装担当から出た対案。`MULTICOLOR.md` の案A（`color: Color` → `colors: Color[]`）と同じ発想で、
+実装担当から出た対案。`docs/archive/MULTICOLOR.md` の案A（`color: Color` → `colors: Color[]`）と同じ発想で、
 `cores: number` を識別子つきの表現に変え、**tsc に 72箇所すべてを指摘させる**。
 
 | | 案A（ポインタ。本文書の推奨） | 案B（型を変えて列挙） |
@@ -327,7 +327,7 @@ export function canMoveSoulCoreFrom(card: CardData, inst: CardInstance): boolean
 | 7 | 条件・誘発（§6）＋実カードの構造化 | カードごとの smoke |
 | 8 | クライアント（ソウルコアの見た目・交換UI）※ Gemini 担当 | 目視 |
 
-**段3・段5には必ず変異テストを掛ける**（`HANDOFF_DESIGN.md` §4.1）。
+**段3・段5には必ず変異テストを掛ける**（`docs/archive/HANDOFF_DESIGN.md` §4.1）。
 関所のガードを1行外して「ソウルコアがボイドへ行ってしまう」テストが**落ちること**を確認する。
 落ちなければ、そのテストは条件分岐に入っていない。
 

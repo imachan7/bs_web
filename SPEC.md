@@ -4,12 +4,13 @@
 仕様が固まったり実装が進むたびにここへ追記していく。
 （データ構造そのものの定義は [data.md](./data.md)、公開用の紹介は [README.md](./README.md)）
 
-**進行中の計画**: [REFACTOR.md](./REFACTOR.md) — 共有ルール層の抽出（サーバー／クライアントのルール二重実装の解消）と
-`resolveAction`（3028行・100 case）の分割。**BS04 の残23枚の構造化を完了させてから着手する**。
+⚠️ ここには `REFACTOR.md`（共有ルール層の抽出と `resolveAction` の分割）へのリンクがあったが、
+**その文書は既に削除されている**（リンク切れだった。2026-07-31 に除去）。共有ルール層への一本化は
+`3f02796` で完了済み（2章の冒頭を参照）、`resolveAction` も `server/src/logic/actions/` へ分割済み。
 
-**先行設計（いずれも設計のみ・実装未着手）**: [BRAVE.md](./BRAVE.md)（ブレイヴ。§11＝異魔神ブレイヴ）・
-[ULTIMATE.md](./ULTIMATE.md)（アルティメット）・[SOULCORE.md](./SOULCORE.md)（ソウルコア）・
-[BURST.md](./BURST.md)（バースト）。**Wiki を出典に「確定した事実」と「未確定」を分けて記録**してあり、
+**先行設計（いずれも設計のみ・実装未着手）**: [BRAVE.md](./docs/design/BRAVE.md)（ブレイヴ。§11＝異魔神ブレイヴ）・
+[ULTIMATE.md](./docs/design/ULTIMATE.md)（アルティメット）・[SOULCORE.md](./docs/design/SOULCORE.md)（ソウルコア）・
+[BURST.md](./docs/design/BURST.md)（バースト）。**Wiki を出典に「確定した事実」と「未確定」を分けて記録**してあり、
 実装順の依存関係は ULTIMATE ↔ SOULCORE が `minLevelCores` を共有、異魔神ブレイヴは BRAVE の
 データモデル選択に影響する（詳細は各文書の §0）。
 
@@ -340,7 +341,7 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
 | BS05-X20 | 大甲帝デスタウロス | 紫・緑 | 9 | 紫3＋緑3（**混色**） | 紫緑 |
 
 これに合わせて `CardData.color: Color` を **`colors: Color[]` へ置換**した（2026-07-25。設計は削除前の
-`MULTICOLOR.md` に記録）。要点:
+`docs/archive/MULTICOLOR.md` に記録）。要点:
 
 - **色の一致判定は必ず述語を通す**。場のインスタンスは `instHasColor(inst, color)`、
   手札・デッキ側のカードは `cardHasColor(cardData, color)`、色の一覧が要るときは `instColors(inst)`。
@@ -550,7 +551,7 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 マジックは使用後トラッシュへ行くため、従来は「このターンの間、〜する」という**継続効果**を
 表現できなかった（BS05 だけで10枚前後がこれで構造化できずにいた）。
 `PlayerState.turnVirtualInstances: CardInstance[]` に**このターンだけの仮想発生源**を持たせて解決する。
-設計の全文は `TURN_EFFECT_SOURCES.md`。
+設計の全文は `docs/design/TURN_EFFECT_SOURCES.md`。
 
 - **データの書き方**: マジック自身の `effects` に `kind:"magic"` の `{ type: "lendSelfThisTurn" }` と、
   貸したい継続効果を **`levels: null`** で並べる。実例は BS05-071 リアニメイト

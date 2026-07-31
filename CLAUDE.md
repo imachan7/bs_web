@@ -44,7 +44,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 設計ドキュメント
 
-仕様・実装状況・課題は @SPEC.md に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+
+**SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
+
+| 用途 | 読む章 |
+| :-- | :-- |
+| 効果・カードの実装 | §2（実装済みルール・効果＝アクション一覧）と §3（3層設計） |
+| カードプールの確認 | §1 の該当する弾だけ |
+| テストの追加 | §6 |
+
+※ かつてここは `@SPEC.md` と書いており、**セッション開始のたびに86KB全文が自動で読み込まれていた**
+（下記「トークン規律」と矛盾していた）。通常のリンクに戻してあるので、`@` を付け直さないこと。
+
+その他の文書は `docs/` 配下にある。**いずれも該当する作業に着手するときだけ読む**:
+
+| 場所 | 中身 |
+| :-- | :-- |
+| `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
+| `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
+| `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 
 ## エージェント間連絡（chatbox）
 

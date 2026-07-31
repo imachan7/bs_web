@@ -7,7 +7,7 @@
   - [バトスピ Wiki「Uトリガー」](https://batspi.com/index.php?U%E3%83%88%E3%83%AA%E3%82%AC%E3%83%BC)
   - 実カード例 [CP14-X11 アルティメット・アポロドラゴン](https://batspi.com/index.php?%E3%82%A2%E3%83%AB%E3%83%86%E3%82%A3%E3%83%A1%E3%83%83%E3%83%88%E3%83%BB%E3%82%A2%E3%83%9D%E3%83%AD%E3%83%89%E3%83%A9%E3%82%B4%E3%83%B3)
 - 関連: [BRAVE.md](./BRAVE.md)（合体の相手になる）、[SOULCORE.md](./SOULCORE.md)（維持コアの関数を共有する）、
-  [TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md)（`effectSources` に1行足す）、[SPEC.md](./SPEC.md)
+  [TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md)（`effectSources` に1行足す）、[SPEC.md](../../SPEC.md)
 
 ---
 
@@ -114,7 +114,7 @@ Uトリガーがヒットしたとき、(効果テキスト)。
 これは BRAVE.md §2.4 の「入れ子にする」判断と**同じ原則の別解**であり、結論は共通している
 ——**`field.spirits` に混ぜない**。
 
-### 2.1 走査の分類（`HANDOFF_DESIGN.md` §4.4 の A/B 分類に第3軸を足す）
+### 2.1 走査の分類（`docs/archive/HANDOFF_DESIGN.md` §4.4 の A/B 分類に第3軸を足す）
 
 | その走査が問うていること | 使うもの | 例 |
 | :-- | :-- | :-- |
@@ -207,7 +207,7 @@ export function minLevelCores(card: CardData): number {
 ```
 
 **既存カードは全て Lv1 を持つので、値は 1文字も変わらない**
-（＝既存 smoke を書き換えずに通ることが挙動保存の根拠になる。`HANDOFF_DESIGN.md` §4.5）。
+（＝既存 smoke を書き換えずに通ることが挙動保存の根拠になる。`docs/archive/HANDOFF_DESIGN.md` §4.5）。
 
 呼び出しは **24箇所**（`RuleValidator` 3 / `EffectModules` 6 / `actions/cores.ts` 5 /
 `GameEngine` 4 / `actions/battleFlow.ts` 2 / `actions/destroy.ts` 1 / import 3）。
@@ -229,7 +229,7 @@ export function minLevelCores(card: CardData): number {
 | ライフダメージ | `instanceSymbolCount` | **数える**（1個＝1点） | シンボル数そのもの。色は無関係 |
 | デッキビルダーの色内訳 | `buildPreset` 等 | 色として数えない | 表示上は「極」として別枠 |
 
-これは `MULTICOLOR.md` が確立した「**軽減・ライフダメージ・単色プリセットの3つは OR にしてはいけない**」と
+これは `docs/archive/MULTICOLOR.md` が確立した「**軽減・ライフダメージ・単色プリセットの3つは OR にしてはいけない**」と
 同じ構造の判断。`.symbol` 参照は **13箇所**、`.reduction` は **5箇所**しかないので、
 シンボル周りの改修量そのものは小さい。
 
@@ -354,7 +354,7 @@ export interface BraveConditionTerm {
 | 7 | 実カードの構造化（まずアポロドラゴン1枚を通す） | カードごとの smoke |
 | 8 | クライアント（極シンボル表示・アルティメット枠）※ Gemini 担当 | 目視 |
 
-**段5には必ず変異テストを使う**（`HANDOFF_DESIGN.md` §4.1）。
+**段5には必ず変異テストを使う**（`docs/archive/HANDOFF_DESIGN.md` §4.1）。
 `kinds` の既定値を `["spirit","ultimate"]` に書き換えて
 「アルティメットが破壊される」テストが**落ちること**を確認する。落ちなければテストが効いていない。
 
