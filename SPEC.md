@@ -86,10 +86,11 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）＋波2の pendingChoice 基盤
   （コキュートスを構造化。2章の「効果解決中のプレイヤー選択」を参照）＋波3a（エンジェルボイス＝
   BattleState.compareByLevel の Lv比較バトル、ケン＝kind effectGrant の誘発効果付与、クラン＝
-  tempAlsoCosts/instHasCost の「コストとしても扱う」、魔導書e2＝kind drawDouble の効果ドロー倍化）の
+  instHasCost の「コストとしても扱う」（2026-07-31 に kind "alsoCostGrant" の継続効果へ移行）、魔導書e2＝kind drawDouble の効果ドロー倍化）の
   計95枚＋波3b（チャガマル・紫水晶の森・鏡の回廊e1＝kind reviveOnDestroy による破壊への割り込み復活
   （destroySpirit に破壊文脈を伝播、「できる」は常時発動の簡略化）、アディショナルカラー・クルーク＝
-  pendingChoice の kind:"option"（ボタン選択UI）と tempColors/tempFamilies・instHasColor）の
+  pendingChoice の kind:"option"（ボタン選択UI）と tempColors・instHasColor。クルークの系統付与は
+  2026-07-31 に継続効果へ移行し、tempFamilies は廃止）の
   計100枚＋最終波（クロスシザース＝coresLinkedTo/coresOverride のコア数リンク choice、夢魔の寝所＝
   exhaustOnManualCoreAdd（手動コア増加の検知）と constraintGrant（制約の付与。activeConstraints が
   フィールド発生源からの付与も合成）、ケルル・ベロス e1＝既存 constraint のみ）で
@@ -173,9 +174,10 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   reductionGrant keywordFilter、refreshOne familyFilter、kind "coreStepBonus"
   （カード名そろい条件つきコアステップ増加）、voidCoreToOwnNexuses を新設）の
   計114枚＋色・シンボル・レベル操作バッチ4枚（BS03-053/058/121/141。
-  CardInstance.colorsAsContinuous（kind "colorAs"、フラットフェイス。レベル表記は完全一致で有効）・
+  CardInstance.colorsAsContinuous（kind "colorAs"、フラットフェイス。レベル表記は完全一致で有効。
+  ティングリーは 2026-07-31 に colorAs target:"ownAll" の継続効果へ移行）・
   tempExtraSymbols（ダブルハート。ライフダメージとコスト軽減シンボル集計に反映）、
-  アクション grantColorAll（ティングリー）・addSymbolThisTurn・levelUpThisTurn（ビルドアップ。
+  アクション addSymbolThisTurn・levelUpThisTurn（ビルドアップ。
   最大Lvキャップ）を新設。ダブルハート/ビルドアップの「自分か相手のスピリット1体」は
   自分側のみに簡略化）の計118枚＋新概念バッチ4a の5枚（BS03-047/095/112/131/139。
   kind "exhaustImmunityGrant"＝相手効果の疲労免疫（トランプの王国。exhaust系3経路にガード）・
@@ -558,6 +560,14 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
   （`reviveOnDestroy` を貸して「【呪撃】持ちが破壊されたら疲労状態で戻る」を1ターンだけ成立させる）
 - **新しい kind を作らなくてよい**のが利点。`reviveOnDestroy` / `constraint` / `aura` /
   `keywordGrant` / `mustBlockGrant` などが一斉にマジックから使えるようになる
+- **スピリットの「このターンの間」効果も同じ器を使う**（2026-07-31 ルール確認：「このターンの間、
+  自分のスピリットすべて〜」は**使用後に召喚したスピリットにも乗る**継続効果が正）。誘発／スタートステップ側の
+  action を `lendSelfThisTurn` にし、継続エントリに **`lentOnly: true`** を付ける。
+  `lentOnly` は「仮想発生源（`isVirtualSource`）からのみ有効」の意味で、実在するスピリットが同じエントリを
+  持っていても恒久化しないためのゲート。`aura` / `keywordGrant` 相当・`colorAs` / `familyGrant` /
+  `alsoCostGrant` が対応する。これにより発生源が破壊されてもそのターンは効果が持続する（原作どおり）
+- 選択を伴う貸与（BS02-064 音鳥クルーク＝与える系統を選ぶ）は、選択結果を仮想発生源の
+  `CardInstance.lentChoiceFamily` に載せ、継続エントリ側は `familyGrant.familyFromChoice: true` で読む
 - 走査は `shared/rules.ts` の **`effectSources(board, pid)`** に集約する。
   「フィールドに実在する発生源＋実在しないが効果を出す発生源」を返す器で、将来ここに種類が増える
 
@@ -569,9 +579,14 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 | **`self` は使えない** | マジックの `resolveAction` は `self = null` で呼ばれる。ハンドラで `if (!self) return` と書くと**唯一の用途で必ず no-op** になる（型検査も smoke も通ってしまう）。発生源は **`ctx.sourceCardId`** から取る |
 | **走査の A/B 分類** | 「誰が継続効果を出しているか」＝A（`effectSources` を使う）。「盤面に何が存在するか」＝B（`player.field` を直接見る）。**関数単位ではなく、その走査が何を問うているかで判定する**。`countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（色ロック）・`checkAuraCondition` の `hasOwnColor` 分岐はB。混ぜると「場に赤が1枚も無いのに赤のマジックを貸しただけで条件成立」「軽減シンボルが増える」といった別のバグになる |
 
-現在 `effectSources` へ差し替え済みのA分類は6つ（`tryReviveOnDestroy` / `activeConstraints` /
-`hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査）。
-残りは段階移行の対象。
+現在 `effectSources` へ差し替え済みのA分類は8つ（`tryReviveOnDestroy` / `activeConstraints` /
+`hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査 /
+`spiritHasFamily` の familyGrant 走査 / `refreshLevelAsOverrides`）。残りは段階移行の対象。
+
+`instHasCost` / `instHasColor` のように **state を受け取らない純粋述語**が読む値は、走査ではなく
+`refreshLevelAsOverrides` が `CardInstance` へ**都度全消去→再構築**する
+（`colorsAsContinuous` / `alsoCostsContinuous` / `armorColorsGranted`）。全呼び出し箇所の signature を
+変えずに継続効果へ対応させる定石。
 
 ### 起動能力（kind: "activated"）
 
