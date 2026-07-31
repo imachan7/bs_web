@@ -32,8 +32,23 @@ export function normalizeFilter(
 ): ResolvedTargetFilter | typeof SELF_REQUIRED {
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
-    const { maxBp, minBp, exactBp, ...rest } = spec
+    // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
+
+    // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
+    // 記録が空（バトル外での発動など）なら対象なしにしたいので、一致しえない値を入れて空振りさせる
+    if (sameColorAsBattleLoser) {
+        const colors = ctx.state.lastBattleDestroyedColors
+        if (colors.length === 0) return SELF_REQUIRED
+        // 多色の敗者は現データに存在しないため先頭色で判定する（色軸は単一色のみ受ける）
+        resolved.color = colors[0]!
+    }
+    if (sameFamilyAsBattleLoser) {
+        const families = ctx.state.lastBattleDestroyedFamilies
+        if (families.length === 0) return SELF_REQUIRED
+        resolved.family = families // 配列＝いずれかの系統でOR
+    }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる
     const selfBp = ctx.self ? effectiveBp(ctx.state, ctx.owner, ctx.self) : undefined

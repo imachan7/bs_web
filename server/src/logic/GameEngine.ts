@@ -431,10 +431,15 @@ function doAttack(
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
     // 両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
     if (!state.winner) {
-        fireFieldEventTriggers(state, pid, "anySpiritAttacked", { pid, inst }, instColors(inst))
+        fireFieldEventTriggers(state, pid, "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
+            cost: getCard(inst.cardId).cost,
+        })
     }
     if (!state.winner) {
-        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritAttacked", { pid, inst }, instColors(inst))
+        // アタックしたスピリットのコストを渡す（costFilter で絞る効果のため。BS04鎧装獣ヘイズ・ルーン）
+        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
+            cost: getCard(inst.cardId).cost,
+        })
     }
     // アタッカーが維持コア割れで消滅した場合はバトル不成立（ライフ受け・ブロックの対象が存在しないため）
     if (state.battle && !findSpirit(player, instanceId)) {
@@ -762,6 +767,10 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedCores = 0
     // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaustAllByLevel level "lastBattleDestroyed"）
     state.lastBattleDestroyedLevel = 0
+    // 「BPを比べ相手のスピリットだけを破壊した」ときの破壊された側の色・系統
+    // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
+    state.lastBattleDestroyedColors = []
+    state.lastBattleDestroyedFamilies = []
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColors = instColors(attacker)
@@ -793,6 +802,8 @@ function resolveBattle(state: GameState): void {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
         state.lastBattleDestroyedLevel = blockerLevel
+        state.lastBattleDestroyedColors = instColors(blocker)
+        state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
@@ -801,6 +812,8 @@ function resolveBattle(state: GameState): void {
         fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
     } else if (attackerValue < blockerValue) {
+        state.lastBattleDestroyedColors = instColors(attacker)
+        state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",

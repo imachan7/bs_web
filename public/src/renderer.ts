@@ -31,6 +31,7 @@ import {
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
+    canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
     instHasCost,
@@ -406,8 +407,10 @@ export function render(view: GameView, ui: UiState): void {
         $("targeting-info").textContent =
             `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
     } else if (ui.awakenTarget !== null) {
-        $("targeting-info").textContent =
-            "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
+        const fromReserve = canAwakenFromReserve(view, view.you)
+        $("targeting-info").textContent = fromReserve
+            ? "🔄 覚醒: コアの移動元にする自分のスピリットまたはリザーブを選んでください"
+            : "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
@@ -426,8 +429,8 @@ export function render(view: GameView, ui: UiState): void {
     }
 
     // プレイヤー情報
-    renderInfo("opp-info", view, opp, false, lifeDamagedPids.has(opp))
-    renderInfo("my-info", view, you, true, lifeDamagedPids.has(you))
+    renderInfo("opp-info", view, ui, opp, false, lifeDamagedPids.has(opp))
+    renderInfo("my-info", view, ui, you, true, lifeDamagedPids.has(you))
 
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
@@ -477,6 +480,7 @@ export function render(view: GameView, ui: UiState): void {
 function renderInfo(
     id: string,
     view: GameView,
+    ui: UiState,
     pid: PlayerId,
     isSelf: boolean,
     lifeDamaged: boolean,
@@ -484,6 +488,11 @@ function renderInfo(
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
+    // 覚醒モード中にリザーブからコアを移せるか（ディノゾールLv2の効果）
+    const reserveHighlight = isSelf
+        && ui.awakenTarget !== null
+        && canAwakenFromReserve(view, view.you)
+        && p.reserve >= 1
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
@@ -499,7 +508,10 @@ function renderInfo(
         if (cls) span.className = cls
         // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
         // 自分のリザーブ表示をクリック対象として識別できるようにする
-        if (isSelf && text.startsWith("リザーブ")) span.dataset.reserve = "self"
+        if (isSelf && text.startsWith("リザーブ")) {
+            span.dataset.reserve = "self"
+            if (reserveHighlight) span.classList.add("targetable", "clickable")
+        }
         span.textContent = text
         el.appendChild(span)
     }

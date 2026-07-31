@@ -550,7 +550,15 @@ export function matchesTarget(
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
+    // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
+    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
+    if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
     return true
+}
+
+// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定
+export function cardNameContains(inst: CardInstance, text: string): boolean {
+    return card(inst.cardId).name.includes(text)
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
@@ -591,6 +599,14 @@ export function activeConstraints(
             (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
+        // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
+        // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
+        .filter((c) => {
+            if (c.type !== "cantAttack" || c.unlessOpponentHasColorSpirit === undefined) return true
+            const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+            const color = c.unlessOpponentHasColorSpirit
+            return !board.players[oppPid].field.spirits.some((s) => instHasColor(s, color))
+        })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []
@@ -610,7 +626,24 @@ export function activeConstraints(
             granted.push(effect.constraint)
         }
     }
-    return [...own, ...granted]
+    // constraintSuppression（BS04獣使いドヴェルグ）：持ち主のフィールドの発生源が、対象スピリットの
+    // 指定タイプの制約を発揮させない。合成結果から最後に取り除く
+    const suppressed = new Set<ConstraintDef["type"]>()
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraintSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            if (effect.nameContains !== undefined && !cardNameContains(inst, effect.nameContains)) continue
+            suppressed.add(effect.constraintType)
+        }
+    }
+    const all = [...own, ...granted]
+    if (suppressed.size === 0) return all
+    return all.filter((c) => !suppressed.has(c.type))
 }
 export function isUntargetableByOpponent(inst: CardInstance): boolean {
     if (inst.immuneToOpponentThisTurn) return true

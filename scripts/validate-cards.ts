@@ -31,7 +31,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
-    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression",
 ])
 
 export interface ValidationIssue {
@@ -182,6 +182,7 @@ const FILTER_ACTIONS = new Set([
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "rested",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

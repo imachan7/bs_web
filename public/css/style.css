@@ -318,6 +318,20 @@ button:active {
     font-weight: 600;
 }
 
+/* 覚醒モード中にリザーブからコアを移せるときのハイライト */
+.player-info span.targetable {
+    color: var(--danger);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    cursor: pointer;
+    animation: reserve-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes reserve-pulse {
+    0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+    50% { text-shadow: 0 0 16px rgba(239, 68, 68, 0.9), 0 0 4px rgba(239, 68, 68, 0.4); }
+}
+
 .field-row {
     display: flex;
     gap: 20px;

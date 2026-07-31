@@ -21796,7 +21796,37 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手のフィールドに赤のスピリットがいない間、このスピリットはアタックできない。\nLv1･Lv2『相手のアタックステップ』\nコスト1以下の相手のスピリットがアタックしたとき、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-037-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack",
+     "unlessOpponentHasColorSpirit": "red"
+    }
+   },
+   {
+    "id": "BS04-037-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "costFilter": {
+     "max": 1
+    },
+    "selfMode": "source",
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-038",
@@ -22052,7 +22082,40 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nカード名に「鎧装獣」と入っている自分のスピリットの持つ「アタックできない」効果は発揮されない。\nLv2･Lv3『自分のアタックステップ』\nカード名に「鎧装獣」と入っているスピリットが、BPを比べ相手のスピリットだけを破壊したとき、破壊したスピリットと同じ色のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-042-e1",
+    "kind": "constraintSuppression",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "constraintType": "cantAttack",
+    "nameContains": "鎧装獣",
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS04-042-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "own",
+    "winnerNameContains": "鎧装獣",
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "filter": {
+      "sameColorAsBattleLoser": true
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-043",
@@ -24516,7 +24579,30 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、カード名に「ジーク」と入っている自分のスピリットすべては、BPを比べ相手のスピリットだけを破壊したとき、破壊したスピリットと同じ系統を持つ相手のスピリットすべてを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-090-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS04-090-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": null,
+    "winnerNameContains": "ジーク",
+    "lentOnly": true,
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "sameFamilyAsBattleLoser": true
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-091",

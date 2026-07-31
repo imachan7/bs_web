@@ -70,6 +70,7 @@ import {
     isUntargetableByOpponent,
     isVanillaCard,
     isVirtualSource,
+    cardNameContains,
     KEYWORDS,
     instMatchesCostFilter,
     matchesCostFilter,
@@ -100,6 +101,7 @@ export {
     isUntargetableByOpponent,
     isVanillaCard,
     isVirtualSource,
+    cardNameContains,
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasFamily,
@@ -1993,17 +1995,26 @@ export function fireBattleWonTriggers(
     winnerInst: CardInstance,
     role: "attacker" | "blocker",
 ): void {
-    const player = state.players[winnerPid]
-    const instances = [...player.field.nexuses, ...player.field.spirits]
+    // effectSources：このターンだけの仮想発生源（マジックが貸した継続効果。BS04ニーベルングリング）も含める
+    const instances = effectSources(state, winnerPid)
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
             if (effect.kind !== "battleWon") continue
             if (effect.role !== "any" && effect.role !== role) continue
+            // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
             if (effect.vanillaWinnerOnly && !isVanillaCard(getCard(winnerInst.cardId))) continue
+            // 勝利したスピリットのカード名で絞る（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
+            if (
+                effect.winnerNameContains !== undefined &&
+                !cardNameContains(winnerInst, effect.winnerNameContains)
+            ) {
+                continue
+            }
             const actionSelf = effect.selfMode === "source" ? inst : winnerInst
             resolveAction(state, winnerPid, actionSelf, effect.action)
             if (state.winner) return
@@ -2181,7 +2192,11 @@ export function fireFieldEventTriggers(
             // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す
             const repeatTimes = effect.repeatPerCount && eventCount ? eventCount : 1
             for (let i = 0; i < repeatTimes; i++) {
-                if (selfOverride) {
+                // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
+                // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
+                if (effect.selfMode === "source") {
+                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
+                } else if (selfOverride) {
                     resolveAction(
                         state,
                         selfOverride.pid,
