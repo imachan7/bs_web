@@ -160,26 +160,18 @@ const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action)
         return
 }
 
-const grantColorAllHandler: ActionHandler<"grantColorAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // このターンの間、自分のスピリットすべてを指定色のスピリットとしても扱う（妖精ティングリー）
-        for (const s of state.players[owner].field.spirits) {
-            if (!s.tempColors.includes(action.color)) s.tempColors.push(action.color)
-        }
-        log(
-            state,
-            `${sourceName}：このターンの間、${state.players[owner].name}のスピリットすべてが${COLOR_LABELS[action.color]}のスピリットとしても扱われる。`,
-        )
-        return
-}
-
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceCardId, sourceName, chosenOption } = ctx
         if (!self) return
-        const holders = state.players[owner].field.spirits.filter((s) =>
-            spiritHasFamily(state, owner, s, action.targetFamily),
+        // 「フィールド、または手札にある系統：X を持つスピリット/スピリットカードすべて」が対象のため、
+        // 発動可否は場と手札の両方で見る（付与系統は見ない＝カード静的な系統だけ。音鳥クルーク）
+        const onField = state.players[owner].field.spirits.some((s) =>
+            getCard(s.cardId).family.includes(action.targetFamily),
         )
-        if (holders.length === 0) {
+        const inHand = state.players[owner].hand.some((cardId) =>
+            getCard(cardId).family.includes(action.targetFamily),
+        )
+        if (!onField && !inHand) {
             return
         }
         if (chosenOption === undefined) {
@@ -196,24 +188,14 @@ const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx,
             )
             return
         }
-        for (const s of holders) {
-            if (!s.tempFamilies.includes(chosenOption)) s.tempFamilies.push(chosenOption)
-        }
+        // 選んだ系統を載せた仮想発生源を積む（lendSelfThisTurn と同じ貸与。以後 kind:"familyGrant" の
+        // familyFromChoice エントリが継続付与するので、このターンに召喚したスピリットにも乗る）
+        const virtual = pushVirtualSource(state, owner, sourceCardId)
+        if (!virtual) return
+        virtual.lentChoiceFamily = chosenOption
         log(
             state,
-            `${sourceName}：系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた（ターン終了時まで）。`,
-        )
-        return
-}
-
-const grantAlsoCostAllHandler: ActionHandler<"grantAlsoCostAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 道化師クラン：自分のスピリットすべてを、このターンの間コストaction.costのスピリットとしても扱う
-        const targets = state.players[owner].field.spirits
-        for (const t of targets) t.tempAlsoCosts.push(action.cost)
-        log(
-            state,
-            `${state.players[owner].name}のスピリットすべては、このターンの間コスト${action.cost}のスピリットとしても扱われる。`,
+            `${sourceName}：このターンの間、系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた。`,
         )
         return
 }
@@ -455,21 +437,32 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         return
 }
 
+// 「このターンの間」継続効果を貸す共通処理：仮想発生源を1つ積んで返す（積めなければ null）。
+// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う
+function pushVirtualSource(
+    state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
+    owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
+    sourceCardId: string | undefined,
+): CardInstance | null {
+    if (sourceCardId === undefined) {
+        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
+        return null
+    }
+    const inst = createInstance(sourceCardId, state.turn, 0)
+    inst.instanceId = `virtual-${inst.instanceId}`
+    state.players[owner].turnVirtualInstances.push(inst)
+    return inst
+}
+
 // マジックが「このターンの間」継続効果を貸す機構（TURN_EFFECT_SOURCES.md）。
 // マジックのselfは常にnull（resolveMagicがself=nullで呼ぶ）ため、ctx.sourceCardIdを使うこと。
 // ここでselfを参照すると（マジックの唯一の用途で）必ずno-opになる罠なので注意（§3.3）
 const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     const { state, owner, sourceCardId } = ctx
-    if (sourceCardId === undefined) {
-        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
-        return
-    }
-    const inst = createInstance(sourceCardId, state.turn, 0)
-    inst.instanceId = `virtual-${inst.instanceId}`
-    state.players[owner].turnVirtualInstances.push(inst)
+    if (!pushVirtualSource(state, owner, sourceCardId)) return
     log(
         state,
-        `${getCard(sourceCardId).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+        `${getCard(sourceCardId!).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
     )
 }
 
@@ -478,9 +471,7 @@ const handlers = {
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
-    grantColorAll: grantColorAllHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
-    grantAlsoCostAll: grantAlsoCostAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
     levelUpThisTurn: levelUpThisTurnHandler,

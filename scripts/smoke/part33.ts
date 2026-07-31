@@ -54,9 +54,15 @@ console.log("=== BS03-058 妖精ティングリー：召喚時に自分のスピ
     const tingley = createInstance("BS03-058", s.turn, 1)
     s.players.p1.field.spirits.push(other, tingley)
     fireTrigger(s, "p1", tingley, "onSummon")
+    refreshLevelAsOverrides(s) // 貸与された継続効果（colorAs）を反映する（実戦ではhandleActionの事後フックが呼ぶ）
     assert(instHasColor(other, "yellow"), "他の自分のスピリットも黄として扱われる")
+    // 継続効果のため、効果の**後**に召喚したスピリットにも乗る（2026-07-31 ルール確認）
+    const later = createInstance("BS01-001", s.turn, 1)
+    s.players.p1.field.spirits.push(later)
+    refreshLevelAsOverrides(s)
+    assert(instHasColor(later, "yellow"), "効果の後に場に出たスピリットも黄として扱われる")
     endTurn(s)
-    assert(!instHasColor(other, "yellow"), "ターン終了でtempColorsがリセットされ黄でなくなる")
+    assert(!instHasColor(other, "yellow"), "ターンが変わると貸与が消え黄でなくなる")
 }
 
 console.log("=== BS03-121 ダブルハート：シンボル+1でライフダメージが+1（ターン終了でリセット） ===")

@@ -648,6 +648,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.levelAsContinuous
             delete inst.colorsAsContinuous
             delete inst.armorColorsGranted
+            delete inst.alsoCostsContinuous
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
@@ -691,11 +692,31 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     continue
                 }
                 if (effect.kind === "colorAs") {
-                    // 発生源自身が指定色のスピリットとしても扱われる（継続。百面相のフラットフェイス）
+                    // 発生源自身（target:"ownAll" は持ち主のスピリットすべて）が指定色としても扱われる
+                    // （継続。百面相のフラットフェイス／妖精ティングリー）
+                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-                    if (!source.colorsAsContinuous) source.colorsAsContinuous = []
-                    for (const c of effect.colors) {
-                        if (!source.colorsAsContinuous.includes(c)) source.colorsAsContinuous.push(c)
+                    // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
+                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]
+                    for (const target of targets) {
+                        if (!target.colorsAsContinuous) target.colorsAsContinuous = []
+                        for (const c of effect.colors) {
+                            if (!target.colorsAsContinuous.includes(c)) target.colorsAsContinuous.push(c)
+                        }
+                    }
+                    continue
+                }
+                if (effect.kind === "alsoCostGrant") {
+                    // 持ち主のスピリットすべてを「コストNとしても扱う」（継続。道化師クラン）。
+                    // instHasCost / instMatchesCostFilter は state を受け取らない設計のため、
+                    // 対象の CardInstance.alsoCostsContinuous へ毎回再計算して反映する
+                    if (effect.lentOnly && !isVirtualSource(source)) continue
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []
+                        if (!spirit.alsoCostsContinuous.includes(effect.cost)) {
+                            spirit.alsoCostsContinuous.push(effect.cost)
+                        }
                     }
                     continue
                 }

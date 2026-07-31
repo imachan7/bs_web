@@ -9686,9 +9686,16 @@
      }
     },
     "action": {
-     "type": "grantAlsoCostAll",
-     "cost": 2
+     "type": "lendSelfThisTurn"
     }
+   },
+   {
+    "id": "BS02-060-e1-cont",
+    "kind": "alsoCostGrant",
+    "levels": null,
+    "target": "ownAll",
+    "cost": 2,
+    "lentOnly": true
    }
   ]
  },
@@ -9922,6 +9929,15 @@
      "type": "grantFamilyChoiceAll",
      "targetFamily": "歌鳥"
     }
+   },
+   {
+    "id": "BS02-064-e1-cont",
+    "kind": "familyGrant",
+    "levels": null,
+    "target": "ownAll",
+    "familyFromChoice": true,
+    "familyFilter": "歌鳥",
+    "lentOnly": true
    }
   ]
  },
@@ -15254,10 +15270,19 @@
      2
     ],
     "action": {
-     "type": "grantColorAll",
-     "color": "yellow"
+     "type": "lendSelfThisTurn"
     },
     "optional": false
+   },
+   {
+    "id": "e1-cont",
+    "kind": "colorAs",
+    "levels": null,
+    "colors": [
+     "yellow"
+    ],
+    "target": "ownAll",
+    "lentOnly": true
    }
   ]
  },

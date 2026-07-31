@@ -133,7 +133,6 @@ export function endTurn(state: GameState): void {
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
             inst.tempColors = []
-            inst.tempFamilies = []
             delete inst.tempExtraSymbols
         }
     }

@@ -20,6 +20,7 @@ import {
     spiritHasKeyword,
 } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
+import { instHasCost } from "../../shared/rules"
 
 console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル解決の比較をBPからLvへ切り替える ===")
 {
@@ -160,11 +161,11 @@ console.log("=== BS02-060 道化師クラン e1：黄3つ以上で自分のス�
     const chun = createInstance("BS02-051", s.turn, 1) // チュンポポ（黄・コスト1）
     s.players.p1.field.spirits.push(chun)
 
-    runTurnStart(s) // スタートステップ：黄3体（クラン+ピヨン+チュンポポ）以上 → grantAlsoCostAll発火
+    runTurnStart(s) // スタートステップ：黄3体（クラン+ピヨン+チュンポポ）以上 → lendSelfThisTurn発火
 
-    assert(clan.tempAlsoCosts.includes(2), "クラン自身もコスト2として扱われる")
-    assert(piyon.tempAlsoCosts.includes(2), "ピヨンもコスト2として扱われる")
-    assert(chun.tempAlsoCosts.includes(2), "チュンポポもコスト2として扱われる")
+    assert(instHasCost(clan, 2), "クラン自身もコスト2として扱われる")
+    assert(instHasCost(piyon, 2), "ピヨンもコスト2として扱われる")
+    assert(instHasCost(chun, 2), "チュンポポもコスト2として扱われる")
 
     // 2026-07-31: grantKeywordAll から lendSelfThisTurn + kind:"keywordGrant" へ移行。
     // 移行時に keywordGrant.costFilter が静的コストしか見ておらず、クランで「コスト2としても扱う」
@@ -189,7 +190,7 @@ console.log("=== BS02-060 道化師クラン e1：黄3つ以上で自分のス�
     assert(getCard(piyon.cardId).cost === 0, "ピヨンの実コストは変わらない")
 
     endTurn(s)
-    assert(piyon.tempAlsoCosts.length === 0, "ターン終了でtempAlsoCostsがリセットされる")
+    assert(!instHasCost(piyon, 2), "ターンが変わるとコスト2扱いも消える")
     assert(!spiritHasKeyword(s, "p1", pom, "armor"), "ターンが変わるとlendSelfThisTurnの貸与も消え、装甲は外れる")
 }
 

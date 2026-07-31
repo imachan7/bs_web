@@ -75,7 +75,6 @@ export function createInstance(
         tempKeywords: [],
         tempAlsoCosts: [],
         tempColors: [],
-        tempFamilies: [],
     }
 }
 

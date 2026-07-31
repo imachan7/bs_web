@@ -88,9 +88,12 @@ export function isVirtualSource(inst: CardInstance): boolean {
     return inst.instanceId.startsWith("virtual-")
 }
 
-// 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（道化師クラン）
+// 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
+// 継続付与された「コストとしても扱う」値（alsoCostsContinuous＝kind:"alsoCostGrant"。道化師クラン）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
-    return card(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
+    if (card(inst.cardId).cost === cost) return true
+    if (inst.tempAlsoCosts.includes(cost)) return true
+    return (inst.alsoCostsContinuous ?? []).includes(cost)
 }
 
 // カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
@@ -245,7 +248,8 @@ export function targetArmorColorCount(inst: CardInstance): number {
     return colors.size
 }
 
-// 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵）
+// 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
+// 走査は effectSources 経由＝このターンだけの仮想発生源（lendSelfThisTurn で貸した継続効果）も含む
 export function spiritHasFamily(
     board: Board,
     ownerPid: PlayerId,
@@ -254,13 +258,22 @@ export function spiritHasFamily(
 ): boolean {
     if (card(inst.cardId).family.includes(family)) return true
     const player = board.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "familyGrant") continue
-            if (effect.family !== family) continue
+            // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
+            const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
+            if (granted !== family) continue
+            // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // familyFilter は**カード静的な系統のみ**で判定する。ここで spiritHasFamily を呼ぶと
+            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）
+            if (effect.familyFilter && !card(inst.cardId).family.includes(effect.familyFilter)) {
+                continue
+            }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
             }
@@ -272,8 +285,11 @@ export function spiritHasFamily(
             }
             if (effect.phase && board.phase !== effect.phase) continue
             if (effect.condition) {
+                // 「スピリットとネクサスが合計N以上」は**場に実在するもの**を数える（分類B。
+                // 仮想発生源を混ぜてはいけないため sources ではなく field を見る。TURN_EFFECT_SOURCES.md §1）
                 const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColor(s, color)).length
+                const onField = [...player.field.spirits, ...player.field.nexuses]
+                const total = onField.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             return true
@@ -531,7 +547,8 @@ export function instMatchesCostFilter(
 ): boolean {
     if (!costFilter) return true
     if (matchesCostFilter(card(inst.cardId).cost, costFilter)) return true
-    return inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))
+    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
+    return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
 }
 
 // ---- 制約・免疫 ----
