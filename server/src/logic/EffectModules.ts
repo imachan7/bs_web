@@ -210,20 +210,29 @@ function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number {
 // 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
 // phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
 function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
+    if (!isInCurrentBattle(state, inst)) return false
+    return hasActiveGlobalConstraint(state, "battlingCoresProtected")
+}
+
+// 指定インスタンスが今まさにバトルの当事者（アタッカーかブロッカー）か
+function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
     if (!state.battle) return false
-    if (
-        inst.instanceId !== state.battle.attackerInstanceId &&
-        inst.instanceId !== state.battle.blockerInstanceId
-    ) {
-        return false
-    }
+    return (
+        inst.instanceId === state.battle.attackerInstanceId ||
+        inst.instanceId === state.battle.blockerInstanceId
+    )
+}
+
+// 両陣営のフィールドに、指定タイプの globalConstraint が有効な発生源があるか。
+// phase/turn は EffectDef 側（globalConstraint エントリ自身）が持つ（発生源の持ち主基準の turn 判定）
+function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
         for (const source of sources) {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "battlingCoresProtected") continue
+                if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
@@ -233,6 +242,20 @@ function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean 
         }
     }
     return false
+}
+
+// 茨の決戦地Lv2（globalConstraint "battlingEffectImmune"）：バトルをしているお互いのスピリットは、
+// お互いの**スピリット/マジック**の効果を受けない（ネクサスの効果は通る＝カードテキストどおり）。
+// 破壊・コア除去・疲労・バウンス等の各ガード（装甲／マジック効果耐性と同じ箇所）から呼ぶ。
+// 発生源の種別が不明（undefined）なときは判定できないため false（＝防がない）とする
+export function isBattlingEffectImmune(
+    state: GameState,
+    inst: CardInstance,
+    sourceType: "spirit" | "nexus" | "magic" | undefined,
+): boolean {
+    if (sourceType !== "spirit" && sourceType !== "magic") return false
+    if (!isInCurrentBattle(state, inst)) return false
+    return hasActiveGlobalConstraint(state, "battlingEffectImmune")
 }
 
 // スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
@@ -1249,6 +1272,7 @@ export function pickEnemyCandidates(
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isUntargetableByOpponent(s) &&
+            !isBattlingEffectImmune(state, s, sourceType) &&
             !hasArmorAgainst(s, sourceColors) &&
             !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
             extraPredicate(s),

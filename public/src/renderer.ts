@@ -497,6 +497,9 @@ function renderInfo(
     for (const [cls, text] of items) {
         const span = document.createElement("span")
         if (cls) span.className = cls
+        // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
+        // 自分のリザーブ表示をクリック対象として識別できるようにする
+        if (isSelf && text.startsWith("リザーブ")) span.dataset.reserve = "self"
         span.textContent = text
         el.appendChild(span)
     }

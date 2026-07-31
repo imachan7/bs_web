@@ -11,7 +11,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { canAwaken, cantActByCost, directAttackFilter } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -31,6 +31,7 @@ import {
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
+    isBattlingEffectImmune,
     instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
@@ -253,6 +254,7 @@ export function validateCastMagic(
         if (
             enemyTarget &&
             (isUntargetableByOpponent(enemyTarget) ||
+                isBattlingEffectImmune(state, enemyTarget, "magic") ||
                 hasMagicImmunity(state, opponentOf(pid), enemyTarget))
         ) {
             return "このスピリットは効果の対象にできません"
@@ -332,6 +334,15 @@ export function validateAwaken(
     if (!canAwaken(state, pid, target)) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
+    // ディノゾールLv2：【覚醒】の効果が「自分のスピリット上か自分のリザーブから」に書き換わっている間だけ、
+    // リザーブを移動元にできる（番兵 AWAKEN_FROM_RESERVE）
+    if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        if (!canAwakenFromReserve(state, pid)) {
+            return "リザーブから【覚醒】できる効果がありません"
+        }
+        if (player.reserve < count) return "リザーブのコアが足りません"
+        return null
+    }
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "コアの移動元スピリットが見つかりません"
     if (from.cores < count) return "移動元のコアが足りません"

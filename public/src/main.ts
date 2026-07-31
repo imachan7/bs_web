@@ -14,6 +14,7 @@ import {
     showWaiting,
     type UiState,
 } from "./renderer"
+import { AWAKEN_FROM_RESERVE, canAwakenFromReserve } from "../../shared/rules"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -552,6 +553,21 @@ async function init(): Promise<void> {
     byId("hand").addEventListener("click", (e) => {
         const el = closestData(e, "data-hand-index")
         if (el) onHandClick(Number(el.dataset.handIndex))
+    })
+
+    // 覚醒モード中に自分のリザーブをクリックしたら、リザーブからコアを移す
+    // （ディノゾールLv2が【覚醒】を「自分のスピリット上か自分のリザーブから」に書き換えている場合のみ有効）
+    byId("my-info").addEventListener("click", (e) => {
+        if (ui.awakenTarget === null) return
+        if (!closestData(e, "data-reserve")) return
+        if (!view || !canAwakenFromReserve(view, view.you)) return
+        send({
+            type: "awaken",
+            instanceId: ui.awakenTarget,
+            fromInstanceId: AWAKEN_FROM_RESERVE,
+            count: 1,
+        })
+        ui.awakenTarget = null
     })
 
     byId("my-spirits").addEventListener("click", (e) => {

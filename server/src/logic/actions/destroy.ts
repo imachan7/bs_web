@@ -8,6 +8,7 @@ import {
     destroySpirit,
     findSpiritAny,
     isImmuneToArea,
+    isBattlingEffectImmune,
     pickEnemyByBp,
     pickEnemyCandidates,
     returnNexusToHand,
@@ -41,13 +42,23 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         const limitBp = Infinity
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         if (targetInstanceId !== undefined) {
-            // pendingChoice解決：選ばれた1体のみ破壊する
+            // pendingChoice解決：選ばれた1体のみ破壊する。
+            // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
+            // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）
             const target = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (target) {
-                destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
-            } else {
+            if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                return
             }
+            if (
+                isBattlingEffectImmune(state, target, srcType) ||
+                hasArmorAgainst(target, srcColors) ||
+                (srcType === "magic" && hasMagicImmunity(state, opp, target))
+            ) {
+                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった。`)
+                return
+            }
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
             return
         }
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
@@ -102,6 +113,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
                     !isImmuneToArea(s) &&
+                    !isBattlingEffectImmune(state, s, srcType) &&
                     !hasArmorAgainst(s, srcColors) &&
                     !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
             )
@@ -110,7 +122,12 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
         const ownTargets = action.anySide
             ? state.players[owner].field.spirits
-                  .filter((s) => matchesTarget(state, owner, s, areaFilter, self?.instanceId) && !isImmuneToArea(s))
+                  .filter(
+                      (s) =>
+                          matchesTarget(state, owner, s, areaFilter, self?.instanceId) &&
+                          !isImmuneToArea(s) &&
+                          !isBattlingEffectImmune(state, s, srcType),
+                  )
                   .map((s) => ({ pid: owner, inst: s }))
             : []
         const targets = [...oppTargets, ...ownTargets]
@@ -158,7 +175,11 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
         // 相手フィールドは既存の免疫（isImmuneToArea）・装甲チェックを適用、自分フィールドは適用しない
         // （destroyExhaustedのanySideと同じ非対称ルール＝自分の効果は自分のスピリットには免疫が働かない）
         const oppTargets = state.players[opp].field.spirits.filter(
-            (s) => !instColors(s).some((c) => safeColors.has(c)) && !isImmuneToArea(s) && !hasArmorAgainst(s, srcColors),
+            (s) =>
+                !instColors(s).some((c) => safeColors.has(c)) &&
+                !isImmuneToArea(s) &&
+                !isBattlingEffectImmune(state, s, srcType) &&
+                !hasArmorAgainst(s, srcColors),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
             (s) => !instColors(s).some((c) => safeColors.has(c)),
@@ -262,9 +283,10 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
                 return
             }
             if (
-                found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColors) ||
-                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                isBattlingEffectImmune(state, found.inst, srcType) ||
+                (found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColors) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return

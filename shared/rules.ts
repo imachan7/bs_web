@@ -734,6 +734,24 @@ export function cantActByCost(board: Board, inst: CardInstance): boolean {
 // 静的キーワードは **effects の levels を尊重する**（「Lv2・Lv3【覚醒】」を Lv1 で使えないようにする）。
 // 一時付与（スピリットリンク）・継続付与（ディラノス）はレベル指定を持たないためそのまま有効。
 // なお spiritHasKeyword の静的分岐はレベルを見ないため、レベルを尊重したい呼び出しはこちらを使う
+// GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
+// 通常の instanceId とは衝突しない固定文字列（BS05合成恐竜ディノゾールLv2）
+export const AWAKEN_FROM_RESERVE = "reserve"
+
+// 【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
+// 持ち主のフィールドにあるか。ディノゾールLv2が自分のスピリットすべての【覚醒】を書き換える）。
+// サーバー validateAwaken とクライアントの覚醒UIが共用する
+export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(board, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "awakenFromReserve") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
 export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     const level = currentLevel(inst).level
     const staticAwaken = card(inst.cardId).effects.some(

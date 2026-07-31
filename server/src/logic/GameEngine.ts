@@ -14,6 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
+import { AWAKEN_FROM_RESERVE } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -349,8 +350,23 @@ function doAwaken(
 
     const player = state.players[pid]
     const target = findSpirit(player, instanceId)
+    if (!target) return "対象のスピリットが見つかりません"
+
+    // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
+    if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        player.reserve -= count
+        target.cores += count
+        checkExhaustOnCoreChange(state, pid, target)
+        log(
+            state,
+            `【覚醒】${player.name}はリザーブから${getCard(target.cardId).name}へコア${count}個を移した。`,
+        )
+        passFlashPriority(state, pid)
+        return null
+    }
+
     const from = findSpirit(player, fromInstanceId)
-    if (!target || !from) return "対象のスピリットが見つかりません"
+    if (!from) return "対象のスピリットが見つかりません"
 
     from.cores -= count
     target.cores += count

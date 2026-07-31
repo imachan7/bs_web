@@ -7,6 +7,7 @@ import {
     findSpiritAny,
     isExhaustImmune,
     isImmuneToArea,
+    isBattlingEffectImmune,
     pickEnemyByBp,
     pickEnemyCandidates,
     tryInteractiveTargetChoice,
@@ -34,6 +35,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             if (
                 found.pid !== owner &&
                 (hasArmorAgainst(found.inst, srcColors) ||
+                    isBattlingEffectImmune(state, found.inst, srcType) ||
                     (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)) ||
                     isExhaustImmune(state, found.pid, found.inst))
             ) {
@@ -108,6 +110,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
+                if (isBattlingEffectImmune(state, s, srcType)) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
                 s.isRested = true
                 exhausted++
@@ -133,6 +136,7 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
                 if (currentLevel(s).level !== level) continue
                 if (s.isRested) continue
                 // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
+                if (isBattlingEffectImmune(state, s, srcType)) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
                 s.isRested = true
                 count++
@@ -174,6 +178,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
             for (const s of state.players[pid].field.spirits) {
                 if (!instHasColor(s, chosen)) continue
                 // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
+                if (isBattlingEffectImmune(state, s, srcType)) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
                 s.isRested = true
                 exhausted++

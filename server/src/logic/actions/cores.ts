@@ -9,6 +9,7 @@ import {
     dumpAllCoresTensho,
     findSpiritAny,
     isImmuneToArea,
+    isBattlingEffectImmune,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
     pickBpBuffTarget,
@@ -54,9 +55,10 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         }
         // 明示ターゲットが相手側かつ装甲該当・マジック効果耐性該当なら効果を受けない
         if (
-            found.pid !== owner &&
-            (hasArmorAgainst(found.inst, srcColors) ||
-                (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+            isBattlingEffectImmune(state, found.inst, srcType) ||
+            (found.pid !== owner &&
+                (hasArmorAgainst(found.inst, srcColors) ||
+                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
         ) {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
             return
@@ -85,6 +87,7 @@ function applyCoreRemoveMultiTarget(
     sourceName: string,
 ): void {
     if (
+        isBattlingEffectImmune(state, found, srcType) ||
         hasArmorAgainst(found, srcColors) ||
         (srcType === "magic" && hasMagicImmunity(state, opp, found))
     ) {
@@ -634,7 +637,11 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
         // 初回：相手フィールドのコア1個以上のスピリット/ネクサスを候補にして選択を要求する
         const oppPlayer = state.players[opp]
         const spiritCandidates = oppPlayer.field.spirits.filter(
-            (s) => s.cores >= 1 && !isUntargetableByOpponent(s) && !hasArmorAgainst(s, srcColors),
+            (s) =>
+                s.cores >= 1 &&
+                !isUntargetableByOpponent(s) &&
+                !isBattlingEffectImmune(state, s, srcType) &&
+                !hasArmorAgainst(s, srcColors),
         )
         const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
         const candidates = [...spiritCandidates, ...nexusCandidates].map((i) => i.instanceId)
@@ -812,6 +819,7 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
             (s) =>
                 getCard(s.cardId).cost <= action.maxCost &&
                 !isImmuneToArea(s) &&
+                !isBattlingEffectImmune(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors) &&
                 !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
         )

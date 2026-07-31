@@ -28340,7 +28340,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2\n自分のスピリットすべての【覚醒】の効果を“【覚醒】自分のスピリット上か自分のリザーブから、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”に変更する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-048-e1",
+    "kind": "awakenFromReserve",
+    "levels": [
+     2
+    ],
+    "target": "ownAll"
+   }
+  ]
  },
  {
   "cardId": "BS05-049",
@@ -29029,6 +29038,18 @@
     ],
     "constraint": {
      "type": "battlingCoresProtected"
+    },
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS05-060-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "battlingEffectImmune"
     },
     "phase": "attack",
     "turn": "own"
