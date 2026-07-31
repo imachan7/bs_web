@@ -72,15 +72,32 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "tenshoCoreDump",
 ])
 
+// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。
+// coverage-effects.ts の同名の集合と同じ分類
+const ACTION_BEARING_KINDS = new Set([
+    "triggered",
+    "magic",
+    "step",
+    "fieldEvent",
+    "battleWon",
+    "activated",
+])
+
 // lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。
-// 貸与は kind:"magic" のエントリが発動し、それ以外の継続効果エントリが仮想発生源として有効になる
+// 貸与を発動するのは action を持つエントリ（マジックの kind:"magic" か、スピリットの
+// kind:"triggered" 等）で、貸されるのは継続効果エントリのほう
 function checkLentEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
     for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
-        // 発動そのもの（kind:"magic"）とキーワード宣言は貸与対象ではない
-        if (e.kind === "magic" || e.kind === "keyword") continue
+        // 貸与されるのは**継続効果のエントリだけ**。action を持つ kind（magic / triggered / step /
+        // fieldEvent / battleWon / activated）は発動側であって貸与対象ではない。
+        // 仮想発生源は field.spirits に入らないため、triggered 等はそもそも発火経路に乗らない。
+        // ※ ここを kind:"magic" だけの除外にしていると、スピリットの triggered から
+        //   lendSelfThisTurn を撃つ形（BS01-055 エメアント等）で、発動側のエントリ自身と
+        //   同一カードの無関係な誘発まで「levels が null でない」と誤って弾かれる
+        if (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword") continue
 
         // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
         // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**
