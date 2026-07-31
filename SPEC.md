@@ -588,6 +588,22 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 （`colorsAsContinuous` / `alsoCostsContinuous` / `armorColorsGranted`）。全呼び出し箇所の signature を
 変えずに継続効果へ対応させる定石。
 
+### 効果の無効化・読み替え（2026-08-01 バッチ）
+
+「効果そのものに介入する」層。既存の走査点に最小の分岐を足す方針で、4枚ぶんの器を入れた。
+
+| 器 | 内容 | 走査点 |
+| :-- | :-- | :-- |
+| `kind:"bpBuffSuppression"` | 発生源の持ち主から見た**相手**の「BPを+する」効果を発揮させない（古代闘技場Lv1） | BP増加アクションは `actions/buff.ts` の**レジストリを包んで**1箇所でゲート／BP増加オーラは `effectiveBp` のオーラ走査。BPを-する効果は対象外 |
+| `globalConstraint:"battlingEffectImmune"` | バトル中の両陣営スピリットは、お互いの**スピリット/マジック**の効果を受けない（茨の決戦地Lv2。ネクサスの効果は通る） | `isBattlingEffectImmune` を装甲・マジック効果耐性と**同じガード地点すべて**へ（破壊・コア除去・疲労・バウンス・候補列挙・マジック対象検証） |
+| `action:"attackTriggersAsBlockThisTurn"` | 対象1体の『アタック時』効果をこのターン『ブロック時』へ移す（ブレイブチャージ） | `fireTrigger`（`CardInstance.attackTriggersAsBlockThisTurn`。アタック時には発揮されなくなる） |
+| `kind:"awakenFromReserve"` | 【覚醒】のコア移動元に**自分のリザーブ**を追加する（ディノゾールLv2の効果差し替え） | `validateAwaken` / `doAwaken`。`GameAction awaken` の `fromInstanceId` に番兵 `AWAKEN_FROM_RESERVE` を渡す（判定は shared の `canAwakenFromReserve` でクライアントと共用） |
+
+⚠️ 免疫のガードは**5ファイル18箇所に散っている**（`hasArmorAgainst` / `hasMagicImmunity` /
+`isImmuneToArea` / `isUntargetableByOpponent` の組み合わせ）。新しい「効果を受けない」を足すときは
+**全箇所に入れる**こと。1箇所漏らすと、その経路だけ無言ですり抜ける。
+`grep -n "hasArmorAgainst\|hasMagicImmunity"` の各ヒットの前後に新しい述語が同居しているかを機械確認する。
+
 ### 起動能力（kind: "activated"）
 
 `{ kind: "activated", timing: "flashBattle", levels, cost: { reserveToTrash }, condition?, action }`。
@@ -822,8 +838,8 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
-| `unimplemented`（効果が発揮されない） | 8 | BS04-037/042（カード名「鎧装獣」参照＋「アタックできない」の無効化。2枚1組）・BS04-054（マジックの対象変更）・BS04-090（カード名「ジーク」参照＋バトル破壊の追撃）・BS05-048（【覚醒】の効果差し替え）・BS05-075 ブレイブチャージ（『アタック時』を『ブロック時』に読み替え）／**着手しないと決めた2枚**: BS04-088（禁止カード）・BS05-079 スリーカード（DECISIONS.md 参照） |
-| `partial`（一部のレベル・節だけ未実装） | 9 | 共通テーマは**【神速】の召喚条件の書き換え**（BS04-033・BS04-080）と**効果の無効化／効果を受けない**（BS04-086 Lv1・BS05-060 Lv2）。残りは単発（BS02-079・BS03-107・BS04-079・BS04-081・BS04-X14） |
+| `unimplemented`（効果が発揮されない） | 6 | 残りは**カード名参照**の3枚（BS04-037/042＝「鎧装獣」の「アタックできない」を無効化する2枚1組・BS04-090＝「ジーク」＋バトル破壊の追撃）と BS04-054（マジックの対象変更）／**着手しないと決めた2枚**: BS04-088（禁止カード）・BS05-079 スリーカード（DECISIONS.md 参照） |
+| `partial`（一部のレベル・節だけ未実装） | 8 | 共通テーマは**【神速】の召喚条件の書き換え**（BS04-033・BS04-080）。残りは単発（BS02-079・BS03-107・BS04-079・BS04-081・BS04-086 は解消済み・BS04-X14・BS05-060 はコア保護のすり抜けのみ） |
 | `simplified`（原作と挙動が異なる簡略化） | 18 | 対戦は成立する。カード詳細に注記を表示している |
 
 ### BS02 構造化で洗い出された未対応概念（履歴。対応済みは取り消し線）
