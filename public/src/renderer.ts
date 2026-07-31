@@ -164,7 +164,8 @@ export function magicTargetSide(
         effect.action.type === "trashCoresToSpirit" ||
         effect.action.type === "voidCoreToTarget" ||
         effect.action.type === "addSymbolThisTurn" ||
-        effect.action.type === "levelUpThisTurn"
+        effect.action.type === "levelUpThisTurn" ||
+        effect.action.type === "attackTriggersAsBlockThisTurn"
     )
         return "self"
     return null

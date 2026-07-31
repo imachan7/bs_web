@@ -168,6 +168,7 @@ export type EffectAction =
     | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: string; cardType?: "spirit" | "nexus" | "magic" } // 手札の条件一致（cardType/familyFilter）カード1枚に、このターンの間キーワードを付与する（PlayerState.tempHandKeywordGrants。interactiveTargets時はcard choiceで選択、自動時は手札末尾の該当カード。該当なしはno-op。付与はcardId単位＝同名重複カードにも効く簡略化。ビートプリースト）
     | { type: "coreTradeToOpponentTrash" } // 自分のリザーブのコアをX個自分のトラッシュへ置き、同数だけ相手のリザーブのコアを相手のトラッシュへ置く（Xの上限はmin(自分のリザーブ,相手のリザーブ)。interactiveTargets時はkind:"option"のoption choice（「1個」〜「上限個」、optional=スキップ可＝0個）、自動時は上限個。ポイズンミスト）
     | { type: "voidCoreToOwnNexuses"; colorFilter?: Color; count: number; single?: boolean } // ボイドからコアcount個ずつを、指定色（省略時は色不問）の自分のネクサスすべての上に置く（該当ネクサス0はログのみ。ボルカノ・ゴレム）。single指定時は1つだけ（interactive時はpendingChoice、そうでなければコアが最も少ないネクサス。BS04薬師ギルママール）
+    | { type: "attackTriggersAsBlockThisTurn" } // 対象の自分スピリット1体の『このスピリットのアタック時』効果を、このターンの間『このスピリットのブロック時』に発揮させる（アタック時には発揮されなくなる＝移し替え。targetInstanceId優先、未指定時は自分の実効BP最大。BS05ブレイブチャージ）
     | { type: "addSymbolThisTurn" } // 対象の自分スピリットの tempExtraSymbols をこのターンの間+1する（targetInstanceId優先、未指定時は自分の実効BP最大。「自分か相手」は自分側のみの簡略化。ダブルハート）
     | { type: "levelUpThisTurn" } // 対象の自分スピリットの levelOverrideThisTurn を currentLevel+1（カードの最大Lvでキャップ）に設定する（targetInstanceId優先、未指定時は自分の実効BP最大。「自分か相手」は自分側のみの簡略化。ビルドアップ）
     | { type: "discardOpponentDownTo"; limit: number } // 相手の手札がlimit枚を超えている場合、limit枚になるまで破棄する（既存discardOpponentへcount=手札枚数-limitを計算して委譲。0以下は不発。奇術師オリバー）
@@ -461,6 +462,13 @@ export type EffectDef =
           firstAttackOnly?: boolean // trueならそのターンの最初のアタックのみ（燃えさかる戦場Lv2）
           phase?: Phase // 指定時はこのステップ中のみ有効
           turn?: "own" | "opponent" // own=発生源の持ち主がturnPlayerのとき（『自分のアタックステップ』）
+      }
+    | {
+          id: string
+          kind: "bpBuffSuppression" // 発生源が場にありレベル有効の間、**発生源の持ち主から見た相手**のスピリット/ネクサス/マジックによる「BPを+する」効果（BP増加アクション・BP増加オーラ・magicBuffBonus）を発揮させない（BS04古代闘技場Lv1）。BPを-する効果は対象外
+          levels: number[] | null
+          phase?: Phase // 指定時はこのステップの間のみ有効
+          turn?: "own" | "opponent" // own=発生源の持ち主がturnPlayerのときのみ（『自分のアタックステップ』）
       }
     | {
           id: string
@@ -764,6 +772,7 @@ export interface CardInstance {
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
     tempExtraSymbols?: number // このターンの間の追加シンボル数（ターン終了でリセット。ダブルハート）
+    attackTriggersAsBlockThisTurn?: boolean // このターンの間、『このスピリットのアタック時』効果を『ブロック時』に発揮する（アタック時には発揮しない。ターン終了でリセット。fireTriggerが参照。BS05ブレイブチャージ）
     armorColorsGranted?: Color[] // 継続付与された装甲の対象色（kind:"keywordGrant"のkeyword:"armor"。
     // EffectModules.refreshLevelAsOverridesが毎回全消去→再構築する。hasArmorAgainstが参照する（BS05白夜の虚空Lv2）
 }

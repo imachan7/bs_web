@@ -1819,9 +1819,17 @@ export function fireTrigger(
     }
     const card = getCard(selfInstance.cardId)
     const level = currentLevel(selfInstance).level
+    // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
+    // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
+    const movedToBlock = selfInstance.attackTriggersAsBlockThisTurn === true
+    if (movedToBlock && event === "onAttack") {
+        return
+    }
+    const firedEvents: TriggerEvent[] =
+        movedToBlock && event === "onBlock" ? ["onBlock", "onAttack"] : [event]
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
-        if (effect.trigger !== event) return false
+        if (!firedEvents.includes(effect.trigger)) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {

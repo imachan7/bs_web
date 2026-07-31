@@ -134,6 +134,7 @@ export function endTurn(state: GameState): void {
             inst.tempAlsoCosts = []
             inst.tempColors = []
             delete inst.tempExtraSymbols
+            delete inst.attackTriggersAsBlockThisTurn
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット

@@ -308,6 +308,31 @@ const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (
         return
 }
 
+const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlockThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // ブレイブチャージ：自分のスピリット1体の『このスピリットのアタック時』効果を、このターンの間
+        // 『このスピリットのブロック時』に発揮させる（未指定時は自分の実効BP最大。addSymbolThisTurn と同じ選び方）
+        const target = targetInstanceId
+            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
+                  (best, s) =>
+                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
+                          ? s
+                          : best,
+                  undefined,
+              )
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        target.attackTriggersAsBlockThisTurn = true
+        log(
+            state,
+            `${getCard(target.cardId).name}の『アタック時』効果は、このターンの間『ブロック時』に発揮される。`,
+        )
+        return
+}
+
 const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
@@ -477,6 +502,7 @@ const handlers = {
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
+    attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,

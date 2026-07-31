@@ -461,6 +461,27 @@ export function auraAmount(
     }
     return amount
 }
+// 「BPを+する」効果が、effectOwnerPid（効果を出す側）にとって発揮されない状態か
+// （kind:"bpBuffSuppression"。BS04古代闘技場Lv1「相手のスピリット/ネクサス/マジックの『BPを+する』効果は発揮されない」）。
+// 発生源の持ち主から見た**相手**に効くため、opponent 側のフィールドに有効な発生源があるかを見る。
+// BP増加アクション（buff.ts のレジストリ）・BP増加オーラ（下の effectiveBp）・magicBuffBonus の3経路が参照する
+export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): boolean {
+    const sourcePid: PlayerId = effectOwnerPid === "p1" ? "p2" : "p1"
+    // 抑止する側の発生源は「場に実在するもの」で判定する（貸与された仮想発生源も効果を出す側なので effectSources を使う）
+    for (const source of effectSources(board, sourcePid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "bpBuffSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+            return true
+        }
+    }
+    return false
+}
+
 // 実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
 // 戦闘のBP比較・BPを条件にした対象選択はすべてこの値を使う（レベル判定・維持コアは対象外）。
 export function effectiveBp(
@@ -470,6 +491,9 @@ export function effectiveBp(
 ): number {
     let total = currentLevel(inst).bp
     for (const pid of ["p1", "p2"] as PlayerId[]) {
+        // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
+        // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
+        const bpBuffSuppressed = isBpBuffSuppressed(board, pid)
         const sources = effectSources(board, pid)
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
@@ -483,7 +507,9 @@ export function effectiveBp(
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                total += auraAmount(board, pid, effect.aura, inst)
+                const amount = auraAmount(board, pid, effect.aura, inst)
+                if (bpBuffSuppressed && amount > 0) continue
+                total += amount
             }
         }
     }

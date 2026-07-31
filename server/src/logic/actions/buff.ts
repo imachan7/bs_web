@@ -1,6 +1,6 @@
 // BP修正系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
@@ -16,7 +16,7 @@ import {
     requestChoice,
     spiritHasKeyword,
 } from "../EffectModules"
-import { matchesTarget } from "../../../../shared/rules"
+import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 // BS05アイシクルアサルト用: このスピリットが持つ【装甲】の指定色数（静的keyword＋一時付与tempKeywordsを合算、重複除く）
@@ -322,4 +322,28 @@ const handlers = {
     selfBuffByHandDiscard,
 } satisfies Partial<ActionRegistry>
 
-export default handlers
+// 古代闘技場Lv1（kind:"bpBuffSuppression"）：相手の「BPを+する」効果は発揮されない。
+// BP増加アクションはこのモジュールに集約されているため、**レジストリを1箇所で包んで**ゲートする
+// （8ハンドラそれぞれに早期returnを撒くと、将来アクションを足したときに素通りする）。
+// BPを-する効果は抑止の対象外のため、amount/amountPer が負のものは通す
+function isBpDecrease(action: { amount?: number; amountPer?: number }): boolean {
+    const amount = action.amount ?? action.amountPer
+    return typeof amount === "number" && amount < 0
+}
+
+type AnyBuffHandler = (ctx: ActionCtx, action: { amount?: number; amountPer?: number }) => void
+
+const suppressed = Object.fromEntries(
+    Object.entries(handlers).map(([type, handler]) => [
+        type,
+        ((ctx, action) => {
+            if (!isBpDecrease(action) && isBpBuffSuppressed(ctx.state, ctx.owner)) {
+                log(ctx.state, `${ctx.sourceName}：「BPを+する」効果は発揮されなかった。`)
+                return
+            }
+            ;(handler as AnyBuffHandler)(ctx, action)
+        }) as AnyBuffHandler,
+    ]),
+) as unknown as typeof handlers
+
+export default suppressed

@@ -24368,6 +24368,16 @@
     "trigger": "onSummon",
     "phase": "main",
     "turn": "opponent"
+   },
+   {
+    "id": "BS04-086-e2",
+    "kind": "bpBuffSuppression",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },
@@ -29675,7 +29685,16 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体の、『このスピリットのアタック時』と指定されている効果はすべて、『このスピリットのブロック時』に発揮される。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-075-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "attackTriggersAsBlockThisTurn"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS05-076",

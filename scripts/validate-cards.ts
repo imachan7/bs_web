@@ -31,7 +31,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
-    "triggerSuppression", "alsoCostGrant",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression",
 ])
 
 export interface ValidationIssue {
