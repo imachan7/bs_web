@@ -193,6 +193,8 @@ export function createGame(
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
+        lastBattleDestroyedColors: [],
+        lastBattleDestroyedFamilies: [],
         pendingChoice: null,
         turnStartResumeStep: null,
         interactiveTargets: false,
