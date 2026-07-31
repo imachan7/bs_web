@@ -214,10 +214,30 @@ export function hasContinuousKeywordGrant(
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
+            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             return true
         }
     }
     return false
+}
+
+// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
+// 合算、重複除く）。AuraCounter "targetArmorColors"（アイシクルアサルト）専用。発生源ではなく**対象**基準の点に注意
+export function targetArmorColorCount(inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    const colors = new Set<Color>()
+    for (const e of card(inst.cardId).effects) {
+        if (e.kind === "keyword" && e.keyword === "armor" && effectActiveAtLevel(e.levels, level)) {
+            for (const c of e.colors ?? []) colors.add(c)
+        }
+    }
+    for (const k of inst.tempKeywords) {
+        if (k.keyword === "armor") {
+            for (const c of k.colors ?? []) colors.add(c)
+        }
+    }
+    for (const c of inst.armorColorsGranted ?? []) colors.add(c)
+    return colors.size
 }
 
 // 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵）
@@ -272,11 +292,13 @@ export function matchesFamilyFilter(
 
 // ---- 常時BP修正（オーラ）と実効BP ----
 
-// オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える
+// オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える。
+// "targetArmorColors" のみ対象（targetInst）基準（発生源ではない）のため、呼び出し側から渡す
 export function countAuraCounter(
     board: Board,
     sourcePid: PlayerId,
     counter: AuraCounter,
+    targetInst?: CardInstance,
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
@@ -288,6 +310,9 @@ export function countAuraCounter(
     }
     if (counter === "ownExhausted") {
         return board.players[sourcePid].field.spirits.filter((s) => s.isRested).length
+    }
+    if (counter === "targetArmorColors") {
+        return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
@@ -366,6 +391,13 @@ export function auraAppliesTo(
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
         return false
     }
+    if (aura.attackingOnly) {
+        if (!board.battle) return false
+        if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
+    }
+    if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
+        return false
+    }
     if (
         aura.keywordFilter &&
         !spiritHasKeyword(board, targetOwnerPid, targetInst, aura.keywordFilter)
@@ -389,11 +421,17 @@ export function auraAppliesTo(
     }
     return true
 }
-// オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）
-export function auraAmount(board: Board, sourcePid: PlayerId, aura: AuraDef): number {
+// オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）。
+// targetInst は "targetArmorColors"（対象基準のカウンタ。アイシクルアサルト）でのみ使う
+export function auraAmount(
+    board: Board,
+    sourcePid: PlayerId,
+    aura: AuraDef,
+    targetInst?: CardInstance,
+): number {
     let amount = 0
     if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter)
+        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst)
     }
     if (aura.amount !== undefined) {
         if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition)) {
@@ -415,13 +453,16 @@ export function effectiveBp(
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
+                // lentOnly：仮想発生源（マジックが lendSelfThisTurn で貸した効果）からのみ有効。
+                // 実在するスピリット/ネクサスがたまたま同じ効果エントリを持っていても恒久化させない
+                if (effect.aura.lentOnly && !isVirtualSource(source)) continue
                 // 発生源のレベル判定は素の currentLevel を使う（effectiveBp の再帰を避ける）
                 const sourceLevel = currentLevel(source).level
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                total += auraAmount(board, pid, effect.aura)
+                total += auraAmount(board, pid, effect.aura, inst)
             }
         }
     }

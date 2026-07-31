@@ -337,11 +337,11 @@ export function resolveFunsai(
     ownerPid: PlayerId,
     spirit: CardInstance,
 ): void {
+    // spiritHasKeyword: 静的keyword ‖ 一時付与 ‖ 継続付与（keywordGrant。lendSelfThisTurnによる
+    // 仮想発生源からの貸与も含む。BS05サーキュラーソー・アーム）。既存の静的カードは全レベルで
+    // 【粉砕】を持つため、レベル不問のこの判定に切り替えても挙動は変わらない
+    if (!spiritHasKeyword(state, ownerPid, spirit, "funsai")) return
     const level = currentLevel(spirit).level
-    const hasFunsai = getCard(spirit.cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, level),
-    )
-    if (!hasFunsai) return
     const bonus = funsaiBonusTotal(state, ownerPid)
     const actual = millDeck(state, opponentOf(ownerPid), level + bonus, ownerPid)
     if (actual > 0) {
@@ -664,7 +664,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
     }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        const sources = [...player.field.spirits, ...player.field.nexuses]
+        // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
+        // BS02-101リフレクションアーマー）も含める。keywordGrant/colorAs/levelAsはいずれも
+        // 「誰が継続効果を出しているか」を問うA分類の走査のため、TURN_EFFECT_SOURCES.md §1 に沿う
+        const sources = effectSources(state, pid)
         for (const source of sources) {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind === "keywordGrant" && effect.keyword === "armor") {

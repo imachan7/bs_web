@@ -5137,9 +5137,19 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS01-116-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
      "amount": 2000,
-     "attackingAll": true
+     "lentOnly": true
     }
    }
   ]
@@ -5709,8 +5719,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuffAll",
-     "amount": 1000
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS01-135-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 1000,
+     "lentOnly": true
     }
    }
   ]
@@ -29806,10 +29826,16 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantKeywordAll",
-     "keyword": "funsai",
-     "vanillaFilter": true
+     "type": "lendSelfThisTurn"
     }
+   },
+   {
+    "id": "BS05-082-e2",
+    "kind": "keywordGrant",
+    "levels": null,
+    "keyword": "funsai",
+    "target": "ownAll",
+    "vanillaFilter": true
    }
   ]
  },
