@@ -8,7 +8,7 @@ import {
     drawDoubleMultiplier,
     findSpiritAny,
     isImmuneToArea,
-    isBattlingEffectImmune,
+    isEffectBlocked,
     millDeck,
     notifyHandGained,
     pickEnemyByBp,
@@ -399,7 +399,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             if (
-                isBattlingEffectImmune(state, found.inst, srcType) ||
+                isEffectBlocked(state, found.inst, srcType) ||
                 (found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColors) ||
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
@@ -465,7 +465,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 const cost = getCard(s.cardId).cost
                 if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
                 if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
-                if (isBattlingEffectImmune(state, s, srcType)) return false
+                if (isEffectBlocked(state, s, srcType)) return false
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
                 return true
             })
@@ -507,7 +507,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         }
         if (
             targetInstanceId &&
-            (isBattlingEffectImmune(state, found.inst, srcType) ||
+            (isEffectBlocked(state, found.inst, srcType) ||
                 (found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColors) ||
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))))

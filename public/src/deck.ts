@@ -240,11 +240,14 @@ function renderPool(): void {
         }
 
         el.addEventListener("mouseenter", () => {
-            if (selectedCardId === null) renderDetail(card)
+            if (selectedCardId === null) renderDetail(card, el)
+        })
+        el.addEventListener("mouseleave", () => {
+            if (selectedCardId === null) hideDetail()
         })
         el.addEventListener("click", () => {
             selectedCardId = card.cardId
-            renderDetail(card)
+            renderDetail(card, el)
             addCard(card.cardId)
         })
 
@@ -255,7 +258,7 @@ function renderPool(): void {
 }
 
 // カード詳細（効果テキスト全文）の表示
-function renderDetail(card: CardData): void {
+function renderDetail(card: CardData, anchor?: HTMLElement): void {
     const panel = $("detail-panel")
     panel.textContent = ""
 
@@ -317,6 +320,50 @@ function renderDetail(card: CardData): void {
         noteEl.textContent = `【${statusLabel}】 ${note.note}`
         panel.appendChild(noteEl)
     }
+
+    // パネルを表示してフローティング配置
+    panel.classList.remove("hidden")
+    if (anchor) {
+        // 一度表示して高さを取得してから配置する
+        panel.style.left = "-9999px"
+        panel.style.top = "0"
+        requestAnimationFrame(() => {
+            positionDetail(panel, anchor)
+        })
+    }
+}
+
+// ツールチップをカード横に配置する
+function positionDetail(panel: HTMLElement, anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect()
+    const pw = panel.offsetWidth
+    const ph = panel.offsetHeight
+    const gap = 8
+
+    // 右に置けるなら右、はみ出すなら左
+    let left = rect.right + gap
+    if (left + pw > window.innerWidth - 8) {
+        left = rect.left - pw - gap
+    }
+    // 左にも置けない（狭い画面）場合はカードの下
+    if (left < 8) {
+        left = Math.max(8, rect.left)
+    }
+
+    // 上端はカードに揃えるが、下にはみ出さないようにする
+    let top = rect.top
+    if (top + ph > window.innerHeight - 8) {
+        top = window.innerHeight - 8 - ph
+    }
+    if (top < 8) top = 8
+
+    panel.style.left = `${left}px`
+    panel.style.top = `${top}px`
+}
+
+// ツールチップを非表示にする
+function hideDetail(): void {
+    $("detail-panel").classList.add("hidden")
 }
 
 // ---- デッキ面 ----
@@ -467,7 +514,7 @@ function renderDeck(): void {
         // 行クリックで詳細表示
         row.addEventListener("click", () => {
             selectedCardId = cardId
-            renderDetail(card)
+            renderDetail(card, row)
         })
 
         list.appendChild(row)
@@ -1055,6 +1102,7 @@ function setupDeckIo(): void {
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
         selectedCardId = null
+        hideDetail()
     })
 }
 

@@ -22742,7 +22742,16 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2『相手のターン』\n相手がこのスピリットを対象に含むマジックの効果を使用したとき、そのマジックの効果の対象を、このスピリットのみにできる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-054-e1",
+    "kind": "magicTargetRedirect",
+    "levels": [
+     2
+    ],
+    "turn": "opponent"
+   }
+  ]
  },
  {
   "cardId": "BS04-055",

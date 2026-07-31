@@ -31,7 +31,7 @@ import {
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
-    isBattlingEffectImmune,
+    isEffectBlocked,
     instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
@@ -254,7 +254,7 @@ export function validateCastMagic(
         if (
             enemyTarget &&
             (isUntargetableByOpponent(enemyTarget) ||
-                isBattlingEffectImmune(state, enemyTarget, "magic") ||
+                isEffectBlocked(state, enemyTarget, "magic") ||
                 hasMagicImmunity(state, opponentOf(pid), enemyTarget))
         ) {
             return "このスピリットは効果の対象にできません"

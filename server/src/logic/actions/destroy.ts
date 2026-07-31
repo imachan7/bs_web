@@ -8,7 +8,7 @@ import {
     destroySpirit,
     findSpiritAny,
     isImmuneToArea,
-    isBattlingEffectImmune,
+    isEffectBlocked,
     pickEnemyByBp,
     pickEnemyCandidates,
     returnNexusToHand,
@@ -51,7 +51,7 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 return
             }
             if (
-                isBattlingEffectImmune(state, target, srcType) ||
+                isEffectBlocked(state, target, srcType) ||
                 hasArmorAgainst(target, srcColors) ||
                 (srcType === "magic" && hasMagicImmunity(state, opp, target))
             ) {
@@ -113,7 +113,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
                     !isImmuneToArea(s) &&
-                    !isBattlingEffectImmune(state, s, srcType) &&
+                    !isEffectBlocked(state, s, srcType) &&
                     !hasArmorAgainst(s, srcColors) &&
                     !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
             )
@@ -126,7 +126,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                       (s) =>
                           matchesTarget(state, owner, s, areaFilter, self?.instanceId) &&
                           !isImmuneToArea(s) &&
-                          !isBattlingEffectImmune(state, s, srcType),
+                          !isEffectBlocked(state, s, srcType),
                   )
                   .map((s) => ({ pid: owner, inst: s }))
             : []
@@ -178,7 +178,7 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
             (s) =>
                 !instColors(s).some((c) => safeColors.has(c)) &&
                 !isImmuneToArea(s) &&
-                !isBattlingEffectImmune(state, s, srcType) &&
+                !isEffectBlocked(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
@@ -283,7 +283,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
                 return
             }
             if (
-                isBattlingEffectImmune(state, found.inst, srcType) ||
+                isEffectBlocked(state, found.inst, srcType) ||
                 (found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColors) ||
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))

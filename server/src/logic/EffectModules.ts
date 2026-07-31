@@ -246,15 +246,30 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
     return false
 }
 
-// 茨の決戦地Lv2（globalConstraint "battlingEffectImmune"）：バトルをしているお互いのスピリットは、
-// お互いの**スピリット/マジック**の効果を受けない（ネクサスの効果は通る＝カードテキストどおり）。
-// 破壊・コア除去・疲労・バウンス等の各ガード（装甲／マジック効果耐性と同じ箇所）から呼ぶ。
-// 発生源の種別が不明（undefined）なときは判定できないため false（＝防がない）とする
-export function isBattlingEffectImmune(
+// このインスタンスが、いま解決中の効果を「受けない」状態か。
+// 破壊・コア除去・疲労・バウンス等の各ガード（装甲／マジック効果耐性と同じ箇所＝5ファイル18箇所）から呼ぶ。
+// **新しい「効果を受けない」ルールはここへ足すこと**（ガード地点を再び18箇所さわらずに済む）。
+// 現在の内訳:
+//   ① 茨の決戦地Lv2（globalConstraint "battlingEffectImmune"）：バトル中の両陣営スピリットは、
+//      お互いのスピリット/マジックの効果を受けない（ネクサスの効果は通る＝カードテキストどおり）
+//   ② アルカナソルジャー・サンクLv2（GameState.magicRedirectTo）：相手のマジックの対象が
+//      サンク1体へ絞り込まれている間、同じ持ち主の**他の**スピリットはそのマジックの効果を受けない
+export function isEffectBlocked(
     state: GameState,
     inst: CardInstance,
     sourceType: "spirit" | "nexus" | "magic" | undefined,
 ): boolean {
+    // ② 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
+    const redirect = state.magicRedirectTo
+    if (
+        redirect !== undefined &&
+        sourceType === "magic" &&
+        inst.instanceId !== redirect.instanceId &&
+        state.players[redirect.pid].field.spirits.some((s) => s.instanceId === inst.instanceId)
+    ) {
+        return true
+    }
+    // ① バトル中の効果免疫
     if (sourceType !== "spirit" && sourceType !== "magic") return false
     if (!isInCurrentBattle(state, inst)) return false
     return hasActiveGlobalConstraint(state, "battlingEffectImmune")
@@ -1274,7 +1289,7 @@ export function pickEnemyCandidates(
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isUntargetableByOpponent(s) &&
-            !isBattlingEffectImmune(state, s, sourceType) &&
+            !isEffectBlocked(state, s, sourceType) &&
             !hasArmorAgainst(s, sourceColors) &&
             !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
             extraPredicate(s),
@@ -2245,6 +2260,37 @@ export function notifySpiritCoresRemovedByOpponent(
 
 // マジックカードの効果を実行する（timing に一致するすべての効果を配列順に実行）。
 // 「ドロー＋バフ」のような複合テキストは effects に複数エントリを並べて表現する。
+// アルカナソルジャー・サンクLv2（kind:"magicTargetRedirect"）の判定。
+// 「相手がこのスピリットを対象に含むマジックの効果を使用したとき、その対象をこのスピリットのみにできる」。
+// 「できる」は自動適用の簡略化（magicFreeGrant と同じ扱い）。
+// 対象に含むかの判定:
+//   - 明示ターゲットあり → それがサンク自身のときだけ絞り込む（他の1体を選んだならサンクは対象外）
+//   - 明示ターゲットなし（全体効果・自動選択） → 対象に含むものとして絞り込む
+//     （利用者確認：マジックの「対象」には全体を含む効果も含まれる。DECISIONS.md）
+function setMagicRedirect(
+    state: GameState,
+    casterPid: PlayerId,
+    targetInstanceId: string | undefined,
+): void {
+    delete state.magicRedirectTo
+    const defenderPid = opponentOf(casterPid)
+    for (const inst of state.players[defenderPid].field.spirits) {
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "magicTargetRedirect") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき
+            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
+            if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
+            state.magicRedirectTo = { pid: defenderPid, instanceId: inst.instanceId }
+            log(
+                state,
+                `${getCard(inst.cardId).name}：このマジックの効果の対象を、このスピリットのみにした。`,
+            )
+            return
+        }
+    }
+}
+
 export function resolveMagic(
     state: GameState,
     owner: PlayerId,
@@ -2262,6 +2308,9 @@ export function resolveMagic(
     }
     const card = getCard(cardId)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
+    // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
+    // そのマジックの効果の対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
+    setMagicRedirect(state, owner, targetInstanceId)
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
     const effects = card.effects
@@ -2334,9 +2383,13 @@ export function resolveMagic(
             state.pendingChoice.queue.push(
                 ...remaining.map((e) => ({ selfInstanceId: null, action: e.action })),
             )
+            // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
+            delete state.magicRedirectTo
             return
         }
     }
+    // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
+    delete state.magicRedirectTo
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）
     if (!state.winner) {

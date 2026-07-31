@@ -9,7 +9,7 @@ import {
     dumpAllCoresTensho,
     findSpiritAny,
     isImmuneToArea,
-    isBattlingEffectImmune,
+    isEffectBlocked,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
     pickBpBuffTarget,
@@ -55,7 +55,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         }
         // 明示ターゲットが相手側かつ装甲該当・マジック効果耐性該当なら効果を受けない
         if (
-            isBattlingEffectImmune(state, found.inst, srcType) ||
+            isEffectBlocked(state, found.inst, srcType) ||
             (found.pid !== owner &&
                 (hasArmorAgainst(found.inst, srcColors) ||
                     (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
@@ -87,7 +87,7 @@ function applyCoreRemoveMultiTarget(
     sourceName: string,
 ): void {
     if (
-        isBattlingEffectImmune(state, found, srcType) ||
+        isEffectBlocked(state, found, srcType) ||
         hasArmorAgainst(found, srcColors) ||
         (srcType === "magic" && hasMagicImmunity(state, opp, found))
     ) {
@@ -640,7 +640,7 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
             (s) =>
                 s.cores >= 1 &&
                 !isUntargetableByOpponent(s) &&
-                !isBattlingEffectImmune(state, s, srcType) &&
+                !isEffectBlocked(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors),
         )
         const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
@@ -819,7 +819,7 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
             (s) =>
                 getCard(s.cardId).cost <= action.maxCost &&
                 !isImmuneToArea(s) &&
-                !isBattlingEffectImmune(state, s, srcType) &&
+                !isEffectBlocked(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors) &&
                 !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
         )
