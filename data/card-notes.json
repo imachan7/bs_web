@@ -1,14 +1,6 @@
 {
     "version": 1,
     "notes": {
-        "BS04-037": {
-            "status": "unimplemented",
-            "note": "この効果は未実装です。カードは場に出せますが、効果は発揮されません。"
-        },
-        "BS04-042": {
-            "status": "unimplemented",
-            "note": "この効果は未実装です。カードは場に出せますが、効果は発揮されません。"
-        },
         "BS04-054": {
             "status": "unimplemented",
             "note": "この効果は未実装です。カードは場に出せますが、効果は発揮されません。"
@@ -17,13 +9,13 @@
             "status": "unimplemented",
             "note": "禁止カードのためデッキに入れられません。効果も未実装のままです。"
         },
-        "BS04-090": {
-            "status": "unimplemented",
-            "note": "この効果は未実装です。カードは場に出せますが、効果は発揮されません。"
-        },
         "BS05-079": {
             "status": "unimplemented",
             "note": "この効果は未実装です。カードは場に出せますが、効果は発揮されません。"
+        },
+        "BS04-042": {
+            "status": "simplified",
+            "note": "Lv2・Lv3の疲労効果は「スピリット1体」のうち相手のスピリットのみを対象にする簡略化があります。"
         },
         "BS02-024": {
             "status": "simplified",

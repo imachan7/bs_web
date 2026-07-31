@@ -238,9 +238,9 @@ input[type="text"] {
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 8px;
+    gap: 12px;
     align-content: start;
-    padding: 2px;
+    padding: 6px;
 }
 
 .pool-card {
@@ -248,10 +248,10 @@ input[type="text"] {
     border: 1px solid var(--c-main);
     border-radius: 6px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
-    padding: 8px 8px 8px 10px;
+    padding: 12px 8px 8px 14px;
     cursor: pointer;
     user-select: none;
-    overflow: hidden;
+    overflow: visible;
     transition: transform 0.1s;
 }
 
@@ -303,14 +303,15 @@ input[type="text"] {
 
 .count-badge {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -2px;
+    right: -2px;
     background: #ffd968;
     color: #1a1d2b;
     font-size: 11px;
     font-weight: bold;
     padding: 1px 6px;
     border-radius: 10px;
+    z-index: 10;
 }
 
 .add-btn {
@@ -347,8 +348,8 @@ input[type="text"] {
 
 .cost-badge {
     position: absolute;
-    top: -8px;
-    left: -8px;
+    top: -4px;
+    left: -4px;
     width: 24px;
     height: 24px;
     border-radius: 50%;
