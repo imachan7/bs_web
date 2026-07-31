@@ -46,6 +46,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 仕様・実装状況・課題は @SPEC.md に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
+## エージェント間連絡（chatbox）
+
+実装担当（Claude）・設計担当（Claude）・UI担当（Gemini）の連絡は `chatbox/` を使う。
+運用ルールの全文は `chatbox/README.md`。**守るべき点は5つ**:
+
+- 起動時に読むのは `chatbox/INDEX.md` と自分宛の未処理メッセージ**だけ**。
+  自分宛は `npx tsx scripts/chatbox.ts inbox <役割>` で出す（役割: 実装担当 / 設計担当 / UI担当）
+- **`chatbox/archive/` を無条件に読まない**。`archive/2026-07.md` だけで約7万トークンある。
+  必要なときは grep で当たりを付け、Read の offset/limit で該当箇所だけ読む
+- 1メッセージは 4KB / 60行以内。長い設計・調査結果は別ドキュメントに書いて参照リンクを張る
+- **完了（`done`）にするとき、残すべき結論を `DECISIONS.md` へ1〜3行で転記する**。
+  仕様として確定したものは SPEC.md に書き、DECISIONS.md からは消してよい
+- 作業報告・コミット連絡を長文で書かない（`git log` で足りる）
+
+`chatbox.md` 1ファイルへの追記式だった頃に86件・260KB まで肥大化し、起動のたびに
+全履歴を読むだけで7〜8万トークンを消費していた（2026-07-31 に受信箱方式へ移行）。
+
 ## トークン規律（委譲時に守る）
 
 サブエージェントのコールドスタート読み込みを最小化する。委譲プロンプトに次を明記すること:
