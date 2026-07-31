@@ -276,15 +276,15 @@ const __covEid = (e: unknown): string =>
     // familyGrant: spiritHasFamily が継続付与を採用して true を返す時点
     patch(
         f,
-        `            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColor(s, color)).length
+        `                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const onField = [...player.field.spirits, ...player.field.nexuses]
+                const total = onField.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             return true`,
-        `            if (effect.condition) {
-                const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColor(s, color)).length
+        `                const { color, count } = effect.condition.ownColorTotalAtLeast
+                const onField = [...player.field.spirits, ...player.field.nexuses]
+                const total = onField.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             __covRec2("cont\\t" + __covEid(effect))
@@ -613,15 +613,15 @@ process.on("exit", () => {
         // colorAs: refreshLevelAsOverrides の colorsAsContinuous 代入点
         patch(
             em,
-            `                if (effect.kind === "colorAs") {
-                    // 発生源自身が指定色のスピリットとしても扱われる（継続。百面相のフラットフェイス）
+            `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-                    if (!source.colorsAsContinuous) source.colorsAsContinuous = []`,
-            `                if (effect.kind === "colorAs") {
-                    // 発生源自身が指定色のスピリットとしても扱われる（継続。百面相のフラットフェイス）
+                    // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
+                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+            `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                    if (!source.colorsAsContinuous) source.colorsAsContinuous = []`,
+                    // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
+                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
         )
         // levelAs: refreshLevelAsOverrides の5つの levelAsContinuous 代入点（target ごと）
         patch(
