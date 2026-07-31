@@ -677,8 +677,7 @@ async function init(): Promise<void> {
                 phase: view.phase,
                 turn: view.turn,
                 uiMode: uiMode,
-                lastError: lastErrorText,
-                log: view.log,
+                lastError: lastErrorText
             }
             const bugReportData = {
                 gameId: view.gameId,
