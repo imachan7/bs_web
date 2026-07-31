@@ -200,9 +200,9 @@ const __covEid = (e: unknown): string =>
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
         f,
-        `                total += auraAmount(board, pid, effect.aura)`,
+        `                total += auraAmount(board, pid, effect.aura, inst)`,
         `                __covRec2("cont\\t" + __covEid(effect))
-                total += auraAmount(board, pid, effect.aura)`,
+                total += auraAmount(board, pid, effect.aura, inst)`,
     )
     // constraint: activeConstraints が自身の制約として採用する時点
     patch(
@@ -241,11 +241,12 @@ const __covEid = (e: unknown): string =>
                 return true`,
     )
     // keywordGrant: 継続付与が成立して true を返す時点
+    // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
     patch(
         f,
-        `            if (effect.phase && board.phase !== effect.phase) continue
+        `            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             return true`,
-        `            if (effect.phase && board.phase !== effect.phase) continue
+        `            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             __covRec2("cont\t" + __covEid(effect))
             return true`,
     )
@@ -571,12 +572,15 @@ process.on("exit", () => {
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             total += effect.amount`,
         )
-        // keyword「粉砕」: resolveFunsai で hasFunsai が確定した時点
+        // keyword「粉砕」: resolveFunsai で粉砕保持が確定した時点。
+        // 2026-07-31: 判定が静的 hasKeyword から状態対応の spiritHasKeyword へ変わったため
+        // アンカーを差し替えた（貸与による付与も対象になる）。
+        // 静的 keyword エントリが無い個体（keywordGrant による付与のみ）では記録しない
         patch(
             em,
-            `    if (!hasFunsai) return
+            `    const level = currentLevel(spirit).level
     const bonus = funsaiBonusTotal(state, ownerPid)`,
-            `    if (!hasFunsai) return
+            `    const level = currentLevel(spirit).level
     const __funsaiEntry = getCard(spirit.cardId).effects.find(
         (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, level),
     )
