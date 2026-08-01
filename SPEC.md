@@ -585,9 +585,15 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 | **`self` は使えない** | マジックの `resolveAction` は `self = null` で呼ばれる。ハンドラで `if (!self) return` と書くと**唯一の用途で必ず no-op** になる（型検査も smoke も通ってしまう）。発生源は **`ctx.sourceCardId`** から取る |
 | **走査の A/B 分類** | 「誰が継続効果を出しているか」＝A（`effectSources` を使う）。「盤面に何が存在するか」＝B（`player.field` を直接見る）。**関数単位ではなく、その走査が何を問うているかで判定する**。`countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（色ロック）・`checkAuraCondition` の `hasOwnColor` 分岐はB。混ぜると「場に赤が1枚も無いのに赤のマジックを貸しただけで条件成立」「軽減シンボルが増える」といった別のバグになる |
 
-現在 `effectSources` へ差し替え済みのA分類は8つ（`tryReviveOnDestroy` / `activeConstraints` /
+現在 `effectSources` へ差し替え済みのA分類は10個（`tryReviveOnDestroy` / `activeConstraints` /
 `hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査 /
-`spiritHasFamily` の familyGrant 走査 / `refreshLevelAsOverrides`）。残りは段階移行の対象。
+`spiritHasFamily` の familyGrant 走査 / `refreshLevelAsOverrides` / **`hasGlobalConstraint`** /
+**`costCantAct`**）。残りは段階移行の対象。
+
+⚠️ `hasGlobalConstraint` / `costCantAct` は 2026-08-01 まで `player.field` の直接走査だったため、
+**マジックから貸した globalConstraint が無言で無視されていた**（グレートウォール実装時に発覚）。
+同時に、クライアントのアタック/ブロックのハイライトが `costCantAct` を一度も呼んでおらず、
+実在カード（白夜の虚空・青嵐の虚空）でも表示と実際の可否が食い違っていたため是正した。
 
 `instHasCost` / `instHasColor` のように **state を受け取らない純粋述語**が読む値は、走査ではなく
 `refreshLevelAsOverrides` が `CardInstance` へ**都度全消去→再構築**する
@@ -753,12 +759,13 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
 - `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
-- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter）— このスピリットのアタックは指定色／
-  キーワード持ち／コア数以下／**指定レベル**のスピリットにブロックされない（ボーン・グラディエイター＝緑、
-  ラビクリスタ＝赤、スピノアックス＝神速、悪魔スプラー・デースペル＝レベル基準）
+- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter / costAtMostAttacker）— このスピリットの
+  アタックは指定色／キーワード持ち／コア数以下／**指定レベル**／**アタッカーのコスト以下**のスピリットに
+  ブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、スピノアックス＝神速、
+  悪魔スプラー・デースペル＝レベル基準、ポテンシャルパワー＝相対コスト）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
-- `canDirectAttack`（targetFilter: rested / singleCore / recovered）— アタック時に条件を満たす相手スピリットを
+- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp）— アタック時に条件を満たす相手スピリットを
   指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
   doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
   クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
@@ -864,14 +871,22 @@ status は `unimplemented`（未実装）/ `partial`（一部未実装）/ `simp
 `simplified` の大半は「対象を選べず自動選択される」もので、`interactiveTargets` の
 choice 化が進めば解消する系統。
 
-### 台帳に載っていない未実装（2026-08-01 発見・未対処）
+### 台帳に載っていない未実装（2026-08-01 発見 → 2026-08-02 から解消中）
 
-**マジック48枚で「メイン：」側の効果が未実装なのに、card-notes.json に注意書きがない。**
+**マジック48枚で「メイン：」側の効果が未実装なのに、card-notes.json に注意書きがない**問題。
 「メイン：〈固有の効果〉／フラッシュ：〈BP+N〉」という構造のマジックで、**フラッシュ側の
-単純な BP バフだけが構造化され、メイン側が丸ごと落ちている**（コールオブロスト／
-パーフェクトガード／ポテンシャルパワー／キラーテレスコープ 等）。
-スキップ自体は §5 の方針（既存アクションで完全表現できる場合のみ構造化）どおりの意図的なものだが、
-**注意書きが無いためデッキビルダーで警告が出ず、プレイヤーには完全実装に見える**。
+単純な BP バフだけが構造化され、メイン側が丸ごと落ちていた**。
+スキップ自体は §5 の方針（既存アクションで完全表現できる場合のみ構造化）どおりの意図的なものだったが、
+**注意書きが無いためデッキビルダーで警告が出ず、プレイヤーには完全実装に見えていた**。
+
+**注意書きを足すのではなく、実装して解消する方針に切り替えた**（2026-08-02）。進捗:
+
+| バッチ | 内容 | 枚数 |
+| :-- | :-- | --: |
+| 1 | コア／ゾーン操作系（コールオブロスト・バスターファランクス・インフェルノアイズ等） | 16 ✅ |
+| 2 | `lendSelfThisTurn` の継続効果（パーフェクトガード・ポテンシャルパワー・キラーテレスコープ等） | 8 ✅ |
+| 3 | レベル読み替え・付与系 | 8 |
+| 4 | プレイヤー選択／新概念を要するもの | 16 |
 
 同様の台帳漏れがスピリット／ネクサスにもある（例: BS01-100 ルビーの太陽 Lv2 の
 「白のスピリットはコア増減で疲労する」）。
@@ -885,10 +900,10 @@ choice 化が進めば解消する系統。
   `effects` 件数を上回るもの → 133件が候補に挙がるが**誤検出が多い**
   （1エントリの `levels` が複数レベルを兼ねるため）。個別確認が必要
 
-**残作業**: 上記48件に `partial` の注意書きを付ける（データ作業。文面は機械生成できる）。
-`npm run validate:notes` は注意書きと cards.json の整合は見るが、
-**「注意書きが無いこと」自体は検出できない**ため、この網羅性チェックを
-`validate:notes` 側に組み込むのが望ましい。
+**残作業**: (1) 未着手のバッチ3〜4（24枚）の実装、(2) 実装しないと判断したものへの `partial` 注記、
+(3) `npm run validate:notes` への網羅性チェックの組み込み。
+現状の `validate:notes` は注意書きと cards.json の整合は見るが、
+**「注意書きが無いこと」自体は検出できない**（上記48件が長く見過ごされた原因）。
 
 ---
 
