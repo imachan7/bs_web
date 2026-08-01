@@ -32,6 +32,7 @@ import {
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
     sokuPayableInstanceIds,
+    OPPONENT_RESERVE_TARGET,
     canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
@@ -527,6 +528,10 @@ function renderInfo(
         && ui.awakenTarget !== null
         && canAwakenFromReserve(view, view.you)
         && p.reserve >= 1
+    // 効果解決の選択待ちで「相手のリザーブ」が候補になっているか（犬人マードック）
+    const oppReserveChoice = !isSelf
+        && view.pendingChoice?.pid === view.you
+        && (view.pendingChoice?.candidates ?? []).includes(OPPONENT_RESERVE_TARGET)
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
@@ -545,6 +550,11 @@ function renderInfo(
         if (isSelf && text.startsWith("リザーブ")) {
             span.dataset.reserve = "self"
             if (reserveHighlight) span.classList.add("targetable", "clickable")
+        }
+        // 相手のリザーブも、選択待ちの候補になっているときだけクリック対象にする
+        if (!isSelf && text.startsWith("リザーブ")) {
+            span.dataset.reserve = "opponent"
+            if (oppReserveChoice) span.classList.add("targetable", "clickable")
         }
         span.textContent = text
         el.appendChild(span)

@@ -794,6 +794,11 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
     return allowed
 }
 
+// pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
+// 通常の instanceId とは衝突しない固定文字列（BS03-075 犬人マードック：
+// 「相手のフィールド/リザーブから」コアをトラッシュへ置く）
+export const OPPONENT_RESERVE_TARGET = "opponent-reserve"
+
 // GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
 // 通常の instanceId とは衝突しない固定文字列（BS05合成恐竜ディノゾールLv2）
 export const AWAKEN_FROM_RESERVE = "reserve"

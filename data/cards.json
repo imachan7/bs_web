@@ -16143,7 +16143,8 @@
     "repeatPerCount": true,
     "action": {
      "type": "coreToOpponentTrashChoice",
-     "count": 1
+     "count": 1,
+     "includeReserve": true
     }
    }
   ]

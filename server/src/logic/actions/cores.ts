@@ -23,7 +23,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesCostFilter, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesCostFilter, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -615,6 +615,15 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
         // targetInstanceId 指定時はその対象へ実行、未指定時は候補を集めて選択を要求する（魔界侯爵コキュートス）
         if (targetInstanceId !== undefined) {
             const oppPlayer = state.players[opp]
+            // 「相手のフィールド/**リザーブ**から」（BS03-075 犬人マードック）。
+            // リザーブはインスタンスを持たないため、候補に番兵を混ぜて表現する
+            if (targetInstanceId === OPPONENT_RESERVE_TARGET) {
+                const removed = Math.min(action.count, oppPlayer.reserve)
+                oppPlayer.reserve -= removed
+                oppPlayer.trashCores += removed
+                log(state, `${sourceName}：${oppPlayer.name}のリザーブのコア${removed}個をトラッシュに置いた。`)
+                return
+            }
             const spirit = oppPlayer.field.spirits.find((s) => s.instanceId === targetInstanceId)
             if (spirit) {
                 removeCoresToTrash(state, opp, spirit, action.count, owner)
@@ -645,7 +654,22 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
         )
         const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
         const candidates = [...spiritCandidates, ...nexusCandidates].map((i) => i.instanceId)
-        requestChoice(state, owner, "コアを取り除く相手のスピリット/ネクサスを選択", candidates, false, action, self)
+        // includeReserve 指定時のみ、相手のリザーブも取得元として選べる
+        // （BS03-075 犬人マードック＝「相手のフィールド/リザーブから」。
+        //  BS02-022 コキュートスは「スピリット1体かネクサス1つ」なのでリザーブを含めない）
+        const withReserve = action.includeReserve && oppPlayer.reserve >= 1
+        if (withReserve) candidates.push(OPPONENT_RESERVE_TARGET)
+        requestChoice(
+            state,
+            owner,
+            withReserve
+                ? "コアを取り除く相手のスピリット/ネクサス、または相手のリザーブを選択"
+                : "コアを取り除く相手のスピリット/ネクサスを選択",
+            candidates,
+            false,
+            action,
+            self,
+        )
         return
 }
 

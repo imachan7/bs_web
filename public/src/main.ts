@@ -15,7 +15,7 @@ import {
     showWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -641,6 +641,12 @@ async function init(): Promise<void> {
             return
         }
     })
+    // 相手のリザーブが選択待ちの候補になっているとき（犬人マードック）にクリックで選ぶ
+    byId("opp-info").addEventListener("click", (e) => {
+        if (!closestData(e, "data-reserve")) return
+        tryResolveChoice(OPPONENT_RESERVE_TARGET)
+    })
+
     byId("opp-nexuses").addEventListener("click", (e) => {
         const el = closestData(e, "data-instance-id")
         if (el) tryResolveChoice(String(el.dataset.instanceId))
