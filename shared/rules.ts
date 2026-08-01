@@ -88,9 +88,12 @@ export function isVirtualSource(inst: CardInstance): boolean {
     return inst.instanceId.startsWith("virtual-")
 }
 
-// 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（道化師クラン）
+// 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
+// 継続付与された「コストとしても扱う」値（alsoCostsContinuous＝kind:"alsoCostGrant"。道化師クラン）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
-    return card(inst.cardId).cost === cost || inst.tempAlsoCosts.includes(cost)
+    if (card(inst.cardId).cost === cost) return true
+    if (inst.tempAlsoCosts.includes(cost)) return true
+    return (inst.alsoCostsContinuous ?? []).includes(cost)
 }
 
 // カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
@@ -211,16 +214,42 @@ export function hasContinuousKeywordGrant(
                 continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // costFilter（BS02-101リフレクションアーマー：コスト2のスピリットのみ）。
+            // 従来はここが未対応で、armorColorsGranted経由のhasArmorAgainst（refreshLevelAsOverridesが
+            // costFilterを見て構築）は正しくコスト絞り込みできる一方、spiritHasKeyword経由のこちらは
+            // costFilter を無視してすべてのスピリットにマッチしてしまっていた（2026-07-31 発見・修正）
+            if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) continue
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
+            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             return true
         }
     }
     return false
 }
 
-// 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵）
+// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
+// 合算、重複除く）。AuraCounter "targetArmorColors"（アイシクルアサルト）専用。発生源ではなく**対象**基準の点に注意
+export function targetArmorColorCount(inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    const colors = new Set<Color>()
+    for (const e of card(inst.cardId).effects) {
+        if (e.kind === "keyword" && e.keyword === "armor" && effectActiveAtLevel(e.levels, level)) {
+            for (const c of e.colors ?? []) colors.add(c)
+        }
+    }
+    for (const k of inst.tempKeywords) {
+        if (k.keyword === "armor") {
+            for (const c of k.colors ?? []) colors.add(c)
+        }
+    }
+    for (const c of inst.armorColorsGranted ?? []) colors.add(c)
+    return colors.size
+}
+
+// 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
+// 走査は effectSources 経由＝このターンだけの仮想発生源（lendSelfThisTurn で貸した継続効果）も含む
 export function spiritHasFamily(
     board: Board,
     ownerPid: PlayerId,
@@ -229,13 +258,22 @@ export function spiritHasFamily(
 ): boolean {
     if (card(inst.cardId).family.includes(family)) return true
     const player = board.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
+    const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "familyGrant") continue
-            if (effect.family !== family) continue
+            // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
+            const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
+            if (granted !== family) continue
+            // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // familyFilter は**カード静的な系統のみ**で判定する。ここで spiritHasFamily を呼ぶと
+            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）
+            if (effect.familyFilter && !card(inst.cardId).family.includes(effect.familyFilter)) {
+                continue
+            }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
             }
@@ -247,8 +285,11 @@ export function spiritHasFamily(
             }
             if (effect.phase && board.phase !== effect.phase) continue
             if (effect.condition) {
+                // 「スピリットとネクサスが合計N以上」は**場に実在するもの**を数える（分類B。
+                // 仮想発生源を混ぜてはいけないため sources ではなく field を見る。TURN_EFFECT_SOURCES.md §1）
                 const { color, count } = effect.condition.ownColorTotalAtLeast
-                const total = sources.filter((s) => instHasColor(s, color)).length
+                const onField = [...player.field.spirits, ...player.field.nexuses]
+                const total = onField.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
             return true
@@ -272,11 +313,13 @@ export function matchesFamilyFilter(
 
 // ---- 常時BP修正（オーラ）と実効BP ----
 
-// オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える
+// オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える。
+// "targetArmorColors" のみ対象（targetInst）基準（発生源ではない）のため、呼び出し側から渡す
 export function countAuraCounter(
     board: Board,
     sourcePid: PlayerId,
     counter: AuraCounter,
+    targetInst?: CardInstance,
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
@@ -288,6 +331,9 @@ export function countAuraCounter(
     }
     if (counter === "ownExhausted") {
         return board.players[sourcePid].field.spirits.filter((s) => s.isRested).length
+    }
+    if (counter === "targetArmorColors") {
+        return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
@@ -366,6 +412,13 @@ export function auraAppliesTo(
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
         return false
     }
+    if (aura.attackingOnly) {
+        if (!board.battle) return false
+        if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
+    }
+    if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
+        return false
+    }
     if (
         aura.keywordFilter &&
         !spiritHasKeyword(board, targetOwnerPid, targetInst, aura.keywordFilter)
@@ -389,11 +442,17 @@ export function auraAppliesTo(
     }
     return true
 }
-// オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）
-export function auraAmount(board: Board, sourcePid: PlayerId, aura: AuraDef): number {
+// オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）。
+// targetInst は "targetArmorColors"（対象基準のカウンタ。アイシクルアサルト）でのみ使う
+export function auraAmount(
+    board: Board,
+    sourcePid: PlayerId,
+    aura: AuraDef,
+    targetInst?: CardInstance,
+): number {
     let amount = 0
     if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter)
+        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst)
     }
     if (aura.amount !== undefined) {
         if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition)) {
@@ -402,6 +461,27 @@ export function auraAmount(board: Board, sourcePid: PlayerId, aura: AuraDef): nu
     }
     return amount
 }
+// 「BPを+する」効果が、effectOwnerPid（効果を出す側）にとって発揮されない状態か
+// （kind:"bpBuffSuppression"。BS04古代闘技場Lv1「相手のスピリット/ネクサス/マジックの『BPを+する』効果は発揮されない」）。
+// 発生源の持ち主から見た**相手**に効くため、opponent 側のフィールドに有効な発生源があるかを見る。
+// BP増加アクション（buff.ts のレジストリ）・BP増加オーラ（下の effectiveBp）・magicBuffBonus の3経路が参照する
+export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): boolean {
+    const sourcePid: PlayerId = effectOwnerPid === "p1" ? "p2" : "p1"
+    // 抑止する側の発生源は「場に実在するもの」で判定する（貸与された仮想発生源も効果を出す側なので effectSources を使う）
+    for (const source of effectSources(board, sourcePid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "bpBuffSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+            return true
+        }
+    }
+    return false
+}
+
 // 実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
 // 戦闘のBP比較・BPを条件にした対象選択はすべてこの値を使う（レベル判定・維持コアは対象外）。
 export function effectiveBp(
@@ -411,17 +491,25 @@ export function effectiveBp(
 ): number {
     let total = currentLevel(inst).bp
     for (const pid of ["p1", "p2"] as PlayerId[]) {
+        // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
+        // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
+        const bpBuffSuppressed = isBpBuffSuppressed(board, pid)
         const sources = effectSources(board, pid)
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
+                // lentOnly：仮想発生源（マジックが lendSelfThisTurn で貸した効果）からのみ有効。
+                // 実在するスピリット/ネクサスがたまたま同じ効果エントリを持っていても恒久化させない
+                if (effect.aura.lentOnly && !isVirtualSource(source)) continue
                 // 発生源のレベル判定は素の currentLevel を使う（effectiveBp の再帰を避ける）
                 const sourceLevel = currentLevel(source).level
                 if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                total += auraAmount(board, pid, effect.aura)
+                const amount = auraAmount(board, pid, effect.aura, inst)
+                if (bpBuffSuppressed && amount > 0) continue
+                total += amount
             }
         }
     }
@@ -462,7 +550,15 @@ export function matchesTarget(
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
+    // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
+    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
+    if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
     return true
+}
+
+// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定
+export function cardNameContains(inst: CardInstance, text: string): boolean {
+    return card(inst.cardId).name.includes(text)
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
@@ -472,6 +568,21 @@ export function matchesCostFilter(cost: number, costFilter?: { max?: number; min
     if (costFilter.max !== undefined && cost > costFilter.max) return false
     if (costFilter.min !== undefined && cost < costFilter.min) return false
     return true
+}
+
+// フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
+// **「このターンの間、コストNとしても扱う」（tempAlsoCosts。道化師クラン）も見る**。
+// 場のスピリットを絞る costFilter は必ずこちらを通すこと（instHasCost が単一コスト用なのと同じ理由）。
+// 静的コストだけで判定すると、クラン下のリフレクションアーマー（コスト2のスピリットに装甲）が
+// 無言で対象を取り落とす
+export function instMatchesCostFilter(
+    inst: CardInstance,
+    costFilter?: { max?: number; min?: number },
+): boolean {
+    if (!costFilter) return true
+    if (matchesCostFilter(card(inst.cardId).cost, costFilter)) return true
+    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
+    return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
 }
 
 // ---- 制約・免疫 ----
@@ -488,6 +599,14 @@ export function activeConstraints(
             (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
+        // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
+        // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
+        .filter((c) => {
+            if (c.type !== "cantAttack" || c.unlessOpponentHasColorSpirit === undefined) return true
+            const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+            const color = c.unlessOpponentHasColorSpirit
+            return !board.players[oppPid].field.spirits.some((s) => instHasColor(s, color))
+        })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []
@@ -498,6 +617,10 @@ export function activeConstraints(
             if (effect.kind !== "constraintGrant") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
+            if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
+            // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
+            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (board.phase !== phase) continue
@@ -507,7 +630,24 @@ export function activeConstraints(
             granted.push(effect.constraint)
         }
     }
-    return [...own, ...granted]
+    // constraintSuppression（BS04獣使いドヴェルグ）：持ち主のフィールドの発生源が、対象スピリットの
+    // 指定タイプの制約を発揮させない。合成結果から最後に取り除く
+    const suppressed = new Set<ConstraintDef["type"]>()
+    for (const source of sources) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraintSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            if (effect.nameContains !== undefined && !cardNameContains(inst, effect.nameContains)) continue
+            suppressed.add(effect.constraintType)
+        }
+    }
+    const all = [...own, ...granted]
+    if (suppressed.size === 0) return all
+    return all.filter((c) => !suppressed.has(c.type))
 }
 export function isUntargetableByOpponent(inst: CardInstance): boolean {
     if (inst.immuneToOpponentThisTurn) return true
@@ -531,18 +671,24 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
     )
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
-    return inst.tempKeywords.some(
-        (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
-    )
+    if (
+        inst.tempKeywords.some(
+            (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
+        )
+    ) {
+        return true
+    }
+    // 継続付与の装甲（kind:"keywordGrant"のkeyword:"armor"。refreshLevelAsOverridesが
+    // armorColorsGrantedへ毎回再計算する。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白）
+    return (inst.armorColorsGranted ?? []).some((c) => sourceColors.includes(c))
 }
 export function hasGlobalConstraint(
     board: Board,
     type: GlobalConstraintDef["type"],
 ): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = board.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS02グレートウォール）も含める
+        for (const inst of effectSources(board, pid)) {
             const level = currentLevel(inst).level
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
@@ -554,6 +700,28 @@ export function hasGlobalConstraint(
     }
     return false
 }
+// フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
+// アタック/ブロックができない（BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2、BS02グレートウォール=costs[6,8]）。
+// hasGlobalConstraintの単純boolean判定と異なり、具体的なしきい値を比較する必要があるため専用の判定関数にする
+export function costCantAct(board: Board, cost: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
+        for (const inst of effectSources(board, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "costCantAct") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { maxCost, costs } = effect.constraint
+                if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
+
 export function hasMagicImmunity(
     board: Board,
     ownerPid: PlayerId,
@@ -567,11 +735,18 @@ export function hasMagicImmunity(
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== "magic") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (
-                effect.familyFilter &&
-                !card(inst.cardId).family.includes(effect.familyFilter)
-            ) {
-                continue
+            // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
+            // （BS05白亜の竜使いアルブス：自身は対象系統を持たないが対象に含む）
+            if (effect.familyFilter !== undefined) {
+                const familyOk = matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
+                const selfOk = effect.includeSelf === true && inst.instanceId === source.instanceId
+                if (!familyOk && !selfOk) continue
+            }
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            if (effect.condition) {
+                const { cost, count } = effect.condition.ownCostCountAtLeast
+                const matchCount = player.field.spirits.filter((s) => card(s.cardId).cost === cost).length
+                if (matchCount < count) continue
             }
             return true
         }
@@ -597,6 +772,56 @@ export function cantActByCost(board: Board, inst: CardInstance): boolean {
 // 静的キーワードは **effects の levels を尊重する**（「Lv2・Lv3【覚醒】」を Lv1 で使えないようにする）。
 // 一時付与（スピリットリンク）・継続付与（ディラノス）はレベル指定を持たないためそのまま有効。
 // なお spiritHasKeyword の静的分岐はレベルを見ないため、レベルを尊重したい呼び出しはこちらを使う
+// 【神速】召喚のコスト支払いに使える、持ち主のフィールドのインスタンス集合。
+//
+// **基礎ルール: 神速召喚の支払いはリザーブからのみ**（通常召喚と違い、フィールドのコアは使えない）。
+// kind:"sokuPaySourceGrant" が有効な発生源があるぶんだけ、フィールドからの支払いが許可される
+// （BS04旋風渦巻く渓谷Lv2＝自分のフィールドすべて／BS04甲殻戦士ロングホーンLv2-3＝ロングホーン上のみ）。
+// サーバー validateSummon とクライアントの支払いUIが共用する
+export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string> {
+    const allowed = new Set<string>()
+    for (const source of effectSources(board, pid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "sokuPaySourceGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.scope === "self") {
+                allowed.add(source.instanceId)
+                continue
+            }
+            const player = board.players[pid]
+            for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+                allowed.add(inst.instanceId)
+            }
+        }
+    }
+    return allowed
+}
+
+// pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
+// 通常の instanceId とは衝突しない固定文字列（BS03-075 犬人マードック：
+// 「相手のフィールド/リザーブから」コアをトラッシュへ置く）
+export const OPPONENT_RESERVE_TARGET = "opponent-reserve"
+
+// GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
+// 通常の instanceId とは衝突しない固定文字列（BS05合成恐竜ディノゾールLv2）
+export const AWAKEN_FROM_RESERVE = "reserve"
+
+// 【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
+// 持ち主のフィールドにあるか。ディノゾールLv2が自分のスピリットすべての【覚醒】を書き換える）。
+// サーバー validateAwaken とクライアントの覚醒UIが共用する
+export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(board, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "awakenFromReserve") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
 export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     const level = currentLevel(inst).level
     const staticAwaken = card(inst.cardId).effects.some(
@@ -630,13 +855,21 @@ export function activatableAbility(
     return null
 }
 
+// 指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
+export interface DirectAttackFilter {
+    targetFilter: "rested" | "singleCore" | "recovered" | "any"
+    targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
+}
+
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 export function directAttackFilter(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
-): "rested" | "singleCore" | "recovered" | null {
+): DirectAttackFilter | null {
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetFilter
+    return constraint.targetMinBp === undefined
+        ? { targetFilter: constraint.targetFilter }
+        : { targetFilter: constraint.targetFilter, targetMinBp: constraint.targetMinBp }
 }

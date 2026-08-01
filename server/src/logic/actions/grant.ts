@@ -1,15 +1,17 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color } from "../../type"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, Color, EffectAction } from "../../type"
 import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
 import {
     findSpiritAny,
     getAllFamilies,
+    pickAnySideCandidates,
     pickEnemyByBp,
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
+    tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, isVanillaCard, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -160,26 +162,18 @@ const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action)
         return
 }
 
-const grantColorAllHandler: ActionHandler<"grantColorAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // このターンの間、自分のスピリットすべてを指定色のスピリットとしても扱う（妖精ティングリー）
-        for (const s of state.players[owner].field.spirits) {
-            if (!s.tempColors.includes(action.color)) s.tempColors.push(action.color)
-        }
-        log(
-            state,
-            `${sourceName}：このターンの間、${state.players[owner].name}のスピリットすべてが${COLOR_LABELS[action.color]}のスピリットとしても扱われる。`,
-        )
-        return
-}
-
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceCardId, sourceName, chosenOption } = ctx
         if (!self) return
-        const holders = state.players[owner].field.spirits.filter((s) =>
-            spiritHasFamily(state, owner, s, action.targetFamily),
+        // 「フィールド、または手札にある系統：X を持つスピリット/スピリットカードすべて」が対象のため、
+        // 発動可否は場と手札の両方で見る（付与系統は見ない＝カード静的な系統だけ。音鳥クルーク）
+        const onField = state.players[owner].field.spirits.some((s) =>
+            getCard(s.cardId).family.includes(action.targetFamily),
         )
-        if (holders.length === 0) {
+        const inHand = state.players[owner].hand.some((cardId) =>
+            getCard(cardId).family.includes(action.targetFamily),
+        )
+        if (!onField && !inHand) {
             return
         }
         if (chosenOption === undefined) {
@@ -196,24 +190,14 @@ const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx,
             )
             return
         }
-        for (const s of holders) {
-            if (!s.tempFamilies.includes(chosenOption)) s.tempFamilies.push(chosenOption)
-        }
+        // 選んだ系統を載せた仮想発生源を積む（lendSelfThisTurn と同じ貸与。以後 kind:"familyGrant" の
+        // familyFromChoice エントリが継続付与するので、このターンに召喚したスピリットにも乗る）
+        const virtual = pushVirtualSource(state, owner, sourceCardId)
+        if (!virtual) return
+        virtual.lentChoiceFamily = chosenOption
         log(
             state,
-            `${sourceName}：系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた（ターン終了時まで）。`,
-        )
-        return
-}
-
-const grantAlsoCostAllHandler: ActionHandler<"grantAlsoCostAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 道化師クラン：自分のスピリットすべてを、このターンの間コストaction.costのスピリットとしても扱う
-        const targets = state.players[owner].field.spirits
-        for (const t of targets) t.tempAlsoCosts.push(action.cost)
-        log(
-            state,
-            `${state.players[owner].name}のスピリットすべては、このターンの間コスト${action.cost}のスピリットとしても扱われる。`,
+            `${sourceName}：このターンの間、系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた。`,
         )
         return
 }
@@ -288,16 +272,10 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
 
 const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのLvをこのターンの間1つ上として扱う（カードの最大Lvでキャップ。未指定時は自分の実効BP最大。ビルドアップ）
-        const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                          ? s
-                          : best,
-                  undefined,
-              )
+        // 対象スピリットのLvをこのターンの間1つ上として扱う（最大Lvでキャップ。anySide指定で両陣営から選べる。ビルドアップ）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：Lvを上げるスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
             return
@@ -326,9 +304,38 @@ const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (
         return
 }
 
-const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
+// 「自分か相手のスピリット1体を指定する」系の対象決定（ダブルハート／ビルドアップ）。
+// targetInstanceId 指定時はそれを使う。未指定なら anySide のとき両陣営から、
+// そうでなければ自分側だけから候補を作り、interactiveTargets ならプレイヤーに選ばせる。
+// choice を立てた場合は "pending" を返す（呼び出し側はそのまま return する）
+function pickSingleTarget(
+    ctx: ActionCtx,
+    action: { anySide?: true },
+    prompt: string,
+): CardInstance | undefined | "pending" {
+    const { state, owner, self, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId) {
+        const found = findSpiritAny(state, targetInstanceId)
+        return found?.inst
+    }
+    const candidates = action.anySide
+        ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+        : state.players[owner].field.spirits.slice()
+    if (state.interactiveTargets && tryInteractiveTargetChoice(state, owner, self, prompt, candidates, action as EffectAction, null)) {
+        return "pending"
+    }
+    // 自動選択は実効BP最大（既存挙動）。両陣営のときは相手側→自分側の順で同値は先勝ち
+    return candidates.reduce<CardInstance | undefined>(
+        (best: CardInstance | undefined, s: CardInstance) =>
+            !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        undefined,
+    )
+}
+
+const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlockThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // ブレイブチャージ：自分のスピリット1体の『このスピリットのアタック時』効果を、このターンの間
+        // 『このスピリットのブロック時』に発揮させる（未指定時は自分の実効BP最大。addSymbolThisTurn と同じ選び方）
         const target = targetInstanceId
             ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
             : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
@@ -338,6 +345,36 @@ const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, actio
                           : best,
                   undefined,
               )
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        target.attackTriggersAsBlockThisTurn = true
+        log(
+            state,
+            `${getCard(target.cardId).name}の『アタック時』効果は、このターンの間『ブロック時』に発揮される。`,
+        )
+        return
+}
+
+const blockTriggersAsAttackAllThisTurnHandler: ActionHandler<"blockTriggersAsAttackAllThisTurn"> = (ctx) => {
+    const { state, sourceName } = ctx
+        // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に移す
+        // （ブロック時には発揮されなくなる＝移し替え。fireTriggerが state.blockTriggersAsAttackThisTurn を参照）
+        state.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`,
+        )
+        return
+}
+
+const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 対象スピリットのtempExtraSymbolsをこのターンの間+1する（anySide指定で両陣営から選べる。ダブルハート）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：シンボルを追加するスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
@@ -455,22 +492,71 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         return
 }
 
+// 「このターンの間」継続効果を貸す共通処理：仮想発生源を1つ積んで返す（積めなければ null）。
+// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う
+function pushVirtualSource(
+    state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
+    owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
+    sourceCardId: string | undefined,
+): CardInstance | null {
+    if (sourceCardId === undefined) {
+        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
+        return null
+    }
+    const inst = createInstance(sourceCardId, state.turn, 0)
+    inst.instanceId = `virtual-${inst.instanceId}`
+    state.players[owner].turnVirtualInstances.push(inst)
+    return inst
+}
+
 // マジックが「このターンの間」継続効果を貸す機構（TURN_EFFECT_SOURCES.md）。
 // マジックのselfは常にnull（resolveMagicがself=nullで呼ぶ）ため、ctx.sourceCardIdを使うこと。
 // ここでselfを参照すると（マジックの唯一の用途で）必ずno-opになる罠なので注意（§3.3）
 const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     const { state, owner, sourceCardId } = ctx
-    if (sourceCardId === undefined) {
-        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
-        return
-    }
-    const inst = createInstance(sourceCardId, state.turn, 0)
-    inst.instanceId = `virtual-${inst.instanceId}`
-    state.players[owner].turnVirtualInstances.push(inst)
+    if (!pushVirtualSource(state, owner, sourceCardId)) return
     log(
         state,
-        `${getCard(sourceCardId).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+        `${getCard(sourceCardId!).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
     )
+}
+
+// スピリットイリュージョン：全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに
+// 載せてこのターンの間貸し出す（familyGrantのfamilyFromChoiceと同形。BS02-111）。
+// マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
+// resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
+// EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
+const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceCardId, chosenOption } = ctx
+        if (chosenOption === undefined) {
+            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            requestChoice(
+                state,
+                owner,
+                "指定する色を選んでください",
+                [],
+                false,
+                { type: "colorChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+                null,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+            ([, label]) => label === chosenOption,
+        )
+        if (!colorEntry) return
+        const [color] = colorEntry
+        const cardId = action.sourceCardId
+        const virtual = pushVirtualSource(state, owner, cardId)
+        if (!virtual) return
+        virtual.lentChoiceColor = color
+        log(
+            state,
+            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
+        )
+        return
 }
 
 const handlers = {
@@ -478,14 +564,15 @@ const handlers = {
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
-    grantColorAll: grantColorAllHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
-    grantAlsoCostAll: grantAlsoCostAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
+    attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
+    blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
+    colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,

@@ -46,6 +46,14 @@ export class RoomManager {
         return { room, playerId: seat }
     }
 
+    // gameId から進行中のルームを探す（バグ報告への対戦ログ添付用）
+    findByGameId(gameId: string): Room | null {
+        for (const room of this.rooms.values()) {
+            if (room.game?.gameId === gameId) return room
+        }
+        return null
+    }
+
     // socketId からルームと座席を探す
     findBySocket(
         socketId: string,

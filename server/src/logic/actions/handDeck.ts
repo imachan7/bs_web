@@ -7,6 +7,8 @@ import {
     countEffectCounter,
     drawDoubleMultiplier,
     findSpiritAny,
+    isImmuneToArea,
+    isEffectBlocked,
     millDeck,
     notifyHandGained,
     pickEnemyByBp,
@@ -34,6 +36,43 @@ const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
             return
         }
         draw(state, owner, count * drawDoubleMultiplier(state, owner))
+        return
+}
+
+const drawUpToHandler: ActionHandler<"drawUpTo"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // フォースドロー：自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op）
+        const player = state.players[owner]
+        const need = action.size - player.hand.length
+        if (need <= 0) {
+            log(state, `${sourceName}：手札がすでに${action.size}枚以上のためドローしなかった。`)
+            return
+        }
+        draw(state, owner, need)
+        return
+}
+
+const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // トリックプランク：自分のトラッシュにあるスピリットカードを末尾（新しい方）から
+        // 最大count枚、その順で自分のデッキの下に戻す（選択・順序の決定的簡略化）
+        const player = state.players[owner]
+        const indices: number[] = []
+        for (let j = player.trashCards.length - 1; j >= 0 && indices.length < action.count; j--) {
+            if (getCard(player.trashCards[j]!).type === "spirit") indices.push(j)
+        }
+        if (indices.length === 0) {
+            log(state, `${sourceName}：トラッシュにスピリットカードがなかった。`)
+            return
+        }
+        // indices は末尾（新しい方）→先頭の順に収集済み。この順のままデッキの下へ積む
+        const movedIds = indices.map((j) => player.trashCards[j]!)
+        for (const j of indices) player.trashCards.splice(j, 1)
+        for (const id of movedIds) player.deck.push(id)
+        log(
+            state,
+            `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
+        )
         return
 }
 
@@ -165,6 +204,50 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
         return
 }
 
+// 公開ゾーンの残りをデッキの下へ戻す。実対戦では戻す順番を1枚ずつ選ばせる
+// （スキップすると残りを現在の順のまま戻す）。カードは「デッキの下」へ行くため、
+// 順番が結果に効く場面はごく限られるが、カードテキストどおり選べるようにしてある
+const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const zone = state.revealedCards
+    if (!zone || zone.pid !== owner) return
+    const player = state.players[owner]
+    const pushAllRemaining = (): void => {
+        for (const id of zone.cardIds) player.deck.push(id)
+        if (zone.cardIds.length > 0) {
+            log(state, `${player.name}は残り${zone.cardIds.length}枚をデッキの下に戻した。`)
+        }
+        delete state.revealedCards
+    }
+    // 選択された1枚を先に戻し、残りがあれば続けて選ばせる
+    if (chosenCardIndex !== undefined) {
+        const id = zone.cardIds[chosenCardIndex]
+        if (id !== undefined) {
+            zone.cardIds.splice(chosenCardIndex, 1)
+            player.deck.push(id)
+            log(state, `${player.name}は${getCard(id).name}をデッキの下に戻した。`)
+        }
+    }
+    if (zone.cardIds.length === 0) {
+        delete state.revealedCards
+        return
+    }
+    if (state.interactiveTargets && zone.cardIds.length >= 2) {
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：デッキの下に戻す順番（残り${zone.cardIds.length}枚。スキップで現在の順のまま戻す）`,
+            "reveal",
+            zone.cardIds.map((_, i) => i),
+            true,
+            { type: "revealReturnToDeck" },
+            self,
+        )
+        return
+    }
+    pushAllRemaining()
+}
+
 const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // スワロウアイヴィー：自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の
@@ -204,11 +287,46 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             for (const id of remaining) player.deck.push(id)
             return
         }
-        const pickIndex = revealed.findIndex(
-            (id) =>
-                action.pickType === undefined ||
-                getCard(id).type === action.pickType,
-        )
+        const matchesPick = (id: string): boolean =>
+            (action.pickType === undefined || getCard(id).type === action.pickType) &&
+            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes))
+        // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
+        // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。
+        // 選択後は chosenCardIndex を持って再入し、下の pickIndex 経路に合流する
+        if (state.interactiveTargets && !action.pickAllOfType) {
+            const indices = revealed.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id)).map((x) => x.i)
+            if (indices.length >= 2 && chosenCardIndex === undefined) {
+                state.revealedCards = { pid: owner, cardIds: [...revealed] }
+                log(state, `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開した。`)
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手札に加えるカードを選んでください`,
+                    "reveal",
+                    indices,
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
+        // 公開ゾーン経由の再入：選ばれたカードを手札へ加え、残りはデッキの下へ戻す段階へ進む
+        if (chosenCardIndex !== undefined && state.revealedCards) {
+            const zone = state.revealedCards.cardIds
+            const pickedId = zone[chosenCardIndex]
+            if (pickedId !== undefined) {
+                zone.splice(chosenCardIndex, 1)
+                player.hand.push(pickedId)
+                log(state, `${player.name}は${getCard(pickedId).name}を手札に加えた。`)
+                notifyHandGained(state, owner, 1)
+            }
+            // 公開ゾーンから取り出した残りは、この時点でデッキへは戻っていないので
+            // revealed（この呼び出しで splice した配列）ではなく公開ゾーンを使って戻す
+            ctx.resolve({ type: "revealReturnToDeck" })
+            return
+        }
+        const pickIndex = revealed.findIndex(matchesPick)
         if (pickIndex === -1) {
             log(
                 state,
@@ -223,8 +341,16 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             )
             notifyHandGained(state, owner, 1)
         }
-        // 残ったカードは公開順のまま山札の下に戻す（下に戻す＝push）
-        for (const id of revealed) player.deck.push(id)
+        // 残ったカードの処理：discardNonMatching指定時はトラッシュへ破棄（BS05天焦がす大聖火）、
+        // それ以外は公開順のまま山札の下に戻す（下に戻す＝push）
+        if (action.discardNonMatching) {
+            for (const id of revealed) player.trashCards.push(id)
+            if (revealed.length > 0) {
+                log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+            }
+        } else {
+            for (const id of revealed) player.deck.push(id)
+        }
         return
 }
 
@@ -255,6 +381,29 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         }
         const isRecoverable = (cardId: string): boolean =>
             getCard(cardId).type === "spirit" && familyOk(cardId)
+        // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
+        if (action.all) {
+            const indices: number[] = []
+            for (let j = 0; j < player.trashCards.length; j++) {
+                if (isRecoverable(player.trashCards[j]!)) indices.push(j)
+            }
+            if (indices.length === 0) {
+                log(state, `${sourceName}のスピリット回収：トラッシュに対象がいなかった。`)
+                return
+            }
+            const recoveredIds = indices.map((j) => player.trashCards[j]!)
+            // インデックスが大きい順に取り除く（splice時のズレを防ぐ）
+            for (let k = indices.length - 1; k >= 0; k--) {
+                player.trashCards.splice(indices[k]!, 1)
+            }
+            player.hand.push(...recoveredIds)
+            log(
+                state,
+                `${player.name}は「${recoveredIds.map((id) => getCard(id).name).join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, recoveredIds.length)
+            return
+        }
         if (state.interactiveTargets) {
             const indices = player.trashCards
                 .map((id, i) => ({ id, i }))
@@ -361,7 +510,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, action.count)
+        millDeck(state, targetPid, action.count, owner)
         return
 }
 
@@ -375,7 +524,7 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, count)
+        millDeck(state, targetPid, count, owner)
         return
 }
 
@@ -389,9 +538,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             if (
-                found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColors) ||
-                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+                isEffectBlocked(state, found.inst, srcType) ||
+                (found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColors) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
@@ -454,7 +604,8 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 const cost = getCard(s.cardId).cost
                 if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
                 if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)))) return false
+                if (isEffectBlocked(state, s, srcType)) return false
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
                 return true
             })
             for (const s of targets) {
@@ -495,9 +646,10 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         }
         if (
             targetInstanceId &&
-            found.pid !== owner &&
-            (hasArmorAgainst(found.inst, srcColors) ||
-                (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))
+            (isEffectBlocked(state, found.inst, srcType) ||
+                (found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColors) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))))
         ) {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
             return
@@ -606,11 +758,14 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
 const handlers = {
     draw: drawHandler,
     drawPer: drawPerHandler,
+    drawUpTo: drawUpToHandler,
+    trashSpiritsToDeckBottom: trashSpiritsToDeckBottomHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
     discardSelfOne: discardSelfOneHandler,
     deckReveal: deckRevealHandler,
+    revealReturnToDeck: revealReturnToDeckHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     mill: millHandler,

@@ -16,7 +16,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -456,7 +456,7 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
         "ワルキューレだけなら対象を取る破壊は当たらない",
     )
     // ただし範囲破壊（destroyAll）にはワルキューレも当たる
-    resolveAction(s, "p1", null, { type: "destroyAll", maxBp: 9000 })
+    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 9000 } })
     assert(
         s.players.p2.field.spirits.length === 0,
         "範囲破壊(destroyAll)にはワルキューレも当たる",
@@ -477,7 +477,7 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
         s2.players.p2.field.spirits.length === 1,
         "フェザーバリア免疫スピリットは対象破壊されない",
     )
-    resolveAction(s2, "p1", null, { type: "destroyAll", maxBp: 9000 })
+    resolveAction(s2, "p1", null, { type: "destroyAll", filter: { maxBp: 9000 } })
     assert(
         s2.players.p2.field.spirits.length === 1,
         "フェザーバリア免疫スピリットは範囲破壊でも破壊されない",

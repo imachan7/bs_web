@@ -14,10 +14,13 @@ import {
     createGame,
     createInstance,
     getCard,
+    hasArmorAgainst,
     resolveAction,
     runTurnStart,
+    spiritHasKeyword,
 } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
+import { instHasCost } from "../../shared/rules"
 
 console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル解決の比較をBPからLvへ切り替える ===")
 {
@@ -158,24 +161,37 @@ console.log("=== BS02-060 道化師クラン e1：黄3つ以上で自分のス�
     const chun = createInstance("BS02-051", s.turn, 1) // チュンポポ（黄・コスト1）
     s.players.p1.field.spirits.push(chun)
 
-    runTurnStart(s) // スタートステップ：黄3体（クラン+ピヨン+チュンポポ）以上 → grantAlsoCostAll発火
+    runTurnStart(s) // スタートステップ：黄3体（クラン+ピヨン+チュンポポ）以上 → lendSelfThisTurn発火
 
-    assert(clan.tempAlsoCosts.includes(2), "クラン自身もコスト2として扱われる")
-    assert(piyon.tempAlsoCosts.includes(2), "ピヨンもコスト2として扱われる")
-    assert(chun.tempAlsoCosts.includes(2), "チュンポポもコスト2として扱われる")
+    assert(instHasCost(clan, 2), "クラン自身もコスト2として扱われる")
+    assert(instHasCost(piyon, 2), "ピヨンもコスト2として扱われる")
+    assert(instHasCost(chun, 2), "チュンポポもコスト2として扱われる")
+
+    // 2026-07-31: grantKeywordAll から lendSelfThisTurn + kind:"keywordGrant" へ移行。
+    // 移行時に keywordGrant.costFilter が静的コストしか見ておらず、クランで「コスト2としても扱う」
+    // スピリットが対象から外れる退行が出たため、instMatchesCostFilter（tempAlsoCosts を見る）を新設した。
+    // 実コスト2の個体と、クランで2扱いになった個体の**両方**が装甲を得ることを固定する
+    const pom = createInstance("BS02-054", s.turn, 1) // ポム（黄・実コスト2）
+    s.players.p1.field.spirits.push(pom)
 
     s.players.p1.hand[0] = "BS02-101" // リフレクションアーマー：コスト2のスピリット全員に【装甲】
     s.players.p1.reserve = 10
 
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "リフレクションアーマーを使用")
+    assert(spiritHasKeyword(s, "p1", pom, "armor"), "実コスト2のスピリットは装甲を得る")
     assert(
-        piyon.tempKeywords.some((k) => k.keyword === "armor"),
-        "実コスト0のピヨンもcostFilter:2にマッチして装甲を得る",
+        spiritHasKeyword(s, "p1", piyon, "armor"),
+        "実コスト0のピヨンもクランでコスト2として扱われている間は装甲を得る",
+    )
+    assert(
+        hasArmorAgainst(piyon, ["red"]),
+        "装甲の実効判定（armorColorsGranted経由）でもクランのコスト2扱いが効く",
     )
     assert(getCard(piyon.cardId).cost === 0, "ピヨンの実コストは変わらない")
 
     endTurn(s)
-    assert(piyon.tempAlsoCosts.length === 0, "ターン終了でtempAlsoCostsがリセットされる")
+    assert(!instHasCost(piyon, 2), "ターンが変わるとコスト2扱いも消える")
+    assert(!spiritHasKeyword(s, "p1", pom, "armor"), "ターンが変わるとlendSelfThisTurnの貸与も消え、装甲は外れる")
 }
 
 console.log("=== BS02-087 封印された魔導書 e2：自分のアタックステップ中は効果ドローが2倍 ===")

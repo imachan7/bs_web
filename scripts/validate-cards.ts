@@ -23,6 +23,15 @@ const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
 const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 
+// TriggerEvent（server/src/type.ts）に対応する誘発イベント名。
+// cards.json は型検査対象外のため、trigger 名の改名・削除がここで検出されないと
+// 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
+// TriggerEvent を追加・改名したらここにも追記すること
+const VALID_TRIGGERS = new Set([
+    "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt",
+])
+
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent",
@@ -31,7 +40,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
-    "triggerSuppression",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
 ])
 
 export interface ValidationIssue {
@@ -72,15 +81,32 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "tenshoCoreDump",
 ])
 
+// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。
+// coverage-effects.ts の同名の集合と同じ分類
+const ACTION_BEARING_KINDS = new Set([
+    "triggered",
+    "magic",
+    "step",
+    "fieldEvent",
+    "battleWon",
+    "activated",
+])
+
 // lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。
-// 貸与は kind:"magic" のエントリが発動し、それ以外の継続効果エントリが仮想発生源として有効になる
+// 貸与を発動するのは action を持つエントリ（マジックの kind:"magic" か、スピリットの
+// kind:"triggered" 等）で、貸されるのは継続効果エントリのほう
 function checkLentEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
     for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
-        // 発動そのもの（kind:"magic"）とキーワード宣言は貸与対象ではない
-        if (e.kind === "magic" || e.kind === "keyword") continue
+        // 貸与されるのは**継続効果のエントリだけ**。action を持つ kind（magic / triggered / step /
+        // fieldEvent / battleWon / activated）は発動側であって貸与対象ではない。
+        // 仮想発生源は field.spirits に入らないため、triggered 等はそもそも発火経路に乗らない。
+        // ※ ここを kind:"magic" だけの除外にしていると、スピリットの triggered から
+        //   lendSelfThisTurn を撃つ形（BS01-055 エメアント等）で、発動側のエントリ自身と
+        //   同一カードの無関係な誘発まで「levels が null でない」と誤って弾かれる
+        if (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword") continue
 
         // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
         // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**
@@ -104,6 +130,109 @@ function checkLentEffects(
                 add(
                     c.cardId,
                     `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
+                )
+            }
+        }
+    }
+}
+
+// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード）の検査。
+//
+// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition を見るが、
+// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter だけ。
+// 同じ kind に両方のフィールドが同居できる型なので、置換に加算側のフィルタを書くと
+// **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
+// 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
+// 書いた瞬間に発現するため、データ側で落とす。
+const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn", "condition"] as const
+
+function checkCostSetEffects(
+    c: CardData,
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const e of c.effects as { id?: string; kind?: string; mode?: string; amount?: unknown; setTo?: unknown }[]) {
+        if (e.kind !== "costMod" || e.mode !== "set") continue
+        for (const field of COST_SET_UNSUPPORTED) {
+            if (field in e) {
+                add(
+                    c.cardId,
+                    `costMod mode:"set" の ${e.id ?? e.kind} に ${field} がある（costSetOverride は参照しないため絞り込みが無言で無視される）`,
+                )
+            }
+        }
+        if ("amount" in e) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に amount がある（置換には setTo を使用してください）`)
+        }
+        if (!("setTo" in e)) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に setTo がない（置換先を指定してください）`)
+        }
+    }
+}
+
+// TargetFilter（対象選択の絞り込み軸）の検査。
+//
+// 直交化 第2段階（2026-07-30）で cards.json の旧個別フィールド（maxBp / colorFilter …）を
+// filter へ移行し、型からも削除した。**JSON は型検査が効かない**ため、旧フィールドを書いても
+// TypeScript は何も言わず、normalizeFilter は filter だけを見るので
+// 「絞り込みが無言で消えて効果が広く当たる」という最悪の壊れ方をする。ここで落とす。
+const LEGACY_FILTER_FIELDS = [
+    "maxBp", "maxBpFromSelf", "bpEqualsSelf", "keywordFilter", "colorFilter",
+    "colorExclude", "familyFilter", "costFilter", "levelFilter", "vanillaFilter",
+    "minSymbols", "excludeSelf",
+] as const
+
+// normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
+// 新しく filter へ移すアクションを増やしたらここに追記する
+const FILTER_ACTIONS = new Set([
+    "destroy", "destroyAll", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
+])
+
+// TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
+const VALID_FILTER_KEYS = new Set([
+    "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
+    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "rested",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser",
+])
+
+// filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
+const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
+    exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+}
+
+function checkTargetFilters(
+    cardId: string,
+    actions: { type?: unknown }[],
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const a of actions) {
+        if (typeof a.type !== "string") continue
+        const entry = a as Record<string, unknown>
+
+        if (FILTER_ACTIONS.has(a.type)) {
+            for (const f of LEGACY_FILTER_FIELDS) {
+                if (f in entry) {
+                    add(
+                        cardId,
+                        `${a.type} に旧フィールド ${f} がある（第2段階で filter へ移行済み。normalizeFilter は filter しか見ないため絞り込みが無言で消える）`,
+                    )
+                }
+            }
+        }
+
+        const filter = entry["filter"]
+        if (filter === undefined) continue
+        if (typeof filter !== "object" || filter === null || Array.isArray(filter)) {
+            add(cardId, `${a.type} の filter がオブジェクトでない`)
+            continue
+        }
+        const allowed = PARTIAL_FILTER_ACTIONS[a.type]
+        for (const key of Object.keys(filter)) {
+            if (!VALID_FILTER_KEYS.has(key)) {
+                add(cardId, `${a.type} の filter に未知の軸 "${key}" がある（TargetFilter に無いキーは無言で無視される）`)
+            } else if (allowed && !allowed.includes(key)) {
+                add(
+                    cardId,
+                    `${a.type} の filter の軸 "${key}" はこのアクションが見ない（対応は ${allowed.join(" / ")} のみ）`,
                 )
             }
         }
@@ -178,7 +307,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             continue
         }
         const seenEffectIds = new Set<string>()
-        for (const e of c.effects as { id?: string; kind?: string; keyword?: string }[]) {
+        for (const e of c.effects as {
+            id?: string
+            kind?: string
+            keyword?: string
+            trigger?: string
+            granted?: { trigger?: string }
+        }[]) {
+            // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
+            if (
+                e.kind === "triggerSuppression" &&
+                (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
+            ) {
+                add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
                 seenEffectIds.add(e.id)
@@ -189,16 +331,30 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (e.kind === "keyword" && (!e.keyword || !VALID_KEYWORDS.has(e.keyword))) {
                 add(id, `未知の keyword: ${String(e.keyword)}`)
             }
+            // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
+            if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
+                add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            if (
+                e.kind === "effectGrant" &&
+                (!e.granted?.trigger || !VALID_TRIGGERS.has(e.granted.trigger))
+            ) {
+                add(id, `未知の granted.trigger: ${String(e.granted?.trigger)}`)
+            }
         }
 
         // action.type がハンドラに登録されているか（未登録なら対戦中にクラッシュする）
-        const actions: { type?: unknown }[] = []
+        const actions: { type?: unknown; trigger?: unknown }[] = []
         collectActions(c.effects, actions)
         for (const a of actions) {
             if (typeof a.type !== "string") {
                 add(id, "action に type が無い")
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
+            }
+            // suppressTriggerThisTurn.trigger も同様に検証する（未登録は無言で何も抑止しない）
+            if (a.type === "suppressTriggerThisTurn" && (typeof a.trigger !== "string" || !VALID_TRIGGERS.has(a.trigger))) {
+                add(id, `未知の trigger（suppressTriggerThisTurn）: ${String(a.trigger)}`)
             }
         }
 
@@ -208,6 +364,12 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         if (actions.some((a) => a.type === "lendSelfThisTurn")) {
             checkLentEffects(c, add)
         }
+
+        // --- costMod mode:"set"（コスト置換）の検査 ---
+        checkCostSetEffects(c, add)
+
+        // --- TargetFilter（旧フィールド残存・未知の軸・無視される軸）の検査 ---
+        checkTargetFilters(id, actions, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }

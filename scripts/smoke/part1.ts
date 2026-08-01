@@ -27,7 +27,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -538,7 +538,7 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     // リーヴォルフ（コスト2・維持1、緑軽減1）。緑シンボル持ちが場に出るたびに軽減が乗るため、
     // 実コストは召喚のたびに effectiveCost で動的に取得する（ハードコードしない）
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     // p1フィールドに支払い元スピリット（ゴラドン: 維持コア1、コア5個）を直接配置
     const payer = createInstance("BS01-001", s.turn, 5)
@@ -602,13 +602,15 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     s.players.p1.reserve = 10
     cost = effectiveCost(s, "p1", leewolfCard)
 
+    // フィールドのコアはコストにも「置くコア」にも充当できるため、上限は cost + 維持コア。
+    // それを1個でも超えると拒否される（2026-08-01 利用者確認により上限を cost から広げた）
     assert(
         act(s, "p1", {
             type: "summon",
             handIndex: 0,
-            paySources: [{ instanceId: payer2.instanceId, count: cost + 1 }],
+            paySources: [{ instanceId: payer2.instanceId, count: cost + leewolfMaintain + 1 }],
         }) !== null,
-        "過払い（合計 > コスト）は拒否される",
+        "過払い（合計 > コスト+置くコア）は拒否される",
     )
     assert(
         act(s, "p1", {
@@ -660,9 +662,13 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     // フレイムテンペスト（コスト6・赤軽減2）を手札に。支払い元スピリットを先に配置してから実コストを動的に取得する
     // （赤シンボル持ちスピリットの数で軽減されるため、配置後に effectiveCost を計算しないと実際の支払い時と値がずれる）
     s.players.p1.hand[0] = "BS01-122"
-    const magicPayer1 = createInstance("BS01-001", s.turn, 4)
-    const magicPayer2 = createInstance("BS01-001", s.turn, 4)
-    s.players.p1.field.spirits.push(magicPayer1, magicPayer2)
+    // 支払い元は BP4000 のロクケラトプス（バニラ・コア5でLv3）。フレイムテンペストは
+    // BP3000以下のスピリットを**両陣営**破壊するため（anySide）、支払い後もBP4000を保つ個体を使う
+    const magicPayer1 = createInstance("BS01-002", s.turn, 5)
+    const magicPayer2 = createInstance("BS01-002", s.turn, 5)
+    // 直前のサブテストで置いた低BPスピリットは、破壊されるとコアがリザーブへ戻ってしまい
+    // 「リザーブは変化しない」の検証を汚すため、フィールドを支払い元2体だけにする
+    s.players.p1.field.spirits = [magicPayer1, magicPayer2]
     const magicCard = getCard("BS01-122")
     const magicCost = effectiveCost(s, "p1", magicCard)
     s.players.p1.reserve = 0 // リザーブは0、全額をスピリット上のコアで賄う
@@ -680,8 +686,8 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
         }) === null,
         "マジックのコストを複数のスピリット上のコアに分割して支払える",
     )
-    assert(magicPayer1.cores === 4 - half, "支払い元1のコアが減る")
-    assert(magicPayer2.cores === 4 - rest, "支払い元2のコアが減る")
+    assert(magicPayer1.cores === 5 - half, "支払い元1のコアが減る")
+    assert(magicPayer2.cores === 5 - rest, "支払い元2のコアが減る")
     assert(s.players.p1.field.spirits.includes(magicPayer1), "維持コアを上回るため支払い元1は生存")
     assert(s.players.p1.field.spirits.includes(magicPayer2), "維持コアを上回るため支払い元2は生存")
     assert(s.players.p1.reserve === 0, "リザーブは変化しない（全額スピリット上のコアで支払った）")

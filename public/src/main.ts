@@ -7,6 +7,7 @@ import {
     magicTargetSide,
     master,
     matchesDirectedAttackFilter,
+    payableFieldCores,
     render,
     setCardDb,
     setupEffectTooltip,
@@ -14,6 +15,7 @@ import {
     showWaiting,
     type UiState,
 } from "./renderer"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -29,6 +31,7 @@ let view: GameView | null = null
 const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
+let lastErrorText: string = ""
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -144,8 +147,11 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     
     if (level === undefined && (card.type === "spirit" || card.type === "nexus")) {
         const reserve = view.players[view.you].reserve
-        // Check affordable levels (cost + level.cores <= reserve)
-        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        const cardIdForField = view.players[view.you].hand?.[handIndex]
+        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
+        // 選択肢に出すレベルの判定にもフィールドのコアを含める
+        const fieldCores = cardIdForField ? payableFieldCores(view, cardIdForField) : 0
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
         
         // If they can afford Lv2 or higher, show level selection
         if (affordableLevels.length > 1) {
@@ -199,6 +205,7 @@ socket.on("state", (v: GameView) => {
 })
 
 socket.on("errorMessage", (message: string) => {
+    lastErrorText = message
     showToast(message)
 })
 
@@ -349,9 +356,11 @@ function onMySpiritClick(instanceId: string): void {
             (s) => s.instanceId === instanceId,
         )
         const filter = inst ? canDirectAttack(view, view.you, inst) : null
-        const oppSpirits = view.players[opponentOf(view.you)].field.spirits
+        const oppPid = opponentOf(view.you)
+        const oppSpirits = view.players[oppPid].field.spirits
+        const currentView = view
         const hasValidTarget =
-            filter !== null && oppSpirits.some((s) => matchesDirectedAttackFilter(filter, s))
+            filter !== null && oppSpirits.some((s) => matchesDirectedAttackFilter(filter, s, currentView, oppPid))
         if (filter !== null && hasValidTarget) {
             // 指定アタック可能で、条件に合う相手がいる：対象選択モードを開始する
             ui.directedAttack = { attackerInstanceId: instanceId, filter }
@@ -382,13 +391,20 @@ function assignPayCore(instanceId: string): void {
         return
     }
     const card = master(cardId)
+    // 【神速】召喚は基礎ルールではリザーブからのみ支払える。
+    // sokuPaySourceGrant（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が許可した対象のみ例外
+    // （判定はサーバー validateSummon と同一の共有実装）
+    if (view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")) {
+        if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
+    }
     const cost = effectiveCost(view, view.you, card)
     const targetLevel = pay.level || 1
     const lv = card.levels.find((l) => l.level === targetLevel)
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
-    if (assignedTotal >= cost) return // コスト上限に到達済み（過払い防止）
+    // フィールドのコアはコストにも置くコアにも充当できるため、上限は cost + maintain
+    if (assignedTotal >= cost + maintain) return // 必要数に到達済み（過払い防止）
     if (already >= inst.cores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
     const newTotal = assignedTotal + 1
@@ -413,10 +429,11 @@ function onOppSpiritClick(instanceId: string): void {
     // 指定アタックの対象選択モード中：フィルタに合う相手スピリットをクリックしたら指定アタックを送信する
     if (ui.directedAttack !== null) {
         const filter = ui.directedAttack.filter
-        const target = view.players[opponentOf(view.you)].field.spirits.find(
+        const oppPid = opponentOf(view.you)
+        const target = view.players[oppPid].field.spirits.find(
             (s) => s.instanceId === instanceId,
         )
-        if (target && matchesDirectedAttackFilter(filter, target)) {
+        if (target && matchesDirectedAttackFilter(filter, target, view, oppPid)) {
             send({
                 type: "attack",
                 instanceId: ui.directedAttack.attackerInstanceId,
@@ -552,6 +569,21 @@ async function init(): Promise<void> {
         if (el) onHandClick(Number(el.dataset.handIndex))
     })
 
+    // 覚醒モード中に自分のリザーブをクリックしたら、リザーブからコアを移す
+    // （ディノゾールLv2が【覚醒】を「自分のスピリット上か自分のリザーブから」に書き換えている場合のみ有効）
+    byId("my-info").addEventListener("click", (e) => {
+        if (ui.awakenTarget === null) return
+        if (!closestData(e, "data-reserve")) return
+        if (!view || !canAwakenFromReserve(view, view.you)) return
+        send({
+            type: "awaken",
+            instanceId: ui.awakenTarget,
+            fromInstanceId: AWAKEN_FROM_RESERVE,
+            count: 1,
+        })
+        ui.awakenTarget = null
+    })
+
     byId("my-spirits").addEventListener("click", (e) => {
         // 覚醒バッジが先（カードクリックと区別する）
         const awakenBtn = closestData(e, "data-awaken")
@@ -593,6 +625,16 @@ async function init(): Promise<void> {
 
     // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合と支払いモード中はコア割り当て対象になる
     byId("my-nexuses").addEventListener("click", (e) => {
+        // コア移動ボタンが先（カードクリックと区別する）。ネクサスもコアでレベルを上げ下げできる
+        const coreBtn = closestData(e, "data-core")
+        if (coreBtn) {
+            send({
+                type: "moveCore",
+                instanceId: String(coreBtn.dataset.instanceId),
+                direction: coreBtn.dataset.core === "add" ? "add" : "remove",
+            })
+            return
+        }
         const el = closestData(e, "data-instance-id")
         if (!el) return
         const instanceId = String(el.dataset.instanceId)
@@ -602,6 +644,12 @@ async function init(): Promise<void> {
             return
         }
     })
+    // 相手のリザーブが選択待ちの候補になっているとき（犬人マードック）にクリックで選ぶ
+    byId("opp-info").addEventListener("click", (e) => {
+        if (!closestData(e, "data-reserve")) return
+        tryResolveChoice(OPPONENT_RESERVE_TARGET)
+    })
+
     byId("opp-nexuses").addEventListener("click", (e) => {
         const el = closestData(e, "data-instance-id")
         if (el) tryResolveChoice(String(el.dataset.instanceId))
@@ -660,6 +708,31 @@ async function init(): Promise<void> {
     })
     byId("btn-close-log").addEventListener("click", () => {
         byId("log-panel").classList.add("hidden")
+    })
+    
+    byId("btn-bug-report").addEventListener("click", () => {
+        // 現在のゲームコンテキストをlocalStorageに保存してバグ報告画面へ渡す
+        if (view) {
+            const uiMode = ui.targeting ? "targeting" 
+                           : ui.awakenTarget ? "awakenTarget" 
+                           : ui.paying ? "paying" 
+                           : ui.directedAttack ? "directedAttack" 
+                           : ui.summonLevelSelect ? "summonLevelSelect" 
+                           : "normal"
+            const clientContext = {
+                phase: view.phase,
+                turn: view.turn,
+                uiMode: uiMode,
+                lastError: lastErrorText
+            }
+            const bugReportData = {
+                gameId: view.gameId,
+                you: view.you,
+                clientContext
+            }
+            localStorage.setItem("bs_bug_report_context", JSON.stringify(bugReportData))
+        }
+        window.open("/bugreport.html", "_blank")
     })
     
     byId("btn-toggle-trash").addEventListener("click", () => {

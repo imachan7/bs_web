@@ -22,6 +22,7 @@ import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFil
 import {
     activeConstraints,
     cantActByCost,
+    costCantAct,
     currentLevel,
     effectiveBp,
     hasArmorAgainst,
@@ -31,6 +32,9 @@ import {
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
+    sokuPayableInstanceIds,
+    OPPONENT_RESERVE_TARGET,
+    canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
     instHasCost,
@@ -38,6 +42,7 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    type DirectAttackFilter,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -114,6 +119,19 @@ export const hasMagicImmunityView = hasMagicImmunity
 // main.ts が effectiveCost を import しているため、ここから再エクスポートする
 export { effectiveCost }
 
+// 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+// 【神速】召喚のときは基礎ルールでリザーブのみのため、sokuPaySourceGrant が許可した対象だけ数える
+// （判定はサーバー validateSummon と同一の共有実装）
+export function payableFieldCores(view: GameView, cardId: string): number {
+    const player = view.players[view.you]
+    const card = master(cardId)
+    const isSoku = view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")
+    const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
+    return [...player.field.spirits, ...player.field.nexuses]
+        .filter((i) => allowed === null || allowed.has(i.instanceId))
+        .reduce((sum, i) => sum + i.cores, 0)
+}
+
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
     const hand = view.players[view.you].hand
@@ -164,7 +182,8 @@ export function magicTargetSide(
         effect.action.type === "trashCoresToSpirit" ||
         effect.action.type === "voidCoreToTarget" ||
         effect.action.type === "addSymbolThisTurn" ||
-        effect.action.type === "levelUpThisTurn"
+        effect.action.type === "levelUpThisTurn" ||
+        effect.action.type === "attackTriggersAsBlockThisTurn"
     )
         return "self"
     return null
@@ -199,7 +218,7 @@ export interface UiState {
     awakenTarget: string | null
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
-    directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
+    directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
@@ -209,16 +228,19 @@ export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
     inst: CardInstance,
-): "rested" | "singleCore" | "recovered" | null {
+): DirectAttackFilter | null {
     return directAttackFilter(view, pid, inst)
 }
 
-// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）
+// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
+// targetPid は対象スピリットの持ち主（targetMinBp判定の実効BP計算に使う）
 export function matchesDirectedAttackFilter(
-    filter: "rested" | "singleCore" | "recovered",
+    filter: DirectAttackFilter,
     target: CardInstance,
+    view: GameView,
+    targetPid: PlayerId,
 ): boolean {
-    return sharedMatchesDirectedAttackFilter(filter, target) === null
+    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -381,15 +403,35 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "card" && myPendingChoice.cardZone === "reveal") {
+        // 公開ゾーン（デッキから「オープン」したカード）。トラッシュと同じボタンUIで並べる
+        const revealed = view.revealedCards?.cardIds ?? []
+        for (const idx of myPendingChoice.cardIndices ?? []) {
+            const cardId = revealed[idx]
+            if (cardId === undefined) continue
+            const card = master(cardId)
+            const b = document.createElement("button")
+            b.dataset.cardIndex = String(idx)
+            b.textContent = `${card.name}（${card.type === "spirit" ? "スピリット" : card.type === "nexus" ? "ネクサス" : "マジック"}）`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
         const cost = effectiveCost(view, view.you, card)
         const reserve = view.players[view.you].reserve
-        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
+        // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
+        const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
         for (const l of affordableLevels) {
             const b = document.createElement("button")
             b.dataset.summonLevel = String(l.level)
-            b.textContent = `Lv${l.level} (${l.cores}コア)`
+            const needsField = reserve < cost + l.cores
+            b.textContent = needsField
+                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
+                : `Lv${l.level} (${l.cores}コア)`
+            if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -403,10 +445,12 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
-            `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
+            `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
     } else if (ui.awakenTarget !== null) {
-        $("targeting-info").textContent =
-            "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
+        const fromReserve = canAwakenFromReserve(view, view.you)
+        $("targeting-info").textContent = fromReserve
+            ? "🔄 覚醒: コアの移動元にする自分のスピリットまたはリザーブを選んでください"
+            : "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
@@ -425,8 +469,8 @@ export function render(view: GameView, ui: UiState): void {
     }
 
     // プレイヤー情報
-    renderInfo("opp-info", view, opp, false, lifeDamagedPids.has(opp))
-    renderInfo("my-info", view, you, true, lifeDamagedPids.has(you))
+    renderInfo("opp-info", view, ui, opp, false, lifeDamagedPids.has(opp))
+    renderInfo("my-info", view, ui, you, true, lifeDamagedPids.has(you))
 
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
@@ -476,6 +520,7 @@ export function render(view: GameView, ui: UiState): void {
 function renderInfo(
     id: string,
     view: GameView,
+    ui: UiState,
     pid: PlayerId,
     isSelf: boolean,
     lifeDamaged: boolean,
@@ -483,6 +528,15 @@ function renderInfo(
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
+    // 覚醒モード中にリザーブからコアを移せるか（ディノゾールLv2の効果）
+    const reserveHighlight = isSelf
+        && ui.awakenTarget !== null
+        && canAwakenFromReserve(view, view.you)
+        && p.reserve >= 1
+    // 効果解決の選択待ちで「相手のリザーブ」が候補になっているか（犬人マードック）
+    const oppReserveChoice = !isSelf
+        && view.pendingChoice?.pid === view.you
+        && (view.pendingChoice?.candidates ?? []).includes(OPPONENT_RESERVE_TARGET)
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
@@ -496,6 +550,17 @@ function renderInfo(
     for (const [cls, text] of items) {
         const span = document.createElement("span")
         if (cls) span.className = cls
+        // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
+        // 自分のリザーブ表示をクリック対象として識別できるようにする
+        if (isSelf && text.startsWith("リザーブ")) {
+            span.dataset.reserve = "self"
+            if (reserveHighlight) span.classList.add("targetable", "clickable")
+        }
+        // 相手のリザーブも、選択待ちの候補になっているときだけクリック対象にする
+        if (!isSelf && text.startsWith("リザーブ")) {
+            span.dataset.reserve = "opponent"
+            if (oppReserveChoice) span.classList.add("targetable", "clickable")
+        }
         span.textContent = text
         el.appendChild(span)
     }
@@ -521,6 +586,21 @@ function renderField(
     for (const inst of player.field.nexuses) {
         nexusZone.appendChild(fieldCardEl(view, ui, inst, isMine, pid, true))
     }
+}
+
+// コア移動ボタン（+/−）。スピリットとネクサスで共用する
+function coreButtonsEl(instanceId: string): HTMLElement {
+    const btns = document.createElement("div")
+    btns.className = "core-buttons"
+    for (const dir of ["add", "remove"] as const) {
+        const b = document.createElement("button")
+        b.dataset.core = dir
+        b.dataset.instanceId = instanceId
+        b.textContent = dir === "add" ? "+" : "−"
+        b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
+        btns.appendChild(b)
+    }
+    return btns
 }
 
 function fieldCardEl(
@@ -565,9 +645,15 @@ function fieldCardEl(
     const stats = document.createElement("div")
     stats.className = "stats"
     stats.textContent = isNexus
-        ? `コスト${m.cost} Lv${level}`
-        : `コスト${m.cost} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        ? `Lv${level}`
+        : `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
+
+    // コストバッジを左上に表示
+    const costBadge = document.createElement("div")
+    costBadge.className = `cost-badge cost-${m.type}`
+    costBadge.textContent = String(m.cost)
+    el.appendChild(costBadge)
 
     const cores = document.createElement("div")
     cores.className = "cores"
@@ -622,6 +708,18 @@ function fieldCardEl(
             if (assigned < inst.cores) {
                 el.classList.add("targetable", "clickable")
             }
+            return el
+        }
+        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる。
+        // ⚠️ ネクサスは clip-path で六角形に切り抜いているため、カード要素の**子**に置くと
+        // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
+        // クリップされないラッパーの直下へ、カードと**兄弟**として置く
+        if (isMine && myMainFree && !view.pendingChoice) {
+            const slot = document.createElement("div")
+            slot.className = "nexus-slot"
+            slot.appendChild(el)
+            slot.appendChild(coreButtonsEl(inst.instanceId))
+            return slot
         }
         return el
     }
@@ -704,7 +802,8 @@ function fieldCardEl(
         // このスピリットはアタックできない（カイザレオン大帝Lv1）
         const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
-        const costLocked = cantActByCost(view, inst)
+        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
+        const costLocked = cantActByCost(view, inst) || costCantAct(view, master(inst.cardId).cost)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -734,22 +833,12 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            const btns = document.createElement("div")
-            btns.className = "core-buttons"
-            for (const dir of ["add", "remove"] as const) {
-                const b = document.createElement("button")
-                b.dataset.core = dir
-                b.dataset.instanceId = inst.instanceId
-                b.textContent = dir === "add" ? "+" : "−"
-                b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
-                btns.appendChild(b)
-            }
-            el.appendChild(btns)
+            el.appendChild(coreButtonsEl(inst.instanceId))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
         if (ui.directedAttack !== null) {
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst)) {
+            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid)) {
                 el.classList.add("targetable", "clickable")
             }
             return el

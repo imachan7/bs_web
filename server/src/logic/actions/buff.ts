@@ -1,6 +1,6 @@
 // BP修正系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
@@ -16,7 +16,7 @@ import {
     requestChoice,
     spiritHasKeyword,
 } from "../EffectModules"
-import { matchesTarget } from "../../../../shared/rules"
+import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 // BS05アイシクルアサルト用: このスピリットが持つ【装甲】の指定色数（静的keyword＋一時付与tempKeywordsを合算、重複除く）
@@ -70,36 +70,9 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (action.attackingAll) {
-            // オフェンシブオーラ／フォレストオーラ：対象選択なしで「アタックしている自分のスピリットすべて」をBP+。
-            // 現エンジンは同時アタック1体のため、バトルのアタッカーが自分側なら対象（targetInstanceIdは無視）。
-            // 絞り込みは共通の TargetFilter に一本化（family 軸。フォレストオーラ＝爪鳥/樹魔）
-            const buffFilter = normalizeFilter(ctx, action)
-            if (buffFilter === SELF_REQUIRED) {
-                log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
-                return
-            }
-            const attackers = state.players[owner].field.spirits.filter(
-                (s) =>
-                    state.battle &&
-                    s.instanceId === state.battle.attackerInstanceId &&
-                    matchesTarget(state, owner, s, buffFilter, self?.instanceId),
-            )
-            if (attackers.length === 0) {
-                log(state, `${sourceName}のBP増加：アタックしている自分のスピリットがいなかった。`)
-                return
-            }
-            for (const t of attackers) {
-                t.tempBpBuff += action.amount
-                log(
-                    state,
-                    `${getCard(t.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
-                )
-                applyMagicBuffBonus(state, t, srcType, srcColors)
-            }
-            return
-        }
-        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.minSymbols)
+        // 対象1体の経路は matchesTarget を通らないため、シンボル数の軸だけ filter から取り出して渡す
+        // （ライトニングバリスタ等＝シンボル2個以上のスピリットのみ対象）
+        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.filter?.minSymbols)
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
@@ -127,11 +100,8 @@ const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
         for (const s of spirits) {
             s.tempBpBuff += action.amount
         }
-        const familyLabel = action.familyFilter
-            ? Array.isArray(action.familyFilter)
-                ? action.familyFilter.join("/")
-                : action.familyFilter
-            : ""
+        const family = action.filter?.family
+        const familyLabel = family ? (Array.isArray(family) ? family.join("/") : family) : ""
         log(
             state,
             `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
@@ -352,4 +322,28 @@ const handlers = {
     selfBuffByHandDiscard,
 } satisfies Partial<ActionRegistry>
 
-export default handlers
+// 古代闘技場Lv1（kind:"bpBuffSuppression"）：相手の「BPを+する」効果は発揮されない。
+// BP増加アクションはこのモジュールに集約されているため、**レジストリを1箇所で包んで**ゲートする
+// （8ハンドラそれぞれに早期returnを撒くと、将来アクションを足したときに素通りする）。
+// BPを-する効果は抑止の対象外のため、amount/amountPer が負のものは通す
+function isBpDecrease(action: { amount?: number; amountPer?: number }): boolean {
+    const amount = action.amount ?? action.amountPer
+    return typeof amount === "number" && amount < 0
+}
+
+type AnyBuffHandler = (ctx: ActionCtx, action: { amount?: number; amountPer?: number }) => void
+
+const suppressed = Object.fromEntries(
+    Object.entries(handlers).map(([type, handler]) => [
+        type,
+        ((ctx, action) => {
+            if (!isBpDecrease(action) && isBpBuffSuppressed(ctx.state, ctx.owner)) {
+                log(ctx.state, `${ctx.sourceName}：「BPを+する」効果は発揮されなかった。`)
+                return
+            }
+            ;(handler as AnyBuffHandler)(ctx, action)
+        }) as AnyBuffHandler,
+    ]),
+) as unknown as typeof handlers
+
+export default suppressed

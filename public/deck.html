@@ -65,6 +65,13 @@
                         <option value="">すべて</option>
                     </select>
 
+                    <span class="filter-label">注意あり</span>
+                    <div class="chip-group" id="filter-notes">
+                        <button class="chip" data-note="unimplemented">未実装</button>
+                        <button class="chip" data-note="partial">一部未実装</button>
+                        <button class="chip" data-note="simplified">簡略化</button>
+                    </div>
+
                     <input id="search-input" type="text" placeholder="カード名で検索" />
                     <button id="filter-reset">条件クリア</button>
                     <span id="pool-count"></span>
@@ -74,9 +81,7 @@
             <div id="pool-grid"></div>
 
             <!-- カード詳細（ホバー / 選択で表示） -->
-            <div id="detail-panel">
-                <p class="detail-placeholder">カードにカーソルを合わせると効果テキストを表示します</p>
-            </div>
+            <div id="detail-panel" class="hidden"></div>
         </section>
 
         <!-- デッキ面 -->

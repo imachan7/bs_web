@@ -7,7 +7,7 @@
 //     returnToHand/returnToDeckTop の対象選択をpendingChoice(kind:"target")に委譲
 //     （候補0/1件は従来どおり不発/自動選択、2件以上のみ選択式。destroyのcount>=2は
 //     1体選択→残りをpendingChoice.queueへ積んで連続選択にする）
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, fireStepTriggers, resolveAction, runTurnStart } from "./helpers"
 
 console.log("=== [interactiveTargets] destroy 候補2件でchoiceが立つ（BS01-017 ランスラプトル） ===")
 {
@@ -25,6 +25,10 @@ console.log("=== [interactiveTargets] destroy 候補2件でchoiceが立つ（BS0
     s.players.p2.field.spirits.push(gora1, gora2)
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")
+    // 「BP2000以下のスピリット1体を破壊**できる**」＝ optional のため、まず発動確認が入る
+    assert(s.pendingChoice?.kind === "option", "先に発動確認のpendingChoiceが立つ")
+    assert(s.pendingChoice?.confirm === true, "発動確認（confirm）である")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
     assert(s.pendingChoice !== null, "候補2件のためpendingChoiceが立つ")
     assert(s.pendingChoice?.candidates.length === 2, "候補は2件（両方のゴラドン）")
     assert(s.players.p2.field.spirits.length === 2, "選択待ち中はまだ破壊されていない")
@@ -50,8 +54,31 @@ console.log("--- 候補1件なら choice なしで即座に自動破壊 ---")
     s.players.p2.field.spirits.push(gora)
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")
-    assert(s.pendingChoice === null, "候補1件なのでpendingChoiceは立たない")
+    assert(s.pendingChoice?.confirm === true, "optional のため発動確認が立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
+    assert(s.pendingChoice === null, "候補1件なのでそのまま解決される")
     assert(s.players.p2.field.spirits.length === 0, "自動選択でそのまま破壊される")
+}
+
+console.log("--- 発動確認をスキップすると効果は発揮されない ---")
+{
+    const s = createGame(
+        "interactive-optional-skip",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "red", p2: "purple" },
+    )
+    runTurnStart(s)
+    s.interactiveTargets = true
+    s.players.p1.hand[0] = "BS01-017"
+    s.players.p1.reserve = 10
+    const gora = createInstance("BS01-001", s.turn, 1)
+    s.players.p2.field.spirits.push(gora)
+
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")
+    assert(s.pendingChoice?.optional === true, "発動確認はスキップ可")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "発動しないことを選ぶ")
+    assert(s.pendingChoice === null, "選択は解消される")
+    assert(s.players.p2.field.spirits.length === 1, "破壊されない（「できる」を選ばなかった）")
 }
 
 console.log("=== [interactiveTargets] destroy count:2 を直接resolveActionで検証：連続2回選択される ===")
@@ -126,4 +153,33 @@ console.log("=== interactiveTargets 既定false（未設定）では従来どお
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")
     assert(s.pendingChoice === null, "interactiveTargetsがfalseならpendingChoiceは立たない")
     assert(s.players.p2.field.spirits.length === 1, "従来どおり自動選択で1体だけ破壊される")
+}
+
+console.log("=== [interactiveTargets] step誘発の「できる」も発動確認が入る（BS02-073 皇帝アンプルール） ===")
+{
+    const s = createGame(
+        "interactive-step-optional",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "yellow", p2: "red" },
+    )
+    runTurnStart(s)
+    s.interactiveTargets = true
+    s.turnPlayer = "p1"
+    s.phase = "main"
+    // 皇帝アンプルール Lv3（維持コア6）。Lv3『お互いのスタートステップ』にリザーブのコア1個を
+    // ボイドへ置くことで、相手のネクサスすべてをLv1として扱える（＝任意コスト）
+    const emperor = createInstance("BS02-073", s.turn, 6)
+    s.players.p1.field.spirits.push(emperor)
+    s.players.p1.reserve = 5
+    const reserveBefore = s.players.p1.reserve
+
+    fireStepTriggers(s, "start")
+    assert(s.pendingChoice?.confirm === true, "「できる」効果なので発動確認が立つ")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "発動しないことを選ぶ")
+    assert(s.players.p1.reserve === reserveBefore, "発動しなければリザーブのコアも減らない")
+
+    fireStepTriggers(s, "start")
+    assert(s.pendingChoice?.confirm === true, "もう一度発動確認が立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
+    assert(s.players.p1.reserve === reserveBefore - 1, "発動するとリザーブのコア1個がボイドへ")
 }

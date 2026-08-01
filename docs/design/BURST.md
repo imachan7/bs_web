@@ -3,7 +3,7 @@
 - 作成: 2026-07-26
 - **この文書は設計のみ。実装は未着手**
 - 出典: [バトスピ Wiki「バースト」](https://batspi.com/index.php?%E3%83%90%E3%83%BC%E3%82%B9%E3%83%88)
-- 関連: [BRAVE.md](./BRAVE.md)、[TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md)、[SPEC.md](./SPEC.md)
+- 関連: [BRAVE.md](./BRAVE.md)、[TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md)、[SPEC.md](../../SPEC.md)
 
 ---
 

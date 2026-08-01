@@ -24,7 +24,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -489,9 +489,9 @@ console.log("=== voidCoreToSelf：キリカブト（BS01-065）／征空の翼�
     const cost65 = effectiveCost(s, "p1", getCard("BS01-065"))
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "キリカブトを召喚できる")
     const kirikabuto = s.players.p1.field.spirits.find((x) => x.cardId === "BS01-065")!
-    assert(kirikabuto.cores === lv1Cores(getCard("BS01-065")) + 1, "維持コア1＋ボイドから1でコア2個")
+    assert(kirikabuto.cores === minLevelCores(getCard("BS01-065")) + 1, "維持コア1＋ボイドから1でコア2個")
     assert(
-        s.players.p1.reserve === 20 - cost65 - lv1Cores(getCard("BS01-065")),
+        s.players.p1.reserve === 20 - cost65 - minLevelCores(getCard("BS01-065")),
         "増えたコアはボイド由来（リザーブはコスト・維持分のみ減る）",
     )
 
@@ -501,9 +501,9 @@ console.log("=== voidCoreToSelf：キリカブト（BS01-065）／征空の翼�
     const cost69 = effectiveCost(s, "p1", getCard("BS01-069"))
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "アクィリーズを召喚できる")
     const aquilies = s.players.p1.field.spirits.find((x) => x.cardId === "BS01-069")!
-    assert(aquilies.cores === lv1Cores(getCard("BS01-069")) + 1, "維持コア1＋ボイドから1でコア2個")
+    assert(aquilies.cores === minLevelCores(getCard("BS01-069")) + 1, "維持コア1＋ボイドから1でコア2個")
     assert(
-        s.players.p1.reserve === reserveBefore - cost69 - lv1Cores(getCard("BS01-069")),
+        s.players.p1.reserve === reserveBefore - cost69 - minLevelCores(getCard("BS01-069")),
         "増えたコアはボイド由来（リザーブはコスト・維持分のみ減る）",
     )
 }
@@ -572,7 +572,7 @@ console.log("=== coreSqueezeAll：幻龍シェイロン e1（BS01-046、召喚�
     assert(enemy2.cores === 1, "コア2個の相手スピリットが1個になる")
     assert(enemy1.cores === 1, "コア1個のスピリットは変化しない")
     assert(
-        s.players.p1.reserve === 20 - cost - lv1Cores(getCard("BS01-046")) + 2,
+        s.players.p1.reserve === 20 - cost - minLevelCores(getCard("BS01-046")) + 2,
         "自分の超過コア2個が自分のリザーブへ",
     )
     assert(s.players.p2.reserve === p2ReserveBefore + 1, "相手の超過コア1個が相手のリザーブへ")

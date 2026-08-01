@@ -8,10 +8,10 @@ import {
     findNexus,
     findSpirit,
     getCard,
-    lv1Cores,
+    minLevelCores,
     opponentOf,
 } from "./GameState"
-import { canAwaken, cantActByCost, directAttackFilter } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, sokuPayableInstanceIds } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -24,12 +24,14 @@ import {
 export { effectiveCost }
 import {
     activeConstraints,
+    costCantAct,
     effectActiveAtLevel,
     effectiveBp,
     effectSources,
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
+    isEffectBlocked,
     instHasColor,
     isUntargetableByOpponent,
     KEYWORDS,
@@ -53,15 +55,18 @@ function checkMainTiming(state: GameState, pid: PlayerId): string | null {
 
 // コスト支払いの妥当性を検証する（スピリット上のコアを併用する場合）。
 // paySources 未指定・空配列なら従来通りリザーブのみで cost を賄えるか検証する。
+// need はコストと「置くコア（維持コア）」の合計。
+// フィールドのコア（paySources）はコストにも置くコアにも充当できる（利用者確認 2026-08-01）ため、
+// 上限は need であって cost ではない
 function validatePaySources(
     state: GameState,
     pid: PlayerId,
-    cost: number,
+    need: number,
     paySources: PaySource[] | undefined,
 ): string | null {
     const player = state.players[pid]
     if (!paySources || paySources.length === 0) {
-        if (player.reserve < cost) return "コアが足りません"
+        if (player.reserve < need) return "コアが足りません"
         return null
     }
     const seen = new Set<string>()
@@ -75,8 +80,8 @@ function validatePaySources(
         if (src.count > inst.cores) return "支払い元のコアが足りません"
         total += src.count
     }
-    if (total > cost) return "コストを超えてコアを支払うことはできません"
-    if (player.reserve < cost - total) return "コアが足りません"
+    if (total > need) return "必要数を超えてコアを支払うことはできません"
+    if (player.reserve < need - total) return "コアが足りません"
     return null
 }
 
@@ -125,17 +130,29 @@ export function validateSummon(
         }
     }
 
+    // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
+    // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
+    // 許可したインスタンスの上のコアだけ、例外的に使える
+    if (flashSummon && paySources && paySources.length > 0) {
+        const allowed = sokuPayableInstanceIds(state, pid)
+        for (const src of paySources) {
+            if (!allowed.has(src.instanceId)) {
+                return "【神速】での召喚は、コアをリザーブから支払う必要があります"
+            }
+        }
+    }
+
     const cost = effectiveCost(state, pid, card)
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
-    const payError = validatePaySources(state, pid, cost, paySources)
-    if (payError) return payError
-    // 置くコアは必ずリザーブから払うため、コアで賄えなかった分+置くコアがリザーブに残っているか検証
-    const total = paySourcesTotal(paySources)
-    if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
+    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    if (payError) {
+        return payError === "コアが足りません"
+            ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+            : payError
     }
     return null
 }
@@ -188,12 +205,13 @@ export function validateSetNexus(
     const cost = effectiveCost(state, pid, card)
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
-    const maintain = level === undefined ? lv1Cores(card) : (coresForLevel(card, level) ?? 0)
-    const payError = validatePaySources(state, pid, cost, paySources)
-    if (payError) return payError
-    const total = paySourcesTotal(paySources)
-    if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
+    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    if (payError) {
+        return payError === "コアが足りません"
+            ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+            : payError
     }
     return null
 }
@@ -252,6 +270,7 @@ export function validateCastMagic(
         if (
             enemyTarget &&
             (isUntargetableByOpponent(enemyTarget) ||
+                isEffectBlocked(state, enemyTarget, "magic") ||
                 hasMagicImmunity(state, opponentOf(pid), enemyTarget))
         ) {
             return "このスピリットは効果の対象にできません"
@@ -298,12 +317,15 @@ export function validateMoveCore(
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスもレベルを上げ下げできる（コアを置く／戻す）。
+    // ネクサスの Lv1 は全カード0コアのため、下の維持コア判定でそのまま0まで戻せる
+    const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     if (direction === "add") {
         if (player.reserve < 1) return "リザーブにコアがありません"
     } else {
-        const need = lv1Cores(getCard(inst.cardId))
+        if (inst.cores < 1) return "コアが置かれていません"
+        const need = minLevelCores(getCard(inst.cardId))
         if (inst.cores - 1 < need) {
             return "維持コア（Lv1）を下回るためコアを取り除けません"
         }
@@ -331,6 +353,15 @@ export function validateAwaken(
     if (!canAwaken(state, pid, target)) return "このスピリットは【覚醒】を持ちません"
     if (count < 1) return "移動するコア数が不正です"
     if (instanceId === fromInstanceId) return "移動元と移動先が同じです"
+    // ディノゾールLv2：【覚醒】の効果が「自分のスピリット上か自分のリザーブから」に書き換わっている間だけ、
+    // リザーブを移動元にできる（番兵 AWAKEN_FROM_RESERVE）
+    if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        if (!canAwakenFromReserve(state, pid)) {
+            return "リザーブから【覚醒】できる効果がありません"
+        }
+        if (player.reserve < count) return "リザーブのコアが足りません"
+        return null
+    }
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "コアの移動元スピリットが見つかりません"
     if (from.cores < count) return "移動元のコアが足りません"
@@ -397,6 +428,10 @@ export function validateAttack(
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
     }
+    // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはアタックできない
+    if (costCantAct(state, getCard(inst.cardId).cost)) {
+        return "コストが低いためアタックできません"
+    }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
@@ -415,7 +450,7 @@ export function validateAttack(
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
         // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
-        const filterError = matchesDirectedAttackFilter(targetFilter, target)
+        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid))
         if (filterError) return filterError
     }
     return null
@@ -440,6 +475,10 @@ export function validateBlock(
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはブロックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはブロックできません"
+    }
+    // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはブロックできない
+    if (costCantAct(state, getCard(inst.cardId).cost)) {
+        return "コストが低いためブロックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
     if (cantActByCost(state, inst)) {
@@ -487,6 +526,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
+        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
+        if (costCantAct(state, getCard(inst.cardId).cost)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
@@ -501,12 +542,14 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
 
 // 強制ブロック（kind: "mustBlockGrant"）：アタッカーの持ち主のフィールドに、
 // レベル有効・phase/turn一致・familyFilter一致（省略時は全アタッカー）の発生源があるか判定する。
-// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象
+// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象。
+// マッチした発生源の blockerMaxBp（BS05ワーニングアタック：BP3000以下の合法ブロッカーがいるときのみ強制）を
+// 呼び出し側へ返す（未指定なら制限なし＝undefined）
 function hasMustBlockAgainst(
     state: GameState,
     attackerPid: PlayerId,
     attacker: CardInstance,
-): boolean {
+): { blockerMaxBp?: number } | null {
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含めて走査する
     for (const inst of effectSources(state, attackerPid)) {
         const level = currentLevel(inst).level
@@ -523,18 +566,22 @@ function hasMustBlockAgainst(
             ) {
                 continue
             }
-            return true
+            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }
         }
     }
-    return false
+    return null
 }
 
 // 「可能ならば必ずブロックする」の判定用：実際にブロック宣言が通るスピリットが1体でもいるか。
-// hasBlocker（回復状態か見るだけ）と違い validateBlock を通すため、cantBlock や
-// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない
-function hasLegalBlocker(state: GameState, pid: PlayerId): boolean {
+// hasBlocker（回復状態か見るだけ）と違い validateBlock を実際に通すため、cantBlock や
+// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない。
+// maxBp 指定時は実効BPがこれ以下の個体だけを合法ブロッカーの候補にする
+// （BS05ワーニングアタック：BP3000以下の合法ブロッカーがいるときだけライフ受けを拒否する）
+function hasLegalBlocker(state: GameState, pid: PlayerId, maxBp?: number): boolean {
     return state.players[pid].field.spirits.some(
-        (s) => validateBlock(state, pid, s.instanceId) === null,
+        (s) =>
+            (maxBp === undefined || effectiveBp(state, pid, s) <= maxBp) &&
+            validateBlock(state, pid, s.instanceId) === null,
     )
 }
 
@@ -563,13 +610,10 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     ) {
         return "【激突】によりブロックしなければなりません"
     }
-    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック）。
-    // ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
-    if (
-        attacker &&
-        hasMustBlockAgainst(state, state.turnPlayer, attacker) &&
-        hasLegalBlocker(state, pid)
-    ) {
+    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック／
+    // BS05ワーニングアタック＝BP3000以下限定）。ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
+    const mustBlock = attacker && hasMustBlockAgainst(state, state.turnPlayer, attacker)
+    if (mustBlock && hasLegalBlocker(state, pid, mustBlock.blockerMaxBp)) {
         return "相手の効果により、可能ならば必ずブロックしなければなりません"
     }
     return null

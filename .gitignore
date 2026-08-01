@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # 誤作成ファイル
 Untitled
+
+# バグ報告の保存先（ローカル実行時に生成される。本番は BUG_REPORT_DIR で外に逃がす）
+data/bug-reports.jsonl
+
+# Python（scripts/fetch_wiki_cards.py）
+__pycache__/

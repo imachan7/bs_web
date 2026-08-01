@@ -1,5 +1,14 @@
 /* デッキビルダー専用スタイル（既存 style.css の雰囲気に合わせた配色） */
 
+:root {
+    --c-red: #ef4444;
+    --c-purple: #a855f7;
+    --c-green: #22c55e;
+    --c-white: #e5e7eb;
+    --c-yellow: #eab308;
+    --c-blue: #3b82f6;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -238,19 +247,40 @@ input[type="text"] {
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 8px;
+    gap: 12px;
     align-content: start;
-    padding: 2px;
+    padding: 6px;
 }
 
 .pool-card {
     position: relative;
-    background: #2c3044;
-    border: 2px solid #555;
+    border: none;
     border-radius: 8px;
-    padding: 8px 8px 8px 10px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
+    padding: 12px 8px 8px 14px;
     cursor: pointer;
+    user-select: none;
+    overflow: visible;
     transition: transform 0.1s;
+}
+
+/* カラー枠（多色カードは斜めに2色分割） */
+.pool-card::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--c-main, #555) 50%, var(--c-sub, #555) 50%);
+    z-index: -1;
+}
+
+.pool-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(30, 32, 44, 0.95) 0%, #14161f 100%);
+    z-index: -1;
 }
 
 .pool-card:hover {
@@ -275,11 +305,24 @@ input[type="text"] {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
 }
 
-.pool-card {
-    border-color: transparent;
-    border-image: linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) 1;
+.reduction-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 2px;
+}
+
+.reduction-label {
+    font-size: 10px;
+    color: #8a90ac;
+}
+
+.reduction-icons .sym-icon {
+    width: 12px;
+    height: 12px;
 }
 
 .pool-card.limited {
@@ -301,14 +344,15 @@ input[type="text"] {
 
 .count-badge {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -2px;
+    right: -2px;
     background: #ffd968;
     color: #1a1d2b;
     font-size: 11px;
     font-weight: bold;
     padding: 1px 6px;
     border-radius: 10px;
+    z-index: 10;
 }
 
 .add-btn {
@@ -340,13 +384,13 @@ input[type="text"] {
 .sym-icon.bg-purple { background-image: url('/imgs/symbols/violet_symbol.png'); }
 .sym-icon.bg-green { background-image: url('/imgs/symbols/green_symbol.png'); }
 .sym-icon.bg-white { background-image: url('/imgs/symbols/white_symbol.png'); }
-.sym-icon.bg-yellow { background-image: url('/imgs/symbols/yallow_symbol.png'); }
+.sym-icon.bg-yellow { background-image: url('/imgs/symbols/yellow_symbol.png'); }
 .sym-icon.bg-blue { background-image: url('/imgs/symbols/blue_symbol.png'); }
 
 .cost-badge {
     position: absolute;
-    top: -8px;
-    left: -8px;
+    top: -4px;
+    left: -4px;
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -362,6 +406,108 @@ input[type="text"] {
     z-index: 10;
 }
 
+/* ---- カード種別コストアイコン（バトスピ物理カード準拠） ---- */
+/* スピリット: 丸（デフォルト） — 変更なし */
+
+/* ネクサス: 六角形 */
+.cost-badge.cost-nexus,
+.row-cost.cost-nexus {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background: #475569;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.cost-badge.cost-nexus::before,
+.row-cost.cost-nexus::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: #1e293b;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    z-index: -1;
+}
+
+.cost-badge.cost-nexus {
+    width: 28px;
+    height: 28px;
+    top: -6px;
+    left: -6px;
+}
+
+.row-cost.cost-nexus {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+
+/* マジック: 二重菱形（角と辺をずらして重ねた2枚のひし形） */
+.cost-badge.cost-magic,
+.row-cost.cost-magic {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.cost-badge.cost-magic {
+    width: 28px;
+    height: 28px;
+    top: -6px;
+    left: -6px;
+}
+
+.row-cost.cost-magic {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+
+.cost-badge.cost-magic::before,
+.cost-badge.cost-magic::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    z-index: -1;
+}
+
+.cost-badge.cost-magic::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.cost-badge.cost-magic::after {
+    transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.row-cost.cost-magic::before,
+.row-cost.cost-magic::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    z-index: -1;
+}
+
+.row-cost.cost-magic::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.row-cost.cost-magic::after {
+    transform: translate(-50%, -50%) rotate(0deg);
+}
+
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
 @media (hover: none) {
     .add-btn {
@@ -374,13 +520,24 @@ input[type="text"] {
 /* ---- カード詳細 ---- */
 
 #detail-panel {
-    min-height: 96px;
-    max-height: 160px;
+    position: fixed;
+    z-index: 200;
+    width: 340px;
+    max-height: 70vh;
     overflow-y: auto;
-    background: #14161f;
+    background: #14161fF0;
+    border: 1px solid #3a4059;
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+#detail-panel.hidden {
+    opacity: 0;
+    visibility: hidden;
 }
 
 .detail-placeholder {
@@ -485,6 +642,7 @@ input[type="text"] {
 }
 
 .row-cost {
+    position: relative;
     width: 22px;
     height: 22px;
     line-height: 18px; /* adjusting for 2px border */
@@ -779,3 +937,42 @@ input[type="text"] {
         scroll-behavior: auto !important;
     }
 }
+
+/* ---- Note Badge ---- */
+.note-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #fff;
+    pointer-events: none;
+    z-index: 10;
+}
+.note-badge.unimplemented { background: #d44a4a; }
+.note-badge.partial { background: #d48a4a; }
+.note-badge.simplified { background: #d4c44a; color: #333; }
+
+.detail-note {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.detail-note.unimplemented { background: rgba(212, 74, 74, 0.2); border: 1px solid #d44a4a; }
+.detail-note.partial { background: rgba(212, 138, 74, 0.2); border: 1px solid #d48a4a; }
+.detail-note.simplified { background: rgba(212, 196, 74, 0.2); border: 1px solid #d4c44a; }
+
+.row-note {
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #fff;
+    margin-left: 4px;
+}
+.row-note.unimplemented { background: #d44a4a; }
+.row-note.partial { background: #d48a4a; }
+.row-note.simplified { background: #d4c44a; color: #333; }

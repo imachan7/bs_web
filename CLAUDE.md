@@ -44,7 +44,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 設計ドキュメント
 
-仕様・実装状況・課題は @SPEC.md に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+
+**SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
+
+| 用途 | 読む章 |
+| :-- | :-- |
+| 効果・カードの実装 | §2（実装済みルール・効果＝アクション一覧）と §3（3層設計） |
+| カードプールの確認 | §1 の該当する弾だけ |
+| テストの追加 | §6 |
+
+※ かつてここは `@SPEC.md` と書いており、**セッション開始のたびに86KB全文が自動で読み込まれていた**
+（下記「トークン規律」と矛盾していた）。通常のリンクに戻してあるので、`@` を付け直さないこと。
+
+その他の文書は `docs/` 配下にある。**いずれも該当する作業に着手するときだけ読む**:
+
+| 場所 | 中身 |
+| :-- | :-- |
+| `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
+| `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
+| `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
+
+## エージェント間連絡（chatbox）
+
+実装担当（Claude）・設計担当（Claude）・UI担当（Gemini）の連絡は `chatbox/` を使う。
+運用ルールの全文は `chatbox/README.md`。**守るべき点は5つ**:
+
+- 起動時に読むのは `chatbox/INDEX.md` と自分宛の未処理メッセージ**だけ**。
+  自分宛は `npx tsx scripts/chatbox.ts inbox <役割>` で出す（役割: 実装担当 / 設計担当 / UI担当）
+- **`chatbox/archive/` を無条件に読まない**。`archive/2026-07.md` だけで約7万トークンある。
+  必要なときは grep で当たりを付け、Read の offset/limit で該当箇所だけ読む
+- 1メッセージは 4KB / 60行以内。長い設計・調査結果は別ドキュメントに書いて参照リンクを張る
+- **完了（`done`）にするとき、残すべき結論を `DECISIONS.md` へ1〜3行で転記する**。
+  仕様として確定したものは SPEC.md に書き、DECISIONS.md からは消してよい
+- 作業報告・コミット連絡を長文で書かない（`git log` で足りる）
+
+`chatbox.md` 1ファイルへの追記式だった頃に86件・260KB まで肥大化し、起動のたびに
+全履歴を読むだけで7〜8万トークンを消費していた（2026-07-31 に受信箱方式へ移行）。
 
 ## トークン規律（委譲時に守る）
 

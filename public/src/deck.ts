@@ -59,6 +59,15 @@ interface SavedDeck {
     updatedAt: string
 }
 
+type NoteStatus = "unimplemented" | "partial" | "simplified"
+interface CardNote {
+    status: NoteStatus
+    note: string
+}
+let cardNotes: Record<string, CardNote> = {}
+const filterNotes = new Set<NoteStatus>()
+
+
 // ---- ユーティリティ ----
 
 function $(id: string): HTMLElement {
@@ -137,6 +146,12 @@ function passesFilter(card: CardData): boolean {
     }
     if (filterFamily !== "" && !card.family.includes(filterFamily)) return false
     if (searchText !== "" && !card.name.includes(searchText)) return false
+    
+    if (filterNotes.size > 0) {
+        const note = cardNotes[card.cardId]
+        if (!note || !filterNotes.has(note.status)) return false
+    }
+
     return true
 }
 
@@ -152,9 +167,19 @@ function renderPool(): void {
         el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
 
+        const note = cardNotes[card.cardId]
+        if (note) {
+            const noteBadge = document.createElement("span")
+            noteBadge.className = `note-badge ${note.status}`
+            if (note.status === "unimplemented") noteBadge.textContent = "未実装"
+            else if (note.status === "partial") noteBadge.textContent = "一部未実装"
+            else if (note.status === "simplified") noteBadge.textContent = "簡略化"
+            el.appendChild(noteBadge)
+        }
+
         // コストバッジ
         const costBadge = document.createElement("span")
-        costBadge.className = "cost-badge"
+        costBadge.className = `cost-badge cost-${card.type}`
         costBadge.textContent = String(card.cost)
         el.appendChild(costBadge)
 
@@ -181,6 +206,22 @@ function renderPool(): void {
         if (card.rarity !== "") parts.push(card.rarity)
         txt.textContent = parts.join(" / ")
         info.appendChild(txt)
+
+        // 軽減シンボル（対戦画面と同じアイコン表示）
+        if (card.reduction.length > 0) {
+            const redWrap = document.createElement("span")
+            redWrap.className = "reduction-icons"
+            const redLabel = document.createElement("span")
+            redLabel.className = "reduction-label"
+            redLabel.textContent = "軽減"
+            redWrap.appendChild(redLabel)
+            card.reduction.forEach(r => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${r}`
+                redWrap.appendChild(icon)
+            })
+            info.appendChild(redWrap)
+        }
 
         el.appendChild(info)
 
@@ -215,11 +256,14 @@ function renderPool(): void {
         }
 
         el.addEventListener("mouseenter", () => {
-            if (selectedCardId === null) renderDetail(card)
+            if (selectedCardId === null) renderDetail(card, el)
+        })
+        el.addEventListener("mouseleave", () => {
+            if (selectedCardId === null) hideDetail()
         })
         el.addEventListener("click", () => {
             selectedCardId = card.cardId
-            renderDetail(card)
+            renderDetail(card, el)
             addCard(card.cardId)
         })
 
@@ -230,7 +274,7 @@ function renderPool(): void {
 }
 
 // カード詳細（効果テキスト全文）の表示
-function renderDetail(card: CardData): void {
+function renderDetail(card: CardData, anchor?: HTMLElement): void {
     const panel = $("detail-panel")
     panel.textContent = ""
 
@@ -283,6 +327,59 @@ function renderDetail(card: CardData): void {
     effect.className = "detail-effect"
     effect.textContent = card.effect !== "" ? card.effect : "（効果なし）"
     panel.appendChild(effect)
+
+    const note = cardNotes[card.cardId]
+    if (note) {
+        const noteEl = document.createElement("div")
+        noteEl.className = `detail-note ${note.status}`
+        const statusLabel = note.status === "unimplemented" ? "未実装" : note.status === "partial" ? "一部未実装" : "簡略化"
+        noteEl.textContent = `【${statusLabel}】 ${note.note}`
+        panel.appendChild(noteEl)
+    }
+
+    // パネルを表示してフローティング配置
+    panel.classList.remove("hidden")
+    if (anchor) {
+        // 一度表示して高さを取得してから配置する
+        panel.style.left = "-9999px"
+        panel.style.top = "0"
+        requestAnimationFrame(() => {
+            positionDetail(panel, anchor)
+        })
+    }
+}
+
+// ツールチップをカード横に配置する
+function positionDetail(panel: HTMLElement, anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect()
+    const pw = panel.offsetWidth
+    const ph = panel.offsetHeight
+    const gap = 8
+
+    // 右に置けるなら右、はみ出すなら左
+    let left = rect.right + gap
+    if (left + pw > window.innerWidth - 8) {
+        left = rect.left - pw - gap
+    }
+    // 左にも置けない（狭い画面）場合はカードの下
+    if (left < 8) {
+        left = Math.max(8, rect.left)
+    }
+
+    // 上端はカードに揃えるが、下にはみ出さないようにする
+    let top = rect.top
+    if (top + ph > window.innerHeight - 8) {
+        top = window.innerHeight - 8 - ph
+    }
+    if (top < 8) top = 8
+
+    panel.style.left = `${left}px`
+    panel.style.top = `${top}px`
+}
+
+// ツールチップを非表示にする
+function hideDetail(): void {
+    $("detail-panel").classList.add("hidden")
 }
 
 // ---- デッキ面 ----
@@ -393,7 +490,7 @@ function renderDeck(): void {
         row.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
 
         const cost = document.createElement("span")
-        cost.className = "row-cost"
+        cost.className = `row-cost cost-${card.type}`
         cost.textContent = String(card.cost)
         row.appendChild(cost)
 
@@ -401,6 +498,14 @@ function renderDeck(): void {
         name.className = "row-name"
         name.textContent = card.name
         row.appendChild(name)
+
+        const note = cardNotes[card.cardId]
+        if (note) {
+            const rowNote = document.createElement("span")
+            rowNote.className = `row-note ${note.status}`
+            rowNote.textContent = note.status === "unimplemented" ? "未" : note.status === "partial" ? "一部" : "簡"
+            row.appendChild(rowNote)
+        }
 
         const type = document.createElement("span")
         type.className = "row-type"
@@ -425,7 +530,7 @@ function renderDeck(): void {
         // 行クリックで詳細表示
         row.addEventListener("click", () => {
             selectedCardId = cardId
-            renderDetail(card)
+            renderDetail(card, row)
         })
 
         list.appendChild(row)
@@ -1013,6 +1118,7 @@ function setupDeckIo(): void {
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
         selectedCardId = null
+        hideDetail()
     })
 }
 
@@ -1025,6 +1131,16 @@ function renderAll(): void {
 }
 
 async function init(): Promise<void> {
+    try {
+        const notesRes = await fetch("/data/card-notes.json")
+        if (notesRes.ok) {
+            const data = await notesRes.json()
+            cardNotes = data.notes ?? {}
+        }
+    } catch (e) {
+        console.warn("Failed to fetch card-notes.json", e)
+    }
+
     const res = await fetch("/data/cards.json")
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")

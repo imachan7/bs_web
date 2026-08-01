@@ -74,6 +74,9 @@ console.log("=== 犬人マードック：相手メイン中の手札加入で相
     s.players.p1.field.spirits.push(createInstance("BS03-075", s.turn, 1))
     const target = createInstance("BS01-054", s.turn, 2) // p2側の唯一の候補（コア2個）
     s.players.p2.field.spirits.push(target)
+    // マードックは「相手のフィールド/リザーブから」取れるため、リザーブにコアがあると候補が2つになり
+    // 選択待ちになる。ここでは候補1つの自動解決を見たいのでリザーブを空にする（選択経路は part92 で検証）
+    s.players.p2.reserve = 0
     s.turnPlayer = "p2"
     s.phase = "main"
     draw(s, "p2", 1)

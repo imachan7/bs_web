@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
-import { clearBattle, createInstance, getCard, log, lv1Cores, opponentOf } from "../GameState"
+import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     emitEvent,
     findSpiritAny,
@@ -12,8 +12,9 @@ import {
     requestChoice,
     resolveKoboOnBattleEnd,
     summonFreeFromHandIndex,
+    summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, matchesCostFilter } from "../../../../shared/rules"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -200,7 +201,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 return
             }
             zone.splice(idx, 1)
-            const maintain = lv1Cores(getCard(cardId))
+            const maintain = minLevelCores(getCard(cardId))
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
             log(
@@ -276,7 +277,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             player.trashCards.splice(idx, 1)
         }
         if (cardId === undefined) return
-        const maintain = lv1Cores(getCard(cardId))
+        const maintain = minLevelCores(getCard(cardId))
         const inst = createInstance(cardId, state.turn, maintain)
         player.field.nexuses.push(inst)
         log(
@@ -359,6 +360,63 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         return
 }
 
+const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        // 妖狐キュービック：自分のトラッシュにある条件（colorFilter一致・costFilter範囲）を満たす
+        // スピリットカードのうちコスト最大の1枚（同コストは末尾＝新しい方から自動選択）を、
+        // コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。interactiveTargets時は選択式
+        // （選択者=使用者。cardZone:"trash"）。summonFromHandFreeHandlerのトラッシュ版
+        const player = state.players[owner]
+        const matchesCardId = (candidateId: string): boolean => {
+            const candidate = getCard(candidateId)
+            if (candidate.type !== "spirit") return false
+            if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
+            if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
+            return true
+        }
+        if (chosenCardIndex !== undefined) {
+            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex)
+            return
+        }
+        if (state.interactiveTargets) {
+            const indices: number[] = []
+            for (let i = 0; i < player.trashCards.length; i++) {
+                if (matchesCardId(player.trashCards[i]!)) indices.push(i)
+            }
+            if (indices.length >= 2) {
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：召喚するスピリットを選んでください`,
+                    "trash",
+                    indices,
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
+        // 決定的自動選択：コスト最大、同コストは末尾（新しい方）
+        let bestIndex = -1
+        let bestCost = -1
+        for (let i = 0; i < player.trashCards.length; i++) {
+            const candidateId = player.trashCards[i]!
+            if (!matchesCardId(candidateId)) continue
+            const cost = getCard(candidateId).cost
+            if (cost >= bestCost) {
+                bestCost = cost
+                bestIndex = i
+            }
+        }
+        if (bestIndex === -1) {
+            log(state, `${sourceName}：トラッシュに対象のスピリットがなかった。`)
+            return
+        }
+        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex)
+        return
+}
+
 const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）の
@@ -386,6 +444,7 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexus: deployNexusHandler,
     summonFromHandFree: summonFromHandFreeHandler,
+    summonFromTrashFree: summonFromTrashFreeHandler,
     refireSummonEffect: refireSummonEffectHandler,
 } satisfies Partial<ActionRegistry>
 

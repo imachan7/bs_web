@@ -91,7 +91,7 @@ console.log("=== 汎用 bpBuffAll familyFilter：指定系統のスピリット�
     const tousin = createInstance("BS03-072", s.turn, 1) // 系統:闘神
     const other = createInstance("BS01-001", s.turn, 1) // 系統:爬獣
     s.players.p1.field.spirits.push(tousin, other)
-    resolveAction(s, "p1", null, { type: "bpBuffAll", amount: 1000, familyFilter: "闘神" })
+    resolveAction(s, "p1", null, { type: "bpBuffAll", amount: 1000, filter: { family: "闘神" } })
     assert(tousin.tempBpBuff === 1000, "系統一致のスピリットはBP+1000される")
     assert(other.tempBpBuff === 0, "系統不一致のスピリットはBPが変化しない")
 }
@@ -167,7 +167,7 @@ console.log("=== BS03-145 スクランブル：メインで系統「闘神」の
     const tousin = createInstance("BS03-072", s.turn, 1) // 系統:闘神
     const other = createInstance("BS01-001", s.turn, 1) // 系統:爬獣
     s.players.p1.field.spirits.push(tousin, other)
-    resolveAction(s, "p1", null, { type: "bpBuffAll", amount: 3000, familyFilter: "闘神" })
+    resolveAction(s, "p1", null, { type: "bpBuffAll", amount: 3000, filter: { family: "闘神" } })
     assert(tousin.tempBpBuff === 3000, "闘神のスピリットはBP+3000される")
     assert(other.tempBpBuff === 0, "闘神以外は変化しない")
 }

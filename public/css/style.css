@@ -318,6 +318,20 @@ button:active {
     font-weight: 600;
 }
 
+/* 覚醒モード中にリザーブからコアを移せるときのハイライト */
+.player-info span.targetable {
+    color: var(--danger);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    cursor: pointer;
+    animation: reserve-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes reserve-pulse {
+    0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+    50% { text-shadow: 0 0 16px rgba(239, 68, 68, 0.9), 0 0 4px rgba(239, 68, 68, 0.4); }
+}
+
 .field-row {
     display: flex;
     gap: 20px;
@@ -816,11 +830,11 @@ button:active {
     margin: 1px 0;
 }
 
-/* スピリットは円形 */
+/* スピリットは四角形 */
 .spirit-zone .card {
     width: 76px;
     height: 76px;
-    border-radius: 50%;
+    border-radius: 6px;
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
@@ -833,8 +847,16 @@ button:active {
     height: 78px;
     border-radius: 0;
     box-shadow: none; /* clip-path hides box-shadow */
+    background: transparent;
+    border: none;
+}
+.nexus-zone .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     background: linear-gradient(145deg, color-mix(in srgb, var(--c-main, #333) 30%, #20232c), color-mix(in srgb, var(--c-sub, #333) 30%, #20232c), #20232c 80%);
+    z-index: -1;
 }
 
 /* ホバー時の上書き（トークン用） */
@@ -849,19 +871,22 @@ button:active {
 
 /* 状態バッジの上書き（トークン用） */
 .spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
-.spirit-zone .card.targetable { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.6); }
-.spirit-zone .card.attacker-mark { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.8); }
-
-.nexus-zone .card.usable { background: linear-gradient(145deg, var(--warning), #20232c); }
-.nexus-zone .card.targetable { background: linear-gradient(145deg, var(--danger), #20232c); }
-.nexus-zone .card.attacker-mark { background: linear-gradient(145deg, var(--danger), #20232c); }
+.spirit-zone .card.targetable { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.spirit-zone .card.attacker-mark { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.nexus-zone .card.usable::after { background: linear-gradient(145deg, var(--warning), #20232c); }
+.nexus-zone .card.targetable::after { background: linear-gradient(145deg, var(--danger), #20232c); }
+.nexus-zone .card.attacker-mark::after { background: linear-gradient(145deg, var(--danger), #20232c); }
 
 /* ---- シンボルアイコン（盤面トークン用） ---- */
 .symbols {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
     display: flex;
-    gap: 4px;
-    justify-content: center;
-    margin-top: 2px;
+    gap: 2px;
+    justify-content: flex-end;
+    margin-top: 0;
+    z-index: 10;
 }
 .sym-icon {
     position: relative;
@@ -1141,4 +1166,44 @@ button:active {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* ---- 召喚レベル選択：リザーブだけでは足りず、フィールドのコアを使うレベル ---- */
+#choice-options button.needs-field-cores {
+    border-color: #c9a227;
+    background: rgba(201, 162, 39, 0.15);
+}
+#choice-options button.needs-field-cores::before {
+    content: "💠 ";
+}
+
+/* ---- ネクサスのコア移動ボタン ----
+   ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
+   まるごとクリップされて消える。ラッパー（.nexus-slot）の直下にカードと兄弟で置き、
+   六角形の外側へはみ出させる。小さな六角形の上でホバーを狙わせるのは押しづらいので常時表示する */
+.nexus-slot {
+    position: relative;
+    display: inline-flex;
+    /* ボタンが右へはみ出すぶんの余白。隣のネクサスに重ねてクリックを奪わないようにする */
+    margin-right: 22px;
+}
+.nexus-slot .core-buttons {
+    opacity: 0;
+    top: 50%;
+    right: -14px;
+    transform: translateY(-50%);
+    flex-direction: column;
+    gap: 6px;
+    z-index: 2;
+}
+.nexus-slot:hover .core-buttons {
+    opacity: 1;
+}
+.nexus-slot .core-buttons button {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    background: var(--bg-panel);
+    border: 1px solid #666;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
