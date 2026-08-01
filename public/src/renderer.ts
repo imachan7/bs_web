@@ -397,6 +397,19 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "card" && myPendingChoice.cardZone === "reveal") {
+        // 公開ゾーン（デッキから「オープン」したカード）。トラッシュと同じボタンUIで並べる
+        const revealed = view.revealedCards?.cardIds ?? []
+        for (const idx of myPendingChoice.cardIndices ?? []) {
+            const cardId = revealed[idx]
+            if (cardId === undefined) continue
+            const card = master(cardId)
+            const b = document.createElement("button")
+            b.dataset.cardIndex = String(idx)
+            b.textContent = `${card.name}（${card.type === "spirit" ? "スピリット" : card.type === "nexus" ? "ネクサス" : "マジック"}）`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
         const cost = effectiveCost(view, view.you, card)

@@ -384,5 +384,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
                 : maskPendingChoiceForOpponent(state.pendingChoice)
             : null,
         events: [...state.events],
+        // 公開ゾーンは「オープンする」効果で両者に見える情報のためマスクしない
+        ...(state.revealedCards ? { revealedCards: { ...state.revealedCards, cardIds: [...state.revealedCards.cardIds] } } : {}),
     }
 }

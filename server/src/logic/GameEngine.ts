@@ -70,7 +70,24 @@ export function handleAction(
     // 継続的なレベル置換（levelAs）をアクション実行の事後フックとして再計算する
     // （召喚・破壊等でフィールドのスピリット数が変わるたびにジャグリーンの条件を反映するため）
     if (!state.winner) refreshLevelAsOverrides(state)
+    // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
+    // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
+    flushRevealedCardsIfIdle(state)
     return result
+}
+
+// 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
+// 選択待ちが残っている間は「まだ選んでいる途中」なので何もしない
+function flushRevealedCardsIfIdle(state: GameState): void {
+    const zone = state.revealedCards
+    if (!zone) return
+    if (state.pendingChoice) return
+    const player = state.players[zone.pid]
+    for (const id of zone.cardIds) player.deck.push(id)
+    if (zone.cardIds.length > 0) {
+        log(state, `${player.name}は残り${zone.cardIds.length}枚をデッキの下に戻した。`)
+    }
+    delete state.revealedCards
 }
 
 function dispatchAction(

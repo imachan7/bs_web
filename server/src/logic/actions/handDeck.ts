@@ -167,6 +167,50 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
         return
 }
 
+// 公開ゾーンの残りをデッキの下へ戻す。実対戦では戻す順番を1枚ずつ選ばせる
+// （スキップすると残りを現在の順のまま戻す）。カードは「デッキの下」へ行くため、
+// 順番が結果に効く場面はごく限られるが、カードテキストどおり選べるようにしてある
+const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const zone = state.revealedCards
+    if (!zone || zone.pid !== owner) return
+    const player = state.players[owner]
+    const pushAllRemaining = (): void => {
+        for (const id of zone.cardIds) player.deck.push(id)
+        if (zone.cardIds.length > 0) {
+            log(state, `${player.name}は残り${zone.cardIds.length}枚をデッキの下に戻した。`)
+        }
+        delete state.revealedCards
+    }
+    // 選択された1枚を先に戻し、残りがあれば続けて選ばせる
+    if (chosenCardIndex !== undefined) {
+        const id = zone.cardIds[chosenCardIndex]
+        if (id !== undefined) {
+            zone.cardIds.splice(chosenCardIndex, 1)
+            player.deck.push(id)
+            log(state, `${player.name}は${getCard(id).name}をデッキの下に戻した。`)
+        }
+    }
+    if (zone.cardIds.length === 0) {
+        delete state.revealedCards
+        return
+    }
+    if (state.interactiveTargets && zone.cardIds.length >= 2) {
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：デッキの下に戻す順番（残り${zone.cardIds.length}枚。スキップで現在の順のまま戻す）`,
+            "reveal",
+            zone.cardIds.map((_, i) => i),
+            true,
+            { type: "revealReturnToDeck" },
+            self,
+        )
+        return
+    }
+    pushAllRemaining()
+}
+
 const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // スワロウアイヴィー：自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の
@@ -206,11 +250,46 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             for (const id of remaining) player.deck.push(id)
             return
         }
-        const pickIndex = revealed.findIndex(
-            (id) =>
-                (action.pickType === undefined || getCard(id).type === action.pickType) &&
-                (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes)),
-        )
+        const matchesPick = (id: string): boolean =>
+            (action.pickType === undefined || getCard(id).type === action.pickType) &&
+            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes))
+        // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
+        // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。
+        // 選択後は chosenCardIndex を持って再入し、下の pickIndex 経路に合流する
+        if (state.interactiveTargets && !action.pickAllOfType) {
+            const indices = revealed.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id)).map((x) => x.i)
+            if (indices.length >= 2 && chosenCardIndex === undefined) {
+                state.revealedCards = { pid: owner, cardIds: [...revealed] }
+                log(state, `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開した。`)
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手札に加えるカードを選んでください`,
+                    "reveal",
+                    indices,
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
+        // 公開ゾーン経由の再入：選ばれたカードを手札へ加え、残りはデッキの下へ戻す段階へ進む
+        if (chosenCardIndex !== undefined && state.revealedCards) {
+            const zone = state.revealedCards.cardIds
+            const pickedId = zone[chosenCardIndex]
+            if (pickedId !== undefined) {
+                zone.splice(chosenCardIndex, 1)
+                player.hand.push(pickedId)
+                log(state, `${player.name}は${getCard(pickedId).name}を手札に加えた。`)
+                notifyHandGained(state, owner, 1)
+            }
+            // 公開ゾーンから取り出した残りは、この時点でデッキへは戻っていないので
+            // revealed（この呼び出しで splice した配列）ではなく公開ゾーンを使って戻す
+            ctx.resolve({ type: "revealReturnToDeck" })
+            return
+        }
+        const pickIndex = revealed.findIndex(matchesPick)
         if (pickIndex === -1) {
             log(
                 state,
@@ -624,6 +703,7 @@ const handlers = {
     discardOpponentDownTo: discardOpponentDownToHandler,
     discardSelfOne: discardSelfOneHandler,
     deckReveal: deckRevealHandler,
+    revealReturnToDeck: revealReturnToDeckHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     mill: millHandler,
