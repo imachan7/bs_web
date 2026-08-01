@@ -22,6 +22,7 @@ import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFil
 import {
     activeConstraints,
     cantActByCost,
+    costCantAct,
     currentLevel,
     effectiveBp,
     hasArmorAgainst,
@@ -41,6 +42,7 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    type DirectAttackFilter,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -216,7 +218,7 @@ export interface UiState {
     awakenTarget: string | null
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
-    directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
+    directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
 }
@@ -226,16 +228,19 @@ export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
     inst: CardInstance,
-): "rested" | "singleCore" | "recovered" | null {
+): DirectAttackFilter | null {
     return directAttackFilter(view, pid, inst)
 }
 
-// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）
+// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
+// targetPid は対象スピリットの持ち主（targetMinBp判定の実効BP計算に使う）
 export function matchesDirectedAttackFilter(
-    filter: "rested" | "singleCore" | "recovered",
+    filter: DirectAttackFilter,
     target: CardInstance,
+    view: GameView,
+    targetPid: PlayerId,
 ): boolean {
-    return sharedMatchesDirectedAttackFilter(filter, target) === null
+    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -797,7 +802,8 @@ function fieldCardEl(
         // このスピリットはアタックできない（カイザレオン大帝Lv1）
         const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
-        const costLocked = cantActByCost(view, inst)
+        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
+        const costLocked = cantActByCost(view, inst) || costCantAct(view, master(inst.cardId).cost)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -832,7 +838,7 @@ function fieldCardEl(
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
         if (ui.directedAttack !== null) {
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst)) {
+            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid)) {
                 el.classList.add("targetable", "clickable")
             }
             return el

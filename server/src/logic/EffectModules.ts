@@ -1030,6 +1030,8 @@ function tryReviveOnDestroy(
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
+            // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
+            if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesWhen(effect.when)) continue
@@ -2086,6 +2088,13 @@ export function fireBattleWonTriggers(
             if (
                 effect.winnerNameContains !== undefined &&
                 !cardNameContains(winnerInst, effect.winnerNameContains)
+            ) {
+                continue
+            }
+            // BS04ドラゴンズラッシュ：勝利したスピリットが指定系統を持つときのみ発火（配列＝OR）
+            if (
+                effect.winnerFamilyFilter !== undefined &&
+                !matchesFamilyFilter(state, winnerPid, winnerInst, effect.winnerFamilyFilter)
             ) {
                 continue
             }

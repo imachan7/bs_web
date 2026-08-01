@@ -617,6 +617,10 @@ export function activeConstraints(
             if (effect.kind !== "constraintGrant") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
+            if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
+            // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
+            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (board.phase !== phase) continue
@@ -683,9 +687,8 @@ export function hasGlobalConstraint(
     type: GlobalConstraintDef["type"],
 ): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = board.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS02グレートウォール）も含める
+        for (const inst of effectSources(board, pid)) {
             const level = currentLevel(inst).level
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
@@ -697,20 +700,22 @@ export function hasGlobalConstraint(
     }
     return false
 }
-// フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下のスピリットはアタック/ブロックができない
-// （BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2）。hasGlobalConstraintの単純boolean判定と異なり、
-// 具体的なmaxCostのしきい値を比較する必要があるため専用の判定関数にする
+// フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
+// アタック/ブロックができない（BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2、BS02グレートウォール=costs[6,8]）。
+// hasGlobalConstraintの単純boolean判定と異なり、具体的なしきい値を比較する必要があるため専用の判定関数にする
 export function costCantAct(board: Board, cost: number): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const player = board.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
+        for (const inst of effectSources(board, pid)) {
             const level = currentLevel(inst).level
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "costCantAct") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (cost <= effect.constraint.maxCost) return true
+                const { maxCost, costs } = effect.constraint
+                if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
+                    return true
+                }
             }
         }
     }
@@ -850,13 +855,21 @@ export function activatableAbility(
     return null
 }
 
+// 指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
+export interface DirectAttackFilter {
+    targetFilter: "rested" | "singleCore" | "recovered" | "any"
+    targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
+}
+
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 export function directAttackFilter(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
-): "rested" | "singleCore" | "recovered" | null {
+): DirectAttackFilter | null {
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetFilter
+    return constraint.targetMinBp === undefined
+        ? { targetFilter: constraint.targetFilter }
+        : { targetFilter: constraint.targetFilter, targetMinBp: constraint.targetMinBp }
 }

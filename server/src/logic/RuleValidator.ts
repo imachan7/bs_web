@@ -450,7 +450,7 @@ export function validateAttack(
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
         // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
-        const filterError = matchesDirectedAttackFilter(targetFilter, target)
+        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid))
         if (filterError) return filterError
     }
     return null
@@ -542,12 +542,14 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
 
 // 強制ブロック（kind: "mustBlockGrant"）：アタッカーの持ち主のフィールドに、
 // レベル有効・phase/turn一致・familyFilter一致（省略時は全アタッカー）の発生源があるか判定する。
-// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象
+// firstAttackOnly 指定時はそのターンの最初のアタック（attacksThisTurn === 1）のみ対象。
+// マッチした発生源の blockerMaxBp（BS05ワーニングアタック：BP3000以下の合法ブロッカーがいるときのみ強制）を
+// 呼び出し側へ返す（未指定なら制限なし＝undefined）
 function hasMustBlockAgainst(
     state: GameState,
     attackerPid: PlayerId,
     attacker: CardInstance,
-): boolean {
+): { blockerMaxBp?: number } | null {
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含めて走査する
     for (const inst of effectSources(state, attackerPid)) {
         const level = currentLevel(inst).level
@@ -564,18 +566,22 @@ function hasMustBlockAgainst(
             ) {
                 continue
             }
-            return true
+            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }
         }
     }
-    return false
+    return null
 }
 
 // 「可能ならば必ずブロックする」の判定用：実際にブロック宣言が通るスピリットが1体でもいるか。
-// hasBlocker（回復状態か見るだけ）と違い validateBlock を通すため、cantBlock や
-// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない
-function hasLegalBlocker(state: GameState, pid: PlayerId): boolean {
+// hasBlocker（回復状態か見るだけ）と違い validateBlock を実際に通すため、cantBlock や
+// unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない。
+// maxBp 指定時は実効BPがこれ以下の個体だけを合法ブロッカーの候補にする
+// （BS05ワーニングアタック：BP3000以下の合法ブロッカーがいるときだけライフ受けを拒否する）
+function hasLegalBlocker(state: GameState, pid: PlayerId, maxBp?: number): boolean {
     return state.players[pid].field.spirits.some(
-        (s) => validateBlock(state, pid, s.instanceId) === null,
+        (s) =>
+            (maxBp === undefined || effectiveBp(state, pid, s) <= maxBp) &&
+            validateBlock(state, pid, s.instanceId) === null,
     )
 }
 
@@ -604,13 +610,10 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     ) {
         return "【激突】によりブロックしなければなりません"
     }
-    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック）。
-    // ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
-    if (
-        attacker &&
-        hasMustBlockAgainst(state, state.turnPlayer, attacker) &&
-        hasLegalBlocker(state, pid)
-    ) {
+    // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック／
+    // BS05ワーニングアタック＝BP3000以下限定）。ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
+    const mustBlock = attacker && hasMustBlockAgainst(state, state.turnPlayer, attacker)
+    if (mustBlock && hasLegalBlocker(state, pid, mustBlock.blockerMaxBp)) {
         return "相手の効果により、可能ならば必ずブロックしなければなりません"
     }
     return null

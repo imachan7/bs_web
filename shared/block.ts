@@ -15,6 +15,7 @@ import {
     instHasColor,
     KEYWORDS,
     spiritHasKeyword,
+    type DirectAttackFilter,
 } from "./rules"
 
 export function canBlock(
@@ -67,6 +68,10 @@ export function canBlock(
             if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
                 return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
             }
+            // BS05ポテンシャルパワー：ブロッカーのコストがこのアタッカーのコスト以下ならブロックできない
+            if (c.costAtMostAttacker && blockerCard.cost <= card(attackerInst.cardId).cost) {
+                return "このスピリットは同じか低いコストのスピリットにブロックされません"
+            }
         }
     }
     return null
@@ -74,13 +79,21 @@ export function canBlock(
 
 // 指定アタック（canDirectAttack）の対象条件に、指定された相手スピリットが合致するか。
 // サーバー（validateAttack）は拒否理由の文字列を、クライアントは対象ハイライトの可否を
-// この同一実装から得る（合致すれば null）
+// この同一実装から得る（合致すれば null）。targetMinBp判定にはBoardと対象の持ち主pidが必要
 export function matchesDirectedAttackFilter(
-    filter: "rested" | "singleCore" | "recovered",
+    filter: DirectAttackFilter,
     target: CardInstance,
+    board: Board,
+    targetPid: PlayerId,
 ): string | null {
-    if (filter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
-    if (filter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
-    if (filter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"
+    if (filter.targetFilter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
+    if (filter.targetFilter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
+    if (filter.targetFilter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"
+    if (
+        filter.targetMinBp !== undefined &&
+        effectiveBp(board, targetPid, target) < filter.targetMinBp
+    ) {
+        return `BP${filter.targetMinBp}以上のスピリットしか指定できません`
+    }
     return null
 }

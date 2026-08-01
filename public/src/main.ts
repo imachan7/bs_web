@@ -356,9 +356,11 @@ function onMySpiritClick(instanceId: string): void {
             (s) => s.instanceId === instanceId,
         )
         const filter = inst ? canDirectAttack(view, view.you, inst) : null
-        const oppSpirits = view.players[opponentOf(view.you)].field.spirits
+        const oppPid = opponentOf(view.you)
+        const oppSpirits = view.players[oppPid].field.spirits
+        const currentView = view
         const hasValidTarget =
-            filter !== null && oppSpirits.some((s) => matchesDirectedAttackFilter(filter, s))
+            filter !== null && oppSpirits.some((s) => matchesDirectedAttackFilter(filter, s, currentView, oppPid))
         if (filter !== null && hasValidTarget) {
             // 指定アタック可能で、条件に合う相手がいる：対象選択モードを開始する
             ui.directedAttack = { attackerInstanceId: instanceId, filter }
@@ -427,10 +429,11 @@ function onOppSpiritClick(instanceId: string): void {
     // 指定アタックの対象選択モード中：フィルタに合う相手スピリットをクリックしたら指定アタックを送信する
     if (ui.directedAttack !== null) {
         const filter = ui.directedAttack.filter
-        const target = view.players[opponentOf(view.you)].field.spirits.find(
+        const oppPid = opponentOf(view.you)
+        const target = view.players[oppPid].field.spirits.find(
             (s) => s.instanceId === instanceId,
         )
-        if (target && matchesDirectedAttackFilter(filter, target)) {
+        if (target && matchesDirectedAttackFilter(filter, target, view, oppPid)) {
             send({
                 type: "attack",
                 instanceId: ui.directedAttack.attackerInstanceId,

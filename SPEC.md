@@ -473,7 +473,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `destroy` | 相手スピリットを破壊（1体、BP最大を自動選択。maxBp 省略=BP不問、keywordFilter で「【神速】持ちのみ」等の限定可） |
 | `destroyAll` | BP以下の相手スピリットを全破壊 |
 | `selfBuff` | このスピリット自身をBP+（ターン終了時まで） |
-| `destroyNexus` | 相手ネクサスを破壊 |
+| `destroyNexus` | 相手ネクサスを破壊（`side:"both"` で両陣営、`levelFilter` で対象レベルを限定＝バスターファランクス／バスターランス） |
 | `returnSelfToHand` | このスピリットを持ち主の手札に戻す |
 | `coreRemove` | 対象スピリットのコアを持ち主のリザーブへ置く（対象指定可） |
 | `bpBuff` | 対象スピリット1体をBP+（ターン終了時まで、対象指定可） |
@@ -497,8 +497,8 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `endBattle` | 今のバトルをただちに終了（BP比較もライフダメージもなし） |
 | `exhaustAllByColor` | 相手最多色を自動選択し、その色の両者全スピリットを疲労（色選択の簡略化） |
 | `lockFlash` | このバトルの間、相手はフラッシュで手札のカードを使用不可（`flashLockedPlayer`。覚醒は対象外） |
-| `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化） |
-| `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版） |
+| `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化。`all:true` で該当カードすべて＝ネクロマンシー） |
+| `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版。`anySide:true` で両陣営から対象指定／選択可＝ウィークネス） |
 | `coreGainPer` | カウント値ぶんボイドから自分のリザーブへ（counter: drawPer と共通の `DrawPerCounter`。宝石の獣カーバルク） |
 | `refreshAllByCost` | **両陣営**の指定コストのスピリットをすべて回復（cantAttackThisTurn は付かない。ローヤルポーション） |
 | `destroyOwnByCost` | self 以外の自分スピリットからコスト ≤ maxCost かつコスト最大の1体を破壊（プレイヤー選択の決定的簡略化）。gainCoresEqualCost でそのコスト数のコアをボイドから自分リザーブへ（天使長プリンシパール） |
@@ -521,6 +521,12 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `coreDrainAllOthers` | self 以外の全スピリットからコア1個ずつ持ち主リザーブへ、消滅数ぶんボイドから self へ（魔界七将デスペラード） |
 | `grantBlockerImmunity` | ブロック中の自分スピリットにこのターンの免疫を付与（フェザーバリア） |
 | `negateOwnBlockConstraint` | 自分スピリット1体の cantBlock/cantBlockLowerBp をこのターン無効化（バーストファイア） |
+| `nexusCoresToTrash` | 指定側（相手/両陣営）のネクサス上のコアをすべて持ち主のトラッシュへ（ネクサスは消滅しない。フォールダウン） |
+| `drawUpTo` | 自分の手札が size 枚になるまでドロー（すでに size 枚以上なら何もしない。フォースドロー） |
+| `trashSpiritsToDeckBottom` | 自分のトラッシュのスピリットカードを末尾から count 枚デッキの下へ（枚数・順番の選択は決定的簡略化。トリックプランク） |
+| `voidCoresToNexusLevel` | 自分のネクサス1つが指定レベルになるようボイドからコアを置く（対象は targetInstanceId → pendingChoice → コア数最少の順。フルアッド） |
+| `opponentNexusOrReserveCoreToTrash` | 相手のネクサス上（コア最多）→なければ相手リザーブの順にコアを相手トラッシュへ（エナジードレイン） |
+| `bothSidesCoreToVoid` | 両者がそれぞれ自分のスピリット／ネクサスから、コアの多い個体順に合計 count 個をボイドへ（インフェルノアイズ） |
 
 構造化済みの効果は135枚中 **123枚**（スピリット79/91・ネクサス12/12・マジック32/32）。
 **効果文を持つ全カードの構造化が完了**（残り12枚は効果テキストのないバニラ）。

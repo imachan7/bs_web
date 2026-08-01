@@ -5495,6 +5495,24 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS01-127-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS01-127-e3",
+    "kind": "constraintGrant",
+    "levels": null,
+    "target": "ownAll",
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
    }
   ]
  },
@@ -11878,6 +11896,26 @@
     "action": {
      "type": "bpBuff",
      "amount": 2000
+    }
+   },
+   {
+    "id": "BS02-105-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS02-105-e3",
+    "kind": "globalConstraint",
+    "levels": null,
+    "constraint": {
+     "type": "costCantAct",
+     "costs": [
+      6,
+      8
+     ]
     }
    }
   ]
@@ -19048,6 +19086,27 @@
      "type": "bpBuff",
      "amount": 4000
     }
+   },
+   {
+    "id": "BS03-132-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-132-e3",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "scope": "ownAll",
+    "keywordFilter": "armor",
+    "when": {
+     "byBattle": true
+    },
+    "revived": {
+     "rested": true
+    }
    }
   ]
  },
@@ -19142,6 +19201,27 @@
     "action": {
      "type": "bpBuff",
      "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-135-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-135-e3",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "scope": "ownAll",
+    "minFamilies": 2,
+    "when": {
+     "byBattle": true
+    },
+    "revived": {
+     "toHand": true
     }
    }
   ]
@@ -24856,6 +24936,28 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS04-092-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS04-092-e3",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": null,
+    "winnerFamilyFilter": [
+     "翼竜",
+     "竜人",
+     "古竜"
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
    }
   ]
  },
@@ -29717,6 +29819,24 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS05-067-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-067-e3",
+    "kind": "mustBlockGrant",
+    "levels": null,
+    "familyFilter": [
+     "翼竜",
+     "空牙"
+    ],
+    "blockerMaxBp": 3000
    }
   ]
  },
@@ -29747,6 +29867,26 @@
     "action": {
      "type": "bpBuff",
      "amount": 3000
+    }
+   },
+   {
+    "id": "BS05-068-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-068-e3",
+    "kind": "constraintGrant",
+    "levels": null,
+    "target": "ownAll",
+    "keywordFilter": "awaken",
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetMinBp": 4000
     }
    }
   ]
@@ -30332,6 +30472,25 @@
     "action": {
      "type": "bpBuff",
      "amount": 4000
+    }
+   },
+   {
+    "id": "BS05-084-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-084-e3",
+    "kind": "constraintGrant",
+    "levels": null,
+    "target": "ownAll",
+    "vanillaFilter": true,
+    "constraint": {
+     "type": "unblockableBy",
+     "costAtMostAttacker": true
     }
    }
   ]

@@ -322,10 +322,10 @@ export type GameEvent =
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[]; costNot?: number } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない
+    | { type: "unblockableBy"; colorFilter?: Color; keywordFilter?: Keyword; maxCores?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true } // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない。costAtMostAttacker指定時はブロッカーのコストがこのアタッカーのコスト以下ならブロックされない（BS05ポテンシャルパワー：バニラのアタックは同コスト以下にブロックされない）
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
-    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ。イリュージョナ／牛霊スモゥグ／オルカリア）
+    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" | "any"; targetMinBp?: number } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ、any=状態条件なし。イリュージョナ／牛霊スモゥグ／オルカリア）。targetMinBp指定時は相手スピリットの実効BPがこれ以上のものだけ指定できる（BS05シンクロニシティ：BP4000以上。BP条件だけで絞りたい場合はtargetFilter:"any"と組み合わせる）
     | { type: "cantAttack"; unlessOpponentHasColorSpirit?: Color } // このスピリットはアタックできない（カイザレオン大帝Lv1）。unlessOpponentHasColorSpirit 指定時は「持ち主から見た相手のフィールドに指定色のスピリットがいない間」だけ有効（activeConstraints が判定して外す。BS04鎧装獣ヘイズ・ルーン＝赤）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
@@ -341,7 +341,7 @@ export type GlobalConstraintDef =
     | { type: "ownNexusIndestructible" } // 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない
       // （hasGlobalConstraintの両陣営走査とは異なり、destroyNexusが破壊対象ネクサスの持ち主のフィールドのみを判定する。サファイアの城壁）
     | { type: "maxSpiritsOnField"; max: number } // 両陣営とも、フィールドのスピリットがmax体以上のときは召喚できない（メインステップの通常召喚のみ。BS04旋風渦巻く渓谷＝5体以上召喚できない＝max4）
-    | { type: "costCantAct"; maxCost: number } // コストがmaxCost以下のスピリットは、アタックとブロックができない（両陣営。shared/rules.tsの専用判定costCantActが参照。BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2）
+    | { type: "costCantAct"; maxCost?: number; costs?: number[] } // コストがmaxCost以下のスピリットは、アタックとブロックができない（両陣営。shared/rules.tsの専用判定costCantActが参照。BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2）。costs指定時はmaxCostの代わりにこのリストと完全一致するコストのみ対象（BS02グレートウォール：コスト6と8）
     | { type: "millCap"; maxCount: number; perTurn?: boolean } // 発生源の持ち主のデッキは、相手の効果によるミル（mill/millPer/粉砕/voidCoresAndMillByCost等）でmaxCount枚を超えて破棄されない
       // （ownNexusIndestructibleと同様に発生源の持ち主のみに効く。EffectModules.millCapForがeffectSources経由で判定＝lendSelfThisTurnで貸与可。
       // perTurn省略時=1回のミルにつきmaxCount枚まで（BS05エターナルシールド：5枚まで＝6枚以上破棄されない）。
@@ -460,6 +460,7 @@ export type EffectDef =
           turn?: "own" // 指定時、発生源の持ち主がturnPlayerのときのみ発火（深緑の樹海）
           vanillaWinnerOnly?: true // 勝利したスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／深緑の樹海）
           winnerNameContains?: string // 勝利したスピリットのカード名がこの文字列を含むときのみ発火（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
+          winnerFamilyFilter?: FamilyFilter // 勝利したスピリットが指定系統を持つときのみ発火（配列＝OR。matchesFamilyFilterで判定。BS04ドラゴンズラッシュ：翼竜/竜人/古竜）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS04ニーベルングリング）
           selfMode?: "source" // 指定時、resolveActionのselfに勝利スピリットでなく発生源インスタンス（ネクサス）を渡す（深緑の樹海）
       }
@@ -503,6 +504,7 @@ export type EffectDef =
           kind: "mustBlockGrant" // 発生源が場にありレベル有効の間、発生源の持ち主のスピリットのアタックに対し、相手は可能ならば必ずブロックしなければならない（RuleValidator.validateTakeLifeが参照。燃えさかる戦場Lv2／BS04翼持つ者の空域Lv2）
           levels: number[] | null
           familyFilter?: FamilyFilter // 指定時はその系統（配列＝OR）を持つアタッカーのアタックのみ強制ブロック
+          blockerMaxBp?: number // 指定時は実効BPがこれ以下の合法ブロッカーがいるときのみ強制ブロックする（BS05ワーニングアタック：BP3000以下）
           firstAttackOnly?: boolean // trueならそのターンの最初のアタックのみ（燃えさかる戦場Lv2）
           phase?: Phase // 指定時はこのステップ中のみ有効
           turn?: "own" | "opponent" // own=発生源の持ち主がturnPlayerのとき（『自分のアタックステップ』）
@@ -588,6 +590,7 @@ export type EffectDef =
           keywordFilter?: Keyword // scope:"ownAll" 用：このキーワードエントリを静的に持つカードのみ対象（vanillaFilterと同列。tempKeywords等の一時付与は見ない。果て無き地平線）
           minBp?: number // scope:"ownAll" 用：対象スピリットの実効BPがこれ以上のときのみ（BS04強者統べる大地＝BP6000以上）
           familyFilter?: FamilyFilter // scope:"ownAll" 用：指定系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ対象（BS05氷の魔女ヘル）。発生源自身は呼び出し側のループが除外済み（「[カード名]以外」の簡略化）
+          minFamilies?: number // scope:"ownAll" 用：対象スピリットのカード静的な family 配列の要素数がこれ以上のときのみ対象（BS03エスケープルート：系統2つ以上）
           requireOwnFieldHasName?: string // 持ち主のフィールド（スピリット）にこのカード名を持つ個体が1体以上いるときのみ有効（BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
           when: {
               byOpponentEffect?: boolean // 相手の効果による破壊のみ（context.sourcePidが相手のとき）
@@ -730,6 +733,8 @@ export type EffectDef =
           levels: number[] | null
           target: "ownAll"
           minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
+          keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05シンクロニシティ：覚醒持ちに指定アタックを付与）
+          vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ（reviveOnDestroy.vanillaFilterと同型。BS05ポテンシャルパワー）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
           constraint: ConstraintDef
       }
