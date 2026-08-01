@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, draw, getCard, log, minLevelCores } from "../GameState"
+import { createInstance, currentLevel, draw, getCard, log, minLevelCores } from "../GameState"
 import {
     destroyNexus,
     destroySpirit,
@@ -309,19 +309,30 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
 }
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, sourceName } = ctx
+        // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
+        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        // levelFilter指定時はcurrentLevelがこれに含まれるネクサスのみ対象（BS03バスターランス＝Lv1のみ）
+        const matchesLevel = (n: CardInstance) =>
+            action.levelFilter === undefined || action.levelFilter.includes(currentLevel(n).level)
         let destroyed = 0
-        // all指定時はcountを無視し、開始時点の相手ネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
-        const iterations = action.all ? state.players[opp].field.nexuses.length : action.count
-        for (let i = 0; i < iterations; i++) {
-            const nexus = state.players[opp].field.nexuses[0]
-            if (!nexus) {
-                log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
-                break
+        for (const pid of sides) {
+            // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
+            const iterations = action.all
+                ? state.players[pid].field.nexuses.filter(matchesLevel).length
+                : action.count
+            for (let i = 0; i < iterations; i++) {
+                const nexus = action.levelFilter
+                    ? state.players[pid].field.nexuses.find(matchesLevel)
+                    : state.players[pid].field.nexuses[0]
+                if (!nexus) {
+                    log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                    break
+                }
+                const ok = destroyNexus(state, pid, nexus.instanceId)
+                if (!ok) break // 破壊耐性で不発：同じネクサスを再試行しても結果は変わらないため打ち切る
+                destroyed++
             }
-            const ok = destroyNexus(state, opp, nexus.instanceId)
-            if (!ok) break // 破壊耐性で不発：同じネクサスを再試行しても結果は変わらないため打ち切る
-            destroyed++
         }
         // 実際に破壊できたネクサス1つにつきdrawPerDestroyed枚ドロー（バスタースピア）
         if (action.drawPerDestroyed && destroyed > 0) {
@@ -539,6 +550,29 @@ const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCor
         return
 }
 
+const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+        // フォールダウン：指定側のネクサスすべての上のコアすべてを、各持ち主のトラッシュへ。
+        // ネクサスはコア0になっても消滅しない
+        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        let total = 0
+        for (const pid of sides) {
+            const player = state.players[pid]
+            for (const nexus of player.field.nexuses) {
+                if (nexus.cores <= 0) continue
+                total += nexus.cores
+                player.trashCores += nexus.cores
+                nexus.cores = 0
+            }
+        }
+        if (total === 0) {
+            log(state, `${sourceName}：コアが置かれているネクサスがなかった。`)
+            return
+        }
+        log(state, `${sourceName}：ネクサスの上のコア合計${total}個を持ち主のトラッシュに置いた。`)
+        return
+}
+
 const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexusThenWipeEnemyNexusCores"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // サクリファイス：自分のネクサス1つを破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く。
@@ -593,14 +627,64 @@ const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexu
 }
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+        // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
+        // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
+        const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
+            returnNexusToHand(state, pid, nexus.instanceId)
+            if (pid !== owner && action.voidCoreToOwnTrashIfOpponent) {
+                const player = state.players[owner]
+                player.trashCores += action.voidCoreToOwnTrashIfOpponent
+                log(
+                    state,
+                    `${sourceName}：相手のネクサスを手札に戻したため、ボイドからコア${action.voidCoreToOwnTrashIfOpponent}個を自分のトラッシュに置いた。`,
+                )
+            }
+        }
+        // anySide：自分/相手どちらのネクサスも対象にできる。
+        // targetInstanceId優先→interactiveTargets時はrequestChoiceで両陣営から選択→
+        // それも無ければ既存どおり相手の先頭ネクサスを自動選択（下のループへフォールスルー）
+        if (action.anySide) {
+            if (targetInstanceId !== undefined) {
+                let found: { pid: PlayerId; inst: CardInstance } | null = null
+                for (const pid of ["p1", "p2"] as PlayerId[]) {
+                    const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                    if (nexus) {
+                        found = { pid, inst: nexus }
+                        break
+                    }
+                }
+                if (!found) {
+                    log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
+                    return
+                }
+                bounceOne(found.pid, found.inst)
+                return
+            }
+            if (state.interactiveTargets) {
+                const candidates = [
+                    ...state.players[opp].field.nexuses,
+                    ...state.players[owner].field.nexuses,
+                ]
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手札に戻すネクサスを選んでください`,
+                    candidates.map((n) => n.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
         for (let i = 0; i < action.count; i++) {
             const nexus = state.players[opp].field.nexuses[0]
             if (!nexus) {
                 log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
                 break
             }
-            returnNexusToHand(state, opp, nexus.instanceId)
+            bounceOne(opp, nexus)
         }
         return
 }
@@ -652,6 +736,7 @@ const handlers = {
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
+    nexusCoresToTrash: nexusCoresToTrashHandler,
     sacrificeNexusThenWipeEnemyNexusCores: sacrificeNexusThenWipeEnemyNexusCoresHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

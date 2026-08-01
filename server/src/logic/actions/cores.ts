@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { getCard, log, minLevelCores } from "../GameState"
+import { coresForLevel, getCard, log, minLevelCores } from "../GameState"
 import {
     countEffectCounter,
     destroySpirit,
@@ -12,6 +12,7 @@ import {
     isEffectBlocked,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
+    pickAnySideCandidates,
     pickBpBuffTarget,
     pickEnemyByBp,
     pickEnemyCandidates,
@@ -341,7 +342,61 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
 }
 
 const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // コアを1個だけ残し超過分を持ち主のリザーブへ置く（両陣営共通の適用処理）
+        const applySqueeze = (pid: PlayerId, target: CardInstance): void => {
+            const player = state.players[pid]
+            const excess = target.cores - 1
+            if (excess > 0) {
+                target.cores = 1
+                player.reserve += excess
+                log(
+                    state,
+                    `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}のリザーブに置いた。`,
+                )
+                // 相手側のスピリットが対象になった場合のみ「相手の効果でコアが取り除かれた」通知（極光の大地）
+                if (pid !== owner) notifySpiritCoresRemovedByOpponent(state, pid, 1)
+            } else {
+                log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
+            }
+            if (target.cores < minLevelCores(getCard(target.cardId))) {
+                destroySpirit(state, pid, target.instanceId, "deplete")
+            }
+        }
+        // anySide（BS03ウィークネス）：自分/相手どちらのスピリットも対象にできる。
+        // targetInstanceId優先→interactiveTargets時はrequestChoiceで両陣営から選択→
+        // それも無ければ既存どおり相手BP最大の自動選択（下のループへフォールスルー）
+        if (action.anySide) {
+            if (targetInstanceId !== undefined) {
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) {
+                    log(state, `${sourceName}のコア圧縮：対象がいなかった。`)
+                    return
+                }
+                if (
+                    found.pid !== owner &&
+                    (isEffectBlocked(state, found.inst, srcType) || hasArmorAgainst(found.inst, srcColors))
+                ) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                    return
+                }
+                applySqueeze(found.pid, found.inst)
+                return
+            }
+            if (state.interactiveTargets) {
+                const candidates = pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コアを圧縮するスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
         // 相手フィールドの実効BP最大のスピリットをcount体選び、コアを1個だけ残す（coreSqueezeAllの単体版）
         const processed = new Set<string>()
         for (let i = 0; i < action.count; i++) {
@@ -357,23 +412,7 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
                 break
             }
             processed.add(target.instanceId)
-            const player = state.players[opp]
-            const excess = target.cores - 1
-            if (excess > 0) {
-                target.cores = 1
-                player.reserve += excess
-                log(
-                    state,
-                    `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}のリザーブに置いた。`,
-                )
-                // 相手（opp）のスピリットのコアがownerの効果で取り除かれた（極光の大地）
-                notifySpiritCoresRemovedByOpponent(state, opp, 1)
-            } else {
-                log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
-            }
-            if (target.cores < minLevelCores(getCard(target.cardId))) {
-                destroySpirit(state, opp, target.instanceId, "deplete")
-            }
+            applySqueeze(opp, target)
         }
         return
 }
@@ -414,22 +453,41 @@ const coreToVoidOwnHandler: ActionHandler<"coreToVoidOwn"> = (ctx, action) => {
 }
 
 const bothSidesCoreToTrashHandler: ActionHandler<"bothSidesCoreToTrash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 両プレイヤーのフィールドから各自の実効BP最大スピリット1体を選び、
-        // そのコアを各持ち主のトラッシュへ（片側のみ対象がいてもその側は処理する）
+    const { state, sourceName } = ctx
+        // 両プレイヤーが各自のフィールドのスピリットから、コアの多い個体から順に
+        // 合計count個を各持ち主のトラッシュへ（1体で足りなければ次にコアが多い個体へ繰り越す。
+        // 維持コア割れの消滅処理はopponentCoresToTrashHandlerと同じ判定を用いる。
+        // 片側のみ対象がいてもその側は処理する。BS01メタルディー・バグ＝count1、BS02マインドコントロール＝count4）
         for (const pid of ["p1", "p2"] as PlayerId[]) {
-            const spirits = state.players[pid].field.spirits
-            if (spirits.length === 0) {
-                log(
-                    state,
-                    `${sourceName}：${state.players[pid].name}のフィールドにスピリットがいなかった。`,
-                )
+            const player = state.players[pid]
+            if (player.field.spirits.length === 0) {
+                log(state, `${sourceName}：${player.name}のフィールドにスピリットがいなかった。`)
                 continue
             }
-            const target = spirits.reduce((best, s) =>
-                effectiveBp(state, pid, s) > effectiveBp(state, pid, best) ? s : best,
-            )
-            removeCoresToTrash(state, pid, target, action.count, owner)
+            let remaining = action.count
+            let moved = 0
+            while (remaining > 0) {
+                const richest = player.field.spirits
+                    .filter((s) => s.cores > 0)
+                    .reduce<CardInstance | undefined>(
+                        (best, s) => (best === undefined || s.cores > best.cores ? s : best),
+                        undefined,
+                    )
+                if (!richest) break
+                const take = Math.min(remaining, richest.cores)
+                richest.cores -= take
+                player.trashCores += take
+                remaining -= take
+                moved += take
+                if (richest.cores < minLevelCores(getCard(richest.cardId))) {
+                    destroySpirit(state, pid, richest.instanceId, "deplete")
+                }
+            }
+            if (moved > 0) {
+                log(state, `${sourceName}：${player.name}のスピリットからコア${moved}個をトラッシュに置いた。`)
+            } else {
+                log(state, `${sourceName}：${player.name}のスピリットにコアがなかった。`)
+            }
         }
         return
 }
@@ -1014,6 +1072,121 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         return
 }
 
+const voidCoresToNexusLevelHandler: ActionHandler<"voidCoresToNexusLevel"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        // フルアッド：自分のネクサス1つがlevelになるように、不足分のコアをボイドから置く。
+        // 対象決定はvoidCoreToOwnNexusesのsingle分岐と同じ優先順（targetInstanceId→
+        // interactiveTargets時はrequestChoice→自動時はコア数最少）
+        const nexuses = state.players[owner].field.nexuses
+        if (nexuses.length === 0) {
+            log(state, `${sourceName}：自分のネクサスがなかった。`)
+            return
+        }
+        let target = targetInstanceId
+            ? nexuses.find((n) => n.instanceId === targetInstanceId)
+            : undefined
+        if (!target) {
+            if (nexuses.length >= 2 && state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：Lv${action.level}にするネクサスを選んでください`,
+                    nexuses.map((n) => n.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+            target = nexuses.reduce((best, n) => (n.cores < best.cores ? n : best))
+        }
+        const required = coresForLevel(getCard(target.cardId), action.level)
+        if (required === null || target.cores >= required) {
+            log(state, `${sourceName}：${getCard(target.cardId).name}は対象条件を満たさなかった。`)
+            return
+        }
+        const amount = required - target.cores
+        placeCoresOnSpirit(state, target, amount, owner)
+        log(
+            state,
+            `${sourceName}：ボイドからコア${amount}個を${getCard(target.cardId).name}に置き、Lv${action.level}にした。`,
+        )
+        return
+}
+
+const opponentNexusOrReserveCoreToTrashHandler: ActionHandler<"opponentNexusOrReserveCoreToTrash"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+        // エナジードレイン：相手のネクサス（コア数最多）にコアがあればそこから、
+        // 無ければ相手のリザーブから、count個を相手のトラッシュへ
+        const oppPlayer = state.players[opp]
+        const richestNexus = oppPlayer.field.nexuses
+            .filter((n) => n.cores > 0)
+            .reduce<CardInstance | undefined>(
+                (best, n) => (best === undefined || n.cores > best.cores ? n : best),
+                undefined,
+            )
+        if (richestNexus) {
+            const take = Math.min(action.count, richestNexus.cores)
+            richestNexus.cores -= take
+            oppPlayer.trashCores += take
+            log(
+                state,
+                `${sourceName}：${getCard(richestNexus.cardId).name}（ネクサス）のコア${take}個をトラッシュに置いた。`,
+            )
+            return
+        }
+        if (oppPlayer.reserve > 0) {
+            const take = Math.min(action.count, oppPlayer.reserve)
+            oppPlayer.reserve -= take
+            oppPlayer.trashCores += take
+            log(state, `${sourceName}：${oppPlayer.name}のリザーブのコア${take}個をトラッシュに置いた。`)
+            return
+        }
+        log(state, `${sourceName}：相手のネクサス・リザーブにコアがなかった。`)
+        return
+}
+
+const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+        // インフェルノアイズ：両プレイヤーが各自のスピリット+ネクサスから、コアの多い個体から順に
+        // 合計count個をボイドへ（維持コア割れの消滅処理はスピリットのみ。ネクサスは消滅しない）
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            const player = state.players[pid]
+            let remaining = action.count
+            let moved = 0
+            while (remaining > 0) {
+                let richest: CardInstance | undefined
+                let richestKind: "spirit" | "nexus" | undefined
+                for (const s of player.field.spirits) {
+                    if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+                        richest = s
+                        richestKind = "spirit"
+                    }
+                }
+                for (const n of player.field.nexuses) {
+                    if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
+                        richest = n
+                        richestKind = "nexus"
+                    }
+                }
+                if (!richest || !richestKind) break
+                const take = Math.min(remaining, richest.cores)
+                richest.cores -= take
+                remaining -= take
+                moved += take
+                if (richestKind === "spirit" && richest.cores < minLevelCores(getCard(richest.cardId))) {
+                    destroySpirit(state, pid, richest.instanceId, "deplete")
+                }
+            }
+            if (moved > 0) {
+                log(state, `${sourceName}：${player.name}のスピリット/ネクサスからコア${moved}個をボイドに置いた。`)
+            } else {
+                log(state, `${sourceName}：${player.name}のフィールドにコアがなかった。`)
+            }
+        }
+        return
+}
+
 const handlers = {
     coreRemove: coreRemoveHandler,
     coreRemoveMulti: coreRemoveMultiHandler,
@@ -1047,6 +1220,9 @@ const handlers = {
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
     lifeCharge: lifeChargeHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
+    voidCoresToNexusLevel: voidCoresToNexusLevelHandler,
+    opponentNexusOrReserveCoreToTrash: opponentNexusOrReserveCoreToTrashHandler,
+    bothSidesCoreToVoid: bothSidesCoreToVoidHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

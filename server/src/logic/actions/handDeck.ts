@@ -39,6 +39,43 @@ const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
         return
 }
 
+const drawUpToHandler: ActionHandler<"drawUpTo"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // フォースドロー：自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op）
+        const player = state.players[owner]
+        const need = action.size - player.hand.length
+        if (need <= 0) {
+            log(state, `${sourceName}：手札がすでに${action.size}枚以上のためドローしなかった。`)
+            return
+        }
+        draw(state, owner, need)
+        return
+}
+
+const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // トリックプランク：自分のトラッシュにあるスピリットカードを末尾（新しい方）から
+        // 最大count枚、その順で自分のデッキの下に戻す（選択・順序の決定的簡略化）
+        const player = state.players[owner]
+        const indices: number[] = []
+        for (let j = player.trashCards.length - 1; j >= 0 && indices.length < action.count; j--) {
+            if (getCard(player.trashCards[j]!).type === "spirit") indices.push(j)
+        }
+        if (indices.length === 0) {
+            log(state, `${sourceName}：トラッシュにスピリットカードがなかった。`)
+            return
+        }
+        // indices は末尾（新しい方）→先頭の順に収集済み。この順のままデッキの下へ積む
+        const movedIds = indices.map((j) => player.trashCards[j]!)
+        for (const j of indices) player.trashCards.splice(j, 1)
+        for (const id of movedIds) player.deck.push(id)
+        log(
+            state,
+            `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
+        )
+        return
+}
+
 const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -344,6 +381,29 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         }
         const isRecoverable = (cardId: string): boolean =>
             getCard(cardId).type === "spirit" && familyOk(cardId)
+        // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
+        if (action.all) {
+            const indices: number[] = []
+            for (let j = 0; j < player.trashCards.length; j++) {
+                if (isRecoverable(player.trashCards[j]!)) indices.push(j)
+            }
+            if (indices.length === 0) {
+                log(state, `${sourceName}のスピリット回収：トラッシュに対象がいなかった。`)
+                return
+            }
+            const recoveredIds = indices.map((j) => player.trashCards[j]!)
+            // インデックスが大きい順に取り除く（splice時のズレを防ぐ）
+            for (let k = indices.length - 1; k >= 0; k--) {
+                player.trashCards.splice(indices[k]!, 1)
+            }
+            player.hand.push(...recoveredIds)
+            log(
+                state,
+                `${player.name}は「${recoveredIds.map((id) => getCard(id).name).join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, recoveredIds.length)
+            return
+        }
         if (state.interactiveTargets) {
             const indices = player.trashCards
                 .map((id, i) => ({ id, i }))
@@ -698,6 +758,8 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
 const handlers = {
     draw: drawHandler,
     drawPer: drawPerHandler,
+    drawUpTo: drawUpToHandler,
+    trashSpiritsToDeckBottom: trashSpiritsToDeckBottomHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
