@@ -11,7 +11,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, sokuPayableInstanceIds } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -124,6 +124,18 @@ export function validateSummon(
         const cap = maxSpiritsOnField(state)
         if (cap !== null && player.field.spirits.length >= cap) {
             return `効果により、スピリットは${cap}体までしか召喚できません`
+        }
+    }
+
+    // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
+    // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
+    // 許可したインスタンスの上のコアだけ、例外的に使える
+    if (flashSummon && paySources && paySources.length > 0) {
+        const allowed = sokuPayableInstanceIds(state, pid)
+        for (const src of paySources) {
+            if (!allowed.has(src.instanceId)) {
+                return "【神速】での召喚は、コアをリザーブから支払う必要があります"
+            }
         }
     }
 

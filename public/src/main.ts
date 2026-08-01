@@ -14,7 +14,7 @@ import {
     showWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, canAwakenFromReserve } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -385,6 +385,12 @@ function assignPayCore(instanceId: string): void {
         return
     }
     const card = master(cardId)
+    // 【神速】召喚は基礎ルールではリザーブからのみ支払える。
+    // sokuPaySourceGrant（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が許可した対象のみ例外
+    // （判定はサーバー validateSummon と同一の共有実装）
+    if (view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")) {
+        if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
+    }
     const cost = effectiveCost(view, view.you, card)
     const targetLevel = pay.level || 1
     const lv = card.levels.find((l) => l.level === targetLevel)

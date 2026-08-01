@@ -21619,7 +21619,19 @@
      "count": 1
     },
     "optional": false
+   },
+   {
+    "id": "BS04-033-e2",
+    "kind": "sokuPaySourceGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "scope": "self",
+    "phase": "attack",
+    "turn": "own"
    }
+
   ]
  },
  {
@@ -24073,7 +24085,18 @@
      "type": "maxSpiritsOnField",
      "max": 4
     }
+   },
+   {
+    "id": "BS04-080-e2",
+    "kind": "sokuPaySourceGrant",
+    "levels": [
+     2
+    ],
+    "scope": "anyField",
+    "phase": "attack",
+    "turn": "own"
    }
+
   ]
  },
  {

@@ -767,6 +767,33 @@ export function cantActByCost(board: Board, inst: CardInstance): boolean {
 // 静的キーワードは **effects の levels を尊重する**（「Lv2・Lv3【覚醒】」を Lv1 で使えないようにする）。
 // 一時付与（スピリットリンク）・継続付与（ディラノス）はレベル指定を持たないためそのまま有効。
 // なお spiritHasKeyword の静的分岐はレベルを見ないため、レベルを尊重したい呼び出しはこちらを使う
+// 【神速】召喚のコスト支払いに使える、持ち主のフィールドのインスタンス集合。
+//
+// **基礎ルール: 神速召喚の支払いはリザーブからのみ**（通常召喚と違い、フィールドのコアは使えない）。
+// kind:"sokuPaySourceGrant" が有効な発生源があるぶんだけ、フィールドからの支払いが許可される
+// （BS04旋風渦巻く渓谷Lv2＝自分のフィールドすべて／BS04甲殻戦士ロングホーンLv2-3＝ロングホーン上のみ）。
+// サーバー validateSummon とクライアントの支払いUIが共用する
+export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string> {
+    const allowed = new Set<string>()
+    for (const source of effectSources(board, pid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "sokuPaySourceGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.scope === "self") {
+                allowed.add(source.instanceId)
+                continue
+            }
+            const player = board.players[pid]
+            for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+                allowed.add(inst.instanceId)
+            }
+        }
+    }
+    return allowed
+}
+
 // GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
 // 通常の instanceId とは衝突しない固定文字列（BS05合成恐竜ディノゾールLv2）
 export const AWAKEN_FROM_RESERVE = "reserve"
