@@ -317,11 +317,14 @@ export function validateMoveCore(
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスもレベルを上げ下げできる（コアを置く／戻す）。
+    // ネクサスの Lv1 は全カード0コアのため、下の維持コア判定でそのまま0まで戻せる
+    const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     if (direction === "add") {
         if (player.reserve < 1) return "リザーブにコアがありません"
     } else {
+        if (inst.cores < 1) return "コアが置かれていません"
         const need = minLevelCores(getCard(inst.cardId))
         if (inst.cores - 1 < need) {
             return "維持コア（Lv1）を下回るためコアを取り除けません"

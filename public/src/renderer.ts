@@ -560,6 +560,21 @@ function renderField(
     }
 }
 
+// コア移動ボタン（+/−）。スピリットとネクサスで共用する
+function coreButtonsEl(instanceId: string): HTMLElement {
+    const btns = document.createElement("div")
+    btns.className = "core-buttons"
+    for (const dir of ["add", "remove"] as const) {
+        const b = document.createElement("button")
+        b.dataset.core = dir
+        b.dataset.instanceId = instanceId
+        b.textContent = dir === "add" ? "+" : "−"
+        b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
+        btns.appendChild(b)
+    }
+    return btns
+}
+
 function fieldCardEl(
     view: GameView,
     ui: UiState,
@@ -659,6 +674,11 @@ function fieldCardEl(
             if (assigned < inst.cores) {
                 el.classList.add("targetable", "clickable")
             }
+            return el
+        }
+        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる
+        if (isMine && myMainFree && !view.pendingChoice) {
+            el.appendChild(coreButtonsEl(inst.instanceId))
         }
         return el
     }
@@ -771,17 +791,7 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            const btns = document.createElement("div")
-            btns.className = "core-buttons"
-            for (const dir of ["add", "remove"] as const) {
-                const b = document.createElement("button")
-                b.dataset.core = dir
-                b.dataset.instanceId = inst.instanceId
-                b.textContent = dir === "add" ? "+" : "−"
-                b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
-                btns.appendChild(b)
-            }
-            el.appendChild(btns)
+            el.appendChild(coreButtonsEl(inst.instanceId))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能

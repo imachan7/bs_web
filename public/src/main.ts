@@ -622,6 +622,16 @@ async function init(): Promise<void> {
 
     // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合と支払いモード中はコア割り当て対象になる
     byId("my-nexuses").addEventListener("click", (e) => {
+        // コア移動ボタンが先（カードクリックと区別する）。ネクサスもコアでレベルを上げ下げできる
+        const coreBtn = closestData(e, "data-core")
+        if (coreBtn) {
+            send({
+                type: "moveCore",
+                instanceId: String(coreBtn.dataset.instanceId),
+                direction: coreBtn.dataset.core === "add" ? "add" : "remove",
+            })
+            return
+        }
         const el = closestData(e, "data-instance-id")
         if (!el) return
         const instanceId = String(el.dataset.instanceId)

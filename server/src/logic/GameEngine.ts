@@ -342,13 +342,16 @@ function doMoveCore(
     if (error) return error
 
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    const spirit = findSpirit(player, instanceId)
+    const inst = spirit ?? findNexus(player, instanceId)
+    if (!inst) return "対象のカードが見つかりません"
 
     if (direction === "add") {
         player.reserve -= 1
         inst.cores += 1
-        checkExhaustOnCoreChange(state, pid, inst)
+        // 夢魔の寝所／魔影街は「コアの数を増やした**スピリット**すべては疲労する」ため、
+        // ネクサスへのコア追加では発火させない
+        if (spirit) checkExhaustOnCoreChange(state, pid, spirit)
     } else {
         inst.cores -= 1
         player.reserve += 1
