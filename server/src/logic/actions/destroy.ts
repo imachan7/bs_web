@@ -398,8 +398,8 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
 
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する
-        // （本来はプレイヤーが選ぶ処理だが、決定的な自動選択で簡略化）
+        // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
+        // 実対戦（interactiveTargets）ではプレイヤーが選び、非対話時はコスト最大を自動選択する
         const candidates = state.players[owner].field.spirits.filter(
             (s) =>
                 (!self || s.instanceId !== self.instanceId) &&
@@ -409,9 +409,30 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        const target = candidates.reduce((best, s) =>
-            getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
-        )
+        // pendingChoice 解決時は選ばれた1体を使う
+        const chosenTarget = targetInstanceId
+            ? candidates.find((s) => s.instanceId === targetInstanceId)
+            : undefined
+        if (!chosenTarget && targetInstanceId === undefined && state.interactiveTargets) {
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：破壊する自分のスピリットを選んでください`,
+                    candidates,
+                    action,
+                    null,
+                )
+            ) {
+                return
+            }
+        }
+        const target =
+            chosenTarget ??
+            candidates.reduce((best, s) =>
+                getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
+            )
         const targetCost = getCard(target.cardId).cost
         const targetName = getCard(target.cardId).name
         destroySpirit(state, owner, target.instanceId)
@@ -458,15 +479,33 @@ const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCor
 
 const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexusThenWipeEnemyNexusCores"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // サクリファイス：自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、
-        // 相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスを選ぶのは
-        // 本来プレイヤーの選択だが、コア数最小を自動選択する決定的な簡略化）
+        // サクリファイス：自分のネクサス1つを破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く。
+        // 実対戦（interactiveTargets）では破壊するネクサスをプレイヤーが選び、
+        // 非対話時はコア数最小（同数は配列先頭）を自動選択する
         const mine = state.players[owner].field.nexuses
         if (mine.length === 0) {
             log(state, `${sourceName}：自分のネクサスがなかった。`)
             return
         }
-        const sacrifice = mine.reduce((best, n) => (n.cores < best.cores ? n : best))
+        const chosenNexus = targetInstanceId
+            ? mine.find((n) => n.instanceId === targetInstanceId)
+            : undefined
+        if (!chosenNexus && targetInstanceId === undefined && state.interactiveTargets) {
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：破壊する自分のネクサスを選んでください`,
+                    mine,
+                    action,
+                    null,
+                )
+            ) {
+                return
+            }
+        }
+        const sacrifice = chosenNexus ?? mine.reduce((best, n) => (n.cores < best.cores ? n : best))
         const destroyed = destroyNexus(state, owner, sacrifice.instanceId)
         if (!destroyed) {
             log(state, `${sourceName}：ネクサスを破壊できなかったため効果は発動しなかった。`)
