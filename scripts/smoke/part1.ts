@@ -602,13 +602,15 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     s.players.p1.reserve = 10
     cost = effectiveCost(s, "p1", leewolfCard)
 
+    // フィールドのコアはコストにも「置くコア」にも充当できるため、上限は cost + 維持コア。
+    // それを1個でも超えると拒否される（2026-08-01 利用者確認により上限を cost から広げた）
     assert(
         act(s, "p1", {
             type: "summon",
             handIndex: 0,
-            paySources: [{ instanceId: payer2.instanceId, count: cost + 1 }],
+            paySources: [{ instanceId: payer2.instanceId, count: cost + leewolfMaintain + 1 }],
         }) !== null,
-        "過払い（合計 > コスト）は拒否される",
+        "過払い（合計 > コスト+置くコア）は拒否される",
     )
     assert(
         act(s, "p1", {

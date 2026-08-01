@@ -7,6 +7,7 @@ import {
     magicTargetSide,
     master,
     matchesDirectedAttackFilter,
+    payableFieldCores,
     render,
     setCardDb,
     setupEffectTooltip,
@@ -146,8 +147,11 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     
     if (level === undefined && (card.type === "spirit" || card.type === "nexus")) {
         const reserve = view.players[view.you].reserve
-        // Check affordable levels (cost + level.cores <= reserve)
-        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        const cardIdForField = view.players[view.you].hand?.[handIndex]
+        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
+        // 選択肢に出すレベルの判定にもフィールドのコアを含める
+        const fieldCores = cardIdForField ? payableFieldCores(view, cardIdForField) : 0
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
         
         // If they can afford Lv2 or higher, show level selection
         if (affordableLevels.length > 1) {
@@ -397,7 +401,8 @@ function assignPayCore(instanceId: string): void {
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
-    if (assignedTotal >= cost) return // コスト上限に到達済み（過払い防止）
+    // フィールドのコアはコストにも置くコアにも充当できるため、上限は cost + maintain
+    if (assignedTotal >= cost + maintain) return // 必要数に到達済み（過払い防止）
     if (already >= inst.cores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
     const newTotal = assignedTotal + 1

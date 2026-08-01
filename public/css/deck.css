@@ -365,6 +365,97 @@ input[type="text"] {
     z-index: 10;
 }
 
+/* ---- カード種別コストアイコン（バトスピ物理カード準拠） ---- */
+/* スピリット: 丸（デフォルト） — 変更なし */
+
+/* ネクサス: 六角形 */
+.cost-badge.cost-nexus,
+.row-cost.cost-nexus {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.cost-badge.cost-nexus {
+    width: 28px;
+    height: 28px;
+    top: -6px;
+    left: -6px;
+}
+
+.row-cost.cost-nexus {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+
+/* マジック: 二重菱形（角と辺をずらして重ねた2枚のひし形） */
+.cost-badge.cost-magic,
+.row-cost.cost-magic {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.cost-badge.cost-magic {
+    width: 28px;
+    height: 30px;
+    top: -6px;
+    left: -6px;
+}
+
+.row-cost.cost-magic {
+    width: 24px;
+    height: 26px;
+    line-height: 26px;
+}
+
+.cost-badge.cost-magic::before,
+.cost-badge.cost-magic::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    z-index: -1;
+}
+
+.cost-badge.cost-magic::before {
+    transform: translate(-50%, calc(-50% - 3px)) rotate(45deg);
+}
+
+.cost-badge.cost-magic::after {
+    transform: translate(-50%, calc(-50% + 3px)) rotate(45deg);
+}
+
+.row-cost.cost-magic::before,
+.row-cost.cost-magic::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    z-index: -1;
+}
+
+.row-cost.cost-magic::before {
+    transform: translate(-50%, calc(-50% - 2px)) rotate(45deg);
+}
+
+.row-cost.cost-magic::after {
+    transform: translate(-50%, calc(-50% + 2px)) rotate(45deg);
+}
+
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
 @media (hover: none) {
     .add-btn {

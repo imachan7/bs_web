@@ -31,6 +31,7 @@ import {
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
+    sokuPayableInstanceIds,
     canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
@@ -114,6 +115,19 @@ export const hasMagicImmunityView = hasMagicImmunity
 // コスト計算はサーバーと同一の共有実装（shared/cost）を使う。
 // main.ts が effectiveCost を import しているため、ここから再エクスポートする
 export { effectiveCost }
+
+// 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+// 【神速】召喚のときは基礎ルールでリザーブのみのため、sokuPaySourceGrant が許可した対象だけ数える
+// （判定はサーバー validateSummon と同一の共有実装）
+export function payableFieldCores(view: GameView, cardId: string): number {
+    const player = view.players[view.you]
+    const card = master(cardId)
+    const isSoku = view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")
+    const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
+    return [...player.field.spirits, ...player.field.nexuses]
+        .filter((i) => allowed === null || allowed.has(i.instanceId))
+        .reduce((sum, i) => sum + i.cores, 0)
+}
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
@@ -387,11 +401,18 @@ export function render(view: GameView, ui: UiState): void {
         const card = master(ui.summonLevelSelect.cardId)
         const cost = effectiveCost(view, view.you, card)
         const reserve = view.players[view.you].reserve
-        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
+        // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
+        const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
         for (const l of affordableLevels) {
             const b = document.createElement("button")
             b.dataset.summonLevel = String(l.level)
-            b.textContent = `Lv${l.level} (${l.cores}コア)`
+            const needsField = reserve < cost + l.cores
+            b.textContent = needsField
+                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
+                : `Lv${l.level} (${l.cores}コア)`
+            if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -405,7 +426,7 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         $("targeting-info").textContent =
-            `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
+            `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
     } else if (ui.awakenTarget !== null) {
         const fromReserve = canAwakenFromReserve(view, view.you)
         $("targeting-info").textContent = fromReserve

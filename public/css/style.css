@@ -1156,3 +1156,12 @@ button:active {
         scroll-behavior: auto !important;
     }
 }
+
+/* ---- 召喚レベル選択：リザーブだけでは足りず、フィールドのコアを使うレベル ---- */
+#choice-options button.needs-field-cores {
+    border-color: #c9a227;
+    background: rgba(201, 162, 39, 0.15);
+}
+#choice-options button.needs-field-cores::before {
+    content: "💠 ";
+}

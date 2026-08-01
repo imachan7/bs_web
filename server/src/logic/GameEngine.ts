@@ -128,31 +128,46 @@ function dispatchAction(
     }
 }
 
-// コストを支払う（指定があればスピリット上のコア→トラッシュ、残りはリザーブ→トラッシュ）。
+// コストと「召喚/配置したカードの上に置くコア」をまとめて支払う。
+//
+// paySources（自分のフィールドのスピリット/ネクサス上のコア）から取ったぶんは、
+// **先にコストへ充当し、余りを置くコアへ回す**。コスト充当分はトラッシュへ行き、
+// 置くコアに回った分はそのままカードの上へ置かれる（＝トラッシュを経由しない）。
+// 不足分はリザーブから支払う。
+// 戻り値は「置くコアのうちフィールドから賄えた数」で、呼び出し側はリザーブから引く数を
+// maintain - placedFromField にする。
 // 支払い後、維持コア（Lv1）を下回った支払い元スピリットは消滅する。
 function payCost(
     state: GameState,
     pid: PlayerId,
     cost: number,
     paySources?: PaySource[],
-): void {
+    maintain = 0,
+): number {
     const player = state.players[pid]
-    let paidFromSpirits = 0
+    let takenFromField = 0
     if (paySources && paySources.length > 0) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
             if (!inst) continue
             const paid = Math.min(src.count, inst.cores)
             inst.cores -= paid
-            player.trashCores += paid
-            paidFromSpirits += paid
+            takenFromField += paid
         }
     }
-    const remaining = cost - paidFromSpirits
-    player.reserve -= remaining
-    player.trashCores += remaining
-    if (paidFromSpirits > 0) {
-        log(state, `${player.name}はフィールドのコア${paidFromSpirits}個を含めてコストを支払った。`)
+    // フィールドから取ったコアはコスト優先で充当し、余りを置くコアへ（上限は maintain）
+    const costFromField = Math.min(takenFromField, cost)
+    const placedFromField = Math.min(takenFromField - costFromField, maintain)
+    // コスト充当分（フィールド由来＋リザーブ由来）はトラッシュへ
+    const costFromReserve = cost - costFromField
+    player.reserve -= costFromReserve
+    player.trashCores += costFromField + costFromReserve
+    // 置くコアに回りきらなかった余剰はリザーブへ戻す（validate 側で弾いているので通常は0）
+    const surplus = takenFromField - costFromField - placedFromField
+    if (surplus > 0) player.reserve += surplus
+    if (takenFromField > 0) {
+        const placedNote = placedFromField > 0 ? `（うち${placedFromField}個は置くコアに充当）` : ""
+        log(state, `${player.name}はフィールドのコア${takenFromField}個を含めて支払った。${placedNote}`)
     }
     // 全支払い完了後、支払い元スピリットが維持コア（Lv1）を下回っていたら消滅させる
     // （ここは意図的に findSpirit のみを検索する。ネクサスは維持コアの概念がなく
@@ -165,6 +180,7 @@ function payCost(
             }
         }
     }
+    return placedFromField
 }
 
 // バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
@@ -207,8 +223,9 @@ function doSummon(
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
-    payCost(state, pid, cost, paySources)
-    player.reserve -= maintain // 置くコアはリザーブから直接スピリットへ
+    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
+    const placedFromField = payCost(state, pid, cost, paySources, maintain)
+    player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
 
     const inst = createInstance(cardId, state.turn, maintain)
@@ -261,8 +278,9 @@ function doSetNexus(
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
-    payCost(state, pid, cost, paySources)
-    player.reserve -= maintain
+    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
+    const placedFromField = payCost(state, pid, cost, paySources, maintain)
+    player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
 
     player.field.nexuses.push(createInstance(cardId, state.turn, maintain))

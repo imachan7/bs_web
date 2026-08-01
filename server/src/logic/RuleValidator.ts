@@ -55,15 +55,18 @@ function checkMainTiming(state: GameState, pid: PlayerId): string | null {
 
 // コスト支払いの妥当性を検証する（スピリット上のコアを併用する場合）。
 // paySources 未指定・空配列なら従来通りリザーブのみで cost を賄えるか検証する。
+// need はコストと「置くコア（維持コア）」の合計。
+// フィールドのコア（paySources）はコストにも置くコアにも充当できる（利用者確認 2026-08-01）ため、
+// 上限は need であって cost ではない
 function validatePaySources(
     state: GameState,
     pid: PlayerId,
-    cost: number,
+    need: number,
     paySources: PaySource[] | undefined,
 ): string | null {
     const player = state.players[pid]
     if (!paySources || paySources.length === 0) {
-        if (player.reserve < cost) return "コアが足りません"
+        if (player.reserve < need) return "コアが足りません"
         return null
     }
     const seen = new Set<string>()
@@ -77,8 +80,8 @@ function validatePaySources(
         if (src.count > inst.cores) return "支払い元のコアが足りません"
         total += src.count
     }
-    if (total > cost) return "コストを超えてコアを支払うことはできません"
-    if (player.reserve < cost - total) return "コアが足りません"
+    if (total > need) return "必要数を超えてコアを支払うことはできません"
+    if (player.reserve < need - total) return "コアが足りません"
     return null
 }
 
@@ -144,12 +147,12 @@ export function validateSummon(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
-    const payError = validatePaySources(state, pid, cost, paySources)
-    if (payError) return payError
-    // 置くコアは必ずリザーブから払うため、コアで賄えなかった分+置くコアがリザーブに残っているか検証
-    const total = paySourcesTotal(paySources)
-    if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+    // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
+    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    if (payError) {
+        return payError === "コアが足りません"
+            ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+            : payError
     }
     return null
 }
@@ -203,11 +206,12 @@ export function validateSetNexus(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
-    const payError = validatePaySources(state, pid, cost, paySources)
-    if (payError) return payError
-    const total = paySourcesTotal(paySources)
-    if (player.reserve < cost - total + maintain) {
-        return `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+    // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
+    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    if (payError) {
+        return payError === "コアが足りません"
+            ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
+            : payError
     }
     return null
 }

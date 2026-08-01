@@ -179,7 +179,7 @@ function renderPool(): void {
 
         // コストバッジ
         const costBadge = document.createElement("span")
-        costBadge.className = "cost-badge"
+        costBadge.className = `cost-badge cost-${card.type}`
         costBadge.textContent = String(card.cost)
         el.appendChild(costBadge)
 
@@ -474,7 +474,7 @@ function renderDeck(): void {
         row.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
 
         const cost = document.createElement("span")
-        cost.className = "row-cost"
+        cost.className = `row-cost cost-${card.type}`
         cost.textContent = String(card.cost)
         row.appendChild(cost)
 

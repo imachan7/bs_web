@@ -149,13 +149,15 @@ console.log("=== paySources合計がコストを超える場合の拒否（ネ�
     s.players.p1.reserve = 10
     const cost = effectiveCost(s, "p1", leewolfCard)
 
+    // ネクサス上のコアもコスト＋置くコアに充当できる（上限は cost + 維持コア）
+    const leewolfMaintain = minLevelCores(leewolfCard)
     assert(
         act(s, "p1", {
             type: "summon",
             handIndex: 0,
-            paySources: [{ instanceId: nexus.instanceId, count: cost + 1 }],
+            paySources: [{ instanceId: nexus.instanceId, count: cost + leewolfMaintain + 1 }],
         }) !== null,
-        "ネクサス経由でも過払い（合計 > コスト）は拒否される（維持コアは必ずリザーブから）",
+        "ネクサス経由でも過払い（合計 > コスト+置くコア）は拒否される",
     )
     assert(nexus.cores === 5, "拒否された支払いではネクサスのコアは変化しない")
 }
