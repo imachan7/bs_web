@@ -665,9 +665,16 @@ function doResolveChoice(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (option !== undefined) {
-            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+            // confirm（「〜できる」の発動確認）は選んだラベルを渡さない。
+            // 渡すと、選択肢を解釈するアクション（grantColorChoice 等）が誤動作する
+            if (pending.confirm) {
+                resolveAction(state, pending.pid, self, pending.action)
+            } else {
+                resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+            }
         } else {
-            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
+            const name = self ? getCard(self.cardId).name : "効果"
+            log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid, pending.queue)

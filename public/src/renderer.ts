@@ -617,9 +617,15 @@ function fieldCardEl(
     const stats = document.createElement("div")
     stats.className = "stats"
     stats.textContent = isNexus
-        ? `コスト${m.cost} Lv${level}`
-        : `コスト${m.cost} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        ? `Lv${level}`
+        : `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
+
+    // コストバッジを左上に表示
+    const costBadge = document.createElement("div")
+    costBadge.className = `cost-badge cost-${m.type}`
+    costBadge.textContent = String(m.cost)
+    el.appendChild(costBadge)
 
     const cores = document.createElement("div")
     cores.className = "cores"

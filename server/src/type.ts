@@ -366,7 +366,9 @@ export type EffectDef =
           trigger: TriggerEvent
           levels: number[] | null
           action: EffectAction
-          optional: boolean // 「〜できる」= 任意（自動処理では常に発動）
+          optional: boolean // 「〜できる」= 任意。interactiveTargets（実対戦）では発動確認の
+          // pendingChoice（kind:"option" / confirm:true）を出し、選ばなければ発動しない。
+          // interactiveTargets=false（テスト）では従来どおり常に発動する
           battleRole?: "attacker" | "blocker" // onBattle 専用：勝利したときの自分の役割がこれと一致する場合のみ発火（省略時は従来通り常に発火）
           condition?:
               | { opponentNexusColorsAtLeast: number } // 指定時、持ち主から見て相手フィールドのネクサスの色数（重複除く）がこれ以上のときのみ発火（溶海竜プレシオスLv3）
@@ -394,6 +396,7 @@ export type EffectDef =
           turn: "own" | "opponent" | "both" // own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時、both=常に
           levels: number[] | null
           action: EffectAction
+          optional?: true // 「〜できる」= 任意。triggered.optional と同じく、interactiveTargets では発動確認を出す（BS02皇帝アンプルール：リザーブのコアを払う任意コスト）
           condition?:
               | "handNotGreaterThanOpponent" // 持ち主の手札枚数が相手以下（主無き古城Lv2）
               | "selfWasRefreshedThisStep" // 発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
@@ -858,6 +861,9 @@ export interface PendingChoice {
     cardOwner?: PlayerId // kind:"card" のとき必須：ゾーンの持ち主（今回は常に pid 自身のゾーン＝pidと同値）
     cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
     optional: boolean // true ならスキップ（選ばない）可
+    confirm?: true // 「〜できる」効果の発動確認（kind:"option" 限定）。選択肢は1つだけで、
+    // **選んだラベルを chosenOption として action に渡さない**（渡すと選択肢を解釈するアクションが誤動作する）。
+    // スキップ＝発動しない。EffectDef.triggered.optional が true のときに fireTrigger が立てる
     action: EffectAction // 選択後に resolveAction する本体
     selfInstanceId: string | null // 発生源スピリット（self の復元用）
     queue: { selfInstanceId: string | null; action: EffectAction }[] // 中断された残りアクション

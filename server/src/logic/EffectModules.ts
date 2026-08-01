@@ -1721,6 +1721,31 @@ export function resolveAction(
 
 }
 
+// 「〜できる」（EffectDef.triggered.optional）の発動確認。
+// 選択肢は「発動する」1つだけで、スキップ（選ばない）＝発動しない。
+// confirm:true により、選んだラベルは chosenOption として action に渡らない
+// （渡すと grantColorChoice / grantFamilyChoiceAll のように選択肢を解釈するアクションが誤動作する）
+export function requestActivationConfirm(
+    state: GameState,
+    pid: PlayerId,
+    prompt: string,
+    action: EffectAction,
+    self: CardInstance | null,
+): void {
+    state.pendingChoice = {
+        pid,
+        kind: "option",
+        prompt,
+        candidates: [],
+        options: ["発動する"],
+        optional: true,
+        confirm: true,
+        action,
+        selfInstanceId: self ? self.instanceId : null,
+        queue: [],
+    }
+}
+
 // 選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
 // 2件以上なら state.pendingChoice を立てて GameAction "resolveChoice" を待つ
 export function requestChoice(
@@ -1933,7 +1958,19 @@ export function fireTrigger(
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
-        resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+        // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
+        // interactiveTargets=false（テスト）では従来どおり常に発動する
+        if (effect.optional && state.interactiveTargets) {
+            requestActivationConfirm(
+                state,
+                owner,
+                `${card.name}の効果を発動しますか？`,
+                effect.action,
+                selfInstance,
+            )
+        } else {
+            resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+        }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
@@ -2106,7 +2143,18 @@ export function fireStepTriggers(
                     ).length
                     if (total < count) continue
                 }
-                resolveAction(state, pid, inst, effect.action)
+                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
+                if (effect.optional && state.interactiveTargets) {
+                    requestActivationConfirm(
+                        state,
+                        pid,
+                        `${getCard(inst.cardId).name}の効果を発動しますか？`,
+                        effect.action,
+                        inst,
+                    )
+                } else {
+                    resolveAction(state, pid, inst, effect.action)
+                }
                 if (state.winner) return
                 if (state.pendingChoice) return
             }
