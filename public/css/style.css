@@ -830,11 +830,11 @@ button:active {
     margin: 1px 0;
 }
 
-/* スピリットは円形 */
+/* スピリットは四角形 */
 .spirit-zone .card {
     width: 76px;
     height: 76px;
-    border-radius: 50%;
+    border-radius: 6px;
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
@@ -1164,4 +1164,32 @@ button:active {
 }
 #choice-options button.needs-field-cores::before {
     content: "💠 ";
+}
+
+/* ---- ネクサスのコア移動ボタン ----
+   ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
+   まるごとクリップされて消える。ラッパー（.nexus-slot）の直下にカードと兄弟で置き、
+   六角形の外側へはみ出させる。小さな六角形の上でホバーを狙わせるのは押しづらいので常時表示する */
+.nexus-slot {
+    position: relative;
+    display: inline-flex;
+    /* ボタンが右へはみ出すぶんの余白。隣のネクサスに重ねてクリックを奪わないようにする */
+    margin-right: 22px;
+}
+.nexus-slot .core-buttons {
+    opacity: 1;
+    top: 50%;
+    right: -14px;
+    transform: translateY(-50%);
+    flex-direction: column;
+    gap: 6px;
+    z-index: 2;
+}
+.nexus-slot .core-buttons button {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    background: var(--bg-panel);
+    border: 1px solid #666;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }

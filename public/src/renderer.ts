@@ -676,9 +676,16 @@ function fieldCardEl(
             }
             return el
         }
-        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる
+        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる。
+        // ⚠️ ネクサスは clip-path で六角形に切り抜いているため、カード要素の**子**に置くと
+        // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
+        // クリップされないラッパーの直下へ、カードと**兄弟**として置く
         if (isMine && myMainFree && !view.pendingChoice) {
-            el.appendChild(coreButtonsEl(inst.instanceId))
+            const slot = document.createElement("div")
+            slot.className = "nexus-slot"
+            slot.appendChild(el)
+            slot.appendChild(coreButtonsEl(inst.instanceId))
+            return slot
         }
         return el
     }
