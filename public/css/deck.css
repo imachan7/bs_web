@@ -403,15 +403,15 @@ input[type="text"] {
 
 .cost-badge.cost-magic {
     width: 28px;
-    height: 30px;
+    height: 28px;
     top: -6px;
     left: -6px;
 }
 
 .row-cost.cost-magic {
     width: 24px;
-    height: 26px;
-    line-height: 26px;
+    height: 24px;
+    line-height: 24px;
 }
 
 .cost-badge.cost-magic::before,
@@ -428,11 +428,11 @@ input[type="text"] {
 }
 
 .cost-badge.cost-magic::before {
-    transform: translate(-50%, calc(-50% - 3px)) rotate(45deg);
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .cost-badge.cost-magic::after {
-    transform: translate(-50%, calc(-50% + 3px)) rotate(45deg);
+    transform: translate(-50%, -50%) rotate(0deg);
 }
 
 .row-cost.cost-magic::before,
@@ -449,11 +449,11 @@ input[type="text"] {
 }
 
 .row-cost.cost-magic::before {
-    transform: translate(-50%, calc(-50% - 2px)) rotate(45deg);
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .row-cost.cost-magic::after {
-    transform: translate(-50%, calc(-50% + 2px)) rotate(45deg);
+    transform: translate(-50%, -50%) rotate(0deg);
 }
 
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
@@ -590,6 +590,7 @@ input[type="text"] {
 }
 
 .row-cost {
+    position: relative;
     width: 22px;
     height: 22px;
     line-height: 18px; /* adjusting for 2px border */
