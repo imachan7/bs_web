@@ -25,6 +25,8 @@ import type {
     Keyword,
     Phase,
     PlayerId,
+    ResolvedTargetFilter,
+    TargetFilter,
     TriggerEvent,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -71,6 +73,7 @@ import {
     isVanillaCard,
     isVirtualSource,
     cardNameContains,
+    matchesTarget,
     KEYWORDS,
     instMatchesCostFilter,
     matchesCostFilter,
@@ -102,6 +105,7 @@ export {
     isVanillaCard,
     isVirtualSource,
     cardNameContains,
+    matchesTarget,
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasFamily,
@@ -2271,6 +2275,7 @@ function setMagicRedirect(
     state: GameState,
     casterPid: PlayerId,
     targetInstanceId: string | undefined,
+    action: EffectAction,
 ): void {
     delete state.magicRedirectTo
     const defenderPid = opponentOf(casterPid)
@@ -2281,6 +2286,9 @@ function setMagicRedirect(
             // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
             if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
+            // そもそもこのアクションの絞り込みに合致しなければ「対象に含む」ではない
+            // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
+            if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
             state.magicRedirectTo = { pid: defenderPid, instanceId: inst.instanceId }
             log(
                 state,
@@ -2289,6 +2297,23 @@ function setMagicRedirect(
             return
         }
     }
+}
+
+// 絞り込み対象（サンク）が、そのアクションの filter に合致するか。
+// self 相対BP・バトル敗者参照など「マジック単体では解決できない軸」を含む場合は
+// 判定できないため false（＝絞り込まない＝従来どおりの挙動）にする
+function redirectTargetMatches(
+    state: GameState,
+    defenderPid: PlayerId,
+    inst: CardInstance,
+    action: EffectAction,
+): boolean {
+    const spec = (action as { filter?: TargetFilter }).filter
+    if (!spec) return true
+    if (spec.maxBp === "selfBp" || spec.minBp === "selfBp" || spec.exactBp === "selfBp") return false
+    if (spec.sameColorAsBattleLoser || spec.sameFamilyAsBattleLoser) return false
+    // ここまでで "selfBp" 系は除外済みなので、数値のみの ResolvedTargetFilter として扱える
+    return matchesTarget(state, defenderPid, inst, spec as unknown as ResolvedTargetFilter)
 }
 
 export function resolveMagic(
@@ -2308,9 +2333,6 @@ export function resolveMagic(
     }
     const card = getCard(cardId)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
-    // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
-    // そのマジックの効果の対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
-    setMagicRedirect(state, owner, targetInstanceId)
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
     const effects = card.effects
@@ -2364,6 +2386,9 @@ export function resolveMagic(
                 }
             }
         }
+        // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
+        // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
+        setMagicRedirect(state, owner, targetInstanceId, effect.action)
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
         // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
         resolveAction(

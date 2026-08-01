@@ -595,13 +595,35 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 | 器 | 内容 | 走査点 |
 | :-- | :-- | :-- |
 | `kind:"bpBuffSuppression"` | 発生源の持ち主から見た**相手**の「BPを+する」効果を発揮させない（古代闘技場Lv1） | BP増加アクションは `actions/buff.ts` の**レジストリを包んで**1箇所でゲート／BP増加オーラは `effectiveBp` のオーラ走査。BPを-する効果は対象外 |
-| `globalConstraint:"battlingEffectImmune"` | バトル中の両陣営スピリットは、お互いの**スピリット/マジック**の効果を受けない（茨の決戦地Lv2。ネクサスの効果は通る） | `isBattlingEffectImmune` を装甲・マジック効果耐性と**同じガード地点すべて**へ（破壊・コア除去・疲労・バウンス・候補列挙・マジック対象検証） |
+| `globalConstraint:"battlingEffectImmune"` | バトル中の両陣営スピリットは、お互いの**スピリット/マジック**の効果を受けない（茨の決戦地Lv2。ネクサスの効果は通る） | `isEffectBlocked` を装甲・マジック効果耐性と**同じガード地点すべて**へ（破壊・コア除去・疲労・バウンス・候補列挙・マジック対象検証） |
 | `action:"attackTriggersAsBlockThisTurn"` | 対象1体の『アタック時』効果をこのターン『ブロック時』へ移す（ブレイブチャージ） | `fireTrigger`（`CardInstance.attackTriggersAsBlockThisTurn`。アタック時には発揮されなくなる） |
 | `kind:"awakenFromReserve"` | 【覚醒】のコア移動元に**自分のリザーブ**を追加する（ディノゾールLv2の効果差し替え） | `validateAwaken` / `doAwaken`。`GameAction awaken` の `fromInstanceId` に番兵 `AWAKEN_FROM_RESERVE` を渡す（判定は shared の `canAwakenFromReserve` でクライアントと共用） |
 
+### カード名参照とバトル敗者参照（2026-08-01 バッチ）
+
+BS04 の未実装カードが要求した2つの軸。いずれも `TargetFilter` の軸として足したので、
+既存アクション（`destroy` / `destroyAll` / `exhaust` …）にそのまま乗る。
+
+| 軸 | 内容 |
+| :-- | :-- |
+| `filter.nameContains` | カード名の部分一致（`shared/rules.cardNameContains`）。`battleWon.winnerNameContains` / `constraintSuppression.nameContains` も同じ判定 |
+| `filter.sameColorAsBattleLoser` / `sameFamilyAsBattleLoser` | 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色／系統。`normalizeFilter` が `GameState.lastBattleDestroyedColors / Families` を読んで既存の `color` / `family` 軸へ畳む（記録が空なら不発） |
+
+あわせて入れた器:
+
+- `kind:"constraintSuppression"` — 持ち主の対象スピリットが持つ指定タイプの制約を発揮させない
+  （`activeConstraints` が合成結果から除外する。獣使いドヴェルグ＝「鎧装獣」の `cantAttack`）
+- `ConstraintDef.cantAttack.unlessOpponentHasColorSpirit` — 「相手のフィールドに指定色がいない間」だけ有効。
+  **条件判定は `activeConstraints` が行う**ので、`cantAttack` を読む側は変更不要
+- `kind:"magicTargetRedirect"` — 相手のマジックがこのスピリットを対象に含むとき、対象をこの1体に絞る
+  （アルカナソルジャー・サンクLv2）。`resolveMagic` が `GameState.magicRedirectTo` を**アクションごとに**立て、
+  `isEffectBlocked` が各ガードで参照する。対象に含むかは「明示ターゲットが自身」または
+  「明示ターゲット無し（全体効果）かつ自身が action.filter に合致」で判定する
+- `fieldEvent.selfMode:"source"` — イベント対象ではなく発生源自身を self にする（`battleWon.selfMode` と同型）
+
 ⚠️ 免疫のガードは**5ファイル18箇所に散っている**（`hasArmorAgainst` / `hasMagicImmunity` /
-`isImmuneToArea` / `isUntargetableByOpponent` の組み合わせ）。新しい「効果を受けない」を足すときは
-**全箇所に入れる**こと。1箇所漏らすと、その経路だけ無言ですり抜ける。
+`isImmuneToArea` / `isUntargetableByOpponent` の組み合わせ）。新しい「効果を受けない」ルールは**述語 `isEffectBlocked` の中へ足す**こと（ガード地点を再び18箇所さわらずに済む）。
+ガード地点そのものを増やすときは1箇所も漏らさないこと。1箇所漏らすと、その経路だけ無言ですり抜ける。
 `grep -n "hasArmorAgainst\|hasMagicImmunity"` の各ヒットの前後に新しい述語が同居しているかを機械確認する。
 
 ### 起動能力（kind: "activated"）
@@ -873,9 +895,9 @@ choice 化が進めば解消する系統。
 
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
-| `unimplemented`（効果が発揮されない） | 6 | 残りは**カード名参照**の3枚（BS04-037/042＝「鎧装獣」の「アタックできない」を無効化する2枚1組・BS04-090＝「ジーク」＋バトル破壊の追撃）と BS04-054（マジックの対象変更）／**着手しないと決めた2枚**: BS04-088（禁止カード）・BS05-079 スリーカード（DECISIONS.md 参照） |
+| `unimplemented`（効果が発揮されない） | 2 | **着手しないと決めた2枚のみ**: BS04-088（禁止カード）・BS05-079 スリーカード（DECISIONS.md 参照）。**それ以外のカードは全609枚が構造化済み**（2026-08-01） |
 | `partial`（一部のレベル・節だけ未実装） | 8 | 共通テーマは**【神速】の召喚条件の書き換え**（BS04-033・BS04-080）。残りは単発（BS02-079・BS03-107・BS04-079・BS04-081・BS04-086 は解消済み・BS04-X14・BS05-060 はコア保護のすり抜けのみ） |
-| `simplified`（原作と挙動が異なる簡略化） | 18 | 対戦は成立する。カード詳細に注記を表示している |
+| `simplified`（原作と挙動が異なる簡略化） | 20 | 対戦は成立する。カード詳細に注記を表示している |
 
 ### BS02 構造化で洗い出された未対応概念（履歴。対応済みは取り消し線）
 
