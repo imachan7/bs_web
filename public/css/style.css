@@ -872,10 +872,14 @@ button:active {
 
 /* ---- シンボルアイコン（盤面トークン用） ---- */
 .symbols {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
     display: flex;
-    gap: 4px;
-    justify-content: center;
-    margin-top: 2px;
+    gap: 2px;
+    justify-content: flex-end;
+    margin-top: 0;
+    z-index: 10;
 }
 .sym-icon {
     position: relative;
