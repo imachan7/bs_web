@@ -1177,13 +1177,16 @@ button:active {
     margin-right: 22px;
 }
 .nexus-slot .core-buttons {
-    opacity: 1;
+    opacity: 0;
     top: 50%;
     right: -14px;
     transform: translateY(-50%);
     flex-direction: column;
     gap: 6px;
     z-index: 2;
+}
+.nexus-slot:hover .core-buttons {
+    opacity: 1;
 }
 .nexus-slot .core-buttons button {
     width: 26px;
