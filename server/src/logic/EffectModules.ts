@@ -2264,12 +2264,18 @@ export function fireFieldEventTriggers(
                 if (effect.selfMode === "source") {
                     resolveAction(state, pid, inst, effect.action, targetInstanceId)
                 } else if (selfOverride) {
+                    // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、
+                    // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
+                    // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
+                    // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
                     resolveAction(
                         state,
                         selfOverride.pid,
                         selfOverride.inst,
                         effect.action,
                         targetInstanceId,
+                        instColors(inst),
+                        getCard(inst.cardId).type,
                     )
                 } else {
                     resolveAction(state, pid, inst, effect.action, targetInstanceId)
