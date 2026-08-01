@@ -17660,7 +17660,8 @@
     "vanillaWinnerOnly": true,
     "action": {
      "type": "exhaust",
-     "count": 1
+     "count": 1,
+     "anySide": true
     }
    }
   ]
@@ -18574,7 +18575,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "addSymbolThisTurn"
+     "type": "addSymbolThisTurn",
+     "anySide": true
     }
    }
   ]
@@ -19208,7 +19210,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "levelUpThisTurn"
+     "type": "levelUpThisTurn",
+     "anySide": true
     }
    }
   ]
@@ -22123,6 +22126,7 @@
     "action": {
      "type": "exhaust",
      "count": 1,
+     "anySide": true,
      "filter": {
       "sameColorAsBattleLoser": true
      }

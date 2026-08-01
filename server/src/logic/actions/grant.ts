@@ -1,15 +1,17 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color } from "../../type"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, Color, EffectAction } from "../../type"
 import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
 import {
     findSpiritAny,
     getAllFamilies,
+    pickAnySideCandidates,
     pickEnemyByBp,
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
+    tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, isVanillaCard, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -270,16 +272,10 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
 
 const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのLvをこのターンの間1つ上として扱う（カードの最大Lvでキャップ。未指定時は自分の実効BP最大。ビルドアップ）
-        const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                          ? s
-                          : best,
-                  undefined,
-              )
+        // 対象スピリットのLvをこのターンの間1つ上として扱う（最大Lvでキャップ。anySide指定で両陣営から選べる。ビルドアップ）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：Lvを上げるスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
             return
@@ -306,6 +302,34 @@ const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (
         }
         log(state, `${sourceName}：このターンの間、自分のスピリット${count}体を最高Lvとして扱う。`)
         return
+}
+
+// 「自分か相手のスピリット1体を指定する」系の対象決定（ダブルハート／ビルドアップ）。
+// targetInstanceId 指定時はそれを使う。未指定なら anySide のとき両陣営から、
+// そうでなければ自分側だけから候補を作り、interactiveTargets ならプレイヤーに選ばせる。
+// choice を立てた場合は "pending" を返す（呼び出し側はそのまま return する）
+function pickSingleTarget(
+    ctx: ActionCtx,
+    action: { anySide?: true },
+    prompt: string,
+): CardInstance | undefined | "pending" {
+    const { state, owner, self, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId) {
+        const found = findSpiritAny(state, targetInstanceId)
+        return found?.inst
+    }
+    const candidates = action.anySide
+        ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+        : state.players[owner].field.spirits.slice()
+    if (state.interactiveTargets && tryInteractiveTargetChoice(state, owner, self, prompt, candidates, action as EffectAction, null)) {
+        return "pending"
+    }
+    // 自動選択は実効BP最大（既存挙動）。両陣営のときは相手側→自分側の順で同値は先勝ち
+    return candidates.reduce<CardInstance | undefined>(
+        (best: CardInstance | undefined, s: CardInstance) =>
+            !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        undefined,
+    )
 }
 
 const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlockThisTurn"> = (ctx) => {
@@ -335,16 +359,10 @@ const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlock
 
 const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
-        const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                          ? s
-                          : best,
-                  undefined,
-              )
+        // 対象スピリットのtempExtraSymbolsをこのターンの間+1する（anySide指定で両陣営から選べる。ダブルハート）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：シンボルを追加するスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return

@@ -8,6 +8,7 @@ import {
     isExhaustImmune,
     isImmuneToArea,
     isEffectBlocked,
+    pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
     tryInteractiveTargetChoice,
@@ -60,6 +61,44 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
         const matchesCandidate = (s: CardInstance) =>
             !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
+        // anySide：「自分か相手のスピリット1体を疲労させる」（BS03-104 運命分かつ岐路／BS04-042 ドヴェルグ）。
+        // 自分側は疲労免疫・装甲の対象外（既存の anySide 系と同じ非対称ルール）
+        if (action.anySide) {
+            const candidates = pickAnySideCandidates(
+                state,
+                owner,
+                (sp) => !sp.isRested && matchesLevel(sp),
+                srcColors,
+                srcType,
+            ).filter((sp) => state.players[owner].field.spirits.includes(sp) || !isExhaustImmune(state, opp, sp))
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：疲労させるスピリットを選んでください`,
+                    candidates,
+                    { ...action, count: 1 },
+                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                )
+            ) {
+                return
+            }
+            // 自動時は実効BP最大を1体（相手側→自分側の順で同値は先勝ち）
+            const target = candidates.reduce<CardInstance | undefined>(
+                (best, sp) =>
+                    !best || effectiveBp(state, owner, sp) > effectiveBp(state, owner, best) ? sp : best,
+                undefined,
+            )
+            if (!target) {
+                log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+                return
+            }
+            target.isRested = true
+            log(state, `${getCard(target.cardId).name}は疲労した。`)
+            return
+        }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType)
             if (

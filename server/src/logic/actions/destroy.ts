@@ -9,6 +9,7 @@ import {
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
+    pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
     returnNexusToHand,
@@ -309,9 +310,31 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         const matchesExhaustedCandidate = (s: CardInstance) =>
             s.isRested && matchesTarget(state, opp, s, exhaustedFilter, self?.instanceId)
         if (action.anySide) {
-            // 両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊
-            // （本来はプレイヤーが選ぶ処理の簡略化。相手側の候補には既存の免疫・装甲チェックを適用し、
-            // 自分側には適用しない＝pickEnemyByBpと同じ非対称ルール。同値の場合は相手側を優先する）
+            // 「自分か相手の疲労スピリット1体」（BS02-024 ブラッディ・シーザー）。
+            // 実対戦ではプレイヤーが両陣営から選ぶ。相手側の候補には免疫・装甲チェックを適用し、
+            // 自分側には適用しない（pickEnemyByBp と同じ非対称ルール）
+            const anySideCandidates = pickAnySideCandidates(
+                state,
+                owner,
+                matchesExhaustedCandidate,
+                srcColors,
+                srcType,
+            )
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}の疲労破壊：対象を選んでください`,
+                    anySideCandidates,
+                    { ...action, count: 1 },
+                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                )
+            ) {
+                return
+            }
+            // 自動選択（テスト・非対話時）は従来どおり実効BP最大の1体。同値の場合は相手側を優先する
             const oppCandidate = pickEnemyByBp(state, opp, Infinity, matchesExhaustedCandidate, srcColors, srcType)
             const ownCandidates = state.players[owner].field.spirits.filter(matchesExhaustedCandidate)
             const ownCandidate =

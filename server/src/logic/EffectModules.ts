@@ -1300,6 +1300,24 @@ export function pickEnemyCandidates(
     )
 }
 
+// 「自分か相手のスピリット1体」を対象にする効果（action.anySide）の候補列挙。
+// 相手側には装甲・マジック効果耐性・効果ブロックを適用し、**自分側には適用しない**
+// （pickEnemyCandidates と同じ非対称ルール。自分の効果は自分のスピリットには免疫が働かない）。
+// 並び順は相手側→自分側（自動選択時の同値優先も相手側が先になる）
+export function pickAnySideCandidates(
+    state: GameState,
+    owner: PlayerId,
+    matches: (s: CardInstance) => boolean,
+    sourceColors?: Color[],
+    sourceType?: "spirit" | "nexus" | "magic",
+): CardInstance[] {
+    const opp = opponentOf(owner)
+    return [
+        ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType),
+        ...state.players[owner].field.spirits.filter(matches),
+    ]
+}
+
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
 // 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
 export function pickEnemyByBp(
