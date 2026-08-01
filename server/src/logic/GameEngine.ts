@@ -461,6 +461,9 @@ function doAttack(
 
     fireTrigger(state, pid, inst, "onAttack")
 
+    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない
+    if (!state.winner) fireTrigger(state, pid, inst, "onBattleStart")
+
     // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
     // （funsaiBonus・ownFunsaiMilled誘発の共通処理はresolveFunsaiに集約）
     if (!state.winner) resolveFunsai(state, pid, inst)
@@ -500,6 +503,12 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
     if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
+    // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
+    if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
     if (state.winner) {
         state.battle = null
         return null
@@ -856,7 +865,10 @@ function resolveBattle(state: GameState): void {
             sourceType: "spirit",
             battle: { attackerColors, attackerLevel },
         })
-        fireTrigger(state, attackerPid, attacker, "onBattle", "attacker") // アタッカー勝利
+        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（ブロッカー敗北）。
+        // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
+        if (!state.winner) fireTrigger(state, defenderPid, blocker, "onBattleLose")
+        if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker") // アタッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
     } else if (attackerValue < blockerValue) {
         state.lastBattleDestroyedColors = instColors(attacker)
@@ -866,7 +878,9 @@ function resolveBattle(state: GameState): void {
             sourceType: "spirit",
             battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
         })
-        fireTrigger(state, defenderPid, blocker, "onBattle", "blocker") // ブロッカー勝利
+        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（アタッカー敗北）
+        if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleLose")
+        if (!state.winner) fireTrigger(state, defenderPid, blocker, "onBattleWin", "blocker") // ブロッカー勝利
         if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
     } else {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {

@@ -23,6 +23,15 @@ const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
 const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 
+// TriggerEvent（server/src/type.ts）に対応する誘発イベント名。
+// cards.json は型検査対象外のため、trigger 名の改名・削除がここで検出されないと
+// 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
+// TriggerEvent を追加・改名したらここにも追記すること
+const VALID_TRIGGERS = new Set([
+    "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt",
+])
+
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent",
@@ -298,7 +307,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             continue
         }
         const seenEffectIds = new Set<string>()
-        for (const e of c.effects as { id?: string; kind?: string; keyword?: string }[]) {
+        for (const e of c.effects as {
+            id?: string
+            kind?: string
+            keyword?: string
+            trigger?: string
+            granted?: { trigger?: string }
+        }[]) {
+            // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
+            if (
+                e.kind === "triggerSuppression" &&
+                (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
+            ) {
+                add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
                 seenEffectIds.add(e.id)
@@ -309,16 +331,30 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (e.kind === "keyword" && (!e.keyword || !VALID_KEYWORDS.has(e.keyword))) {
                 add(id, `未知の keyword: ${String(e.keyword)}`)
             }
+            // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
+            if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
+                add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            if (
+                e.kind === "effectGrant" &&
+                (!e.granted?.trigger || !VALID_TRIGGERS.has(e.granted.trigger))
+            ) {
+                add(id, `未知の granted.trigger: ${String(e.granted?.trigger)}`)
+            }
         }
 
         // action.type がハンドラに登録されているか（未登録なら対戦中にクラッシュする）
-        const actions: { type?: unknown }[] = []
+        const actions: { type?: unknown; trigger?: unknown }[] = []
         collectActions(c.effects, actions)
         for (const a of actions) {
             if (typeof a.type !== "string") {
                 add(id, "action に type が無い")
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
+            }
+            // suppressTriggerThisTurn.trigger も同様に検証する（未登録は無言で何も抑止しない）
+            if (a.type === "suppressTriggerThisTurn" && (typeof a.trigger !== "string" || !VALID_TRIGGERS.has(a.trigger))) {
+                add(id, `未知の trigger（suppressTriggerThisTurn）: ${String(a.trigger)}`)
             }
         }
 

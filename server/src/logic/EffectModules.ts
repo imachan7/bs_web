@@ -1886,7 +1886,7 @@ export function requestCardChoice(
 
 // selfInstance が持つ、指定イベントの誘発効果を実行する。
 // レベル条件を満たすものだけ発動する。
-// battleRole は onBattle 専用の追加引数：勝利した側の役割（attacker/blocker）を渡す。
+// battleRole は onBattleWin 専用の追加引数：勝利した側の役割（attacker/blocker）を渡す。
 // 効果側に battleRole の指定があれば、渡された役割と一致する場合のみ発火する
 // （指定なしの効果は従来通り常に発火＝相打ちを含まない「勝った側」全体で発火）。
 // 指定プレイヤーのスピリットの指定トリガーが「発揮されない」状態か判定する。

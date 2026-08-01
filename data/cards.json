@@ -1139,7 +1139,7 @@
    {
     "id": "BS01-023-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -2181,7 +2181,7 @@
    {
     "id": "BS01-047-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      1,
      2
@@ -3368,7 +3368,7 @@
    {
     "id": "BS01-071-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -6425,7 +6425,7 @@
    {
     "id": "BS01-X03-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      2,
@@ -8459,7 +8459,7 @@
    {
     "id": "BS02-036-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      2
@@ -8718,7 +8718,7 @@
    {
     "id": "BS02-041-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "blocker",
     "levels": [
      2
@@ -12272,7 +12272,7 @@
    {
     "id": "BS02-X06-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      2
@@ -13032,7 +13032,7 @@
    {
     "id": "BS03-012-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      3
     ],
@@ -13482,7 +13482,7 @@
    {
     "id": "BS03-021-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      3
@@ -13534,7 +13534,7 @@
    {
     "id": "BS03-022-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -13594,7 +13594,7 @@
    {
     "id": "BS03-023-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -14251,6 +14251,20 @@
      "amountPer": 1000
     },
     "optional": false
+   },
+   {
+    "id": "BS03-036-e1",
+    "kind": "triggered",
+    "trigger": "onBattleLose",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 4
+    },
+    "optional": false
    }
   ]
  },
@@ -14862,7 +14876,7 @@
    {
     "id": "BS03-048-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "blocker",
     "levels": [
      2
@@ -17571,7 +17585,7 @@
    {
     "id": "BS03-101-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -20029,7 +20043,7 @@
    {
     "id": "BS03-X12-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -20645,7 +20659,7 @@
    {
     "id": "BS04-011-e3",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      3
@@ -20893,7 +20907,7 @@
    {
     "id": "BS04-016-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -21219,7 +21233,7 @@
    {
     "id": "BS04-021-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      3
@@ -21466,7 +21480,7 @@
    {
     "id": "BS04-025-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      1,
@@ -21481,7 +21495,7 @@
    {
     "id": "BS04-025-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      2
@@ -21839,7 +21853,7 @@
    {
     "id": "BS04-032-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -25947,7 +25961,7 @@
    {
     "id": "BS04-X13-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      2,
@@ -26024,7 +26038,7 @@
    {
     "id": "BS04-X14-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      1,
      2,
@@ -27295,7 +27309,7 @@
    {
     "id": "BS05-020-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -27387,7 +27401,7 @@
    {
     "id": "BS05-022-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -27442,7 +27456,7 @@
    {
     "id": "BS05-023-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      1,
      2
@@ -27456,7 +27470,7 @@
    {
     "id": "BS05-023-e2",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "levels": [
      2
     ],
@@ -27551,6 +27565,19 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS05-025-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
    }
   ]
  },
@@ -29090,7 +29117,7 @@
    {
     "id": "BS05-053-e1",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleStart",
     "levels": [
      2
     ],
@@ -29112,7 +29139,7 @@
      "虚神"
     ],
     "granted": {
-     "trigger": "onBattle",
+     "trigger": "onBattleStart",
      "action": {
       "type": "mill",
       "count": 5
@@ -30910,7 +30937,7 @@
    {
     "id": "BS05-X20-e3",
     "kind": "triggered",
-    "trigger": "onBattle",
+    "trigger": "onBattleWin",
     "battleRole": "attacker",
     "levels": [
      3
