@@ -23,6 +23,7 @@ import {
     requestCardChoice,
     requestChoice,
     tryInteractiveTargetChoice,
+    voidCoreToOwnTrash,
 } from "../EffectModules"
 import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesCostFilter, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
@@ -1059,6 +1060,17 @@ const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (
         return
 }
 
+const voidCoreToOwnTrashHandler: ActionHandler<"voidCoreToOwnTrash"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // ブリッツ：【粉砕】持ちのアタック時、ボイドからコア1個を自分のトラッシュに置く（effectGrantで継続付与）
+        voidCoreToOwnTrash(state, owner, action.count)
+        log(
+            state,
+            `${sourceName}：ボイドからコア${action.count}個を${state.players[owner].name}のトラッシュに置いた。`,
+        )
+        return
+}
+
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -1218,6 +1230,7 @@ const handlers = {
     opponentCoresToTrash: opponentCoresToTrashHandler,
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
+    voidCoreToOwnTrash: voidCoreToOwnTrashHandler,
     lifeCharge: lifeChargeHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
     voidCoresToNexusLevel: voidCoresToNexusLevelHandler,

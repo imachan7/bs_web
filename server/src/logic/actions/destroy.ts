@@ -15,6 +15,7 @@ import {
     requestChoice,
     returnNexusToHand,
     tryInteractiveTargetChoice,
+    voidCoreToOwnTrash,
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -633,8 +634,7 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
             returnNexusToHand(state, pid, nexus.instanceId)
             if (pid !== owner && action.voidCoreToOwnTrashIfOpponent) {
-                const player = state.players[owner]
-                player.trashCores += action.voidCoreToOwnTrashIfOpponent
+                voidCoreToOwnTrash(state, owner, action.voidCoreToOwnTrashIfOpponent)
                 log(
                     state,
                     `${sourceName}：相手のネクサスを手札に戻したため、ボイドからコア${action.voidCoreToOwnTrashIfOpponent}個を自分のトラッシュに置いた。`,

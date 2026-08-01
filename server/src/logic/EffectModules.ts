@@ -673,6 +673,13 @@ export function placeCoresOnSpirit(
     checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: false })
 }
 
+// ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
+// スピリット上のコアを取り除く処理ではないためcheckExhaustOnCoreChangeは呼ばない。
+// returnNexusToHandのvoidCoreToOwnTrashIfOpponentと、BS03ブリッツのvoidCoreToOwnTrashが共有する）
+export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: number): void {
+    state.players[ownerPid].trashCores += count
+}
+
 // フィールド発生源から全スピリット／全ネクサスに効くグローバル制約（kind: "globalConstraint"）が
 // 現在有効か判定する。両陣営のフィールド（スピリット＋ネクサス）を走査し、
 // レベル条件を満たす該当制約が1つでもあれば true（発生源の持ち主は問わない）。
@@ -765,6 +772,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     continue
                 }
                 if (effect.kind !== "levelAs") continue
+                if (effect.lentOnly && !isVirtualSource(source)) continue
                 if (
                     effect.sourceMinLevel !== undefined &&
                     rawLevel(source) < effect.sourceMinLevel
@@ -823,6 +831,24 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         if (!isVanillaCard(getCard(spirit.cardId))) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "opponentSpiritsAll") {
+                    // 発生源の持ち主の相手のスピリットすべて（BS03フォーカード／BS04ジャッジメントライツ）
+                    for (const spirit of state.players[opponentOf(pid)].field.spirits) {
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "allSpiritsByChosenColor") {
+                    // 両陣営の、貸与時に選ばれた色（仮想発生源のlentChoiceColor）のスピリットすべてを
+                    // それぞれの最高Lvとして扱う（BS02-111スピリットイリュージョン）
+                    const chosenColor = source.lentChoiceColor
+                    if (chosenColor) {
+                        for (const spirit of [
+                            ...state.players.p1.field.spirits,
+                            ...state.players.p2.field.spirits,
+                        ]) {
+                            if (!instHasColor(spirit, chosenColor)) continue
+                            spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                        }
                     }
                 }
             }
@@ -1912,11 +1938,21 @@ export function fireTrigger(
     // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
     // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
     const movedToBlock = selfInstance.attackTriggersAsBlockThisTurn === true
+    // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
+    // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
+    const movedToAttack = state.blockTriggersAsAttackThisTurn === true
     if (movedToBlock && event === "onAttack") {
         return
     }
+    if (movedToAttack && event === "onBlock") {
+        return
+    }
     const firedEvents: TriggerEvent[] =
-        movedToBlock && event === "onBlock" ? ["onBlock", "onAttack"] : [event]
+        movedToBlock && event === "onBlock"
+            ? ["onBlock", "onAttack"]
+            : movedToAttack && event === "onAttack"
+              ? ["onAttack", "onBlock"]
+              : [event]
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
@@ -2023,15 +2059,14 @@ function collectGrantedTriggerActions(
     selfInstance: CardInstance,
     event: TriggerEvent,
 ): EffectAction[] {
-    const sources = [
-        ...state.players[owner].field.spirits,
-        ...state.players[owner].field.nexuses,
-    ]
+    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める
+    const sources = effectSources(state, owner)
     const actions: EffectAction[] = []
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "effectGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.granted.trigger !== event) continue
             if (

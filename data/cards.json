@@ -6209,6 +6209,14 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS01-149-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "blockTriggersAsAttackAllThisTurn"
+    }
    }
   ]
  },
@@ -12121,6 +12129,22 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS02-111-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "colorChoiceLendThisTurn"
+    }
+   },
+   {
+    "id": "BS02-111-e3",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "allSpiritsByChosenColor",
+    "treatAs": "max",
+    "lentOnly": true
    }
   ]
  },
@@ -19296,6 +19320,28 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS03-137-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    },
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 4
+     }
+    }
+   },
+   {
+    "id": "BS03-137-e3",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "opponentSpiritsAll",
+    "treatAs": 1,
+    "lentOnly": true
    }
   ]
  },
@@ -19500,6 +19546,29 @@
      "type": "bpBuff",
      "amount": 3000
     }
+   },
+   {
+    "id": "BS03-143-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-143-e3",
+    "kind": "effectGrant",
+    "levels": null,
+    "target": "ownAll",
+    "keywordFilter": "funsai",
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "voidCoreToOwnTrash",
+      "count": 1
+     }
+    },
+    "lentOnly": true
    }
   ]
  },
@@ -25542,6 +25611,25 @@
      "amount": 5000
     },
     "mainForbidden": true
+   },
+   {
+    "id": "BS04-107-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    },
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    }
+   },
+   {
+    "id": "BS04-107-e3",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "opponentSpiritsAll",
+    "treatAs": 1,
+    "lentOnly": true
    }
   ]
  },

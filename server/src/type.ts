@@ -198,6 +198,9 @@ export type EffectAction =
     | { type: "voidCoresToNexusLevel"; level: number } // 自分のネクサス1つがlevelになるように、不足分のコアをボイドから置く（対象決定はvoidCoreToOwnNexusesのsingle分岐と同じ優先順＝targetInstanceId→interactiveTargets時はrequestChoice→自動時はコア数最少。既にそのレベル以上、またはそのレベルを持たないネクサスはno-op。BS04フルアッド＝Lv2）
     | { type: "opponentNexusOrReserveCoreToTrash"; count: number } // 相手のネクサス（コア数最多のものを自動選択）にコアがあればそこから、無ければ相手のリザーブから、count個を相手のトラッシュへ（どちらもコアがなければno-op。ネクサスのコアが減ってレベルが下がっても消滅はしない。BS02エナジードレイン）
     | { type: "bothSidesCoreToVoid"; count: number } // 両プレイヤーが各自のスピリット+ネクサスから、コアの多い個体から順に合計count個をボイドへ置く（1体で足りなければ次にコアが多い個体へ繰り越す。維持コア割れの消滅処理はスピリットのみ＝ネクサスは消滅しない。BS04インフェルノアイズ）
+    | { type: "blockTriggersAsAttackAllThisTurn" } // このターンの間、両陣営のスピリットすべての『このスピリットのブロック時』効果を『このスピリットのアタック時』に発揮させる（ブロック時には発揮されなくなる＝移し替え。attackTriggersAsBlockThisTurnの逆方向・全体版。GameState.blockTriggersAsAttackThisTurnをfireTriggerが参照。BS01アタックシフト）
+    | { type: "voidCoreToOwnTrash"; count: number } // ボイドからコアcount個を直接、持ち主のトラッシュに置く（returnNexusToHandのvoidCoreToOwnTrashIfOpponentと同じ処理をEffectModules.voidCoreToOwnTrashへ共通化。BS03ブリッツ＝【粉砕】持ちのアタック時にeffectGrantで継続付与）
+    | { type: "colorChoiceLendThisTurn"; sourceCardId?: string } // 全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに載せてこのターンの間貸し出す（kind:"levelAs" target:"allSpiritsByChosenColor"のlentOnlyエントリが読む。familyGrantのfamilyFromChoiceと同形。マジックのselfは常にnullで選択再開時にresolveActionのsourceCardId引数が失われるため、sourceCardIdをaction自身に載せて2段階目へ引き継ぐ内部専用フィールド（cards.jsonには{"type":"colorChoiceLendThisTurn"}のみを書く）。BS02-111スピリットイリュージョン）
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ定義（BS03バッチで統一）。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数、{ ownNameIncludes: string } は
@@ -671,11 +674,12 @@ export type EffectDef =
           id: string
           kind: "levelAs" // 継続的な「Lv◯として扱う」置換（EffectModules.refreshLevelAsOverridesが毎回再計算する。ナイフ投げのジャグリーン／トパーズの流星）
           levels: null
-          target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsByKeyword" | "ownSpiritsVanilla" // ownSpiritsByKeyword=keywordFilterのキーワードエントリを静的に持つ持ち主のスピリットすべて（レベル不問。斬竜刀のガイ／崩壊する戦線）／ownSpiritsVanilla=カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）／opponentNexusesAll=発生源の持ち主の相手の全ネクサス（ウッド・ゴレム）
+          target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsByKeyword" | "ownSpiritsVanilla" | "opponentSpiritsAll" | "allSpiritsByChosenColor" // ownSpiritsByKeyword=keywordFilterのキーワードエントリを静的に持つ持ち主のスピリットすべて（レベル不問。斬竜刀のガイ／崩壊する戦線）／ownSpiritsVanilla=カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）／opponentNexusesAll=発生源の持ち主の相手の全ネクサス（ウッド・ゴレム）／opponentSpiritsAll=発生源の持ち主の相手の全スピリット（BS03フォーカード／BS04ジャッジメントライツ）／allSpiritsByChosenColor=両陣営の、貸与時に選ばれた色（CardInstance.lentChoiceColor）を持つスピリットすべて（BS02-111スピリットイリュージョン）
           treatAs: number | "max" | "coresScaled" // 扱うレベル。"max"=対象カード自身が持つ最高Lv（card.levelsのlevel最大値。対象ごとに算出）／"coresScaled"=対象のコア数で換算（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）
           keywordFilter?: Keyword // target: "ownSpiritsByKeyword" 用
           phase?: Phase // 指定時、state.phaseが一致するときのみ有効
           turn?: "own" // 指定時、発生源の持ち主がturnPlayerのときのみ有効
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS03フォーカード／BS04ジャッジメントライツ／BS02-111）
           condition?:
               | { maxOwnSpirits: number } // 自分のフィールドのスピリット数がこの値以下の間有効（発生源自身を含む）
               | { anyFieldHasColorSpirit: Color } // 自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効（斬竜刀のガイ）
@@ -709,6 +713,7 @@ export type EffectDef =
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ（matchesFamilyFilterで判定。BS05紫煙の竜使いヴァイオレット：龍帝/虚神）
           keywordFilter?: Keyword // 指定時はこのキーワードエントリを静的に持つスピリットのみ（hasKeywordで判定。BS05藍紫の虚空：転召持ちにアタック時効果を付与）
           granted: { trigger: TriggerEvent; action: EffectAction } // 付与される誘発効果（levelsは常に有効扱い）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS03ブリッツ）
       }
     | {
           id: string
@@ -826,6 +831,7 @@ export interface CardInstance {
     colorsAsContinuous?: Color[] // 継続的な「〜の色としても扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（百面相のフラットフェイス／妖精ティングリー）
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
+    lentChoiceColor?: Color // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ色。仮想発生源にのみ載り、kind:"levelAs" の target:"allSpiritsByChosenColor" が読む（BS02-111スピリットイリュージョン）
     tempExtraSymbols?: number // このターンの間の追加シンボル数（ターン終了でリセット。ダブルハート）
     attackTriggersAsBlockThisTurn?: boolean // このターンの間、『このスピリットのアタック時』効果を『ブロック時』に発揮する（アタック時には発揮しない。ターン終了でリセット。fireTriggerが参照。BS05ブレイブチャージ）
     armorColorsGranted?: Color[] // 継続付与された装甲の対象色（kind:"keywordGrant"のkeyword:"armor"。
@@ -906,6 +912,7 @@ export interface GameState {
     triggerSuppressionThisTurn: { pid: PlayerId; trigger: TriggerEvent }[] // このターンの間、pid のスピリットの指定トリガーを発揮させない（ターン終了でリセット。ユーサネイジア）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
     ignoreUnblockableThisTurn: PlayerId[] // このターンの間、ここに含まれるプレイヤーのスピリットは「ブロックされない」効果を無視してブロックできる（ターン終了でリセット。BS04レッドウォール）
+    blockTriggersAsAttackThisTurn: boolean // このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に発揮させる（ターン終了でリセット。fireTriggerが参照。BS01アタックシフト）
     lastDestroyedNexus: { pid: PlayerId; cardId: string } | null // 直近に破壊されたネクサス（destroyNexusが誘発の直前に記録）。reviveLastDestroyedNexus が参照する（BS04戦闘獣ジャッカー）
     lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
     lastBattleDestroyedLevel: number // 直前のバトル解決でBP比較により破壊されたブロッカーのcurrentLevel（次のバトル解決の冒頭でリセット。0=まだ発生していない。魔界伯爵ヴィール）

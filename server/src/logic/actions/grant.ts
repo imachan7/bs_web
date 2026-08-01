@@ -357,6 +357,18 @@ const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlock
         return
 }
 
+const blockTriggersAsAttackAllThisTurnHandler: ActionHandler<"blockTriggersAsAttackAllThisTurn"> = (ctx) => {
+    const { state, sourceName } = ctx
+        // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に移す
+        // （ブロック時には発揮されなくなる＝移し替え。fireTriggerが state.blockTriggersAsAttackThisTurn を参照）
+        state.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`,
+        )
+        return
+}
+
 const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象スピリットのtempExtraSymbolsをこのターンの間+1する（anySide指定で両陣営から選べる。ダブルハート）
@@ -509,6 +521,44 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     )
 }
 
+// スピリットイリュージョン：全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに
+// 載せてこのターンの間貸し出す（familyGrantのfamilyFromChoiceと同形。BS02-111）。
+// マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
+// resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
+// EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
+const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceCardId, chosenOption } = ctx
+        if (chosenOption === undefined) {
+            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            requestChoice(
+                state,
+                owner,
+                "指定する色を選んでください",
+                [],
+                false,
+                { type: "colorChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+                null,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+            ([, label]) => label === chosenOption,
+        )
+        if (!colorEntry) return
+        const [color] = colorEntry
+        const cardId = action.sourceCardId
+        const virtual = pushVirtualSource(state, owner, cardId)
+        if (!virtual) return
+        virtual.lentChoiceColor = color
+        log(
+            state,
+            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
+        )
+        return
+}
+
 const handlers = {
     grantKeyword: grantKeywordHandler,
     grantKeywordAll: grantKeywordAllHandler,
@@ -521,6 +571,8 @@ const handlers = {
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
+    blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
+    colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,

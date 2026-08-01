@@ -164,6 +164,8 @@ export function endTurn(state: GameState): void {
     state.attacksThisTurn = 0
     // このターンの「ブロックされない」無視（レッドウォール）もリセット
     state.ignoreUnblockableThisTurn = []
+    // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット
+    state.blockTriggersAsAttackThisTurn = false
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
     // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
