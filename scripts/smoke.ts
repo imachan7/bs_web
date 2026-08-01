@@ -88,6 +88,7 @@ import "./smoke/part85"
 import "./smoke/part86"
 import "./smoke/part87"
 import "./smoke/part88"
+import "./smoke/part89"
 import { summary } from "./smoke/helpers"
 
 summary()

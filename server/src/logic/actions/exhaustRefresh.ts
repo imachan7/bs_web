@@ -1,6 +1,6 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
@@ -11,6 +11,7 @@ import {
     pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
+    requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
@@ -200,6 +201,31 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
                 tally.set(color, (tally.get(color) ?? 0) + 1)
             }
         }
+        // 「色をひとつ選び」＝プレイヤーの選択。実対戦では相手フィールドに実在する色から選ばせる
+        // （選択後は chosenOption 経由で再入する）
+        if (chosenOption !== undefined) {
+            const entry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+                ([, label]) => label === chosenOption,
+            )
+            if (entry) {
+                exhaustSpiritsOfColor(ctx, entry[0])
+                return
+            }
+        }
+        if (state.interactiveTargets && tally.size > 1) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：疲労させる色を選んでください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                [...tally.keys()].map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
         let chosen: Color | null = null
         let best = 0
         for (const [color, count] of tally) {
@@ -212,22 +238,28 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
             log(state, `${sourceName}：対象の色がなかった。`)
             return
         }
-        let exhausted = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const s of state.players[pid].field.spirits) {
-                if (!instHasColor(s, chosen)) continue
-                // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
-                if (isEffectBlocked(state, s, srcType)) continue
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
-                s.isRested = true
-                exhausted++
-            }
-        }
-        log(
-            state,
-            `${sourceName}：色「${COLOR_LABELS[chosen]}」を選び、${exhausted}体を疲労させた。`,
-        )
+        exhaustSpiritsOfColor(ctx, chosen)
         return
+}
+
+// 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
+function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color): void {
+    const { state, owner, sourceName, srcColors, srcType } = ctx
+    let exhausted = 0
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const s of state.players[pid].field.spirits) {
+            if (!instHasColor(s, chosen)) continue
+            // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
+            if (isEffectBlocked(state, s, srcType)) continue
+            if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
+            s.isRested = true
+            exhausted++
+        }
+    }
+    log(
+        state,
+        `${sourceName}：色「${COLOR_LABELS[chosen]}」を選び、${exhausted}体を疲労させた。`,
+    )
 }
 
 const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (ctx, action) => {
@@ -365,6 +397,25 @@ const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, a
                 tally.set(family, (tally.get(family) ?? 0) + 1)
             }
         }
+        // 「系統1つを指定する」＝プレイヤーの選択。実対戦では疲労中の自分スピリットが持つ系統から選ばせる
+        if (chosenOption !== undefined && tally.has(chosenOption)) {
+            refreshSpiritsOfFamily(ctx, action.count, chosenOption)
+            return
+        }
+        if (state.interactiveTargets && tally.size > 1) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：回復させる系統を選んでください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                [...tally.keys()],
+            )
+            return
+        }
         let chosen: string | null = null
         let best = 0
         for (const [family, count] of tally) {
@@ -377,16 +428,23 @@ const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, a
             log(state, `${sourceName}：対象の系統がなかった。`)
             return
         }
-        const candidates = rested
-            .filter((s) => spiritHasFamily(state, owner, s, chosen!))
-            .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
-            .slice(0, action.count)
-        for (const s of candidates) s.isRested = false
-        log(
-            state,
-            `${sourceName}：系統「${chosen}」を選び、${candidates.length}体を回復させた。`,
-        )
+        refreshSpiritsOfFamily(ctx, action.count, chosen)
         return
+}
+
+// 指定系統の疲労スピリットを最大count体回復させる（refreshByFamilyAuto の共通部分）。
+// 回復させる個体の選択は実効BP降順の簡略化のまま（「3体」の内訳までは選ばせない）
+function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): void {
+    const { state, owner, sourceName } = ctx
+    const candidates = state.players[owner].field.spirits
+        .filter((s) => s.isRested && spiritHasFamily(state, owner, s, family))
+        .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+        .slice(0, count)
+    for (const s of candidates) s.isRested = false
+    log(
+        state,
+        `${sourceName}：系統「${family}」を選び、${candidates.length}体を回復させた。`,
+    )
 }
 
 const handlers = {
