@@ -207,6 +207,22 @@ function renderPool(): void {
         txt.textContent = parts.join(" / ")
         info.appendChild(txt)
 
+        // 軽減シンボル（対戦画面と同じアイコン表示）
+        if (card.reduction.length > 0) {
+            const redWrap = document.createElement("span")
+            redWrap.className = "reduction-icons"
+            const redLabel = document.createElement("span")
+            redLabel.className = "reduction-label"
+            redLabel.textContent = "軽減"
+            redWrap.appendChild(redLabel)
+            card.reduction.forEach(r => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${r}`
+                redWrap.appendChild(icon)
+            })
+            info.appendChild(redWrap)
+        }
+
         el.appendChild(info)
 
         // 禁止カードの目印

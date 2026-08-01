@@ -1,5 +1,14 @@
 /* デッキビルダー専用スタイル（既存 style.css の雰囲気に合わせた配色） */
 
+:root {
+    --c-red: #ef4444;
+    --c-purple: #a855f7;
+    --c-green: #22c55e;
+    --c-white: #e5e7eb;
+    --c-yellow: #eab308;
+    --c-blue: #3b82f6;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -245,14 +254,33 @@ input[type="text"] {
 
 .pool-card {
     position: relative;
-    border: 1px solid var(--c-main);
-    border-radius: 6px;
+    border: none;
+    border-radius: 8px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%);
     padding: 12px 8px 8px 14px;
     cursor: pointer;
     user-select: none;
     overflow: visible;
     transition: transform 0.1s;
+}
+
+/* カラー枠（多色カードは斜めに2色分割） */
+.pool-card::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--c-main, #555) 50%, var(--c-sub, #555) 50%);
+    z-index: -1;
+}
+
+.pool-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(30, 32, 44, 0.95) 0%, #14161f 100%);
+    z-index: -1;
 }
 
 .pool-card:hover {
@@ -277,11 +305,24 @@ input[type="text"] {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
 }
 
-.pool-card {
-    border-color: transparent;
-    border-image: linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) 1;
+.reduction-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 2px;
+}
+
+.reduction-label {
+    font-size: 10px;
+    color: #8a90ac;
+}
+
+.reduction-icons .sym-icon {
+    width: 12px;
+    height: 12px;
 }
 
 .pool-card.limited {
@@ -374,8 +415,19 @@ input[type="text"] {
     border-radius: 0;
     border: none;
     box-shadow: none;
+    background: #475569;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.cost-badge.cost-nexus::before,
+.row-cost.cost-nexus::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: #1e293b;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    z-index: -1;
 }
 
 .cost-badge.cost-nexus {
