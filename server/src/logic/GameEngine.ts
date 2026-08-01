@@ -681,13 +681,15 @@ function doResolveChoice(
         }
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        // 実行者は actorPid（省略時は選択者自身）。「相手に選ばせて自分の効果として解決する」形に対応する
+        const actor = pending.actorPid ?? pending.pid
         if (option !== undefined) {
             // confirm（「〜できる」の発動確認）は選んだラベルを渡さない。
             // 渡すと、選択肢を解釈するアクション（grantColorChoice 等）が誤動作する
             if (pending.confirm) {
-                resolveAction(state, pending.pid, self, pending.action)
+                resolveAction(state, actor, self, pending.action)
             } else {
-                resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, option)
+                resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
             }
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
@@ -707,7 +709,7 @@ function doResolveChoice(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
-            resolveAction(state, pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
         } else {
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
@@ -726,7 +728,7 @@ function doResolveChoice(
     const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
 
     if (instanceId !== undefined) {
-        resolveAction(state, pending.pid, self, pending.action, instanceId)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId)
     } else {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
@@ -740,7 +742,7 @@ function doResolveChoice(
 function finishChoiceResolution(
     state: GameState,
     pid: PlayerId,
-    queue: { selfInstanceId: string | null; action: EffectAction }[],
+    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
 ): string | null {
     drainChoiceQueue(state, pid, queue)
     if (!state.pendingChoice && !state.winner) {
@@ -754,13 +756,13 @@ function finishChoiceResolution(
 function drainChoiceQueue(
     state: GameState,
     pid: PlayerId,
-    queue: { selfInstanceId: string | null; action: EffectAction }[],
+    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
 ): string | null {
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i]
         if (!item) continue
         const itemSelf = item.selfInstanceId ? findInstanceAnywhere(state, item.selfInstanceId) ?? null : null
-        resolveAction(state, pid, itemSelf, item.action)
+        resolveAction(state, item.actorPid ?? pid, itemSelf, item.action)
         if (state.winner) return null
         const newPending = state.pendingChoice as GameState["pendingChoice"]
         if (newPending) {

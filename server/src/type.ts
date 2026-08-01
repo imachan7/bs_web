@@ -135,7 +135,10 @@ export type EffectAction =
     | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（プレイヤー選択の簡略化＝決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ（天使長プリンシパール）
     | { type: "grantKeyword"; keyword: Keyword; colors?: Color[] } // 自分のスピリット1体に、このターンの間キーワードを付与する（targetInstanceId優先、フォールバックはバトル中の自分スピリット→自分フィールド先頭。スピリットリンク／インビンシブルシールド）
     | { type: "exhaustAllByLevel"; level: number | "lastBattleDestroyed" } // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op）。"lastBattleDestroyed"指定時はstate.lastBattleDestroyedLevelを使用（0なら不発。魔界伯爵ヴィール）
-    | { type: "destroyAllExceptChosenColors" } // お互い自分フィールドで最多のスピリット色を1色ずつ自動指定し、両陣営のどちらの指定色でもないスピリットをすべて破壊（プレイヤー選択の簡略化）
+    | { type: "destroyAllExceptChosenColors"; chosenOwn?: Color; chosenOpp?: Color; awaiting?: "own" | "opponent" } // 「お互い、自分のフィールドに出ているスピリットの色を1色指定する。指定されなかった色のスピリットすべてを破壊する」（地龍王ケンドラゴス）。
+    // interactiveTargets では**両プレイヤーが順に**色を選ぶ。選択の進捗は chosenOwn / chosenOpp / awaiting に持たせて再入する
+    // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
+    // 非対話時は従来どおり、お互い自分フィールドで最多の色を自動指定する
     | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
     | { type: "refireSummonEffect" } // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）のonSummon効果を再発揮する（タイムリープ）
     | { type: "recoverMagicFromTrash" } // 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
@@ -867,8 +870,11 @@ export interface PendingChoice {
     // **選んだラベルを chosenOption として action に渡さない**（渡すと選択肢を解釈するアクションが誤動作する）。
     // スキップ＝発動しない。EffectDef.triggered.optional が true のときに fireTrigger が立てる
     action: EffectAction // 選択後に resolveAction する本体
+    actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
+    // **選択者と実行者が別**のケースで使う（BS02-012 ケンドラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として行う）
     selfInstanceId: string | null // 発生源スピリット（self の復元用）
-    queue: { selfInstanceId: string | null; action: EffectAction }[] // 中断された残りアクション
+    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[] // 中断された残りアクション
+    // （actorPid 省略時は選択者 pid として解決する）
 }
 
 // ゲーム全体の状態（サーバーで一元管理）

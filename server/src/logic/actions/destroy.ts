@@ -12,11 +12,13 @@ import {
     pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
+    requestChoice,
     returnNexusToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 // 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
 function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): number {
@@ -165,9 +167,69 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
             }
             return best
         }
-        const chosenP1 = pickChosenColor("p1")
-        const chosenP2 = pickChosenColor("p2")
-        const safeColors = new Set([chosenP1, chosenP2].filter((c): c is Color => c !== null))
+        // 実対戦では「お互い、自分のフィールドに出ているスピリットの色を1色指定する」を
+        // **両プレイヤーが順に**選ぶ。進捗は action の chosenOwn / chosenOpp / awaiting に持たせて再入する。
+        // 相手に選ばせる段では PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする
+        const fieldColors = (pid: PlayerId): Color[] => {
+            const set = new Set<Color>()
+            for (const sp of state.players[pid].field.spirits) for (const c of instColors(sp)) set.add(c)
+            return colorOrder.filter((c) => set.has(c))
+        }
+        const colorOf = (label: string | undefined): Color | undefined =>
+            (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, l]) => l === label)?.[0]
+
+        let chosenOwn = action.chosenOwn
+        let chosenOpp = action.chosenOpp
+        if (state.interactiveTargets) {
+            // 選択の応答を取り込む
+            if (action.awaiting === "own") chosenOwn = colorOf(chosenOption) ?? chosenOwn
+            if (action.awaiting === "opponent") chosenOpp = colorOf(chosenOption) ?? chosenOpp
+
+            const ownColors = fieldColors(owner)
+            if (chosenOwn === undefined && ownColors.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：自分のフィールドから残す色を1色指定してください`,
+                    [],
+                    false,
+                    { ...action, awaiting: "own", ...(chosenOpp ? { chosenOpp } : {}) },
+                    self,
+                    "option",
+                    ownColors.map((c) => COLOR_LABELS[c]),
+                )
+                return
+            }
+            if (chosenOwn === undefined) chosenOwn = ownColors[0]
+
+            const oppColors = fieldColors(opp)
+            if (chosenOpp === undefined && oppColors.length >= 2) {
+                requestChoice(
+                    state,
+                    opp, // ← 選ぶのは相手
+                    `${sourceName}：自分のフィールドから残す色を1色指定してください`,
+                    [],
+                    false,
+                    { ...action, awaiting: "opponent", ...(chosenOwn ? { chosenOwn } : {}) },
+                    self,
+                    "option",
+                    oppColors.map((c) => COLOR_LABELS[c]),
+                )
+                // 破壊は発生源の持ち主の効果として解決する
+                if (state.pendingChoice) state.pendingChoice.actorPid = owner
+                return
+            }
+            if (chosenOpp === undefined) chosenOpp = oppColors[0]
+        }
+        const chosenP1 = chosenOwn ?? chosenOpp ?? pickChosenColor("p1")
+        const chosenP2 = state.interactiveTargets
+            ? (chosenOpp ?? null)
+            : pickChosenColor("p2")
+        const safeColors = new Set(
+            (state.interactiveTargets ? [chosenOwn, chosenOpp] : [chosenP1, chosenP2]).filter(
+                (c): c is Color => c !== null && c !== undefined,
+            ),
+        )
         log(
             state,
             `${sourceName}：指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
