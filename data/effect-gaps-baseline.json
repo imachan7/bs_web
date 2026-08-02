@@ -32,11 +32,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS01-130": {
-            "name": "チェンジングコア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS02-042": {
             "name": "スクルディア",
             "textBlocks": 2,
@@ -89,16 +84,6 @@
         },
         "BS02-087": {
             "name": "封印された魔導書",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-091": {
-            "name": "セブンスクリムゾン",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-094": {
-            "name": "ブラッディレイン",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -202,18 +187,8 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS04-104": {
-            "name": "グラシアルブレス",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS04-109": {
             "name": "スイッチヒッター",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-114": {
-            "name": "タイダルタイド",
             "textBlocks": 2,
             "implCount": 1
         },

@@ -17,6 +17,7 @@ import {
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
+    returnSpiritToDeckBottom,
     returnSpiritToDeckTop,
     returnSpiritToHand,
     tryInteractiveCardChoice,
@@ -825,6 +826,32 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
         return
 }
 
+// グラシアルブレス：自分のスピリットcount体をデッキの下へ戻すことをコストに、
+// 相手のスピリットcount体もデッキの下へ戻す。自分がcount体戻せないなら不発。
+// 「好きな順番で」はコスト最小から（自分）／実効BP上位から（相手）の決定的簡略化
+const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBottom"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+    const ownSpirits = [...state.players[owner].field.spirits]
+    if (ownSpirits.length < action.count) {
+        log(state, `${sourceName}：自分のスピリットが${action.count}体いないため発動しなかった。`)
+        return
+    }
+    ownSpirits.sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)
+    for (const inst of ownSpirits.slice(0, action.count)) {
+        returnSpiritToDeckBottom(state, owner, inst)
+    }
+    let returned = 0
+    for (let i = 0; i < action.count; i++) {
+        const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+        if (!target) break
+        returnSpiritToDeckBottom(state, opp, target)
+        returned++
+    }
+    if (returned === 0) {
+        log(state, `${sourceName}：相手のスピリットがいなかった。`)
+    }
+}
+
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
@@ -991,6 +1018,7 @@ const handlers = {
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,

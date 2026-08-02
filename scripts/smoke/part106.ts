@@ -186,3 +186,106 @@ console.log("=== BS02-090 マインドフレア：同名スピリットを1体�
         "ゴラドンは1体だけ残る",
     )
 }
+
+console.log("=== BS02-094 ブラッディレイン：相手のコア合計に応じてボイドへ（10〜19→2個 / 20以上→6個） ===")
+{
+    const s = createGame("bloodyrain-2", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    s.players.p2.reserve = 12
+    s.players.p2.trashCores = 0
+    resolveMagic(s, "p1", "BS02-094", "main")
+    assert(s.players.p2.reserve === 10, `合計12個なら2個ボイドへ（実際: ${String(s.players.p2.reserve)}）`)
+
+    const s2 = createGame("bloodyrain-6", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s2)
+    s2.players.p2.reserve = 20
+    s2.players.p2.trashCores = 0
+    resolveMagic(s2, "p1", "BS02-094", "main")
+    assert(s2.players.p2.reserve === 14, `合計20個なら6個ボイドへ（実際: ${String(s2.players.p2.reserve)}）`)
+
+    const s3 = createGame("bloodyrain-none", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s3)
+    s3.players.p2.reserve = 5
+    s3.players.p2.trashCores = 0
+    resolveMagic(s3, "p1", "BS02-094", "main")
+    assert(s3.players.p2.reserve === 5, "合計10個未満なら何も起きない")
+}
+
+console.log("=== BS01-130 チェンジングコア：コア1個だけ残して同じフィールドの別スピリットへ移す ===")
+{
+    const s = createGame("changingcore-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const src = put(s, "p1", "BS01-007", 5) // ハンマドレイク（コア5個）
+    const dest = put(s, "p1", "BS01-001", 1)
+    resolveMagic(s, "p1", "BS01-130", "main", src.instanceId)
+    assert(src.cores === 1, "指定したスピリットのコアは1個だけ残る")
+    assert(dest.cores === 5, `移し先は1+4で5個（実際: ${String(dest.cores)}）`)
+}
+
+console.log("=== BS01-130 チェンジングコア：移し先がいなければ不発 ===")
+{
+    const s = createGame("changingcore-nodest", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const src = put(s, "p1", "BS01-007", 5)
+    resolveMagic(s, "p1", "BS01-130", "main", src.instanceId)
+    assert(src.cores === 5, "同じフィールドに別のスピリットがいなければコアは動かない")
+}
+
+console.log("=== BS02-091 セブンスクリムゾン：BP7000以上のコアを払って相手のコア7個をリザーブへ ===")
+{
+    const s = createGame("seventhcrimson-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    const payer = put(s, "p1", "BS01-007", 7) // ハンマドレイク Lv3 BP9000
+    const enemy = put(s, "p2", "BS01-007", 8)
+    const reserveBefore = s.players.p2.reserve
+    resolveMagic(s, "p1", "BS02-091", "main")
+    assert(payer.cores === 0 || !s.players.p1.field.spirits.includes(payer), "コストで自分のコアはすべてボイドへ")
+    assert(enemy.cores === 1, `相手のコアは8-7=1個（実際: ${String(enemy.cores)}）`)
+    assert(s.players.p2.reserve === reserveBefore + 7, "取り除いたコアは相手のリザーブへ")
+}
+
+console.log("=== BS02-091 セブンスクリムゾン：BP7000以上がいなければ不発 ===")
+{
+    const s = createGame("seventhcrimson-nocost", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    const enemy = put(s, "p2", "BS01-007", 8)
+    resolveMagic(s, "p1", "BS02-091", "main")
+    assert(enemy.cores === 8, "コストを払えないので相手のコアは動かない")
+}
+
+console.log("=== BS04-104 グラシアルブレス：自分2体と相手2体をデッキの下へ（シンボル2以上が必要） ===")
+{
+    const s = createGame("glacialbreath-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
+    runTurnStart(s)
+    put(s, "p1", "BS01-001", 1)
+    put(s, "p1", "BS01-017", 1)
+    put(s, "p2", "BS01-001", 1)
+    put(s, "p2", "BS01-017", 1)
+    resolveMagic(s, "p1", "BS04-104", "main")
+    assert(s.players.p1.field.spirits.length === 2, "シンボル2つ以上のスピリットがいなければ発動しない")
+
+    put(s, "p1", "BS04-010", 1) // 雷帝エール・クレル（シンボル2つ）
+    const deckBefore = s.players.p1.deck.length
+    resolveMagic(s, "p1", "BS04-104", "main")
+    assert(s.players.p1.field.spirits.length === 1, "自分のスピリット2体がデッキの下へ")
+    assert(s.players.p2.field.spirits.length === 0, "相手のスピリット2体もデッキの下へ")
+    assert(s.players.p1.deck.length === deckBefore + 2, "自分のデッキが2枚増える")
+}
+
+console.log("=== BS04-114 タイダルタイド：自分のネクサスを全破壊し、その数だけ相手がスピリットを破壊 ===")
+{
+    const s = createGame("tidaltide-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    put(s, "p1", "BS04-010", 1) // シンボル2つ（使用条件）
+    putNexus(s, "p1", "BS01-098", 0)
+    putNexus(s, "p1", "BS01-098", 0)
+    put(s, "p2", "BS01-001", 1)
+    put(s, "p2", "BS01-017", 1)
+    put(s, "p2", "BS01-007", 1)
+    resolveMagic(s, "p1", "BS04-114", "main")
+    assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスはすべて破壊される")
+    assert(
+        s.players.p2.field.spirits.length === 1,
+        `相手はネクサス2つぶん＝2体を破壊する（実際: ${String(s.players.p2.field.spirits.length)}体残り）`,
+    )
+}

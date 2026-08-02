@@ -248,6 +248,38 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
     void self
 }
 
+// タイダルタイド：自分のネクサスをすべて破壊し（「好きなだけ」の決定的簡略化）、
+// 破壊できた数だけ相手が相手自身のスピリットを破壊する。
+// 相手が選ぶ処理は、実効BPが低い方から機械的に破壊する簡略化にしてある（相手にとって被害が小さい選択）
+const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOwnNexusesThenEnemyDestroysOwn"> = (
+    ctx,
+) => {
+    const { state, owner, opp, sourceName, srcType, destroyContext } = ctx
+    const ownNexusIds = state.players[owner].field.nexuses.map((n) => n.instanceId)
+    if (ownNexusIds.length === 0) {
+        log(state, `${sourceName}：自分のフィールドにネクサスがなかった。`)
+        return
+    }
+    let destroyed = 0
+    for (const instanceId of ownNexusIds) {
+        if (destroyNexus(state, owner, instanceId)) destroyed++
+    }
+    log(
+        state,
+        `${sourceName}：自分のネクサス${destroyed}つを破壊した。（「好きなだけ」はすべて破壊として処理）`,
+    )
+    for (let i = 0; i < destroyed; i++) {
+        let weakest: CardInstance | undefined
+        for (const s of state.players[opp].field.spirits) {
+            if (isEffectBlocked(state, s, srcType)) continue
+            if (!weakest || effectiveBp(state, opp, s) < effectiveBp(state, opp, weakest)) weakest = s
+        }
+        if (!weakest) break
+        log(state, `${sourceName}：${state.players[opp].name}は${getCard(weakest.cardId).name}を破壊した。（選択は簡略化）`)
+        destroySpirit(state, opp, weakest.instanceId, "destroy", destroyContext)
+    }
+}
+
 const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // お互い自分のフィールドで最多のスピリット色を1色ずつ自動指定する
@@ -951,6 +983,7 @@ const handlers = {
     destroyAll: destroyAllHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
+    sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,

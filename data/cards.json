@@ -5638,6 +5638,15 @@
    {
     "id": "BS01-130-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "moveCoresLeavingOne",
+     "anySide": true
+    }
+   },
+   {
+    "id": "BS01-130-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11497,6 +11506,16 @@
    {
     "id": "BS02-091-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "costOwnAllCoresThenEnemyCoresToReserve",
+     "minBp": 7000,
+     "count": 7
+    }
+   },
+   {
+    "id": "BS02-091-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11609,6 +11628,24 @@
   "effects": [
    {
     "id": "BS02-094-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "opponentCoresToVoidByTotal",
+     "tiers": [
+      {
+       "minTotal": 10,
+       "count": 2
+      },
+      {
+       "minTotal": 20,
+       "count": 6
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS02-094-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -25954,6 +25991,18 @@
    {
     "id": "BS04-104-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    },
+    "action": {
+     "type": "returnBothSidesToDeckBottom",
+     "count": 2
+    }
+   },
+   {
+    "id": "BS04-104-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -25961,8 +26010,7 @@
       "minSymbols": 2
      },
      "amount": 5000
-    },
-    "mainForbidden": true
+    }
    }
   ]
  },
@@ -26360,6 +26408,17 @@
    {
     "id": "BS04-114-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    },
+    "action": {
+     "type": "sacrificeOwnNexusesThenEnemyDestroysOwn"
+    }
+   },
+   {
+    "id": "BS04-114-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -26367,8 +26426,7 @@
       "minSymbols": 2
      },
      "amount": 5000
-    },
-    "mainForbidden": true
+    }
    }
   ]
  },

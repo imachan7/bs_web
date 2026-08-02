@@ -1247,6 +1247,24 @@ export function returnSpiritToDeckTop(
     log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番上に戻った。`)
 }
 
+// スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
+// 上に置くか下に置くかだけの違いなので、コアの戻し先など他の扱いは揃えてある
+export function returnSpiritToDeckBottom(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): void {
+    const player = state.players[ownerPid]
+    const index = player.field.spirits.findIndex(
+        (s) => s.instanceId === inst.instanceId,
+    )
+    if (index === -1) return
+    player.field.spirits.splice(index, 1)
+    player.reserve += inst.cores
+    player.deck.push(inst.cardId)
+    log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`)
+}
+
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
 // actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
 // actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
