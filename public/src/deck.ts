@@ -310,18 +310,27 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
         `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
-    if (card.type === "spirit") {
-        const levels = card.levels
-            .map((lv) => `Lv${lv.level}(コア${lv.cores}) BP${lv.bp}`)
-            .join(" / ")
-        parts.push(levels)
-    } else if (bp !== null) {
-        parts.push(`BP${bp}`)
-    }
+    if (bp !== null && card.type !== "nexus") parts.push(`BP${bp}`)
     if (card.rarity !== "") parts.push(`レアリティ: ${card.rarity}`)
     if (card.limited) parts.push("【禁止カード】デッキに入れられません")
     meta.textContent = parts.join("　")
     panel.appendChild(meta)
+
+    if (card.type === "spirit" && card.levels.length > 0) {
+        const lvDiv = document.createElement("div")
+        lvDiv.className = "detail-meta"
+        lvDiv.textContent = card.levels
+            .map((lv) => `Lv${lv.level}(コア${lv.cores}) BP${lv.bp}`)
+            .join(" / ")
+        panel.appendChild(lvDiv)
+    } else if (card.type === "nexus" && card.levels.length > 0) {
+        const lvDiv = document.createElement("div")
+        lvDiv.className = "detail-meta"
+        lvDiv.textContent = card.levels
+            .map((lv) => `Lv${lv.level}(維持コア${lv.cores})`)
+            .join(" / ")
+        panel.appendChild(lvDiv)
+    }
 
     const effect = document.createElement("div")
     effect.className = "detail-effect"

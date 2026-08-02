@@ -564,6 +564,10 @@ async function init(): Promise<void> {
         }
     })
 
+    byId("btn-return-lobby").addEventListener("click", () => {
+        location.reload() // ページリロードで初期状態（ロビー）へ戻る
+    })
+
     byId("hand").addEventListener("click", (e) => {
         const el = closestData(e, "data-hand-index")
         if (el) onHandClick(Number(el.dataset.handIndex))

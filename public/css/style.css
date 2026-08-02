@@ -250,6 +250,13 @@ button:active {
     font-size: 15px;
 }
 
+.player-info .reserve {
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 15px;
+}
+
 /* ライフ減少時の演出（次回再描画でクラスが外れるため一過性のアニメーションでよい）。
    イベント通知レイヤー（GameEvent type:"lifeDamage"）駆動でクラス付与する。シェイク＋赤パルスを1本化 */
 .player-info .life.life-changed {
@@ -648,6 +655,23 @@ button:active {
     box-shadow: 0 0 0 2px var(--warning), 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
+.card.usable-field {
+    outline: 2px dashed var(--warning);
+    outline-offset: -2px;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+    animation: usable-field-pulse 2s infinite;
+}
+
+@keyframes usable-field-pulse {
+    0%, 100% { opacity: 1; outline-color: var(--warning); }
+    50% { opacity: 0.8; outline-color: rgba(245, 158, 11, 0.4); }
+}
+
+.card.unusable {
+    filter: brightness(0.5) grayscale(30%);
+    opacity: 0.6;
+}
+
 .card.targetable {
     box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
 }
@@ -656,10 +680,28 @@ button:active {
     box-shadow: 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6);
 }
 
+.card.selected {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(59, 130, 246, 0.7);
+    transform: translateY(-8px);
+    z-index: 10;
+    filter: brightness(1.15);
+}
+
+.card.step-active {
+    box-shadow: 0 0 0 2px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
+    animation: step-active-pulse 2s infinite;
+}
+
+@keyframes step-active-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--success), 0 0 12px rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 2px var(--success), 0 0 20px rgba(16, 185, 129, 0.8); }
+}
+
 .awaken-badge,
 .activate-badge,
 .pay-badge,
-.cant-attack-badge {
+.cant-attack-badge,
+.step-active-badge {
     position: absolute;
     min-width: 44px;
     padding: 4px 10px;
@@ -674,7 +716,8 @@ button:active {
 .awaken-badge::after,
 .activate-badge::after,
 .pay-badge::after,
-.cant-attack-badge::after {
+.cant-attack-badge::after,
+.step-active-badge::after {
     content: '';
     position: absolute;
     inset: -8px;
@@ -705,6 +748,29 @@ button:active {
     background: #4b5563;
     color: #fff;
     cursor: default;
+}
+
+.step-active-badge {
+    top: -6px; right: -6px;
+    background: var(--success);
+    color: #000;
+    pointer-events: none;
+}
+
+.field-req-badge {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(245, 158, 11, 0.9);
+    color: #000;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    pointer-events: none;
+    z-index: 5;
+    white-space: nowrap;
 }
 
 .card.attacker-mark {
@@ -762,6 +828,7 @@ button:active {
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(4px);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 100;
