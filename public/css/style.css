@@ -615,6 +615,7 @@ button:active {
     color: var(--text-main);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     pointer-events: none;
+    font-variant-numeric: tabular-nums;
     white-space: pre-wrap;
 }
 
