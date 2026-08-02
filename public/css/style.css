@@ -828,12 +828,10 @@ button:active {
 .core-buttons {
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    right: -26px;
+    transform: translateY(-50%);
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 120%;
+    flex-direction: column;
     gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
@@ -960,6 +958,7 @@ button:active {
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    margin-right: 22px; /* ボタンが右にはみ出す分の余白 */
 }
 
 /* ネクサスは六角形 */
@@ -1312,12 +1311,9 @@ button:active {
 .nexus-slot .core-buttons {
     opacity: 0;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 120%;
+    right: -26px;
+    transform: translateY(-50%);
+    flex-direction: column;
     gap: 4px;
     z-index: 10;
 }
