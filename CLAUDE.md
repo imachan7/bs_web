@@ -23,19 +23,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - SPEC.md は統合後にメインループが更新する（下位エージェントには触らせない）
   - タスクキューが空になったら SPEC.md の課題リストから次の実装候補を選んで自動的に着手する
 
+### ⚠️ カード効果を実装させるときの必須項目（2026-08-02 の実装漏れ多発を受けて）
+
+**「実装せよ」だけでは不十分**。それだと typecheck と smoke が通った時点で完了と見なされ、
+**書かなかった効果は誰にも検出されない**（cards.json は型検査の対象外）。次の3つを必ずプロンプトに入れる:
+
+1. **効果節ごとの対応表を報告させる**
+   「対象カードの `effect` テキストを**1節ずつ列挙**し、各節にどの `effects` エントリが対応するかを表で報告せよ。
+   **対応するエントリが無い節は『未実装』と明記せよ**」。
+   これで「1枚に効果が2つあるのに1つしか書いていない」がその場で見える
+2. **完了条件に `npm run validate:gaps` を含める**
+   `typecheck && validate:cards && validate:gaps && smoke:quiet && build:client` を1回。
+   実装したカードはベースラインから消えるので `npm run gaps:update` も実行させる
+3. **キーワード持ちを特に警戒させる**
+   「`{"kind":"keyword"}` を書いた時点で満足しないこと。**キーワードは効果文の1行目にすぎず、
+   同じカードに別の効果が続いていることが多い**」と明記する（実際、落ちていた13枚中8枚がこれ）
+
+**枚数ベースで完了を数えない**（「135枚中123枚」のような数え方）。1枚に効果が複数あるため、
+枚数で数えると落ちが見えない。数えるなら**効果節の単位**で数える。
+
 ## 検証コマンド
 
 - `npm run typecheck` — tsc --noEmit
 - `npm run smoke` — エンジン単体テスト（scripts/smoke.ts）
+- `npm run validate:cards` — cards.json の構造検査（旧フィールド・未知の軸・未知の trigger 名）
+- **`npm run validate:gaps` — 効果の実装漏れが増えていないかの検査**（下記）
 - E2E: `PORT=3100 npx tsx server/src/index.ts` を起動後、`PORT=3100 npx tsx scripts/e2e.ts`
 - クライアントビルド: `npm run build:client`（esbuild）
 
-変更後は typecheck / smoke を必ず通すこと。
+変更後は typecheck / smoke を必ず通すこと。**カードデータを触ったら `validate:cards` と `validate:gaps` も通すこと。**
 
 ## 重要な罠
 
 - **cardId のハードコード注意**: data/cards.json は Wiki 実データ由来で、過去に ID が全面的にズレた事故がある。cardId を書く箇所（デッキレシピ・テスト等）では必ず python3 等で cards.json をパースし、ID・名前・色の一致を機械検証する。名前の記憶や既存コメントを信用しない
 - cards.json はランタイムに fs で読み込む（型チェック対象外）。データとコードの不整合は実行時まで発覚しない
+- **「効果を書かなかったこと」は全緑をすり抜ける**（2026-08-02 に実プレイで発覚）。cards.json は型検査の対象外なので、
+  効果エントリを書き忘れても型エラーにも smoke 失敗にもならない。実際に**マジック48枚のメイン側**と
+  **スピリット13枚**（うち8枚がキーワード持ち）が長期間見過ごされた。
+  とくに `{"kind":"keyword"}` を1件書くと `effects` が非空になるため「効果あり＝実装済み」に見えてしまう。
+  → `npm run validate:gaps`（`scripts/check-effect-gaps.ts`）が
+  `data/effect-gaps-baseline.json` と突き合わせ、**新しいギャップが増えたら落ちる**。
+  実装を進めたら `npm run gaps:update` でベースラインを縮める（消し忘れも検出される）。
+  **意図的に実装しない場合は `data/card-notes.json` に理由を書く**（黙って落とさない）。
+  全体像を見るときは `npm run gaps:report`
 
 ## コードスタイル
 

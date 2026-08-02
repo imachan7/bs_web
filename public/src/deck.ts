@@ -1108,7 +1108,6 @@ function setupFilterChips(): void {
         sortOrder = "id"
         sortSelect.value = "id"
 
-        updateFilterVisuals()
         for (const btn of document.querySelectorAll("#filters .chip")) {
             btn.classList.remove("active")
         }

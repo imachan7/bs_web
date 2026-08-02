@@ -44,6 +44,12 @@ interface CardNotes {
 // ---- 引数 ----
 const args = process.argv.slice(2)
 const jsonOutput = args.includes("--json")
+// --check: ベースライン（data/effect-gaps-baseline.json）と突き合わせ、
+// 「ベースラインに無い新しいギャップ」または「ベースラインにあるのに検出されなくなったもの」があれば
+// 終了コード1で落とす。npm run validate:gaps がこれを使う
+const checkMode = args.includes("--check")
+// --update-baseline: 現在の検出結果でベースラインを作り直す（実装を進めたあとに実行する）
+const updateBaseline = args.includes("--update-baseline")
 const cardFilter = args.includes("--card")
     ? args[args.indexOf("--card") + 1]
     : null
@@ -297,6 +303,78 @@ for (const [cardId, note] of Object.entries(cardNotes.notes)) {
 // 重複排除（同じカードが複数カテゴリに出ることはある）
 // カードID順にソート
 gaps.sort((a, b) => a.cardId.localeCompare(b.cardId))
+
+// ---- ベースライン照合（--check / --update-baseline） ----
+//
+// cards.json は tsc の型検査の対象外なので、「効果を書かなかったこと」は型エラーにも smoke 失敗にも
+// ならず、全緑をすり抜ける（実際に48枚のマジックと13枚のスピリットが長く見過ごされた）。
+// そこで既知のギャップをベースラインに固定し、**増えたら落ちる**ようにする。
+interface Baseline {
+    _comment: string[]
+    known: Record<string, { name: string; textBlocks: number; implCount: number }>
+}
+const baselinePath = path.join(dataDir, "effect-gaps-baseline.json")
+
+if (updateBaseline) {
+    const blocks = gaps.filter((g) => g.category === "block_count")
+    const known: Baseline["known"] = {}
+    for (const g of blocks.slice().sort((a, b) => a.cardId.localeCompare(b.cardId))) {
+        known[g.cardId] = {
+            name: g.name,
+            textBlocks: g.textBlocks ?? 0,
+            implCount: g.implCount ?? 0,
+        }
+    }
+    const prev: Baseline = JSON.parse(fs.readFileSync(baselinePath, "utf-8"))
+    const next: Baseline = { _comment: prev._comment, known }
+    fs.writeFileSync(baselinePath, `${JSON.stringify(next, null, 4)}\n`)
+    console.log(
+        `ベースラインを更新しました: ${Object.keys(prev.known).length} 件 → ${Object.keys(known).length} 件`,
+    )
+    process.exit(0)
+}
+
+if (checkMode) {
+    const baseline: Baseline = JSON.parse(fs.readFileSync(baselinePath, "utf-8"))
+    const detected = new Map(
+        gaps.filter((g) => g.category === "block_count").map((g) => [g.cardId, g]),
+    )
+    // 新規ギャップ：ベースラインにも card-notes.json にも無いのに検出された
+    const added = [...detected.keys()].filter(
+        (id) => !(id in baseline.known) && !(id in cardNotes.notes),
+    )
+    // 解消済み：ベースラインにあるのに検出されなくなった（実装した／誤検出が直った）
+    const resolved = Object.keys(baseline.known).filter((id) => !detected.has(id))
+
+    if (added.length === 0 && resolved.length === 0) {
+        console.log(
+            `効果実装漏れチェック：新しいギャップはありません（既知 ${Object.keys(baseline.known).length} 件）✅`,
+        )
+        process.exit(0)
+    }
+    if (added.length > 0) {
+        console.error("")
+        console.error("❌ 新しい効果実装漏れが検出されました:")
+        for (const id of added) {
+            const g = detected.get(id)!
+            console.error(`   ${id} ${g.name}（テキスト${g.textBlocks}ブロック / 実装${g.implCount}エントリ）`)
+        }
+        console.error("")
+        console.error("   効果を実装するか、意図的に実装しない場合は data/card-notes.json に理由を書いてください。")
+        console.error("   （誤検出であれば npx tsx scripts/check-effect-gaps.ts --update-baseline で追認できます）")
+    }
+    if (resolved.length > 0) {
+        console.error("")
+        console.error("❌ ベースラインに残ったままのカードがあります（実装済み or 誤検出の解消）:")
+        for (const id of resolved) {
+            console.error(`   ${id} ${baseline.known[id]?.name ?? ""}`)
+        }
+        console.error("")
+        console.error("   npx tsx scripts/check-effect-gaps.ts --update-baseline を実行してベースラインを縮めてください。")
+    }
+    console.error("")
+    process.exit(1)
+}
 
 if (jsonOutput) {
     console.log(JSON.stringify(gaps, null, 2))

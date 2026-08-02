@@ -1,0 +1,411 @@
+{
+    "_comment": [
+        "効果実装漏れ検出（scripts/check-effect-gaps.ts）のベースライン。",
+        "ここに載っている cardId は「検出済みだが、まだ対応していない or 誤検出」として黙認される。",
+        "npm run validate:gaps は、ここに無い新しいギャップが出たら失敗する（＝実装漏れの増加を防ぐ）。",
+        "カードの効果を実装したら、この一覧から該当 cardId を消すこと（消し忘れも検出される）。",
+        "「意図的に実装しない」ものは data/card-notes.json に理由を書けば、そちらで宣言済みとして扱われる。"
+    ],
+    "known": {
+        "BS01-016": {
+            "name": "スケルトン・ジョウ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-025": {
+            "name": "要塞龍ギガ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-093": {
+            "name": "甲精ディース",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-100": {
+            "name": "ルビーの太陽",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-101": {
+            "name": "古龍の縄張り",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-123": {
+            "name": "リターンドロー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-130": {
+            "name": "チェンジングコア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-132": {
+            "name": "ストームドロー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-042": {
+            "name": "スクルディア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-047": {
+            "name": "機神官フレイ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-055": {
+            "name": "チャウー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-070": {
+            "name": "アルカナプリンス・オベロ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-075": {
+            "name": "天使長プリンシパール",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-079": {
+            "name": "紫水晶の森",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-080": {
+            "name": "エメラルドに輝く鍾乳洞",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-081": {
+            "name": "緑芽吹く原野",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-082": {
+            "name": "生み出される尖兵",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-083": {
+            "name": "鏡の回廊",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-086": {
+            "name": "螺旋の塔",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-087": {
+            "name": "封印された魔導書",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-088": {
+            "name": "クロスファイア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-090": {
+            "name": "マインドフレア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-091": {
+            "name": "セブンスクリムゾン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-094": {
+            "name": "ブラッディレイン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-096": {
+            "name": "ディバインウィンド",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-098": {
+            "name": "キャストオフ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-X06": {
+            "name": "魔界七将デストロード",
+            "textBlocks": 3,
+            "implCount": 2
+        },
+        "BS03-011": {
+            "name": "竜騎将ディライダロス",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-012": {
+            "name": "水龍王リヴァイア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-024": {
+            "name": "吸血騎士ノスフェラト",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-059": {
+            "name": "アルカナビースト・ペイラ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-062": {
+            "name": "チワール",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-067": {
+            "name": "アルカナプリンセス・アン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-070": {
+            "name": "天使長エクスシア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-084": {
+            "name": "巨猫ブリンクス",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-097": {
+            "name": "鷹人ホークアイ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-100": {
+            "name": "武器コレクターのゴドフリー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-103": {
+            "name": "熾烈極める最前線",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-105": {
+            "name": "暗礁海域",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-107": {
+            "name": "果て無き地平線",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-110": {
+            "name": "星降る巡礼地",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-119": {
+            "name": "バスターランス",
+            "textBlocks": 3,
+            "implCount": 2
+        },
+        "BS03-134": {
+            "name": "パペットストリング",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-146": {
+            "name": "ネクサスレジスター",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-147": {
+            "name": "ゴーレムクラフト",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-X10": {
+            "name": "凍獣マン・モール",
+            "textBlocks": 3,
+            "implCount": 1
+        },
+        "BS04-007": {
+            "name": "ドラグノ近衛兵",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-008": {
+            "name": "古竜魔人バ・ゴゥ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-039": {
+            "name": "宝石虫スカラベール",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-043": {
+            "name": "ワルキューレ・ヒルド",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-050": {
+            "name": "ハートレス・ティン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-053": {
+            "name": "天使スローン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-065": {
+            "name": "機織のハーフェレシテ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-078": {
+            "name": "魔影街",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-079": {
+            "name": "王蛇の住処",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-081": {
+            "name": "強者統べる大地",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-084": {
+            "name": "奇跡の丘",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-087": {
+            "name": "心臓破りの巨大坂",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-088": {
+            "name": "栄光の表彰台",
+            "textBlocks": 2,
+            "implCount": 0
+        },
+        "BS04-100": {
+            "name": "ジャングルロウ",
+            "textBlocks": 3,
+            "implCount": 2
+        },
+        "BS04-104": {
+            "name": "グラシアルブレス",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-108": {
+            "name": "ストレートフラッシュ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-109": {
+            "name": "スイッチヒッター",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-114": {
+            "name": "タイダルタイド",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-X14": {
+            "name": "魔界七将パンデミウム",
+            "textBlocks": 3,
+            "implCount": 1
+        },
+        "BS05-016": {
+            "name": "吸血女王カーミラ",
+            "textBlocks": 3,
+            "implCount": 2
+        },
+        "BS05-038": {
+            "name": "シーサーズ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-040": {
+            "name": "プリンセス・スノーホワイト",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-044": {
+            "name": "リトルナイト・ランスロット",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-054": {
+            "name": "鉄槌のオズワルド",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-056": {
+            "name": "最古龍の顎",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-057": {
+            "name": "藍紫の虚空",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-059": {
+            "name": "緑眼の虚空",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-064": {
+            "name": "ペンタン帝国",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-065": {
+            "name": "青嵐の虚空",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-066": {
+            "name": "天焦がす大聖火",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-069": {
+            "name": "トランスマイグレーション",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-070": {
+            "name": "ソウルクラッシュ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-079": {
+            "name": "スリーカード",
+            "textBlocks": 1,
+            "implCount": 0
+        },
+        "BS05-081": {
+            "name": "ネクサスブロケイド",
+            "textBlocks": 2,
+            "implCount": 1
+        }
+    }
+}
