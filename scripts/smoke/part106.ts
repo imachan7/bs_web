@@ -547,3 +547,63 @@ console.log("=== BS03-067 アルカナプリンセス・アン：Lv2以上でコ
     assert(cardNameContains(cost3, "アルカナ"), "コスト3のスピリットが「アルカナ」扱いになる")
     assert(!cardNameContains(cost2, "アルカナ"), "コスト2は対象外")
 }
+
+console.log("=== BS02-086 螺旋の塔：Lv2は相手のマジックコストをリザーブ払いに限定する ===")
+{
+    const s = createGame("spiraltower-reserve", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "green" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS02-086", 3) // 螺旋の塔 Lv2（自分のターンに有効）
+    const payer = put(s, "p2", "BS01-007", 3)
+    s.players.p2.hand = ["BS01-133"] // ワイルドパワー（フラッシュ・コスト2）
+    s.players.p2.reserve = 5
+    const err = act(s, "p2", {
+        type: "castMagic",
+        handIndex: 0,
+        paySources: [{ instanceId: payer.instanceId, count: 1 }],
+    })
+    assert(
+        err !== null && err.includes("リザーブ"),
+        `フィールドのコアでは支払えない（実際: ${String(err)}）`,
+    )
+}
+
+console.log("=== BS04-087 心臓破りの巨大坂：Lv2はバニラの自分のスピリットを召喚ターンの間だけ最高Lv扱い ===")
+{
+    const s = createGame("bigslope-vanilla", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS04-087", 2) // Lv2
+    const vanilla = put(s, "p1", "BS01-002", 1) // ロクケラトプス（バニラ・コア1個＝本来Lv1）
+    vanilla.summonedTurn = s.turn
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(vanilla).level === 3, "召喚されたターンは最高Lv（Lv3）として扱われる")
+
+    vanilla.summonedTurn = s.turn - 1
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(vanilla).level === 1, "次のターン以降はコア数どおりのLv1に戻る")
+}
+
+console.log("=== BS04-065 機織のハーフェレシテ：Lv1はメインステップに手札のネクサス1枚を捨ててコア1個 ===")
+{
+    const s = createGame("hafelesite-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const hafe = put(s, "p1", "BS04-065", 1) // Lv1
+    s.players.p1.hand = ["BS01-098"] // 燃えさかる戦場（ネクサス）
+    const trashBefore = s.players.p1.trashCards.length
+    s.phase = "main"
+    fireStepTriggers(s, "main")
+    assert(hafe.cores === 2, `ボイドからコア1個が置かれる（実際: ${String(hafe.cores)}）`)
+    assert(s.players.p1.hand.length === 0, "手札のネクサスが破棄される")
+    assert(s.players.p1.trashCards.length === trashBefore + 1, "破棄したネクサスはトラッシュへ")
+}
+
+console.log("=== BS04-065 機織のハーフェレシテ：手札にネクサスが無ければ何も起きない ===")
+{
+    const s = createGame("hafelesite-none", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const hafe = put(s, "p1", "BS04-065", 1)
+    s.players.p1.hand = ["BS01-001"]
+    s.phase = "main"
+    fireStepTriggers(s, "main")
+    assert(hafe.cores === 1, "コアは増えない")
+    assert(s.players.p1.hand.length === 1, "手札も減らない")
+}

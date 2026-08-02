@@ -264,6 +264,27 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
     }
 }
 
+// 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
+// どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
+const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) return
+    const player = state.players[owner]
+    const index = player.hand.findIndex((id) => getCard(id).type === "nexus")
+    if (index === -1) {
+        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
+        return
+    }
+    const [cardId] = player.hand.splice(index, 1)
+    if (cardId === undefined) return
+    player.trashCards.push(cardId)
+    self.cores += action.count
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、手札の${getCard(cardId).name}を破棄してボイドからコア${action.count}個を置いた。`,
+    )
+}
+
 // 手札のネクサスカードをすべて破棄し、破棄した枚数ぶんドローする（ネクサスレジスター）。
 // 効果文は「好きなだけ破棄する」だが、枚数を選ばせず全部破棄する決定的簡略化にしてある
 // （ドロー枚数が最大になる選択なので、プレイヤーの不利にはならない）
@@ -1007,6 +1028,7 @@ const handlers = {
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
+    discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealReturnToDeck: revealReturnToDeckHandler,

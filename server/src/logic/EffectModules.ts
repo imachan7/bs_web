@@ -891,9 +891,11 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsVanilla") {
-                    // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）
+                    // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）。
+                    // summonedThisTurnOnly 指定時は「召喚されたターンの間」だけ（BS04心臓破りの巨大坂Lv2）
                     for (const spirit of player.field.spirits) {
                         if (!isVanillaCard(getCard(spirit.cardId))) continue
+                        if (effect.summonedThisTurnOnly && spirit.summonedTurn !== state.turn) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "opponentSpiritsAll") {

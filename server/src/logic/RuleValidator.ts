@@ -244,6 +244,11 @@ export function validateCastMagic(
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
         return "このターンはすでにマジックの効果を使用しているため使用できません"
     }
+    // 螺旋の塔Lv2：相手フィールドに発生源があれば、マジックのコストはすべてリザーブから支払う
+    // （フィールドのコアを支払い元に指定できない）
+    if (hasMagicRestriction(state, pid, "reserveOnlyOpponent") && (paySources ?? []).length > 0) {
+        return "このマジックのコストはすべてリザーブから支払わなくてはなりません"
+    }
     // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない色のマジックは使用できない
     const fieldSymbolColors = ownFieldSymbolColors(state, pid)
     if (

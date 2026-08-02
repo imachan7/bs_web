@@ -99,7 +99,12 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
 export function hasMagicRestriction(
     board: Board,
     usingPid: PlayerId,
-    restriction: "oncePerTurnAll" | "noReductionOpponent" | "colorLockOpponent" | "noFreeCastOpponent",
+    restriction:
+        | "oncePerTurnAll"
+        | "noReductionOpponent"
+        | "colorLockOpponent"
+        | "noFreeCastOpponent"
+        | "reserveOnlyOpponent",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue

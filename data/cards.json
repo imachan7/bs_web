@@ -11372,6 +11372,15 @@
      "phase": "attack",
      "turn": "own"
     }
+   },
+   {
+    "kind": "magicRestriction",
+    "levels": [
+     2
+    ],
+    "restriction": "reserveOnlyOpponent",
+    "turn": "own",
+    "id": "BS02-086-e2"
    }
   ]
  },
@@ -24130,7 +24139,22 @@
   "effect": "Lv1･Lv2『自分のメインステップ』\nステップ開始時、自分の手札のネクサスカード1枚を破棄することで、ボイドから、コア1個をこのスピリット上に置くことができる。\nLv2『このスピリットの破壊時』\n自分のトラッシュにあるネクサスカード1枚を選んで、コストを支払わずに自分のフィールドに配置することができる。",
   "effects": [
    {
-    "id": "BS04-065-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "discardHandNexusToVoidCoreSelf",
+     "count": 1
+    },
+    "id": "BS04-065-e1"
+   },
+   {
+    "id": "BS04-065-e2",
     "kind": "triggered",
     "trigger": "onDestroy",
     "levels": [
@@ -25449,6 +25473,17 @@
      "type": "mill",
      "count": 1
     }
+   },
+   {
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsVanilla",
+    "treatAs": "max",
+    "summonedThisTurnOnly": true,
+    "sourceLevels": [
+     2
+    ],
+    "id": "BS04-087-e2"
    }
   ]
  },
