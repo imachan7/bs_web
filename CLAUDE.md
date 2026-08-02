@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### ⚠️ カード効果を実装させるときの必須項目（2026-08-02 の実装漏れ多発を受けて）
 
 **「実装せよ」だけでは不十分**。それだと typecheck と smoke が通った時点で完了と見なされ、
-**書かなかった効果は誰にも検出されない**（cards.json は型検査の対象外）。次の3つを必ずプロンプトに入れる:
+**書かなかった効果は誰にも検出されない**（カードデータは型検査の対象外）。次の3つを必ずプロンプトに入れる:
 
 1. **効果節ごとの対応表を報告させる**
    「対象カードの `effect` テキストを**1節ずつ列挙**し、各節にどの `effects` エントリが対応するかを表で報告せよ。
@@ -46,7 +46,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `npm run typecheck` — tsc --noEmit
 - `npm run smoke` — エンジン単体テスト（scripts/smoke.ts）
-- `npm run validate:cards` — cards.json の構造検査（旧フィールド・未知の軸・未知の trigger 名）
+- `npm run validate:cards` — カードデータの構造検査（旧フィールド・未知の軸・未知の trigger 名）
 - **`npm run validate:gaps` — 効果の実装漏れが増えていないかの検査**（下記）
 - E2E: `PORT=3100 npx tsx server/src/index.ts` を起動後、`PORT=3100 npx tsx scripts/e2e.ts`
 - クライアントビルド: `npm run build:client`（esbuild）
@@ -55,9 +55,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 重要な罠
 
-- **cardId のハードコード注意**: data/cards.json は Wiki 実データ由来で、過去に ID が全面的にズレた事故がある。cardId を書く箇所（デッキレシピ・テスト等）では必ず python3 等で cards.json をパースし、ID・名前・色の一致を機械検証する。名前の記憶や既存コメントを信用しない
-- cards.json はランタイムに fs で読み込む（型チェック対象外）。データとコードの不整合は実行時まで発覚しない
-- **「効果を書かなかったこと」は全緑をすり抜ける**（2026-08-02 に実プレイで発覚）。cards.json は型検査の対象外なので、
+- **cardId のハードコード注意**: カードデータは Wiki 実データ由来で、過去に ID が全面的にズレた事故がある。cardId を書く箇所（デッキレシピ・テスト等）では必ず python3 等でカードデータをパースし、ID・名前・色の一致を機械検証する。名前の記憶や既存コメントを信用しない
+- **カードデータは弾ごとに分割されている**（`data/cards/BS01.json` 〜 `BS05.json`。1ファイル566KB/3.2万行まで肥大化したため 2026-08-03 に分割）。
+  読み書きは `data/loadCards.ts` の `loadAllCards()` / `loadCardsBySet()` を通す（**個別ファイルを直接 readFileSync しない**）。
+  ブラウザへはサーバーの `GET /api/cards` が結合済みの1配列を返す（`data/loadCards.ts` は node:fs を使うのでクライアントから import しないこと）
+- カードデータはランタイムに fs で読み込む（型チェック対象外）。データとコードの不整合は実行時まで発覚しない
+- **「効果を書かなかったこと」は全緑をすり抜ける**（2026-08-02 に実プレイで発覚）。カードデータは型検査の対象外なので、
   効果エントリを書き忘れても型エラーにも smoke 失敗にもならない。実際に**マジック48枚のメイン側**と
   **スピリット13枚**（うち8枚がキーワード持ち）が長期間見過ごされた。
   とくに `{"kind":"keyword"}` を1件書くと `effects` が非空になるため「効果あり＝実装済み」に見えてしまう。
@@ -74,7 +77,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 設計ドキュメント
 
-仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards/BS0N.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
 **SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
 

@@ -5,11 +5,11 @@ BS01〜BS05 のデータ投入で毎回セッション固有の使い捨てス�
 踏んだ罠ごとリポジトリに残す。
 
 使い方:
-    # 取得してファイルに出す（data/cards.json には書き込まない）
+    # 取得してファイルに出す（data/cards/ には書き込まない）
     python3 scripts/fetch_wiki_cards.py --set BS05 --refer '第五弾：皇騎' --pages 2 \
         --out data/staging/BS05.json
 
-    # 既存 data/cards.json と突き合わせて差分を出す（パーサーの正しさの検証用）
+    # 既存 data/cards/*.json と突き合わせて差分を出す（パーサーの正しさの検証用）
     python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify
 
 取得先への配慮（消さないこと）:
@@ -34,7 +34,7 @@ BS01〜BS05 のデータ投入で毎回セッション固有の使い捨てス�
   * タイプ行に (禁止カード) / (制限カード<1>) が付くことがある
   * レアリティはカード名の後ろの単独大文字。C,R のような複数表記あり
 
-出力は cards.json のスキーマに合わせるが、**effects（構造化された効果）は含まない**。
+出力は data/cards/*.json のスキーマに合わせるが、**effects（構造化された効果）は含まない**。
 効果の構造化は人手の作業なので、投入後に別途行う。
 色は CardData と同じ colors（配列。単色なら要素1）で出す。
 """
@@ -209,10 +209,16 @@ def parse_html(page_html):
     return [parse_row(r) for r in rows]
 
 
-def verify_against_cards_json(parsed, cards_json_path):
-    """既存 data/cards.json と突き合わせて差分を報告する（パーサーの正しさの検証）"""
-    with open(cards_json_path, encoding="utf-8") as f:
-        existing = {c["cardId"]: c for c in json.load(f)}
+def verify_against_cards_json(parsed, cards_dir):
+    """既存 data/cards/*.json と突き合わせて差分を報告する（パーサーの正しさの検証）。
+    カードデータは弾ごとに分割されているので、ディレクトリ内の全 JSON を読んで結合する"""
+    existing = {}
+    for name in sorted(os.listdir(cards_dir)):
+        if not name.endswith(".json"):
+            continue
+        with open(os.path.join(cards_dir, name), encoding="utf-8") as f:
+            for c in json.load(f):
+                existing[c["cardId"]] = c
     fields = ["name", "type", "colors", "cost", "reduction", "family", "levels", "symbol", "flash", "rarity", "limited", "effect"]
     diffs = 0
     missing = 0
@@ -239,7 +245,7 @@ def main():
     ap.add_argument("--pages", type=int, required=True, help="ページ数（1ページ50枚）")
     ap.add_argument("--rowid", default="59632", help="Wiki のリストID（既定値で BS02 以降は通る）")
     ap.add_argument("--out", help="出力先 JSON。省略時は標準出力へは書かず件数だけ表示")
-    ap.add_argument("--verify", action="store_true", help="data/cards.json と突き合わせて差分を報告する")
+    ap.add_argument("--verify", action="store_true", help="data/cards/*.json と突き合わせて差分を報告する")
     ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR, help=f"取得した HTML のキャッシュ先（既定: {DEFAULT_CACHE_DIR}）")
     ap.add_argument("--no-cache", action="store_true", help="キャッシュを使わず必ず Wiki から取り直す")
     args = ap.parse_args()
@@ -268,7 +274,7 @@ def main():
     print(f"Wiki へのリクエスト: {fetched}件 / {args.pages}ページ（残りはキャッシュ）")
 
     if args.verify:
-        ok = verify_against_cards_json(cards, os.path.join(os.path.dirname(__file__), "..", "data", "cards.json"))
+        ok = verify_against_cards_json(cards, os.path.join(os.path.dirname(__file__), "..", "data", "cards"))
         if not ok:
             return 1
 

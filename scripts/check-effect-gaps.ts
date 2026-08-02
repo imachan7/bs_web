@@ -17,6 +17,7 @@
 
 import * as fs from "fs"
 import * as path from "path"
+import { loadAllCards } from "../data/loadCards"
 
 // ---- 型（cards.json の最小構造だけ） ----
 interface CardEffect {
@@ -56,9 +57,7 @@ const cardFilter = args.includes("--card")
 
 // ---- データ読み込み ----
 const dataDir = path.resolve(__dirname, "..", "data")
-const cards: Card[] = JSON.parse(
-    fs.readFileSync(path.join(dataDir, "cards.json"), "utf-8")
-)
+const cards = loadAllCards() as unknown as Card[]
 const cardNotes: CardNotes = JSON.parse(
     fs.readFileSync(path.join(dataDir, "card-notes.json"), "utf-8")
 )

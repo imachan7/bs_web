@@ -1,6 +1,4 @@
 // GameState / PlayerState の状態生成・更新の土台
-import * as fs from "node:fs"
-import * as path from "node:path"
 import type {
     CardData,
     CardInstance,
@@ -19,6 +17,7 @@ import {
     INITIAL_LIFE,
     INITIAL_RESERVE,
 } from "../../../data/constants"
+import { loadAllCards } from "../../../data/loadCards"
 // 注意（循環importについて）: EffectModules.ts は本ファイルの関数を多数importしているため、
 // ここで EffectModules.ts から import すると相互参照になる。ただし双方とも関数宣言のみで
 // トップレベルで呼び出し合うことはなく（呼び出しは対戦処理中＝両モジュールの読み込み完了後）、
@@ -34,12 +33,11 @@ export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
 
-const CARDS_PATH = path.resolve(__dirname, "../../../data/cards.json")
+// 弾ごとに分割された data/cards/BS0N.json をまとめて読む（data/loadCards.ts 参照）
+export const ALL_CARDS: CardData[] = loadAllCards()
 
 export const CARD_DB: Map<string, CardData> = new Map(
-    (JSON.parse(fs.readFileSync(CARDS_PATH, "utf-8")) as CardData[]).map(
-        (c) => [c.cardId, c],
-    ),
+    ALL_CARDS.map((c) => [c.cardId, c]),
 )
 
 export function getCard(cardId: string): CardData {

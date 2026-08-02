@@ -6,7 +6,7 @@ import express from "express"
 import { Server, type Socket } from "socket.io"
 import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
 import { RoomManager, type Room } from "./roomManager"
-import { createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
+import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
 import { DECK_RECIPES } from "../../data/constants"
@@ -24,6 +24,19 @@ const roomManager = new RoomManager()
 // Azure App Service 等のヘルスチェック用エンドポイント
 app.get("/health", (_req, res) => {
     res.json({ ok: true, rooms: roomManager.roomCount })
+})
+
+// カードマスターデータ。実体は弾ごとに分割されている（data/cards/BS0N.json）が、
+// クライアントには結合済みの1配列を1リクエストで返す。
+// ALL_CARDS は起動時に一度だけ読むので、ここでのI/Oは発生しない
+app.get("/api/cards", (_req, res) => {
+    res.json(ALL_CARDS)
+})
+// 旧パスの互換維持。分割前は /data の静的配信で cards.json をそのまま返していたので、
+// 古いクライアント（キャッシュ済みのJS）や外部ツールが404にならないよう同じ内容を返す。
+// data/cards.json は既に存在せず、上の express.static は next() で素通りするのでここへ届く
+app.get("/data/cards.json", (_req, res) => {
+    res.json(ALL_CARDS)
 })
 
 // ---- バグ報告フォーム ----

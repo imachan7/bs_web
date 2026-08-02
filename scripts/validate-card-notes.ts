@@ -3,8 +3,8 @@
 //   npx tsx scripts/validate-card-notes.ts
 import * as fs from "node:fs"
 import * as path from "node:path"
+import { loadAllCards } from "../data/loadCards"
 
-const CARDS_PATH = path.resolve(__dirname, "../data/cards.json")
 const NOTES_PATH = path.resolve(__dirname, "../data/card-notes.json")
 
 const STATUSES = ["unimplemented", "partial", "simplified"] as const
@@ -31,7 +31,7 @@ const add = (cardId: string, message: string): void => {
     problems.push(`${cardId}: ${message}`)
 }
 
-const cards = JSON.parse(fs.readFileSync(CARDS_PATH, "utf-8")) as CardLike[]
+const cards = loadAllCards() as unknown as CardLike[]
 const byId = new Map(cards.map((c) => [c.cardId, c]))
 const notesFile = JSON.parse(fs.readFileSync(NOTES_PATH, "utf-8")) as NotesFile
 
@@ -41,7 +41,7 @@ for (const [cardId, note] of Object.entries(notesFile.notes)) {
     const card = byId.get(cardId)
     // cardId のハードコードは過去に全面的にズレた事故があるので、実在を必ず機械検証する
     if (!card) {
-        add(cardId, "cards.json に存在しない cardId です")
+        add(cardId, "data/cards/*.json に存在しない cardId です")
         continue
     }
     if (!STATUSES.includes(note.status)) {
