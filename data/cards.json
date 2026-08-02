@@ -809,7 +809,8 @@
      "filter": {
       "maxBp": 2000
      },
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": true
    }
@@ -1077,7 +1078,8 @@
      "filter": {
       "maxBp": 3000
      },
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": true
    }
@@ -1205,7 +1207,8 @@
      "filter": {
       "keyword": "soku"
      },
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": true
    }
@@ -1261,7 +1264,8 @@
      "filter": {
       "maxBp": 6000
      },
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": true
    }
@@ -1706,7 +1710,8 @@
     ],
     "action": {
      "type": "exhaust",
-     "count": 2
+     "count": 2,
+     "anySide": true
     },
     "optional": false
    }
@@ -1867,7 +1872,8 @@
     ],
     "action": {
      "type": "destroyExhausted",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }
@@ -1919,7 +1925,8 @@
     ],
     "action": {
      "type": "coreSqueezeOne",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }
@@ -2246,7 +2253,8 @@
     ],
     "action": {
      "type": "destroyExhausted",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }
@@ -2302,7 +2310,8 @@
     ],
     "action": {
      "type": "destroyExhausted",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }
@@ -4087,7 +4096,8 @@
     ],
     "action": {
      "type": "returnToHand",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }
@@ -5003,7 +5013,8 @@
     ],
     "action": {
      "type": "returnToHand",
-     "count": 1
+     "count": 1,
+     "anySide": true
     }
    }
   ]
@@ -5366,7 +5377,8 @@
      "filter": {
       "maxBp": 4000
      },
-     "count": 1
+     "count": 1,
+     "anySide": true
     }
    }
   ]
@@ -5584,7 +5596,8 @@
     "timing": "flash",
     "action": {
      "type": "coreRemove",
-     "count": 1
+     "count": 1,
+     "anySide": true
     }
    }
   ]
@@ -5648,7 +5661,8 @@
     "timing": "main",
     "action": {
      "type": "destroyExhausted",
-     "count": 1
+     "count": 1,
+     "anySide": true
     }
    },
    {
@@ -6144,7 +6158,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToDeckTop"
+     "type": "returnToDeckTop",
+     "anySide": true
     }
    }
   ]
@@ -6358,7 +6373,8 @@
     ],
     "action": {
      "type": "coreSqueezeOne",
-     "count": 1
+     "count": 1,
+     "anySide": true
     },
     "optional": false
    }

@@ -12,6 +12,7 @@ import {
     isEffectBlocked,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
+    pickAnySideByBp,
     pickAnySideCandidates,
     pickBpBuffTarget,
     pickEnemyByBp,
@@ -29,8 +30,12 @@ import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMag
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
+        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+            const candidates = action.anySide
+                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
             if (candidates.length >= 2) {
                 requestChoice(
                     state,
@@ -44,13 +49,16 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                 return
             }
         }
-        // 対象指定があれば両プレイヤーから検索、なければ相手のBP最大スピリットを自動選択
+        // 対象指定があれば両プレイヤーから検索、なければ相手（anySide指定時は自分/相手どちらか）の
+        // BP最大スピリットを自動選択
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
-                  return t ? { pid: opp, inst: t } : null
-              })()
+            : action.anySide
+              ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
+              : (() => {
+                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+                    return t ? { pid: opp, inst: t } : null
+                })()
         if (!found) {
             log(state, `${sourceName}のコア除去：対象がいなかった。`)
             return

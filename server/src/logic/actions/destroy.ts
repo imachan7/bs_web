@@ -9,6 +9,7 @@ import {
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
+    pickAnySideByBp,
     pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
@@ -48,21 +49,23 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         if (targetInstanceId !== undefined) {
             // pendingChoice解決：選ばれた1体のみ破壊する。
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
-            // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）
-            const target = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (!target) {
+            // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）。
+            // anySide対応のためfindSpiritAnyで両陣営から検索する（instanceIdはゲーム内で一意）
+            const found = findSpiritAny(state, targetInstanceId)
+            if (!found) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 return
             }
             if (
-                isEffectBlocked(state, target, srcType) ||
-                hasArmorAgainst(target, srcColors) ||
-                (srcType === "magic" && hasMagicImmunity(state, opp, target))
+                isEffectBlocked(state, found.inst, srcType) ||
+                (found.pid !== owner &&
+                    (hasArmorAgainst(found.inst, srcColors) ||
+                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
             ) {
-                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった。`)
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
                 return
             }
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext)
             return
         }
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
@@ -72,6 +75,36 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             : action.count
         if (resolvedCount === 0) {
             log(state, `${sourceName}の破壊効果：カウントが0のため発動しなかった。`)
+            return
+        }
+        // anySide：自分/相手どちらのスピリットも対象にできる（destroyExhaustedのanySideと同じ非対称ルール。
+        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
+        if (action.anySide) {
+            const anySideCandidates = pickAnySideCandidates(state, owner, matchesFilter, srcColors, srcType)
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
+                    anySideCandidates,
+                    { ...action, count: 1 },
+                    resolvedCount > 1
+                        ? { ...action, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false }
+                        : null,
+                )
+            ) {
+                return
+            }
+            for (let i = 0; i < resolvedCount; i++) {
+                const target = pickAnySideByBp(state, owner, limitBp, matchesFilter, srcColors, srcType)
+                if (!target) {
+                    log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                    break
+                }
+                destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext)
+            }
             return
         }
         if (state.interactiveTargets) {
