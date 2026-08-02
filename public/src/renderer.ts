@@ -1087,6 +1087,15 @@ function renderHand(view: GameView, ui: UiState): void {
             el.appendChild(bp)
         }
 
+        if (!m.effect) {
+            const vanilla = document.createElement("div")
+            vanilla.className = "stats"
+            vanilla.style.fontStyle = "italic"
+            vanilla.style.color = "var(--text-muted)"
+            vanilla.textContent = "（効果なし）"
+            el.appendChild(vanilla)
+        }
+
         if (g.count > 1) {
             const badge = document.createElement("div")
             badge.className = "count-badge"
