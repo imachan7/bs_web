@@ -854,11 +854,7 @@ button:active {
     justify-content: center;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
-.core-buttons button.active-lv {
-    background: rgba(102, 179, 255, 0.2);
-    border-color: #66b3ff;
-    color: #fff;
-}
+
 .core-buttons button:hover {
     background: var(--accent);
     border-color: var(--accent);

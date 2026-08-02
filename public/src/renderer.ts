@@ -640,15 +640,17 @@ function coreButtonsEl(instanceId: string, currentCores: number, levels: { level
     // レベルごとのショートカットボタン
     for (const lv of levels) {
         if (lv.cores <= 0) continue // コア0個のレベル（基本ないが念のため）はスキップ
+        const isCurrentLv = currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores
+        if (isCurrentLv) {
+            continue // 現在のレベルのボタンは表示しない
+        }
+        
         const lvBtn = document.createElement("button")
         lvBtn.dataset.core = `set-${lv.cores}`
         lvBtn.dataset.currentCores = String(currentCores)
         lvBtn.dataset.instanceId = instanceId
         lvBtn.textContent = `Lv${lv.level}`
         lvBtn.title = `コアを${lv.cores}個（Lv${lv.level}）にする`
-        if (currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores) {
-            lvBtn.classList.add("active-lv") // 現在のレベルを強調
-        }
         btns.appendChild(lvBtn)
     }
 
