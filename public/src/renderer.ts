@@ -720,7 +720,7 @@ function fieldCardEl(
     stats.className = "stats"
     stats.textContent = isNexus
         ? `Lv${level}`
-        : `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
 
     // コストバッジを左上に表示
