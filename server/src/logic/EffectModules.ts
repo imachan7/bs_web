@@ -743,6 +743,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
@@ -784,6 +785,23 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
+                        }
+                    }
+                    continue
+                }
+                if (effect.kind === "nameAsGrant") {
+                    // 「コストNの自分のスピリットすべては、カード名に『◯◯』が入っているものとして扱う」
+                    // （アルカナプリンス・オベロLv2／アルカナプリンセス・アンLv2）。
+                    // cardNameContains は state を受け取らない純粋述語なので、colorsAsContinuous と同じく
+                    // 対象の CardInstance.namesAsContinuous へ毎回再構築して反映する
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        // 「コストNの自分のスピリット」は付与コスト（道化師クラン）も込みで判定する
+                        if (effect.costFilter !== undefined && !instHasCost(spirit, effect.costFilter)) continue
+                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
+                        if (!spirit.namesAsContinuous) spirit.namesAsContinuous = []
+                        if (!spirit.namesAsContinuous.includes(effect.nameIncludes)) {
+                            spirit.namesAsContinuous.push(effect.nameIncludes)
                         }
                     }
                     continue
@@ -1786,7 +1804,7 @@ export function countEffectCounter(
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
-            getCard(s.cardId).name.includes(counter.ownNameIncludes),
+            cardNameContains(s, counter.ownNameIncludes),
         ).length
     }
     // { ownColor: Color }：自分フィールドの指定色スピリット数
@@ -2203,10 +2221,7 @@ function collectGrantedTriggerActions(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.granted.trigger !== event) continue
-            if (
-                effect.nameIncludes &&
-                !getCard(selfInstance.cardId).name.includes(effect.nameIncludes)
-            ) {
+            if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
                 continue
             }
             if (effect.colorFilter && !instHasColor(selfInstance, effect.colorFilter)) continue
@@ -2361,7 +2376,7 @@ export function fireStepTriggers(
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
                     const total = state.players[pid].field.spirits.filter((s) =>
-                        names.some((n) => getCard(s.cardId).name.includes(n)),
+                        names.some((n) => cardNameContains(s, n)),
                     ).length
                     if (total < count) continue
                 }

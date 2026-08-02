@@ -11,13 +11,16 @@ import {
     assert,
     createGame,
     createInstance,
+    currentLevel,
     destroySpirit,
+    effectiveBp,
     fireStepTriggers,
+    refreshLevelAsOverrides,
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireBattleWonTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/EffectModules"
-import { activeConstraints } from "../../shared/rules"
+import { activeConstraints, cardNameContains } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)
@@ -500,4 +503,47 @@ console.log("=== BS04-079 王蛇の住処：コアを0個にはできない ==="
     s.phase = "start"
     fireStepTriggers(s, "start")
     assert(enemy.cores === 1, "コア1個のスピリットからは取り除かれない")
+}
+
+console.log("=== BS02-070 アルカナプリンス・オベロ：Lv2以上でコスト2の自分のスピリットは「アルカナ」扱い ===")
+{
+    const s = createGame("obero-nameas", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    const obero = put(s, "p1", "BS02-070", 3) // Lv2
+    const pom = put(s, "p1", "BS02-054", 1) // ポム（コスト2・名前に「アルカナ」を含まない）
+    const other = put(s, "p1", "BS01-001", 1) // ゴラドン（コスト0）
+    refreshLevelAsOverrides(s)
+    assert(cardNameContains(pom, "アルカナ"), "コスト2のポムは「アルカナ」入りとして扱われる")
+    assert(!cardNameContains(other, "アルカナ"), "コスト2でないスピリットは扱いが変わらない")
+
+    // オベロ自身のBP+1000×アルカナ数（自分のアタックステップ）に反映される
+    s.phase = "attack"
+    const bpWith = effectiveBp(s, "p1", obero)
+    // オベロ自身＋ポムの2体ぶん＝+2000
+    assert(
+        bpWith === currentLevel(obero).bp + 2000,
+        `アルカナ2体ぶんのBP+2000（実際: ${String(bpWith)}）`,
+    )
+}
+
+console.log("=== BS02-070 アルカナプリンス・オベロ：Lv1では扱いが変わらない ===")
+{
+    const s = createGame("obero-lv1", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    put(s, "p1", "BS02-070", 1) // Lv1
+    const pom = put(s, "p1", "BS02-054", 1)
+    refreshLevelAsOverrides(s)
+    assert(!cardNameContains(pom, "アルカナ"), "Lv1では「アルカナ」扱いにならない")
+}
+
+console.log("=== BS03-067 アルカナプリンセス・アン：Lv2以上でコスト3の自分のスピリットは「アルカナ」扱い ===")
+{
+    const s = createGame("anne-nameas", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    put(s, "p1", "BS03-067", 3) // Lv2
+    const cost3 = put(s, "p1", "BS01-034", 1) // バイ・パイソン（コスト3）
+    const cost2 = put(s, "p1", "BS02-054", 1) // ポム（コスト2）
+    refreshLevelAsOverrides(s)
+    assert(cardNameContains(cost3, "アルカナ"), "コスト3のスピリットが「アルカナ」扱いになる")
+    assert(!cardNameContains(cost2, "アルカナ"), "コスト2は対象外")
 }

@@ -10414,6 +10414,17 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "kind": "nameAsGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "costFilter": 2,
+    "id": "BS02-070-e2"
    }
   ]
  },
@@ -16212,6 +16223,17 @@
      "amountPer": 1000
     },
     "optional": false
+   },
+   {
+    "kind": "nameAsGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "costFilter": 3,
+    "id": "BS03-067-e2"
    }
   ]
  },

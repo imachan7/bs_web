@@ -346,7 +346,7 @@ export function countAuraCounter(
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return board.players[sourcePid].field.spirits.filter((s) =>
-            card(s.cardId).name.includes(counter.ownNameIncludes),
+            cardNameContains(s, counter.ownNameIncludes),
         ).length
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
@@ -574,9 +574,12 @@ export function matchesTarget(
     return true
 }
 
-// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定
+// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
+// namesAsContinuous（「カード名に◯◯が入っているものとして扱う」の継続付与。
+// refreshLevelAsOverrides が都度再構築する）も含めて判定する
 export function cardNameContains(inst: CardInstance, text: string): boolean {
-    return card(inst.cardId).name.includes(text)
+    if (card(inst.cardId).name.includes(text)) return true
+    return (inst.namesAsContinuous ?? []).includes(text)
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
