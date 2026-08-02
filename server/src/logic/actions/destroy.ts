@@ -503,6 +503,45 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         return
 }
 
+const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
+    const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+        // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する
+        // （プレイヤー選択の決定的簡略化：残り予算内でコスト最大のものから貪欲に選ぶ。同コストは実効BP最大を優先）
+        let remaining = action.budget
+        let destroyedCount = 0
+        const destroyedNames: string[] = []
+        while (remaining > 0) {
+            const candidates = pickEnemyCandidates(
+                state,
+                opp,
+                Infinity,
+                (s) => getCard(s.cardId).cost <= remaining,
+                srcColors,
+                srcType,
+            )
+            if (candidates.length === 0) break
+            const target = candidates.reduce((best, s) => {
+                const sCost = getCard(s.cardId).cost
+                const bestCost = getCard(best.cardId).cost
+                if (sCost !== bestCost) return sCost > bestCost ? s : best
+                return effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best
+            })
+            remaining -= getCard(target.cardId).cost
+            destroyedNames.push(getCard(target.cardId).name)
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${sourceName}：コスト合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
+        )
+        return
+}
+
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
@@ -770,6 +809,7 @@ const handlers = {
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,
     destroyExhausted: destroyExhaustedHandler,
+    destroyByCostBudget: destroyByCostBudgetHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,

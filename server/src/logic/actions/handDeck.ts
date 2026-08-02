@@ -1,7 +1,7 @@
 // 手札・デッキ・トラッシュ操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, PlayerId } from "../../type"
+import type { CardInstance, Color, PlayerId } from "../../type"
 import { draw, getCard, log, opponentOf } from "../GameState"
 import {
     countEffectCounter,
@@ -22,7 +22,8 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -508,6 +509,87 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         return
 }
 
+const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+        // 大天使ヴァリエル：緑/黄から1色を指定し、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
+        const player = state.players[owner]
+        const recoverColor = (color: Color): void => {
+            const indices: number[] = []
+            for (let i = 0; i < player.trashCards.length; i++) {
+                const c = getCard(player.trashCards[i]!)
+                if (c.type === "magic" && cardHasColor(c, color)) indices.push(i)
+            }
+            if (indices.length === 0) {
+                log(state, `${sourceName}：色「${COLOR_LABELS[color]}」のマジックカードがトラッシュになかった。`)
+                return
+            }
+            const names: string[] = []
+            // 後ろのインデックスから順に取り除く（spliceでインデックスがずれないように）
+            for (let i = indices.length - 1; i >= 0; i--) {
+                const idx = indices[i]!
+                const cardId = player.trashCards[idx]!
+                player.trashCards.splice(idx, 1)
+                player.hand.push(cardId)
+                names.unshift(getCard(cardId).name)
+            }
+            log(
+                state,
+                `${player.name}は色「${COLOR_LABELS[color]}」のマジックカード「${names.join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, names.length)
+        }
+        if (chosenOption !== undefined) {
+            const entry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+                ([, label]) => label === chosenOption,
+            )
+            if (entry) recoverColor(entry[0])
+            return
+        }
+        // 候補色（action.colorsのうちトラッシュに該当マジックがある色）を集計する
+        const tally = new Map<Color, number>()
+        for (const cardId of player.trashCards) {
+            const c = getCard(cardId)
+            if (c.type !== "magic") continue
+            for (const color of action.colors) {
+                if (cardHasColor(c, color)) tally.set(color, (tally.get(color) ?? 0) + 1)
+            }
+        }
+        if (tally.size === 0) {
+            log(state, `${sourceName}：対象の色のマジックカードがトラッシュになかった。`)
+            return
+        }
+        if (state.interactiveTargets && tally.size > 1) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：色を1つ指定してください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                [...tally.keys()].map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        // 非対話時（候補1色以下も含む）：該当枚数最多の色を自動選択（同数はaction.colorsの先頭を優先）
+        let chosen: Color | null = null
+        let best = 0
+        for (const color of action.colors) {
+            const count = tally.get(color) ?? 0
+            if (count > best) {
+                best = count
+                chosen = color
+            }
+        }
+        if (!chosen) {
+            log(state, `${sourceName}：対象の色がなかった。`)
+            return
+        }
+        recoverColor(chosen)
+        return
+}
+
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
@@ -806,6 +888,7 @@ const handlers = {
     revealReturnToDeck: revealReturnToDeckHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
+    recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     mill: millHandler,
     millPer: millPerHandler,
     returnToHand: returnToHandHandler,

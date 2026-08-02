@@ -8138,6 +8138,20 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS02-030-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonRepeatFromHand",
+     "mode": "paid",
+     "familyFilter": "怪虫"
+    }
    }
   ]
  },
@@ -12354,6 +12368,34 @@
      "type": "noRestWhenBlockingColor",
      "color": "red"
     }
+   },
+   {
+    "id": "BS02-X07-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "selfBuffByExhaustFamily",
+     "familyFilter": "武装"
+    }
+   },
+   {
+    "id": "BS02-X07-e3",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "refreshSelfByDestroyFamily",
+     "familyFilter": "武装"
+    }
    }
   ]
  },
@@ -13296,6 +13338,23 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS03-017-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "anySide": true,
+     "filter": {
+      "cores": 2
+     }
+    }
    }
   ]
  },
@@ -19900,6 +19959,20 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS03-X09-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "soku"
+    }
    }
   ]
  },
@@ -20015,6 +20088,24 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-X11-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "recoverAllMagicFromTrashByColorChoice",
+     "colors": [
+      "green",
+      "yellow"
+     ]
+    }
    }
   ]
  },
@@ -23261,6 +23352,26 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-057-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonRepeatFromHand",
+     "mode": "free",
+     "familyFilter": "天霊",
+     "costFilter": {
+      "max": 6
+     },
+     "extraReserveCostPerSummon": 1
+    }
    }
   ]
  },
@@ -28043,6 +28154,20 @@
      "red",
      "white"
     ]
+   },
+   {
+    "id": "BS05-032-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colorFilter": "green",
+    "colors": [
+     "red",
+     "white"
+    ]
    }
   ]
  },
@@ -30949,6 +31074,21 @@
      "filter": {
       "maxBp": 7000
      }
+    }
+   },
+   {
+    "id": "BS05-X19-e3",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyByCostBudget",
+     "budget": 5
     }
    }
   ]

@@ -15,6 +15,7 @@ import {
     summonFreeFromTrashIndex,
 } from "../EffectModules"
 import { cardHasColor, effectiveBp, matchesCostFilter } from "../../../../shared/rules"
+import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -375,6 +376,77 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         return
 }
 
+const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // 天使長セラフィー（mode:"free"）／兵隊アントマン（mode:"paid"）：自分の手札にある条件
+        // （familyFilter・costFilter、いずれもカード静的判定）を満たすスピリットカードを、
+        // リザーブが続く限り好きなだけ召喚する（プレイヤー選択の決定的簡略化：1体あたりの必要リザーブが
+        // 小さいものから貪欲に選び、召喚数を最大化する）。free時はextraReserveCostPerSummon指定分を
+        // 1体ごとにリザーブから自分のトラッシュへ置く。paid時はeffectiveCostで通常のコストを計算し、
+        // 維持コア+コストをリザーブから支払う（コスト分はtrashCoresへ）。
+        // いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない
+        const player = state.players[owner]
+        const matchesCardId = (candidateId: string): boolean => {
+            const candidate = getCard(candidateId)
+            if (candidate.type !== "spirit") return false
+            if (action.familyFilter !== undefined) {
+                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                if (!wanted.some((f) => candidate.family.includes(f))) return false
+            }
+            if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
+            return true
+        }
+        let summonedCount = 0
+        const summonedNames: string[] = []
+        while (true) {
+            let bestIndex = -1
+            let bestReserveNeed = Infinity
+            for (let i = 0; i < player.hand.length; i++) {
+                const candidateId = player.hand[i]!
+                if (!matchesCardId(candidateId)) continue
+                const candidate = getCard(candidateId)
+                const maintain = minLevelCores(candidate)
+                const need =
+                    action.mode === "free"
+                        ? maintain + (action.extraReserveCostPerSummon ?? 0)
+                        : maintain + effectiveCost(state, owner, candidate)
+                if (need < bestReserveNeed) {
+                    bestReserveNeed = need
+                    bestIndex = i
+                }
+            }
+            if (bestIndex === -1 || player.reserve < bestReserveNeed) break
+            const cardId = player.hand[bestIndex]!
+            const card = getCard(cardId)
+            const maintain = minLevelCores(card)
+            player.hand.splice(bestIndex, 1)
+            if (action.mode === "free") {
+                player.reserve -= maintain
+                if (action.extraReserveCostPerSummon) {
+                    player.reserve -= action.extraReserveCostPerSummon
+                    player.trashCores += action.extraReserveCostPerSummon
+                }
+            } else {
+                const cost = effectiveCost(state, owner, card)
+                player.reserve -= cost + maintain
+                player.trashCores += cost
+            }
+            const inst = createInstance(cardId, state.turn, maintain)
+            player.field.spirits.push(inst)
+            summonedNames.push(card.name)
+            summonedCount++
+        }
+        if (summonedCount === 0) {
+            log(state, `${sourceName}：召喚できる対象がいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」を${action.mode === "free" ? "コストを支払わず" : "コストを支払い"}召喚した。（このスピリットの召喚時効果は発揮されない）`,
+        )
+        return
+}
+
 const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
         // 妖狐キュービック：自分のトラッシュにある条件（colorFilter一致・costFilter範囲）を満たす
@@ -459,6 +531,7 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexus: deployNexusHandler,
     summonFromHandFree: summonFromHandFreeHandler,
+    summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,
     refireSummonEffect: refireSummonEffectHandler,
 } satisfies Partial<ActionRegistry>

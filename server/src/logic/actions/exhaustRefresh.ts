@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
+    destroySpirit,
     findSpiritAny,
     isExhaustImmune,
     isImmuneToArea,
@@ -14,7 +15,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -317,6 +318,56 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         return
 }
 
+const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+        // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
+        // refreshAllByCostと同型でcantAttackThisTurnは付与しない
+        let count = 0
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const s of state.players[pid].field.spirits) {
+                if (!s.isRested) continue
+                if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
+                s.isRested = false
+                count++
+            }
+        }
+        if (count === 0) {
+            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つ疲労スピリットがいなかった。`)
+            return
+        }
+        log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリット${count}体を回復した。`)
+        return
+}
+
+const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName, destroyContext } = ctx
+        // 巨神機トールLv3：「〜することで」の任意コストは自動発動で簡略化。
+        // 犠牲はfamilyFilter一致・self以外から実効BP最小を自動選択する（犠牲を最小化する簡略化）
+        if (!self) {
+            log(state, `${sourceName}：回復対象がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter(
+            (s) => s.instanceId !== self.instanceId && matchesFamilyFilter(state, owner, s, action.familyFilter),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかったため発動しなかった。`)
+            return
+        }
+        const target = candidates.reduce((worst, s) =>
+            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+        )
+        const name = getCard(target.cardId).name
+        destroySpirit(state, owner, target.instanceId, "destroy", destroyContext)
+        if (!self.isRested) {
+            log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+            return
+        }
+        self.isRested = false
+        log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
+        return
+}
+
 const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -465,6 +516,8 @@ const handlers = {
     exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
     refreshOne: refreshOneHandler,
+    refreshAllByKeyword: refreshAllByKeywordHandler,
+    refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
     refreshAllOwn: refreshAllOwnHandler,
     refreshAllByCost: refreshAllByCostHandler,
     refreshSelf: refreshSelfHandler,
