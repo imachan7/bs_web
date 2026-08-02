@@ -80,12 +80,25 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
             return
         }
+        // leaveAtLeast指定時は、対象のコアがこの数を下回らないところまでに抑える
+        // （BS04王蛇の住処Lv2：この効果では相手のスピリット上のコアを0個にできない）
+        let removeCount = count
+        if (action.leaveAtLeast !== undefined) {
+            removeCount = Math.min(removeCount, Math.max(0, found.inst.cores - action.leaveAtLeast))
+            if (removeCount === 0) {
+                log(
+                    state,
+                    `${sourceName}のコア除去：${getCard(found.inst.cardId).name}のコアはこれ以上取り除けなかった。`,
+                )
+                return
+            }
+        }
         // 維持コア割れの消滅処理はremoveCores/removeCoresToVoidが担う。
         // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）
         if (action.dest === "void") {
-            removeCoresToVoid(state, found.pid, found.inst, count, owner)
+            removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
         } else {
-            removeCores(state, found.pid, found.inst, count, owner)
+            removeCores(state, found.pid, found.inst, removeCount, owner)
         }
         return
 }

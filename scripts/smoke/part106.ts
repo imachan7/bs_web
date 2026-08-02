@@ -405,3 +405,99 @@ console.log("=== BS05-054 鉄槌のオズワルド：Lv1では手札破棄はし
     assert(s.players.p2.field.nexuses.length === 0, "ネクサスは破壊される")
     assert(s.players.p2.hand.length === 2, "Lv1では手札は破棄されない")
 }
+
+console.log("=== BS01-100 ルビーの太陽：Lv2は白のスピリットが手動コア増減で疲労する ===")
+{
+    // moveCore は自分のメインステップでしか行えないため、白のスピリットも発生源側（p1）に置いて確認する
+    // （ルビーの太陽Lv2は陣営を限定していないので scope:"any"）
+    const s = createGame("rubysun-exhaust", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS01-100", 2) // ルビーの太陽 Lv2
+    const white = put(s, "p1", "BS01-074", 2) // バーサーカー・ガン（白）
+    s.players.p1.reserve = 3
+    assert(act(s, "p1", { type: "moveCore", instanceId: white.instanceId, direction: "add" }) === null, "コアを置ける")
+    assert(white.isRested, "白のスピリットはコアを置くと疲労する")
+
+    white.isRested = false
+    assert(
+        act(s, "p1", { type: "moveCore", instanceId: white.instanceId, direction: "remove" }) === null,
+        "コアを外せる",
+    )
+    assert(white.isRested, "コアを取り除いても疲労する")
+}
+
+console.log("=== BS01-100 ルビーの太陽：白でないスピリットは疲労しない ===")
+{
+    const s = createGame("rubysun-nonwhite", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS01-100", 2)
+    const red = put(s, "p1", "BS01-001", 1) // ゴラドン（赤）
+    s.players.p1.reserve = 3
+    assert(act(s, "p1", { type: "moveCore", instanceId: red.instanceId, direction: "add" }) === null, "コアを置ける")
+    assert(!red.isRested, "赤のスピリットは疲労しない")
+}
+
+console.log("=== BS01-101 古龍の縄張り：自分のターンは破壊されたスピリットのコアがトラッシュへ ===")
+{
+    const s = createGame("dragonnest-trash", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS01-101", 0) // Lv1
+    const victim = put(s, "p2", "BS01-007", 3)
+    const reserveBefore = s.players.p2.reserve
+    const trashBefore = s.players.p2.trashCores
+    destroySpirit(s, "p2", victim.instanceId, "destroy")
+    assert(s.players.p2.reserve === reserveBefore, "コアはリザーブに戻らない")
+    assert(s.players.p2.trashCores === trashBefore + 3, "コア3個はトラッシュへ置かれる")
+}
+
+console.log("=== BS01-101 古龍の縄張り：相手のターンでは通常どおりリザーブへ ===")
+{
+    const s = createGame("dragonnest-offturn", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    s.turnPlayer = "p2" // 発生源の持ち主（p1）から見て相手のターン
+    putNexus(s, "p1", "BS01-101", 0)
+    const victim = put(s, "p2", "BS01-007", 3)
+    const reserveBefore = s.players.p2.reserve
+    destroySpirit(s, "p2", victim.instanceId, "destroy")
+    assert(s.players.p2.reserve === reserveBefore + 3, "コアはリザーブへ戻る")
+}
+
+console.log("=== BS02-075 天使長プリンシパール：Lv2以上でBP+マジックの対象になると追加でBP+3000 ===")
+{
+    const s = createGame("principal-magicbonus", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    s.phase = "attack"
+    const principal = put(s, "p1", "BS02-075", 3) // Lv2
+    resolveMagic(s, "p1", "BS01-133", "flash", principal.instanceId) // ワイルドパワー BP+2000
+    assert(
+        principal.tempBpBuff === 5000,
+        `BP+2000に追加の+3000で合計5000（実際: ${String(principal.tempBpBuff)}）`,
+    )
+}
+
+console.log("=== BS04-079 王蛇の住処：Lv2はスタートステップに妖蛇の数だけ相手のコアを相手リザーブへ ===")
+{
+    const s = createGame("snakenest-start", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS04-079", 3) // Lv2
+    put(s, "p1", "BS01-034", 1) // バイ・パイソン（妖蛇）
+    put(s, "p1", "BS01-038", 1) // スケル・バイパー（妖蛇）
+    const enemy = put(s, "p2", "BS01-007", 5)
+    const reserveBefore = s.players.p2.reserve
+    s.phase = "start"
+    fireStepTriggers(s, "start")
+    assert(enemy.cores === 3, `妖蛇2体ぶんのコアが取り除かれる（実際: ${String(enemy.cores)}）`)
+    assert(s.players.p2.reserve === reserveBefore + 2, "取り除いたコアは相手のリザーブへ")
+}
+
+console.log("=== BS04-079 王蛇の住処：コアを0個にはできない ===")
+{
+    const s = createGame("snakenest-leaveone", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS04-079", 3)
+    for (let i = 0; i < 5; i++) put(s, "p1", "BS01-034", 1) // 妖蛇5体
+    const enemy = put(s, "p2", "BS01-001", 1) // コア1個
+    s.phase = "start"
+    fireStepTriggers(s, "start")
+    assert(enemy.cores === 1, "コア1個のスピリットからは取り除かれない")
+}

@@ -4549,6 +4549,17 @@
     ],
     "colorFilter": "white",
     "amount": 1
+   },
+   {
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     2
+    ],
+    "colorFilter": "white",
+    "scope": "any",
+    "anyPhase": true,
+    "onRemove": true,
+    "id": "BS01-100-e2"
    }
   ]
  },
@@ -4587,7 +4598,16 @@
   "effect": "Lv1･Lv2『自分のターン』\nスピリットが破壊されたとき、そのスピリット上に置かれているコアは、リザーブではなくトラッシュに置かれる。\nLv2『自分のアタックステップ』\nBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
   "effects": [
    {
-    "id": "BS01-101-e1",
+    "kind": "destroyedCoresToTrash",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "id": "BS01-101-e1"
+   },
+   {
+    "id": "BS01-101-e2",
     "kind": "battleWon",
     "role": "attacker",
     "levels": [
@@ -10684,6 +10704,16 @@
      "gainCoresEqualCost": true
     },
     "optional": false
+   },
+   {
+    "kind": "magicBuffBonus",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "self",
+    "amountBonus": 3000,
+    "id": "BS02-075-e2"
    }
   ]
  },
@@ -24878,6 +24908,23 @@
      "type": "draw",
      "count": 1
     }
+   },
+   {
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": {
+      "ownFamily": "妖蛇"
+     },
+     "leaveAtLeast": 1
+    },
+    "id": "BS04-079-e2"
    }
   ]
  },

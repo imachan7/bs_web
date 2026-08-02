@@ -378,6 +378,9 @@ function doMoveCore(
     } else {
         inst.cores -= 1
         player.reserve += 1
+        // 「コアを置く、または取り除くと疲労する」（BS01ルビーの太陽Lv2）。
+        // onRemove を持たない既存の効果（夢魔の寝所／魔影街）はここでは反応しない
+        if (spirit) checkExhaustOnCoreChange(state, pid, spirit, { viaEffect: false, isRemoval: true })
     }
     return null
 }

@@ -288,6 +288,24 @@ export function isEffectBlocked(
 // opts省略時（従来のmoveCore/awaken呼び出し）＝手動操作かつ増加時のみ、持ち主の相手のメインステップ限定
 // （夢魔の寝所）。opts.viaEffect:true＝効果（EffectAction）による増減時に判定し、フェーズ不問
 // （BS05アブソーブシンボル。isRemoval:trueの減少側はeffect.onRemoveがある場合のみ反応する）
+// 破壊/消滅したスピリット上のコアをリザーブでなくトラッシュへ置くか（古龍の縄張りLv1）。
+// 効果文が「スピリットが破壊されたとき」と陣営を限定していないため、両陣営の発生源を見る
+export function destroyedCoresGoToTrash(state: GameState): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "destroyedCoresToTrash") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 export function checkExhaustOnCoreChange(
     state: GameState,
     affectedPid: PlayerId,
@@ -295,22 +313,28 @@ export function checkExhaustOnCoreChange(
     opts: { viaEffect: boolean; isRemoval: boolean } = { viaEffect: false, isRemoval: false },
 ): void {
     if (affectedInst.isRested) return
-    if (!opts.viaEffect && state.phase !== "main") return
-    const sourcePid = opponentOf(affectedPid)
-    for (const source of effectSources(state, sourcePid)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "exhaustOnManualCoreAdd") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            const wantsEffect = effect.trigger === "effect"
-            if (wantsEffect !== opts.viaEffect) continue
-            if (opts.viaEffect && opts.isRemoval && !effect.onRemove) continue
-            affectedInst.isRested = true
-            log(
-                state,
-                `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
-            )
-            return
+    // 発生源は「対象から見た相手」側が既定（夢魔の寝所／魔影街）。
+    // scope:"any" の効果（ルビーの太陽Lv2＝陣営の指定が無い）は対象自身の陣営からも効く
+    const sourcePids: PlayerId[] = [opponentOf(affectedPid), affectedPid]
+    for (const sourcePid of sourcePids) {
+        for (const source of effectSources(state, sourcePid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "exhaustOnManualCoreAdd") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (sourcePid === affectedPid && effect.scope !== "any") continue
+                const wantsEffect = effect.trigger === "effect"
+                if (wantsEffect !== opts.viaEffect) continue
+                if (opts.isRemoval && !effect.onRemove) continue
+                if (!opts.viaEffect && !effect.anyPhase && state.phase !== "main") continue
+                if (effect.colorFilter !== undefined && !instHasColor(affectedInst, effect.colorFilter)) continue
+                affectedInst.isRested = true
+                log(
+                    state,
+                    `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
+                )
+                return
+            }
         }
     }
 }
@@ -923,7 +947,13 @@ export function destroySpirit(
     inst.coresAtDestruction = inst.cores
 
     player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
+    // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
+    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間はトラッシュへ置かれる
+    if (destroyedCoresGoToTrash(state)) {
+        player.trashCores += inst.cores
+    } else {
+        player.reserve += inst.cores
+    }
     player.trashCards.push(inst.cardId)
     log(
         state,
