@@ -274,7 +274,7 @@ button:active {
 /* ---- イベント通知レイヤー（GameEvent駆動のオーバーレイ演出） ---- */
 #event-layer {
     position: absolute;
-    top: 8px;
+    top: 60px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
@@ -286,16 +286,16 @@ button:active {
 }
 
 .event-banner {
-    padding: 6px 14px;
+    padding: 12px 24px;
     border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     background: rgba(26, 29, 36, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-main);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
-    animation: event-banner-inout 800ms ease-out forwards;
+    animation: event-banner-inout 3000ms ease-out forwards;
 }
 
 .event-banner.event-summon {
@@ -315,8 +315,8 @@ button:active {
 
 @keyframes event-banner-inout {
     0% { opacity: 0; transform: translateY(-8px); }
-    15% { opacity: 1; transform: translateY(0); }
-    75% { opacity: 1; transform: translateY(0); }
+    5% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-6px); }
 }
 
@@ -481,6 +481,13 @@ button:active {
 #log .log-important {
     color: var(--warning);
     font-weight: 600;
+}
+
+#log .log-card-name {
+    color: var(--accent);
+    font-weight: 600;
+    cursor: help;
+    text-decoration: underline dotted var(--accent);
 }
 
 #trash-content {

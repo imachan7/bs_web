@@ -51,10 +51,23 @@ export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint,
 
 let DB = new Map<string, CardData>()
 
+let cardNameRegex: RegExp | null = null
+const cardNameMap = new Map<string, CardData>()
+
 export function setCardDb(cards: CardData[]): void {
     DB = new Map(cards.map((c) => [c.cardId, c]))
     // 共有ルール層（shared/）へカードマスタ参照を注入する（サーバーは GameState.getCard を注入）
     setCardLookup(master)
+
+    const uniqueNames = Array.from(new Set(cards.map((c) => c.name))).sort((a, b) => b.length - a.length)
+    const escapedNames = uniqueNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    cardNameRegex = new RegExp(`(${escapedNames.join('|')})`, 'g')
+    
+    for (const card of cards) {
+        if (!cardNameMap.has(card.name)) {
+            cardNameMap.set(card.name, card)
+        }
+    }
 }
 
 export function master(cardId: string): CardData {
@@ -272,7 +285,7 @@ function escapeHtml(str: string): string {
 let lastEventSeq = 0
 
 // バナー1件が画面に残る時間（CSSの event-banner-inout と合わせる）
-const EVENT_BANNER_DURATION_MS = 800
+const EVENT_BANNER_DURATION_MS = 3000
 
 function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
     switch (ev.type) {
@@ -499,7 +512,24 @@ export function render(view: GameView, ui: UiState): void {
     logEl.innerHTML = ""
     for (const line of view.log) {
         const div = document.createElement("div")
-        div.textContent = line
+        if (cardNameRegex && line.match(cardNameRegex)) {
+            const parts = line.split(cardNameRegex)
+            for (const part of parts) {
+                const card = cardNameMap.get(part)
+                if (card) {
+                    const span = document.createElement("span")
+                    span.className = "log-card-name"
+                    span.textContent = part
+                    span.title = `[${card.type === 'spirit' ? 'スピリット' : card.type === 'nexus' ? 'ネクサス' : 'マジック'}] コスト${card.cost}\n${card.effects.map(e => e.text).join('\n')}`
+                    div.appendChild(span)
+                } else {
+                    div.appendChild(document.createTextNode(part))
+                }
+            }
+        } else {
+            div.textContent = line
+        }
+
         if (line.includes("ターン")) {
             div.className = "log-turn"
         } else if (line.includes("ステップ")) {
