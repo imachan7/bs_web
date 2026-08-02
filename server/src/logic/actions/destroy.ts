@@ -9,6 +9,7 @@ import {
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
+    matchesFamilyFilter,
     notifyNexusDeployed,
     pickAnySideByBp,
     pickAnySideCandidates,
@@ -176,6 +177,75 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         }
         for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
         return
+}
+
+// ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
+// 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroyAll では表現できない。
+// 免疫まわりの扱いは destroyAll と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
+const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyThenWipeEnemy"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+    const ownTargets = state.players[owner].field.spirits
+        .filter(
+            (s) =>
+                matchesFamilyFilter(state, owner, s, action.family) &&
+                !isImmuneToArea(s) &&
+                !isEffectBlocked(state, s, srcType),
+        )
+        .map((s) => s.instanceId)
+    for (const instanceId of ownTargets) {
+        destroySpirit(state, owner, instanceId, "destroy", destroyContext)
+    }
+    const oppTargets = state.players[opp].field.spirits
+        .filter(
+            (s) =>
+                !isImmuneToArea(s) &&
+                !isEffectBlocked(state, s, srcType) &&
+                !hasArmorAgainst(s, srcColors) &&
+                !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
+                !hasFullEffectImmunity(s, srcType),
+        )
+        .map((s) => s.instanceId)
+    if (ownTargets.length === 0 && oppTargets.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const instanceId of oppTargets) {
+        destroySpirit(state, opp, instanceId, "destroy", destroyContext)
+    }
+    void self
+}
+
+// マインドフレア：相手のフィールドに同じカード名のスピリットが2体以上いるとき、
+// カード名1つにつき1体だけ残して残りを破壊する。残すのはフィールドの先頭側（決定的簡略化）
+const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ctx) => {
+    const { state, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+    const seen = new Set<string>()
+    const doomed: string[] = []
+    for (const s of state.players[opp].field.spirits) {
+        const name = getCard(s.cardId).name
+        if (!seen.has(name)) {
+            seen.add(name)
+            continue // 各カード名の先頭1体は残す
+        }
+        if (
+            isImmuneToArea(s) ||
+            isEffectBlocked(state, s, srcType) ||
+            hasArmorAgainst(s, srcColors) ||
+            (srcType === "magic" && hasMagicImmunity(state, opp, s)) ||
+            hasFullEffectImmunity(s, srcType)
+        ) {
+            continue
+        }
+        doomed.push(s.instanceId)
+    }
+    if (doomed.length === 0) {
+        log(state, `${sourceName}：同じカード名のスピリットが2体以上いなかった。`)
+        return
+    }
+    for (const instanceId of doomed) {
+        destroySpirit(state, opp, instanceId, "destroy", destroyContext)
+    }
+    void self
 }
 
 const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
@@ -879,6 +949,8 @@ const handlers = {
     destroy: destroyHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     destroyAll: destroyAllHandler,
+    destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
+    destroyDuplicateNames: destroyDuplicateNamesHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,

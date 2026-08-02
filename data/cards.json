@@ -11381,6 +11381,19 @@
    {
     "id": "BS02-088-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "bothFieldsHaveNexus": true
+    },
+    "action": {
+     "type": "destroyNexus",
+     "count": 1,
+     "side": "both"
+    }
+   },
+   {
+    "id": "BS02-088-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11444,6 +11457,14 @@
   "effects": [
    {
     "id": "BS02-090-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroyDuplicateNames"
+    }
+   },
+   {
+    "id": "BS02-090-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -11652,6 +11673,15 @@
    {
     "id": "BS02-096-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "summonFromHandFree",
+     "maxCostFromOwnTrashCores": true
+    }
+   },
+   {
+    "id": "BS02-096-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11714,6 +11744,16 @@
   "effects": [
    {
     "id": "BS02-098-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "summonFromHandFree",
+     "costFilter": 5,
+     "costDestroyOwnFamily": "怪虫"
+    }
+   },
+   {
+    "id": "BS02-098-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -19943,6 +19983,14 @@
    {
     "id": "BS03-146-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "discardHandNexusesThenDraw"
+    }
+   },
+   {
+    "id": "BS03-146-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -26080,6 +26128,21 @@
   "effects": [
    {
     "id": "BS04-108-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 5
+     }
+    },
+    "action": {
+     "type": "destroyOwnByFamilyThenWipeEnemy",
+     "family": "四道"
+    }
+   },
+   {
+    "id": "BS04-108-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {

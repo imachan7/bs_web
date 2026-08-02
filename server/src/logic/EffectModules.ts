@@ -2601,6 +2601,18 @@ export function resolveMagic(
                     )
                     continue
                 }
+            } else if ("bothFieldsHaveNexus" in effect.condition) {
+                // クロスファイア：どちらのフィールドにもネクサスが1つ以上ないと使用できない
+                const bothHave =
+                    state.players.p1.field.nexuses.length > 0 &&
+                    state.players.p2.field.nexuses.length > 0
+                if (!bothHave) {
+                    log(
+                        state,
+                        `${card.name}：どちらかのフィールドにネクサスがないため発動しなかった。`,
+                    )
+                    continue
+                }
             } else {
                 // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
                 const minColors = effect.condition.ownFieldSymbolColorsAtLeast

@@ -4,8 +4,10 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
+    destroySpirit,
     emitEvent,
     findSpiritAny,
+    matchesFamilyFilter,
     fireFieldEventTriggers,
     fireTrigger,
     notifyNexusDeployed,
@@ -334,7 +336,26 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             if (action.costFilter !== undefined && candidate.cost !== action.costFilter) return false
             // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+            // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
+            if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
             return true
+        }
+        // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
+        // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
+        if (action.costDestroyOwnFamily !== undefined && chosenCardIndex === undefined) {
+            const sacrifices = player.field.spirits.filter((s) =>
+                matchesFamilyFilter(state, owner, s, action.costDestroyOwnFamily!),
+            )
+            if (sacrifices.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim = sacrifices[0]!
+            for (const s of sacrifices) {
+                if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
         }
         if (chosenCardIndex !== undefined) {
             summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)

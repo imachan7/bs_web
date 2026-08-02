@@ -263,6 +263,35 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
     }
 }
 
+// 手札のネクサスカードをすべて破棄し、破棄した枚数ぶんドローする（ネクサスレジスター）。
+// 効果文は「好きなだけ破棄する」だが、枚数を選ばせず全部破棄する決定的簡略化にしてある
+// （ドロー枚数が最大になる選択なので、プレイヤーの不利にはならない）
+const discardHandNexusesThenDrawHandler: ActionHandler<"discardHandNexusesThenDraw"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const nexusIndices: number[] = []
+    for (let i = 0; i < player.hand.length; i++) {
+        if (getCard(player.hand[i]!).type === "nexus") nexusIndices.push(i)
+    }
+    if (nexusIndices.length === 0) {
+        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
+        return
+    }
+    // 後ろから抜くとインデックスがずれない
+    const discarded: string[] = []
+    for (let i = nexusIndices.length - 1; i >= 0; i--) {
+        const [cardId] = player.hand.splice(nexusIndices[i]!, 1)
+        if (cardId === undefined) continue
+        player.trashCards.push(cardId)
+        discarded.push(getCard(cardId).name)
+    }
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、手札のネクサス${discarded.length}枚（${discarded.reverse().join("、")}）をすべて破棄した。（「好きなだけ」は全部破棄として処理）`,
+    )
+    draw(state, owner, discarded.length * drawDoubleMultiplier(state, owner))
+}
+
 // ドローしてから手札を破棄する（ストームドロー：3枚引いて2枚破棄）。
 // 破棄は discardSelfChoose に委譲するので、実対戦では引いた後の手札から選べる
 const drawThenDiscardHandler: ActionHandler<"drawThenDiscard"> = (ctx, action) => {
@@ -950,6 +979,7 @@ const handlers = {
     discardOpponentDownTo: discardOpponentDownToHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
+    discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealReturnToDeck: revealReturnToDeckHandler,

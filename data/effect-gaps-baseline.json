@@ -92,16 +92,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS02-088": {
-            "name": "クロスファイア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-090": {
-            "name": "マインドフレア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS02-091": {
             "name": "セブンスクリムゾン",
             "textBlocks": 2,
@@ -109,16 +99,6 @@
         },
         "BS02-094": {
             "name": "ブラッディレイン",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-096": {
-            "name": "ディバインウィンド",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-098": {
-            "name": "キャストオフ",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -159,11 +139,6 @@
         },
         "BS03-134": {
             "name": "パペットストリング",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-146": {
-            "name": "ネクサスレジスター",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -229,11 +204,6 @@
         },
         "BS04-104": {
             "name": "グラシアルブレス",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-108": {
-            "name": "ストレートフラッシュ",
             "textBlocks": 2,
             "implCount": 1
         },
