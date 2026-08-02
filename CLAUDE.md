@@ -92,6 +92,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 場所 | 中身 |
 | :-- | :-- |
 | `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
+| `docs/design/EFFECT_GAPS_PLAYBOOK.md` | **残りの効果実装漏れ（36枚）を進めるための手引き**。着手順・1枚ごとの方針・器の早見表。効果の実装を始めるときに読む |
 | `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 
