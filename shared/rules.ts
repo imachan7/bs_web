@@ -346,7 +346,7 @@ export function countAuraCounter(
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return board.players[sourcePid].field.spirits.filter((s) =>
-            card(s.cardId).name.includes(counter.ownNameIncludes),
+            cardNameContains(s, counter.ownNameIncludes),
         ).length
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
@@ -436,6 +436,9 @@ export function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
+    if (aura.coresExact !== undefined && targetInst.cores !== aura.coresExact) {
+        return false
+    }
     if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
         return false
     }
@@ -443,6 +446,9 @@ export function auraAppliesTo(
         aura.familyFilter &&
         !matchesFamilyFilter(board, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
+        return false
+    }
+    if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
         return false
     }
     if (aura.vanillaFilter && !isVanillaCard(card(targetInst.cardId))) {
@@ -560,6 +566,7 @@ export function matchesTarget(
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
+    if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
@@ -567,9 +574,12 @@ export function matchesTarget(
     return true
 }
 
-// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定
+// カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
+// namesAsContinuous（「カード名に◯◯が入っているものとして扱う」の継続付与。
+// refreshLevelAsOverrides が都度再構築する）も含めて判定する
 export function cardNameContains(inst: CardInstance, text: string): boolean {
-    return card(inst.cardId).name.includes(text)
+    if (card(inst.cardId).name.includes(text)) return true
+    return (inst.namesAsContinuous ?? []).includes(text)
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
@@ -617,6 +627,13 @@ export function activeConstraints(
             const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
             const color = c.unlessOpponentHasColorSpirit
             return !board.players[oppPid].field.spirits.some((s) => instHasColor(s, color))
+        })
+        // unblockableBy の条件つき（BS03鷹人ホークアイLv2：自分のフィールドに紫のネクサスがあるとき
+        // だけブロックされない）。条件を満たさない間は制約自体を外す
+        .filter((c) => {
+            if (c.type !== "unblockableBy" || c.requireOwnFieldColorNexus === undefined) return true
+            const color = c.requireOwnFieldColorNexus
+            return board.players[pid].field.nexuses.some((n) => instHasColor(n, color))
         })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
@@ -667,6 +684,21 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
         (e) =>
             e.kind === "constraint" &&
             e.constraint.type === "untargetableByOpponent" &&
+            effectActiveAtLevel(e.levels, level),
+    )
+}
+// untargetableByOpponentと異なり範囲効果（destroyAll/exhaustAll等）にも効く「効果を受けない」判定。
+// srcType が spirit/magic のときのみ判定する（ネクサスの効果・自分自身の効果は通す。BS04ワルキューレ・ヒルド）
+export function hasFullEffectImmunity(
+    inst: CardInstance,
+    srcType: "spirit" | "nexus" | "magic" | undefined,
+): boolean {
+    if (srcType !== "spirit" && srcType !== "magic") return false
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "constraint" &&
+            e.constraint.type === "immuneToOpponentEffects" &&
             effectActiveAtLevel(e.levels, level),
     )
 }

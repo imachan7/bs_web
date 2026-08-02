@@ -1,7 +1,7 @@
 // 手札・デッキ・トラッシュ操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, PlayerId } from "../../type"
+import type { CardInstance, Color, PlayerId } from "../../type"
 import { draw, getCard, log, opponentOf } from "../GameState"
 import {
     countEffectCounter,
@@ -17,16 +17,22 @@ import {
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
+    returnSpiritToDeckBottom,
     returnSpiritToDeckTop,
     returnSpiritToHand,
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）
         draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+        if (action.side === "both") {
+            draw(state, opp, action.count * drawDoubleMultiplier(state, opp))
+        }
         return
 }
 
@@ -204,6 +210,117 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
         player.trashCards.push(cardId)
         log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
         return
+}
+
+// 自分の手札から count 枚を破棄する。実対戦（interactiveTargets）では1枚ずつ選ばせ、
+// 残りぶんを queue に積んで同じアクションへ戻ってくる（discardSelfOne の選択機構を count 回ぶん繰り返す形）。
+// 非interactive時は既存の決定的簡略化に合わせて手札の末尾から順に破棄する
+const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (action.count <= 0) return
+    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残りは queue 側が処理する）
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}の手札破棄：対象がいなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+        return
+    }
+    if (player.hand.length === 0) {
+        log(state, `${sourceName}の手札破棄：手札がなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        const indices = player.hand.map((_, i) => i)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}の手札破棄：破棄するカードを選んでください（残り${action.count}枚）`,
+                "hand",
+                indices,
+                { type: "discardSelfChoose", count: 1 },
+                action.count > 1 ? { type: "discardSelfChoose", count: action.count - 1 } : null,
+            )
+        ) {
+            return
+        }
+    }
+    // 決定的自動選択（テスト等）：手札末尾から count 枚を破棄する
+    for (let i = 0; i < action.count; i++) {
+        const cardId = player.hand.pop()
+        if (cardId === undefined) {
+            log(state, `${sourceName}の手札破棄：手札がなかった。`)
+            return
+        }
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+    }
+}
+
+// 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
+// どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
+const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) return
+    const player = state.players[owner]
+    const index = player.hand.findIndex((id) => getCard(id).type === "nexus")
+    if (index === -1) {
+        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
+        return
+    }
+    const [cardId] = player.hand.splice(index, 1)
+    if (cardId === undefined) return
+    player.trashCards.push(cardId)
+    self.cores += action.count
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、手札の${getCard(cardId).name}を破棄してボイドからコア${action.count}個を置いた。`,
+    )
+}
+
+// 手札のネクサスカードをすべて破棄し、破棄した枚数ぶんドローする（ネクサスレジスター）。
+// 効果文は「好きなだけ破棄する」だが、枚数を選ばせず全部破棄する決定的簡略化にしてある
+// （ドロー枚数が最大になる選択なので、プレイヤーの不利にはならない）
+const discardHandNexusesThenDrawHandler: ActionHandler<"discardHandNexusesThenDraw"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const nexusIndices: number[] = []
+    for (let i = 0; i < player.hand.length; i++) {
+        if (getCard(player.hand[i]!).type === "nexus") nexusIndices.push(i)
+    }
+    if (nexusIndices.length === 0) {
+        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
+        return
+    }
+    // 後ろから抜くとインデックスがずれない
+    const discarded: string[] = []
+    for (let i = nexusIndices.length - 1; i >= 0; i--) {
+        const [cardId] = player.hand.splice(nexusIndices[i]!, 1)
+        if (cardId === undefined) continue
+        player.trashCards.push(cardId)
+        discarded.push(getCard(cardId).name)
+    }
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、手札のネクサス${discarded.length}枚（${discarded.reverse().join("、")}）をすべて破棄した。（「好きなだけ」は全部破棄として処理）`,
+    )
+    draw(state, owner, discarded.length * drawDoubleMultiplier(state, owner))
+}
+
+// ドローしてから手札を破棄する（ストームドロー：3枚引いて2枚破棄）。
+// 破棄は discardSelfChoose に委譲するので、実対戦では引いた後の手札から選べる
+const drawThenDiscardHandler: ActionHandler<"drawThenDiscard"> = (ctx, action) => {
+    const { state, owner } = ctx
+    draw(state, owner, action.drawCount * drawDoubleMultiplier(state, owner))
+    if (state.winner) return
+    ctx.resolve({ type: "discardSelfChoose", count: action.discardCount })
 }
 
 // 公開ゾーンの残りをデッキの下へ戻す。実対戦では戻す順番を1枚ずつ選ばせる
@@ -508,6 +625,87 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         return
 }
 
+const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+        // 大天使ヴァリエル：緑/黄から1色を指定し、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
+        const player = state.players[owner]
+        const recoverColor = (color: Color): void => {
+            const indices: number[] = []
+            for (let i = 0; i < player.trashCards.length; i++) {
+                const c = getCard(player.trashCards[i]!)
+                if (c.type === "magic" && cardHasColor(c, color)) indices.push(i)
+            }
+            if (indices.length === 0) {
+                log(state, `${sourceName}：色「${COLOR_LABELS[color]}」のマジックカードがトラッシュになかった。`)
+                return
+            }
+            const names: string[] = []
+            // 後ろのインデックスから順に取り除く（spliceでインデックスがずれないように）
+            for (let i = indices.length - 1; i >= 0; i--) {
+                const idx = indices[i]!
+                const cardId = player.trashCards[idx]!
+                player.trashCards.splice(idx, 1)
+                player.hand.push(cardId)
+                names.unshift(getCard(cardId).name)
+            }
+            log(
+                state,
+                `${player.name}は色「${COLOR_LABELS[color]}」のマジックカード「${names.join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, names.length)
+        }
+        if (chosenOption !== undefined) {
+            const entry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+                ([, label]) => label === chosenOption,
+            )
+            if (entry) recoverColor(entry[0])
+            return
+        }
+        // 候補色（action.colorsのうちトラッシュに該当マジックがある色）を集計する
+        const tally = new Map<Color, number>()
+        for (const cardId of player.trashCards) {
+            const c = getCard(cardId)
+            if (c.type !== "magic") continue
+            for (const color of action.colors) {
+                if (cardHasColor(c, color)) tally.set(color, (tally.get(color) ?? 0) + 1)
+            }
+        }
+        if (tally.size === 0) {
+            log(state, `${sourceName}：対象の色のマジックカードがトラッシュになかった。`)
+            return
+        }
+        if (state.interactiveTargets && tally.size > 1) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：色を1つ指定してください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                [...tally.keys()].map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        // 非対話時（候補1色以下も含む）：該当枚数最多の色を自動選択（同数はaction.colorsの先頭を優先）
+        let chosen: Color | null = null
+        let best = 0
+        for (const color of action.colors) {
+            const count = tally.get(color) ?? 0
+            if (count > best) {
+                best = count
+                chosen = color
+            }
+        }
+        if (!chosen) {
+            log(state, `${sourceName}：対象の色がなかった。`)
+            return
+        }
+        recoverColor(chosen)
+        return
+}
+
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
@@ -637,7 +835,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (isEffectBlocked(state, s, srcType)) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
                 return true
             })
             for (const s of targets) {
@@ -647,6 +845,32 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
         }
         if (returned === 0) log(state, `${sourceName}：手札に戻す対象がいなかった。`)
         return
+}
+
+// グラシアルブレス：自分のスピリットcount体をデッキの下へ戻すことをコストに、
+// 相手のスピリットcount体もデッキの下へ戻す。自分がcount体戻せないなら不発。
+// 「好きな順番で」はコスト最小から（自分）／実効BP上位から（相手）の決定的簡略化
+const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBottom"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+    const ownSpirits = [...state.players[owner].field.spirits]
+    if (ownSpirits.length < action.count) {
+        log(state, `${sourceName}：自分のスピリットが${action.count}体いないため発動しなかった。`)
+        return
+    }
+    ownSpirits.sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)
+    for (const inst of ownSpirits.slice(0, action.count)) {
+        returnSpiritToDeckBottom(state, owner, inst)
+    }
+    let returned = 0
+    for (let i = 0; i < action.count; i++) {
+        const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+        if (!target) break
+        returnSpiritToDeckBottom(state, opp, target)
+        returned++
+    }
+    if (returned === 0) {
+        log(state, `${sourceName}：相手のスピリットがいなかった。`)
+    }
 }
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
@@ -802,15 +1026,21 @@ const handlers = {
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
     discardSelfOne: discardSelfOneHandler,
+    discardSelfChoose: discardSelfChooseHandler,
+    discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
+    discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
+    drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
+    recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     mill: millHandler,
     millPer: millPerHandler,
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,

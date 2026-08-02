@@ -114,8 +114,11 @@ console.log("=== minSymbols 軸: シンボル数が足りる対象のみ（BS04-
 {
     // 4枚とも bpBuff amount:5000 minSymbols:2。データが同型であることを機械確認してから、
     // 代表1件で「シンボル2個には効き、1個には効かない」を検証する
+    // BS04-104/114 はメイン側の実装を足したのでエントリが2つある。フラッシュ側を名指しで拾う
     for (const id of ["BS04-096", "BS04-104", "BS04-107", "BS04-114"]) {
-        const eff = getCard(id).effects[0] as { action?: { filter?: { minSymbols?: number }; amount?: number } }
+        const eff = getCard(id).effects.find(
+            (e) => e.kind === "magic" && e.timing === "flash",
+        ) as { action?: { filter?: { minSymbols?: number }; amount?: number } }
         assert(
             eff.action?.filter?.minSymbols === 2 && eff.action?.amount === 5000,
             `テスト前提: ${getCard(id).name} は filter.minSymbols2 / amount5000`,

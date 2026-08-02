@@ -41,6 +41,7 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
+    "destroyedCoresToTrash", "nameAsGrant",
 ])
 
 export interface ValidationIssue {
@@ -190,7 +191,7 @@ const FILTER_ACTIONS = new Set([
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "rested",
+    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser",
 ])
 

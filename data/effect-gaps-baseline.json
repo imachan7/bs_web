@@ -1,0 +1,191 @@
+{
+    "_comment": [
+        "効果実装漏れ検出（scripts/check-effect-gaps.ts）のベースライン。",
+        "ここに載っている cardId は「検出済みだが、まだ対応していない or 誤検出」として黙認される。",
+        "npm run validate:gaps は、ここに無い新しいギャップが出たら失敗する（＝実装漏れの増加を防ぐ）。",
+        "カードの効果を実装したら、この一覧から該当 cardId を消すこと（消し忘れも検出される）。",
+        "「意図的に実装しない」ものは data/card-notes.json に理由を書けば、そちらで宣言済みとして扱われる。"
+    ],
+    "known": {
+        "BS01-025": {
+            "name": "要塞龍ギガ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-093": {
+            "name": "甲精ディース",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS01-123": {
+            "name": "リターンドロー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-042": {
+            "name": "スクルディア",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-055": {
+            "name": "チャウー",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-079": {
+            "name": "紫水晶の森",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-081": {
+            "name": "緑芽吹く原野",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-082": {
+            "name": "生み出される尖兵",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-083": {
+            "name": "鏡の回廊",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS02-087": {
+            "name": "封印された魔導書",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-103": {
+            "name": "熾烈極める最前線",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-105": {
+            "name": "暗礁海域",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-107": {
+            "name": "果て無き地平線",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-110": {
+            "name": "星降る巡礼地",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-134": {
+            "name": "パペットストリング",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-147": {
+            "name": "ゴーレムクラフト",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS03-X10": {
+            "name": "凍獣マン・モール",
+            "textBlocks": 3,
+            "implCount": 1
+        },
+        "BS04-007": {
+            "name": "ドラグノ近衛兵",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-053": {
+            "name": "天使スローン",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-078": {
+            "name": "魔影街",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-081": {
+            "name": "強者統べる大地",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-088": {
+            "name": "栄光の表彰台",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-109": {
+            "name": "スイッチヒッター",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS04-X14": {
+            "name": "魔界七将パンデミウム",
+            "textBlocks": 3,
+            "implCount": 1
+        },
+        "BS05-038": {
+            "name": "シーサーズ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-040": {
+            "name": "プリンセス・スノーホワイト",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-044": {
+            "name": "リトルナイト・ランスロット",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-056": {
+            "name": "最古龍の顎",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-057": {
+            "name": "藍紫の虚空",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-064": {
+            "name": "ペンタン帝国",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-065": {
+            "name": "青嵐の虚空",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-066": {
+            "name": "天焦がす大聖火",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-069": {
+            "name": "トランスマイグレーション",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-070": {
+            "name": "ソウルクラッシュ",
+            "textBlocks": 2,
+            "implCount": 1
+        },
+        "BS05-079": {
+            "name": "スリーカード",
+            "textBlocks": 1,
+            "implCount": 0
+        },
+        "BS05-081": {
+            "name": "ネクサスブロケイド",
+            "textBlocks": 2,
+            "implCount": 1
+        }
+    }
+}

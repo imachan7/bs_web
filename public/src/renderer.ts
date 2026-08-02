@@ -51,10 +51,23 @@ export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint,
 
 let DB = new Map<string, CardData>()
 
+let cardNameRegex: RegExp | null = null
+const cardNameMap = new Map<string, CardData>()
+
 export function setCardDb(cards: CardData[]): void {
     DB = new Map(cards.map((c) => [c.cardId, c]))
     // 共有ルール層（shared/）へカードマスタ参照を注入する（サーバーは GameState.getCard を注入）
     setCardLookup(master)
+
+    const uniqueNames = Array.from(new Set(cards.map((c) => c.name))).sort((a, b) => b.length - a.length)
+    const escapedNames = uniqueNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    cardNameRegex = new RegExp(`(${escapedNames.join('|')})`, 'g')
+    
+    for (const card of cards) {
+        if (!cardNameMap.has(card.name)) {
+            cardNameMap.set(card.name, card)
+        }
+    }
 }
 
 export function master(cardId: string): CardData {
@@ -272,7 +285,7 @@ function escapeHtml(str: string): string {
 let lastEventSeq = 0
 
 // バナー1件が画面に残る時間（CSSの event-banner-inout と合わせる）
-const EVENT_BANNER_DURATION_MS = 800
+const EVENT_BANNER_DURATION_MS = 3000
 
 function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
     switch (ev.type) {
@@ -499,13 +512,32 @@ export function render(view: GameView, ui: UiState): void {
     logEl.innerHTML = ""
     for (const line of view.log) {
         const div = document.createElement("div")
-        div.textContent = line
+        if (cardNameRegex && line.match(cardNameRegex)) {
+            const parts = line.split(cardNameRegex)
+            for (const part of parts) {
+                const card = cardNameMap.get(part)
+                if (card) {
+                    const span = document.createElement("span")
+                    span.className = "log-card-name"
+                    span.dataset.cardId = card.cardId
+                    span.textContent = part
+                    div.appendChild(span)
+                } else {
+                    div.appendChild(document.createTextNode(part))
+                }
+            }
+        } else {
+            div.textContent = line
+        }
+
         if (line.includes("ターン")) {
             div.className = "log-turn"
         } else if (line.includes("ステップ")) {
             div.className = "log-phase"
         } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
             div.className = "log-important"
+        } else if (line.includes("：")) {
+            div.className = "log-effect"
         }
         logEl.appendChild(div)
     }
@@ -515,7 +547,7 @@ export function render(view: GameView, ui: UiState): void {
     if (view.winner) {
         show("result-overlay", true)
         $("result-message").textContent =
-            view.winner === you ? "🏆 勝利！" : "敗北…"
+            view.winner === you ? "勝利" : "敗北"
     } else {
         show("result-overlay", false)
     }
@@ -1273,12 +1305,12 @@ export function setupEffectTooltip(): void {
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
         if (card) showFor(card)
     })
     document.addEventListener("mouseout", (e) => {
-        const from = (e.target as HTMLElement).closest(".card")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card")
+        const from = (e.target as HTMLElement).closest(".card, .log-card-name")
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .log-card-name")
         if (from && from !== to) hide()
     })
 
@@ -1288,7 +1320,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
         window.clearTimeout(pressTimer)
         if (!card) {
             hide()

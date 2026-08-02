@@ -249,6 +249,38 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
         return
 }
 
+const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        // 巨神機トールLv1-3：familyFilter一致・self以外・回復状態の自分のスピリット1体
+        // （実効BP最大を自動選択＝バフ量を最大化する簡略化）を疲労させ、self自身をその実効BP分だけBP+する。
+        // 「〜することで」の任意コストは自動発動で簡略化
+        if (!self) {
+            log(state, `${sourceName}：バフ対象がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter(
+            (s) =>
+                !s.isRested &&
+                s.instanceId !== self.instanceId &&
+                matchesFamilyFilter(state, owner, s, action.familyFilter),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
+            return
+        }
+        const target = candidates.reduce((best, s) =>
+            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        )
+        target.isRested = true
+        const amount = effectiveBp(state, owner, target)
+        self.tempBpBuff += amount
+        log(
+            state,
+            `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+        )
+        return
+}
+
 const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
@@ -319,6 +351,7 @@ const handlers = {
     bpBuffAllByArmorColors,
     bpBuffPer,
     bpBuffByExhaustOwn,
+    selfBuffByExhaustFamily,
     selfBuffByHandDiscard,
 } satisfies Partial<ActionRegistry>
 

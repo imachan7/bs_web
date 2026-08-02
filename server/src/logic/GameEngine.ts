@@ -31,6 +31,7 @@ import {
     instanceSymbolCount,
     instColors,
     millDeck,
+    notifyNexusDeployed,
     refreshLevelAsOverrides,
     resolveAction,
     resolveFunsai,
@@ -307,6 +308,7 @@ function doSetNexus(
     player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
+    notifyNexusDeployed(state, pid)
     return null
 }
 
@@ -376,6 +378,9 @@ function doMoveCore(
     } else {
         inst.cores -= 1
         player.reserve += 1
+        // 「コアを置く、または取り除くと疲労する」（BS01ルビーの太陽Lv2）。
+        // onRemove を持たない既存の効果（夢魔の寝所／魔影街）はここでは反応しない
+        if (spirit) checkExhaustOnCoreChange(state, pid, spirit, { viaEffect: false, isRemoval: true })
     }
     return null
 }
@@ -463,14 +468,21 @@ function doAttack(
     // このターンのアタック回数を加算する（「ターンの最初のアタック」判定に使う。誘発より前に更新する）
     state.attacksThisTurn += 1
 
-    fireTrigger(state, pid, inst, "onAttack")
+    // 直前の【粉砕】の記録をクリアする（アタック宣言のたびに。粉砕を持たないスピリットのアタック時に
+    // 前回の値を拾わないようにするため。GameState.lastFunsai）
+    delete state.lastFunsai
+
+    // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
+    // （funsaiBonus・ownFunsaiMilled誘発の共通処理はresolveFunsaiに集約）。
+    // onAttackの誘発より先に解決する: 巨人王ランドルフ／二刀流のアムブローズ／伝説巨人ジュードの
+    // 「【粉砕】で破棄した◯枚につき」onAttack効果がstate.lastFunsaiを参照するため、
+    // この順序が逆だと常にlastFunsaiが空のまま発揮されてしまう
+    resolveFunsai(state, pid, inst)
+
+    if (!state.winner) fireTrigger(state, pid, inst, "onAttack")
 
     // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない
     if (!state.winner) fireTrigger(state, pid, inst, "onBattleStart")
-
-    // 【粉砕】：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
-    // （funsaiBonus・ownFunsaiMilled誘発の共通処理はresolveFunsaiに集約）
-    if (!state.winner) resolveFunsai(state, pid, inst)
 
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
@@ -720,6 +732,8 @@ function doResolveChoice(
             // confirm（「〜できる」の発動確認）は選んだラベルを渡さない。
             // 渡すと、選択肢を解釈するアクション（grantColorChoice 等）が誤動作する
             if (pending.confirm) {
+                // 発動を選んだ側もログに残す（発動しなかった場合と対になる。発生源がログから追えるように）
+                log(state, `${self ? getCard(self.cardId).name : "効果"}：効果を発動した。`)
                 resolveAction(state, actor, self, pending.action)
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)

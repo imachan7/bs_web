@@ -92,13 +92,13 @@
             <button id="btn-surrender" class="log-toggle-btn" style="color: #ff8888; border-color: #cc4444;">🏳 降参</button>
             <span id="turn-info"></span>
             <div id="phase-bar">
-                <span class="phase-step" data-phase="start" data-short="開">開始</span>
+                <span class="phase-step" data-phase="start" data-short="ス">スタート</span>
                 <span class="phase-step" data-phase="core" data-short="コ">コア</span>
                 <span class="phase-step" data-phase="draw" data-short="ド">ドロー</span>
                 <span class="phase-step" data-phase="refresh" data-short="リ">リフレ</span>
                 <span class="phase-step" data-phase="main" data-short="メ">メイン</span>
                 <span class="phase-step" data-phase="attack" data-short="ア">アタック</span>
-                <span class="phase-step" data-phase="end" data-short="終">終了</span>
+                <span class="phase-step" data-phase="end" data-short="エ">エンド</span>
             </div>
         </div>
 
@@ -190,5 +190,8 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/dist/main.js"></script>
+
+    <!-- 汎用ツールチップ -->
+    <div id="global-tooltip" class="hidden"></div>
 </body>
 </html>

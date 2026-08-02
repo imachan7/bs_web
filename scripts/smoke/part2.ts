@@ -648,7 +648,7 @@ console.log("=== カスタムデッキ検証（validateDeckCards） ===")
         "同名4枚のデッキは「同名」エラー",
     )
 
-    const banned: Record<string, number> = { ...base, "BS01-132": 3 } // ストームドロー（禁止）
+    const banned: Record<string, number> = { ...base, "BS02-063": 3 } // 冥犬ケルル・ベロス（禁止）
     delete banned["BS01-116"]
     assert(
         (validateDeckCards(banned) ?? "").includes("禁止"),

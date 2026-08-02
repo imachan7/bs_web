@@ -746,6 +746,18 @@
   "effects": [
    {
     "id": "BS01-016-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS01-016-e2",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
@@ -4537,6 +4549,17 @@
     ],
     "colorFilter": "white",
     "amount": 1
+   },
+   {
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     2
+    ],
+    "colorFilter": "white",
+    "scope": "any",
+    "anyPhase": true,
+    "onRemove": true,
+    "id": "BS01-100-e2"
    }
   ]
  },
@@ -4575,7 +4598,16 @@
   "effect": "Lv1･Lv2『自分のターン』\nスピリットが破壊されたとき、そのスピリット上に置かれているコアは、リザーブではなくトラッシュに置かれる。\nLv2『自分のアタックステップ』\nBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
   "effects": [
    {
-    "id": "BS01-101-e1",
+    "kind": "destroyedCoresToTrash",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "id": "BS01-101-e1"
+   },
+   {
+    "id": "BS01-101-e2",
     "kind": "battleWon",
     "role": "attacker",
     "levels": [
@@ -5626,6 +5658,15 @@
    {
     "id": "BS01-130-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "moveCoresLeavingOne",
+     "anySide": true
+    }
+   },
+   {
+    "id": "BS01-130-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -5692,11 +5733,21 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "マジック(禁止カード)\nメイン：\n自分はデッキから3枚ドローする。\nその後、手札2枚を選んで破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
   "effects": [
    {
     "id": "BS01-132-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "drawThenDiscard",
+     "drawCount": 3,
+     "discardCount": 2
+    }
+   },
+   {
+    "id": "BS01-132-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -8138,6 +8189,20 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS02-030-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonRepeatFromHand",
+     "mode": "paid",
+     "familyFilter": "怪虫"
+    }
    }
   ]
  },
@@ -9063,6 +9128,21 @@
   "effects": [
    {
     "id": "BS02-047-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-047-e2",
     "kind": "triggered",
     "trigger": "onBlock",
     "levels": [
@@ -10334,6 +10414,17 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "kind": "nameAsGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "costFilter": 2,
+    "id": "BS02-070-e2"
    }
   ]
  },
@@ -10624,6 +10715,16 @@
      "gainCoresEqualCost": true
     },
     "optional": false
+   },
+   {
+    "kind": "magicBuffBonus",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "self",
+    "amountBonus": 3000,
+    "id": "BS02-075-e2"
    }
   ]
  },
@@ -10938,6 +11039,20 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "winnerMinCores": 3,
+    "selfMode": "source",
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "id": "BS02-080-e2"
    }
   ]
  },
@@ -11184,7 +11299,7 @@
   ],
   "flash": false,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2\n自分の手札にあるネクサスカードすべてに、軽減シンボル[黄][黄]を与える。\nLv2\n自分のネクサスすべてをLv2として扱うことができる。",
   "effects": [
    {
@@ -11257,6 +11372,15 @@
      "phase": "attack",
      "turn": "own"
     }
+   },
+   {
+    "kind": "magicRestriction",
+    "levels": [
+     2
+    ],
+    "restriction": "reserveOnlyOpponent",
+    "turn": "own",
+    "id": "BS02-086-e2"
    }
   ]
  },
@@ -11330,6 +11454,19 @@
    {
     "id": "BS02-088-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "bothFieldsHaveNexus": true
+    },
+    "action": {
+     "type": "destroyNexus",
+     "count": 1,
+     "side": "both"
+    }
+   },
+   {
+    "id": "BS02-088-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11394,6 +11531,14 @@
    {
     "id": "BS02-090-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroyDuplicateNames"
+    }
+   },
+   {
+    "id": "BS02-090-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11424,6 +11569,16 @@
   "effects": [
    {
     "id": "BS02-091-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "costOwnAllCoresThenEnemyCoresToReserve",
+     "minBp": 7000,
+     "count": 7
+    }
+   },
+   {
+    "id": "BS02-091-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -11538,6 +11693,24 @@
    {
     "id": "BS02-094-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "opponentCoresToVoidByTotal",
+     "tiers": [
+      {
+       "minTotal": 10,
+       "count": 2
+      },
+      {
+       "minTotal": 20,
+       "count": 6
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS02-094-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11601,6 +11774,15 @@
    {
     "id": "BS02-096-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "summonFromHandFree",
+     "maxCostFromOwnTrashCores": true
+    }
+   },
+   {
+    "id": "BS02-096-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11626,7 +11808,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、自分のスピリット1体に置く。\nこの効果は、メインステップで使えない。",
   "effects": [
    {
@@ -11664,6 +11846,16 @@
    {
     "id": "BS02-098-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "summonFromHandFree",
+     "costFilter": 5,
+     "costDestroyOwnFamily": "怪虫"
+    }
+   },
+   {
+    "id": "BS02-098-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -11691,7 +11883,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のスピリット1体を破壊する。\nボイドから、破壊したスピリットのコスト1につき、コア1個を自分のリザーブに置く。",
   "effects": [
    {
@@ -12354,6 +12546,34 @@
      "type": "noRestWhenBlockingColor",
      "color": "red"
     }
+   },
+   {
+    "id": "BS02-X07-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "selfBuffByExhaustFamily",
+     "familyFilter": "武装"
+    }
+   },
+   {
+    "id": "BS02-X07-e3",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "refreshSelfByDestroyFamily",
+     "familyFilter": "武装"
+    }
    }
   ]
  },
@@ -12999,6 +13219,23 @@
      "count": 1
     },
     "optional": true
+   },
+   {
+    "id": "BS03-011-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "coresExact": 1,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
    }
   ]
  },
@@ -13047,6 +13284,25 @@
   "effects": [
    {
     "id": "BS03-012-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxCores": 3
+     },
+     "count": 1,
+     "anySide": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS03-012-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
     "levels": [
@@ -13296,6 +13552,23 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS03-017-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "anySide": true,
+     "filter": {
+      "cores": 2
+     }
+    }
    }
   ]
  },
@@ -13673,6 +13946,21 @@
       1
      ]
     }
+   },
+   {
+    "id": "BS03-024-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "keywordFilter": "jugeki",
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
    }
   ]
  },
@@ -13922,7 +14210,7 @@
   ],
   "flash": false,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、自分のフィールドにあるネクサス1つにつき、コア1個をこのスピリット上に置く。",
   "effects": [
    {
@@ -15475,6 +15763,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-059-e2",
+    "kind": "aura",
+    "levels": [
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "nameIncludesFilter": "アルカナ",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
    }
   ]
  },
@@ -15620,6 +15925,20 @@
      "familyFilter": "遊精",
      "amount": 1000
     }
+   },
+   {
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "scope": "ownAll",
+    "familyFilter": "小玩",
+    "when": {},
+    "revived": {
+     "toHand": true
+    },
+    "id": "BS03-062-e2"
    }
   ]
  },
@@ -15913,6 +16232,17 @@
      "amountPer": 1000
     },
     "optional": false
+   },
+   {
+    "kind": "nameAsGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "costFilter": 3,
+    "id": "BS03-067-e2"
    }
   ]
  },
@@ -16069,6 +16399,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-070-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "condition": {
+     "ownFieldHasColorNexus": "purple"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
    }
   ]
  },
@@ -16693,6 +17040,21 @@
   "effects": [
    {
     "id": "BS03-084-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1,
+     "side": "both"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-084-e2",
     "kind": "triggered",
     "trigger": "onDestroy",
     "levels": [
@@ -17327,6 +17689,20 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-096-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": "lastFunsaiTotal"
+    }
    }
   ]
  },
@@ -17378,6 +17754,17 @@
      "count": 5
     },
     "optional": false
+   },
+   {
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "requireOwnFieldColorNexus": "purple"
+    },
+    "id": "BS03-097-e2"
    }
   ]
  },
@@ -17553,6 +17940,23 @@
      "all": true
     },
     "optional": true
+   },
+   {
+    "id": "BS03-100-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownNexusColor": "blue"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
    }
   ]
  },
@@ -19716,6 +20120,14 @@
    {
     "id": "BS03-146-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "discardHandNexusesThenDraw"
+    }
+   },
+   {
+    "id": "BS03-146-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -19886,6 +20298,20 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS03-X09-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "soku"
+    }
    }
   ]
  },
@@ -20001,6 +20427,24 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-X11-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "recoverAllMagicFromTrashByColorChoice",
+     "colors": [
+      "green",
+      "yellow"
+     ]
+    }
    }
   ]
  },
@@ -20273,6 +20717,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-004-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "keyword": "awaken",
+      "excludeSelf": true
+     }
+    }
    }
   ]
  },
@@ -20492,6 +20953,24 @@
      "amount": 5000
     },
     "optional": false
+   },
+   {
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "own",
+    "winnerFamilyFilter": [
+     "竜人",
+     "古竜"
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "id": "BS04-008-e2"
    }
   ]
  },
@@ -22252,6 +22731,28 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "id": "BS04-039-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "keywordFilter": "soku",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
+    },
+    "cost": {
+     "fieldOrReserveOneToTrash": true
+    }
    }
   ]
  },
@@ -22485,6 +22986,17 @@
   "effects": [
    {
     "id": "BS04-043-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "immuneToOpponentEffects"
+    }
+   },
+   {
+    "id": "BS04-043-e2",
     "kind": "fieldEvent",
     "event": "ownLifeDamaged",
     "levels": [
@@ -22858,6 +23370,26 @@
       "turn": "opponent"
      }
     }
+   },
+   {
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownSymbolColorAtLeast": {
+      "color": "white",
+      "count": 3
+     },
+     "noAttacksThisTurn": true
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "id": "BS04-050-e2"
    }
   ]
  },
@@ -23230,6 +23762,26 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-057-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonRepeatFromHand",
+     "mode": "free",
+     "familyFilter": "天霊",
+     "costFilter": {
+      "max": 6
+     },
+     "extraReserveCostPerSummon": 1
+    }
    }
   ]
  },
@@ -23498,6 +24050,21 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-063-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "lastFunsaiSpirits",
+     "amountPer": 1000
+    }
    }
   ]
  },
@@ -23572,7 +24139,22 @@
   "effect": "Lv1･Lv2『自分のメインステップ』\nステップ開始時、自分の手札のネクサスカード1枚を破棄することで、ボイドから、コア1個をこのスピリット上に置くことができる。\nLv2『このスピリットの破壊時』\n自分のトラッシュにあるネクサスカード1枚を選んで、コストを支払わずに自分のフィールドに配置することができる。",
   "effects": [
    {
-    "id": "BS04-065-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "discardHandNexusToVoidCoreSelf",
+     "count": 1
+    },
+    "id": "BS04-065-e1"
+   },
+   {
+    "id": "BS04-065-e2",
     "kind": "triggered",
     "trigger": "onDestroy",
     "levels": [
@@ -24114,6 +24696,22 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-075-e2",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "lastFunsaiHasNexus": true
+    },
+    "action": {
+     "type": "refreshSelf"
+    }
    }
   ]
  },
@@ -24356,6 +24954,23 @@
      "type": "draw",
      "count": 1
     }
+   },
+   {
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": {
+      "ownFamily": "妖蛇"
+     },
+     "leaveAtLeast": 1
+    },
+    "id": "BS04-079-e2"
    }
   ]
  },
@@ -24659,6 +25274,25 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "id": "BS04-084-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "familyFilter": "天霊",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
+    }
    }
   ]
  },
@@ -24839,6 +25473,17 @@
      "type": "mill",
      "count": 1
     }
+   },
+   {
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsVanilla",
+    "treatAs": "max",
+    "summonedThisTurnOnly": true,
+    "sourceLevels": [
+     2
+    ],
+    "id": "BS04-087-e2"
    }
   ]
  },
@@ -24873,9 +25518,22 @@
   ],
   "flash": false,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分は、ネクサスの配置に支払うコストを、コスト1につき、自分のデッキを上から1枚破棄することで支払うことができる。\nLv2\n自分のフィールドにネクサスが配置されるたび、ボイドから、コア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-088-e2",
+    "kind": "fieldEvent",
+    "event": "ownNexusDeployed",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-089",
@@ -24894,7 +25552,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、【覚醒】を持つ自分のスピリット1体の上に置く。\nこの効果は、メインステップで使えない。",
   "effects": [
    {
@@ -25182,7 +25840,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "メイン：\nお互い、それぞれのスピリット/ネクサスのコア4個をボイドに置く。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
   "effects": [
    {
@@ -25514,6 +26172,18 @@
    {
     "id": "BS04-104-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    },
+    "action": {
+     "type": "returnBothSidesToDeckBottom",
+     "count": 2
+    }
+   },
+   {
+    "id": "BS04-104-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -25521,8 +26191,7 @@
       "minSymbols": 2
      },
      "amount": 5000
-    },
-    "mainForbidden": true
+    }
    }
   ]
  },
@@ -25543,7 +26212,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "メイン：\n自分のトラッシュにあるスピリットカード5枚を選び、好きな順番でデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
   "effects": [
    {
@@ -25688,6 +26357,21 @@
   "effects": [
    {
     "id": "BS04-108-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 5
+     }
+    },
+    "action": {
+     "type": "destroyOwnByFamilyThenWipeEnemy",
+     "family": "四道"
+    }
+   },
+   {
+    "id": "BS04-108-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -25905,6 +26589,17 @@
    {
     "id": "BS04-114-e1",
     "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasMinSymbolSpirit": 2
+    },
+    "action": {
+     "type": "sacrificeOwnNexusesThenEnemyDestroysOwn"
+    }
+   },
+   {
+    "id": "BS04-114-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -25912,8 +26607,7 @@
       "minSymbols": 2
      },
      "amount": 5000
-    },
-    "mainForbidden": true
+    }
    }
   ]
  },
@@ -26118,6 +26812,21 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS04-X15-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "lifeCrush",
+     "count": 2,
+     "costReserveToVoid": 1
+    }
    }
   ]
  },
@@ -27073,6 +27782,18 @@
       }
      }
     }
+   },
+   {
+    "id": "BS05-016-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "mutualDestroyChoice"
+    },
+    "optional": false
    }
   ]
  },
@@ -27962,6 +28683,20 @@
      1,
      2
     ],
+    "colors": [
+     "red",
+     "white"
+    ]
+   },
+   {
+    "id": "BS05-032-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colorFilter": "green",
     "colors": [
      "red",
      "white"
@@ -29202,18 +29937,31 @@
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分か相手のネクサス1つを破壊する。\nLv2\nこのスピリットの効果で、自分か相手のネクサスを破壊したとき、相手は手札1枚を選んで破棄する。",
   "effects": [
    {
-    "id": "BS05-054-e1",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
-     1,
-     2
+     1
     ],
     "optional": false,
     "action": {
      "type": "destroyNexus",
      "count": 1
-    }
+    },
+    "id": "BS05-054-e1"
+   },
+   {
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyNexus",
+     "count": 1,
+     "discardOpponentPerDestroyed": 1
+    },
+    "id": "BS05-054-e2"
    }
   ]
  },
@@ -29496,6 +30244,21 @@
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/3のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手のスピリット1体を疲労させる”という効果を与える。",
   "effects": [
+   {
+    "id": "BS05-059-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "costCantAct",
+     "costs": [
+      0,
+      3
+     ]
+    }
+   },
    {
     "id": "BS05-059-e2",
     "kind": "effectGrant",
@@ -29863,7 +30626,10 @@
     ],
     "constraint": {
      "type": "costCantAct",
-     "maxCost": 2
+     "costs": [
+      0,
+      2
+     ]
     }
    }
   ]
@@ -30872,6 +31638,21 @@
      "filter": {
       "maxBp": 7000
      }
+    }
+   },
+   {
+    "id": "BS05-X19-e3",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyByCostBudget",
+     "budget": 5
     }
    }
   ]
