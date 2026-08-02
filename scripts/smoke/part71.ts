@@ -47,6 +47,8 @@ console.log("=== §A negateOwnBlockConstraint: cantBlock の無効化（バー�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     // 無効化前: cantBlock 持ちはブロックできない
     const before = act(s, "p2", { type: "block", instanceId: terano })
@@ -83,6 +85,8 @@ console.log("=== §A-2 negateOwnBlockConstraint: cantBlockLowerBp も無効化�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     const before = act(s, "p2", { type: "block", instanceId: lizard })
     assert(before !== null, "無効化前は cantBlockLowerBp でブロックが拒否される")
@@ -106,20 +110,21 @@ console.log("=== §A-3 negateOwnBlockConstraint: 実対戦経路（フラッシ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
-    assert(act(s, "p2", { type: "block", instanceId: terano }) !== null, "使用前はブロックできない")
 
-    // 防御側が優先権を持っている状態でフラッシュ使用
+    // ブロック宣言はフラッシュ①終了後にしかできないため、無効化のためのフラッシュ使用は
+    // フラッシュ①の間（防御側が優先権を持つ間）に行う必要がある
     assert(
         act(s, "p2", { type: "castMagic", handIndex: 0 }) === null,
-        "バーストファイアをフラッシュで使用できる",
+        "バーストファイアをフラッシュ①中に使用できる",
     )
     assert(
         findSpiritById(s, "p2", terano)?.blockConstraintNegatedThisTurn === true,
         "カード使用でも制約が無効化される",
     )
-    // 使用で優先権が相手へ移るので、相手のパスを挟んでからブロックする
-    assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス")
-    assert(act(s, "p2", { type: "block", instanceId: terano }) === null, "使用後はブロックできる")
+    // 使用で優先権が相手へ移るので、両者が連続パスしてフラッシュ①を閉じる
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（優先権を得て）")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①終了）")
+    assert(act(s, "p2", { type: "block", instanceId: terano }) === null, "フラッシュ①終了後、無効化済みなのでブロックできる")
 }
 
 console.log("=== §A-4 negateOwnBlockConstraint: 「このターンの間」＝ターン終了でリセット ===")
@@ -149,6 +154,8 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     const blocker = put(s, "p2", "BS01-002", 3) // ロクケラトプス Lv3 BP4000
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
+    act(s, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
+    act(s, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
     act(s, "p2", { type: "block", instanceId: blocker })
     return { s, decoy, blocker }
 }
@@ -285,6 +292,8 @@ console.log("=== §C returnSelfToHand: 破壊時に手札へ戻る（実行実�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: gaurum }) === null, "ガウルムがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")

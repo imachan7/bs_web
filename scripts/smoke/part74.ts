@@ -112,6 +112,8 @@ console.log("=== BS05-038 シーサーズ：破壊時、コスト2の自分の�
     s.players.p1.hand = ["BS01-003"] // テラノセイバー（コスト2）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: seasars }) === null, "シーサーズがアタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: strong }) === null, "リザードマンがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")
@@ -200,6 +202,8 @@ console.log("=== BS05-062 永久氷殿：氷姫スピリットにBP+1000（Lv1-2
     const p2HandBefore = s.players.p2.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "ソールがアタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "リザードマンがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")
@@ -219,6 +223,8 @@ console.log("=== BS05-064 ペンタン帝国：相手ターン中に黄スピリ
     assert(s.turnPlayer === "p2", "p2のターンになる")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2がアタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: attacker }) === null, "p2がアタック宣言")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p1", { type: "block", instanceId: piyon }) === null, "p1がピヨンでブロック")
     assert(act(s, "p1", { type: "pass" }) === null, "防御側（p1）がパス")
     assert(act(s, "p2", { type: "pass" }) === null, "攻撃側（p2）がパス＝バトル解決")
@@ -269,6 +275,8 @@ console.log("=== BS05-X18 超獣王ベヒードス：召喚時破壊／アタッ
     const behedosuId = put(s, "p2", "BS05-X18", 6) // Lv3
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "p1がアタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: behedosuId }) === null, "ベヒードスがブロック")
     assert(s.battle?.flashLockedPlayer === "p1", "ブロック時に攻撃側（p1）がフラッシュ封印される")
 }

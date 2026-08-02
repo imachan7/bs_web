@@ -250,6 +250,8 @@ console.log("=== BS02-110 ヘビィゲート：コスト1以下のスピリッ�
         act(s, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null,
         "コスト2のattacker2はアタックできる",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コスト0のblockerはこのターンブロックできない",
@@ -354,6 +356,8 @@ console.log("=== BS02-048 竜戦車アースガルド Lv2：コスト8以外が�
         act(s, "p1", { type: "attack", instanceId: earthgard.instanceId }) === null,
         "アースガルドでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: notCost8.instanceId }) !== null,
         "コスト8以外のnotCost8はブロックできない",
@@ -383,6 +387,8 @@ console.log("=== BS02-X07 巨神機トール：赤のアタッカーをブロッ
         act(s, "p1", { type: "attack", instanceId: redAttacker.instanceId }) === null,
         "赤のredAttackerでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2がパス（防御側から優先権）")
     assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")
@@ -392,6 +398,8 @@ console.log("=== BS02-X07 巨神機トール：赤のアタッカーをブロッ
         act(s, "p1", { type: "attack", instanceId: greenAttacker.instanceId }) === null,
         "緑のgreenAttackerでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールが再度ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")

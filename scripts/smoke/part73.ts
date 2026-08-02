@@ -120,6 +120,8 @@ console.log("=== §C ブロック時誘発（BS01-077 ベビー・ロキ Lv2 / B
     const bpBefore = effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "ベビー・ロキがブロック")
     assert(
         effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!) === bpBefore + 1000,
@@ -133,6 +135,8 @@ console.log("=== §C ブロック時誘発（BS01-077 ベビー・ロキ Lv2 / B
     const bpBefore = effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!)
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
+    act(s, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
+    act(s, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "Lv1でもブロックはできる")
     assert(
         effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!) === bpBefore,
@@ -146,6 +150,8 @@ console.log("=== §C ブロック時誘発（BS01-077 ベビー・ロキ Lv2 / B
     const bpBefore = effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!)
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
+    act(s, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
+    act(s, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "ニーズホッグがブロック")
     assert(
         effectiveBp(s, "p2", spiritOf(s, "p2", blocker)!) === bpBefore + 4000,
@@ -165,6 +171,8 @@ console.log("=== §D 破壊時誘発（BS01-062 ハングリートゥリー） =
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: tree }) === null, "ハングリートゥリーがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")
@@ -185,6 +193,8 @@ console.log("=== §E バトル時誘発（BS01-071 爆進獣ブランボアー L
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
     assert(spiritOf(s, "p1", attacker)?.isRested === true, "アタック宣言で疲労する")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側がパス＝バトル解決")
@@ -274,6 +284,8 @@ console.log("=== §H 制約（BS02-018 悪魔スプラー Lv3 / BS02-038 盾精�
     const lv1Blocker = put(s, "p2", "BS01-002", 1) // ロクケラトプス Lv1
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: splar }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     const err = act(s, "p2", { type: "block", instanceId: lv2Blocker })
     assert(err !== null, "Lv2スピリットはブロックできない")

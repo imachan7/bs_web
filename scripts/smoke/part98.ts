@@ -84,6 +84,8 @@ console.log("=== BS01-036 シャ・ズー：『破壊時』の疲労が両陣営
     toAttackStep(s)
 
     assert(act(s, "p1", { type: "attack", instanceId: shazoo.instanceId }) === null, "シャ・ズーでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンLv2でブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決＝シャ・ズー破壊）")

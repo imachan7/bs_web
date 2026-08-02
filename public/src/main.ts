@@ -342,11 +342,10 @@ function onMySpiritClick(instanceId: string): void {
 
     const myTurn = view.turnPlayer === view.you
     const isDefender = !!view.battle && !myTurn
-    // 防御側の応答が可能なのは、優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender && (!view.isFlashTiming || view.priorityPlayer === view.you)
+    // ブロック宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える
+    const canDefend = isDefender && !view.isFlashTiming
 
-    if (canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared) {
+    if (canDefend && !view.battle?.blockerInstanceId) {
         send({ type: "block", instanceId })
         return
     }

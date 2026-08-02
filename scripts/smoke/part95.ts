@@ -31,6 +31,8 @@ console.log("=== BS03-132 パーフェクトガード：メイン＝装甲持ち
     assert(s.players.p1.turnVirtualInstances.length === 1, "p1に仮想発生源が1件立つ")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
@@ -47,6 +49,8 @@ console.log("=== BS03-132 パーフェクトガード：マジックを使わな
     const blocker = put(s, "p2", "BS01-054", 1) // ショックイーター（バニラ）Lv1 BP3000
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
@@ -103,6 +107,8 @@ console.log("=== BS03-135 エスケープルート：メイン＝系統2つ以�
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "メインで使用できる")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
@@ -123,6 +129,8 @@ console.log("=== BS04-092 ドラゴンズラッシュ：メイン＝翼竜/竜�
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "メインで使用できる")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決（相手だけ破壊）")
@@ -179,6 +187,8 @@ console.log("=== BS05-084 ポテンシャルパワー：メイン＝バニラの
     assert(act(s1, "p1", { type: "castMagic", handIndex: 0 }) === null, "メインで使用できる")
     assert(act(s1, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s1, "p1", { type: "attack", instanceId: attacker1.instanceId }) === null, "p1がアタック")
+    assert(act(s1, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s1, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s1, "p2", { type: "block", instanceId: lowCostBlocker.instanceId }) !== null,
         "コスト1（アタッカーのコスト2以下）はブロックできない",
@@ -192,6 +202,8 @@ console.log("=== BS05-084 ポテンシャルパワー：メイン＝バニラの
     assert(act(s2, "p1", { type: "castMagic", handIndex: 0 }) === null, "メインで使用できる")
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "p1がアタック")
+    assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s2, "p2", { type: "block", instanceId: highCostBlocker.instanceId }) === null,
         "コスト3（アタッカーのコスト2より高い）はブロックできる",
@@ -208,6 +220,8 @@ console.log("=== BS05-067 ワーニングアタック：メイン＝翼竜/空�
     assert(act(s1, "p1", { type: "castMagic", handIndex: 0 }) === null, "メインで使用できる")
     assert(act(s1, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s1, "p1", { type: "attack", instanceId: attacker1.instanceId }) === null, "p1がアタック")
+    assert(act(s1, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s1, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s1, "p2", { type: "takeLife" }) !== null,
         "BP3000以下の合法ブロッカーがいるためライフ受けは拒否される",
@@ -244,6 +258,8 @@ console.log("=== BS02-105 グレートウォール：メイン＝コスト6と8�
         act(s, "p1", { type: "attack", instanceId: free.instanceId }) === null,
         "コスト5のスピリットは影響を受けずアタックできる",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コスト8のスピリットはブロックできない",

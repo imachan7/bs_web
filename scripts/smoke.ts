@@ -100,6 +100,7 @@ import "./smoke/part97"
 import "./smoke/part98"
 import "./smoke/part99"
 import "./smoke/part100"
+import "./smoke/part101"
 import { summary } from "./smoke/helpers"
 
 summary()

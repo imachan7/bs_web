@@ -59,6 +59,8 @@ console.log("=== BS03-046 一角獣アインホルン：selfBuffPer counter=ownN
     s.players.p1.field.spirits.push(atk)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: horn.instanceId }) === null, "アインホルンでブロック")
     assert(horn.tempBpBuff === 2000, "自分のネクサス2つ×1000でBP+2000")
 }
@@ -94,6 +96,8 @@ console.log("=== BS03-048 鎧蛇竜ミッドガルズ：selfBuffPer counter={own
     s.players.p1.field.spirits.push(atk)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: midgard.instanceId }) === null, "ミッドガルズでブロック")
     assert(midgard.tempBpBuff === 1000, "自身が「巨獣」1体分でBP+1000（Lv2破壊耐性のonBattleと共存）")
 }
@@ -169,6 +173,8 @@ console.log("=== BS03-X10 凍獣マン・モール：effectGrant colorFilter=whi
     s.players.p1.field.spirits.push(atk)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: whiteAlly.instanceId }) === null, "白のスピリットでブロック")
     assert(whiteAlly.tempBpBuff === 2000, "白のスピリットはブロック時+2000される")
 }
@@ -189,6 +195,8 @@ console.log("--- BS03-X10：白以外のスピリットは付与されない ---
     s.players.p1.field.spirits.push(atk)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: redAlly.instanceId }) === null, "赤のスピリットでブロック")
     assert(redAlly.tempBpBuff === 0, "白以外のスピリットは付与効果を受けない")
 }

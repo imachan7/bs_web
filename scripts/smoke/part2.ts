@@ -380,6 +380,8 @@ console.log("--- 燃えさかる戦場（BS01-098）：バトル限定オーラ�
         effectiveBp(s, "p1", attacker) === 1000 + 2000,
         "アタック中は燃えさかる戦場2枚ぶんBP+2000（実効BP3000）",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "リーヴォルフでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -453,6 +455,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: nadja.instanceId }) === null, "ナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -468,6 +472,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
     s.players.p2.field.spirits.push(blocker2)
 
     assert(act(s, "p1", { type: "attack", instanceId: nadja2.instanceId }) === null, "2体目のナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "同BPのゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -483,6 +489,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
     const p1ReserveBefore = s.players.p1.reserve
 
     assert(act(s, "p1", { type: "attack", instanceId: phenikios.instanceId }) === null, "フェニキオスでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker3.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -709,6 +717,8 @@ console.log("=== 制約：ブロック不可（cantBlock） ===")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const blockErr = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(
         blockErr !== null && blockErr.includes("ブロックできません"),
@@ -736,6 +746,8 @@ console.log("=== 制約：ブロック不可（cantBlock、複数レベル） ==
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     let err = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(err !== null && err.includes("ブロックできません"), "Lv1でもcantBlockでブロック拒否される")
 
@@ -760,6 +772,8 @@ console.log("=== 制約：BPの低いスピリットをブロックできない�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "BP1000のゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(
         err !== null && err.includes("BPの低いスピリットはブロックできません"),
@@ -790,6 +804,8 @@ console.log("=== 制約：cantBlockLowerBp（同BP以上なら可能） ===")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: strongAttacker.instanceId }) === null, "BP7000のトライソードンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null,
         "アタッカーのBPがブロッカー以上（同BP）ならcantBlockLowerBpでもブロックできる",
@@ -813,6 +829,8 @@ console.log("=== 制約：unblockableBy（キーワード：神速持ちにブ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "スピノアックスでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: sokuBlocker.instanceId })
     assert(
         err !== null && err.includes("ブロックされません"),
@@ -841,6 +859,8 @@ console.log("=== 制約：unblockableBy（色フィルタ：緑にブロック�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ボーン・グラディエイターでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: greenBlocker.instanceId })
     assert(err !== null && err.includes("ブロックされません"), "緑のペリリィフはブロックできない")
     assert(
@@ -866,6 +886,8 @@ console.log("=== 制約：unblockableBy（色フィルタ：赤にブロック�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ラビクリスタでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: redBlocker.instanceId })
     assert(err !== null && err.includes("ブロックされません"), "赤のゴラドンはブロックできない")
     assert(

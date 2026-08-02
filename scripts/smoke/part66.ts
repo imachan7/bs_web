@@ -179,6 +179,8 @@ console.log("=== BS05-065 青嵐の虚空：Lv1コスト2以下アタブロ禁�
 function attackAndBlock(s: GameState, attackerId: string, blockerId: string): void {
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attackerId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blockerId }) === null, "p2がブロック")
     assert(
         s.isFlashTiming === true && s.priorityPlayer === "p2",

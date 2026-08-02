@@ -96,6 +96,8 @@ console.log("=== BS03-098 戦闘竜ワイヴァーン：Lv1はブロック不可
     s.players.p2.field.spirits.push(wyvern)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const blockErr = act(s, "p2", { type: "block", instanceId: wyvern.instanceId })
     assert(blockErr !== null && blockErr.includes("ブロックできません"), "Lv1のワイヴァーンはcantBlockでブロック拒否される")
 }
@@ -112,6 +114,8 @@ console.log("=== BS03-098 戦闘竜ワイヴァーン：Lv1はブロック不可
     s.players.p2.field.spirits.push(blockerLv1)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: wyvern.instanceId }) === null, "ワイヴァーンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const blockErr = act(s, "p2", { type: "block", instanceId: blockerLv1.instanceId })
     assert(blockErr !== null, "Lv1のスピリットはワイヴァーンをブロックできない（unblockableBy levelFilter:[1]）")
 }

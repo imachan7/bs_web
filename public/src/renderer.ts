@@ -329,9 +329,9 @@ export function render(view: GameView, ui: UiState): void {
     // フラッシュ中で自分が優先権を持つか
     const hasPriority = view.priorityPlayer === you
     const inFlash = !!view.battle && view.isFlashTiming && hasPriority
-    // 防御側の応答（ブロック・ライフ受け）が可能か：優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender && (!view.isFlashTiming || hasPriority)
+    // 防御側の応答（ブロック・ライフ受け）が可能か：ブロック宣言はフラッシュタイミングの外
+    // （フラッシュ①終了後）でのみ行える。優先権の有無は関係ない
+    const canDefend = isDefender && !view.isFlashTiming
 
     // ステータスバー
     $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
@@ -374,7 +374,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show(
         "btn-take-life",
-        canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared && !pendingChoiceActive,
+        canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive,
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
@@ -622,10 +622,8 @@ function fieldCardEl(
     const myTurn = view.turnPlayer === view.you
     const myMainFree = myTurn && view.phase === "main" && !view.battle
     const isDefender = !!view.battle && !myTurn
-    // 防御側の応答（ブロック）が可能か：優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender &&
-        (!view.isFlashTiming || view.priorityPlayer === view.you)
+    // 防御側の応答（ブロック）が可能か：フラッシュタイミングの外（フラッシュ①終了後）でのみ行える
+    const canDefend = isDefender && !view.isFlashTiming
     // ブロック判定用：現在のバトルのアタッカー（攻撃側は常にターンプレイヤー）
     const attacker = view.battle
         ? view.players[view.turnPlayer].field.spirits.find(
@@ -846,7 +844,6 @@ function fieldCardEl(
         if (
             canDefend &&
             !view.battle?.blockerInstanceId &&
-            !view.battle?.lifeDeclared &&
             !inst.isRested &&
             !singleCoreLocked &&
             !costLocked &&
@@ -1064,8 +1061,6 @@ function renderBattle(view: GameView): void {
     const hasPriority = view.priorityPlayer === view.you
     // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
     const blocked = !!view.battle.blockerInstanceId
-    // ライフで受けることを宣言済みか（宣言後はフラッシュが再オープンされる。ブロックと同様の扱い）
-    const lifeDeclared = !!view.battle.lifeDeclared
 
     // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
     let blockerText = ""
@@ -1097,26 +1092,11 @@ function renderBattle(view: GameView): void {
                 message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
             }
         }
-    } else if (lifeDeclared) {
-        // ライフ受け宣言後の追加フラッシュ
-        if (isDefender) {
-            if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。追加でフラッシュマジックを使うか「パス」してください。`
-            } else {
-                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。相手の対応を待っています…`
-            }
-        } else {
-            if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。フラッシュマジックを使うか「パス」してください。`
-            } else {
-                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。相手の対応を待っています…`
-            }
-        }
     } else if (isDefender) {
         if (view.isFlashTiming && !hasPriority) {
             message = `⚔ ${m.name}（BP${bp}）がアタック中。相手がフラッシュの優先権を持っています…`
         } else if (view.isFlashTiming) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」、またはブロック／「ライフで受ける」で応答してください。`
+            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。パス後にブロック／「ライフで受ける」を選べます。`
         } else {
             message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュ終了。ブロックするスピリットを選ぶか「ライフで受ける」を押してください。`
         }

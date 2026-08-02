@@ -88,23 +88,33 @@ function act(state: GameState, pid: PlayerId, action: GameAction): string | null
     return error
 }
 
-// takeLife は「宣言」のみでフラッシュを再オープンするため（実プレイのフラッシュタイミング手順に合わせた修正）、
-// 既存テストが期待する「takeLifeだけでバトルが解決する」挙動をエミュレートするラッパー。
-// takeLife 実行 → まだフラッシュタイミングならライフを受ける側 → 攻撃側の順にpassを送って解決まで進める。
-// エラーが出た場合はそのアクションのエラーをそのまま返す（actと同じ戻り値の形なので assert(... === null, ...) のまま使える）
-function takeLifeAndResolve(state: GameState, pid: PlayerId): string | null {
-    const error = act(state, pid, { type: "takeLife" })
-    if (error) return error
-    if (state.isFlashTiming && state.battle) {
-        const passError1 = act(state, pid, { type: "pass" })
-        if (passError1) return passError1
-        if (state.isFlashTiming && state.battle) {
-            const attackerPid = state.turnPlayer
-            const passError2 = act(state, attackerPid, { type: "pass" })
-            if (passError2) return passError2
-        }
+// フラッシュタイミング中はblock/takeLifeを宣言できない（実プレイの手順：アタック宣言→フラッシュ①→
+// ブロック/ライフ受け宣言→フラッシュ②→解決）ため、isFlashTiming中は両者が連続パスするまで
+// state.priorityPlayer側からpassを送って閉じる共通ヘルパー。エラーが出たらそのまま返す
+function closeFlashTiming(state: GameState): string | null {
+    while (state.isFlashTiming && state.battle) {
+        const passError = act(state, state.priorityPlayer, { type: "pass" })
+        if (passError) return passError
     }
     return null
+}
+
+// declareBlock は「フラッシュタイミング①を閉じてからブロックを宣言する」ヘルパー。
+// isFlashTiming中ならまずpassを送って①を閉じ、そのうえでblockを実行する。
+// エラーが出た場合はそのアクションのエラーをそのまま返す（actと同じ戻り値の形なので assert(... === null, ...) のまま使える）
+function declareBlock(state: GameState, pid: PlayerId, instanceId: string): string | null {
+    const closeError = closeFlashTiming(state)
+    if (closeError) return closeError
+    return act(state, pid, { type: "block", instanceId })
+}
+
+// ライフで受けるのはフラッシュ①終了後にのみ宣言でき、宣言した場でそのまま解決する
+// （ブロックと違いフラッシュ②は開かない）。フラッシュ①を閉じてからtakeLifeを宣言するラッパー。
+// エラーが出た場合はそのアクションのエラーをそのまま返す（actと同じ戻り値の形なので assert(... === null, ...) のまま使える）
+function takeLifeAndResolve(state: GameState, pid: PlayerId): string | null {
+    const closeError = closeFlashTiming(state)
+    if (closeError) return closeError
+    return act(state, pid, { type: "takeLife" })
 }
 
 
@@ -147,6 +157,7 @@ export {
     DECK_SIZE,
     assert,
     act,
+    declareBlock,
     takeLifeAndResolve,
     runTurnStart,
 }

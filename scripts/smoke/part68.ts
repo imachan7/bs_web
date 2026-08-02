@@ -178,6 +178,8 @@ console.log("=== swapBattler（BS03-138 テレポートチェンジ） ===")
     spiritOf(s, "p2", replacement)!.isRested = true
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "p1がアタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "p2がブロック宣言")
     assert(castFromHand(s, "p2", "BS03-138") === null, "テレポートチェンジを使用（自動選択）")
     assert(

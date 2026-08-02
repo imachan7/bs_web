@@ -38,7 +38,9 @@ console.log("=== onBattleStart: アタック宣言直後（バトル解決より
         s.players.p1.reserve === reserveBefore + 1,
         "アタック宣言直後（バトル解決の前）にonBattleStartが発火してコア+1",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロックせずライフで受ける（バトル終了）")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
+    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロックせずライフで受けることを宣言")
 }
 
 console.log("--- onBattleStart: ブロック宣言直後（バトル解決より前）にも発火する ---")
@@ -47,6 +49,8 @@ console.log("--- onBattleStart: ブロック宣言直後（バトル解決より
     const atk = put(s, "p1", "BS01-001", 1) // ゴラドン Lv1（BP1000）＝アタッカー
     const dionaea = put(s, "p2", "BS05-025", 3) // 神樹ディオネアス Lv2（コア3・BP8000）＝ブロッカー
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     const reserveBeforeBlock = s.players.p2.reserve
     assert(act(s, "p2", { type: "block", instanceId: dionaea.instanceId }) === null, "ディオネアスでブロック宣言")
@@ -67,6 +71,8 @@ console.log("--- onBattleStart: 勝ち・負け・相打ちのいずれでも発
         const foe = put(s, "p2", "BS01-001", 1) // Lv1 BP1000（そのまま＝ディオネアスの勝ち）
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: dionaea.instanceId }) === null, "アタック宣言")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: foe.instanceId }) === null, "ブロック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -82,6 +88,8 @@ console.log("--- onBattleStart: 勝ち・負け・相打ちのいずれでも発
         foe.tempBpBuff = 8000
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: dionaea.instanceId }) === null, "アタック宣言")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: foe.instanceId }) === null, "ブロック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -98,6 +106,8 @@ console.log("--- onBattleStart: 勝ち・負け・相打ちのいずれでも発
         foe.tempBpBuff = 7000
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: dionaea.instanceId }) === null, "アタック宣言")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: foe.instanceId }) === null, "ブロック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -117,6 +127,8 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
         foe.tempBpBuff = 4000
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: pigod.instanceId }) === null, "ピーゴッドでアタック")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: foe.instanceId }) === null, "ブロック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -132,6 +144,8 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
         const pigod = put(s, "p2", "BS03-036", 1) // Lv1（コア1・BP4000）＝ブロッカー
         const reserveBefore = s.players.p2.reserve
         assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: pigod.instanceId }) === null, "ピーゴッドでブロック")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -146,6 +160,8 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
         const pigod = put(s, "p2", "BS03-036", 1) // Lv1（コア1・BP4000）＝ブロッカー
         const reserveBefore = s.players.p2.reserve
         assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+        assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+        assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
         assert(act(s, "p2", { type: "block", instanceId: pigod.instanceId }) === null, "ピーゴッドでブロック")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
         assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -163,6 +179,8 @@ console.log("=== onBattleWin: 改名後も従来どおり勝った側だけで�
     const bystander = put(s, "p2", "BS01-001", 1) // 疲労付与の対象
 
     assert(act(s, "p1", { type: "attack", instanceId: nadja.instanceId }) === null, "ナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -174,6 +192,8 @@ console.log("=== onBattleWin: 改名後も従来どおり勝った側だけで�
     const nadja2 = put(s, "p1", "BS01-047", 1) // Lv1 BP3000
     const blocker2 = put(s, "p2", "BS01-001", 3) // Lv2 BP3000（同BP＝相打ち）
     assert(act(s, "p1", { type: "attack", instanceId: nadja2.instanceId }) === null, "2体目のナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "同BPのゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -191,6 +211,8 @@ console.log("=== BS05-053 蒼海の竜使いアズール：バトルするたび
     console.log("--- 勝ったとき ---")
     const trashBefore1 = s.players.p2.trashCards.length
     assert(act(s, "p1", { type: "attack", instanceId: azul.instanceId }) === null, "アズールでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weakFoe.instanceId }) === null, "ブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -204,6 +226,8 @@ console.log("=== BS05-053 蒼海の竜使いアズール：バトルするたび
     strongFoe.tempBpBuff = 9000 // BP1000+9000=10000でアズールの負け
     const trashBefore2 = s.players.p2.trashCards.length
     assert(act(s, "p1", { type: "attack", instanceId: azul.instanceId }) === null, "アズールで再度アタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: strongFoe.instanceId }) === null, "ブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")

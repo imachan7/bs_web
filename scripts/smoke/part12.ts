@@ -40,6 +40,8 @@ console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "バーバルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "リザドエッジでブロック")
     assert(s.priorityPlayer === "p2", "ブロック後は防御側に優先権")
     assert(
@@ -72,6 +74,8 @@ console.log("--- 同Lvは相打ち ---")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "バーバルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "リザドエッジでブロック")
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "エンジェルボイスを使用")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
@@ -99,6 +103,8 @@ console.log("=== BS02-056 アルカナビースト・ケン e1：Lv3でアルカ
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: panDoll.instanceId }) === null, "アルカナドール・パンでブロック")
     assert(panDoll.tempBpBuff === 2000, "ケンLv3の付与効果でブロック時+2000")
 }
@@ -121,6 +127,8 @@ console.log("--- 非アルカナ名はブロックしても+2000されない ---
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: golad.instanceId }) === null, "ゴラドンでブロック")
     assert(golad.tempBpBuff === 0, "非アルカナ名は付与されない")
 }
@@ -143,6 +151,8 @@ console.log("--- ケンLv2では付与されない ---")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: panDoll.instanceId }) === null, "アルカナドール・パンでブロック")
     assert(panDoll.tempBpBuff === 0, "ケンLv2では付与効果が発動しない")
 }

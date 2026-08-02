@@ -558,27 +558,22 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     return null
 }
 
-// 防御側がライフで受けることを宣言する。ブロック宣言と同様、この時点では解決しない。
-// フラッシュを再オープンし（防御側から優先権）、両者が連続でパスした時点で resolveLifeDamage が解決する
-// （公式ルール: フラッシュタイミングでは防御側→攻撃側の順に1つずつフラッシュを使い、
-// 両者が連続で「使わない」を選んだ時点でフラッシュタイミングが終わる）
+// 防御側がライフで受けることを宣言する。ブロック宣言と違い、ライフで受ける場合はフラッシュ②を
+// 再オープンせず、宣言した場でそのまま resolveLifeDamage を解決する
+// （公式ルール: ブロック宣言時のみフラッシュ②が開く。ライフで受ける場合はフラッシュタイミングなし）
 function doTakeLife(state: GameState, pid: PlayerId): string | null {
     const error = validateTakeLife(state, pid)
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
 
-    state.battle.lifeDeclared = true
-    log(state, `${state.players[pid].name}はライフで受けることを宣言した。フラッシュタイミングを開始する。`)
-    // ライフ受け宣言後は即解決せず、フラッシュを再オープンする（doBlock末尾と同じ扱い）
-    state.isFlashTiming = true
-    state.flashCount = 0
-    state.priorityPlayer = opponentOf(state.turnPlayer)
+    log(state, `${state.players[pid].name}はライフで受けることを宣言した。`)
+    resolveLifeDamage(state)
     return null
 }
 
-// ライフ受け宣言後のフラッシュタイミングが終了した時点でライフダメージを解決する。
-// フラッシュ中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
-// 宣言時ではなく**解決時点**の状態を読む
+// ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
+// フラッシュ①中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
+// 解決時点の状態を読む
 function resolveLifeDamage(state: GameState): void {
     if (!state.battle) return
     const attackerPid = state.turnPlayer
@@ -820,11 +815,9 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
-        } else if (state.battle && state.battle.lifeDeclared) {
-            // ライフ受け宣言後のフラッシュ終了 → ライフダメージを解決する
-            resolveLifeDamage(state)
         }
-        // ブロック・ライフ受けのいずれも未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）
+        // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）。
+        // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
     }
     return null
 }

@@ -87,6 +87,8 @@ console.log("=== BS02-024-e1 暗黒将軍ブラッディ・シーザー（onBloc
     const blocker = put(s, "p2", "BS01-001", 4) // コア4個
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: caesar }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "ブロック宣言")
     assert(
         spiritOf(s, "p2", blocker)?.cores === 2,
@@ -102,6 +104,8 @@ console.log("=== BS03-003-e1 ドラグノ暗殺者（Lv1 unblockableBy【神速�
     const normalBlocker = put(s, "p2", "BS01-001", 1)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: dragno }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: sokuBlocker }) !== null,
         "【神速】持ちはブロックできない",
@@ -130,6 +134,8 @@ console.log("=== BS03-104-e2 運命分かつ岐路（Lv2 battleWon→exhaust、�
     const bystander = put(s, "p2", "BS01-018", 1) // exhaust対象候補（バトル外）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker }) === null, "ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス＝バトル解決")
@@ -177,6 +183,8 @@ console.log("=== BS04-021-e1 吸血鬼ダンピール（Lv3 アタック側勝�
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: dampeal }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weak }) === null, "ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス＝バトル解決")
@@ -274,6 +282,8 @@ console.log("=== BS04-X13-e2 魔龍帝ジークフリード（Lv2 アタック�
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: siegfried }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weak }) === null, "ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス＝バトル解決")

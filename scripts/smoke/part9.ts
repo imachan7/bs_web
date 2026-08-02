@@ -185,6 +185,8 @@ console.log("=== BS02-065 花の子リップ e1：黄3つ以上で、黄スピ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1がアタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: rip.instanceId }) === null, "リップでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(blocker.levelOverrideThisTurn === 1, "ブロックした相手はこのターンLv1として扱われる")
 
