@@ -377,7 +377,10 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
 
 // 【粉砕】の解決：spirit が現在レベルで粉砕を持つなら、相手のデッキを
 // （現在レベル + funsaiBonus合計）枚破棄する（アタック時／funsaiOnBlockによるブロック時の共通処理）。
-// 実破棄枚数が1以上なら fieldEvent "ownFunsaiMilled" を発火する（repeatPerCount対応）
+// 実破棄枚数が1以上なら fieldEvent "ownFunsaiMilled" を発火する（repeatPerCount対応）。
+// 破棄したカードの種別内訳は state.lastFunsai に記録する（巨人王ランドルフ／二刀流のアムブローズ／
+// 伝説巨人ジュードの「【粉砕】で破棄した◯枚につき」系onAttack効果が参照する。doAttackがアタック
+// 宣言のたびにクリアするため、粉砕を持たないスピリットのアタックでは前回の値を拾わない）
 export function resolveFunsai(
     state: GameState,
     ownerPid: PlayerId,
@@ -389,8 +392,22 @@ export function resolveFunsai(
     if (!spiritHasKeyword(state, ownerPid, spirit, "funsai")) return
     const level = currentLevel(spirit).level
     const bonus = funsaiBonusTotal(state, ownerPid)
-    const actual = millDeck(state, opponentOf(ownerPid), level + bonus, ownerPid)
+    const opponentPid = opponentOf(ownerPid)
+    const trashCards = state.players[opponentPid].trashCards
+    const beforeLen = trashCards.length
+    const actual = millDeck(state, opponentPid, level + bonus, ownerPid)
     if (actual > 0) {
+        const milledCardIds = trashCards.slice(beforeLen, beforeLen + actual)
+        let spirits = 0
+        let nexuses = 0
+        let magics = 0
+        for (const cardId of milledCardIds) {
+            const type = getCard(cardId).type
+            if (type === "spirit") spirits++
+            else if (type === "nexus") nexuses++
+            else if (type === "magic") magics++
+        }
+        state.lastFunsai = { total: actual, spirits, nexuses, magics }
         fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
     }
 }
@@ -1688,6 +1705,9 @@ export function countEffectCounter(
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
     if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // 直前の【粉砕】で破棄した総枚数／うちスピリットカードの枚数（resolveFunsaiが記録。BS03巨人王ランドルフ／BS04二刀流のアムブローズ）
+    if (counter === "lastFunsaiTotal") return state.lastFunsai?.total ?? 0
+    if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
@@ -2027,6 +2047,9 @@ export function fireTrigger(
             } else if ("firstAttackOfTurn" in effect.condition) {
                 // ダックル：そのターンの最初のアタックのときのみ発火（doAttackが宣言時に加算する）
                 if (state.attacksThisTurn !== 1) return false
+            } else if ("lastFunsaiHasNexus" in effect.condition) {
+                // 伝説巨人ジュード：直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火
+                if ((state.lastFunsai?.nexuses ?? 0) === 0) return false
             } else if ("ownFieldHasKeyword" in effect.condition) {
                 // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
                 const kw = effect.condition.ownFieldHasKeyword

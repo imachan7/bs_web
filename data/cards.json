@@ -17327,6 +17327,20 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-096-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": "lastFunsaiTotal"
+    }
    }
   ]
  },
@@ -20273,6 +20287,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-004-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "keyword": "awaken",
+      "excludeSelf": true
+     }
+    }
    }
   ]
  },
@@ -23498,6 +23529,21 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-063-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "lastFunsaiSpirits",
+     "amountPer": 1000
+    }
    }
   ]
  },
@@ -24114,6 +24160,22 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS04-075-e2",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "lastFunsaiHasNexus": true
+    },
+    "action": {
+     "type": "refreshSelf"
+    }
    }
   ]
  },
@@ -26118,6 +26180,21 @@
     ],
     "minCost": 6,
     "dest": "void"
+   },
+   {
+    "id": "BS04-X15-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "lifeCrush",
+     "count": 2,
+     "costReserveToVoid": 1
+    }
    }
   ]
  },

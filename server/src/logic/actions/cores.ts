@@ -30,6 +30,13 @@ import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMag
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
+        // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
+        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter) : action.count
+        if (count === 0) {
+            log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
+            return
+        }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
@@ -76,9 +83,9 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         // 維持コア割れの消滅処理はremoveCores/removeCoresToVoidが担う。
         // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）
         if (action.dest === "void") {
-            removeCoresToVoid(state, found.pid, found.inst, action.count, owner)
+            removeCoresToVoid(state, found.pid, found.inst, count, owner)
         } else {
-            removeCores(state, found.pid, found.inst, action.count, owner)
+            removeCores(state, found.pid, found.inst, count, owner)
         }
         return
 }

@@ -162,6 +162,21 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
 
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
+        // 足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」の任意コストは
+        // 自動発動で簡略化。levelOverrideOpponentNexuses.costReserveToVoidと同じ方針）
+        if (action.costReserveToVoid !== undefined) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.reserve < action.costReserveToVoid) {
+                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
+                return
+            }
+            ownerPlayer.reserve -= action.costReserveToVoid
+            log(
+                state,
+                `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
+            )
+        }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
         const dealt = Math.min(action.count, player.life)
