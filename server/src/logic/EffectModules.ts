@@ -2210,6 +2210,17 @@ function checkStepCondition(
     return state.players[pid].hand.length <= state.players[opponentOf(pid)].hand.length
 }
 
+// ステップ誘発のログに出すステップ名。「どのステップの効果として発動したか」を示す
+const STEP_LABELS: Record<Phase, string> = {
+    start: "スタートステップ",
+    core: "コアステップ",
+    draw: "ドローステップ",
+    refresh: "リフレッシュステップ",
+    main: "メインステップ",
+    attack: "アタックステップ",
+    end: "エンドステップ",
+}
+
 // 指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
 // ターンプレイヤー側 → 相手側の順に、各プレイヤー内ではスピリット→ネクサスの順で発火する。
 // 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
@@ -2274,6 +2285,10 @@ export function fireStepTriggers(
                         inst,
                     )
                 } else {
+                    // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
+                    // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
+                    // カード名を含めることでUI側のホバー表示も効く
+                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}）`)
                     resolveAction(state, pid, inst, effect.action)
                 }
                 if (state.winner) return

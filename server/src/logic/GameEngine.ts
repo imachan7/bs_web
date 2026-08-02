@@ -727,6 +727,8 @@ function doResolveChoice(
             // confirm（「〜できる」の発動確認）は選んだラベルを渡さない。
             // 渡すと、選択肢を解釈するアクション（grantColorChoice 等）が誤動作する
             if (pending.confirm) {
+                // 発動を選んだ側もログに残す（発動しなかった場合と対になる。発生源がログから追えるように）
+                log(state, `${self ? getCard(self.cardId).name : "効果"}：効果を発動した。`)
                 resolveAction(state, actor, self, pending.action)
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
