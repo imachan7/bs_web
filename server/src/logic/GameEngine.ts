@@ -31,6 +31,7 @@ import {
     instanceSymbolCount,
     instColors,
     millDeck,
+    notifyNexusDeployed,
     refreshLevelAsOverrides,
     resolveAction,
     resolveFunsai,
@@ -307,6 +308,7 @@ function doSetNexus(
     player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
+    notifyNexusDeployed(state, pid)
     return null
 }
 

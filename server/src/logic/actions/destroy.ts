@@ -9,6 +9,7 @@ import {
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
+    notifyNexusDeployed,
     pickAnySideByBp,
     pickAnySideCandidates,
     pickEnemyByBp,
@@ -798,6 +799,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             state,
             `${sourceName}：コア${paid}個をトラッシュに置き、${getCard(last.cardId).name}をフィールドに戻した。`,
         )
+        notifyNexusDeployed(state, owner)
         if (self.cores < minLevelCores(getCard(self.cardId))) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }

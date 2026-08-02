@@ -8,6 +8,7 @@ import {
     findSpiritAny,
     fireFieldEventTriggers,
     fireTrigger,
+    notifyNexusDeployed,
     requestCardChoice,
     requestChoice,
     resolveKoboOnBattleEnd,
@@ -224,6 +225,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 state,
                 `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
             )
+            notifyNexusDeployed(state, owner)
         }
         if (action.all) {
             // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
@@ -300,6 +302,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             state,
             `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
         )
+        notifyNexusDeployed(state, owner)
         return
 }
 

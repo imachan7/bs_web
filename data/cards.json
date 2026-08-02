@@ -5704,11 +5704,21 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "マジック(禁止カード)\nメイン：\n自分はデッキから3枚ドローする。\nその後、手札2枚を選んで破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
   "effects": [
    {
     "id": "BS01-132-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "drawThenDiscard",
+     "drawCount": 3,
+     "discardCount": 2
+    }
+   },
+   {
+    "id": "BS01-132-e2",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -25242,9 +25252,22 @@
   ],
   "flash": false,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分は、ネクサスの配置に支払うコストを、コスト1につき、自分のデッキを上から1枚破棄することで支払うことができる。\nLv2\n自分のフィールドにネクサスが配置されるたび、ボイドから、コア1個を自分のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS04-088-e2",
+    "kind": "fieldEvent",
+    "event": "ownNexusDeployed",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS04-089",

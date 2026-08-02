@@ -211,6 +211,67 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
         return
 }
 
+// 自分の手札から count 枚を破棄する。実対戦（interactiveTargets）では1枚ずつ選ばせ、
+// 残りぶんを queue に積んで同じアクションへ戻ってくる（discardSelfOne の選択機構を count 回ぶん繰り返す形）。
+// 非interactive時は既存の決定的簡略化に合わせて手札の末尾から順に破棄する
+const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (action.count <= 0) return
+    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残りは queue 側が処理する）
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}の手札破棄：対象がいなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+        return
+    }
+    if (player.hand.length === 0) {
+        log(state, `${sourceName}の手札破棄：手札がなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        const indices = player.hand.map((_, i) => i)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}の手札破棄：破棄するカードを選んでください（残り${action.count}枚）`,
+                "hand",
+                indices,
+                { type: "discardSelfChoose", count: 1 },
+                action.count > 1 ? { type: "discardSelfChoose", count: action.count - 1 } : null,
+            )
+        ) {
+            return
+        }
+    }
+    // 決定的自動選択（テスト等）：手札末尾から count 枚を破棄する
+    for (let i = 0; i < action.count; i++) {
+        const cardId = player.hand.pop()
+        if (cardId === undefined) {
+            log(state, `${sourceName}の手札破棄：手札がなかった。`)
+            return
+        }
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+    }
+}
+
+// ドローしてから手札を破棄する（ストームドロー：3枚引いて2枚破棄）。
+// 破棄は discardSelfChoose に委譲するので、実対戦では引いた後の手札から選べる
+const drawThenDiscardHandler: ActionHandler<"drawThenDiscard"> = (ctx, action) => {
+    const { state, owner } = ctx
+    draw(state, owner, action.drawCount * drawDoubleMultiplier(state, owner))
+    if (state.winner) return
+    ctx.resolve({ type: "discardSelfChoose", count: action.discardCount })
+}
+
 // 公開ゾーンの残りをデッキの下へ戻す。実対戦では戻す順番を1枚ずつ選ばせる
 // （スキップすると残りを現在の順のまま戻す）。カードは「デッキの下」へ行くため、
 // 順番が結果に効く場面はごく限られるが、カードテキストどおり選べるようにしてある
@@ -888,6 +949,8 @@ const handlers = {
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
     discardSelfOne: discardSelfOneHandler,
+    discardSelfChoose: discardSelfChooseHandler,
+    drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,

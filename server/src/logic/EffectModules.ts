@@ -2468,6 +2468,14 @@ export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: n
     fireFieldEventTriggers(state, opponentOf(gainerPid), "opponentHandAdded", undefined, undefined, undefined, count)
 }
 
+// フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
+// 通常の配置（GameEngine.doSetNexus）・効果による配置（deployNexus）・破壊されたネクサスの復活の
+// いずれからも呼ぶ。ネクサスを1つ置くたびに1回発火する（「配置されるたび」）
+export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void {
+    if (state.winner) return
+    fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
+}
+
 // フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 // （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数。
 // removeCores / removeCoresToTrash（actorPid !== ownerPidのとき）から呼ばれる
