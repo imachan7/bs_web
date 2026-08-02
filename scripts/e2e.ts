@@ -149,8 +149,8 @@ async function main(): Promise<void> {
     const e2 = await expectJoinError("同名4枚デッキ", { roomId: "e2e-invalid2", deckCards: over })
     assert(e2.includes("同名"), "同名4枚のデッキは拒否される")
 
-    // 禁止カード入り（ストームドロー BS01-132 を3枚入れ、合計は40のまま）
-    const banned: Record<string, number> = { ...customCards, "BS01-132": 3 }
+    // 禁止カード入り（冥犬ケルル・ベロス BS02-063 を3枚入れ、合計は40のまま）
+    const banned: Record<string, number> = { ...customCards, "BS02-063": 3 }
     delete banned["BS01-116"]
     const e3 = await expectJoinError("禁止カード入りデッキ", {
         roomId: "e2e-invalid3",

@@ -11225,7 +11225,7 @@
   ],
   "flash": false,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2\n自分の手札にあるネクサスカードすべてに、軽減シンボル[黄][黄]を与える。\nLv2\n自分のネクサスすべてをLv2として扱うことができる。",
   "effects": [
    {
@@ -11667,7 +11667,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、自分のスピリット1体に置く。\nこの効果は、メインステップで使えない。",
   "effects": [
    {
@@ -11732,7 +11732,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のスピリット1体を破壊する。\nボイドから、破壊したスピリットのコスト1につき、コア1個を自分のリザーブに置く。",
   "effects": [
    {
@@ -14059,7 +14059,7 @@
   ],
   "flash": false,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、自分のフィールドにあるネクサス1つにつき、コア1個をこのスピリット上に置く。",
   "effects": [
    {
@@ -25263,7 +25263,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "フラッシュ：\n自分のトラッシュにあるコアすべてを、【覚醒】を持つ自分のスピリット1体の上に置く。\nこの効果は、メインステップで使えない。",
   "effects": [
    {
@@ -25551,7 +25551,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "R",
-  "limited": true,
+  "limited": false,
   "effect": "メイン：\nお互い、それぞれのスピリット/ネクサスのコア4個をボイドに置く。\nこの効果は自分のフィールドにシンボル2つ以上を持つスピリットがいないと使えない。\nフラッシュ：\nこのターンの間、シンボル2つ以上を持つスピリット1体をBP+5000する。",
   "effects": [
    {
@@ -25912,7 +25912,7 @@
   "symbol": [],
   "flash": true,
   "rarity": "",
-  "limited": true,
+  "limited": false,
   "effect": "メイン：\n自分のトラッシュにあるスピリットカード5枚を選び、好きな順番でデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
   "effects": [
    {
