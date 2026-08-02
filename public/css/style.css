@@ -839,6 +839,7 @@ button:active {
     height: 24px;
     padding: 0 6px;
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
     border-radius: 12px;
     background: var(--bg-panel);
     border: 1px solid #444;
