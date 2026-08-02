@@ -43,6 +43,10 @@
   クライアントの `clientContext` は `phase` / `turn` / `uiMode` / `lastError` の**4キーのみ**採用され、
   それ以外は `sanitizeClientContext` が破棄する
 
+- **コミット時は `git add -A` を使わず、担当ファイルを明示的に指定する**（2026-08-02）。
+  UI担当と実装担当で作業時間が重なりやすく、互いの未完成の変更を巻き込まないようにするため。
+  UI担当は `git add public/ chatbox/` などを指定すること。
+
 - **`clientContext` に `log` を入れてはいけない**（2026-07-31 実測）。`/api/bug-report` は
   `express.json({ limit: "32kb" })` のため、**約200行を超えた対戦で報告そのものが 413 で失敗する**
   （400行=62KB で再現）。しかも `log` は破棄されるので利得はゼロ
