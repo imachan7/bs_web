@@ -12,6 +12,7 @@
 import {
     assert,
     act,
+    takeLifeAndResolve,
     createGame,
     createInstance,
     getCard,
@@ -216,7 +217,7 @@ console.log(
     s.players.p1.reserve = 20
     attackThenPassToAttacker(s, attacker)
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "p1がアブソーブシンボルをフラッシュで使用")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受けてバトル終了")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2がライフで受けてバトル終了")
 
     s.players.p2.reserve = 20
     const target = putSpirit(s, "p2", "BS01-005", 2)

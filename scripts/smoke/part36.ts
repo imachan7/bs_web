@@ -8,6 +8,7 @@
 import {
     assert,
     act,
+    takeLifeAndResolve,
     createGame,
     createInstance,
     effectiveCost,
@@ -107,7 +108,7 @@ console.log("=== ダブルシンボル: symbol2つのアタッカーの被ブロ
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック宣言できる")
     const lifeBefore = s.players.p2.life
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 2, "シンボル2つぶんライフが2減る")
 }
 

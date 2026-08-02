@@ -346,7 +346,7 @@ function onMySpiritClick(instanceId: string): void {
     const canDefend =
         isDefender && (!view.isFlashTiming || view.priorityPlayer === view.you)
 
-    if (canDefend && !view.battle?.blockerInstanceId) {
+    if (canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared) {
         send({ type: "block", instanceId })
         return
     }

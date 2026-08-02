@@ -4,7 +4,7 @@
 // kind:"keyword" エントリ12件を、カードデータ経由（そのカード自身を場に出して実際に
 // キーワードを発動させる）で1件ずつ通す。対象は各カードの e1（keyword）のみ。
 // e2（triggered/fieldEvent）を併せ持つカードもあるが、e2 は今回のスコープ外
-import { act, assert, createGame, createInstance, effectiveCost, getCard, minLevelCores } from "./helpers"
+import { act, takeLifeAndResolve, assert, createGame, createInstance, effectiveCost, getCard, minLevelCores } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function setup(seed: string, p1Color: string, p2Color: string): GameState {
@@ -208,7 +208,7 @@ console.log("=== BS05-042 天使長ソフィア：【光芒】でバトル中に
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（攻撃側に優先権が移る）")
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "フラッシュでリターンドローを使用")
     assert(s.players.p1.trashCards.includes("BS01-123"), "使用直後はトラッシュにある")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(s.players.p1.hand.includes("BS01-123"), "【光芒】でリターンドローが手札へ戻った")
     assert(!s.players.p1.trashCards.includes("BS01-123"), "トラッシュからは消えている")
 }

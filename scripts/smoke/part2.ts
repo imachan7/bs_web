@@ -43,6 +43,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -95,7 +96,7 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側の再パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(s.isFlashTiming === false, "両者連続パスでフラッシュ終了")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受けてバトルを終える")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトルを終える")
     assert(s.battle === null, "バトルが終了する")
 
     // 2回目のバトル：新しいbattleではflashLockedPlayerがnullに戻っている

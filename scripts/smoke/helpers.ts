@@ -88,6 +88,25 @@ function act(state: GameState, pid: PlayerId, action: GameAction): string | null
     return error
 }
 
+// takeLife は「宣言」のみでフラッシュを再オープンするため（実プレイのフラッシュタイミング手順に合わせた修正）、
+// 既存テストが期待する「takeLifeだけでバトルが解決する」挙動をエミュレートするラッパー。
+// takeLife 実行 → まだフラッシュタイミングならライフを受ける側 → 攻撃側の順にpassを送って解決まで進める。
+// エラーが出た場合はそのアクションのエラーをそのまま返す（actと同じ戻り値の形なので assert(... === null, ...) のまま使える）
+function takeLifeAndResolve(state: GameState, pid: PlayerId): string | null {
+    const error = act(state, pid, { type: "takeLife" })
+    if (error) return error
+    if (state.isFlashTiming && state.battle) {
+        const passError1 = act(state, pid, { type: "pass" })
+        if (passError1) return passError1
+        if (state.isFlashTiming && state.battle) {
+            const attackerPid = state.turnPlayer
+            const passError2 = act(state, attackerPid, { type: "pass" })
+            if (passError2) return passError2
+        }
+    }
+    return null
+}
+
 
 // 全パート実行後にランナー（scripts/smoke.ts）から呼ぶ最終集計
 export function summary(): void {
@@ -128,6 +147,7 @@ export {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 }
 export type { GameAction, GameState, PlayerId }

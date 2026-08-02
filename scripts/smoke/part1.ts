@@ -42,6 +42,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -97,7 +98,7 @@ assert(act(state, "p1", { type: "nextPhase" }) === null, "アタックステッ�
 assert(act(state, "p1", { type: "attack", instanceId: inst.instanceId }) === null, "アタック宣言できる")
 assert(state.battle !== null, "バトルが発生")
 assert(act(state, "p1", { type: "takeLife" }) !== null, "アタック側のライフ受けは拒否")
-assert(act(state, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+assert(takeLifeAndResolve(state, "p2") === null, "防御側はライフで受けられる")
 assert(state.players.p2.life === 4, "p2のライフが4になる")
 assert(state.players.p2.reserve === 5, "ライフのコアがリザーブへ移動（4+1）")
 assert(state.battle === null, "バトル終了")
@@ -224,7 +225,7 @@ console.log("=== フラッシュ優先権（交互パス） ===")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(s.isFlashTiming === false, "2回連続パスでフラッシュ終了")
     const lifeBefore = s.players.p2.life
-    assert(act(s, "p2", { type: "takeLife" }) === null, "フラッシュ終了後はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "フラッシュ終了後はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 1, "ライフが1減る")
     assert(s.battle === null, "バトル終了でフラッシュ状態もリセット")
 }
@@ -830,7 +831,7 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
         act(s, "p1", { type: "attack", instanceId: freshC.instanceId }) === null,
         "アタック不可扱いでない個体は通常通りアタックできる",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "バトルを解決してテストを進める")
+    assert(takeLifeAndResolve(s, "p2") === null, "バトルを解決してテストを進める")
 
     assert(act(s, "p1", { type: "endTurn" }) === null, "ターン終了できる")
     assert(

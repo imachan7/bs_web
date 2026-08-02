@@ -4,7 +4,7 @@
 // すべて既存の lendSelfThisTurn（マジック自身をこのターンだけ仮想発生源として場に置く器）を使う。
 // TURN_EFFECT_SOURCES.md の3つの罠（levels:null必須／selfは使えない／effectSources経由の走査）を
 // 実際にマジックを使う経路（castMagic → attack/block/takeLife）で検証する。
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+import { act, takeLifeAndResolve, assert, createGame, createInstance, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -222,7 +222,7 @@ console.log("=== BS05-067 ワーニングアタック：メイン＝翼竜/空�
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "p1がアタック")
     assert(
-        act(s2, "p2", { type: "takeLife" }) === null,
+        takeLifeAndResolve(s2, "p2") === null,
         "BP3000以下の合法ブロッカーがいなければライフ受けできる",
     )
 }
@@ -248,5 +248,5 @@ console.log("=== BS02-105 グレートウォール：メイン＝コスト6と8�
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コスト8のスピリットはブロックできない",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロックできないためライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ブロックできないためライフで受ける")
 }

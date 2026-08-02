@@ -372,7 +372,10 @@ export function render(view: GameView, ui: UiState): void {
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
     )
-    show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
+    show(
+        "btn-take-life",
+        canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared && !pendingChoiceActive,
+    )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
         ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
@@ -842,6 +845,7 @@ function fieldCardEl(
         if (
             canDefend &&
             !view.battle?.blockerInstanceId &&
+            !view.battle?.lifeDeclared &&
             !inst.isRested &&
             !singleCoreLocked &&
             !costLocked &&
@@ -1059,6 +1063,8 @@ function renderBattle(view: GameView): void {
     const hasPriority = view.priorityPlayer === view.you
     // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
     const blocked = !!view.battle.blockerInstanceId
+    // ライフで受けることを宣言済みか（宣言後はフラッシュが再オープンされる。ブロックと同様の扱い）
+    const lifeDeclared = !!view.battle.lifeDeclared
 
     // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
     let blockerText = ""
@@ -1088,6 +1094,21 @@ function renderBattle(view: GameView): void {
                 message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
                 message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
+            }
+        }
+    } else if (lifeDeclared) {
+        // ライフ受け宣言後の追加フラッシュ
+        if (isDefender) {
+            if (view.isFlashTiming && hasPriority) {
+                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。追加でフラッシュマジックを使うか「パス」してください。`
+            } else {
+                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。相手の対応を待っています…`
+            }
+        } else {
+            if (view.isFlashTiming && hasPriority) {
+                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。フラッシュマジックを使うか「パス」してください。`
+            } else {
+                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。相手の対応を待っています…`
             }
         }
     } else if (isDefender) {

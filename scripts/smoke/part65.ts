@@ -9,7 +9,7 @@
 // 「ブロックもできない・ライフでも受けられない」状態になり、防御側の手番が進まなくなっていた。
 // 強制ブロック（mustBlockGrant）側は先に `hasLegalBlocker`（validateBlock を実際に通す）で
 // 対処済みだったので、【激突】も同じ判定に揃えた。
-import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, takeLifeAndResolve, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 // アタック直前の状態を作る（p1 のターン・アタックステップ、両者のフィールドを空にしてから配置する）
@@ -60,7 +60,7 @@ console.log("=== §B 激突: ブロックできるスピリットが1体もい�
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
 
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロッカー不在ならライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "ブロッカー不在ならライフで受けられる")
     assert(s.players.p2.life === 4, "ライフが1減る")
 }
 
@@ -86,7 +86,7 @@ console.log("=== §C 回帰: cantBlock のスピリットしかいないとき�
     )
     // よってライフ受けは許可されなければならない（さもなくば防御側の選択肢がゼロになる）
     assert(
-        act(s, "p2", { type: "takeLife" }) === null,
+        takeLifeAndResolve(s, "p2") === null,
         "ブロックできないブロッカーしかいなければライフで受けられる（詰み回避）",
     )
     assert(s.players.p2.life === 4, "ライフが1減る")
@@ -101,5 +101,5 @@ console.log("=== §D 激突を持たないアタッカーには影響しない =
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
 
-    assert(act(s, "p2", { type: "takeLife" }) === null, "激突なしならブロッカーがいてもライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "激突なしならブロッカーがいてもライフで受けられる")
 }

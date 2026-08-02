@@ -39,6 +39,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -215,7 +216,7 @@ console.log("=== 制約：必ずアタック（mustAttack、ウィル・オー�
     assert(err2 !== null && err2.includes("必ずアタック"), "アタックステップでもアタック前のendTurnは拒否される")
 
     assert(act(s, "p1", { type: "attack", instanceId: orb.instanceId }) === null, "ウィル・オーブでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2はライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2はライフで受ける")
     assert(act(s, "p1", { type: "endTurn" }) === null, "アタック後（疲労状態）ならendTurnできる")
 
     console.log("--- cantAttackThisTurn付与時はmustAttackが働かない ---")
@@ -256,7 +257,7 @@ console.log("=== フィールドイベント誘発：命の果実（BS01-107、o
     assert(act(s, "p2", { type: "attack", instanceId: attacker1.instanceId }) === null, "p2がアタック")
 
     const handBefore1 = s.players.p1.hand.length
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける")
     assert(s.players.p1.life === 4, "p1のライフが1減る")
     assert(s.players.p1.hand.length === handBefore1 + 1, "命の果実Lv1：ライフが減ったので1ドローする")
 
@@ -268,7 +269,7 @@ console.log("=== フィールドイベント誘発：命の果実（BS01-107、o
 
     const handBefore2 = s.players.p1.hand.length
     const reserveBefore2 = s.players.p1.reserve
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける")
     assert(s.players.p1.life === 3, "p1のライフがさらに1減る")
     assert(s.players.p1.hand.length === handBefore2 + 1, "Lv2でもドローは継続する")
     // +1はライフのコアがリザーブへ移る通常処理分、+1がLv2の追加コア獲得（コアGain）分
@@ -282,7 +283,7 @@ console.log("=== フィールドイベント誘発：命の果実（BS01-107、o
 
     const handBefore3 = s.players.p1.hand.length
     const reserveBefore3 = s.players.p1.reserve
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける")
     assert(s.players.p1.life === 0, "p1のライフが0になる")
     assert(s.winner === "p2", "p2の勝利が決まる")
     assert(s.players.p1.hand.length === handBefore3, "ライフ0で敗北が決まった場合はドローが発火しない")
@@ -461,7 +462,7 @@ console.log("=== selfBuffPer：スケルトン・ジョウ（BS01-016、アタ�
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: jaw.instanceId }) === null, "スケルトン・ジョウでアタック")
     assert(jaw.tempBpBuff === 2000, "相手の回復状態2体でBP+2000")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受けてバトル終了")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトル終了")
 
     console.log("--- 相手が全疲労なら増加0 ---")
     ready1.isRested = true
@@ -529,7 +530,7 @@ console.log("=== voidCoreToOther：スタッグローブ（BS01-066、アタッ�
     assert(strong.cores === 5, "実効BP最大のリーヴォルフにコア+1")
     assert(weak.cores === 1 && stag.cores === 2, "他のスピリットと自身のコアは変化しない")
     assert(s.players.p1.reserve === reserveBefore, "コアはボイド由来（リザーブは変化しない）")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受けてバトル終了")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトル終了")
 
     console.log("--- 候補なしは no-op ---")
     const s2 = createGame(
@@ -690,7 +691,7 @@ console.log("=== 遅延アタックステップ終了：サイレントウォー
     assert(s.endAttackStepAfterBattle === true, "遅延終了フラグが立つ")
     assert(s.turnPlayer === "p1", "バトル解決前はまだp1のターン")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側がライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側がライフで受ける")
     assert(s.battle === null, "バトルが終了している")
     assert(s.turnPlayer === "p2", "バトル終了後に自動でターンが終了しp2のターンになる")
     assert(s.phase === "main", "p2のターンがメインステップから始まる")
@@ -848,7 +849,7 @@ console.log("=== 魔帝の墓標Lv2（e2）：アタック宣言でコア1個を
         "減ったコアはアタッカーの持ち主のトラッシュへ置かれる",
     )
     assert(s.battle !== null, "バトル自体は継続する")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受けられる")
 
     console.log("--- 墓標の持ち主自身のアタックでも発火する ---")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1ターン終了")
