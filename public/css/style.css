@@ -595,14 +595,7 @@ button:active {
     font-size: 10px;
 }
 
-.card .effect-text {
-    margin-top: auto;
-    font-size: 9px;
-    color: var(--text-muted);
-    max-height: 48px;
-    overflow: hidden;
-    line-height: 1.3;
-}
+
 
 /* 効果全文のツールチップ */
 #effect-tooltip {
@@ -925,10 +918,7 @@ button:active {
     white-space: nowrap;
     margin-bottom: 2px;
 }
-.spirit-zone .card .effect-text,
-.nexus-zone .card .effect-text {
-    display: none;
-}
+
 
 .spirit-zone .card::before,
 .nexus-zone .card::before {
@@ -1161,10 +1151,7 @@ button:active {
     #hand .card .name {
         font-size: 10px;
     }
-    #hand .card .effect-text {
-        font-size: 8px;
-        max-height: 32px;
-    }
+
     #action-buttons-container {
         position: fixed;
         bottom: 8px;
@@ -1233,9 +1220,7 @@ button:active {
         font-size: 9px;
         padding: 4px;
     }
-    #hand .card .effect-text {
-        display: none;
-    }
+
     .cost-badge {
         width: 22px;
         height: 22px;

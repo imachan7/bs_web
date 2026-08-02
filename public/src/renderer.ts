@@ -1062,9 +1062,17 @@ function renderHand(view: GameView, ui: UiState): void {
         name.textContent = m.name
         el.appendChild(name)
 
+        const reductionCounts: Record<string, number> = {}
+        for (const c of m.reduction) {
+            reductionCounts[c] = (reductionCounts[c] || 0) + 1
+        }
+        const reductionText = Object.entries(reductionCounts)
+            .map(([c, count]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
+            .join("")
+
         const stats = document.createElement("div")
         stats.className = "stats"
-        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
+        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}` + (reductionText ? ` 軽減:${reductionText}` : "")
         el.appendChild(stats)
 
         if (m.levels.length > 0) {
@@ -1072,16 +1080,9 @@ function renderHand(view: GameView, ui: UiState): void {
             bp.className = "stats"
             bp.textContent = m.levels
                 .filter((l) => l.bp > 0)
-                .map((l) => `Lv${l.level}:${l.bp}`)
+                .map((l) => `Lv${l.level}(${l.cores}):${l.bp}`)
                 .join(" ")
             el.appendChild(bp)
-        }
-
-        if (m.effect) {
-            const eff = document.createElement("div")
-            eff.className = "effect-text"
-            eff.textContent = m.effect
-            el.appendChild(eff)
         }
 
         if (g.count > 1) {
