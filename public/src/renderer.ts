@@ -76,6 +76,38 @@ export function master(cardId: string): CardData {
     return card
 }
 
+let tooltipEl: HTMLElement | null = null
+
+function showTooltip(e: MouseEvent, htmlContent: string) {
+    if (!tooltipEl) {
+        tooltipEl = document.getElementById("global-tooltip")
+    }
+    if (!tooltipEl) return
+
+    tooltipEl.innerHTML = htmlContent
+    tooltipEl.classList.remove("hidden")
+
+    let left = e.clientX + 15
+    let top = e.clientY + 15
+
+    const rect = tooltipEl.getBoundingClientRect()
+    if (left + rect.width > window.innerWidth) {
+        left = e.clientX - rect.width - 15
+    }
+    if (top + rect.height > window.innerHeight) {
+        top = e.clientY - rect.height - 15
+    }
+
+    tooltipEl.style.left = `${left}px`
+    tooltipEl.style.top = `${top}px`
+}
+
+function hideTooltip() {
+    if (tooltipEl) {
+        tooltipEl.classList.add("hidden")
+    }
+}
+
 const COLOR_SYMBOLS: Record<string, string> = {
     red: "🔥",
     purple: "💀",
@@ -520,7 +552,15 @@ export function render(view: GameView, ui: UiState): void {
                     const span = document.createElement("span")
                     span.className = "log-card-name"
                     span.textContent = part
-                    span.title = `[${card.type === 'spirit' ? 'スピリット' : card.type === 'nexus' ? 'ネクサス' : 'マジック'}] コスト${card.cost}\n${card.effects.map(e => e.text).join('\n')}`
+                    
+                    const typeLabel = card.type === 'spirit' ? 'スピリット' : card.type === 'nexus' ? 'ネクサス' : 'マジック'
+                    const effectsHtml = card.effects.map(e => `・${e.text}`).join('<br>')
+                    const tooltipHtml = `<b>[${typeLabel}] ${card.name}</b> (コスト${card.cost})<br><div style="margin-top: 4px; color: #a1a1aa;">${effectsHtml}</div>`
+                    
+                    span.addEventListener("mouseenter", (e) => showTooltip(e, tooltipHtml))
+                    span.addEventListener("mousemove", (e) => showTooltip(e, tooltipHtml))
+                    span.addEventListener("mouseleave", hideTooltip)
+                    
                     div.appendChild(span)
                 } else {
                     div.appendChild(document.createTextNode(part))
@@ -536,6 +576,8 @@ export function render(view: GameView, ui: UiState): void {
             div.className = "log-phase"
         } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
             div.className = "log-important"
+        } else if (line.includes("：")) {
+            div.className = "log-effect"
         }
         logEl.appendChild(div)
     }

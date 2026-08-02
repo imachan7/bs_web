@@ -483,12 +483,49 @@ button:active {
     font-weight: 600;
 }
 
-#log .log-card-name {
-    color: var(--accent);
-    font-weight: 600;
-    cursor: help;
-    text-decoration: underline dotted var(--accent);
+#log .log-effect {
+    border-left: 2px solid rgba(59, 130, 246, 0.5);
+    padding-left: 6px;
+    margin-left: 2px;
+    background: rgba(59, 130, 246, 0.05);
+    border-radius: 0 4px 4px 0;
 }
+
+#log .log-card-name {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 0 2px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 4px;
+    color: #93c5fd;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+#log .log-card-name:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.7);
+}
+
+#global-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    background: rgba(15, 17, 21, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #f3f4f6;
+    font-size: 13px;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    max-width: 300px;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.1s ease-out;
+}
+
 
 #trash-content {
     flex: 1;
