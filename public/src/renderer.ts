@@ -47,7 +47,7 @@ import {
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
-// ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
+// ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
 
 let DB = new Map<string, CardData>()
 
@@ -625,18 +625,40 @@ function renderField(
     }
 }
 
-// コア移動ボタン（+/−）。スピリットとネクサスで共用する
-function coreButtonsEl(instanceId: string): HTMLElement {
+// コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
+function coreButtonsEl(instanceId: string, currentCores: number, levels: { level: number, cores: number }[]): HTMLElement {
     const btns = document.createElement("div")
     btns.className = "core-buttons"
-    for (const dir of ["add", "remove"] as const) {
-        const b = document.createElement("button")
-        b.dataset.core = dir
-        b.dataset.instanceId = instanceId
-        b.textContent = dir === "add" ? "+" : "−"
-        b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
-        btns.appendChild(b)
+    
+    const removeBtn = document.createElement("button")
+    removeBtn.dataset.core = "remove"
+    removeBtn.dataset.instanceId = instanceId
+    removeBtn.textContent = "−"
+    removeBtn.title = "コアを1個リザーブへ戻す"
+    btns.appendChild(removeBtn)
+
+    // レベルごとのショートカットボタン
+    for (const lv of levels) {
+        if (lv.cores <= 0) continue // コア0個のレベル（基本ないが念のため）はスキップ
+        const lvBtn = document.createElement("button")
+        lvBtn.dataset.core = `set-${lv.cores}`
+        lvBtn.dataset.currentCores = String(currentCores)
+        lvBtn.dataset.instanceId = instanceId
+        lvBtn.textContent = `Lv${lv.level}`
+        lvBtn.title = `コアを${lv.cores}個（Lv${lv.level}）にする`
+        if (currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores) {
+            lvBtn.classList.add("active-lv") // 現在のレベルを強調
+        }
+        btns.appendChild(lvBtn)
     }
+
+    const addBtn = document.createElement("button")
+    addBtn.dataset.core = "add"
+    addBtn.dataset.instanceId = instanceId
+    addBtn.textContent = "＋"
+    addBtn.title = "リザーブからコアを1個置く"
+    btns.appendChild(addBtn)
+
     return btns
 }
 
@@ -770,7 +792,7 @@ function fieldCardEl(
             const slot = document.createElement("div")
             slot.className = "nexus-slot"
             slot.appendChild(el)
-            slot.appendChild(coreButtonsEl(inst.instanceId))
+            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
             return slot
         }
         return el
@@ -886,7 +908,7 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            el.appendChild(coreButtonsEl(inst.instanceId))
+            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能

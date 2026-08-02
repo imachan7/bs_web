@@ -538,7 +538,8 @@ function closestData(
 }
 
 async function init(): Promise<void> {
-    const cards = (await (await fetch("/data/cards.json")).json()) as CardData[]
+    // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
+    const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
     populateCustomDecks()
     setupEffectTooltip()
@@ -610,11 +611,23 @@ async function init(): Promise<void> {
         // コア移動ボタンが先（カードクリックと区別する）
         const coreBtn = closestData(e, "data-core")
         if (coreBtn) {
-            send({
-                type: "moveCore",
-                instanceId: String(coreBtn.dataset.instanceId),
-                direction: coreBtn.dataset.core === "add" ? "add" : "remove",
-            })
+            const direction = String(coreBtn.dataset.core)
+            const instanceId = String(coreBtn.dataset.instanceId)
+            if (direction === "add" || direction === "remove") {
+                send({ type: "moveCore", instanceId, direction })
+            } else if (direction.startsWith("set-")) {
+                const targetCores = parseInt(direction.split("-")[1] || "0", 10)
+                const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)
+                if (targetCores > currentCores) {
+                    for (let i = 0; i < targetCores - currentCores; i++) {
+                        send({ type: "moveCore", instanceId, direction: "add" })
+                    }
+                } else if (currentCores > targetCores) {
+                    for (let i = 0; i < currentCores - targetCores; i++) {
+                        send({ type: "moveCore", instanceId, direction: "remove" })
+                    }
+                }
+            }
             return
         }
         const el = closestData(e, "data-instance-id")
@@ -631,11 +644,23 @@ async function init(): Promise<void> {
         // コア移動ボタンが先（カードクリックと区別する）。ネクサスもコアでレベルを上げ下げできる
         const coreBtn = closestData(e, "data-core")
         if (coreBtn) {
-            send({
-                type: "moveCore",
-                instanceId: String(coreBtn.dataset.instanceId),
-                direction: coreBtn.dataset.core === "add" ? "add" : "remove",
-            })
+            const direction = String(coreBtn.dataset.core)
+            const instanceId = String(coreBtn.dataset.instanceId)
+            if (direction === "add" || direction === "remove") {
+                send({ type: "moveCore", instanceId, direction })
+            } else if (direction.startsWith("set-")) {
+                const targetCores = parseInt(direction.split("-")[1] || "0", 10)
+                const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)
+                if (targetCores > currentCores) {
+                    for (let i = 0; i < targetCores - currentCores; i++) {
+                        send({ type: "moveCore", instanceId, direction: "add" })
+                    }
+                } else if (currentCores > targetCores) {
+                    for (let i = 0; i < currentCores - targetCores; i++) {
+                        send({ type: "moveCore", instanceId, direction: "remove" })
+                    }
+                }
+            }
             return
         }
         const el = closestData(e, "data-instance-id")
