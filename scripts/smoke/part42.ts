@@ -103,6 +103,8 @@ console.log("=== BS04-068 アイアン・ゴレム: ブロック時/アタック
     const baseBp = currentLevel(golem).bp // 4000（Lv2、まだバフ前）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: golem.instanceId }) === null, "アイアン・ゴレムでブロック（手札ネクサス破棄でBP+4000）")
     assert(effectiveBp(s, "p2", golem) === baseBp + 4000, "ブロック時に手札ネクサスを破棄しBP+4000")
     assert(s.players.p2.trashCards.includes("BS01-098"), "破棄したネクサスカードがトラッシュへ")

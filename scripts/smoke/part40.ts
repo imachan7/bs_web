@@ -30,6 +30,8 @@ console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker
     console.log("--- Lv1: coreGainのみ発揮（refreshSelfは発揮されない） ---")
     const reserveBefore1 = s.players.p1.reserve
     assert(act(s, "p1", { type: "attack", instanceId: falconLv1.instanceId }) === null, "Lv1ファル・コンドルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -39,6 +41,8 @@ console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker
     console.log("--- Lv2: coreGainに加えてrefreshSelfも発揮される ---")
     const reserveBefore2 = s.players.p1.reserve
     assert(act(s, "p1", { type: "attack", instanceId: falconLv2.instanceId }) === null, "Lv2ファル・コンドルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -61,6 +65,8 @@ console.log("=== BS04-032 槍蟲ルカニドス: onBattle（battleRole省略）�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p1がゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: lucanidos.instanceId }) === null,
         "ルカニドスでブロック（ブロッカー勝利）",

@@ -18,7 +18,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -506,11 +506,13 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
-        // 実対戦（interactiveTargets）ではプレイヤーが選び、非対話時はコスト最大を自動選択する
+        // 実対戦（interactiveTargets）ではプレイヤーが選び、非対話時はコスト最大を自動選択する。
+        // 候補の絞り込みは「場のスピリットのコストを条件にする判定」なので、道化師クランの
+        // 付与コストも見る instMatchesCostFilter を使う
         const candidates = state.players[owner].field.spirits.filter(
             (s) =>
                 (!self || s.instanceId !== self.instanceId) &&
-                getCard(s.cardId).cost <= action.maxCost,
+                instMatchesCostFilter(s, { max: action.maxCost }),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
@@ -535,6 +537,8 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
                 return
             }
         }
+        // 自動選択の「コスト最大」／gainCoresEqualCostで得るコア数は、複数コストを持つ状態では
+        // 「最大」を定義できないため、道化師クラン等の付与コストではなくカード本来のコストのまま比較する
         const target =
             chosenTarget ??
             candidates.reduce((best, s) =>

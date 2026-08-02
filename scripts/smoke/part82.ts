@@ -123,6 +123,8 @@ console.log("--- 「鎧装獣」がバトルで相手だけを破壊したとき
 
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: haze.instanceId }) === null, "ヘイズ・ルーンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ビートビートルでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2パス")
     assert(act(s, "p1", { type: "pass" }) === null, "p1パス → バトル解決")
@@ -147,6 +149,8 @@ console.log("=== BS04-090 ニーベルングリング：「ジーク」が相手
     s.players.p1.hand[0] = "BS04-090" // ニーベルングリング（フラッシュ・コスト3）
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: zieg.instanceId }) === null, "ジークフリードでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ビートビートルでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2パス（攻撃側へ優先権が移る）")
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ニーベルングリングをフラッシュで使用")
@@ -176,6 +180,8 @@ console.log("--- ニーベルングリングを使っていないターンは追
 
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: zieg.instanceId }) === null, "ジークフリードでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ビートビートルでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2パス")
     assert(act(s, "p1", { type: "pass" }) === null, "p1パス → バトル解決")

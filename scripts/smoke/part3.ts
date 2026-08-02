@@ -63,6 +63,8 @@ console.log("=== battleRole: onBattleの役割限定（キングタウロス大�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: king.instanceId }) === null, "キングタウロス大公でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weakBlocker.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -87,6 +89,8 @@ console.log("=== battleRole: onBattleの役割限定（キングタウロス大�
     assert(act(s2, "p1", { type: "endTurn" }) === null, "p1ターン終了")
     assert(act(s2, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s2, "p2", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p2のゴラドンでアタック")
+    assert(act(s2, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s2, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s2, "p1", { type: "block", instanceId: king2.instanceId }) === null, "キングタウロス大公でブロック（ブロッカー勝利）")
     assert(act(s2, "p1", { type: "pass" }) === null, "防御側パス")
     assert(act(s2, "p2", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -117,6 +121,8 @@ console.log("=== battleWon: ネクサスのバトル結果誘発（無限蟲の�
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1ターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p2のゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p1", { type: "block", instanceId: strongBlocker.instanceId }) === null, "ナージャでブロック（ブロッカー勝利）")
     assert(act(s, "p1", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -144,6 +150,8 @@ console.log("=== battleWon: ネクサスのバトル結果誘発（無限蟲の�
 
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker1.instanceId }) === null, "ナージャでアタック")
+    assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s2, "p2", { type: "block", instanceId: weakBlocker1.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -161,6 +169,8 @@ console.log("=== battleWon: ネクサスのバトル結果誘発（無限蟲の�
     s2.players.p2.field.spirits.push(weakBlocker2)
 
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "2体目のナージャでアタック")
+    assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s2, "p2", { type: "block", instanceId: weakBlocker2.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -188,6 +198,8 @@ console.log("=== battleWon: 古龍の縄張り（アタッカー勝利でドロ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weakBlocker.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -406,6 +418,8 @@ console.log("=== フィールドイベント誘発：侵食されゆく銀世界
 
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ")
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2がアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p1", { type: "block", instanceId: blocker.instanceId }) === null, "p1がブロック")
 
     const reserveBefore = s.players.p1.reserve
@@ -429,6 +443,8 @@ console.log("=== フィールドイベント誘発：侵食されゆく銀世界
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "p2がブロック")
 
     const reserveBefore2 = s.players.p1.reserve
@@ -599,6 +615,8 @@ console.log("=== unblockableBy maxCores：幻龍シェイロン e2（Lv2はコ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: sheiron.instanceId }) === null, "シェイロンLv2でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) !== null,
         "コア1個のブロッカーは拒否される",
@@ -715,7 +733,8 @@ console.log("=== 遅延アタックステップ終了：サイレントウォー
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "p1がアタック")
     assert(act(s2, "p2", { type: "castMagic", handIndex: 0 }) === null, "サイレントウォールを使用")
-    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス")
+    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（優先権を得て）")
+    assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①終了）")
     assert(act(s2, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "防御側がブロック")
     assert(act(s2, "p2", { type: "pass" }) === null, "ブロック後フラッシュで防御側パス")
     assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -792,6 +811,8 @@ console.log("=== フィールド全体制約：魔帝の墓標（BS01-105）sing
     )
     const blocker = createInstance("BS01-053", s.turn, 1) // リーヴォルフ コア1個
     s.players.p2.field.spirits.push(blocker)
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コア1個のスピリットのブロックは拒否される",

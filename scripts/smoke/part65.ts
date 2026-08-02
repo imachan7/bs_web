@@ -41,6 +41,8 @@ console.log("=== §A 激突: ブロックできるスピリットがいるなら
     grantClash(s, attacker)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言できる")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     const err = act(s, "p2", { type: "takeLife" })
     assert(err !== null, "【激突】によりライフ受けが拒否される")
@@ -78,6 +80,8 @@ console.log("=== §C 回帰: cantBlock のスピリットしかいないとき�
     grantClash(s, attacker)
     act(s, "p1", { type: "nextPhase" })
     act(s, "p1", { type: "attack", instanceId: attacker })
+    act(s, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
+    act(s, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
 
     // 前提: このブロッカーは実際にブロックできない
     assert(

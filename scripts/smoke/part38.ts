@@ -26,6 +26,8 @@ console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: enemyAtk.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p1", { type: "block", instanceId: cham.instanceId }) !== null,
         "Lv1のカメレウィップはcantBlockでブロックできない",
@@ -88,6 +90,8 @@ console.log("=== BS04-016 堕天使アゼル: バトル勝利時、天霊のス�
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: azel.instanceId }) === null, "堕天使アゼルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: weakBlocker.instanceId }) === null,
         "ゴラドンでブロック（アタッカー勝利）",
@@ -182,6 +186,8 @@ console.log("=== BS04-X14 魔界七将パンデミウム: battleRole省略のた
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p1", { type: "block", instanceId: pandemium.instanceId }) === null,
         "パンデミウムでブロック（ブロッカー勝利）",

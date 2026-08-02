@@ -342,11 +342,10 @@ function onMySpiritClick(instanceId: string): void {
 
     const myTurn = view.turnPlayer === view.you
     const isDefender = !!view.battle && !myTurn
-    // 防御側の応答が可能なのは、優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender && (!view.isFlashTiming || view.priorityPlayer === view.you)
+    // ブロック宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える
+    const canDefend = isDefender && !view.isFlashTiming
 
-    if (canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared) {
+    if (canDefend && !view.battle?.blockerInstanceId) {
         send({ type: "block", instanceId })
         return
     }
@@ -669,6 +668,11 @@ async function init(): Promise<void> {
         send({ type: "takeLife" }),
     )
     byId("btn-pass").addEventListener("click", () => send({ type: "pass" }))
+    // 降参は押し間違えると対戦が終わってしまうため、必ず確認をはさむ
+    byId("btn-surrender").addEventListener("click", () => {
+        if (!window.confirm("本当に降参しますか？\n相手の勝利になります。")) return
+        send({ type: "surrender" })
+    })
     byId("btn-attack-player").addEventListener("click", () => {
         if (!ui.directedAttack) return
         send({ type: "attack", instanceId: ui.directedAttack.attackerInstanceId })

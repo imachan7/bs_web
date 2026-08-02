@@ -11,7 +11,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -24,7 +24,6 @@ import {
 export { effectiveCost }
 import {
     activeConstraints,
-    costCantAct,
     effectActiveAtLevel,
     effectiveBp,
     effectSources,
@@ -429,7 +428,7 @@ export function validateAttack(
         return "コア1個しか置いていないスピリットはアタックできません"
     }
     // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはアタックできない
-    if (costCantAct(state, getCard(inst.cardId).cost)) {
+    if (instCostCantAct(state, inst)) {
         return "コストが低いためアタックできません"
     }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
@@ -463,12 +462,12 @@ export function validateBlock(
 ): string | null {
     if (!state.battle) return "バトルが発生していません"
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
-    // 攻撃側に優先権がある間（フラッシュ中で自分が優先権を持たない）はブロックできない
-    if (state.isFlashTiming && pid !== state.priorityPlayer) {
-        return "現在フラッシュの優先権がありません"
+    // ブロック宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える。
+    // 優先権の有無に関わらず、フラッシュタイミング中は宣言できない
+    if (state.isFlashTiming) {
+        return "フラッシュタイミング中はブロックを宣言できません"
     }
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
-    if (state.battle.lifeDeclared) return "すでにライフで受けることを宣言しています"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     if (inst.isRested) return "疲労しているためブロックできません"
@@ -478,7 +477,7 @@ export function validateBlock(
         return "コア1個しか置いていないスピリットはブロックできません"
     }
     // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはブロックできない
-    if (costCantAct(state, getCard(inst.cardId).cost)) {
+    if (instCostCantAct(state, inst)) {
         return "コストが低いためブロックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
@@ -528,7 +527,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
-        if (costCantAct(state, getCard(inst.cardId).cost)) continue
+        if (instCostCantAct(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
@@ -591,11 +590,10 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
     // ブロック宣言済みならライフでは受けられない
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
-    // すでにライフで受けることを宣言済みなら再度の宣言はできない
-    if (state.battle.lifeDeclared) return "すでにライフで受けることを宣言しています"
-    // 攻撃側に優先権がある間（フラッシュ中で自分が優先権を持たない）はライフで受けられない
-    if (state.isFlashTiming && pid !== state.priorityPlayer) {
-        return "現在フラッシュの優先権がありません"
+    // ライフで受ける宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える。
+    // 優先権の有無に関わらず、フラッシュタイミング中は宣言できない
+    if (state.isFlashTiming) {
+        return "フラッシュタイミング中はライフで受けられません"
     }
     const attacker = findSpirit(
         state.players[state.turnPlayer],

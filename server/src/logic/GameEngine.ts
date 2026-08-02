@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -95,6 +95,9 @@ function dispatchAction(
     pid: PlayerId,
     action: GameAction,
 ): string | null {
+    // 降参はゲームの手順の外側にある操作なので、他のどの検証よりも先に処理する
+    // （自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも降参できる）
+    if (action.type === "surrender") return doSurrender(state, pid)
     // 効果解決中のプレイヤー選択待ちは resolveChoice 以外のアクションをすべて拒否する
     if (state.pendingChoice && action.type !== "resolveChoice") {
         return "対象の選択待ちです"
@@ -142,6 +145,7 @@ function dispatchAction(
             endTurn(state)
             return null
         }
+        // "surrender" は冒頭で処理済みのため、ここでは型から除外されている
     }
 }
 
@@ -473,13 +477,15 @@ function doAttack(
     // 両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
     if (!state.winner) {
         fireFieldEventTriggers(state, pid, "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            cost: getCard(inst.cardId).cost,
+            // instAllCosts：アタックしたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+            costs: instAllCosts(inst),
         })
     }
     if (!state.winner) {
         // アタックしたスピリットのコストを渡す（costFilter で絞る効果のため。BS04鎧装獣ヘイズ・ルーン）
         fireFieldEventTriggers(state, opponentOf(pid), "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            cost: getCard(inst.cardId).cost,
+            // instAllCosts：アタックしたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+            costs: instAllCosts(inst),
         })
     }
     // アタッカーが維持コア割れで消滅した場合はバトル不成立（ライフ受け・ブロックの対象が存在しないため）
@@ -556,27 +562,22 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     return null
 }
 
-// 防御側がライフで受けることを宣言する。ブロック宣言と同様、この時点では解決しない。
-// フラッシュを再オープンし（防御側から優先権）、両者が連続でパスした時点で resolveLifeDamage が解決する
-// （公式ルール: フラッシュタイミングでは防御側→攻撃側の順に1つずつフラッシュを使い、
-// 両者が連続で「使わない」を選んだ時点でフラッシュタイミングが終わる）
+// 防御側がライフで受けることを宣言する。ブロック宣言と違い、ライフで受ける場合はフラッシュ②を
+// 再オープンせず、宣言した場でそのまま resolveLifeDamage を解決する
+// （公式ルール: ブロック宣言時のみフラッシュ②が開く。ライフで受ける場合はフラッシュタイミングなし）
 function doTakeLife(state: GameState, pid: PlayerId): string | null {
     const error = validateTakeLife(state, pid)
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
 
-    state.battle.lifeDeclared = true
-    log(state, `${state.players[pid].name}はライフで受けることを宣言した。フラッシュタイミングを開始する。`)
-    // ライフ受け宣言後は即解決せず、フラッシュを再オープンする（doBlock末尾と同じ扱い）
-    state.isFlashTiming = true
-    state.flashCount = 0
-    state.priorityPlayer = opponentOf(state.turnPlayer)
+    log(state, `${state.players[pid].name}はライフで受けることを宣言した。`)
+    resolveLifeDamage(state)
     return null
 }
 
-// ライフ受け宣言後のフラッシュタイミングが終了した時点でライフダメージを解決する。
-// フラッシュ中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
-// 宣言時ではなく**解決時点**の状態を読む
+// ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
+// フラッシュ①中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
+// 解決時点の状態を読む
 function resolveLifeDamage(state: GameState): void {
     if (!state.battle) return
     const attackerPid = state.turnPlayer
@@ -805,6 +806,22 @@ function drainChoiceQueue(
     return null
 }
 
+// 降参：相手の勝利としてただちにゲームを終了する。
+// 進行中のバトル・フラッシュ・選択待ちはすべて破棄する（勝敗が決まった後は誰も操作しないため、
+// 中途半端な状態を残さない）
+function doSurrender(state: GameState, pid: PlayerId): string | null {
+    const winner = opponentOf(pid)
+    state.pendingChoice = null
+    state.battle = null
+    state.isFlashTiming = false
+    state.winner = winner
+    log(
+        state,
+        `${state.players[pid].name}は降参した。${state.players[winner].name}の勝利！`,
+    )
+    return null
+}
+
 function doPass(state: GameState, pid: PlayerId): string | null {
     const error = validatePass(state, pid)
     if (error) return error
@@ -818,11 +835,9 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
-        } else if (state.battle && state.battle.lifeDeclared) {
-            // ライフ受け宣言後のフラッシュ終了 → ライフダメージを解決する
-            resolveLifeDamage(state)
         }
-        // ブロック・ライフ受けのいずれも未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）
+        // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）。
+        // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
     }
     return null
 }

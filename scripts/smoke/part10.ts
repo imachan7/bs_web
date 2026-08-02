@@ -64,6 +64,8 @@ console.log("=== BS02-X06 魔界七将デストロード e2：BP比較でブロ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: destroroad.instanceId }) === null, "デストロードでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -93,6 +95,8 @@ console.log("=== BS02-X06 魔界七将デストロード e2：BP比較でブロ�
 
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s2, "p1", { type: "attack", instanceId: destroroad2.instanceId }) === null, "デストロードでアタック")
+    assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s2, "p2", { type: "block", instanceId: evenBlocker.instanceId }) === null, "同BPでブロック（相打ち）")
     assert(act(s2, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s2, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")

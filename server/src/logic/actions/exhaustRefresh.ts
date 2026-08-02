@@ -14,7 +14,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -345,7 +345,8 @@ const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action)
         for (const pid of ["p1", "p2"] as PlayerId[]) {
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
-                if (getCard(s.cardId).cost !== action.cost) continue
+                // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
+                if (!instHasCost(s, action.cost)) continue
                 s.isRested = false
                 count++
             }

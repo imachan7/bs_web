@@ -868,7 +868,6 @@ export interface BattleState {
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
-    lifeDeclared?: boolean // 防御側がライフで受けることを宣言済みか（宣言直後は解決せずフラッシュを再オープンする。両者パスで resolveLifeDamage が解決する）
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
@@ -999,3 +998,5 @@ export type GameAction =
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack
     | { type: "endTurn" }
+    | { type: "surrender" } // 降参：相手の勝利としてただちに終了する。手順の外側の操作なので、
+    // 自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも受け付ける

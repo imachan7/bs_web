@@ -117,6 +117,8 @@ console.log("--- アタックシフト適用中は『ブロック時』には発
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "p1がメインで使用（自分のカードだが両陣営に効く）")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(blocker.tempBpBuff === 0, "ブロック時には発揮されない（移し替え済みのため+0のまま）")
 }
@@ -129,6 +131,8 @@ console.log("--- マジックを使わなければ従来どおりブロック時
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
     assert(blocker.tempBpBuff === 4000, "マジック未使用ではブロック時に通常どおりBP+4000する")
 }

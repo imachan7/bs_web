@@ -96,6 +96,14 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
     return (inst.alsoCostsContinuous ?? []).includes(cost)
 }
 
+// インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
+// 単一値の一致判定は instHasCost、範囲判定は instMatchesCostFilter を使えば足りるので、
+// それらで表現できない判定（costCantAct のように「どのコストか」を都度渡す関数へORで橋渡しする、
+// 2インスタンス間でコストを比較する、等）でのみ使うこと
+export function instAllCosts(inst: CardInstance): number[] {
+    return [card(inst.cardId).cost, ...inst.tempAlsoCosts, ...(inst.alsoCostsContinuous ?? [])]
+}
+
 // カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
 // **色の一致判定は必ずこの述語か instHasColor を通すこと**（`card.color === c` を直接書かない）。
 // BS05 で多色カードが入ると CardData の色が配列になるため、直接比較は静かに壊れる（MULTICOLOR.md 参照）
@@ -542,7 +550,10 @@ export function matchesTarget(
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
-    if (filter.cost !== undefined && !matchesCostFilter(card(inst.cardId).cost, filter.cost)) return false
+    // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る
+    // （instMatchesCostFilter。以前はcard本来のコストのみを見ており、汎用ターゲットフィルタ経由の
+    // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
+    if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
@@ -702,7 +713,9 @@ export function hasGlobalConstraint(
 }
 // フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
 // アタック/ブロックができない（BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2、BS02グレートウォール=costs[6,8]）。
-// hasGlobalConstraintの単純boolean判定と異なり、具体的なしきい値を比較する必要があるため専用の判定関数にする
+// hasGlobalConstraintの単純boolean判定と異なり、具体的なしきい値を比較する必要があるため専用の判定関数にする。
+// このconst自体は単一のコスト値を受け取る低レベル判定。場のインスタンスに対して呼ぶ場合は
+// 付与コストも考慮する instCostCantAct を使うこと
 export function costCantAct(board: Board, cost: number): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
@@ -720,6 +733,13 @@ export function costCantAct(board: Board, cost: number): boolean {
         }
     }
     return false
+}
+
+// フィールド上のインスタンスに対する costCantAct 判定。実コストに加えて、道化師クランの
+// tempAlsoCosts／alsoCostsContinuous（「コストNとしても扱う」）のいずれかが該当すれば行動不可とする
+// （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと）
+export function instCostCantAct(board: Board, inst: CardInstance): boolean {
+    return instAllCosts(inst).some((cost) => costCantAct(board, cost))
 }
 
 export function hasMagicImmunity(
@@ -745,7 +765,8 @@ export function hasMagicImmunity(
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
-                const matchCount = player.field.spirits.filter((s) => card(s.cardId).cost === cost).length
+                // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
+                const matchCount = player.field.spirits.filter((s) => instHasCost(s, cost)).length
                 if (matchCount < count) continue
             }
             return true
@@ -756,13 +777,11 @@ export function hasMagicImmunity(
 
 // このターン限りの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか（ヘビィゲート）
 export function cantActByCost(board: Board, inst: CardInstance): boolean {
-    const cost = card(inst.cardId).cost
-    // 道化師クランの tempAlsoCosts（「コストXとしても扱う」）も判定対象に含める：
-    // 実コスト・tempAlsoCostsのいずれかがmaxCost以下なら対象
-    return board.turnConstraints.some(
-        (c) =>
-            c.type === "cantActByCost" &&
-            (cost <= c.maxCost || inst.tempAlsoCosts.some((also) => also <= c.maxCost)),
+    // 道化師クランの tempAlsoCosts（一時付与）／alsoCostsContinuous（継続付与）も判定対象に含める：
+    // 実コスト・付与コストのいずれかがmaxCost以下なら対象
+    // （2026-08-02修正：以前はalsoCostsContinuousを見ておらず、クラン常設中でも判定に反映されないバグがあった）
+    return board.turnConstraints.some((c) =>
+        c.type === "cantActByCost" && instAllCosts(inst).some((cost) => cost <= c.maxCost),
     )
 }
 

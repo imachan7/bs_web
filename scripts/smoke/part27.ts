@@ -103,6 +103,8 @@ console.log("=== funsaiOnBlock：BS03-117 士気高き大本営Lv1でブロッ�
     const deckBefore = s.players.p1.deck.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: razarus.instanceId }) === null,
         "ラザラスでブロック（funsaiOnBlockにより粉砕発動）",

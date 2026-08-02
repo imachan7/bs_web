@@ -42,6 +42,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    declareBlock,
     takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
@@ -120,7 +121,7 @@ assert(act(state, "p1", { type: "nextPhase" }) === null, "p1アタックステ�
 const goradon = state.players.p1.field.spirits[0]!
 assert(act(state, "p1", { type: "attack", instanceId: goradon.instanceId }) === null, "ゴラドンでアタック")
 const leewolf = state.players.p2.field.spirits[0]!
-assert(act(state, "p2", { type: "block", instanceId: leewolf.instanceId }) === null, "リーヴォルフでブロック")
+assert(declareBlock(state, "p2", leewolf.instanceId) === null, "リーヴォルフでブロック")
 // ブロック宣言では即解決せず、フラッシュが再オープンされる（防御側に優先権）
 assert(state.battle !== null, "ブロック宣言直後はバトル継続")
 assert(state.isFlashTiming === true && state.priorityPlayer === "p2", "ブロック後フラッシュ再オープン・防御側に優先権")
@@ -252,6 +253,8 @@ console.log("=== ブロック宣言後の追加フラッシュ ===")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
     assert(s.priorityPlayer === "p2", "アタック直後は防御側に優先権")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     // ブロック宣言 → 即解決せずフラッシュ再オープン（防御側から優先権）
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "リーヴォルフでブロック")

@@ -90,6 +90,8 @@ console.log("=== BS03-039 笛吹きのヘイムダル：Lv2ブロック時にフ
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: heimdal.instanceId }) === null, "ヘイムダルでブロック")
     assert(s.battle?.flashLockedPlayer === "p1", "ブロック時に相手（攻撃側）のフラッシュが封印される")
 }
@@ -109,6 +111,8 @@ console.log("=== BS03-048 鎧蛇竜ミッドガルズ：Lv2ブロック勝利時
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: midgard.instanceId }) === null, "ミッドガルズでブロック")
     midgard.isRested = true as boolean // バトル解決前に疲労させておき、回復を検証しやすくする
     assert(act(s, "p2", { type: "pass" }) === null, "防御側の再パス")

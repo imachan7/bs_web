@@ -160,6 +160,8 @@ console.log("=== BS03-023 人造生命体No.44：【呪撃】でBPに負けて�
     const blocker = put(s, "p2", "BS01-025", 1) // 要塞龍ギガ Lv1 cores1 bp5000（呪撃・装甲なし）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "人造生命体No.44でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "要塞龍ギガでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")

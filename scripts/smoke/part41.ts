@@ -19,6 +19,8 @@ console.log("=== BS04-041 フェンリルキャノンMk-II: 同Lvブロックで
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ハンマドレイクLv1でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: fenrir.instanceId }) === null, "フェンリルキャノンLv1でブロック（同Lv）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -47,6 +49,8 @@ console.log("=== BS04-041: Lvが異なるブロックではBP+3000は発揮さ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ハンマドレイクLv2でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: fenrir.instanceId }) === null, "フェンリルキャノンLv1でブロック（Lv違い）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")

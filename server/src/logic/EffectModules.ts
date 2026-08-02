@@ -66,6 +66,7 @@ import {
     hasMagicImmunity,
     hasKeyword,
     instanceSymbolCount,
+    instAllCosts,
     instColors,
     instHasColor,
     instHasCost,
@@ -446,8 +447,9 @@ export function resolveTensho(
     if (!effect || effect.kind !== "keyword") return
     const minCost = effect.minCost ?? 0
     const dest = effect.dest ?? "trash"
+    // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
     const candidates = state.players[ownerPid].field.spirits.filter(
-        (s) => s.instanceId !== spirit.instanceId && getCard(s.cardId).cost >= minCost,
+        (s) => s.instanceId !== spirit.instanceId && instMatchesCostFilter(s, { min: minCost }),
     )
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
@@ -470,7 +472,8 @@ export function resolveTensho(
         )
         return
     }
-    // 自動選択（プレイヤー選択の決定的簡略化）：コスト最大の1体
+    // 自動選択（プレイヤー選択の決定的簡略化）：コスト最大の1体。
+    // 複数コストを持つ状態では「最大」を定義できないため、カード本来のコストのまま比較する
     const chosen = candidates.reduce((best, s) =>
         getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
     )
@@ -923,7 +926,8 @@ export function destroySpirit(
         vanilla: isVanillaCard(master),
         byBattle: context?.battle !== undefined,
         families: master.family,
-        cost: master.cost,
+        // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+        costs: instAllCosts(inst),
     })
 }
 
@@ -2288,7 +2292,10 @@ export function fireFieldEventTriggers(
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
-        cost?: number
+        // 対象スピリットが「扱われている」コストの一覧（instAllCosts）。本来のコストに加え、
+        // 道化師クランの付与コストも含めた複数値になりうるため、配列で受け取りいずれかが
+        // costFilter を満たせばよい（instMatchesCostFilterと同じOR意味論）
+        costs?: number[]
     },
 ): void {
     const player = state.players[pid]
@@ -2306,8 +2313,14 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
-            // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）
-            if (effect.costFilter !== undefined && !matchesCostFilter(eventInfo?.cost ?? -1, effect.costFilter)) continue
+            // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
+            // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
+            if (
+                effect.costFilter !== undefined &&
+                !(eventInfo?.costs ?? []).some((c) => matchesCostFilter(c, effect.costFilter))
+            ) {
+                continue
+            }
             // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
             if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
