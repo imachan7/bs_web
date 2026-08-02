@@ -625,6 +625,13 @@ export function activeConstraints(
             const color = c.unlessOpponentHasColorSpirit
             return !board.players[oppPid].field.spirits.some((s) => instHasColor(s, color))
         })
+        // unblockableBy の条件つき（BS03鷹人ホークアイLv2：自分のフィールドに紫のネクサスがあるとき
+        // だけブロックされない）。条件を満たさない間は制約自体を外す
+        .filter((c) => {
+            if (c.type !== "unblockableBy" || c.requireOwnFieldColorNexus === undefined) return true
+            const color = c.requireOwnFieldColorNexus
+            return board.players[pid].field.nexuses.some((n) => instHasColor(n, color))
+        })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []

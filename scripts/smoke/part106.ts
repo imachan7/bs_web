@@ -1,10 +1,23 @@
-// smoke パート106（マジックのメイン側・実装漏れ埋め）
+// smoke パート106（効果節の実装漏れ埋め・マジックのメイン側＋スピリット/ネクサスの2つ目の効果）
 // 対象: BS01-132 ストームドロー／BS04-088 栄光の表彰台／BS03-146 ネクサスレジスター／
 //       BS02-098 キャストオフ／BS02-096 ディバインウィンド／BS04-108 ストレートフラッシュ／
-//       BS02-088 クロスファイア／BS02-090 マインドフレア
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+//       BS02-088 クロスファイア／BS02-090 マインドフレア／BS02-094 ブラッディレイン／
+//       BS01-130 チェンジングコア／BS02-091 セブンスクリムゾン／BS04-104 グラシアルブレス／
+//       BS04-114 タイダルタイド／BS03-062 チワール／BS02-080 エメラルドに輝く鍾乳洞／
+//       BS04-008 古竜魔人バ・ゴゥ／BS04-050 ハートレス・ティン／BS03-097 鷹人ホークアイ／
+//       BS05-054 鉄槌のオズワルド
+import {
+    act,
+    assert,
+    createGame,
+    createInstance,
+    destroySpirit,
+    fireStepTriggers,
+    runTurnStart,
+} from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { resolveMagic } from "../../server/src/logic/EffectModules"
+import { fireBattleWonTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/EffectModules"
+import { activeConstraints } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)
@@ -288,4 +301,107 @@ console.log("=== BS04-114 タイダルタイド：自分のネクサスを全破
         s.players.p2.field.spirits.length === 1,
         `相手はネクサス2つぶん＝2体を破壊する（実際: ${String(s.players.p2.field.spirits.length)}体残り）`,
     )
+}
+
+console.log("=== BS03-062 チワール：Lv2以上で系統「小玩」の自分のスピリットは破壊時に手札へ戻る ===")
+{
+    const s = createGame("chiwal-komono", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    putNexus(s, "p1", "BS01-098", 0) // ダミー（発生源以外の並びを作る）
+    put(s, "p1", "BS03-062", 3) // チワール Lv2
+    const komono = put(s, "p1", "BS02-054", 1) // ポム（系統：小玩）
+    const handBefore = s.players.p1.hand.length
+    destroySpirit(s, "p1", komono.instanceId, "destroy")
+    assert(s.players.p1.field.spirits.every((x) => x.instanceId !== komono.instanceId), "ポムは場を離れる")
+    assert(s.players.p1.hand.length === handBefore + 1, "手札に戻る（トラッシュではない）")
+    assert(s.players.p1.hand.includes("BS02-054"), "戻ったのはポム")
+}
+
+console.log("=== BS02-080 エメラルドに輝く鍾乳洞：Lv2はコア3個以上の勝利でネクサスにコア1個 ===")
+{
+    const s = createGame("emerald-battlewon", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
+    runTurnStart(s)
+    const nexus = putNexus(s, "p1", "BS02-080", 3) // Lv2
+    const winner = put(s, "p1", "BS01-007", 3) // コア3個
+    fireBattleWonTriggers(s, "p1", winner, "attacker")
+    assert(nexus.cores === 4, `ネクサスにコア1個追加（実際: ${String(nexus.cores)}）`)
+
+    const s2 = createGame("emerald-fewcores", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
+    runTurnStart(s2)
+    const nexus2 = putNexus(s2, "p1", "BS02-080", 3)
+    const winner2 = put(s2, "p1", "BS01-007", 2) // コア2個
+    fireBattleWonTriggers(s2, "p1", winner2, "attacker")
+    assert(nexus2.cores === 3, "コア2個の勝利では発火しない")
+}
+
+console.log("=== BS04-008 古竜魔人バ・ゴゥ：Lv2以上で竜人/古竜の勝利時に1ドロー ===")
+{
+    const s = createGame("bagou-battlewon", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    const bagou = put(s, "p1", "BS04-008", 3) // Lv2（コア3個）
+    const handBefore = s.players.p1.hand.length
+    fireBattleWonTriggers(s, "p1", bagou, "attacker") // バ・ゴゥ自身が竜人/古竜
+    assert(s.players.p1.hand.length === handBefore + 1, "竜人/古竜の勝利で1ドロー")
+
+    const other = put(s, "p1", "BS01-001", 1) // ゴラドン（爬獣）
+    const handBefore2 = s.players.p1.hand.length
+    fireBattleWonTriggers(s, "p1", other, "attacker")
+    assert(s.players.p1.hand.length === handBefore2, "系統が違えばドローしない")
+}
+
+console.log("=== BS04-050 ハートレス・ティン：Lv2は相手エンドステップに白シンボル3つ＋ノーアタックで1ドロー ===")
+{
+    const s = createGame("heartless-end", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    s.turnPlayer = "p2" // 相手のターン
+    s.phase = "end"
+    put(s, "p1", "BS04-050", 3) // ハートレス・ティン Lv2（黄シンボル）
+    // 白シンボルを3つ用意する（燃えさかる戦場は赤なので白のカードを使う）
+    put(s, "p1", "BS01-093", 1) // 甲精ディース（白）
+    put(s, "p1", "BS01-093", 1)
+    put(s, "p1", "BS01-093", 1)
+    s.attacksThisTurn = 0
+    const handBefore = s.players.p1.hand.length
+    fireStepTriggers(s, "end")
+    assert(s.players.p1.hand.length === handBefore + 1, "条件を満たすと1ドロー")
+
+    s.attacksThisTurn = 1
+    const handBefore2 = s.players.p1.hand.length
+    fireStepTriggers(s, "end")
+    assert(s.players.p1.hand.length === handBefore2, "このターンにアタックがあればドローしない")
+}
+
+console.log("=== BS03-097 鷹人ホークアイ：Lv2は自分の紫ネクサスがある間ブロックされない ===")
+{
+    const s = createGame("hawkeye-unblockable", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const hawk = put(s, "p1", "BS03-097", 5) // Lv2（コア5個）
+    const cons = () => activeConstraints(s, "p1", hawk).some((c) => c.type === "unblockableBy")
+    assert(!cons(), "紫のネクサスが無ければブロックされない制約は働かない")
+    putNexus(s, "p1", "BS02-079", 0) // 紫水晶の森（紫のネクサス）
+    assert(cons(), "紫のネクサスがあるとブロックされない")
+}
+
+console.log("=== BS05-054 鉄槌のオズワルド：Lv2はネクサス破壊に加えて相手の手札を1枚破棄 ===")
+{
+    const s = createGame("oswald-lv2", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const oswald = put(s, "p1", "BS05-054", 6) // Lv2（コア6個）
+    putNexus(s, "p2", "BS01-098", 0)
+    s.players.p2.hand = ["BS01-001", "BS01-017"]
+    fireTrigger(s, "p1", oswald, "onAttack")
+    assert(s.players.p2.field.nexuses.length === 0, "相手のネクサスを破壊する")
+    assert(s.players.p2.hand.length === 1, "相手の手札が1枚破棄される")
+}
+
+console.log("=== BS05-054 鉄槌のオズワルド：Lv1では手札破棄はしない ===")
+{
+    const s = createGame("oswald-lv1", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const oswald = put(s, "p1", "BS05-054", 1) // Lv1
+    putNexus(s, "p2", "BS01-098", 0)
+    s.players.p2.hand = ["BS01-001", "BS01-017"]
+    fireTrigger(s, "p1", oswald, "onAttack")
+    assert(s.players.p2.field.nexuses.length === 0, "ネクサスは破壊される")
+    assert(s.players.p2.hand.length === 2, "Lv1では手札は破棄されない")
 }

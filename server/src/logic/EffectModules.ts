@@ -2237,6 +2237,10 @@ export function fireBattleWonTriggers(
             ) {
                 continue
             }
+            // BS02エメラルドに輝く鍾乳洞Lv2：勝利したスピリットのコアが指定数以上のときのみ発火
+            if (effect.winnerMinCores !== undefined && winnerInst.cores < effect.winnerMinCores) {
+                continue
+            }
             const actionSelf = effect.selfMode === "source" ? inst : winnerInst
             resolveAction(state, winnerPid, actionSelf, effect.action)
             if (state.winner) return
@@ -2294,6 +2298,17 @@ export function fireStepTriggers(
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
+                if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
+                    // ハートレス・ティンLv2：自分のフィールドの指定色シンボルが count 個以上、かつ
+                    // noAttacksThisTurn 指定時はこのターンまだ1度もアタックが行われていないときのみ発火
+                    const { color, count } = effect.condition.ownSymbolColorAtLeast
+                    const symbols = instances.reduce(
+                        (sum, i) => sum + getCard(i.cardId).symbol.filter((c) => c === color).length,
+                        0,
+                    )
+                    if (symbols < count) continue
+                    if (effect.condition.noAttacksThisTurn && state.attacksThisTurn > 0) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownColorTotalAtLeast" in effect.condition) {
                     // 道化師クラン：自分のフィールドに指定色のスピリット+ネクサスが合計count以上あるときのみ発火
                     const { color, count } = effect.condition.ownColorTotalAtLeast

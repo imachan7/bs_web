@@ -10998,6 +10998,20 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "winnerMinCores": 3,
+    "selfMode": "source",
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "id": "BS02-080-e2"
    }
   ]
  },
@@ -15861,6 +15875,20 @@
      "familyFilter": "遊精",
      "amount": 1000
     }
+   },
+   {
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "scope": "ownAll",
+    "familyFilter": "小玩",
+    "when": {},
+    "revived": {
+     "toHand": true
+    },
+    "id": "BS03-062-e2"
    }
   ]
  },
@@ -17665,6 +17693,17 @@
      "count": 5
     },
     "optional": false
+   },
+   {
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "requireOwnFieldColorNexus": "purple"
+    },
+    "id": "BS03-097-e2"
    }
   ]
  },
@@ -20853,6 +20892,24 @@
      "amount": 5000
     },
     "optional": false
+   },
+   {
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "own",
+    "winnerFamilyFilter": [
+     "竜人",
+     "古竜"
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "id": "BS04-008-e2"
    }
   ]
  },
@@ -23252,6 +23309,26 @@
       "turn": "opponent"
      }
     }
+   },
+   {
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownSymbolColorAtLeast": {
+      "color": "white",
+      "count": 3
+     },
+     "noAttacksThisTurn": true
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "id": "BS04-050-e2"
    }
   ]
  },
@@ -29756,18 +29833,31 @@
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分か相手のネクサス1つを破壊する。\nLv2\nこのスピリットの効果で、自分か相手のネクサスを破壊したとき、相手は手札1枚を選んで破棄する。",
   "effects": [
    {
-    "id": "BS05-054-e1",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
-     1,
-     2
+     1
     ],
     "optional": false,
     "action": {
      "type": "destroyNexus",
      "count": 1
-    }
+    },
+    "id": "BS05-054-e1"
+   },
+   {
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyNexus",
+     "count": 1,
+     "discardOpponentPerDestroyed": 1
+    },
+    "id": "BS05-054-e2"
    }
   ]
  },

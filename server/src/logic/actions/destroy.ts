@@ -477,6 +477,13 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
         if (action.drawPerDestroyed && destroyed > 0) {
             draw(state, owner, destroyed * action.drawPerDestroyed)
         }
+        // 実際に破壊できたネクサス1つにつき相手の手札を破棄させる（BS05鉄槌のオズワルドLv2）
+        if (action.discardOpponentPerDestroyed && destroyed > 0) {
+            ctx.resolve({
+                type: "discardOpponent",
+                count: destroyed * action.discardOpponentPerDestroyed,
+            })
+        }
         return
 }
 

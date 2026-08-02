@@ -57,11 +57,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS02-080": {
-            "name": "エメラルドに輝く鍾乳洞",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS02-081": {
             "name": "緑芽吹く原野",
             "textBlocks": 2,
@@ -87,18 +82,8 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS03-062": {
-            "name": "チワール",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS03-067": {
             "name": "アルカナプリンセス・アン",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-097": {
-            "name": "鷹人ホークアイ",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -139,16 +124,6 @@
         },
         "BS04-007": {
             "name": "ドラグノ近衛兵",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-008": {
-            "name": "古竜魔人バ・ゴゥ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-050": {
-            "name": "ハートレス・ティン",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -209,11 +184,6 @@
         },
         "BS05-044": {
             "name": "リトルナイト・ランスロット",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-054": {
-            "name": "鉄槌のオズワルド",
             "textBlocks": 2,
             "implCount": 1
         },
