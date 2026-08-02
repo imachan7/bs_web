@@ -76,38 +76,6 @@ export function master(cardId: string): CardData {
     return card
 }
 
-let tooltipEl: HTMLElement | null = null
-
-function showTooltip(e: MouseEvent, htmlContent: string) {
-    if (!tooltipEl) {
-        tooltipEl = document.getElementById("global-tooltip")
-    }
-    if (!tooltipEl) return
-
-    tooltipEl.innerHTML = htmlContent
-    tooltipEl.classList.remove("hidden")
-
-    let left = e.clientX + 15
-    let top = e.clientY + 15
-
-    const rect = tooltipEl.getBoundingClientRect()
-    if (left + rect.width > window.innerWidth) {
-        left = e.clientX - rect.width - 15
-    }
-    if (top + rect.height > window.innerHeight) {
-        top = e.clientY - rect.height - 15
-    }
-
-    tooltipEl.style.left = `${left}px`
-    tooltipEl.style.top = `${top}px`
-}
-
-function hideTooltip() {
-    if (tooltipEl) {
-        tooltipEl.classList.add("hidden")
-    }
-}
-
 const COLOR_SYMBOLS: Record<string, string> = {
     red: "🔥",
     purple: "💀",
@@ -551,16 +519,8 @@ export function render(view: GameView, ui: UiState): void {
                 if (card) {
                     const span = document.createElement("span")
                     span.className = "log-card-name"
+                    span.dataset.cardId = card.cardId
                     span.textContent = part
-                    
-                    const typeLabel = card.type === 'spirit' ? 'スピリット' : card.type === 'nexus' ? 'ネクサス' : 'マジック'
-                    const effectsHtml = card.effects.map(e => `・${e.text}`).join('<br>')
-                    const tooltipHtml = `<b>[${typeLabel}] ${card.name}</b> (コスト${card.cost})<br><div style="margin-top: 4px; color: #a1a1aa;">${effectsHtml}</div>`
-                    
-                    span.addEventListener("mouseenter", (e) => showTooltip(e, tooltipHtml))
-                    span.addEventListener("mousemove", (e) => showTooltip(e, tooltipHtml))
-                    span.addEventListener("mouseleave", hideTooltip)
-                    
                     div.appendChild(span)
                 } else {
                     div.appendChild(document.createTextNode(part))
@@ -1345,12 +1305,12 @@ export function setupEffectTooltip(): void {
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
         if (card) showFor(card)
     })
     document.addEventListener("mouseout", (e) => {
-        const from = (e.target as HTMLElement).closest(".card")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card")
+        const from = (e.target as HTMLElement).closest(".card, .log-card-name")
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .log-card-name")
         if (from && from !== to) hide()
     })
 
@@ -1360,7 +1320,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
         window.clearTimeout(pressTimer)
         if (!card) {
             hide()
