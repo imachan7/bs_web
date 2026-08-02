@@ -547,7 +547,7 @@ export function render(view: GameView, ui: UiState): void {
     if (view.winner) {
         show("result-overlay", true)
         $("result-message").textContent =
-            view.winner === you ? "🏆 勝利！" : "敗北…"
+            view.winner === you ? "勝利" : "敗北"
     } else {
         show("result-overlay", false)
     }
