@@ -436,6 +436,9 @@ export function auraAppliesTo(
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }
+    if (aura.coresExact !== undefined && targetInst.cores !== aura.coresExact) {
+        return false
+    }
     if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
         return false
     }
@@ -443,6 +446,9 @@ export function auraAppliesTo(
         aura.familyFilter &&
         !matchesFamilyFilter(board, targetOwnerPid, targetInst, aura.familyFilter)
     ) {
+        return false
+    }
+    if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
         return false
     }
     if (aura.vanillaFilter && !isVanillaCard(card(targetInst.cardId))) {
@@ -560,6 +566,7 @@ export function matchesTarget(
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
+    if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
@@ -667,6 +674,21 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
         (e) =>
             e.kind === "constraint" &&
             e.constraint.type === "untargetableByOpponent" &&
+            effectActiveAtLevel(e.levels, level),
+    )
+}
+// untargetableByOpponentと異なり範囲効果（destroyAll/exhaustAll等）にも効く「効果を受けない」判定。
+// srcType が spirit/magic のときのみ判定する（ネクサスの効果・自分自身の効果は通す。BS04ワルキューレ・ヒルド）
+export function hasFullEffectImmunity(
+    inst: CardInstance,
+    srcType: "spirit" | "nexus" | "magic" | undefined,
+): boolean {
+    if (srcType !== "spirit" && srcType !== "magic") return false
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "constraint" &&
+            e.constraint.type === "immuneToOpponentEffects" &&
             effectActiveAtLevel(e.levels, level),
     )
 }

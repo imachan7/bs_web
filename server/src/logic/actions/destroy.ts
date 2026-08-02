@@ -18,7 +18,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -152,7 +152,8 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                     !isImmuneToArea(s) &&
                     !isEffectBlocked(state, s, srcType) &&
                     !hasArmorAgainst(s, srcColors) &&
-                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
+                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
+                    !hasFullEffectImmunity(s, srcType),
             )
             .map((s) => ({ pid: opp, inst: s }))
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
@@ -276,7 +277,8 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
                 !instColors(s).some((c) => safeColors.has(c)) &&
                 !isImmuneToArea(s) &&
                 !isEffectBlocked(state, s, srcType) &&
-                !hasArmorAgainst(s, srcColors),
+                !hasArmorAgainst(s, srcColors) &&
+                !hasFullEffectImmunity(s, srcType),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
             (s) => !instColors(s).some((c) => safeColors.has(c)),
@@ -802,8 +804,78 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         return
 }
 
+// 「お互い、フィールドのスピリット1体を選び、破壊する」（BS05吸血女王カーミラLv3）。
+// destroyAllExceptChosenColorsHandlerと同じ二段階choiceパターン：発生源の持ち主（own）→相手（opponent）の
+// 順に、フィールド（両陣営どちらでも可）から1体を指定させる。進捗はaction.chosenOwn/chosenOpp/awaitingで持ち回る。
+// 二段階目の選択はrequestChoiceのpidに相手を渡すが、実行者（resolveActionのowner引数）は
+// 発生源の持ち主のまま解決する（destroyAllExceptChosenColorsと同じ「相手に選ばせて自分の効果として解決する」形）
+const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const allSpiritIds = (): string[] =>
+        [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].map((s) => s.instanceId)
+
+    let chosenOwn = action.chosenOwn
+    let chosenOpp = action.chosenOpp
+
+    if (state.interactiveTargets) {
+        if (action.awaiting === "own" && targetInstanceId !== undefined) chosenOwn = targetInstanceId
+        if (action.awaiting === "opponent" && targetInstanceId !== undefined) chosenOpp = targetInstanceId
+
+        if (chosenOwn === undefined) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：破壊するスピリットを選んでください`,
+                allSpiritIds(),
+                false,
+                { ...action, awaiting: "own", ...(chosenOpp !== undefined ? { chosenOpp } : {}) },
+                self,
+            )
+            return
+        }
+        if (chosenOpp === undefined) {
+            requestChoice(
+                state,
+                opp,
+                `${sourceName}：破壊するスピリットを選んでください`,
+                allSpiritIds(),
+                false,
+                { ...action, awaiting: "opponent", chosenOwn },
+                self,
+            )
+            // 選ぶのは相手だが、実行者は発生源の持ち主のまま（destroyAllExceptChosenColorsと同じ）
+            if (state.pendingChoice) state.pendingChoice.actorPid = owner
+            return
+        }
+    } else {
+        // 非対話時：各プレイヤーが「相手フィールドの実効BP最大」を自動選択する
+        // （プレイヤー選択の決定的簡略化。pickEnemyByBpと同じ考え方。相手フィールドが空なら自分フィールドから選ぶ）
+        const pickMaxBp = (fromPid: PlayerId, viewerPid: PlayerId): string | undefined => {
+            const spirits = state.players[fromPid].field.spirits
+            if (spirits.length === 0) return undefined
+            return spirits.reduce((best, s) =>
+                effectiveBp(state, fromPid, s) > effectiveBp(state, fromPid, best) ? s : best,
+            ).instanceId
+        }
+        if (chosenOwn === undefined) chosenOwn = pickMaxBp(opp, owner) ?? pickMaxBp(owner, owner)
+        if (chosenOpp === undefined) chosenOpp = pickMaxBp(owner, opp) ?? pickMaxBp(opp, opp)
+    }
+
+    const destroyedIds = new Set<string>()
+    for (const id of [chosenOwn, chosenOpp]) {
+        if (id === undefined || destroyedIds.has(id)) continue
+        const found = findSpiritAny(state, id)
+        if (!found) continue
+        destroyedIds.add(id)
+        destroySpirit(state, found.pid, found.inst.instanceId, "destroy")
+    }
+    if (destroyedIds.size === 0) log(state, `${sourceName}：対象がいなかった。`)
+    return
+}
+
 const handlers = {
     destroy: destroyHandler,
+    mutualDestroyChoice: mutualDestroyChoiceHandler,
     destroyAll: destroyAllHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,

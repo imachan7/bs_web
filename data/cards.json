@@ -746,6 +746,18 @@
   "effects": [
    {
     "id": "BS01-016-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS01-016-e2",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
@@ -9078,6 +9090,21 @@
    {
     "id": "BS02-047-e1",
     "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS02-047-e2",
+    "kind": "triggered",
     "trigger": "onBlock",
     "levels": [
      2,
@@ -13041,6 +13068,23 @@
      "count": 1
     },
     "optional": true
+   },
+   {
+    "id": "BS03-011-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "coresExact": 1,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
    }
   ]
  },
@@ -13089,6 +13133,25 @@
   "effects": [
    {
     "id": "BS03-012-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxCores": 3
+     },
+     "count": 1,
+     "anySide": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS03-012-e2",
     "kind": "triggered",
     "trigger": "onBattleWin",
     "levels": [
@@ -13726,6 +13789,21 @@
      1,
      2
     ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   },
+   {
+    "id": "BS03-024-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "keywordFilter": "jugeki",
     "constraint": {
      "type": "unblockableBy",
      "levelFilter": [
@@ -15534,6 +15612,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-059-e2",
+    "kind": "aura",
+    "levels": [
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "nameIncludesFilter": "アルカナ",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
    }
   ]
  },
@@ -16128,6 +16223,23 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS03-070-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "condition": {
+     "ownFieldHasColorNexus": "purple"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
    }
   ]
  },
@@ -16752,6 +16864,21 @@
   "effects": [
    {
     "id": "BS03-084-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1,
+     "side": "both"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-084-e2",
     "kind": "triggered",
     "trigger": "onDestroy",
     "levels": [
@@ -17626,6 +17753,23 @@
      "all": true
     },
     "optional": true
+   },
+   {
+    "id": "BS03-100-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownNexusColor": "blue"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
    }
   ]
  },
@@ -22374,6 +22518,28 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "id": "BS04-039-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "keywordFilter": "soku",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
+    },
+    "cost": {
+     "fieldOrReserveOneToTrash": true
+    }
    }
   ]
  },
@@ -22607,6 +22773,17 @@
   "effects": [
    {
     "id": "BS04-043-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "immuneToOpponentEffects"
+    }
+   },
+   {
+    "id": "BS04-043-e2",
     "kind": "fieldEvent",
     "event": "ownLifeDamaged",
     "levels": [
@@ -24831,6 +25008,25 @@
       "phase": "attack",
       "turn": "own"
      }
+    }
+   },
+   {
+    "id": "BS04-084-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "familyFilter": "天霊",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
     }
    }
   ]
@@ -27261,6 +27457,18 @@
       }
      }
     }
+   },
+   {
+    "id": "BS05-016-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "mutualDestroyChoice"
+    },
+    "optional": false
    }
   ]
  },
@@ -29699,6 +29907,21 @@
   "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/3のスピリットすべては、アタックとブロックができない。\nLv2\n【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手のスピリット1体を疲労させる”という効果を与える。",
   "effects": [
    {
+    "id": "BS05-059-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "costCantAct",
+     "costs": [
+      0,
+      3
+     ]
+    }
+   },
+   {
     "id": "BS05-059-e2",
     "kind": "effectGrant",
     "levels": [
@@ -30065,7 +30288,10 @@
     ],
     "constraint": {
      "type": "costCantAct",
-     "maxCost": 2
+     "costs": [
+      0,
+      2
+     ]
     }
    }
   ]

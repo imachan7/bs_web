@@ -7,11 +7,6 @@
         "「意図的に実装しない」ものは data/card-notes.json に理由を書けば、そちらで宣言済みとして扱われる。"
     ],
     "known": {
-        "BS01-016": {
-            "name": "スケルトン・ジョウ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS01-025": {
             "name": "要塞龍ギガ",
             "textBlocks": 2,
@@ -49,11 +44,6 @@
         },
         "BS02-042": {
             "name": "スクルディア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-047": {
-            "name": "機神官フレイ",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -137,26 +127,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS03-011": {
-            "name": "竜騎将ディライダロス",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-012": {
-            "name": "水龍王リヴァイア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-024": {
-            "name": "吸血騎士ノスフェラト",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-059": {
-            "name": "アルカナビースト・ペイラ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS03-062": {
             "name": "チワール",
             "textBlocks": 2,
@@ -167,23 +137,8 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS03-070": {
-            "name": "天使長エクスシア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-084": {
-            "name": "巨猫ブリンクス",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS03-097": {
             "name": "鷹人ホークアイ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS03-100": {
-            "name": "武器コレクターのゴドフリー",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -237,16 +192,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS04-039": {
-            "name": "宝石虫スカラベール",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-043": {
-            "name": "ワルキューレ・ヒルド",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS04-050": {
             "name": "ハートレス・ティン",
             "textBlocks": 2,
@@ -274,11 +219,6 @@
         },
         "BS04-081": {
             "name": "強者統べる大地",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS04-084": {
-            "name": "奇跡の丘",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -317,11 +257,6 @@
             "textBlocks": 3,
             "implCount": 1
         },
-        "BS05-016": {
-            "name": "吸血女王カーミラ",
-            "textBlocks": 3,
-            "implCount": 2
-        },
         "BS05-038": {
             "name": "シーサーズ",
             "textBlocks": 2,
@@ -349,11 +284,6 @@
         },
         "BS05-057": {
             "name": "藍紫の虚空",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-059": {
-            "name": "緑眼の虚空",
             "textBlocks": 2,
             "implCount": 1
         },

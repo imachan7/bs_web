@@ -26,7 +26,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -922,7 +922,8 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
                 !isImmuneToArea(s) &&
                 !isEffectBlocked(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors) &&
-                !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
+                !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
+                !hasFullEffectImmunity(s, srcType),
         )
         if (targets.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)

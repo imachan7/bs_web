@@ -22,12 +22,16 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）
         draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+        if (action.side === "both") {
+            draw(state, opp, action.count * drawDoubleMultiplier(state, opp))
+        }
         return
 }
 
@@ -719,7 +723,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (isEffectBlocked(state, s, srcType)) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
+                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
                 return true
             })
             for (const s of targets) {

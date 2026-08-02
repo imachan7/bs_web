@@ -62,6 +62,7 @@ import {
     effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
+    hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
     hasKeyword,
@@ -95,6 +96,7 @@ export {
     effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
+    hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
     hasKeyword,
@@ -1012,6 +1014,24 @@ function tryReviveOnDestroy(
             player.trashCores += 1
             return true
         }
+        if (effect.cost?.fieldOrReserveOneToTrash) {
+            // 持ち主のリザーブのコア1個（無ければ自分のフィールド＝スピリット/ネクサス、
+            // 発生源自身を除く、からコア1個）を持ち主のトラッシュへ（BS04宝石虫スカラベール）
+            if (player.reserve > 0) {
+                player.reserve -= 1
+                player.trashCores += 1
+                return true
+            }
+            const source = [...player.field.spirits, ...player.field.nexuses].find(
+                (i) => i.instanceId !== inst.instanceId && i.cores > 0,
+            )
+            if (source) {
+                source.cores -= 1
+                player.trashCores += 1
+                return true
+            }
+            return false
+        }
         return true
     }
 
@@ -1345,6 +1365,7 @@ export function pickEnemyCandidates(
             !isEffectBlocked(state, s, sourceType) &&
             !hasArmorAgainst(s, sourceColors) &&
             !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
+            !hasFullEffectImmunity(s, sourceType) &&
             extraPredicate(s),
     )
 }
@@ -1724,6 +1745,12 @@ export function countEffectCounter(
     if ("ownColor" in counter) {
         return state.players[owner].field.spirits.filter((s) =>
             instHasColor(s, counter.ownColor),
+        ).length
+    }
+    // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー）
+    if ("ownNexusColor" in counter) {
+        return state.players[owner].field.nexuses.filter((n) =>
+            instHasColor(n, counter.ownNexusColor),
         ).length
     }
     // { ownColorSymbols: Color }：自分フィールドのスピリットが持つ指定色シンボルの合計数
