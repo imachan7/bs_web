@@ -998,3 +998,5 @@ export type GameAction =
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack
     | { type: "endTurn" }
+    | { type: "surrender" } // 降参：相手の勝利としてただちに終了する。手順の外側の操作なので、
+    // 自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも受け付ける

@@ -95,6 +95,9 @@ function dispatchAction(
     pid: PlayerId,
     action: GameAction,
 ): string | null {
+    // 降参はゲームの手順の外側にある操作なので、他のどの検証よりも先に処理する
+    // （自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも降参できる）
+    if (action.type === "surrender") return doSurrender(state, pid)
     // 効果解決中のプレイヤー選択待ちは resolveChoice 以外のアクションをすべて拒否する
     if (state.pendingChoice && action.type !== "resolveChoice") {
         return "対象の選択待ちです"
@@ -142,6 +145,7 @@ function dispatchAction(
             endTurn(state)
             return null
         }
+        // "surrender" は冒頭で処理済みのため、ここでは型から除外されている
     }
 }
 
@@ -799,6 +803,22 @@ function drainChoiceQueue(
             return null
         }
     }
+    return null
+}
+
+// 降参：相手の勝利としてただちにゲームを終了する。
+// 進行中のバトル・フラッシュ・選択待ちはすべて破棄する（勝敗が決まった後は誰も操作しないため、
+// 中途半端な状態を残さない）
+function doSurrender(state: GameState, pid: PlayerId): string | null {
+    const winner = opponentOf(pid)
+    state.pendingChoice = null
+    state.battle = null
+    state.isFlashTiming = false
+    state.winner = winner
+    log(
+        state,
+        `${state.players[pid].name}は降参した。${state.players[winner].name}の勝利！`,
+    )
     return null
 }
 
