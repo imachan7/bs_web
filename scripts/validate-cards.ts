@@ -17,6 +17,7 @@ import ACTION_HANDLERS from "../server/src/logic/actions/index"
 import { KEYWORDS } from "../shared/rules"
 import { COLOR_LABELS } from "../data/constants"
 import type { CardData } from "../server/src/type"
+import { loadAllCards } from "../data/loadCards"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
@@ -380,11 +381,10 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 
 // 単体実行時のエントリポイント
 function main(): void {
-    const cardsPath = path.resolve(__dirname, "../data/cards.json")
-    const cards = JSON.parse(fs.readFileSync(cardsPath, "utf-8")) as CardData[]
+    const cards = loadAllCards()
     const issues = validateCards(cards)
 
-    console.log(`data/cards.json: ${cards.length}枚を検証`)
+    console.log(`data/cards/*.json: ${cards.length}枚を検証`)
     console.log(`  照合対象: action ${VALID_ACTIONS.size}種 / keyword ${VALID_KEYWORDS.size}種 / kind ${VALID_KINDS.size}種`)
     if (issues.length === 0) {
         console.log("問題は見つかりませんでした ✅")

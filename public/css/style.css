@@ -587,6 +587,7 @@ button:active {
     color: var(--text-main);
     font-size: 10px;
     margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
 }
 
 .card .cores {
@@ -595,14 +596,7 @@ button:active {
     font-size: 10px;
 }
 
-.card .effect-text {
-    margin-top: auto;
-    font-size: 9px;
-    color: var(--text-muted);
-    max-height: 48px;
-    overflow: hidden;
-    line-height: 1.3;
-}
+
 
 /* 効果全文のツールチップ */
 #effect-tooltip {
@@ -621,6 +615,7 @@ button:active {
     color: var(--text-main);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     pointer-events: none;
+    font-variant-numeric: tabular-nums;
     white-space: pre-wrap;
 }
 
@@ -827,12 +822,14 @@ button:active {
 
 .core-buttons {
     position: absolute;
-    top: -10px;
-    right: -10px;
+    top: 0;
+    right: -26px;
     display: flex;
+    flex-direction: column;
     gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
+    z-index: 10;
 }
 
 .card:hover .core-buttons {
@@ -840,11 +837,12 @@ button:active {
 }
 
 .core-buttons button {
-    width: 24px;
+    min-width: 24px;
     height: 24px;
-    padding: 0;
-    font-size: 12px;
-    border-radius: 50%;
+    padding: 0 6px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    border-radius: 12px;
     background: var(--bg-panel);
     border: 1px solid #444;
     display: flex;
@@ -852,6 +850,7 @@ button:active {
     justify-content: center;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
+
 .core-buttons button:hover {
     background: var(--accent);
     border-color: var(--accent);
@@ -922,10 +921,7 @@ button:active {
     white-space: nowrap;
     margin-bottom: 2px;
 }
-.spirit-zone .card .effect-text,
-.nexus-zone .card .effect-text {
-    display: none;
-}
+
 
 .spirit-zone .card::before,
 .nexus-zone .card::before {
@@ -950,6 +946,7 @@ button:active {
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    margin-right: 22px; /* ボタンが右にはみ出す分の余白 */
 }
 
 /* ネクサスは六角形 */
@@ -1089,9 +1086,10 @@ button:active {
         opacity: 1;
     }
     .core-buttons button {
-        width: 32px;
+        min-width: 32px;
         height: 32px;
         font-size: 14px;
+        padding: 0 8px;
     }
 }
 
@@ -1156,10 +1154,7 @@ button:active {
     #hand .card .name {
         font-size: 10px;
     }
-    #hand .card .effect-text {
-        font-size: 8px;
-        max-height: 32px;
-    }
+
     #action-buttons-container {
         position: fixed;
         bottom: 8px;
@@ -1228,9 +1223,7 @@ button:active {
         font-size: 9px;
         padding: 4px;
     }
-    #hand .card .effect-text {
-        display: none;
-    }
+
     .cost-badge {
         width: 22px;
         height: 22px;
@@ -1300,21 +1293,27 @@ button:active {
 }
 .nexus-slot .core-buttons {
     opacity: 0;
-    top: 50%;
-    right: -14px;
-    transform: translateY(-50%);
+    top: 0;
+    right: -26px;
     flex-direction: column;
-    gap: 6px;
-    z-index: 2;
+    gap: 4px;
+    z-index: 10;
 }
 .nexus-slot:hover .core-buttons {
     opacity: 1;
 }
 .nexus-slot .core-buttons button {
-    width: 26px;
+    min-width: 26px;
     height: 26px;
-    font-size: 14px;
+    font-size: 13px;
+    padding: 0 6px;
     background: var(--bg-panel);
     border: 1px solid #666;
     box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+.log-card-name {
+    color: #66b3ff;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: help;
 }

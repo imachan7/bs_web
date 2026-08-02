@@ -1169,7 +1169,8 @@ async function init(): Promise<void> {
         console.warn("Failed to fetch card-notes.json", e)
     }
 
-    const res = await fetch("/data/cards.json")
+    // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
+    const res = await fetch("/api/cards")
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")
         return

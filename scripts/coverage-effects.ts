@@ -23,6 +23,7 @@ import { execFileSync } from "child_process"
 import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
+import { loadAllCards } from "../data/loadCards"
 
 const REPO = path.resolve(__dirname, "..")
 
@@ -112,9 +113,11 @@ function collectActionTypes(node: unknown, out: string[]): void {
 }
 
 function loadEntries(): EffectEntry[] {
-    const cards = JSON.parse(
-        fs.readFileSync(path.join(REPO, "data/cards.json"), "utf-8"),
-    ) as { cardId: string; name: string; effects?: { id?: string; kind?: string }[] }[]
+    const cards = loadAllCards() as unknown as {
+        cardId: string
+        name: string
+        effects?: { id?: string; kind?: string }[]
+    }[]
     const entries: EffectEntry[] = []
     for (const c of cards) {
         const effects = c.effects ?? []

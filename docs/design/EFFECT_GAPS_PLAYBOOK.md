@@ -17,7 +17,12 @@
 2. **その節が既存の `kind` で書けるかを探す。** §4 の早見表を先に見る。
    書けるなら `data/cards.json` にエントリを足すだけで終わる（コード変更ゼロ）
 3. 書けないときだけ **3層設計**に従って器を足す:
-   `server/src/type.ts` に型 → `server/src/logic/**` にハンドラ → `data/cards.json` にデータ
+   `server/src/type.ts` に型 → `server/src/logic/**` にハンドラ → `data/cards/BS0N.json` にデータ
+
+   > カードデータは**弾ごとに分割**されている（2026-08-03）。1枚を直すときは該当弾のファイルだけ開けばよい。
+   > スクリプトから読むときは `data/loadCards.ts` の `loadAllCards()` を通す。
+   > 書き戻すときは対象の弾ファイルだけを `json.dumps(..., ensure_ascii=False, indent=1)` で上書きする
+   > （この書式で元ファイルと完全一致する。他の弾を巻き込まないので diff が読める）
 4. **`effects[]` はテキストのブロック順に並べ、id の連番も振り直す。**
    id はランタイムにデータから読むだけなので振り直して安全（`kind:"activated"` も同様）
 5. smoke に**必ず1ケース以上**足す。新しい `scripts/smoke/part107.ts` を作り、

@@ -47,7 +47,7 @@ import {
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
-// ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
+// ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
 
 let DB = new Map<string, CardData>()
 
@@ -625,18 +625,42 @@ function renderField(
     }
 }
 
-// コア移動ボタン（+/−）。スピリットとネクサスで共用する
-function coreButtonsEl(instanceId: string): HTMLElement {
+// コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
+function coreButtonsEl(instanceId: string, currentCores: number, levels: { level: number, cores: number }[]): HTMLElement {
     const btns = document.createElement("div")
     btns.className = "core-buttons"
-    for (const dir of ["add", "remove"] as const) {
-        const b = document.createElement("button")
-        b.dataset.core = dir
-        b.dataset.instanceId = instanceId
-        b.textContent = dir === "add" ? "+" : "−"
-        b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
-        btns.appendChild(b)
+    
+    const removeBtn = document.createElement("button")
+    removeBtn.dataset.core = "remove"
+    removeBtn.dataset.instanceId = instanceId
+    removeBtn.textContent = "−"
+    removeBtn.title = "コアを1個リザーブへ戻す"
+    btns.appendChild(removeBtn)
+
+    // レベルごとのショートカットボタン
+    for (const lv of levels) {
+        if (lv.cores <= 0) continue // コア0個のレベル（基本ないが念のため）はスキップ
+        const isCurrentLv = currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores
+        if (isCurrentLv) {
+            continue // 現在のレベルのボタンは表示しない
+        }
+        
+        const lvBtn = document.createElement("button")
+        lvBtn.dataset.core = `set-${lv.cores}`
+        lvBtn.dataset.currentCores = String(currentCores)
+        lvBtn.dataset.instanceId = instanceId
+        lvBtn.textContent = `Lv${lv.level}`
+        lvBtn.title = `コアを${lv.cores}個（Lv${lv.level}）にする`
+        btns.appendChild(lvBtn)
     }
+
+    const addBtn = document.createElement("button")
+    addBtn.dataset.core = "add"
+    addBtn.dataset.instanceId = instanceId
+    addBtn.textContent = "＋"
+    addBtn.title = "リザーブからコアを1個置く"
+    btns.appendChild(addBtn)
+
     return btns
 }
 
@@ -698,7 +722,7 @@ function fieldCardEl(
     stats.className = "stats"
     stats.textContent = isNexus
         ? `Lv${level}`
-        : `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
 
     // コストバッジを左上に表示
@@ -728,12 +752,7 @@ function fieldCardEl(
     }
     el.appendChild(symbolsDiv)
 
-    if (m.effect) {
-        const eff = document.createElement("div")
-        eff.className = "effect-text"
-        eff.textContent = m.effect
-        el.appendChild(eff)
-    }
+
 
     if (view.battle?.attackerInstanceId === inst.instanceId) {
         el.classList.add("attacker-mark")
@@ -770,7 +789,7 @@ function fieldCardEl(
             const slot = document.createElement("div")
             slot.className = "nexus-slot"
             slot.appendChild(el)
-            slot.appendChild(coreButtonsEl(inst.instanceId))
+            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
             return slot
         }
         return el
@@ -886,7 +905,7 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            el.appendChild(coreButtonsEl(inst.instanceId))
+            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
@@ -1038,26 +1057,43 @@ function renderHand(view: GameView, ui: UiState): void {
         name.textContent = m.name
         el.appendChild(name)
 
+        const reductionCounts: Record<string, number> = {}
+        for (const c of m.reduction) {
+            reductionCounts[c] = (reductionCounts[c] || 0) + 1
+        }
+        const reductionText = Object.entries(reductionCounts)
+            .map(([c, count]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
+            .join("")
+
         const stats = document.createElement("div")
         stats.className = "stats"
         stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
         el.appendChild(stats)
 
+        if (reductionText) {
+            const reductionEl = document.createElement("div")
+            reductionEl.className = "stats"
+            reductionEl.textContent = `軽減:${reductionText}`
+            el.appendChild(reductionEl)
+        }
+
         if (m.levels.length > 0) {
             const bp = document.createElement("div")
             bp.className = "stats"
-            bp.textContent = m.levels
+            bp.innerHTML = m.levels
                 .filter((l) => l.bp > 0)
-                .map((l) => `Lv${l.level}:${l.bp}`)
-                .join(" ")
+                .map((l) => `Lv${l.level}(${l.cores}):${l.bp}`)
+                .join("<br>")
             el.appendChild(bp)
         }
 
-        if (m.effect) {
-            const eff = document.createElement("div")
-            eff.className = "effect-text"
-            eff.textContent = m.effect
-            el.appendChild(eff)
+        if (!m.effect) {
+            const vanilla = document.createElement("div")
+            vanilla.className = "stats"
+            vanilla.style.fontStyle = "italic"
+            vanilla.style.color = "var(--text-muted)"
+            vanilla.textContent = "（効果なし）"
+            el.appendChild(vanilla)
         }
 
         if (g.count > 1) {
@@ -1301,12 +1337,19 @@ export function setupEffectTooltip(): void {
         tip.style.left = `${left}px`
     }
 
-    const hide = (): void => tip.classList.add("hidden")
+    let currentHoverCard: HTMLElement | null = null
+    const hide = (): void => {
+        tip.classList.add("hidden")
+        currentHoverCard = null
+    }
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
-        if (card) showFor(card)
+        if (card && card !== currentHoverCard) {
+            currentHoverCard = card
+            showFor(card)
+        }
     })
     document.addEventListener("mouseout", (e) => {
         const from = (e.target as HTMLElement).closest(".card, .log-card-name")
