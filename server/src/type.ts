@@ -79,12 +79,12 @@ export interface ResolvedTargetFilter extends Omit<TargetFilter, "maxBp" | "minB
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
     | { type: "draw"; count: number } // 自分がデッキから引く
-    | { type: "destroy"; filter?: TargetFilter; count: number; countPerOpponentTrashMagicColors?: boolean } // 相手スピリットを破壊（絞り込みは filter。省略=BP不問、selfがnullで self 相対BP指定ならno-op）。countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュにあるマジックカードの色の種類数（重複除く）を対象数として使う（BS05超獣王ベヒードス）
+    | { type: "destroy"; filter?: TargetFilter; count: number; countPerOpponentTrashMagicColors?: boolean; anySide?: true } // 相手スピリットを破壊（絞り込みは filter。省略=BP不問、selfがnullで self 相対BP指定ならno-op）。countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュにあるマジックカードの色の種類数（重複除く）を対象数として使う（BS05超獣王ベヒードス）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ランスラプトル等：修飾なしの「スピリット」）
     | { type: "destroyAll"; filter?: TargetFilter; anySide?: boolean } // filter に一致する相手スピリットを全破壊。anySide指定時は両陣営が対象（filter.colorExclude で色除外＝BS04魔龍帝ジークフリードLv3：赤以外のBP4000以下すべて。filter.rested と cost.max の組み合わせで「疲労状態のコストX以下すべて」＝BS05吸血女王カーミラ）
     | { type: "selfBuff"; amount: number } // このスピリット自身をBP+（ターン終了時まで）
     | { type: "destroyNexus"; count: number; drawPerDestroyed?: number; all?: boolean; side?: "opponent" | "both"; levelFilter?: number[] } // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）。all指定時はcountを無視し相手のネクサスすべてを破壊する（BS04風龍王フージャオス）。side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）。levelFilter指定時はcurrentLevelがこれに含まれるネクサスのみ対象（BS03バスターランス＝Lv1のみ）
     | { type: "returnSelfToHand" } // このスピリットを持ち主の手札に戻す
-    | { type: "coreRemove"; count: number; dest?: "void" } // 対象スピリットのコアを持ち主のリザーブへ置く（dest:"void"指定時はリザーブでなくボイドへ＝消滅。BS04ヴェノムショット）
+    | { type: "coreRemove"; count: number; dest?: "void"; anySide?: true } // 対象スピリットのコアを持ち主のリザーブへ置く（dest:"void"指定時はリザーブでなくボイドへ＝消滅。BS04ヴェノムショット）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ポイズンシュート：修飾なしの「スピリット」）
     | { type: "bpBuff"; filter?: TargetFilter; amount: number } // 対象スピリット1体をBP+（ターン終了時まで）。filter.minSymbols 指定時、対象（targetInstanceId明示・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効（ライトニングバリスタ等）
     | { type: "exhaust"; filter?: TargetFilter; count: number; anySide?: true } // 相手スピリットを疲労させる（絞り込みは filter。自動選択・明示ターゲット選択の両方に適用）
     | { type: "destroyExhausted"; filter?: TargetFilter; count: number; anySide?: boolean } // 疲労状態の相手スピリットを破壊（anySide指定時は両陣営の疲労スピリットから実効BP最大の1体を自動選択して破壊。filter.cost で コスト条件＝BS04ヘルウィッチ）
@@ -92,8 +92,8 @@ export type EffectAction =
     | { type: "bpBuffPer"; counter: EffectCounter; amountPer: number } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
     | { type: "bpBuffAll"; filter?: TargetFilter; amount: number } // 自分のフィールドのスピリットすべてをBP+（ターン終了時まで。filter.family 指定時は指定系統持ちのみ。配列＝いずれかの系統でOR）
-    | { type: "returnToHand"; count: number; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean } // 対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf=selfの実効BP以下の相手のみ（BS04鋼葉の樹林Lv2）。countPerOpponentNexus指定時はcountを無視し、相手のネクサス数を対象数として使う（BS05幻獣王リーン）
-    | { type: "returnToDeckTop" } // 対象スピリットを持ち主のデッキの一番上に戻す
+    | { type: "returnToHand"; count: number; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true } // 対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf=selfの実効BP以下の相手のみ（BS04鋼葉の樹林Lv2）。countPerOpponentNexus指定時はcountを無視し、相手のネクサス数を対象数として使う（BS05幻獣王リーン）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ヘル・ブリンディ等：修飾なしの「スピリット」）
+    | { type: "returnToDeckTop"; anySide?: true } // 対象スピリットを持ち主のデッキの一番上に戻す。anySide指定時は自分/相手どちらのスピリットも対象にできる（destroy/returnToHandのanySideと同じ非対称ルール。BS01ドリームチェスト：修飾なしの「スピリット」）
     | { type: "coreCharge"; count: number } // 自分のリザーブから対象の自分スピリットへコアを最大count個置く
     | { type: "lifeCharge"; count: number } // 自分のリザーブから自分のライフへコアをcount個置く（不足なら可能な分だけ）
     | { type: "coreGain"; count: number } // ボイドから自分のリザーブへコアをcount個追加
@@ -868,6 +868,7 @@ export interface BattleState {
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
+    lifeDeclared?: boolean // 防御側がライフで受けることを宣言済みか（宣言直後は解決せずフラッシュを再オープンする。両者パスで resolveLifeDamage が解決する）
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに

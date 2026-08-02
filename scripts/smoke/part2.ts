@@ -43,6 +43,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -95,7 +96,7 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側の再パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(s.isFlashTiming === false, "両者連続パスでフラッシュ終了")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受けてバトルを終える")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトルを終える")
     assert(s.battle === null, "バトルが終了する")
 
     // 2回目のバトル：新しいbattleではflashLockedPlayerがnullに戻っている
@@ -151,7 +152,10 @@ console.log("=== 新規構造化スピリットの誘発確認（実カード経
     s.players.p1.reserve = 20
 
     console.log("--- エメラルドシーザー（BS01-063）: 召喚時に相手スピリット1体を疲労 ---")
-    const enemy = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000（回復状態）
+    // BP3000（Lv2）にしておく：後段のヘル・ブリンディ（returnToHand・anySide）で
+    // p1の場のエメラルドシーザー（BP3000）と実効BPが並び、非対話時の自動選択が
+    // 同値なら相手側を優先するルールにより enemy が選ばれるようにする
+    const enemy = createInstance("BS01-001", s.turn, 3) // ゴラドン Lv2 BP3000（回復状態）
     s.players.p2.field.spirits.push(enemy)
     s.players.p1.hand[0] = "BS01-063"
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "エメラルドシーザーを召喚できる")

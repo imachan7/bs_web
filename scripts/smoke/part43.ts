@@ -3,7 +3,7 @@
 // 拡張2: シンボル数条件（magic condition ownFieldHasMinSymbolSpirit）・
 //        対象フィルタ（bpBuff の minSymbols）— BS04-091 ライトニングバリスタ
 // 拡張3: 光芒（kobo）の一時付与対応（resolveKoboOnBattleEndがtempKeywordsも見るように）— BS04-106 グリームホープ
-import { assert, act, createGame, createInstance, currentLevel, effectiveBp, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, currentLevel, effectiveBp, runTurnStart } from "./helpers"
 
 // 2026-07-31: 両カードとも bpBuffAll（tempBpBuff直書き）から lendSelfThisTurn + kind:"aura"
 // （familyFilter・lentOnly）へ移行（part76参照）。実効値は effectiveBp で確認する
@@ -181,7 +181,7 @@ console.log("=== 拡張3: BS04-106 グリームホープ（メイン：光芒の
         "フラッシュでリターンドローを使用",
     )
     assert(s.players.p1.trashCards.includes("BS01-123"), "使用直後はトラッシュにある")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(
         s.players.p1.hand.includes("BS01-123"),
         "一時付与された【光芒】でリターンドローが手札に戻った",

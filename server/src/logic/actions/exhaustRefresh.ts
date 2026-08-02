@@ -86,18 +86,28 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             ) {
                 return
             }
-            // 自動時は実効BP最大を1体（相手側→自分側の順で同値は先勝ち）
-            const target = candidates.reduce<CardInstance | undefined>(
-                (best, sp) =>
-                    !best || effectiveBp(state, owner, sp) > effectiveBp(state, owner, best) ? sp : best,
-                undefined,
-            )
-            if (!target) {
-                log(state, `${sourceName}の疲労付与：対象がいなかった。`)
-                return
+            // 自動時は実効BP最大から順に count 体（相手側→自分側の順で同値は先勝ち）。
+            // count を見ずに1体で打ち切ると「スピリット2体までを疲労させる」（BS01-036 シャ・ズー）が
+            // 半分しか効かないため、選んだ個体を除きながら count 回繰り返す
+            let exhausted = 0
+            for (let i = 0; i < action.count; i++) {
+                const target = candidates
+                    .filter((sp) => !sp.isRested)
+                    .reduce<CardInstance | undefined>(
+                        (best, sp) =>
+                            !best || effectiveBp(state, owner, sp) > effectiveBp(state, owner, best)
+                                ? sp
+                                : best,
+                        undefined,
+                    )
+                if (!target) break
+                target.isRested = true
+                exhausted += 1
+                log(state, `${getCard(target.cardId).name}は疲労した。`)
             }
-            target.isRested = true
-            log(state, `${getCard(target.cardId).name}は疲労した。`)
+            if (exhausted === 0) {
+                log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+            }
             return
         }
         if (state.interactiveTargets) {

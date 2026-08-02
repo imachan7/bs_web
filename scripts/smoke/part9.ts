@@ -11,6 +11,7 @@
 //   - BS02-077 決闘台地 e2：相手のスタートステップに覚醒持ちを全回復（cantAttackThisTurnは付けない）
 import {
     act,
+    takeLifeAndResolve,
     assert,
     createGame,
     createInstance,
@@ -91,7 +92,7 @@ console.log("=== BS02-010 溶海竜プレシオス e2：Lv3アタック時、相
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1がアタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: plesio.instanceId }) === null, "プレシオスでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2がライフで受ける")
     assert(
         s.players.p2.life === 3,
         "通常ダメージ1（symbol数）+ 相手ネクサス2色以上でのe2追加ライフクラッシュ1で、ライフ5→3",
@@ -116,7 +117,7 @@ console.log("=== BS02-010 溶海竜プレシオス e2：相手ネクサス1色�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1がアタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: plesio.instanceId }) === null, "プレシオスでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2がライフで受ける")
     assert(s.players.p2.life === 4, "通常ダメージ1のみ、e2の追加ライフクラッシュは発火しない")
     assert(s.players.p2.reserve === 1, "取り除かれたコアは1個のみ")
 }

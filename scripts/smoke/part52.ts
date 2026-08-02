@@ -4,7 +4,7 @@
 //   - BS01-098 燃えさかる戦場 Lv2: ターン最初のアタックに対して相手は必ずブロック（firstAttackOnly）
 //   - BS04-024 ダックル: ターン最初のアタック時にBP+2000（triggered condition firstAttackOfTurn）
 // 「可能ならば」の判定は validateBlock を通す（実際にブロックできる相手がいるときだけ強制）
-import { assert, act, createGame, createInstance, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, runTurnStart } from "./helpers"
 
 console.log("=== BS04-076 Lv2: 翼竜のアタックはライフで受けられない（強制ブロック） ===")
 {
@@ -33,7 +33,7 @@ console.log("=== BS04-076 Lv2: 系統が違えばライフで受けられる ===
     assert(act(s, "p1", { type: "attack", instanceId: other.instanceId }) === null, "爬獣でアタック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "系統が一致しないアタックはライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "系統が一致しないアタックはライフで受けられる")
 }
 
 console.log("=== BS04-076 Lv2: ブロックできる相手がいなければ強制されない（可能ならば） ===")
@@ -48,7 +48,7 @@ console.log("=== BS04-076 Lv2: ブロックできる相手がいなければ強�
     assert(act(s, "p1", { type: "attack", instanceId: yokuryu.instanceId }) === null, "翼竜でアタック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロック可能なスピリットがいなければライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "ブロック可能なスピリットがいなければライフで受けられる")
 }
 
 console.log("=== BS01-098 燃えさかる戦場 Lv2: 最初のアタックのみ強制ブロック ===")
@@ -77,7 +77,7 @@ console.log("=== BS01-098 燃えさかる戦場 Lv2: 最初のアタックのみ
     assert(act(s, "p1", { type: "attack", instanceId: a2.instanceId }) === null, "2体目でアタック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "2回目以降のアタックはライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "2回目以降のアタックはライフで受けられる")
 }
 
 console.log("=== BS04-024 ダックル: ターン最初のアタックのときだけBP+2000 ===")
@@ -93,7 +93,7 @@ console.log("=== BS04-024 ダックル: ターン最初のアタックのとき�
     assert(duck1.tempBpBuff === 2000, "ターン最初のアタックなのでBP+2000")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
 
     assert(act(s, "p1", { type: "attack", instanceId: duck2.instanceId }) === null, "2体目のダックルでアタック")
     assert(duck2.tempBpBuff === 0, "2回目のアタックではBP+2000は発揮されない")

@@ -1,7 +1,7 @@
 // 手札・デッキ・トラッシュ操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { PlayerId } from "../../type"
+import type { CardInstance, PlayerId } from "../../type"
 import { draw, getCard, log, opponentOf } from "../GameState"
 import {
     countEffectCounter,
@@ -11,6 +11,8 @@ import {
     isEffectBlocked,
     millDeck,
     notifyHandGained,
+    pickAnySideByBp,
+    pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
     requestCardChoice,
@@ -565,6 +567,37 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             log(state, `${sourceName}の手札戻し：相手にネクサスがなかった。`)
             return
         }
+        // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
+        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
+        if (action.anySide) {
+            const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp
+            const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType)
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}の手札戻し：対象を選んでください`,
+                    anySideCandidates,
+                    { ...action, count: 1 },
+                    resolvedCount > 1
+                        ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false }
+                        : null,
+                )
+            ) {
+                return
+            }
+            for (let i = 0; i < resolvedCount; i++) {
+                const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType)
+                if (!target) {
+                    log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+                    break
+                }
+                returnSpiritToHand(state, target.pid, target.inst)
+            }
+            return
+        }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColors, srcType)
             if (
@@ -619,8 +652,12 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
+        // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+            const candidates = action.anySide
+                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
             if (candidates.length >= 2) {
                 requestChoice(
                     state,
@@ -636,10 +673,12 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         }
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
-                  return t ? { pid: opp, inst: t } : null
-              })()
+            : action.anySide
+              ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
+              : (() => {
+                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+                    return t ? { pid: opp, inst: t } : null
+                })()
         if (!found) {
             log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
             return

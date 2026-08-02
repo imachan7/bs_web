@@ -31,6 +31,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -894,7 +895,7 @@ console.log("=== 呪撃（BS02-015 ハンプダンプ） ===")
         act(s2, "p1", { type: "attack", instanceId: hampdump2.instanceId }) === null,
         "ハンプダンプでアタック（ブロッカーなし）",
     )
-    assert(act(s2, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける")
+    assert(takeLifeAndResolve(s2, "p2") === null, "防御側はライフで受ける")
     assert(s2.players.p1.field.spirits.length === 1, "ブロックされなければ【呪撃】は発動せずアタッカーは生存")
     assert(s2.battle === null, "バトル終了")
 }

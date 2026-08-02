@@ -42,6 +42,7 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    effectActiveAtLevel,
     type DirectAttackFilter,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
@@ -371,7 +372,10 @@ export function render(view: GameView, ui: UiState): void {
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
     )
-    show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
+    show(
+        "btn-take-life",
+        canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared && !pendingChoiceActive,
+    )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
         ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
@@ -541,7 +545,7 @@ function renderInfo(
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
-        ["", `リザーブ ${p.reserve}`],
+        ["reserve", `🔵 リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
@@ -550,14 +554,15 @@ function renderInfo(
     for (const [cls, text] of items) {
         const span = document.createElement("span")
         if (cls) span.className = cls
+        const isReserve = cls.includes("reserve")
         // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
         // 自分のリザーブ表示をクリック対象として識別できるようにする
-        if (isSelf && text.startsWith("リザーブ")) {
+        if (isSelf && isReserve) {
             span.dataset.reserve = "self"
             if (reserveHighlight) span.classList.add("targetable", "clickable")
         }
         // 相手のリザーブも、選択待ちの候補になっているときだけクリック対象にする
-        if (!isSelf && text.startsWith("リザーブ")) {
+        if (!isSelf && isReserve) {
             span.dataset.reserve = "opponent"
             if (oppReserveChoice) span.classList.add("targetable", "clickable")
         }
@@ -636,6 +641,23 @@ function fieldCardEl(
     el.dataset.instanceId = inst.instanceId
     el.dataset.cardId = inst.cardId
     el.dataset.side = isMine ? "mine" : "opp"
+
+    // 現在のフェーズで発動しているステップ効果があるか
+    const hasActiveStepEffect = m.effects.some((e) => {
+        if (e.kind !== "step") return false
+        if (e.step !== view.phase) return false
+        const isOwnerTurn = view.turnPlayer === ownerPid
+        if (e.turn === "own" && !isOwnerTurn) return false
+        if (e.turn === "opponent" && isOwnerTurn) return false
+        return effectActiveAtLevel(e.levels, level)
+    })
+    if (hasActiveStepEffect) {
+        el.classList.add("step-active")
+        const badge = document.createElement("div")
+        badge.className = "step-active-badge"
+        badge.textContent = "発動中"
+        el.appendChild(badge)
+    }
 
     const name = document.createElement("div")
     name.className = "name"
@@ -823,6 +845,7 @@ function fieldCardEl(
         if (
             canDefend &&
             !view.battle?.blockerInstanceId &&
+            !view.battle?.lifeDeclared &&
             !inst.isRested &&
             !singleCoreLocked &&
             !costLocked &&
@@ -916,14 +939,15 @@ function renderHand(view: GameView, ui: UiState): void {
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
             !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
 
-        const usable =
-            !view.pendingChoice &&
-            !magicColorLocked &&
-            ((myMainFree && reserve >= need) ||
-                (inFlash &&
-                    !flashLocked &&
-                    reserve >= need &&
-                    ((m.type === "magic" && m.flash) || flashSummonable)))
+        const fieldCores = payableFieldCores(view, cardId)
+        const isTimingValid =
+            (myMainFree) ||
+            (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable))
+
+        const isUsableState = !view.pendingChoice && !magicColorLocked && isTimingValid
+        const usable = isUsableState && reserve >= need
+        const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
+        const unusable = !usable && !usableField
 
         let targetable = false
         let activeIndex = index
@@ -941,8 +965,30 @@ function renderHand(view: GameView, ui: UiState): void {
         el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         el.dataset.handIndex = String(activeIndex)
         el.dataset.cardId = cardId
+        
         if (usable) el.classList.add("usable", "clickable")
-        if (targetable) el.classList.add("targetable", "clickable")
+        else if (usableField) {
+            el.classList.add("usable-field", "clickable")
+            const badge = document.createElement("div")
+            badge.className = "field-req-badge"
+            badge.textContent = "盤面コア必要"
+            el.appendChild(badge)
+        }
+        else el.classList.add("unusable")
+
+        if (targetable) {
+            el.classList.add("targetable", "clickable")
+            el.classList.remove("unusable")
+        }
+
+        // 召喚・配置・マジック使用のために選択されたカードをハイライト
+        const selectedHandIndex =
+            ui.paying?.handIndex ??
+            ui.summonLevelSelect?.handIndex ??
+            ui.targeting?.handIndex ?? null
+        if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
+            el.classList.add("selected")
+        }
 
         const costBadge = document.createElement("div")
         costBadge.className = "cost-badge"
@@ -1017,6 +1063,8 @@ function renderBattle(view: GameView): void {
     const hasPriority = view.priorityPlayer === view.you
     // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
     const blocked = !!view.battle.blockerInstanceId
+    // ライフで受けることを宣言済みか（宣言後はフラッシュが再オープンされる。ブロックと同様の扱い）
+    const lifeDeclared = !!view.battle.lifeDeclared
 
     // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
     let blockerText = ""
@@ -1046,6 +1094,21 @@ function renderBattle(view: GameView): void {
                 message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}フラッシュマジックを使うか「パス」してください。`
             } else {
                 message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
+            }
+        }
+    } else if (lifeDeclared) {
+        // ライフ受け宣言後の追加フラッシュ
+        if (isDefender) {
+            if (view.isFlashTiming && hasPriority) {
+                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。追加でフラッシュマジックを使うか「パス」してください。`
+            } else {
+                message = `⚔ ${m.name}（BP${bp}）：ライフで受けることを宣言中。相手の対応を待っています…`
+            }
+        } else {
+            if (view.isFlashTiming && hasPriority) {
+                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。フラッシュマジックを使うか「パス」してください。`
+            } else {
+                message = `⚔ ${m.name}（BP${bp}）：相手はライフで受けることを宣言しました。相手の対応を待っています…`
             }
         }
     } else if (isDefender) {
@@ -1184,7 +1247,7 @@ export function setupEffectTooltip(): void {
             m.levels.forEach(lv => {
                 const lvLine = document.createElement("div")
                 let text = `Lv${lv.level} (維持コア${lv.cores})`
-                if (lv.bp !== undefined) {
+                if (m.type === "spirit" && lv.bp !== undefined) {
                     text += ` BP ${lv.bp}`
                 }
                 lvLine.textContent = text

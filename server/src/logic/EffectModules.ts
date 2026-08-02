@@ -1346,6 +1346,38 @@ export function pickAnySideCandidates(
     ]
 }
 
+// 「自分か相手のスピリット1体」を対象にする効果（action.anySide）の自動選択（非対話時）で使う共通ロジック。
+// 相手側は pickEnemyByBp（装甲・マジック効果耐性・効果ブロックを尊重）、自分側は matches のみで候補を集め、
+// 実効BPが高い方を選ぶ（同値は相手側を優先。destroyExhaustedのanySide自動選択と同じ非対称ルール）
+export function pickAnySideByBp(
+    state: GameState,
+    owner: PlayerId,
+    maxBp: number,
+    matches: (s: CardInstance) => boolean,
+    sourceColors?: Color[],
+    sourceType?: "spirit" | "nexus" | "magic",
+): { pid: PlayerId; inst: CardInstance } | null {
+    const opp = opponentOf(owner)
+    const oppCandidate = pickEnemyByBp(state, opp, maxBp, matches, sourceColors, sourceType)
+    const ownCandidates = state.players[owner].field.spirits.filter(
+        (s) => effectiveBp(state, owner, s) <= maxBp && matches(s),
+    )
+    const ownCandidate =
+        ownCandidates.length > 0
+            ? ownCandidates.reduce((best, s) =>
+                  effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+              )
+            : null
+    if (oppCandidate && ownCandidate) {
+        return effectiveBp(state, owner, ownCandidate) > effectiveBp(state, opp, oppCandidate)
+            ? { pid: owner, inst: ownCandidate }
+            : { pid: opp, inst: oppCandidate }
+    }
+    if (oppCandidate) return { pid: opp, inst: oppCandidate }
+    if (ownCandidate) return { pid: owner, inst: ownCandidate }
+    return null
+}
+
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
 // 最もBPが高いものを1体選ぶ（疲労状態の絞り込みなどにも使い回す）
 export function pickEnemyByBp(

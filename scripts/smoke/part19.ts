@@ -1,5 +1,5 @@
 // smoke パート19（BS03新キーワード【粉砕】【光芒】の検証）
-import { assert, act, createGame, createInstance, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, runTurnStart } from "./helpers"
 
 console.log("=== 粉砕（BS03-076 爪剣のラザラス Lv2） ===")
 {
@@ -63,7 +63,7 @@ console.log("=== 光芒（BS03-054 アルカナドール・トリア Lv2） ==="
         "フラッシュでリターンドローを使用",
     )
     assert(s.players.p1.trashCards.includes("BS01-123"), "使用直後はトラッシュにある")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(s.players.p1.hand.includes("BS01-123"), "【光芒】でリターンドローが手札に戻った")
     assert(!s.players.p1.trashCards.includes("BS01-123"), "トラッシュからは消えている")
 }
@@ -81,7 +81,7 @@ console.log("=== 光芒：バトル中にマジックを使わなければ何も
     const handBefore = [...s.players.p1.hand]
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: doll.instanceId }) === null, "トリアでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(
         JSON.stringify(s.players.p1.hand) === JSON.stringify(handBefore),
         "マジックを使っていないので手札は変化しない",

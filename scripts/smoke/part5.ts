@@ -37,6 +37,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -64,7 +65,7 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
         act(s, "p1", { type: "block", instanceId: jassei.instanceId }) !== null,
         "cantBlock制約でドラグノ突撃兵はブロックできない",
     )
-    assert(act(s, "p1", { type: "takeLife" }) === null, "ブロックできないためライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "ブロックできないためライフで受ける")
 
     assert(act(s, "p2", { type: "endTurn" }) === null, "p2がターン終了")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
@@ -619,7 +620,7 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
     console.log("--- ターン終了で一時付与がクリアされる ---")
     act(s, "p2", { type: "pass" })
     act(s, "p1", { type: "pass" }) // フラッシュ終了
-    act(s, "p2", { type: "takeLife" })
+    takeLifeAndResolve(s, "p2")
     act(s, "p1", { type: "endTurn" })
     assert(attacker.tempKeywords.length === 0, "endTurnでtempKeywordsが空になる")
 
@@ -851,7 +852,7 @@ console.log("=== BS02-016 スライミー：Lv3のアタックでライフのコ
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: slimy.instanceId }) === null, "スライミーでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 1, "ライフが1減る")
     assert(s.players.p2.reserve === 0, "取り除かれたコアはリザーブでなくボイドへ消える")
 }

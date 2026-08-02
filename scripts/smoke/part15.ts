@@ -29,8 +29,9 @@ console.log("=== [interactiveTargets] destroy 候補2件でchoiceが立つ（BS0
     assert(s.pendingChoice?.kind === "option", "先に発動確認のpendingChoiceが立つ")
     assert(s.pendingChoice?.confirm === true, "発動確認（confirm）である")
     assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
-    assert(s.pendingChoice !== null, "候補2件のためpendingChoiceが立つ")
-    assert(s.pendingChoice?.candidates.length === 2, "候補は2件（両方のゴラドン）")
+    assert(s.pendingChoice !== null, "候補3件のためpendingChoiceが立つ")
+    // anySide化により、ランスラプトル自身（Lv1 BP2000＝maxBp2000の境界値）も候補に入る
+    assert(s.pendingChoice?.candidates.length === 3, "候補は3件（両方のゴラドン＋自分自身）")
     assert(s.players.p2.field.spirits.length === 2, "選択待ち中はまだ破壊されていない")
 
     assert(act(s, "p1", { type: "resolveChoice", instanceId: gora1.instanceId }) === null, "1体目を選んで解決")
@@ -39,7 +40,7 @@ console.log("=== [interactiveTargets] destroy 候補2件でchoiceが立つ（BS0
     assert(s.players.p2.field.spirits[0]?.instanceId === gora2.instanceId, "選ばなかった方は残る")
 }
 
-console.log("--- 候補1件なら choice なしで即座に自動破壊 ---")
+console.log("--- 候補1件なら choice なしで即座に自動破壊（相手フィールドが空＝自分自身のみが候補） ---")
 {
     const s = createGame(
         "interactive-destroy-single",
@@ -50,14 +51,15 @@ console.log("--- 候補1件なら choice なしで即座に自動破壊 ---")
     s.interactiveTargets = true
     s.players.p1.hand[0] = "BS01-017"
     s.players.p1.reserve = 10
-    const gora = createInstance("BS01-001", s.turn, 1)
-    s.players.p2.field.spirits.push(gora)
+    // 相手フィールドは空。anySide化によりランスラプトル自身（Lv1 BP2000）が唯一の候補になる
+    const before = new Set(s.players.p1.field.spirits.map((sp) => sp.instanceId))
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")
     assert(s.pendingChoice?.confirm === true, "optional のため発動確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
-    assert(s.pendingChoice === null, "候補1件なのでそのまま解決される")
-    assert(s.players.p2.field.spirits.length === 0, "自動選択でそのまま破壊される")
+    assert(s.pendingChoice === null, "候補1件（自分自身）なのでそのまま解決される")
+    const summoned = s.players.p1.field.spirits.find((sp) => !before.has(sp.instanceId))
+    assert(summoned === undefined, "唯一の候補である自分自身が自動選択で破壊される")
 }
 
 console.log("--- 発動確認をスキップすると効果は発揮されない ---")
@@ -146,8 +148,11 @@ console.log("=== interactiveTargets 既定false（未設定）では従来どお
     assert(s.interactiveTargets === false, "createGameの既定値はfalse")
     s.players.p1.hand[0] = "BS01-017"
     s.players.p1.reserve = 10
-    const gora1 = createInstance("BS01-001", s.turn, 1)
-    const gora2 = createInstance("BS01-001", s.turn, 1)
+    // anySide化によりランスラプトル自身（Lv1 BP2000＝maxBp2000の境界値）も候補になる。
+    // destroyのfilter（maxBp2000）を満たしたまま自分自身と実効BPを並べる必要があるため、
+    // 相手はBP2000ちょうどのシャ・ズー（Lv1）にする（同値のため自動選択は相手側を優先する）
+    const gora1 = createInstance("BS01-036", s.turn, 1) // シャ・ズー Lv1 BP2000
+    const gora2 = createInstance("BS01-036", s.turn, 1)
     s.players.p2.field.spirits.push(gora1, gora2)
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ランスラプトルを召喚")

@@ -556,47 +556,71 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     return null
 }
 
+// 防御側がライフで受けることを宣言する。ブロック宣言と同様、この時点では解決しない。
+// フラッシュを再オープンし（防御側から優先権）、両者が連続でパスした時点で resolveLifeDamage が解決する
+// （公式ルール: フラッシュタイミングでは防御側→攻撃側の順に1つずつフラッシュを使い、
+// 両者が連続で「使わない」を選んだ時点でフラッシュタイミングが終わる）
 function doTakeLife(state: GameState, pid: PlayerId): string | null {
     const error = validateTakeLife(state, pid)
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
 
+    state.battle.lifeDeclared = true
+    log(state, `${state.players[pid].name}はライフで受けることを宣言した。フラッシュタイミングを開始する。`)
+    // ライフ受け宣言後は即解決せず、フラッシュを再オープンする（doBlock末尾と同じ扱い）
+    state.isFlashTiming = true
+    state.flashCount = 0
+    state.priorityPlayer = opponentOf(state.turnPlayer)
+    return null
+}
+
+// ライフ受け宣言後のフラッシュタイミングが終了した時点でライフダメージを解決する。
+// フラッシュ中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
+// 宣言時ではなく**解決時点**の状態を読む
+function resolveLifeDamage(state: GameState): void {
+    if (!state.battle) return
     const attackerPid = state.turnPlayer
+    const defenderPid = opponentOf(attackerPid)
     const attacker = findSpirit(
         state.players[attackerPid],
         state.battle.attackerInstanceId,
     )
-    const defender = state.players[pid]
+    const defender = state.players[defenderPid]
+
+    // フラッシュ中にアタッカーが破壊された等で場を離れていたら、ライフダメージなしでバトル終了
+    if (!attacker) {
+        log(state, "アタッカーが場を離れたため、ライフダメージは発生しなかった。")
+        clearBattle(state)
+        return
+    }
 
     // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
     // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
     // ミストカーテン：指定されたアタッカーのアタックでは、このターン使用者のライフが減らない
-    if (attacker && attacker.lifeDamageNegatedFor === pid) {
+    if (attacker.lifeDamageNegatedFor === defenderPid) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
         )
         resolveKoboOnBattleEnd(state, attackerPid, attacker)
         clearBattle(state)
-        return null
+        return
     }
-    if (attacker && hasLifeDamageNegate(state, pid, attackerPid, attacker)) {
+    if (hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
         )
         resolveKoboOnBattleEnd(state, attackerPid, attacker)
         clearBattle(state)
-        return null
+        return
     }
 
     // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = attacker ? instanceSymbolCount(attacker) : 1
+    const damage = instanceSymbolCount(attacker)
     const dealt = Math.min(damage, defender.life)
-    const toVoid =
-        attacker !== undefined &&
-        activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
+    const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt
     if (toVoid) {
         log(
@@ -610,7 +634,7 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
             `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
         )
     }
-    if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid, amount: dealt })
+    if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
 
     if (defender.life <= 0) {
         state.winner = attackerPid
@@ -618,17 +642,16 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     } else if (dealt > 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
         // ライフ0で敗北が決まった場合は発火しない
-        fireFieldEventTriggers(state, pid, "ownLifeDamaged")
+        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged")
     }
     // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
-    if (dealt > 0 && attacker) {
+    if (dealt > 0) {
         fireTrigger(state, attackerPid, attacker, "onLifeDealt")
     }
 
     resolveKoboOnBattleEnd(state, attackerPid, attacker)
     clearBattle(state)
-    return null
 }
 
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
@@ -795,8 +818,11 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
+        } else if (state.battle && state.battle.lifeDeclared) {
+            // ライフ受け宣言後のフラッシュ終了 → ライフダメージを解決する
+            resolveLifeDamage(state)
         }
-        // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）
+        // ブロック・ライフ受けのいずれも未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）
     }
     return null
 }

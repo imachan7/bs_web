@@ -6,6 +6,7 @@
 //   - magic action levelUpThisTurn（BS03-141 ビルドアップ：Lv+1、最大Lvでキャップ）
 import {
     act,
+    takeLifeAndResolve,
     assert,
     createGame,
     createInstance,
@@ -80,7 +81,7 @@ console.log("=== BS03-121 ダブルハート：シンボル+1でライフダメ�
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける")
     assert(s.players.p2.life === lifeBefore - 2, "シンボル1つ+追加1つ＝ダメージ2")
 }
 

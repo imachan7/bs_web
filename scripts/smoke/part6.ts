@@ -37,6 +37,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -253,7 +254,7 @@ console.log("=== BS02-110 ヘビィゲート：コスト1以下のスピリッ�
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コスト0のblockerはこのターンブロックできない",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2がアタックステップへ移行")
     assert(
@@ -278,7 +279,7 @@ console.log("=== BS02-034 老賢樹トレントン：アタックでライフを
         act(s, "p1", { type: "attack", instanceId: trenton.instanceId }) === null,
         "老賢樹トレントンでアタック",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2がライフで受ける")
     assert(
         s.players.p1.reserve === reserveBefore + 1,
         "ライフを減らしたことでボイドからコア1個を自分のリザーブに置く",

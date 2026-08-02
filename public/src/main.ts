@@ -346,7 +346,7 @@ function onMySpiritClick(instanceId: string): void {
     const canDefend =
         isDefender && (!view.isFlashTiming || view.priorityPlayer === view.you)
 
-    if (canDefend && !view.battle?.blockerInstanceId) {
+    if (canDefend && !view.battle?.blockerInstanceId && !view.battle?.lifeDeclared) {
         send({ type: "block", instanceId })
         return
     }
@@ -562,6 +562,10 @@ async function init(): Promise<void> {
         } else {
             socket.emit("join", { roomId, name, deck })
         }
+    })
+
+    byId("btn-return-lobby").addEventListener("click", () => {
+        location.reload() // ページリロードで初期状態（ロビー）へ戻る
     })
 
     byId("hand").addEventListener("click", (e) => {

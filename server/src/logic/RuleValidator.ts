@@ -468,6 +468,7 @@ export function validateBlock(
         return "現在フラッシュの優先権がありません"
     }
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
+    if (state.battle.lifeDeclared) return "すでにライフで受けることを宣言しています"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     if (inst.isRested) return "疲労しているためブロックできません"
@@ -590,6 +591,8 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
     // ブロック宣言済みならライフでは受けられない
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
+    // すでにライフで受けることを宣言済みなら再度の宣言はできない
+    if (state.battle.lifeDeclared) return "すでにライフで受けることを宣言しています"
     // 攻撃側に優先権がある間（フラッシュ中で自分が優先権を持たない）はライフで受けられない
     if (state.isFlashTiming && pid !== state.priorityPlayer) {
         return "現在フラッシュの優先権がありません"
