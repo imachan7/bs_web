@@ -752,12 +752,7 @@ function fieldCardEl(
     }
     el.appendChild(symbolsDiv)
 
-    if (m.effect) {
-        const eff = document.createElement("div")
-        eff.className = "effect-text"
-        eff.textContent = m.effect
-        el.appendChild(eff)
-    }
+
 
     if (view.battle?.attackerInstanceId === inst.instanceId) {
         el.classList.add("attacker-mark")
@@ -1333,12 +1328,19 @@ export function setupEffectTooltip(): void {
         tip.style.left = `${left}px`
     }
 
-    const hide = (): void => tip.classList.add("hidden")
+    let currentHoverCard: HTMLElement | null = null
+    const hide = (): void => {
+        tip.classList.add("hidden")
+        currentHoverCard = null
+    }
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
-        if (card) showFor(card)
+        if (card && card !== currentHoverCard) {
+            currentHoverCard = card
+            showFor(card)
+        }
     })
     document.addEventListener("mouseout", (e) => {
         const from = (e.target as HTMLElement).closest(".card, .log-card-name")
