@@ -7,12 +7,13 @@
 import type { CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { COLOR_LABELS } from "../data/constants"
-import { card } from "./cardDb"
 import {
     activeConstraints,
     currentLevel,
     effectiveBp,
+    instAllCosts,
     instHasColor,
+    instHasCost,
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
@@ -44,7 +45,6 @@ export function canBlock(
     // アタッカー側の制約（unblockableBy）。
     // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
     if (attackerInst && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
-        const blockerCard = card(blockerInst.cardId)
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
@@ -65,11 +65,18 @@ export function canBlock(
             ) {
                 return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
             }
-            if (c.costNot !== undefined && blockerCard.cost !== c.costNot) {
+            // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
+            if (c.costNot !== undefined && !instHasCost(blockerInst, c.costNot)) {
                 return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
             }
-            // BS05ポテンシャルパワー：ブロッカーのコストがこのアタッカーのコスト以下ならブロックできない
-            if (c.costAtMostAttacker && blockerCard.cost <= card(attackerInst.cardId).cost) {
+            // BS05ポテンシャルパワー：ブロッカーのコストがこのアタッカーのコスト以下ならブロックできない。
+            // 道化師クランで両者が複数コストを扱いうる状態では、いずれかの組み合わせで
+            // 「ブロッカー側のコスト <= アタッカー側のコスト」が成立すれば条件を満たすとする
+            // （instMatchesCostFilterの「いずれかのコストが条件を満たせばtrue」と同じ考え方の拡張）
+            if (
+                c.costAtMostAttacker &&
+                instAllCosts(blockerInst).some((b) => instAllCosts(attackerInst).some((a) => b <= a))
+            ) {
                 return "このスピリットは同じか低いコストのスピリットにブロックされません"
             }
         }

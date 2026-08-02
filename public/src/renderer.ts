@@ -22,8 +22,8 @@ import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFil
 import {
     activeConstraints,
     cantActByCost,
-    costCantAct,
     currentLevel,
+    instCostCantAct,
     effectiveBp,
     hasArmorAgainst,
     hasGlobalConstraint,
@@ -825,7 +825,8 @@ function fieldCardEl(
         const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
-        const costLocked = cantActByCost(view, inst) || costCantAct(view, master(inst.cardId).cost)
+        // （道化師クランの付与コストも考慮する instCostCantAct を使う）
+        const costLocked = cantActByCost(view, inst) || instCostCantAct(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&

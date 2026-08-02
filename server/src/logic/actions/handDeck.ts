@@ -22,7 +22,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor } from "../../../../shared/rules"
+import { effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -634,9 +634,8 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
         for (const pid of sides) {
             // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
             const targets = state.players[pid].field.spirits.filter((s) => {
-                const cost = getCard(s.cardId).cost
-                if (action.costFilter?.max !== undefined && cost > action.costFilter.max) return false
-                if (action.costFilter?.min !== undefined && cost < action.costFilter.min) return false
+                // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
+                if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (isEffectBlocked(state, s, srcType)) return false
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s))) return false
                 return true

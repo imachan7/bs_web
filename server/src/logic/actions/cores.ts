@@ -26,7 +26,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, isUntargetableByOpponent, matchesCostFilter, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -122,7 +122,8 @@ const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) =
             return
         }
         if (action.targets <= 0) return
-        const matchesFilter = (s: CardInstance) => matchesCostFilter(getCard(s.cardId).cost, action.costFilter)
+        // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
+        const matchesFilter = (s: CardInstance) => instMatchesCostFilter(s, action.costFilter)
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType)
             if (
@@ -645,7 +646,9 @@ const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (
                 )
                 return
             }
-            // 決定的自動選択：コスト最大（破棄枚数を最大化する）
+            // 決定的自動選択：コスト最大（破棄枚数を最大化する）。
+            // 複数コストを持つ状態（道化師クラン）では「最大」を定義できないため、
+            // ここと下のミル枚数計算はカード本来のコストのまま比較・参照する（順序付け・値の参照）
             target = candidates.reduce((best, s) =>
                 getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
             )
@@ -908,7 +911,7 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
         // （範囲効果。destroyAllと同様に装甲・マジック効果耐性・immuneToOpponentThisTurnを除外。BS04風龍王フージャオス）
         const targets = state.players[opp].field.spirits.filter(
             (s) =>
-                getCard(s.cardId).cost <= action.maxCost &&
+                instMatchesCostFilter(s, { max: action.maxCost }) &&
                 !isImmuneToArea(s) &&
                 !isEffectBlocked(state, s, srcType) &&
                 !hasArmorAgainst(s, srcColors) &&

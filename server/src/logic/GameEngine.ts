@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -473,13 +473,15 @@ function doAttack(
     // 両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
     if (!state.winner) {
         fireFieldEventTriggers(state, pid, "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            cost: getCard(inst.cardId).cost,
+            // instAllCosts：アタックしたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+            costs: instAllCosts(inst),
         })
     }
     if (!state.winner) {
         // アタックしたスピリットのコストを渡す（costFilter で絞る効果のため。BS04鎧装獣ヘイズ・ルーン）
         fireFieldEventTriggers(state, opponentOf(pid), "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            cost: getCard(inst.cardId).cost,
+            // instAllCosts：アタックしたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+            costs: instAllCosts(inst),
         })
     }
     // アタッカーが維持コア割れで消滅した場合はバトル不成立（ライフ受け・ブロックの対象が存在しないため）
