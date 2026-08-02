@@ -71,12 +71,19 @@ const cardNotes: CardNotes = JSON.parse(
  *     "フラッシュ："
  *     "メイン："
  */
+// 効果ブロックの見出し行にマッチする正規表現。
+// 「Lv」で始まるだけでは不十分で、"Lv1のネクサスすべてを破壊する。"（バスターランス）のような
+// 本文行まで見出しに数えてしまい、ブロック数が水増しされる（実装済みなのに漏れとして誤検出された）。
+// 見出しは Lv指定のあとが装飾（【キーワード】『タイミング』／：フラッシュ）だけで終わる行に限る。
+const BLOCK_HEADER_RE =
+    /^(?:(?:フラッシュ|メイン)：?$|Lv\d(?:[･・/]Lv\d)*(?:：フラッシュ)?(?:\s*(?:【[^】]*】|『[^』]*』|[/･・]))*\s*$)/
+
 function extractBlockHeaders(text: string): string[] {
     const headers: string[] = []
     for (const line of text.split("\n")) {
         const trimmed = line.trim()
         if (!trimmed) continue
-        if (/^(Lv\d|フラッシュ|メイン)/.test(trimmed)) {
+        if (BLOCK_HEADER_RE.test(trimmed)) {
             headers.push(trimmed.slice(0, 80))
         }
     }
