@@ -1085,10 +1085,10 @@ function renderHand(view: GameView, ui: UiState): void {
         if (m.levels.length > 0) {
             const bp = document.createElement("div")
             bp.className = "stats"
-            bp.textContent = m.levels
+            bp.innerHTML = m.levels
                 .filter((l) => l.bp > 0)
                 .map((l) => `Lv${l.level}(${l.cores}):${l.bp}`)
-                .join(" ")
+                .join("<br>")
             el.appendChild(bp)
         }
 
