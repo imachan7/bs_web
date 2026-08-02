@@ -1072,8 +1072,15 @@ function renderHand(view: GameView, ui: UiState): void {
 
         const stats = document.createElement("div")
         stats.className = "stats"
-        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}` + (reductionText ? ` 軽減:${reductionText}` : "")
+        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
         el.appendChild(stats)
+
+        if (reductionText) {
+            const reductionEl = document.createElement("div")
+            reductionEl.className = "stats"
+            reductionEl.textContent = `軽減:${reductionText}`
+            el.appendChild(reductionEl)
+        }
 
         if (m.levels.length > 0) {
             const bp = document.createElement("div")
