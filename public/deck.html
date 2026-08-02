@@ -74,7 +74,13 @@
 
                     <input id="search-input" type="text" placeholder="カード名で検索" />
                     <button id="filter-reset">条件クリア</button>
-                    <span id="pool-count"></span>
+                    <span class="filter-label" style="margin-left: 12px;">並び順</span>
+                    <select id="sort-order" class="sort-select">
+                        <option value="id">ID順 (デフォルト)</option>
+                        <option value="cost-asc">コスト順 (低→高)</option>
+                        <option value="cost-desc">コスト順 (高→低)</option>
+                    </select>
+                    <span id="pool-count" style="margin-left: auto;"></span>
                 </div>
             </div>
 

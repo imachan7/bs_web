@@ -48,6 +48,7 @@ const filterSeries = new Set<string>()
 const filterKeywords = new Set<Keyword>()
 let filterFamily = ""
 let searchText = ""
+let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
 // 詳細パネルに固定表示するカード（クリックで選択）
 let selectedCardId: string | null = null
@@ -158,7 +159,15 @@ function passesFilter(card: CardData): boolean {
 function renderPool(): void {
     const grid = $("pool-grid")
     grid.textContent = ""
-    const visible = cards.filter(passesFilter)
+    let visible = cards.filter(passesFilter)
+    
+    if (sortOrder === "cost-asc") {
+        visible.sort((a, b) => a.cost - b.cost || a.cardId.localeCompare(b.cardId))
+    } else if (sortOrder === "cost-desc") {
+        visible.sort((a, b) => b.cost - a.cost || a.cardId.localeCompare(b.cardId))
+    } else {
+        visible.sort((a, b) => a.cardId.localeCompare(b.cardId))
+    }
 
     for (const card of visible) {
         const el = document.createElement("div")
@@ -1072,9 +1081,15 @@ function setupFilterChips(): void {
         })
     }
 
-    const search = $("search-input") as HTMLInputElement
-    search.addEventListener("input", () => {
-        searchText = search.value.trim()
+    const searchInput = $("search-input") as HTMLInputElement
+    searchInput.addEventListener("input", () => {
+        searchText = searchInput.value
+        renderPool()
+    })
+
+    const sortSelect = $("sort-order") as HTMLSelectElement
+    sortSelect.addEventListener("change", () => {
+        sortOrder = sortSelect.value as "id" | "cost-asc" | "cost-desc"
         renderPool()
     })
 
@@ -1088,7 +1103,12 @@ function setupFilterChips(): void {
         const familySelect = $("filter-family") as HTMLSelectElement
         familySelect.value = ""
         searchText = ""
-        search.value = ""
+        searchInput.value = ""
+
+        sortOrder = "id"
+        sortSelect.value = "id"
+
+        updateFilterVisuals()
         for (const btn of document.querySelectorAll("#filters .chip")) {
             btn.classList.remove("active")
         }
