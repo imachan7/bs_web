@@ -286,12 +286,62 @@ export function targetArmorColorCount(inst: CardInstance): number {
 
 // 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
 // 走査は effectSources 経由＝このターンだけの仮想発生源（lendSelfThisTurn で貸した継続効果）も含む
+// 暗礁海域Lv1（kind:"familySuppression"）：条件に合うスピリットは系統をないものとして扱う。
+// 両陣営のフィールドを走査する（発生源の持ち主を問わず「すべて」に効く）。
+// ここでは系統を一切参照しないので、spiritHasFamily から呼んでも再帰しない
+export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, ownerPid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "familySuppression") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// 緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
+// 場の発生源からキーワードを得ているか。手札には書き込まず、判定のたびに場を見る
+// （RuleValidator.validateSummon とクライアントの神速表示が同じ実装を使う）
+export function hasHandKeywordGrant(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+    keyword: Keyword,
+): boolean {
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "handKeywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (cardData.type !== (effect.cardType ?? "spirit")) continue
+            if (effect.familyFilter !== undefined && !cardData.family.includes(effect.familyFilter)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 export function spiritHasFamily(
     board: Board,
     ownerPid: PlayerId,
     inst: CardInstance,
     family: string,
 ): boolean {
+    // 暗礁海域Lv1：系統をないものとして扱う（静的な系統も、familyGrant による付与も持たない）
+    if (familiesSuppressed(board, inst)) return false
     if (card(inst.cardId).family.includes(family)) return true
     const player = board.players[ownerPid]
     const sources = effectSources(board, ownerPid)

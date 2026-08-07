@@ -27,6 +27,7 @@ import {
     effectiveBp,
     hasArmorAgainst,
     hasGlobalConstraint,
+    hasHandKeywordGrant,
     hasKeyword,
     hasMagicImmunity,
     isUntargetableByOpponent,
@@ -977,9 +978,13 @@ function renderHand(view: GameView, ui: UiState): void {
         const cost = effectiveCost(view, view.you, m)
         const lv1 = m.levels.find((l) => l.level === 1)
         const need = cost + (lv1 ? lv1.cores : 0)
-        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか
+        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか、
+        // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
         const flashSummonable =
-            m.type === "spirit" && (hasKeyword(cardId, "soku") || tempSokuCardIds.has(cardId))
+            m.type === "spirit" &&
+            (hasKeyword(cardId, "soku") ||
+                tempSokuCardIds.has(cardId) ||
+                hasHandKeywordGrant(view, view.you, m, "soku"))
 
         // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
         // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）

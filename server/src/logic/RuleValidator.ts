@@ -11,7 +11,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -108,7 +108,9 @@ export function validateSummon(
     const hasTempSoku = (player.tempHandKeywordGrants ?? []).some(
         (g) => g.cardId === cardId && g.keyword === "soku",
     )
-    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku)
+    // 緑芽吹く原野Lv2：場の発生源が手札のカードに継続的に【神速】を与えている（手札には書き込まない）
+    const hasFieldSoku = hasHandKeywordGrant(state, pid, card, "soku")
+    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku)
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing

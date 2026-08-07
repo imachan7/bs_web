@@ -5625,6 +5625,17 @@
   "effects": [
    {
     "id": "BS03-105-e1",
+    "kind": "familySuppression",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "anyAll",
+    "maxCores": 2,
+    "turn": "own"
+   },
+   {
+    "id": "BS03-105-e2",
     "kind": "step",
     "step": "attack",
     "turn": "own",

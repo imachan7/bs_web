@@ -4564,6 +4564,20 @@
      "type": "coreGain",
      "count": 1
     }
+   },
+   {
+    "id": "BS02-081-e2",
+    "kind": "handKeywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "soku",
+    "familyFilter": "怪虫",
+    "cardType": "spirit",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    }
    }
   ]
  },
