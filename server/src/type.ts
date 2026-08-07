@@ -861,6 +861,24 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "koboOnBlock" // 持ち主のスピリットの【光芒】を『このスピリットのブロック時』にも発揮させる
+          // （funsaiOnBlock の光芒版。「**にも**」なのでアタック時の発揮はそのまま残る。BS03星降る巡礼地Lv2）
+          levels: number[] | null
+      }
+    | {
+          id: string
+          kind: "attackTriggersAsBlockGrant" // 発生源が場にありレベル有効の間、対象スピリットの
+          // 『このスピリットのアタック時』効果を『このスピリットのブロック時』に発揮させる
+          // （**アタック時には発揮しなくなる＝移し替え**。CardInstance.attackTriggersAsBlockThisTurn の継続版。
+          // fireTrigger が hasAttackTriggersAsBlock 経由で参照する。BS04ドラグノ近衛兵Lv1-2）
+          levels: number[] | null
+          target: "anyAll" | "ownAll" // anyAll=両陣営のスピリット（効果文が修飾なしの「スピリット」の場合。ドラグノ近衛兵）
+          familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ
+          keywordFilter?: Keyword // 指定時はこのキーワード（spiritHasKeywordで判定）を持つスピリットのみ
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // **発生源の持ち主**基準でこのステップ・turn条件のときのみ有効
+      }
+    | {
+          id: string
           kind: "magicRestriction" // フィールドの発生源からマジックの使用に制約をかける
           levels: number[] | null
           restriction:

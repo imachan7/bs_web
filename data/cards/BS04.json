@@ -369,16 +369,30 @@
   "effects": [
    {
     "id": "BS04-007-e1",
+    "kind": "attackTriggersAsBlockGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "anyAll",
+    "familyFilter": "竜人",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    }
+   },
+   {
+    "id": "BS04-007-e2",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
      2
     ],
+    "optional": false,
     "action": {
      "type": "selfBuff",
      "amount": 2000
-    },
-    "optional": false
+    }
    }
   ]
  },

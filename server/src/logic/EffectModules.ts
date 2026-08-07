@@ -457,6 +457,59 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
+// 士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
+// 『このスピリットのブロック時』にも発揮させる発生源が、持ち主のフィールドにあるか。
+// 「**にも**」なのでアタック時の発揮はそのまま残る（移し替えではない）
+export function hasKoboOnBlock(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "koboOnBlock") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
+// kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
+// 対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
+// target:"anyAll" は両陣営のスピリットが対象になりうるので、**両プレイヤーの発生源**を走査する。
+// phaseTurn は発生源の持ち主基準で判定する（『相手のアタックステップ』＝発生源の持ち主が非ターンプレイヤー）
+export function hasAttackTriggersAsBlock(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, sourcePid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "attackTriggersAsBlockGrant") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                // target:"ownAll" は発生源の持ち主のスピリットのみ
+                if (effect.target === "ownAll" && sourcePid !== ownerPid) continue
+                if (effect.phaseTurn) {
+                    const { phase, turn } = effect.phaseTurn
+                    if (state.phase !== phase) continue
+                    if (turn === "own" && sourcePid !== state.turnPlayer) continue
+                    if (turn === "opponent" && sourcePid === state.turnPlayer) continue
+                }
+                if (
+                    effect.familyFilter &&
+                    !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)
+                ) {
+                    continue
+                }
+                if (effect.keywordFilter && !spiritHasKeyword(state, ownerPid, inst, effect.keywordFilter)) {
+                    continue
+                }
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // 【粉砕】の解決：spirit が現在レベルで粉砕を持つなら、相手のデッキを
 // （現在レベル + funsaiBonus合計）枚破棄する（アタック時／funsaiOnBlockによるブロック時の共通処理）。
 // 実破棄枚数が1以上なら fieldEvent "ownFunsaiMilled" を発火する（repeatPerCount対応）。
@@ -2237,7 +2290,10 @@ export function fireTrigger(
     const level = currentLevel(selfInstance).level
     // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
     // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
-    const movedToBlock = selfInstance.attackTriggersAsBlockThisTurn === true
+    // ターン限定（ブレイブチャージ）に加え、継続付与（ドラグノ近衛兵）でも移し替えが起きる
+    const movedToBlock =
+        selfInstance.attackTriggersAsBlockThisTurn === true ||
+        hasAttackTriggersAsBlock(state, owner, selfInstance)
     // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
     // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
     const movedToAttack = state.blockTriggersAsAttackThisTurn === true

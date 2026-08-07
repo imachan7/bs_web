@@ -30,6 +30,7 @@ import {
     fireTrigger,
     hasArmorAgainst,
     hasFunsaiOnBlock,
+    hasKoboOnBlock,
     hasLifeDamageNegate,
     instanceSymbolCount,
     instColors,
@@ -1026,5 +1027,10 @@ function resolveBattle(state: GameState): void {
     }
 
     resolveKoboOnBattleEnd(state, attackerPid, attacker)
+    // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
+    // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
+    if (hasKoboOnBlock(state, defenderPid)) {
+        resolveKoboOnBattleEnd(state, defenderPid, blocker)
+    }
     clearBattle(state)
 }

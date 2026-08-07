@@ -43,6 +43,7 @@ const VALID_KINDS = new Set([
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
+    "koboOnBlock", "attackTriggersAsBlockGrant",
 ])
 
 export interface ValidationIssue {

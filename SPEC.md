@@ -829,6 +829,25 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 `selfWasRefreshedThisStep`）、相手のスピリット/ネクサスを選んでコアを相手トラッシュへ）。
 **既存の自動選択アクションは変更していない**（選択式への置き換えは今後 opt-in で段階導入）。
 
+### 「アタック時 → ブロック時」の読み替え
+
+同じ「読み替え」でも**ターン限定**と**継続**、**移し替え**と**追加**の区別がある。混同しないこと。
+
+| 器 | 期間 | 意味 | カード |
+| :-- | :-- | :-- | :-- |
+| `CardInstance.attackTriggersAsBlockThisTurn` | このターン | 移し替え（アタック時には発揮しない） | ブレイブチャージ |
+| `GameState.blockTriggersAsAttackThisTurn` | このターン | 移し替え（逆方向・両陣営全体） | アタックシフト |
+| **`kind:"attackTriggersAsBlockGrant"`** | 発生源が場にある間 | **移し替え** | BS04ドラグノ近衛兵Lv1-2 |
+| `kind:"funsaiOnBlock"` | 発生源が場にある間 | **追加**（アタック時の発揮は残る） | 士気高き大本営 |
+| **`kind:"koboOnBlock"`** | 発生源が場にある間 | **追加** | BS03星降る巡礼地Lv2 |
+
+`attackTriggersAsBlockGrant` は `target:"anyAll"`（効果文が修飾なしの「スピリット」＝両陣営）に対応するため、
+述語 `hasAttackTriggersAsBlock` が**両プレイヤーの発生源**を走査する。`phaseTurn` は
+**発生源の持ち主**基準で判定する（『相手のアタックステップ』＝発生源の持ち主が非ターンプレイヤー）。
+
+`koboOnBlock` は `resolveBattle` の末尾で、ブロッカーの持ち主基準で
+`resolveKoboOnBattleEnd` をもう一度呼ぶ（アタッカー側の解決はそのまま）。
+
 ### バトル結果誘発（battleRole / kind: "battleWon"）
 
 - triggered の `battleRole?: "attacker" | "blocker"` — onBattle を勝利時の役割で限定

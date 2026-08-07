@@ -5943,6 +5943,13 @@
       "turn": "opponent"
      }
     }
+   },
+   {
+    "id": "BS03-110-e2",
+    "kind": "koboOnBlock",
+    "levels": [
+     2
+    ]
    }
   ]
  },
