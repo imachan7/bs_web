@@ -9,6 +9,7 @@ import {
     findSpiritAny,
     matchesFamilyFilter,
     fireFieldEventTriggers,
+    fireSummonTrigger,
     fireTrigger,
     notifyNexusDeployed,
     requestCardChoice,
@@ -541,7 +542,7 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
             return
         }
         log(state, `${sourceName}：${getCard(target.cardId).name}の召喚時効果を再発揮する。`)
-        fireTrigger(state, owner, target, "onSummon")
+        fireSummonTrigger(state, owner, target)
         return
 }
 

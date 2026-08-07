@@ -2549,6 +2549,16 @@
       "count": 3
      }
     }
+   },
+   {
+    "id": "BS05-044-e2",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "immuneToOpponentSummonEffects"
+    }
    }
   ]
  },

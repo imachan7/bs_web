@@ -5502,6 +5502,24 @@
      },
      "count": 1
     }
+   },
+   {
+    "id": "BS03-103-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "winnerKeywordFilter": "awaken",
+    "selfMode": "source",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "sameBpAsBattleLoser": true
+     }
+    }
    }
   ]
  },

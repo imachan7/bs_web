@@ -276,10 +276,32 @@ export function isEffectBlocked(
     ) {
         return true
     }
+    // ③ 相手のスピリットの『このスピリットの召喚時』効果を受けない（BS05リトルナイト・ランスロットLv3）。
+    // 発生源がスピリットで、いま召喚時効果を解決中であり、その持ち主が対象の持ち主と異なるときだけ効く
+    const summonPid = state.resolvingSummonTriggerPid
+    if (summonPid !== undefined && sourceType === "spirit") {
+        const owner = ownerPidOfInstance(state, inst)
+        if (
+            owner !== undefined &&
+            owner !== summonPid &&
+            activeConstraints(state, owner, inst).some((c) => c.type === "immuneToOpponentSummonEffects")
+        ) {
+            return true
+        }
+    }
     // ① バトル中の効果免疫
     if (sourceType !== "spirit" && sourceType !== "magic") return false
     if (!isInCurrentBattle(state, inst)) return false
     return hasActiveGlobalConstraint(state, "battlingEffectImmune")
+}
+
+// 指定インスタンスがどちらのプレイヤーのフィールドにあるか（スピリット／ネクサス。無ければ undefined）
+function ownerPidOfInstance(state: GameState, inst: CardInstance): PlayerId | undefined {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const field = state.players[pid].field
+        if (field.spirits.includes(inst) || field.nexuses.includes(inst)) return pid
+    }
+    return undefined
 }
 
 // スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
@@ -727,6 +749,24 @@ function coreBonusFor(inst: CardInstance): number {
         if (e.kind !== "coreBonus") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
         bonus += e.amount
+    }
+    return bonus
+}
+
+// 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。
+// 効果文が「お互いのスピリット上に置かれたコアが」と陣営を限定していないため、**両陣営の発生源**を見る。
+// 走査は effectSources 経由＝このターンだけの仮想発生源（マジックが貸した継続効果）も含む
+function coreReturnBonusFor(state: GameState): number {
+    let bonus = 0
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, pid)) {
+            const level = currentLevel(source).level
+            for (const e of getCard(source.cardId).effects) {
+                if (e.kind !== "coreReturnBonus") continue
+                if (!effectActiveAtLevel(e.levels, level)) continue
+                bonus += e.amount
+            }
+        }
     }
     return bonus
 }
@@ -1392,7 +1432,13 @@ export function removeCores(
         return
     }
     const player = state.players[ownerPid]
-    const removed = Math.min(count, inst.cores)
+    // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
+    // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
+    const bonus = coreReturnBonusFor(state)
+    if (bonus > 0 && inst.cores > count) {
+        log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
+    }
+    const removed = Math.min(count + bonus, inst.cores)
     inst.cores -= removed
     player.reserve += removed
     log(
@@ -2132,6 +2178,15 @@ export function isTriggerSuppressed(
     return false
 }
 
+// 『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
+// 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
+// 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
+export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstance: CardInstance): void {
+    state.resolvingSummonTriggerPid = owner
+    fireTrigger(state, owner, selfInstance, "onSummon")
+    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+}
+
 export function fireTrigger(
     state: GameState,
     owner: PlayerId,
@@ -2347,6 +2402,13 @@ export function fireBattleWonTriggers(
             }
             // BS02エメラルドに輝く鍾乳洞Lv2：勝利したスピリットのコアが指定数以上のときのみ発火
             if (effect.winnerMinCores !== undefined && winnerInst.cores < effect.winnerMinCores) {
+                continue
+            }
+            // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
+            if (
+                effect.winnerKeywordFilter !== undefined &&
+                !spiritHasKeyword(state, winnerPid, winnerInst, effect.winnerKeywordFilter)
+            ) {
                 continue
             }
             const actionSelf = effect.selfMode === "source" ? inst : winnerInst

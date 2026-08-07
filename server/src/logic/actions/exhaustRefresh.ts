@@ -28,9 +28,13 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             log(state, `${sourceName}の疲労付与：BP参照元がいなかった。`)
             return
         }
-        const matchesLevel = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
+        // excludeTarget（BS01甲精ディース）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
+        // 疲労させる対象ではなく**除外する**対象。以降の候補判定から外し、明示ターゲット扱いもしない
+        const excludedId = action.excludeTarget ? targetInstanceId : undefined
+        const matchesLevel = (s: CardInstance) =>
+            s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
-        if (targetInstanceId) {
+        if (targetInstanceId && !action.excludeTarget) {
             const found = findSpiritAny(state, targetInstanceId)
             if (!found) {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -64,6 +68,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
         const matchesCandidate = (s: CardInstance) =>
             !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
+        // interactive の選択後に再入するときは excludeTarget を落とす。
+        // 残したままだと、プレイヤーが選んだ instanceId を「除外する対象」と誤読して自動選択に落ちてしまう
+        const { excludeTarget: _excludeTarget, ...actionForChoice } = action
         // anySide：「自分か相手のスピリット1体を疲労させる」（BS03-104 運命分かつ岐路／BS04-042 ドヴェルグ）。
         // 自分側は疲労免疫・装甲の対象外（既存の anySide 系と同じ非対称ルール）
         if (action.anySide) {
@@ -82,8 +89,8 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                     self,
                     `${sourceName}：疲労させるスピリットを選んでください`,
                     candidates,
-                    { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    { ...actionForChoice, count: 1 },
+                    action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
                 )
             ) {
                 return
@@ -124,8 +131,8 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                     self,
                     `${sourceName}の疲労付与：対象を選んでください`,
                     candidates,
-                    { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                    { ...actionForChoice, count: 1 },
+                    action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
                 )
             ) {
                 return

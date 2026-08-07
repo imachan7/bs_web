@@ -37,7 +37,7 @@ const VALID_TRIGGERS = new Set([
 const VALID_KINDS = new Set([
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
-    "globalConstraint", "coreBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
+    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
@@ -195,7 +195,7 @@ const FILTER_ACTIONS = new Set([
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

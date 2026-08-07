@@ -25,6 +25,7 @@ import {
     exhaustSpirit,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
+    fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
@@ -76,6 +77,9 @@ export function handleAction(
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)
+    // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で必ず落とす
+    // （選択を挟んで中断した召喚時効果も、解決しきったここでクリアされる）
+    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
     return result
 }
 
@@ -259,7 +263,7 @@ function doSummon(
     log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
-    fireTrigger(state, pid, inst, "onSummon")
+    fireSummonTrigger(state, pid, inst)
     // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
     if (!state.winner) resolveTensho(state, pid, inst)
     // フィールドからの「自分のスピリットが召喚されたとき」誘発（七龍帝の玉座Lv2／鋼葉の樹林Lv2）。
@@ -898,6 +902,7 @@ function resolveBattle(state: GameState): void {
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
     state.lastBattleDestroyedColors = []
     state.lastBattleDestroyedFamilies = []
+    state.lastBattleDestroyedBp = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColors = instColors(attacker)
@@ -941,6 +946,8 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedLevel = blockerLevel
         state.lastBattleDestroyedColors = instColors(blocker)
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
+        // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
+        state.lastBattleDestroyedBp = blockerBp
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
@@ -954,6 +961,7 @@ function resolveBattle(state: GameState): void {
     } else if (attackerValue < blockerValue) {
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
+        state.lastBattleDestroyedBp = attackerBp
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",

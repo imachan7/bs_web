@@ -675,6 +675,9 @@ resolveAction→passFlashPriority）。個別効果は `action` に載せるだ�
 
 `{ kind: "coreBonus", levels, amount }`。このスピリットに効果でコアが置かれるとき置く数を +amount（ボイド由来）。
 コアを置く各アクション（coreCharge / voidCoreToSelf / voidCoreToOther）が `placeCoresOnSpirit` 経由で参照。グラーバ。
+逆向きが `{ kind: "coreReturnBonus", levels, amount }`（効果でスピリットからリザーブへ置かれるコアを +amount。
+`removeCores`＝リザーブ行きの経路だけが見る。トラッシュ／ボイド行きには効かない。効果文が陣営を限定していないので
+**両陣営の発生源**を数える。置かれているコア数は超えない。BS02チャウーLv2）。
 ⚠️ かつて「マジックは32枚すべて構造化完了」と書かれていたが、**これも枚数ベースの誤った完了宣言**だった。
 実際には「メイン：〈固有効果〉／フラッシュ：〈BP+N〉」型のマジック48枚で**メイン側が丸ごと落ちていた**
 （フラッシュ側だけ構造化されていたため「そのカードは実装済み」に見えていた）。§4 を参照。
@@ -781,7 +784,11 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
   （キングタウロス大公 Lv2-3「アタック時に相手だけ破壊→ライフクラッシュ」）
 - `{ kind: "battleWon", role, levels, action }` — 持ち主のスピリットが指定役割で勝利したとき、
   フィールドのネクサス等から発火。**resolveAction の self には勝利したスピリットが渡る**
-  （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）
+  （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）。
+  勝者の絞り込み軸は vanillaWinnerOnly / winnerNameContains / winnerMinCores / winnerFamilyFilter /
+  **winnerKeywordFilter**（BS03熾烈極める最前線Lv2＝覚醒持ち）
+- 敗者の参照軸は `TargetFilter` の sameColorAsBattleLoser / sameFamilyAsBattleLoser /
+  **sameBpAsBattleLoser**（`GameState.lastBattleDestroyedBp` を exactBp へ解決する。記録が無ければ対象なし）
 
 ### 必ずアタック（constraint: mustAttack）
 
@@ -798,6 +805,10 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
 - `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
+- `immuneToOpponentSummonEffects` — このスピリットは、**相手のスピリットの**『このスピリットの召喚時』効果を受けない
+  （BS05リトルナイト・ランスロットLv3）。`fireSummonTrigger` が解決中だけ `GameState.resolvingSummonTriggerPid` を立て、
+  `isEffectBlocked` がそれを見て判定する。フラグは選択待ちを跨いでも残り、`handleAction` の事後フックが
+  選択の解決後にクリアする
 - `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter / costAtMostAttacker / **nonVanilla**）— このスピリットの
   アタックは指定色／キーワード持ち／コア数以下／**指定レベル**／**アタッカーのコスト以下**／
   **カードに効果の記述を持つ**スピリットにブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、

@@ -2984,6 +2984,14 @@
      2
     ],
     "amount": 1
+   },
+   {
+    "id": "BS02-055-e2",
+    "kind": "coreReturnBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1
    }
   ]
  },
