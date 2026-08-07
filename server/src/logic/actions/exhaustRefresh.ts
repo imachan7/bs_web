@@ -5,6 +5,7 @@ import type { CardInstance, Color, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     destroySpirit,
+    exhaustSpirit,
     findSpiritAny,
     isExhaustImmune,
     isImmuneToArea,
@@ -56,7 +57,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            found.inst.isRested = true
+            exhaustSpirit(state, found.pid, found.inst)
             log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
             return
         }
@@ -102,7 +103,10 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                         undefined,
                     )
                 if (!target) break
-                target.isRested = true
+                // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
+                // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
+                const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
+                exhaustSpirit(state, targetPid, target)
                 exhausted += 1
                 log(state, `${getCard(target.cardId).name}は疲労した。`)
             }
@@ -141,7 +145,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            target.isRested = true
+            exhaustSpirit(state, opp, target)
             log(state, `${getCard(target.cardId).name}は疲労した。`)
         }
         return
@@ -153,7 +157,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
         const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
         let exhausted = 0
         for (const pid of sides) {
-            for (const s of state.players[pid].field.spirits) {
+            for (const s of [...state.players[pid].field.spirits]) {
                 if (s.isRested) continue
                 const bp = effectiveBp(state, pid, s)
                 if (action.minBp !== undefined && bp < action.minBp) continue
@@ -163,7 +167,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
                 if (isEffectBlocked(state, s, srcType)) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) continue
-                s.isRested = true
+                exhaustSpirit(state, pid, s)
                 exhausted++
             }
         }
@@ -183,13 +187,13 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
         }
         let count = 0
         for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const s of state.players[pid].field.spirits) {
+            for (const s of [...state.players[pid].field.spirits]) {
                 if (currentLevel(s).level !== level) continue
                 if (s.isRested) continue
                 // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
                 if (isEffectBlocked(state, s, srcType)) continue
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) continue
-                s.isRested = true
+                exhaustSpirit(state, pid, s)
                 count++
             }
         }
@@ -258,12 +262,12 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color): void {
     const { state, owner, sourceName, srcColors, srcType } = ctx
     let exhausted = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const s of state.players[pid].field.spirits) {
+        for (const s of [...state.players[pid].field.spirits]) {
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
             if (isEffectBlocked(state, s, srcType)) continue
             if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
-            s.isRested = true
+            exhaustSpirit(state, pid, s)
             exhausted++
         }
     }
@@ -385,6 +389,32 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         log(
             state,
             `${player.name}の疲労スピリット${count}体を回復した。（このターンの間、回復したスピリットはアタック不可）`,
+        )
+        return
+}
+
+const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName } = ctx
+        // スクルディア：このスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。
+        // 指定は発生源（self）に記録し、self が疲労状態で持ち主のフィールドにいる間だけ効く
+        // （判定は EffectModules.isRefreshBlockedByMark。リフレッシュステップのみが見る）。
+        // 対象は実効BP最大の1体を自動選択する（アタック宣言中の疲労からも発火しうるため、
+        // ここで pendingChoice を立てない決定的簡略化）
+        if (!self) return
+        const candidates = state.players[opp].field.spirits.filter(
+            (s) => s.isRested && !isEffectBlocked(state, s, ctx.srcType) && !isImmuneToArea(s),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：相手に疲労状態のスピリットがいなかった。`)
+            return
+        }
+        const target = candidates.reduce((best, s) =>
+            effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+        )
+        self.noRefreshTargetInstanceId = target.instanceId
+        log(
+            state,
+            `${sourceName}は${getCard(target.cardId).name}を指定した。（${sourceName}が疲労状態でフィールドにいる間、回復できない）`,
         )
         return
 }
@@ -520,6 +550,7 @@ const handlers = {
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
     refreshAllOwn: refreshAllOwnHandler,
     refreshAllByCost: refreshAllByCostHandler,
+    markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
     refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,

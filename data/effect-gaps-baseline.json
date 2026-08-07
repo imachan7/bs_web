@@ -22,11 +22,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS02-042": {
-            "name": "スクルディア",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS02-055": {
             "name": "チャウー",
             "textBlocks": 2,
@@ -39,11 +34,6 @@
         },
         "BS02-081": {
             "name": "緑芽吹く原野",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS02-082": {
-            "name": "生み出される尖兵",
             "textBlocks": 2,
             "implCount": 1
         },
@@ -144,11 +134,6 @@
         },
         "BS05-056": {
             "name": "最古龍の顎",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-057": {
-            "name": "藍紫の虚空",
             "textBlocks": 2,
             "implCount": 1
         },

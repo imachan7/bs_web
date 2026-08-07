@@ -3279,6 +3279,23 @@
   "effects": [
    {
     "id": "BS05-057-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritExhausted",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "costFilter": {
+     "max": 1
+    },
+    "action": {
+     "type": "coreToTrashSelf",
+     "count": 2
+    }
+   },
+   {
+    "id": "BS05-057-e2",
     "kind": "effectGrant",
     "levels": [
      2

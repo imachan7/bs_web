@@ -82,6 +82,7 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "voidCoreToSelfPer",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
+    "markNoRefreshTarget",
 ])
 
 // action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。

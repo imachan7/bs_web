@@ -7,6 +7,7 @@ import {
     countEffectCounter,
     destroySpirit,
     dumpAllCoresTensho,
+    exhaustSpirit,
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
@@ -227,8 +228,8 @@ const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (
         // selfには転召の対象になった自分のスピリットが渡る
         if (!self) return
         if (chosenOption === TENSHO_SUBSTITUTE_REST) {
-            self.isRested = true
             log(state, `【転召】${getCard(self.cardId).name}は疲労し、コアをそのまま維持した。`)
+            exhaustSpirit(state, owner, self)
             return
         }
         // 「疲労せずコアを置く」：置換を飛ばして通常のコア移動を行う（再度の確認を出さない）

@@ -8,6 +8,7 @@ import {
     countEffectCounter,
     effectActiveAtLevel,
     effectiveBp,
+    exhaustSpirit,
     instHasColor,
     instanceSymbolCount,
     matchesFamilyFilter,
@@ -184,7 +185,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 log(state, `${sourceName}：疲労させる対象がいなかった。`)
                 return
             }
-            exhaustTarget.isRested = true
+            exhaustSpirit(state, owner, exhaustTarget)
             if (state.interactiveTargets) {
                 const buffCandidates = state.players[owner].field.spirits.map((s) => s.instanceId)
                 requestChoice(
@@ -233,7 +234,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
         const auto = restCandidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        auto.isRested = true
+        exhaustSpirit(state, owner, auto)
         const buffTarget = pickBpBuffTarget(state, owner)
         if (!buffTarget) {
             log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
@@ -271,8 +272,8 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        target.isRested = true
         const amount = effectiveBp(state, owner, target)
+        exhaustSpirit(state, owner, target)
         self.tempBpBuff += amount
         log(
             state,

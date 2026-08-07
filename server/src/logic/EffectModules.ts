@@ -328,15 +328,50 @@ export function checkExhaustOnCoreChange(
                 if (opts.isRemoval && !effect.onRemove) continue
                 if (!opts.viaEffect && !effect.anyPhase && state.phase !== "main") continue
                 if (effect.colorFilter !== undefined && !instHasColor(affectedInst, effect.colorFilter)) continue
-                affectedInst.isRested = true
                 log(
                     state,
                     `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
                 )
+                exhaustSpirit(state, affectedPid, affectedInst)
                 return
             }
         }
     }
+}
+
+// スピリットを疲労させる唯一の入口。すでに疲労していれば何もしない（誘発も起きない）。
+// 実際に疲労したときだけ「疲労したとき」のフィールドイベントを発火する。
+// アタック宣言・ブロック宣言・効果による疲労のいずれもここを通す
+// （疲労の代入が13箇所に散っていて誘発点が無かったのを 2026-08-07 に一元化）。
+export function exhaustSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    if (inst.isRested) return
+    inst.isRested = true
+    fireExhaustedTriggers(state, ownerPid, inst)
+}
+
+// 「スピリットが疲労したとき」のフィールドイベント発火。
+// ownSpiritExhausted は持ち主のフィールドから、anySpiritExhausted は両者のフィールドから
+// （anyNexusDestroyed / ownNexusDestroyed と同じ組み合わせ）。self には疲労したスピリットを渡す。
+// アタック宣言の疲労だけは、アタッカーが効果で消滅したときの「バトル不成立」判定を既存のガードに
+// 任せるため doAttack 側で明示的にこの関数を呼んでいる（exhaustSpirit は経由しない）
+export function fireExhaustedTriggers(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    // 疲労したスピリットのコスト（道化師クランの付与コストも含む）を costFilter 用に渡す
+    const eventInfo = { costs: instAllCosts(inst) }
+    const colors = instColors(inst)
+    if (state.winner) return
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
+    if (state.winner) return
+    fireFieldEventTriggers(state, ownerPid, "anySpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
+    if (state.winner) return
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "anySpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
+}
+
+// スクルディア：相手のスピリットから「回復できない」と指定されていて、
+// その指定元が**疲労状態で持ち主のフィールドにいる**間は、リフレッシュステップで回復しない
+export function isRefreshBlockedByMark(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
+    return state.players[opponentOf(pid)].field.spirits.some(
+        (s) => s.isRested && s.noRefreshTargetInstanceId === inst.instanceId,
+    )
 }
 
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
@@ -560,8 +595,8 @@ export function dumpAllCoresTensho(
             return
         }
         // 自動時（テスト）はコアを失わない側を選ぶ決定的簡略化
-        inst.isRested = true
         log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
+        exhaustSpirit(state, ownerPid, inst)
         return
     }
     const player = state.players[ownerPid]
@@ -2497,12 +2532,22 @@ export function fireFieldEventTriggers(
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
             if (effect.magicCostEquals !== undefined && eventInfo?.magicCost !== effect.magicCostEquals) continue
             if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
+            // 「このスピリットが疲労したとき」（スクルディア）：イベント対象が発生源自身のときだけ
+            if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
             if (effect.familyFilter !== undefined) {
                 // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
                 const wanted = Array.isArray(effect.familyFilter)
                     ? effect.familyFilter
                     : [effect.familyFilter]
-                if (!wanted.some((f) => eventInfo?.families?.includes(f))) continue
+                const ok =
+                    eventInfo?.families !== undefined
+                        ? // 破壊/召喚イベント：呼び出し側が渡した**カード静的な系統**で判定する（従来どおり）
+                          wanted.some((f) => eventInfo.families?.includes(f))
+                        : // families を渡さないイベント（疲労）：継続付与された系統も含めて判定する
+                          // （BS02生み出される尖兵：自身のLv1が与える「武装」を Lv2 が見る）
+                          selfOverride !== undefined &&
+                          matchesFamilyFilter(state, selfOverride.pid, selfOverride.inst, effect.familyFilter)
+                if (!ok) continue
             }
             // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）
             if (

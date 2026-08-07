@@ -2284,6 +2284,19 @@
     "constraint": {
      "type": "noRefresh"
     }
+   },
+   {
+    "id": "BS02-042-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     2,
+     3
+    ],
+    "eventTargetIsSelf": true,
+    "action": {
+     "type": "markNoRefreshTarget"
+    }
    }
   ]
  },
@@ -4574,6 +4587,20 @@
     "colorFilter": "white",
     "costFilter": 2,
     "phase": "attack"
+   },
+   {
+    "id": "BS02-082-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "familyFilter": "武装",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
    }
   ]
  },

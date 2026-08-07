@@ -22,7 +22,9 @@ import {
     effectActiveAtLevel,
     effectiveBp,
     emitEvent,
+    exhaustSpirit,
     fireBattleWonTriggers,
+    fireExhaustedTriggers,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
@@ -500,6 +502,10 @@ function doAttack(
             costs: instAllCosts(inst),
         })
     }
+    // フィールドイベント誘発「スピリットが疲労したとき」（BS05藍紫の虚空Lv1）。
+    // アタック宣言による疲労（448行目）の分をここで発火する。アタッカーが効果で消滅する可能性があるため、
+    // 直後の「バトル不成立」判定（既存ガード）にそのまま乗るこの位置に置いている
+    if (!state.winner) fireExhaustedTriggers(state, pid, inst)
     // アタッカーが維持コア割れで消滅した場合はバトル不成立（ライフ受け・ブロックの対象が存在しないため）
     if (state.battle && !findSpirit(player, instanceId)) {
         log(state, `${card.name}は消滅したため、バトルは発生しなかった。`)
@@ -895,7 +901,17 @@ function resolveBattle(state: GameState): void {
     const skipRest = activeConstraints(state, defenderPid, blocker).some(
         (c) => c.type === "noRestWhenBlockingColor" && attackerColors.includes(c.color),
     )
-    if (!skipRest) blocker.isRested = true
+    if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
+    // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
+    if (state.winner) return
+    if (
+        !findSpirit(state.players[attackerPid], attacker.instanceId) ||
+        !findSpirit(state.players[defenderPid], blocker.instanceId)
+    ) {
+        clearBattle(state)
+        return
+    }
     const attackerBp = effectiveBp(state, attackerPid, attacker)
     const blockerBp = effectiveBp(state, defenderPid, blocker)
     // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
