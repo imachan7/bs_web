@@ -475,6 +475,10 @@ export function resolveKoboOnBattleEnd(
     notifyHandGained(state, attackerPid, recovered)
 }
 
+// 【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
+export const TENSHO_SUBSTITUTE_REST = "疲労してコアを維持する"
+export const TENSHO_SUBSTITUTE_DUMP = "疲労せずコアを置く"
+
 // 【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 // 自分の他スピリットからコストがminCost以上の候補を集め、上のコアすべてをdestへ置く
 // （0体=不発、1体=自動選択、2体以上はinteractiveTargets時のみpendingChoice、それ以外はコスト最大を決定的選択）。
@@ -530,10 +534,32 @@ export function dumpAllCoresTensho(
     ownerPid: PlayerId,
     inst: CardInstance,
     dest: "trash" | "void",
+    skipSubstitute = false,
 ): void {
-    // constraint "tenshoCoreSubstitute"（BS05白亜の竜使いアルブス）：疲労していなければ、
-    // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）
-    if (!inst.isRested && activeConstraints(state, ownerPid, inst).some((c) => c.type === "tenshoCoreSubstitute")) {
+    // constraint "tenshoCoreSubstitute"（BS05の竜使い6枚）：疲労していなければ、
+    // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）。
+    // 「疲労させることで」は任意なので、実対戦では疲労するかコアを置くかをプレイヤーに選ばせる
+    // （skipSubstitute=true は「コアを置く」を選んだ後の再入。tenshoSubstituteChoice からのみ渡る）
+    if (
+        !skipSubstitute &&
+        !inst.isRested &&
+        activeConstraints(state, ownerPid, inst).some((c) => c.type === "tenshoCoreSubstitute")
+    ) {
+        if (state.interactiveTargets) {
+            requestChoice(
+                state,
+                ownerPid,
+                `【転召】${getCard(inst.cardId).name}：疲労してコアを維持しますか？`,
+                [],
+                false,
+                { type: "tenshoSubstituteChoice", dest },
+                inst,
+                "option",
+                [TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP],
+            )
+            return
+        }
+        // 自動時（テスト）はコアを失わない側を選ぶ決定的簡略化
         inst.isRested = true
         log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
         return

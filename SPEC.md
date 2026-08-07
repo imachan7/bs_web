@@ -796,6 +796,12 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
   指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
   doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
   クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
+- `tenshoCoreSubstitute` — このスピリットが【転召】の対象になったとき、**疲労することで**上のコアすべてを
+  指定場所に置いたものとして扱う（実際にはコアを失わない代替。BS05の竜使い6枚＝各色1枚。
+  BS05-007/017/026/034/043/053）。「〜することで」は**任意**なので、`dumpAllCoresTensho` は
+  interactiveTargets 時に「疲労してコアを維持する／疲労せずコアを置く」の option choice
+  （action `tenshoSubstituteChoice`）を出す。すでに疲労中はコストを払えないため確認を出さず通常の転召になる。
+  自動時（テスト）は疲労側を選ぶ決定的簡略化
 
 ### アタックステップ終了（endAttackStep）
 
@@ -894,6 +900,19 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 
 非対話時（smoke）の `anySide` の自動選択は**両陣営から実効BP最大の1体**（同値は相手側優先）。
 自分自身が最大BPなら自分を対象に取る。実対戦は `interactiveTargets` が有効なのでプレイヤーが選ぶ。
+
+**「〜することで」は「〜できる」と同じ任意発動**（2026-08-07 ユーザー指摘）。
+『コア1個をボイドに置く**ことで**…する』『このスピリットを疲労させる**ことで**…』は、
+コストを払うかどうかをプレイヤーが選べる効果であって、条件を満たしたら自動で払う効果ではない。
+
+| 器 | 任意発動の書き方 |
+| :-- | :-- |
+| `triggered` / `step` / `fieldEvent` 等の action 持ち | **`"optional": true`** を書く（`requestActivationConfirm` が「発動しますか？」を出す） |
+| `activated`（`cost` を持つ起動能力） | 器そのものがプレイヤー起動なので追加不要 |
+| constraint 等の置換効果 | ハンドラ側で option choice を出す（`tenshoCoreSubstitute` が実例） |
+
+`costReserveToVoid` のような「アクション側に埋めたコスト」を書いても、それだけでは**強制**になる。
+カイザーアトラス皇帝（BS04-X15）はこれで自動発動になっていた（2026-08-07 に `optional: true` へ修正）。
 
 ---
 

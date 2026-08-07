@@ -6304,7 +6304,7 @@
     "levels": [
      2
     ],
-    "optional": false,
+    "optional": true,
     "action": {
      "type": "lifeCrush",
      "count": 2,

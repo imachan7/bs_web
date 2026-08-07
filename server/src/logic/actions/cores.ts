@@ -23,6 +23,7 @@ import {
     removeCoresToVoid,
     requestCardChoice,
     requestChoice,
+    TENSHO_SUBSTITUTE_REST,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
@@ -217,6 +218,21 @@ const tenshoCoreDumpHandler: ActionHandler<"tenshoCoreDump"> = (ctx, action) => 
             return
         }
         dumpAllCoresTensho(state, owner, target, action.dest)
+        return
+}
+
+const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (ctx, action) => {
+    const { state, owner, self, chosenOption } = ctx
+        // 【転召】置換（BS05の竜使い）の任意発動のpendingChoice再開専用（cards.jsonには書かない）。
+        // selfには転召の対象になった自分のスピリットが渡る
+        if (!self) return
+        if (chosenOption === TENSHO_SUBSTITUTE_REST) {
+            self.isRested = true
+            log(state, `【転召】${getCard(self.cardId).name}は疲労し、コアをそのまま維持した。`)
+            return
+        }
+        // 「疲労せずコアを置く」：置換を飛ばして通常のコア移動を行う（再度の確認を出さない）
+        dumpAllCoresTensho(state, owner, self, action.dest, true)
         return
 }
 
@@ -1387,6 +1403,7 @@ const handlers = {
     coreRemoveSelf: coreRemoveSelfHandler,
     coreToTrashSelf: coreToTrashSelfHandler,
     tenshoCoreDump: tenshoCoreDumpHandler,
+    tenshoSubstituteChoice: tenshoSubstituteChoiceHandler,
     coreCharge: coreChargeHandler,
     coreGain: coreGainHandler,
     coreGainPer: coreGainPerHandler,

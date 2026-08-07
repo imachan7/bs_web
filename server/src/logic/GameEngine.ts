@@ -805,6 +805,13 @@ function drainChoiceQueue(
     pid: PlayerId,
     queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
 ): string | null {
+    // 直前のアクションが新しい選択待ちを立てていたら、消化せずそちらへ引き継ぐ
+    // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
+    // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
+    if (state.pendingChoice) {
+        state.pendingChoice.queue.push(...queue)
+        return null
+    }
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i]
         if (!item) continue
