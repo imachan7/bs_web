@@ -4636,6 +4636,21 @@
      "count": 1,
      "countPerOpponentNexus": true
     }
+   },
+   {
+    "id": "BS05-X17-e3",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "nonVanilla": true,
+     "requireOwnCostCountAtLeast": {
+      "cost": 2,
+      "count": 3
+     }
+    }
    }
   ]
  },

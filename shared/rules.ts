@@ -635,6 +635,13 @@ export function activeConstraints(
             const color = c.requireOwnFieldColorNexus
             return board.players[pid].field.nexuses.some((n) => instHasColor(n, color))
         })
+        // unblockableBy の条件つきその2（BS05幻獣王リーンLv3：自分のコスト2のスピリットが3体以上いる間だけ）。
+        // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
+        .filter((c) => {
+            if (c.type !== "unblockableBy" || c.requireOwnCostCountAtLeast === undefined) return true
+            const { cost, count } = c.requireOwnCostCountAtLeast
+            return board.players[pid].field.spirits.filter((s) => instHasCost(s, cost)).length >= count
+        })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []

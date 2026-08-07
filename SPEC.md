@@ -786,10 +786,14 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
 - `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
-- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter / costAtMostAttacker）— このスピリットの
-  アタックは指定色／キーワード持ち／コア数以下／**指定レベル**／**アタッカーのコスト以下**のスピリットに
-  ブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、スピノアックス＝神速、
-  悪魔スプラー・デースペル＝レベル基準、ポテンシャルパワー＝相対コスト）
+- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter / costAtMostAttacker / **nonVanilla**）— このスピリットの
+  アタックは指定色／キーワード持ち／コア数以下／**指定レベル**／**アタッカーのコスト以下**／
+  **カードに効果の記述を持つ**スピリットにブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、
+  スピノアックス＝神速、悪魔スプラー・デースペル＝レベル基準、ポテンシャルパワー＝相対コスト、
+  BS05幻獣王リーンLv3＝効果持ち）。
+  条件つきの2軸は `activeConstraints` が判定して制約自体を外す:
+  `requireOwnFieldColorNexus`（持ち主の場に指定色のネクサスがある間。鷹人ホークアイLv2）／
+  `requireOwnCostCountAtLeast`（持ち主の場に指定コストのスピリットがN体以上いる間。幻獣王リーンLv3＝コスト2が3体以上）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
 - `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp）— アタック時に条件を満たす相手スピリットを

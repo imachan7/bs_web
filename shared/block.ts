@@ -6,6 +6,7 @@
 // エラー理由の文字列を返し、ブロック可能なら null を返す（サーバーはその文字列をそのまま拒否理由に使う）。
 import type { CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
+import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
@@ -14,6 +15,7 @@ import {
     instAllCosts,
     instHasColor,
     instHasCost,
+    isVanillaCard,
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
@@ -78,6 +80,11 @@ export function canBlock(
                 instAllCosts(blockerInst).some((b) => instAllCosts(attackerInst).some((a) => b <= a))
             ) {
                 return "このスピリットは同じか低いコストのスピリットにブロックされません"
+            }
+            // BS05幻獣王リーンLv3：カードに効果の記述を持つスピリットにブロックされない
+            // （バニラ＝効果の記述を持たないスピリットならブロックできる）
+            if (c.nonVanilla && !isVanillaCard(card(blockerInst.cardId))) {
+                return "このスピリットは効果を持つスピリットにブロックされません"
             }
         }
     }

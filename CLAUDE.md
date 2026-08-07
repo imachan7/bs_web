@@ -69,6 +69,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   実装を進めたら `npm run gaps:update` でベースラインを縮める（消し忘れも検出される）。
   **意図的に実装しない場合は `data/card-notes.json` に理由を書く**（黙って落とさない）。
   全体像を見るときは `npm run gaps:report`
+- **`validate:gaps` は「対象レベルの不一致」も見る**（カテゴリ4。2026-08-07 追加）。
+  効果テキストの見出し（`Lv1･Lv2『…』`）が要求するレベル指定に対応する `effects` エントリが無いと落ちる。
+  **ここはベースラインを持たず、常にゼロを維持する**。エントリ数が足りないだけならカテゴリ1が拾うので
+  重複しては出ない。実装を読んで誤検出だと確認できたものだけ
+  `scripts/check-effect-gaps.ts` の `LEVEL_MISMATCH_VERIFIED` に**理由つきで**登録する。
+  この検査で、ブロック数チェックをすり抜けていた BS05-X17 幻獣王リーン Lv3 が発見された
+  （【キーワード】ブロックが見出しとして数えられないため、3ブロック中2エントリでも不足に見えなかった）
 
 ## コードスタイル
 
