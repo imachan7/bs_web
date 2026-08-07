@@ -416,6 +416,140 @@
   ]
  },
  {
+  "cardId": "BS06-025",
+  "name": "メェ～ポン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-026",
+  "name": "カラカロッサム",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2･Lv3『このスピリットの破壊時』\nこのターンの間、自分のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-026-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-026-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "bpBuffAll",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-027",
+  "name": "ガゼルケイド",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
   "cardId": "BS06-028",
   "name": "ガブノハシ",
   "type": "spirit",
@@ -476,6 +610,206 @@
     "optional": false
    }
   ]
+ },
+ {
+  "cardId": "BS06-029",
+  "name": "メイパロット",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nボイドからコア1個を自分のスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS06-029-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-030",
+  "name": "働きアントマン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人",
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-030-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-031",
+  "name": "ミツジャラシ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS06-031-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-032",
+  "name": "ウッディコング",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
  },
  {
   "cardId": "BS06-033",
@@ -551,6 +885,68 @@
       "ownFamily": "樹魔"
      },
      "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-035",
+  "name": "ツクシンモア",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『このスピリットの召喚時』\n相手は、相手の手札1枚を破棄する。",
+  "effects": [
+   {
+    "id": "BS06-035-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS06-035-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 1
     },
     "optional": false
    }
@@ -718,6 +1114,66 @@
   ]
  },
  {
+  "cardId": "BS06-081",
+  "name": "賢者の樹の実",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手のスピリットによって自分のライフが減ったとき、ボイドからコア1個を自分のリザーブに置く。\nLv2『自分のエンドステップ』\n自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS06-081-e1",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS06-081-e2",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshAllOwn"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-091",
   "name": "バスタージャベリン",
   "type": "magic",
@@ -828,6 +1284,38 @@
       "maxBp": 3000
      },
      "count": 3
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-100",
+  "name": "ソーンプリズン",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手は、相手のスピリット2体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS06-100-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true
     }
    }
   ]
