@@ -5054,6 +5054,18 @@
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分は、ネクサスの配置に支払うコストを、コスト1につき、自分のデッキを上から1枚破棄することで支払うことができる。\nLv2\n自分のフィールドにネクサスが配置されるたび、ボイドから、コア1個を自分のリザーブに置く。",
   "effects": [
    {
+    "id": "BS04-088-e1",
+    "kind": "nexusCostMillPay",
+    "levels": [
+     1,
+     2
+    ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   },
+   {
     "id": "BS04-088-e2",
     "kind": "fieldEvent",
     "event": "ownNexusDeployed",

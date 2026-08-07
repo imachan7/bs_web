@@ -158,6 +158,27 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
     return false
 }
 
+// 栄光の表彰台Lv1（kind:"nexusCostMillPay"）：ネクサスの配置コストを
+// 「コスト1につきデッキを上から1枚破棄」で支払える発生源が場にあるか。
+// **デッキの残り枚数による上限は呼び出し側でかける**（Board にデッキ枚数が無いため。
+// サーバーは player.deck.length、クライアントは view の deckCount を使う）
+export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "nexusCostMillPay") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 // マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
 // レベル有効・色一致（またはscope一致）・phaseTurn一致の発生源があるかを調べる
 // （薔薇人バロッサ：自分のアタックステップに自分の黄マジックカードを無償化）。
