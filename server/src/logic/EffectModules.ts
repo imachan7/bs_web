@@ -58,6 +58,7 @@ import {
     checkAuraCondition,
     costCantAct,
     countAuraCounter,
+    countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
@@ -92,6 +93,7 @@ export {
     checkAuraCondition,
     costCantAct,
     countAuraCounter,
+    countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
@@ -1937,8 +1939,8 @@ export function pickOwnKeywordTarget(
 }
 
 // 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
-function countExhaustedEnemies(state: GameState, opp: PlayerId): number {
-    return state.players[opp].field.spirits.filter((s) => s.isRested).length
+function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId): number {
+    return countSpiritsWeighted(state, owner, opp, (s) => s.isRested)
 }
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ集計（BS03バッチで統一）。
@@ -1955,14 +1957,12 @@ export function countEffectCounter(
 ): number {
     const opp = opponentOf(owner)
     if (counter === "readyEnemies") {
-        return state.players[opp].field.spirits.filter((s) => !s.isRested).length
+        return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested)
     }
-    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, opp)
+    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp)
     if (counter === "opponentHand") return state.players[opp].hand.length
     if (counter === "ownOtherSpirits") {
-        return state.players[owner].field.spirits.filter(
-            (s) => s.instanceId !== self?.instanceId,
-        ).length
+        return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
@@ -1972,13 +1972,13 @@ export function countEffectCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return state.players[owner].field.spirits.filter((s) => s.isRested).length
+        return countSpiritsWeighted(state, owner, owner, (s) => s.isRested)
     }
     if (counter === "allExhausted") {
         // 両陣営の疲労スピリット数の合計（BS05大甲帝デスタウロス：疲労状態のスピリット1体につき）
         return (
-            state.players[owner].field.spirits.filter((s) => s.isRested).length +
-            countExhaustedEnemies(state, opp)
+            countSpiritsWeighted(state, owner, owner, (s) => s.isRested) +
+            countExhaustedEnemies(state, owner, opp)
         )
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
@@ -1991,21 +1991,19 @@ export function countEffectCounter(
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
-        return state.players[owner].field.spirits.filter((s) =>
+        return countSpiritsWeighted(state, owner, owner, (s) =>
             spiritHasKeyword(state, owner, s, counter.ownKeyword),
-        ).length
+        )
     }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return state.players[owner].field.spirits.filter((s) =>
+        return countSpiritsWeighted(state, owner, owner, (s) =>
             cardNameContains(s, counter.ownNameIncludes),
-        ).length
+        )
     }
     // { ownColor: Color }：自分フィールドの指定色スピリット数
     if ("ownColor" in counter) {
-        return state.players[owner].field.spirits.filter((s) =>
-            instHasColor(s, counter.ownColor),
-        ).length
+        return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor))
     }
     // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー）
     if ("ownNexusColor" in counter) {
@@ -2597,9 +2595,9 @@ export function fireStepTriggers(
                 if (effect.condition && typeof effect.condition === "object" && "ownFamilyCountAtLeast" in effect.condition) {
                     // 王蛇の住処：自分のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるときのみ発火
                     const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = state.players[pid].field.spirits.filter((s) =>
+                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
                         matchesFamilyFilter(state, pid, s, family),
-                    ).length
+                    )
                     if (total < count) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownHandAtLeast" in effect.condition) {
@@ -2608,15 +2606,15 @@ export function fireStepTriggers(
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownRefreshedSpiritsAtLeast" in effect.condition) {
                     // 紫水晶の森Lv2：自分のフィールドに回復状態のスピリットが指定体数以上いるときのみ発火
-                    const refreshed = state.players[pid].field.spirits.filter((s) => !s.isRested).length
+                    const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested)
                     if (refreshed < effect.condition.ownRefreshedSpiritsAtLeast) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
-                    const total = state.players[pid].field.spirits.filter((s) =>
+                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
                         names.some((n) => cardNameContains(s, n)),
-                    ).length
+                    )
                     if (total < count) continue
                 }
                 // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
@@ -2765,9 +2763,9 @@ export function fireFieldEventTriggers(
                 } else if ("ownFamilyCountAtLeast" in effect.condition) {
                     // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上
                     const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = player.field.spirits.filter((s) =>
+                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
                         matchesFamilyFilter(state, pid, s, family),
-                    ).length
+                    )
                     if (total < count) continue
                 } else {
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
@@ -3151,9 +3149,9 @@ function resolveMagicEffects(
             if ("ownFamilyCountAtLeast" in effect.condition) {
                 // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
                 const { family, count } = effect.condition.ownFamilyCountAtLeast
-                const total = state.players[owner].field.spirits.filter((s) =>
+                const total = countSpiritsWeighted(state, owner, owner, (s) =>
                     spiritHasFamily(state, owner, s, family),
-                ).length
+                )
                 if (total < count) {
                     log(
                         state,

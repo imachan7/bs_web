@@ -401,6 +401,55 @@ export function matchesFamilyFilter(
 
 // オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える。
 // "targetArmorColors" のみ対象（targetInst）基準（発生源ではない）のため、呼び出し側から渡す
+// ---- スピリットの「数を数える」ときの重み ----
+//
+// 「このスピリットは◯体分として数える」（BS05シーサーズLv2＝2体分／BS05スリーカード＝このターン3体分）を
+// **すべての数え上げに一元的に効かせる**ための重み。通常のスピリットは 1 を返すので、
+// 該当カードが場にない限り従来と完全に同じ結果になる。
+//
+// countingPid ＝ 数えている効果の持ち主。カードの効果文は「**自分の**スピリット/マジック/ネクサスの効果で
+// 数えるとき」と限定しているため、数える側が重みの持ち主でなければ 1 のまま。
+// なお「スピリットの効果か・ネクサスの効果か・マジックの効果か」の区別（シーサーズはネクサス除外、
+// スリーカードはマジック除外）は簡略化して見ていない（card-notes に記載）。
+export function spiritCountWeight(
+    board: Board,
+    countingPid: PlayerId,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): number {
+    let weight = 1
+    // シーサーズLv2：持ち主自身の効果で数えるときだけ N 体分
+    if (countingPid === ownerPid) {
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "countAsMultiple") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            weight = Math.max(weight, effect.count)
+        }
+    }
+    // スリーカード：このターンの間、印を付けた側の効果でだけ N 体分（相手のスピリットにも付けられる）
+    if (inst.countAsThisTurn && inst.countAsThisTurn.pid === countingPid) {
+        weight = Math.max(weight, inst.countAsThisTurn.count)
+    }
+    return weight
+}
+
+// ownerPid のフィールドで predicate に合うスピリットを、上記の重みつきで数える。
+// **効果が「スピリットの数を数える」箇所はすべてこれを通すこと**（素の .filter().length を使わない）。
+// ゲームのルールとしての数え上げ（フィールドに置けるスピリット数の上限など）は対象外なので従来どおり
+export function countSpiritsWeighted(
+    board: Board,
+    countingPid: PlayerId,
+    ownerPid: PlayerId,
+    predicate: (inst: CardInstance) => boolean = () => true,
+): number {
+    let total = 0
+    for (const s of board.players[ownerPid].field.spirits) {
+        if (!predicate(s)) continue
+        total += spiritCountWeight(board, countingPid, ownerPid, s)
+    }
+    return total
+}
+
 export function countAuraCounter(
     board: Board,
     sourcePid: PlayerId,
@@ -416,21 +465,21 @@ export function countAuraCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return board.players[sourcePid].field.spirits.filter((s) => s.isRested).length
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested)
     }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return board.players[sourcePid].field.spirits.filter((s) =>
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
             cardNameContains(s, counter.ownNameIncludes),
-        ).length
+        )
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
-    return board.players[sourcePid].field.spirits.filter((s) =>
+    return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
         matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
-    ).length
+    )
 }
 // オーラの発動条件を、発生源の持ち主（sourcePid）基準で判定する
 export function checkAuraCondition(
@@ -718,7 +767,7 @@ export function activeConstraints(
         .filter((c) => {
             if (c.type !== "unblockableBy" || c.requireOwnCostCountAtLeast === undefined) return true
             const { cost, count } = c.requireOwnCostCountAtLeast
-            return board.players[pid].field.spirits.filter((s) => instHasCost(s, cost)).length >= count
+            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost)) >= count
         })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
@@ -892,7 +941,7 @@ export function hasMagicImmunity(
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
-                const matchCount = player.field.spirits.filter((s) => instHasCost(s, cost)).length
+                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
                 if (matchCount < count) continue
             }
             return true

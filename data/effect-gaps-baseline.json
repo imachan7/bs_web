@@ -11,16 +11,6 @@
             "name": "ゴーレムクラフト",
             "textBlocks": 2,
             "implCount": 1
-        },
-        "BS05-038": {
-            "name": "シーサーズ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-079": {
-            "name": "スリーカード",
-            "textBlocks": 1,
-            "implCount": 0
         }
     }
 }

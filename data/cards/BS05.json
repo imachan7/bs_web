@@ -2198,6 +2198,14 @@
      "type": "summonFromHandFree",
      "costFilter": 2
     }
+   },
+   {
+    "id": "BS05-038-e2",
+    "kind": "countAsMultiple",
+    "levels": [
+     2
+    ],
+    "count": 2
    }
   ]
  },
@@ -4495,7 +4503,18 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nスピリット1体を指定する。\nこのターンの間、その指定されたスピリットは、自分のスピリット/ネクサスの効果で数を数えるとき、3体分として数える。\nこの効果は、メインステップで使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-079-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "countAsMultipleThisTurn",
+     "count": 3,
+     "anySide": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS05-080",
