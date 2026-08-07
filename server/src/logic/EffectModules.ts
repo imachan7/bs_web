@@ -2470,6 +2470,9 @@ export function fireBattleWonTriggers(
         for (const effect of card.effects) {
             if (effect.kind !== "battleWon") continue
             if (effect.role !== "any" && effect.role !== role) continue
+            // 『このスピリットのバトル時』：発生源自身が勝利したときだけ発火する（BS01要塞龍ギガLv2）。
+            // 同名の別個体が場にいても、勝っていない側では発火させない
+            if (effect.selfOnly && inst.instanceId !== winnerInst.instanceId) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
@@ -2501,6 +2504,17 @@ export function fireBattleWonTriggers(
                 continue
             }
             const actionSelf = effect.selfMode === "source" ? inst : winnerInst
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
+            if (effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(
+                    state,
+                    winnerPid,
+                    `${getCard(inst.cardId).name}の効果を発動しますか？`,
+                    effect.action,
+                    actionSelf,
+                )
+                return
+            }
             resolveAction(state, winnerPid, actionSelf, effect.action)
             if (state.winner) return
             if (state.pendingChoice) return
@@ -2534,10 +2548,13 @@ const STEP_LABELS: Record<Phase, string> = {
 // 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
 // refreshedInstanceIds はリフレッシュステップで実際に回復（isRested: true → false）した
 // インスタンスの集合（PhaseManagerが渡す）。selfWasRefreshedThisStep 条件の判定に使う（省略可）
+// timing は「ステップ開始時（省略時＝"enter"）」と「ステップ終了時（"end"）」の呼び分け。
+// データ側の effect.timing が未指定なら "enter" 扱いなので、既存の呼び出しは影響を受けない
 export function fireStepTriggers(
     state: GameState,
     step: Phase,
     refreshedInstanceIds?: Set<string>,
+    timing: "enter" | "end" = "enter",
 ): void {
     const order: PlayerId[] = [
         state.turnPlayer,
@@ -2552,6 +2569,7 @@ export function fireStepTriggers(
             for (const effect of card.effects) {
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue
+                if ((effect.timing ?? "enter") !== timing) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
@@ -2586,6 +2604,11 @@ export function fireStepTriggers(
                     // 水蛇シーサーペンタ：持ち主の手札が指定枚数以上のときのみ発火（Lvごとに閾値が変わる）
                     if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "ownRefreshedSpiritsAtLeast" in effect.condition) {
+                    // 紫水晶の森Lv2：自分のフィールドに回復状態のスピリットが指定体数以上いるときのみ発火
+                    const refreshed = state.players[pid].field.spirits.filter((s) => !s.isRested).length
+                    if (refreshed < effect.condition.ownRefreshedSpiritsAtLeast) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -2607,7 +2630,7 @@ export function fireStepTriggers(
                     // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
                     // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
                     // カード名を含めることでUI側のホバー表示も効く
-                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}）`)
+                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
                     resolveAction(state, pid, inst, effect.action)
                 }
                 if (state.winner) return

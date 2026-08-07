@@ -4430,6 +4430,23 @@
     "cost": {
      "oneCoreToVoid": true
     }
+   },
+   {
+    "id": "BS02-079-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "timing": "end",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownRefreshedSpiritsAtLeast": 3
+    },
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
    }
   ]
  },

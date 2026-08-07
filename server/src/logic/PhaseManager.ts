@@ -118,6 +118,11 @@ export function toAttackPhase(state: GameState): void {
 
 // ターン終了処理：エンドステップを経て相手のターンを開始する
 export function endTurn(state: GameState): void {
+    // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
+    // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
+    if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
+    if (state.winner) return
+
     state.phase = "end"
     fireStepTriggers(state, "end")
     if (state.winner) return

@@ -4,6 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { coresForLevel, getCard, log, minLevelCores } from "../GameState"
 import {
+    checkExhaustOnCoreChange,
     countEffectCounter,
     destroySpirit,
     dumpAllCoresTensho,
@@ -1315,8 +1316,13 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
 // チェンジングコア：対象スピリットのコアを1個だけ残し、残りを同じフィールドの別のスピリットへ移す。
 // 「別のスピリット」の指定はフィールドの先頭側（対象自身を除く）に固定した決定的簡略化
 const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    const found = targetInstanceId
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    // selfTarget：対象を発生源自身に固定する（『このスピリット上のコアを』。BS01要塞龍ギガLv2）
+    const found = action.selfTarget
+        ? self
+            ? { pid: owner, inst: self }
+            : null
+        : targetInstanceId
         ? findSpiritAny(state, targetInstanceId)
         : action.anySide
           ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
@@ -1333,9 +1339,13 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは1個以下で移せなかった。`)
         return
     }
-    const dest = state.players[pid].field.spirits.find((s) => s.instanceId !== inst.instanceId)
+    // 移し先は同じフィールドの別のスピリット（先頭側）。allowNexusDest 指定時は、
+    // スピリットがいなければ自分のネクサス（先頭側）にも置ける（要塞龍ギガ＝「他のスピリットかネクサスに」）
+    const dest =
+        state.players[pid].field.spirits.find((s) => s.instanceId !== inst.instanceId) ??
+        (action.allowNexusDest ? state.players[pid].field.nexuses[0] : undefined)
     if (!dest) {
-        log(state, `${sourceName}：同じフィールドに移し先のスピリットがいなかった。`)
+        log(state, `${sourceName}：同じフィールドに移し先がいなかった。`)
         return
     }
     const moved = inst.cores - 1
@@ -1345,6 +1355,51 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         state,
         `${sourceName}：${getCard(inst.cardId).name}のコア${moved}個を${getCard(dest.cardId).name}へ移した。（移し先は簡略化）`,
     )
+}
+
+// 天使スローン：相手のスピリット2体（実効BP上位2体＝プレイヤー指定の決定的簡略化）の上のコアをすべて入れ替える。
+// 入れ替えで維持コア（Lv1）を下回った側は消滅する（コアが0個だった個体と入れ替えたとき）
+const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx) => {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+    // 装甲・マジック効果耐性で効果を受けない個体は対象から外す（他のコア操作アクションと同じ扱い）
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            !isEffectBlocked(state, s, srcType) &&
+            !hasArmorAgainst(s, srcColors) &&
+            !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
+    )
+    if (candidates.length < 2) {
+        log(state, `${sourceName}：相手のスピリットが2体未満で入れ替えられなかった。`)
+        return
+    }
+    const sorted = [...candidates].sort((x, y) => effectiveBp(state, opp, y) - effectiveBp(state, opp, x))
+    const a = sorted[0]
+    const b = sorted[1]
+    if (!a || !b) return
+    const beforeA = a.cores
+    const beforeB = b.cores
+    if (beforeA === beforeB) {
+        log(state, `${sourceName}：${getCard(a.cardId).name}と${getCard(b.cardId).name}のコアは同数だった。`)
+        return
+    }
+    a.cores = beforeB
+    b.cores = beforeA
+    log(
+        state,
+        `${sourceName}：${getCard(a.cardId).name}（${beforeA}個→${beforeB}個）と${getCard(b.cardId).name}（${beforeB}個→${beforeA}個）のコアを入れ替えた。（対象2体は実効BP上位＝簡略化）`,
+    )
+    // コアが減った側は「効果でコアを取り除かれた」扱いの誘発と、維持コア割れの消滅を処理する
+    for (const [inst, before] of [
+        [a, beforeA],
+        [b, beforeB],
+    ] as const) {
+        if (inst.cores >= before) continue
+        checkExhaustOnCoreChange(state, opp, inst, { viaEffect: true, isRemoval: true })
+        if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+            destroySpirit(state, opp, inst.instanceId, "deplete")
+        }
+        notifySpiritCoresRemovedByOpponent(state, opp, 1)
+    }
 }
 
 // セブンスクリムゾン：BPminBp以上の自分のスピリット1体（BP最大）のコアすべてをボイドへ置くことをコストに、
@@ -1398,6 +1453,7 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
 const handlers = {
     opponentCoresToVoidByTotal: opponentCoresToVoidByTotalHandler,
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
+    swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,
     coreRemove: coreRemoveHandler,
     coreRemoveMulti: coreRemoveMultiHandler,

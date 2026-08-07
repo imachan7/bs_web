@@ -211,7 +211,8 @@ export type EffectAction =
     | { type: "voidCoresToNexusLevel"; level: number } // 自分のネクサス1つがlevelになるように、不足分のコアをボイドから置く（対象決定はvoidCoreToOwnNexusesのsingle分岐と同じ優先順＝targetInstanceId→interactiveTargets時はrequestChoice→自動時はコア数最少。既にそのレベル以上、またはそのレベルを持たないネクサスはno-op。BS04フルアッド＝Lv2）
     | { type: "opponentNexusOrReserveCoreToTrash"; count: number } // 相手のネクサス（コア数最多のものを自動選択）にコアがあればそこから、無ければ相手のリザーブから、count個を相手のトラッシュへ（どちらもコアがなければno-op。ネクサスのコアが減ってレベルが下がっても消滅はしない。BS02エナジードレイン）
     | { type: "opponentCoresToVoidByTotal"; tiers: { minTotal: number; count: number }[] } // 相手のフィールド（スピリット+ネクサス）+トラッシュ+リザーブのコア合計を数え、条件を満たす中で最大の minTotal の段に応じた個数をボイドへ置く。取り除く順はリザーブ→トラッシュ→フィールド（コアの多い個体から）の決定的簡略化（BS02ブラッディレイン）
-    | { type: "moveCoresLeavingOne"; anySide?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（フィールドの先頭側＝決定的簡略化）へ移す。移動先がいなければ不発（BS01チェンジングコア）
+    | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（フィールドの先頭側＝決定的簡略化）へ移す。移動先がいなければ不発（BS01チェンジングコア）。selfTarget指定時は対象を発生源自身に固定し、allowNexusDest指定時は移し先のスピリットがいなければ自分のネクサス（先頭側）へ移す（BS01要塞龍ギガLv2＝「このスピリット上のコアを他のスピリットかネクサスに」）
+    | { type: "swapOpponentCores" } // 相手のスピリット2体（実効BP上位2体＝プレイヤー指定の決定的簡略化）の上のコアをすべて入れ替える。相手のスピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する（BS04天使スローンLv2-3）
     | { type: "costOwnAllCoresThenEnemyCoresToReserve"; minBp: number; count: number } // 実効BPがminBp以上の自分のスピリット1体（BP最大）の上のコアすべてをボイドへ置くことをコストに、相手のスピリット上のコアを合計count個（コアの多い個体から）相手のリザーブへ置く。コストを払えなければ不発（BS02セブンスクリムゾン）
     | { type: "returnBothSidesToDeckBottom"; count: number } // 自分のスピリットcount体（コスト最小から）をデッキの下へ戻すことで、相手のスピリットcount体（実効BP上位から）もデッキの下へ戻す。自分がcount体戻せなければ不発（BS04グラシアルブレス）
     | { type: "sacrificeOwnNexusesThenEnemyDestroysOwn" } // 自分のネクサスをすべて破壊し（「好きなだけ」の決定的簡略化）、破壊できた数だけ相手が相手自身のスピリットを破壊する（BS04タイダルタイド）
@@ -454,6 +455,7 @@ export type EffectDef =
           kind: "step"
           step: Phase // 発火するステップ
           turn: "own" | "opponent" | "both" // own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時、both=常に
+          timing?: "end" // 指定時は「そのステップの終了時」に発火する（省略時＝ステップ開始時＝従来どおり）。いまは attack のみ発火点があり、PhaseManager.endTurn がエンドステップへ移る直前に呼ぶ（BS02紫水晶の森Lv2＝「ステップ終了時」）
           levels: number[] | null
           action: EffectAction
           optional?: true // 「〜できる」= 任意。triggered.optional と同じく、interactiveTargets では発動確認を出す（BS02皇帝アンプルール：リザーブのコアを払う任意コスト）
@@ -465,6 +467,7 @@ export type EffectDef =
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上（BS04王蛇の住処＝妖蛇/無魔）
               | { ownHandAtLeast: number } // 発生源の持ち主の手札がこの枚数以上（BS04水蛇シーサーペンタ＝Lvごとに10/8/6枚以上）
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 発生源の持ち主のフィールドに、カード名にいずれかの文字列を含むスピリットが合計count体以上（BS04郵便ペンタン＝ペンタン/アンプルール）
+              | { ownRefreshedSpiritsAtLeast: number } // 発生源の持ち主のフィールドに回復状態（isRested:false）のスピリットがこの体数以上（BS02紫水晶の森Lv2＝3体以上）
       }
     | {
           id: string
@@ -514,6 +517,8 @@ export type EffectDef =
           winnerMinCores?: number // 勝利したスピリットに置かれているコアがこの数以上のときのみ発火（BS02エメラルドに輝く鍾乳洞Lv2＝コア3個以上）
           winnerFamilyFilter?: FamilyFilter // 勝利したスピリットが指定系統を持つときのみ発火（配列＝OR。matchesFamilyFilterで判定。BS04ドラゴンズラッシュ：翼竜/竜人/古竜）
           winnerKeywordFilter?: Keyword // 勝利したスピリットがこのキーワードを持つときのみ発火（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定。BS03熾烈極める最前線Lv2＝覚醒持ち）
+          selfOnly?: true // 発生源自身が勝利したときのみ発火（『このスピリットのバトル時』。同名の別個体では発火しない。BS01要塞龍ギガLv2）
+          optional?: true // 「〜できる」＝任意。interactiveTargets では発動確認を出す（step/triggered の optional と同じ扱い。BS01要塞龍ギガLv2）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS04ニーベルングリング）
           selfMode?: "source" // 指定時、resolveActionのselfに勝利スピリットでなく発生源インスタンス（ネクサス）を渡す（深緑の樹海）
       }

@@ -3056,6 +3056,19 @@
   "effects": [
    {
     "id": "BS04-053-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "swapOpponentCores"
+    }
+   },
+   {
+    "id": "BS04-053-e2",
     "kind": "colorAs",
     "levels": [
      3

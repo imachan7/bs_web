@@ -1280,6 +1280,21 @@
      "anySide": true
     },
     "optional": true
+   },
+   {
+    "id": "BS01-025-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "selfOnly": true,
+    "optional": true,
+    "action": {
+     "type": "moveCoresLeavingOne",
+     "selfTarget": true,
+     "allowNexusDest": true
+    }
    }
   ]
  },
