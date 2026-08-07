@@ -5502,6 +5502,24 @@
      },
      "count": 1
     }
+   },
+   {
+    "id": "BS03-103-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "winnerKeywordFilter": "awaken",
+    "selfMode": "source",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "sameBpAsBattleLoser": true
+     }
+    }
    }
   ]
  },
@@ -5607,6 +5625,17 @@
   "effects": [
    {
     "id": "BS03-105-e1",
+    "kind": "familySuppression",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "anyAll",
+    "maxCores": 2,
+    "turn": "own"
+   },
+   {
+    "id": "BS03-105-e2",
     "kind": "step",
     "step": "attack",
     "turn": "own",
@@ -5725,6 +5754,20 @@
   "limited": false,
   "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のLv1スピリットすべては、バトルでBPを比べるときLv2BPを使用する。\nLv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、自分のリザーブにあるコア1個を自分のトラッシュに置くことで、手札に戻る。",
   "effects": [
+   {
+    "id": "BS03-107-e1",
+    "kind": "battleBpAsLevel",
+    "levels": [
+     1,
+     2
+    ],
+    "fromLevel": 1,
+    "useLevel": 2,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
    {
     "id": "BS03-107-e2",
     "kind": "reviveOnDestroy",
@@ -5925,6 +5968,13 @@
       "turn": "opponent"
      }
     }
+   },
+   {
+    "id": "BS03-110-e2",
+    "kind": "koboOnBlock",
+    "levels": [
+     2
+    ]
    }
   ]
  },
@@ -6982,6 +7032,32 @@
    {
     "id": "BS03-134-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-134-e2",
+    "kind": "familyGrant",
+    "levels": null,
+    "target": "ownAll",
+    "family": "四道",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e3",
+    "kind": "nameAsGrant",
+    "levels": null,
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e4",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -7733,6 +7809,36 @@
       "amount": 2000
      }
     }
+   },
+   {
+    "id": "BS03-X10-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green"
+    ]
+   },
+   {
+    "id": "BS03-X10-e3",
+    "kind": "keywordGrant",
+    "levels": [
+     3
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green",
+     "yellow",
+     "blue"
+    ]
    }
   ]
  },

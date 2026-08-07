@@ -369,16 +369,30 @@
   "effects": [
    {
     "id": "BS04-007-e1",
+    "kind": "attackTriggersAsBlockGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "anyAll",
+    "familyFilter": "竜人",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    }
+   },
+   {
+    "id": "BS04-007-e2",
     "kind": "triggered",
     "trigger": "onAttack",
     "levels": [
      2
     ],
+    "optional": false,
     "action": {
      "type": "selfBuff",
      "amount": 2000
-    },
-    "optional": false
+    }
    }
   ]
  },
@@ -3042,6 +3056,19 @@
   "effects": [
    {
     "id": "BS04-053-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "swapOpponentCores"
+    }
+   },
+   {
+    "id": "BS04-053-e2",
     "kind": "colorAs",
     "levels": [
      3
@@ -4375,6 +4402,15 @@
   "effects": [
    {
     "id": "BS04-078-e1",
+    "kind": "jugekiCoreToVoid",
+    "levels": [
+     1,
+     2
+    ],
+    "count": 1
+   },
+   {
+    "id": "BS04-078-e2",
     "kind": "exhaustOnManualCoreAdd",
     "levels": [
      2
@@ -4566,6 +4602,19 @@
     },
     "revived": {
      "rested": true
+    }
+   },
+   {
+    "id": "BS04-081-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "markUnblockableThisTurn",
+     "minBp": 10000
     }
    }
   ]
@@ -5004,6 +5053,18 @@
   "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分は、ネクサスの配置に支払うコストを、コスト1につき、自分のデッキを上から1枚破棄することで支払うことができる。\nLv2\n自分のフィールドにネクサスが配置されるたび、ボイドから、コア1個を自分のリザーブに置く。",
   "effects": [
+   {
+    "id": "BS04-088-e1",
+    "kind": "nexusCostMillPay",
+    "levels": [
+     1,
+     2
+    ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   },
    {
     "id": "BS04-088-e2",
     "kind": "fieldEvent",
@@ -5886,6 +5947,22 @@
    {
     "id": "BS04-109-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS04-109-e2",
+    "kind": "vanillaAsGrant",
+    "levels": null,
+    "target": "ownAll",
+    "familyFilter": "造兵",
+    "lentOnly": true
+   },
+   {
+    "id": "BS04-109-e3",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -6242,6 +6319,35 @@
      "count": 1
     },
     "optional": false
+   },
+   {
+    "id": "BS04-X14-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "byBattleOnly": true,
+    "selfMode": "source",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS04-X14-e3",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "discardBothHands",
+     "count": 5
+    },
+    "optional": false
    }
   ]
  },
@@ -6304,7 +6410,7 @@
     "levels": [
      2
     ],
-    "optional": false,
+    "optional": true,
     "action": {
      "type": "lifeCrush",
      "count": 2,

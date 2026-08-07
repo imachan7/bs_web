@@ -22,11 +22,19 @@ import {
     effectActiveAtLevel,
     effectiveBp,
     emitEvent,
+    exhaustSpirit,
+    applyJugekiCoreToVoid,
+    applyMagicNegateChoice,
+    battleBp,
+    declineMagicNegateChoice,
     fireBattleWonTriggers,
+    fireExhaustedTriggers,
+    fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
     hasFunsaiOnBlock,
+    hasKoboOnBlock,
     hasLifeDamageNegate,
     instanceSymbolCount,
     instColors,
@@ -48,6 +56,7 @@ import {
     validateCastMagic,
     validateEndTurn,
     validateMoveCore,
+    nexusMillPayAmount,
     validatePass,
     validateSetNexus,
     validateSummon,
@@ -74,6 +83,9 @@ export function handleAction(
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)
+    // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で必ず落とす
+    // （選択を挟んで中断した召喚時効果も、解決しきったここでクリアされる）
+    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
     return result
 }
 
@@ -257,7 +269,7 @@ function doSummon(
     log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
-    fireTrigger(state, pid, inst, "onSummon")
+    fireSummonTrigger(state, pid, inst)
     // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
     if (!state.winner) resolveTensho(state, pid, inst)
     // フィールドからの「自分のスピリットが召喚されたとき」誘発（七龍帝の玉座Lv2／鋼葉の樹林Lv2）。
@@ -300,8 +312,15 @@ function doSetNexus(
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
+    // 栄光の表彰台Lv1：コアで足りない分の配置コストをデッキ破棄で支払う
+    // （validateSetNexus と同じ関数で枚数を出すので、検証と実行がズレない）
+    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources)
+    if (millPaid > 0) {
+        millDeck(state, pid, millPaid)
+        log(state, `${player.name}は配置コストのうち${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
+    }
     // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
-    const placedFromField = payCost(state, pid, cost, paySources, maintain)
+    const placedFromField = payCost(state, pid, cost - millPaid, paySources, maintain)
     player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
 
@@ -500,6 +519,10 @@ function doAttack(
             costs: instAllCosts(inst),
         })
     }
+    // フィールドイベント誘発「スピリットが疲労したとき」（BS05藍紫の虚空Lv1）。
+    // アタック宣言による疲労（448行目）の分をここで発火する。アタッカーが効果で消滅する可能性があるため、
+    // 直後の「バトル不成立」判定（既存ガード）にそのまま乗るこの位置に置いている
+    if (!state.winner) fireExhaustedTriggers(state, pid, inst)
     // アタッカーが維持コア割れで消滅した場合はバトル不成立（ライフ受け・ブロックの対象が存在しないため）
     if (state.battle && !findSpirit(player, instanceId)) {
         log(state, `${card.name}は消滅したため、バトルは発生しなかった。`)
@@ -552,12 +575,15 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
     // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
     // targetInstanceIdはブロッカー（instanceId）
+    // self にはブロックされた自分のスピリット（attacker）を渡す。refreshSelf が
+    // 「ブロックされたこのスピリットを回復させる」として機能する（BS05ペンタン帝国Lv2）。
+    // 花の子リップの levelOverrideTarget は targetInstanceId しか見ないので影響を受けない
     if (attacker) {
         fireFieldEventTriggers(
             state,
             attackerPid,
             "ownSpiritBlocked",
-            undefined,
+            { pid: attackerPid, inst: attacker },
             instColors(attacker),
             instanceId,
         )
@@ -717,6 +743,24 @@ function doResolveChoice(
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
 
+    // マジックの無効化の確認（鏡の回廊Lv2／【氷壁】）。action は解決せず、
+    // 「無効にする」ならコストを払ってマジックの効果を捨て、選ばなければ中断していた解決を続ける
+    if (pending.magicNegate) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.magicNegate
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyMagicNegateChoice(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
+            declineMagicNegateChoice(state, info)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
     if (pending.kind === "option") {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
             return "選択できない候補です"
@@ -805,6 +849,13 @@ function drainChoiceQueue(
     pid: PlayerId,
     queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
 ): string | null {
+    // 直前のアクションが新しい選択待ちを立てていたら、消化せずそちらへ引き継ぐ
+    // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
+    // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
+    if (state.pendingChoice) {
+        state.pendingChoice.queue.push(...queue)
+        return null
+    }
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i]
         if (!item) continue
@@ -882,15 +933,27 @@ function resolveBattle(state: GameState): void {
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
     state.lastBattleDestroyedColors = []
     state.lastBattleDestroyedFamilies = []
+    state.lastBattleDestroyedBp = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColors = instColors(attacker)
     const skipRest = activeConstraints(state, defenderPid, blocker).some(
         (c) => c.type === "noRestWhenBlockingColor" && attackerColors.includes(c.color),
     )
-    if (!skipRest) blocker.isRested = true
-    const attackerBp = effectiveBp(state, attackerPid, attacker)
-    const blockerBp = effectiveBp(state, defenderPid, blocker)
+    if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
+    // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
+    if (state.winner) return
+    if (
+        !findSpirit(state.players[attackerPid], attacker.instanceId) ||
+        !findSpirit(state.players[defenderPid], blocker.instanceId)
+    ) {
+        clearBattle(state)
+        return
+    }
+    // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
+    const attackerBp = battleBp(state, attackerPid, attacker)
+    const blockerBp = battleBp(state, defenderPid, blocker)
     // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
     // byBattleKillerLevel判定用）。命名はattackerColorと同じく歴史的なもので、実際は勝者側の値
     const attackerLevel = currentLevel(attacker).level
@@ -915,6 +978,8 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedLevel = blockerLevel
         state.lastBattleDestroyedColors = instColors(blocker)
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
+        // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
+        state.lastBattleDestroyedBp = blockerBp
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
@@ -928,6 +993,7 @@ function resolveBattle(state: GameState): void {
     } else if (attackerValue < blockerValue) {
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
+        state.lastBattleDestroyedBp = attackerBp
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
@@ -973,6 +1039,8 @@ function resolveBattle(state: GameState): void {
                     state,
                     `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
                 )
+                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
@@ -992,5 +1060,10 @@ function resolveBattle(state: GameState): void {
     }
 
     resolveKoboOnBattleEnd(state, attackerPid, attacker)
+    // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
+    // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
+    if (hasKoboOnBlock(state, defenderPid)) {
+        resolveKoboOnBattleEnd(state, defenderPid, blocker)
+    }
     clearBattle(state)
 }

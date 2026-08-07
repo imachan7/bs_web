@@ -324,6 +324,18 @@
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のアタックステップ』このスピリットをBP+3000する”という効果を与える。",
   "effects": [
    {
+    "id": "BS05-007-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
     "id": "BS05-007-e2",
     "kind": "aura",
     "levels": [
@@ -939,6 +951,18 @@
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2･Lv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』自分はデッキから1枚ドローする”という効果を与える。",
   "effects": [
    {
+    "id": "BS05-017-e3",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
     "id": "BS05-017-e1",
     "kind": "triggered",
     "trigger": "onAttack",
@@ -1454,6 +1478,17 @@
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのアタック時』ボイドから、このスピリットのシンボルと同じ数のコアを自分のリザーブに置く”という効果を与える。",
   "effects": [
+   {
+    "id": "BS05-026-e3",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
    {
     "id": "BS05-026-e1",
     "kind": "triggered",
@@ -2163,6 +2198,14 @@
      "type": "summonFromHandFree",
      "costFilter": 2
     }
+   },
+   {
+    "id": "BS05-038-e2",
+    "kind": "countAsMultiple",
+    "levels": [
+     2
+    ],
+    "count": 2
    }
   ]
  },
@@ -2251,6 +2294,20 @@
   "effects": [
    {
     "id": "BS05-040-e1",
+    "kind": "magicTargetRedirect",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "turn": "opponent",
+    "protectFamily": [
+     "氷姫"
+    ],
+    "protectColor": "white"
+   },
+   {
+    "id": "BS05-040-e2",
     "kind": "reviveOnDestroy",
     "levels": [
      2,
@@ -2413,6 +2470,18 @@
   "effect": "Lv1･Lv2･Lv3\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv3\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『自分のエンドステップ』このスピリットを回復させる”という効果を与える。",
   "effects": [
    {
+    "id": "BS05-043-e3",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
     "id": "BS05-043-e1",
     "kind": "step",
     "step": "end",
@@ -2501,6 +2570,16 @@
       "cost": 2,
       "count": 3
      }
+    }
+   },
+   {
+    "id": "BS05-044-e2",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "immuneToOpponentSummonEffects"
     }
    }
   ]
@@ -2964,6 +3043,17 @@
   "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと系統：「龍帝」/「虚神」を持つ自分のスピリットすべてに“『このスピリットのバトル時』相手のデッキを上から5枚破棄する”という効果を与える。",
   "effects": [
    {
+    "id": "BS05-053-e3",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
     "id": "BS05-053-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
@@ -3183,6 +3273,24 @@
       "maxBp": 6000
      }
     }
+   },
+   {
+    "id": "BS05-056-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "minSymbols": 2,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetMinBp": 4000
+    }
    }
   ]
  },
@@ -3221,6 +3329,23 @@
   "effects": [
    {
     "id": "BS05-057-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritExhausted",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "costFilter": {
+     "max": 1
+    },
+    "action": {
+     "type": "coreToTrashSelf",
+     "count": 2
+    }
+   },
+   {
+    "id": "BS05-057-e2",
     "kind": "effectGrant",
     "levels": [
      2
@@ -3679,6 +3804,24 @@
      "type": "summonFromHandFree",
      "nameIncludes": "ペンタン"
     }
+   },
+   {
+    "id": "BS05-064-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "nameIncludes": [
+     "ペンタン",
+     "アンプルール"
+    ],
+    "targetSameLevelAsSelf": true,
+    "action": {
+     "type": "refreshSelf"
+    }
    }
   ]
  },
@@ -3729,6 +3872,17 @@
       2
      ]
     }
+   },
+   {
+    "id": "BS05-065-e2",
+    "kind": "magicRestriction",
+    "levels": [
+     2
+    ],
+    "restriction": "costLimitAll",
+    "maxCost": 4,
+    "requireOwnKeyword": "tensho",
+    "phase": "attack"
    }
   ]
  },
@@ -3782,6 +3936,26 @@
      "pickType": "spirit",
      "nameIncludes": "巨人",
      "discardNonMatching": true
+    }
+   },
+   {
+    "id": "BS05-066-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "nameIncludes": [
+     "巨人"
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetMinCost": 5
     }
    }
   ]
@@ -3910,6 +4084,17 @@
    {
     "id": "BS05-069-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "revealAndSummonKeyword",
+     "count": 3,
+     "keyword": "tensho",
+     "returnToDeckBottomAtEndStep": true
+    }
+   },
+   {
+    "id": "BS05-069-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -3939,6 +4124,30 @@
   "effects": [
    {
     "id": "BS05-070-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-070-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": null,
+    "lentOnly": true,
+    "nameIncludes": [
+     "魔界七将"
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "anySide": true,
+     "all": true
+    }
+   },
+   {
+    "id": "BS05-070-e3",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -4294,7 +4503,18 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nスピリット1体を指定する。\nこのターンの間、その指定されたスピリットは、自分のスピリット/ネクサスの効果で数を数えるとき、3体分として数える。\nこの効果は、メインステップで使用できない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS05-079-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "countAsMultipleThisTurn",
+     "count": 3,
+     "anySide": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS05-080",
@@ -4360,6 +4580,27 @@
   "effects": [
    {
     "id": "BS05-081-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "想獣",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-081-e2",
+    "kind": "nexusEffectsDisabled",
+    "levels": null,
+    "target": "opponentAll",
+    "lentOnly": true
+   },
+   {
+    "id": "BS05-081-e3",
     "kind": "magic",
     "timing": "flash",
     "action": {
@@ -4560,6 +4801,21 @@
      "type": "returnToHand",
      "count": 1,
      "countPerOpponentNexus": true
+    }
+   },
+   {
+    "id": "BS05-X17-e3",
+    "kind": "constraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "nonVanilla": true,
+     "requireOwnCostCountAtLeast": {
+      "cost": 2,
+      "count": 3
+     }
     }
    }
   ]

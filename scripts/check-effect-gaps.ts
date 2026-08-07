@@ -90,6 +90,36 @@ function extractBlockHeaders(text: string): string[] {
 }
 
 /**
+ * カテゴリ4（対象レベルの不一致）の既知の誤検出。
+ * **実装を読んで正しいと確認したものだけ**をここに入れる。理由を必ず書くこと
+ * （「見出し1つに効果が2つぶら下がる」など、見出しとエントリが1対1にならないカード）。
+ */
+const LEVEL_MISMATCH_VERIFIED: Record<string, string> = {
+    "BS01-099":
+        "百識の谷：Lv1のブロックが『ドロー+1』『手札1枚破棄』の2文からなる。ドロー+1は[1,2]、破棄は[1]で正しい",
+    "BS05-054":
+        "鉄槌のオズワルド：Lv1『ネクサス破壊』とLv2『ネクサス破壊＋相手が手札1枚破棄』を別エントリに分け、レベルごとに片方だけ発火させている",
+}
+
+/**
+ * 見出し行から対象レベルの配列を抽出する。
+ * 例: "Lv1･Lv2" -> [1, 2]
+ */
+function parseLevels(headerText: string): number[] | null {
+    if (headerText.includes('フラッシュ') && !headerText.includes('Lv')) return null
+    if (headerText.includes('メイン') && !headerText.includes('Lv')) return null
+    
+    const levels: number[] = []
+    const matches = headerText.match(/Lv\d/g)
+    if (matches) {
+        for (const m of matches) {
+            levels.push(parseInt(m.replace('Lv', ''), 10))
+        }
+    }
+    return levels.length > 0 ? levels : null
+}
+
+/**
  * テキスト内のキーワード記述を解析し、カード自身が持つキーワードと
  * 他を参照しているだけのキーワードを分離する。
  *
@@ -208,7 +238,7 @@ interface Gap {
     cardId: string
     name: string
     type: string
-    category: "block_count" | "keyword_missing" | "noted"
+    category: "block_count" | "keyword_missing" | "noted" | "level_mismatch"
     detail: string
     textBlocks?: number
     implCount?: number
@@ -282,6 +312,79 @@ for (const card of cards) {
             })
         }
     }
+
+    // ---- カテゴリ4: 対象レベルの不一致 ----
+    // 見出しと effects[] を**順序に依存せず**突き合わせる（レベル指定の多重集合を比較する）。
+    // 「見出しのi番目＝-e{i+1}」の対応は当てにできない: effects[] がテキスト順に並んでいないカードや、
+    // 1つの見出しに複数エントリがぶら下がるカード（百識の谷／魔界元帥ネガプルート）が多数あり、
+    // 索引で対応づけると実装が正しいカードまで大量に誤検出する（2026-08-07 に51件中ほぼ全部が誤検出だった）。
+    //
+    // ⚠️ ここは**検出がゼロになるように維持する**こと。1件でも出ていれば見落としが埋もれる。
+    // 実装を確認したうえで誤検出だと判断したものは LEVEL_MISMATCH_VERIFIED に理由つきで登録する。
+    if (
+        (card.type === "spirit" || card.type === "nexus") &&
+        !(card.cardId in LEVEL_MISMATCH_VERIFIED) &&
+        // card-notes に「未実装/部分実装」として登録済みのカードはカテゴリ3が拾うので二重に出さない
+        !(card.cardId in cardNotes.notes) &&
+        // エントリ自体が足りないカードはカテゴリ1が拾う。ここでは「エントリはあるが levels が違う」だけを見る
+        !gaps.some((g) => g.cardId === card.cardId && g.category === "block_count")
+    ) {
+        const expected: string[] = []
+        for (const header of headers) {
+            const lv = parseLevels(header)
+            if (lv) expected.push([...lv].sort().join(","))
+        }
+        // kind:"levelAs" のように「対象のレベルを書き換える」器は levels を使えないので levels:null が正しく、
+        // 代わりに sourceLevels / sourceMinLevel で発生源のレベルを縛る。これらは実効レベルに読み替えて数える
+        // （読み替えずに除外すると、見出し側だけが残って「対応するエントリが無い」と誤検出する）
+        const cardLevels = (card as unknown as { levels?: { level: number }[] }).levels ?? []
+        const cardMaxLevel = cardLevels.reduce((max, lv) => Math.max(max, lv.level), 0)
+        const actual: string[] = []
+        let skipCard = false
+        for (const eff of card.effects) {
+            const e = eff as { levels?: number[] | null; sourceLevels?: number[]; sourceMinLevel?: number }
+            if (e.sourceLevels !== undefined) {
+                actual.push([...e.sourceLevels].sort().join(","))
+                continue
+            }
+            if (e.sourceMinLevel !== undefined) {
+                const min = e.sourceMinLevel
+                const levels: number[] = []
+                for (let lv = min; lv <= cardMaxLevel; lv++) levels.push(lv)
+                actual.push(levels.join(","))
+                continue
+            }
+            if (e.levels === null || e.levels === undefined) {
+                // levels:null は「常に有効」（貸与された継続効果など）。レベル指定の突き合わせ対象にしない
+                skipCard = true
+                break
+            }
+            actual.push([...e.levels].sort().join(","))
+        }
+        // 判定は「見出しが要求するレベル指定が、実装側にすべて存在するか」（多重集合の包含）。
+        // 一致（等号）にすると、見出しとして数えられない【キーワード】ブロックや、
+        // 1見出しに複数エントリがぶら下がるカードで、実装側が余って落ちてしまう。
+        // 包含なら「テキストが Lv1･Lv2 を要求しているのに [1,2] のエントリが無い」だけを拾える
+        const norm = (xs: string[]) => [...xs].sort().join(" / ")
+        const remaining = [...actual]
+        const missing: string[] = []
+        for (const want of expected) {
+            const at = remaining.indexOf(want)
+            if (at === -1) missing.push(want)
+            else remaining.splice(at, 1)
+        }
+        if (!skipCard && expected.length > 0 && missing.length > 0) {
+            {
+                gaps.push({
+                    cardId: card.cardId,
+                    name: card.name,
+                    type: card.type,
+                    category: "level_mismatch",
+                    detail: `テキストの見出しが要求する [${norm(missing)}] に対応する effects エントリが無い（実装の levels は [${norm(actual)}]）`,
+                })
+            }
+        }
+    }
 }
 
 // ---- カテゴリ3: card-notes.json の未実装/部分実装 ----
@@ -351,8 +454,11 @@ if (checkMode) {
     )
     // 解消済み：ベースラインにあるのに検出されなくなった（実装した／誤検出が直った）
     const resolved = Object.keys(baseline.known).filter((id) => !detected.has(id))
+    // 対象レベルの不一致はベースラインを持たず、**常にゼロ**を維持する（誤検出は
+    // LEVEL_MISMATCH_VERIFIED に理由つきで登録する。溜めると本物の見落としが埋もれる）
+    const levelMismatches = gaps.filter((g) => g.category === "level_mismatch")
 
-    if (added.length === 0 && resolved.length === 0) {
+    if (added.length === 0 && resolved.length === 0 && levelMismatches.length === 0) {
         console.log(
             `効果実装漏れチェック：新しいギャップはありません（既知 ${Object.keys(baseline.known).length} 件）✅`,
         )
@@ -378,6 +484,16 @@ if (checkMode) {
         console.error("")
         console.error("   npx tsx scripts/check-effect-gaps.ts --update-baseline を実行してベースラインを縮めてください。")
     }
+    if (levelMismatches.length > 0) {
+        console.error("")
+        console.error("❌ テキストの見出しと実装の levels が一致しないカードがあります:")
+        for (const g of levelMismatches) {
+            console.error(`   ${g.cardId} ${g.name}：${g.detail}`)
+        }
+        console.error("")
+        console.error("   levels を直すか、実装を読んで誤検出だと確認できたら")
+        console.error("   scripts/check-effect-gaps.ts の LEVEL_MISMATCH_VERIFIED に理由つきで登録してください。")
+    }
     console.error("")
     process.exit(1)
 }
@@ -389,6 +505,7 @@ if (jsonOutput) {
     const blockGaps = gaps.filter((g) => g.category === "block_count")
     const kwGaps = gaps.filter((g) => g.category === "keyword_missing")
     const noteGaps = gaps.filter((g) => g.category === "noted")
+    const levelGaps = gaps.filter((g) => g.category === "level_mismatch")
 
     // 重複しないカードID数
     const uniqueCards = new Set(gaps.map((g) => g.cardId))
@@ -408,6 +525,9 @@ if (jsonOutput) {
     )
     console.log(
         `  [3] card-notes 既知の未実装:   ${noteGaps.length} 件`
+    )
+    console.log(
+        `  [4] 対象レベルの不一致:        ${levelGaps.length} 件`
     )
     console.log()
 
@@ -452,6 +572,21 @@ if (jsonOutput) {
         for (const g of noteGaps) {
             console.log()
             console.log(`  ${g.cardId} ${g.name}`)
+            console.log(`  ${g.detail}`)
+        }
+        console.log()
+    }
+
+    if (levelGaps.length > 0) {
+        console.log("-".repeat(60))
+        console.log("[4] 対象レベルの不一致")
+        console.log(
+            "    テキストの見出しに記載されたレベルと、実装データの levels が一致していません"
+        )
+        console.log("-".repeat(60))
+        for (const g of levelGaps) {
+            console.log()
+            console.log(`  ${g.cardId} ${g.name} (${g.type})`)
             console.log(`  ${g.detail}`)
         }
         console.log()

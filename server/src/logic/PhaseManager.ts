@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, log } from "./GameState"
-import { activeConstraints, coreStepBonusFor, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -52,8 +52,11 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             const refreshedInstanceIds = new Set<string>()
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-                // noRefresh（スクルディア）を持つスピリットはこのステップで回復しない
+                // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
+                // 相手のスピリットから「回復できない」と指定されている間も回復しない
+                // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
+                if (isRefreshBlockedByMark(state, pid, inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
                 inst.isRested = false
             }
@@ -115,9 +118,23 @@ export function toAttackPhase(state: GameState): void {
 
 // ターン終了処理：エンドステップを経て相手のターンを開始する
 export function endTurn(state: GameState): void {
+    // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
+    // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
+    if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
+    if (state.winner) return
+
     state.phase = "end"
     fireStepTriggers(state, "end")
     if (state.winner) return
+
+    // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
+    // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
+    // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
+    for (const pid of ["p1", "p2"] as const) {
+        for (const inst of [...state.players[pid].field.spirits]) {
+            if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
+        }
+    }
 
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
@@ -135,6 +152,8 @@ export function endTurn(state: GameState): void {
             inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn
+            delete inst.unblockableOnceThisTurn
+            delete inst.countAsThisTurn
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット

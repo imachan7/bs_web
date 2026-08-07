@@ -60,6 +60,14 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
+// （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
+// **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
+export function instIsVanilla(inst: CardInstance): boolean {
+    if (inst.treatedAsVanillaContinuous === true) return true
+    return isVanillaCard(card(inst.cardId))
+}
+
 // 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
 // 前者はスピリット・ネクサス。後者は現時点ではターン限定の仮想発生源（マジックが貸した継続効果。
 // PlayerState.turnVirtualInstances）のみだが、**今後ここに種類が追加される想定**（例: 次弾以降の新カードタイプ
@@ -76,9 +84,29 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     const player = board.players[pid]
     return [
         ...player.field.spirits, // フィールドに実在するスピリット
-        ...player.field.nexuses, // フィールドに実在するネクサス
+        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
+        ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
     ]
+}
+
+// pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
+// （BS05ネクサスブロケイド）。
+// ⚠️ ここで effectSources を呼ぶと無限再帰するので、相手側の配列を**直接**走査する。
+// ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
+// 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
+function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
+    const opp = board.players[pid === "p1" ? "p2" : "p1"]
+    const sources = [...opp.field.spirits, ...opp.field.nexuses, ...opp.turnVirtualInstances]
+    for (const source of sources) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return true
+        }
+    }
+    return false
 }
 
 // このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
@@ -230,7 +258,7 @@ export function hasContinuousKeywordGrant(
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
-            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             return true
         }
     }
@@ -258,12 +286,62 @@ export function targetArmorColorCount(inst: CardInstance): number {
 
 // 状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
 // 走査は effectSources 経由＝このターンだけの仮想発生源（lendSelfThisTurn で貸した継続効果）も含む
+// 暗礁海域Lv1（kind:"familySuppression"）：条件に合うスピリットは系統をないものとして扱う。
+// 両陣営のフィールドを走査する（発生源の持ち主を問わず「すべて」に効く）。
+// ここでは系統を一切参照しないので、spiritHasFamily から呼んでも再帰しない
+export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, ownerPid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "familySuppression") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// 緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
+// 場の発生源からキーワードを得ているか。手札には書き込まず、判定のたびに場を見る
+// （RuleValidator.validateSummon とクライアントの神速表示が同じ実装を使う）
+export function hasHandKeywordGrant(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+    keyword: Keyword,
+): boolean {
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "handKeywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (cardData.type !== (effect.cardType ?? "spirit")) continue
+            if (effect.familyFilter !== undefined && !cardData.family.includes(effect.familyFilter)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 export function spiritHasFamily(
     board: Board,
     ownerPid: PlayerId,
     inst: CardInstance,
     family: string,
 ): boolean {
+    // 暗礁海域Lv1：系統をないものとして扱う（静的な系統も、familyGrant による付与も持たない）
+    if (familiesSuppressed(board, inst)) return false
     if (card(inst.cardId).family.includes(family)) return true
     const player = board.players[ownerPid]
     const sources = effectSources(board, ownerPid)
@@ -323,6 +401,55 @@ export function matchesFamilyFilter(
 
 // オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える。
 // "targetArmorColors" のみ対象（targetInst）基準（発生源ではない）のため、呼び出し側から渡す
+// ---- スピリットの「数を数える」ときの重み ----
+//
+// 「このスピリットは◯体分として数える」（BS05シーサーズLv2＝2体分／BS05スリーカード＝このターン3体分）を
+// **すべての数え上げに一元的に効かせる**ための重み。通常のスピリットは 1 を返すので、
+// 該当カードが場にない限り従来と完全に同じ結果になる。
+//
+// countingPid ＝ 数えている効果の持ち主。カードの効果文は「**自分の**スピリット/マジック/ネクサスの効果で
+// 数えるとき」と限定しているため、数える側が重みの持ち主でなければ 1 のまま。
+// なお「スピリットの効果か・ネクサスの効果か・マジックの効果か」の区別（シーサーズはネクサス除外、
+// スリーカードはマジック除外）は簡略化して見ていない（card-notes に記載）。
+export function spiritCountWeight(
+    board: Board,
+    countingPid: PlayerId,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): number {
+    let weight = 1
+    // シーサーズLv2：持ち主自身の効果で数えるときだけ N 体分
+    if (countingPid === ownerPid) {
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "countAsMultiple") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            weight = Math.max(weight, effect.count)
+        }
+    }
+    // スリーカード：このターンの間、印を付けた側の効果でだけ N 体分（相手のスピリットにも付けられる）
+    if (inst.countAsThisTurn && inst.countAsThisTurn.pid === countingPid) {
+        weight = Math.max(weight, inst.countAsThisTurn.count)
+    }
+    return weight
+}
+
+// ownerPid のフィールドで predicate に合うスピリットを、上記の重みつきで数える。
+// **効果が「スピリットの数を数える」箇所はすべてこれを通すこと**（素の .filter().length を使わない）。
+// ゲームのルールとしての数え上げ（フィールドに置けるスピリット数の上限など）は対象外なので従来どおり
+export function countSpiritsWeighted(
+    board: Board,
+    countingPid: PlayerId,
+    ownerPid: PlayerId,
+    predicate: (inst: CardInstance) => boolean = () => true,
+): number {
+    let total = 0
+    for (const s of board.players[ownerPid].field.spirits) {
+        if (!predicate(s)) continue
+        total += spiritCountWeight(board, countingPid, ownerPid, s)
+    }
+    return total
+}
+
 export function countAuraCounter(
     board: Board,
     sourcePid: PlayerId,
@@ -338,21 +465,21 @@ export function countAuraCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return board.players[sourcePid].field.spirits.filter((s) => s.isRested).length
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested)
     }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return board.players[sourcePid].field.spirits.filter((s) =>
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
             cardNameContains(s, counter.ownNameIncludes),
-        ).length
+        )
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
-    return board.players[sourcePid].field.spirits.filter((s) =>
+    return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
         matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
-    ).length
+    )
 }
 // オーラの発動条件を、発生源の持ち主（sourcePid）基準で判定する
 export function checkAuraCondition(
@@ -451,7 +578,7 @@ export function auraAppliesTo(
     if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
         return false
     }
-    if (aura.vanillaFilter && !isVanillaCard(card(targetInst.cardId))) {
+    if (aura.vanillaFilter && !instIsVanilla(targetInst)) {
         return false
     }
     return true
@@ -562,7 +689,7 @@ export function matchesTarget(
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
-    if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
+    if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
@@ -635,6 +762,13 @@ export function activeConstraints(
             const color = c.requireOwnFieldColorNexus
             return board.players[pid].field.nexuses.some((n) => instHasColor(n, color))
         })
+        // unblockableBy の条件つきその2（BS05幻獣王リーンLv3：自分のコスト2のスピリットが3体以上いる間だけ）。
+        // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
+        .filter((c) => {
+            if (c.type !== "unblockableBy" || c.requireOwnCostCountAtLeast === undefined) return true
+            const { cost, count } = c.requireOwnCostCountAtLeast
+            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost)) >= count
+        })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintDef[] = []
@@ -648,7 +782,16 @@ export function activeConstraints(
             // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
-            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // BS05最古龍の顎Lv2：シンボル2つ以上のスピリットのみ（ダブルハートの追加シンボルも数える）
+            if (effect.minSymbols !== undefined && instanceSymbolCount(inst) < effect.minSymbols) continue
+            // BS05天焦がす大聖火Lv2：カード名に「巨人」を含むスピリットのみ（「〜として扱う」付与名も見る）
+            if (
+                effect.nameIncludes !== undefined &&
+                !effect.nameIncludes.some((n) => cardNameContains(inst, n))
+            ) {
+                continue
+            }
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (board.phase !== phase) continue
@@ -798,7 +941,7 @@ export function hasMagicImmunity(
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
-                const matchCount = player.field.spirits.filter((s) => instHasCost(s, cost)).length
+                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
                 if (matchCount < count) continue
             }
             return true
@@ -910,6 +1053,7 @@ export function activatableAbility(
 export interface DirectAttackFilter {
     targetFilter: "rested" | "singleCore" | "recovered" | "any"
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
+    targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
@@ -920,7 +1064,8 @@ export function directAttackFilter(
 ): DirectAttackFilter | null {
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetMinBp === undefined
-        ? { targetFilter: constraint.targetFilter }
-        : { targetFilter: constraint.targetFilter, targetMinBp: constraint.targetMinBp }
+    const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
+    if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
+    if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
+    return filter
 }

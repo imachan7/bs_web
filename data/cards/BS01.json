@@ -1280,6 +1280,21 @@
      "anySide": true
     },
     "optional": true
+   },
+   {
+    "id": "BS01-025-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "selfOnly": true,
+    "optional": true,
+    "action": {
+     "type": "moveCoresLeavingOne",
+     "selfTarget": true,
+     "allowNexusDest": true
+    }
    }
   ]
  },
@@ -4201,6 +4216,22 @@
   "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手がブロックを宣言したとき、ブロックするスピリット以外のスピリット1体を疲労させる。\nLv2『このスピリットの破壊時』\n自分のスピリット1体を回復させる。",
   "effects": [
    {
+    "id": "BS01-093-e1",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "anySide": true,
+     "excludeTarget": true
+    }
+   },
+   {
     "id": "BS01-093-e2",
     "kind": "triggered",
     "trigger": "onDestroy",
@@ -5471,6 +5502,25 @@
   "effects": [
    {
     "id": "BS01-123-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS01-123-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritReturnedToHand",
+    "levels": null,
+    "lentOnly": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS01-123-e3",
     "kind": "magic",
     "timing": "flash",
     "action": {

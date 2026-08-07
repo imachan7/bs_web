@@ -8,10 +8,14 @@ import {
     countEffectCounter,
     effectActiveAtLevel,
     effectiveBp,
+    exhaustSpirit,
     instHasColor,
     instanceSymbolCount,
     matchesFamilyFilter,
+    findSpiritAny,
+    pickAnySideByBp,
     pickBpBuffTarget,
+    pickEnemyByBp,
     requestCardChoice,
     requestChoice,
     spiritHasKeyword,
@@ -34,6 +38,29 @@ function armorColorCount(inst: CardInstance): number {
         }
     }
     return colors.size
+}
+
+// スリーカード：対象スピリット1体に「このターンの間、使用者の効果では count 体分として数える」印を付ける。
+// 対象未指定時は実効BP最大の1体（自動選択の簡略化。anySide 指定時は自分/相手どちらからも選ぶ）
+const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const found = targetInstanceId
+        ? findSpiritAny(state, targetInstanceId)
+        : action.anySide
+          ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
+          : (() => {
+                const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+                return t ? { pid: opp, inst: t } : null
+            })()
+    if (!found) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    found.inst.countAsThisTurn = { pid: owner, count: action.count }
+    log(
+        state,
+        `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${action.count}体分として数えられる。`,
+    )
 }
 
 const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
@@ -184,7 +211,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 log(state, `${sourceName}：疲労させる対象がいなかった。`)
                 return
             }
-            exhaustTarget.isRested = true
+            exhaustSpirit(state, owner, exhaustTarget)
             if (state.interactiveTargets) {
                 const buffCandidates = state.players[owner].field.spirits.map((s) => s.instanceId)
                 requestChoice(
@@ -233,7 +260,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
         const auto = restCandidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        auto.isRested = true
+        exhaustSpirit(state, owner, auto)
         const buffTarget = pickBpBuffTarget(state, owner)
         if (!buffTarget) {
             log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
@@ -271,8 +298,8 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        target.isRested = true
         const amount = effectiveBp(state, owner, target)
+        exhaustSpirit(state, owner, target)
         self.tempBpBuff += amount
         log(
             state,
@@ -344,6 +371,7 @@ const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, acti
 }
 
 const handlers = {
+    countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     selfBuff,
     selfBuffPer,
     bpBuff,

@@ -13,7 +13,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, isVanillaCard, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
@@ -43,7 +43,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
         const targets = state.players[owner].field.spirits.filter(
             (s) =>
                 (action.costFilter === undefined || instHasCost(s, action.costFilter)) &&
-                (!action.vanillaFilter || isVanillaCard(getCard(s.cardId))),
+                (!action.vanillaFilter || instIsVanilla(s)),
         )
         if (targets.length === 0) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)

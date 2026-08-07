@@ -2284,6 +2284,19 @@
     "constraint": {
      "type": "noRefresh"
     }
+   },
+   {
+    "id": "BS02-042-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     2,
+     3
+    ],
+    "eventTargetIsSelf": true,
+    "action": {
+     "type": "markNoRefreshTarget"
+    }
    }
   ]
  },
@@ -2968,6 +2981,14 @@
     "kind": "coreBonus",
     "levels": [
      1,
+     2
+    ],
+    "amount": 1
+   },
+   {
+    "id": "BS02-055-e2",
+    "kind": "coreReturnBonus",
+    "levels": [
      2
     ],
     "amount": 1
@@ -4409,6 +4430,23 @@
     "cost": {
      "oneCoreToVoid": true
     }
+   },
+   {
+    "id": "BS02-079-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "timing": "end",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownRefreshedSpiritsAtLeast": 3
+    },
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
    }
   ]
  },
@@ -4526,6 +4564,20 @@
      "type": "coreGain",
      "count": 1
     }
+   },
+   {
+    "id": "BS02-081-e2",
+    "kind": "handKeywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "soku",
+    "familyFilter": "怪虫",
+    "cardType": "spirit",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    }
    }
   ]
  },
@@ -4574,6 +4626,20 @@
     "colorFilter": "white",
     "costFilter": 2,
     "phase": "attack"
+   },
+   {
+    "id": "BS02-082-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "familyFilter": "武装",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
    }
   ]
  },
@@ -4624,6 +4690,18 @@
     "revived": {
      "rested": true
     }
+   },
+   {
+    "id": "BS02-083-e2",
+    "kind": "magicNegate",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "cost": {
+     "selfCoresToVoid": 2
+    },
+    "oncePerTurn": true
    }
   ]
  },
@@ -4841,6 +4919,15 @@
   "limited": false,
   "effect": "Lv1･Lv2『自分のターン』\nお互いを対象としたマジックの効果は、効果の対象を相手のみ、または自分のみに変更できる。\nLv2『自分のアタックステップ』\n自分がスピリット/マジックの効果でデッキからドローするとき、その合計枚数を2倍にする。\n(この効果は重複しない)",
   "effects": [
+   {
+    "id": "BS02-087-e1",
+    "kind": "bothSidesTargetRedirect",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own"
+   },
    {
     "id": "BS02-087-e2",
     "kind": "drawDouble",

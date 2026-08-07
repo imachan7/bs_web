@@ -11,13 +11,15 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
+    canPayNexusCostByMill,
     effectiveCost,
     hasMagicFreeGrant,
+    hasMagicCostLock,
     hasMagicRestriction,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
@@ -107,7 +109,9 @@ export function validateSummon(
     const hasTempSoku = (player.tempHandKeywordGrants ?? []).some(
         (g) => g.cardId === cardId && g.keyword === "soku",
     )
-    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku)
+    // 緑芽吹く原野Lv2：場の発生源が手札のカードに継続的に【神速】を与えている（手札には書き込まない）
+    const hasFieldSoku = hasHandKeywordGrant(state, pid, card, "soku")
+    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku)
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
@@ -205,14 +209,35 @@ export function validateSetNexus(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    // 栄光の表彰台Lv1：コアで足りない分は「コスト1につきデッキ1枚破棄」で払える（配置コストのみ。置くコアは不可）
+    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
-    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    const payError = validatePaySources(state, pid, cost + maintain - millPaid, paySources)
     if (payError) {
         return payError === "コアが足りません"
             ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
             : payError
     }
     return null
+}
+
+// ネクサスの配置コストのうち、デッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
+// 「どこまでデッキ破棄で払うか」は選べず、**コアで足りない分だけ**自動的に回す簡略化。
+// 上限は「配置コスト（置くコアは対象外）」と「デッキの残り枚数」の小さい方。
+// validateSetNexus と doSetNexus が同じ値を出すよう、必ずこの関数を通すこと
+export function nexusMillPayAmount(
+    state: GameState,
+    pid: PlayerId,
+    cost: number,
+    maintain: number,
+    paySources: PaySource[] | undefined,
+): number {
+    if (!canPayNexusCostByMill(state, pid)) return 0
+    const player = state.players[pid]
+    const fromSources = (paySources ?? []).reduce((sum, s) => sum + Math.max(0, s.count), 0)
+    const available = player.reserve + fromSources
+    const shortfall = Math.max(0, cost + maintain - available)
+    return Math.min(shortfall, cost, player.deck.length)
 }
 
 export function validateCastMagic(
@@ -243,6 +268,10 @@ export function validateCastMagic(
     // 作戦参謀フォクシン：フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
         return "このターンはすでにマジックの効果を使用しているため使用できません"
+    }
+    // 青嵐の虚空Lv2：どちらかのフィールドに発生源があれば、お互い指定コスト以下のマジックを使用できない
+    if (hasMagicCostLock(state, card)) {
+        return "このコストのマジックは、場の効果によって使用できません"
     }
     // 螺旋の塔Lv2：相手フィールドに発生源があれば、マジックのコストはすべてリザーブから支払う
     // （フィールドのコアを支払い元に指定できない）

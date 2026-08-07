@@ -33,7 +33,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -48,6 +48,13 @@ export function normalizeFilter(
         const families = ctx.state.lastBattleDestroyedFamilies
         if (families.length === 0) return SELF_REQUIRED
         resolved.family = families // 配列＝いずれかの系統でOR
+    }
+    // 直前のバトルで破壊された側と同じ実効BP（BS03熾烈極める最前線Lv2）。
+    // 記録が0（バトル外での発動など）なら対象なしにする
+    if (sameBpAsBattleLoser) {
+        const bp = ctx.state.lastBattleDestroyedBp
+        if (bp === 0) return SELF_REQUIRED
+        resolved.exactBp = bp
     }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる

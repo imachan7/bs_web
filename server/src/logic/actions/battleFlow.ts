@@ -4,16 +4,19 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
+    bothSidesPids,
     destroySpirit,
     emitEvent,
     findSpiritAny,
     matchesFamilyFilter,
     fireFieldEventTriggers,
+    fireSummonTrigger,
     fireTrigger,
     notifyNexusDeployed,
     requestCardChoice,
     requestChoice,
     resolveKoboOnBattleEnd,
+    resolveTensho,
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
@@ -459,6 +462,12 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
             player.field.spirits.push(inst)
             summonedNames.push(card.name)
             summonedCount++
+            // 【転召】はコストを支払わない召喚でも必ず行う（公式Q&A 2024-10-31）。
+            // 現データでこの経路から召喚されうるカード（天霊／怪虫）に転召持ちはいないため実質no-opだが、
+            // 経路ごとに扱いを変えると将来のカードで無言の取りこぼしになるので必ず通す。
+            // 転召が対象選択を要求したら（選択待ちが立ったら）そこで召喚を打ち切る
+            if (!state.winner) resolveTensho(state, owner, inst)
+            if (state.pendingChoice) break
         }
         if (summonedCount === 0) {
             log(state, `${sourceName}：召喚できる対象がいなかった。`)
@@ -541,12 +550,63 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
             return
         }
         log(state, `${sourceName}：${getCard(target.cardId).name}の召喚時効果を再発揮する。`)
-        fireTrigger(state, owner, target, "onSummon")
+        fireSummonTrigger(state, owner, target)
         return
+}
+
+// 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
+// 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
+const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    let best: CardInstance | undefined
+    let bestBp = -1
+    for (const inst of state.players[owner].field.spirits) {
+        const bp = effectiveBp(state, owner, inst)
+        if (bp < action.minBp) continue
+        if (bp > bestBp) {
+            best = inst
+            bestBp = bp
+        }
+    }
+    if (!best) {
+        log(state, `${sourceName}：BP${action.minBp}以上の自分のスピリットがいなかった。`)
+        return
+    }
+    best.unblockableOnceThisTurn = true
+    log(
+        state,
+        `${sourceName}：${getCard(best.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。（対象はBP最大＝簡略化）`,
+    )
+}
+
+// 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
+// 破棄するカードは手札の末尾から＝各自が選ぶ処理の決定的簡略化
+const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
+    const { state, owner, sourceName, srcType } = ctx
+    if (action.count <= 0) return
+    const pids = bothSidesPids(state, srcType)
+    for (const pid of [owner, opponentOf(owner)]) {
+        if (!pids.includes(pid)) continue
+        const player = state.players[pid]
+        const discarded = Math.min(action.count, player.hand.length)
+        for (let i = 0; i < discarded; i++) {
+            const cardId = player.hand.pop()
+            if (cardId === undefined) break
+            player.trashCards.push(cardId)
+        }
+        log(
+            state,
+            discarded === 0
+                ? `${sourceName}：${player.name}の手札がなかった。`
+                : `${sourceName}：${player.name}は手札${discarded}枚を破棄した。（破棄するカードは簡略化）`,
+        )
+    }
 }
 
 const handlers = {
     endBattle: endBattleHandler,
+    markUnblockableThisTurn: markUnblockableThisTurnHandler,
+    discardBothHands: discardBothHandsHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,

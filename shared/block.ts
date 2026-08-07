@@ -6,6 +6,7 @@
 // エラー理由の文字列を返し、ブロック可能なら null を返す（サーバーはその文字列をそのまま拒否理由に使う）。
 import type { CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
+import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
@@ -14,6 +15,8 @@ import {
     instAllCosts,
     instHasColor,
     instHasCost,
+    instIsVanilla,
+    instMatchesCostFilter,
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
@@ -45,6 +48,11 @@ export function canBlock(
     // アタッカー側の制約（unblockableBy）。
     // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
     if (attackerInst && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
+        // 強者統べる大地Lv2：指定された自分のスピリットは、ターンに1回だけブロックされない
+        // （印は次のバトルの終了時に消えるので、同じターンの2回目のアタックはブロックできる）
+        if (attackerInst.unblockableOnceThisTurn) {
+            return "このスピリットはこのターン1回だけブロックされません"
+        }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
@@ -79,6 +87,11 @@ export function canBlock(
             ) {
                 return "このスピリットは同じか低いコストのスピリットにブロックされません"
             }
+            // BS05幻獣王リーンLv3：カードに効果の記述を持つスピリットにブロックされない
+            // （バニラ＝効果の記述を持たないスピリットならブロックできる）
+            if (c.nonVanilla && !instIsVanilla(blockerInst)) {
+                return "このスピリットは効果を持つスピリットにブロックされません"
+            }
         }
     }
     return null
@@ -101,6 +114,13 @@ export function matchesDirectedAttackFilter(
         effectiveBp(board, targetPid, target) < filter.targetMinBp
     ) {
         return `BP${filter.targetMinBp}以上のスピリットしか指定できません`
+    }
+    // BS05天焦がす大聖火Lv2：コスト5以上のみ指定できる（道化師クランの付与コストも見る）
+    if (
+        filter.targetMinCost !== undefined &&
+        !instMatchesCostFilter(target, { min: filter.targetMinCost })
+    ) {
+        return `コスト${filter.targetMinCost}以上のスピリットしか指定できません`
     }
     return null
 }

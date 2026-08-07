@@ -1,12 +1,14 @@
 // 手札・デッキ・トラッシュ操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
-import { draw, getCard, log, opponentOf } from "../GameState"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, Color, GameState, PlayerId } from "../../type"
+import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
+    bothSidesPids,
     countEffectCounter,
     drawDoubleMultiplier,
     findSpiritAny,
+    fireSummonTrigger,
     isImmuneToArea,
     isEffectBlocked,
     millDeck,
@@ -23,15 +25,25 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+
+const noopHandler: ActionHandler<"noop"> = () => {
+    // 何もしない（PendingChoice.magicNegate のプレースホルダ）
+}
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）
-        draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
+        // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {
-            draw(state, opp, action.count * drawDoubleMultiplier(state, opp))
+            const pids = bothSidesPids(state, srcType, true)
+            for (const pid of [owner, opp]) {
+                if (!pids.includes(pid)) continue
+                draw(state, pid, action.count * drawDoubleMultiplier(state, pid))
+            }
+        } else {
+            draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
         }
         return
 }
@@ -473,6 +485,133 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         return
 }
 
+const revealDiscardRestHandler: ActionHandler<"revealDiscardRest"> = (ctx) => {
+    // 公開ゾーンの残りをすべてトラッシュへ（revealAndSummonKeyword の後始末専用）
+    discardRevealedZone(ctx.state, ctx.owner, ctx.sourceName)
+}
+
+const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        // BS05トランスマイグレーション：デッキ上からcount枚を公開し、その中の【転召】持ちスピリット
+        // 1枚をコストを支払わず召喚する。残った公開カードはすべてトラッシュへ破棄する。
+        // 「召喚できる」＝任意なので、interactiveTargets時は候補1枚でも選択（スキップ可）を出す
+        const player = state.players[owner]
+
+        // 公開ゾーン経由の再入：選ばれた1枚を召喚し、残りを破棄して終わる
+        if (chosenCardIndex !== undefined && state.revealedCards) {
+            const zone = state.revealedCards.cardIds
+            const pickedId = zone[chosenCardIndex]
+            if (pickedId !== undefined) {
+                zone.splice(chosenCardIndex, 1)
+                summonRevealedFree(ctx, action, pickedId)
+            }
+            // 残りの破棄は選択待ちの queue（revealDiscardRest）が担う。ここで消すと
+            // 「スキップしたときだけ破棄されない」という非対称が生まれる
+            return
+        }
+
+        const revealed = player.deck.splice(0, action.count)
+        if (revealed.length === 0) {
+            log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+            return
+        }
+        log(
+            state,
+            `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+        )
+        const matches = (id: string): boolean =>
+            getCard(id).type === "spirit" && hasKeyword(id, action.keyword)
+        const indices = revealed.map((id, i) => ({ id, i })).filter((x) => matches(x.id)).map((x) => x.i)
+        if (indices.length === 0) {
+            for (const id of revealed) player.trashCards.push(id)
+            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットカードがなかった。残り${revealed.length}枚をトラッシュに置いた。`)
+            return
+        }
+        if (state.interactiveTargets) {
+            // 公開ゾーンへ積んでから選ばせる（候補1枚でも alwaysAsk で「召喚しない」を選べる）
+            state.revealedCards = { pid: owner, cardIds: [...revealed] }
+            requestCardChoice(
+                state,
+                owner,
+                `${sourceName}：コストを支払わずに召喚するスピリットを選んでください`,
+                "reveal",
+                indices,
+                true,
+                action,
+                self,
+                true,
+            )
+            // 「残りは破棄する」は**選んでもスキップしても**走る必要がある。
+            // スキップは doResolveChoice がハンドラを再入させないので、選択待ちの queue に
+            // 後始末（revealDiscardRest）を積んでおく（積まないと flushRevealedCardsIfIdle が
+            // デッキの下へ戻してしまい、効果文と食い違う）
+            if (state.pendingChoice) {
+                state.pendingChoice.queue.push({ selfInstanceId: null, action: { type: "revealDiscardRest" } })
+            } else {
+                discardRevealedZone(state, owner, sourceName)
+            }
+            return
+        }
+        // 自動時（テスト）はコスト最大の1枚を選ぶ決定的簡略化
+        let bestIndex = indices[0]!
+        for (const i of indices) {
+            if (getCard(revealed[i]!).cost > getCard(revealed[bestIndex]!).cost) bestIndex = i
+        }
+        const [pickedId] = revealed.splice(bestIndex, 1)
+        summonRevealedFree(ctx, action, pickedId!)
+        for (const id of revealed) player.trashCards.push(id)
+        if (revealed.length > 0) {
+            log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+        }
+        return
+}
+
+// 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
+function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: string): void {
+    const zone = state.revealedCards
+    if (!zone) return
+    const player = state.players[owner]
+    for (const id of zone.cardIds) player.trashCards.push(id)
+    if (zone.cardIds.length > 0) {
+        log(state, `${player.name}は${sourceName}で残った${zone.cardIds.length}枚をトラッシュに置いた。`)
+    }
+    delete state.revealedCards
+}
+
+// 公開したカード1枚をコストを支払わず召喚する。
+//
+// **召喚時効果は通常どおり発揮する**（効果文に「発揮されない」の記載が無い。
+// summonFromHandFree / summonFromTrashFree とはここが違う）。
+// 一方で **【転召】は解決しない**：効果文の「【転召】を発揮したものとして」は
+// 「転召を済ませたものとして扱う＝スピリットを犠牲にしなくてよい」の意味。
+// 通常の効果による召喚では転召を必ず行う（公式Q&A 2024-10-31）ので、
+// **この一文を持つカードだけが例外**という関係になる
+function summonRevealedFree(
+    ctx: ActionCtx,
+    action: { returnToDeckBottomAtEndStep?: true },
+    cardId: string,
+): void {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const card = getCard(cardId)
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+        player.trashCards.push(cardId)
+        return
+    }
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
+    player.field.spirits.push(inst)
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+            "（【転召】を発揮したものとして扱うため、コアを置く必要はない）",
+    )
+    fireSummonTrigger(state, owner, inst)
+}
+
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
@@ -827,7 +966,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
-        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
         for (const pid of sides) {
             // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
@@ -1025,13 +1164,16 @@ const handlers = {
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
+    noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
+    revealAndSummonKeyword: revealAndSummonKeywordHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
+    revealDiscardRest: revealDiscardRestHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,

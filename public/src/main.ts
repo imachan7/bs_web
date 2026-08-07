@@ -16,6 +16,7 @@ import {
     type UiState,
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
+import { canPayNexusCostByMill } from "../../shared/cost"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -175,8 +176,16 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     const lv = card.levels.find((l) => l.level === targetLevel)
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const reserve = view.players[view.you].reserve
-    
-    if (reserve >= cost + maintain) {
+
+    // 栄光の表彰台Lv1：ネクサスの配置コストは、コアで足りない分をデッキ破棄で払える。
+    // サーバーが不足分を自動でデッキ破棄に回すので、ここでは「払えるか」の判定だけ揃える
+    // （判定を揃えないと、サーバーが受け付ける配置をクライアントが支払いモードに入れてしまう）
+    const millPayable =
+        card.type === "nexus" && canPayNexusCostByMill(view, view.you)
+            ? Math.min(cost, view.players[view.you].deckCount)
+            : 0
+
+    if (reserve + millPayable >= cost + maintain) {
         sendPlay(card.type, handIndex, targetInstanceId, undefined, level)
         return
     }
