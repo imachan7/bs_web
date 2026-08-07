@@ -925,9 +925,12 @@ handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安
 
 ### ステップ誘発（kind: "step"）
 
-`{ kind: "step", step: Phase, turn: "own"|"opponent"|"both", levels, action }`。
+`{ kind: "step", step: Phase, turn: "own"|"opponent"|"both", levels, action, timing? }`。
 PhaseManager が各ステップ処理直後に `fireStepTriggers(state, step)` を呼び、
 両者のフィールド（スピリット＋ネクサス）から該当効果を実行する（勝敗決定で打ち切り）。
+`timing: "end"` を書くと「そのステップの**終了時**」に発火する（省略時＝ステップ開始時）。
+いまは `attack` にだけ発火点があり、`PhaseManager.endTurn` がエンドステップへ移る直前に
+`fireStepTriggers(state, "attack", undefined, "end")` を呼ぶ（紫水晶の森Lv2）。
 例: 千年雪の尖塔（自分スタートステップにネクサス/スピリットバウンス）、
 侵食されゆく銀世界（相手アタックステップにトラッシュコア全回収）、
 賢者の樹 Lv2（自分エンドステップに全回復）。
@@ -963,6 +966,31 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 クライアントは `magicTargetSide()` で対象側（自分/相手）を判定し、
 手札クリック → 対象スピリットクリックの2段階UIで送信する。
 `RuleValidator` は指定された対象がフィールドに実在するかを検証する。
+
+### 効果実装漏れの解消で足した器（2026-08-07）
+
+`docs/design/EFFECT_GAPS_PLAYBOOK.md` の残件を片付けるために追加したもの。
+どれも「1つ足すと1〜2枚が書ける」粒度なので、似た効果文を書くときはまずここを見る。
+
+| 器 | 意味 | 判定を持つ場所 | 代表カード |
+| :-- | :-- | :-- | :-- |
+| `battleWon.selfOnly` / `.optional` | 発生源自身が勝ったときだけ発火／「〜できる」 | `fireBattleWonTriggers` | 要塞龍ギガ Lv2 |
+| `action:"swapOpponentCores"` | 相手スピリット2体（実効BP上位）のコアをすべて入れ替える | `actions/cores.ts` | 天使スローン Lv2･Lv3 |
+| `step.timing:"end"` ／ `condition.ownRefreshedSpiritsAtLeast` | ステップ終了時の誘発／回復状態スピリットの体数条件 | `fireStepTriggers`・`PhaseManager.endTurn` | 紫水晶の森 Lv2 |
+| `magicRestriction:"costLimitAll"`（`maxCost` / `requireOwnKeyword` / `phase`） | お互い、指定コスト以下のマジックを使用できない | `shared/cost.hasMagicCostLock` | 青嵐の虚空 Lv2 |
+| `magicTargetRedirect.protectFamily` / `.protectColor` | 「持ち主の指定系統・色のスピリットが対象」で発動し、対象を発生源へ付け替える | `setMagicRedirect` | プリンセス・スノーホワイト |
+| `kind:"jugekiCoreToVoid"` | 【呪撃】で破壊する相手スピリットのコアをボイドへ（破壊の直前に取り除く） | `applyJugekiCoreToVoid` | 魔影街 Lv1 |
+| `action:"markUnblockableThisTurn"` ＋ `CardInstance.unblockableOnceThisTurn` | 「ターンに1回ブロックされない」印。`clearBattle` で使い切る | `shared/block.canBlock` | 強者統べる大地 Lv2 |
+| `action:"discardBothHands"` | お互いが手札からN枚を破棄（末尾から＝簡略化） | `actions/battleFlow.ts` | 魔界七将パンデミウム Lv3 |
+| `kind:"battleBpAsLevel"` | **バトルのBP比較のときだけ**別レベルのBPを使う | `EffectModules.battleBp` | 果て無き地平線 Lv1 |
+| `kind:"familySuppression"` | 条件に合うスピリットは系統をないものとして扱う | `shared/rules.spiritHasFamily` の先頭 | 暗礁海域 Lv1 |
+| `kind:"handKeywordGrant"` | **手札**のカードへの継続付与（手札に書き込まず場の発生源を見る） | `shared/rules.hasHandKeywordGrant` | 緑芽吹く原野 Lv2 |
+| `kind:"bothSidesTargetRedirect"` | 「お互いを対象とするマジックの効果」の対象を片側のみに変更 | `EffectModules.bothSidesPids` | 封印された魔導書 Lv1 |
+
+> `bothSidesPids` は**両陣営を対象にするアクション8種の共通入口**になった
+> （`destroyNexus` / `exhaustAll` / `returnAllToHand` / `nexusCoresToTrash` の `side:"both"`、
+> `bothSidesCoreToTrash`、`bothSidesCoreToVoid`、`draw side:"both"`、`discardBothHands`）。
+> 新しく「お互い」のアクションを足すときは `["p1","p2"]` を直書きせず、これを呼ぶこと。
 
 ---
 
@@ -1109,16 +1137,20 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ## 5. 既知の簡略化・今後の課題
 
-### 残りの未対応カード（2026-08-01 時点。data/card-notes.json が唯一の実態）
+### 残りの未対応カード（2026-08-07 時点。data/card-notes.json が唯一の実態）
 
 **BS01〜BS03 に「表示のみ」のカードは1枚も残っていない**（かつてここにあった「BS02 の未対応20枚」の表は
 すべて解消済みのため削除した）。現在の残りは `data/card-notes.json` の状態で数えるのが正確:
 
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
-| `unimplemented`（効果が発揮されない） | 2 | **着手しないと決めた2枚のみ**: BS04-088（禁止カード）・BS05-079 スリーカード（DECISIONS.md 参照）。**それ以外のカードは全609枚が構造化済み**（2026-08-01） |
-| `partial`（一部のレベル・節だけ未実装） | 6 | いずれも単発（BS02-079・BS03-107・BS04-079・BS04-081・BS04-X14・BS05-060 はコア保護のすり抜けのみ）。共通テーマは残っていない |
-| `simplified`（原作と挙動が異なる簡略化） | 21 | 対戦は成立する。カード詳細に注記を表示している |
+| `unimplemented`（効果が発揮されない） | 1 | BS05-079 スリーカード（DECISIONS.md 参照）。**それ以外のカードは全609枚が構造化済み** |
+| `partial`（一部のレベル・節だけ未実装） | 6 | BS02-063（支配権の一時移動）・BS02-083 Lv2（マジック効果の無効化）・BS03-147 メイン（ネクサスをスピリット扱い）・BS04-088 Lv1（配置コストの支払い方法の選択）・BS05-038 Lv2（2体分として数える）・BS05-060（コア保護のすり抜け）。**いずれも「器の作り替えになる」と判断して見送ったもの** |
+| `simplified`（原作と挙動が異なる簡略化） | 10 | 対戦は成立する。カード詳細に注記を表示している |
+
+**`docs/design/EFFECT_GAPS_PLAYBOOK.md` が対象にしていた実装漏れは 2026-08-07 に解消済み**
+（`npm run validate:gaps` のベースラインは 17 件 → 5 件。残り5件はすべて上表の見送り分で、
+`data/card-notes.json` に理由を明記してある）。
 
 ### BS02 構造化で洗い出された未対応概念（履歴。対応済みは取り消し線）
 
