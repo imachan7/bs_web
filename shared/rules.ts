@@ -41,6 +41,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     funsai: { id: "funsai", label: "粉砕" },
     kobo: { id: "kobo", label: "光芒" },
     tensho: { id: "tensho", label: "転召" },
+    bofu: { id: "bofu", label: "暴風" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）

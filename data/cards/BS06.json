@@ -1,0 +1,348 @@
+[
+ {
+  "cardId": "BS06-003",
+  "name": "猛角獣ホーングリズリー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+  "effects": [
+   {
+    "id": "BS06-003-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-012",
+  "name": "巨竜ギガノトン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットのアタック時』\nBP4000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS06-012-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-012-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 4000
+     },
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-028",
+  "name": "ガブノハシ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS06-028-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS06-028-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-033",
+  "name": "ジャコビーノ男爵",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリットを指定された体数疲労させる。\nLv2『このスピリットのアタック時』\n系統：「樹魔」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-033-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS06-033-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-033-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "樹魔"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-036",
+  "name": "牙王樹ラフレシオー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【暴風：2】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリットを指定された体数疲労させる。\nLv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS06-036-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 2,
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-036-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-036-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ }
+]

@@ -125,15 +125,20 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType)
+            // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
+            // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
             if (
                 tryInteractiveTargetChoice(
                     state,
                     owner,
                     self,
-                    `${sourceName}の疲労付与：対象を選んでください`,
+                    action.chooserIsTarget
+                        ? `${sourceName}：疲労させる自分のスピリットを選んでください`
+                        : `${sourceName}の疲労付与：対象を選んでください`,
                     candidates,
                     { ...actionForChoice, count: 1 },
                     action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
+                    action.chooserIsTarget ? opp : undefined,
                 )
             ) {
                 return

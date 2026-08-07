@@ -1708,22 +1708,28 @@ export function tryInteractiveTargetChoice(
     candidates: CardInstance[],
     firstAction: EffectAction,
     remainingAction: EffectAction | null,
+    chooserPid?: PlayerId,
 ): boolean {
     if (!state.interactiveTargets) return false
     if (candidates.length < 2) return false
+    // chooserPid 指定時は「選ぶのは chooserPid・効果を解決するのは owner」に分ける
+    // （PendingChoice.actorPid。【暴風】＝相手が相手自身のスピリットを選んで疲労させる）
+    const chooser = chooserPid ?? owner
     requestChoice(
         state,
-        owner,
+        chooser,
         prompt,
         candidates.map((s) => s.instanceId),
         false,
         firstAction,
         self,
     )
+    if (state.pendingChoice && chooser !== owner) state.pendingChoice.actorPid = owner
     if (remainingAction && state.pendingChoice) {
         state.pendingChoice.queue.unshift({
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
+            ...(chooser !== owner ? { actorPid: owner } : {}),
         })
     }
     return true
