@@ -80,10 +80,10 @@ console.log("=== BS04-007：竜人でないスピリットには読み替えが�
     assert(effectiveBp(s, "p1", blocker) === baseBp, "竜人でなければ何も起きない（familyFilter）")
 }
 
-console.log("=== BS04-007：読み替えは移し替えなので、アタック時には発揮されなくなる ===")
+console.log("=== BS04-007：『相手のアタックステップ』限定なので、自分のターンでは読み替えが起きない ===")
 {
-    // p1 のターン（＝発生源から見て『自分のアタックステップ』）では phaseTurn 条件を満たさないため
-    // 読み替えは起きず、アタック時に通常どおり発揮される
+    // p1 のターン（＝発生源から見て『自分のアタックステップ』）では phaseTurn 条件を満たさない。
+    // 移し替えは起きず、自分の竜人のアタック時効果は**通常どおり**発揮される
     const s = createGame("bs04-007-ownturn", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "green" })
     runTurnStart(s)
     s.turnPlayer = "p1"
@@ -95,6 +95,40 @@ console.log("=== BS04-007：読み替えは移し替えなので、アタック�
     assert(
         effectiveBp(s, "p1", scout) === baseBp + 2000,
         "『自分のアタックステップ』では読み替えが起きず、アタック時に発揮される（phaseTurn）",
+    )
+}
+
+console.log("=== BS04-007：相手のアタックステップでは、相手の竜人のアタック時効果が消える（移し替え） ===")
+{
+    // 「系統：「竜人」を持つスピリット」は**修飾なし＝両陣営**。相手のアタックステップ中は
+    // 相手の竜人にも移し替えが効くので、相手がアタックしてもアタック時効果は発揮されない
+    // （移った先の『ブロック時』はアタックしている本人には訪れない）。これがこのカードの主眼
+    const s = createGame("bs04-007-oppattacker", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    s.turnPlayer = "p2"
+    s.phase = "attack"
+    putSpirit(s, "p1", "BS04-007", 1) // p1 の近衛兵
+    const oppScout = putSpirit(s, "p2", "BS01-004", 1) // 相手の竜人（アタック時BP+2000）
+    const baseBp = effectiveBp(s, "p2", oppScout)
+    assert(act(s, "p2", { type: "attack", instanceId: oppScout.instanceId }) === null, "相手がアタックできる")
+    assert(
+        effectiveBp(s, "p2", oppScout) === baseBp,
+        `相手の竜人のアタック時効果は発揮されない（実際+${effectiveBp(s, "p2", oppScout) - baseBp}）`,
+    )
+}
+
+console.log("=== BS04-007：近衛兵がいなければ相手の竜人のアタック時効果は通常どおり出る（対照） ===")
+{
+    const s = createGame("bs04-007-oppcontrol", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    runTurnStart(s)
+    s.turnPlayer = "p2"
+    s.phase = "attack"
+    const oppScout = putSpirit(s, "p2", "BS01-004", 1)
+    const baseBp = effectiveBp(s, "p2", oppScout)
+    assert(act(s, "p2", { type: "attack", instanceId: oppScout.instanceId }) === null, "アタックできる")
+    assert(
+        effectiveBp(s, "p2", oppScout) === baseBp + 2000,
+        "発生源がいなければ通常どおりBP+2000される",
     )
 }
 
