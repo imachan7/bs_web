@@ -24,7 +24,9 @@ import {
     emitEvent,
     exhaustSpirit,
     applyJugekiCoreToVoid,
+    applyMagicNegateChoice,
     battleBp,
+    declineMagicNegateChoice,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
     fireSummonTrigger,
@@ -732,6 +734,24 @@ function doResolveChoice(
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
+
+    // マジックの無効化の確認（鏡の回廊Lv2／【氷壁】）。action は解決せず、
+    // 「無効にする」ならコストを払ってマジックの効果を捨て、選ばなければ中断していた解決を続ける
+    if (pending.magicNegate) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.magicNegate
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyMagicNegateChoice(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
+            declineMagicNegateChoice(state, info)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
 
     if (pending.kind === "option") {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {

@@ -4690,6 +4690,18 @@
     "revived": {
      "rested": true
     }
+   },
+   {
+    "id": "BS02-083-e2",
+    "kind": "magicNegate",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "cost": {
+     "selfCoresToVoid": 2
+    },
+    "oncePerTurn": true
    }
   ]
  },

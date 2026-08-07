@@ -13,6 +13,7 @@ import type {
     CardInstance,
     CardType,
     Color,
+    PendingChoice,
     ConstraintDef,
     DestroyContext,
     EffectAction,
@@ -2999,6 +3000,59 @@ function redirectTargetMatches(
     return matchesTarget(state, defenderPid, inst, spec as unknown as ResolvedTargetFilter)
 }
 
+// マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
+// 見つからない条件（レベル・色・ステップ・ターン・ターン1回・コストが払えない）はすべてここで弾くので、
+// 呼び出し側は「見つかったら必ず無効化できる」前提で書ける
+export function findMagicNegateSource(
+    state: GameState,
+    casterPid: PlayerId,
+    card: CardData,
+): { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> } | null {
+    const defenderPid = opponentOf(casterPid)
+    for (const inst of effectSources(state, defenderPid)) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "magicNegate") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
+            // 【氷壁：赤】＝赤のマジックのみ無効にできる
+            if (effect.colors !== undefined && !effect.colors.some((c) => card.colors.includes(c))) continue
+            if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
+            // コストを払えないなら発動できない
+            if ("exhaustSelf" in effect.cost) {
+                if (inst.isRested) continue
+            } else if (inst.cores < effect.cost.selfCoresToVoid) {
+                continue
+            }
+            return { pid: defenderPid, inst, effect }
+        }
+    }
+    return null
+}
+
+// 無効化のコストを支払い、ログを残す。呼び出し側はこのあとマジックの効果を解決しない
+function payMagicNegate(
+    state: GameState,
+    found: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> },
+    card: CardData,
+): void {
+    const { pid, inst, effect } = found
+    if ("exhaustSelf" in effect.cost) {
+        exhaustSpirit(state, pid, inst)
+    } else {
+        // ボイド行きなので、リザーブにもトラッシュにも戻らない
+        inst.cores -= effect.cost.selfCoresToVoid
+        log(
+            state,
+            `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToVoid}個をボイドに置いた。`,
+        )
+    }
+    if (effect.oncePerTurn) inst.magicNegateUsedTurn = state.turn
+    log(state, `${getCard(inst.cardId).name}の効果で、${card.name}の効果は無効になった。`)
+}
+
 export function resolveMagic(
     state: GameState,
     owner: PlayerId,
@@ -3016,6 +3070,77 @@ export function resolveMagic(
     }
     const card = getCard(cardId)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
+
+    // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
+    // 実対戦（interactiveTargets）では防御側に「無効にするか」を確認し、
+    // 自動解決（テスト・非interactive）ではコストを払える限り無効にする
+    const negate = findMagicNegateSource(state, owner, card)
+    if (negate) {
+        if (state.interactiveTargets) {
+            state.pendingChoice = {
+                pid: negate.pid,
+                kind: "option",
+                prompt: `${getCard(negate.inst.cardId).name}：${card.name}の効果を無効にしますか？`,
+                candidates: [],
+                options: ["無効にする"],
+                optional: true,
+                confirm: true,
+                magicNegate: {
+                    casterPid: owner,
+                    cardId,
+                    timing,
+                    targetInstanceId,
+                    sourceInstanceId: negate.inst.instanceId,
+                },
+                action: { type: "noop" },
+                selfInstanceId: negate.inst.instanceId,
+                queue: [],
+            }
+            return
+        }
+        payMagicNegate(state, negate, card)
+        fireMagicUsedTriggers(state, owner, card, timing)
+        return
+    }
+
+    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId)
+}
+
+// pendingChoice（無効化の確認）で「無効にする」が選ばれたときの後処理。
+// GameEngine.doResolveChoice から呼ぶ
+export function applyMagicNegateChoice(
+    state: GameState,
+    info: NonNullable<PendingChoice["magicNegate"]>,
+): void {
+    const card = getCard(info.cardId)
+    const found = findMagicNegateSource(state, info.casterPid, card)
+    // 確認を出したあとに盤面が変わってコストを払えなくなった場合は、無効化せず通常どおり解決する
+    if (!found || found.inst.instanceId !== info.sourceInstanceId) {
+        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+        return
+    }
+    payMagicNegate(state, found, card)
+    fireMagicUsedTriggers(state, info.casterPid, card, info.timing)
+}
+
+// pendingChoice（無効化の確認）で「無効にしない」が選ばれたときの後処理。中断していた解決を続ける
+export function declineMagicNegateChoice(
+    state: GameState,
+    info: NonNullable<PendingChoice["magicNegate"]>,
+): void {
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+}
+
+// マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
+// usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
+function resolveMagicEffects(
+    state: GameState,
+    owner: PlayerId,
+    cardId: string,
+    timing: "main" | "flash",
+    targetInstanceId?: string,
+): void {
+    const card = getCard(cardId)
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
     const effects = card.effects
@@ -3110,6 +3235,17 @@ export function resolveMagic(
     }
     // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
     delete state.magicRedirectTo
+    fireMagicUsedTriggers(state, owner, card, timing)
+}
+
+// 「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
+// **効果が無効にされた場合もここは通す**（使用宣言とコストの支払いは済んでいるため）
+function fireMagicUsedTriggers(
+    state: GameState,
+    owner: PlayerId,
+    card: CardData,
+    timing: "main" | "flash",
+): void {
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）
     if (!state.winner) {

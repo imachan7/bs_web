@@ -28,6 +28,10 @@ import {
 import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
+const noopHandler: ActionHandler<"noop"> = () => {
+    // 何もしない（PendingChoice.magicNegate のプレースホルダ）
+}
+
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
@@ -1160,6 +1164,7 @@ const handlers = {
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
+    noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,

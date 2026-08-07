@@ -120,6 +120,7 @@ import "./smoke/part117"
 import "./smoke/part118"
 import "./smoke/part119"
 import "./smoke/part120"
+import "./smoke/part121"
 import { summary } from "./smoke/helpers"
 
 summary()
