@@ -2534,6 +2534,21 @@ export function fireFieldEventTriggers(
             if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
             // 「このスピリットが疲労したとき」（スクルディア）：イベント対象が発生源自身のときだけ
             if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
+            // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）
+            if (
+                effect.nameIncludes !== undefined &&
+                !(selfOverride !== undefined &&
+                    effect.nameIncludes.some((n) => cardNameContains(selfOverride.inst, n)))
+            ) {
+                continue
+            }
+            // targetInstanceId のスピリットのLvがイベント対象と同じときだけ
+            // （BS05ペンタン帝国Lv2：同じLvの相手のスピリットにブロックされたとき）
+            if (effect.targetSameLevelAsSelf) {
+                const target = targetInstanceId ? findInstanceAnywhere(state, targetInstanceId) : null
+                if (!target || !selfOverride) continue
+                if (currentLevel(target).level !== currentLevel(selfOverride.inst).level) continue
+            }
             if (effect.familyFilter !== undefined) {
                 // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
                 const wanted = Array.isArray(effect.familyFilter)

@@ -656,6 +656,15 @@ export function activeConstraints(
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
             if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+            // BS05最古龍の顎Lv2：シンボル2つ以上のスピリットのみ（ダブルハートの追加シンボルも数える）
+            if (effect.minSymbols !== undefined && instanceSymbolCount(inst) < effect.minSymbols) continue
+            // BS05天焦がす大聖火Lv2：カード名に「巨人」を含むスピリットのみ（「〜として扱う」付与名も見る）
+            if (
+                effect.nameIncludes !== undefined &&
+                !effect.nameIncludes.some((n) => cardNameContains(inst, n))
+            ) {
+                continue
+            }
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (board.phase !== phase) continue
@@ -917,6 +926,7 @@ export function activatableAbility(
 export interface DirectAttackFilter {
     targetFilter: "rested" | "singleCore" | "recovered" | "any"
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
+    targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
@@ -927,7 +937,8 @@ export function directAttackFilter(
 ): DirectAttackFilter | null {
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
-    return constraint.targetMinBp === undefined
-        ? { targetFilter: constraint.targetFilter }
-        : { targetFilter: constraint.targetFilter, targetMinBp: constraint.targetMinBp }
+    const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
+    if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
+    if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
+    return filter
 }

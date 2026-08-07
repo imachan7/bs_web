@@ -3241,6 +3241,24 @@
       "maxBp": 6000
      }
     }
+   },
+   {
+    "id": "BS05-056-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "minSymbols": 2,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetMinBp": 4000
+    }
    }
   ]
  },
@@ -3754,6 +3772,24 @@
      "type": "summonFromHandFree",
      "nameIncludes": "ペンタン"
     }
+   },
+   {
+    "id": "BS05-064-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "nameIncludes": [
+     "ペンタン",
+     "アンプルール"
+    ],
+    "targetSameLevelAsSelf": true,
+    "action": {
+     "type": "refreshSelf"
+    }
    }
   ]
  },
@@ -3857,6 +3893,26 @@
      "pickType": "spirit",
      "nameIncludes": "巨人",
      "discardNonMatching": true
+    }
+   },
+   {
+    "id": "BS05-066-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "nameIncludes": [
+     "巨人"
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetMinCost": 5
     }
    }
   ]

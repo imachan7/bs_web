@@ -728,6 +728,15 @@ phase / turn で『相手のアタックステップ』等の限定が可能。
 オーラの `summonedThisTurnOnly`（風吹く丘陵 Lv2「このターン召喚された自分のスピリット+1000」）も追加。
 fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリットの色を限定。祝福されし大聖堂＝黄）にも対応。
 
+イベント対象で絞る軸（いずれも `selfOverride` のインスタンスを見る）:
+- `nameIncludes: string[]` — イベント対象のカード名がいずれかを含むときのみ（BS05ペンタン帝国Lv2＝「ペンタン」/「アンプルール」）
+- `targetSameLevelAsSelf` — `targetInstanceId` のスピリットのLvがイベント対象と同じときのみ（ペンタン帝国Lv2＝同Lvにブロックされたとき）
+- `eventTargetIsSelf` — イベント対象が発生源自身のときのみ（スクルディア＝「**この**スピリットが疲労したとき」）
+
+⚠️ `ownSpiritBlocked` は **self にブロックされた自分のスピリット（アタッカー）を渡す**
+（`refreshSelf` が「ブロックされたこのスピリットを回復」として機能する。2026-08-07 に selfOverride を追加）。
+`targetInstanceId` は従来どおりブロッカー。花の子リップの `levelOverrideTarget` は targetInstanceId しか見ないため影響を受けない。
+
 ### フィールド全体制約（kind: "globalConstraint"）
 
 `{ kind: "globalConstraint", levels, constraint }`。フィールドの発生源から**両陣営の全スピリット／ネクサス**に効く。
@@ -783,6 +792,9 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 
 `{ kind: "constraint", levels, constraint: ConstraintDef }`。RuleValidator.validateBlock が参照する宣言的ルールで、
 クライアントのブロック可能ハイライトにも同判定をミラー。
+`kind: "constraintGrant"` は同じ `ConstraintDef` を自分のスピリットへ継続付与する
+（対象の絞り込み軸は minLevel / keywordFilter / vanillaFilter / **minSymbols**（シンボル数。BS05最古龍の顎Lv2＝2つ以上）／
+**nameIncludes**（カード名。BS05天焦がす大聖火Lv2＝「巨人」）／phaseTurn）。
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
 - `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
@@ -796,7 +808,7 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
   `requireOwnCostCountAtLeast`（持ち主の場に指定コストのスピリットがN体以上いる間。幻獣王リーンLv3＝コスト2が3体以上）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
-- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp）— アタック時に条件を満たす相手スピリットを
+- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp、**targetMinCost**）— アタック時に条件を満たす相手スピリットを
   指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
   doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
   クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）

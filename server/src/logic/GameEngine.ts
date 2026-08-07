@@ -558,12 +558,15 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
     // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
     // targetInstanceIdはブロッカー（instanceId）
+    // self にはブロックされた自分のスピリット（attacker）を渡す。refreshSelf が
+    // 「ブロックされたこのスピリットを回復させる」として機能する（BS05ペンタン帝国Lv2）。
+    // 花の子リップの levelOverrideTarget は targetInstanceId しか見ないので影響を受けない
     if (attacker) {
         fireFieldEventTriggers(
             state,
             attackerPid,
             "ownSpiritBlocked",
-            undefined,
+            { pid: attackerPid, inst: attacker },
             instColors(attacker),
             instanceId,
         )

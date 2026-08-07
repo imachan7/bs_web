@@ -368,7 +368,7 @@ export type ConstraintDef =
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
     | { type: "immuneToOpponentEffects" } // このスピリットは、相手のスピリット/マジックの効果を受けない（untargetableByOpponentと異なり範囲効果にも有効。ネクサスの効果・自分の効果は通る。BS04ワルキューレ・ヒルド）
-    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" | "any"; targetMinBp?: number } // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ、any=状態条件なし。イリュージョナ／牛霊スモゥグ／オルカリア）。targetMinBp指定時は相手スピリットの実効BPがこれ以上のものだけ指定できる（BS05シンクロニシティ：BP4000以上。BP条件だけで絞りたい場合はtargetFilter:"any"と組み合わせる）
+    | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" | "any"; targetMinBp?: number; targetMinCost?: number } // targetMinCost指定時は相手スピリットのコストがこれ以上のもののみ指定できる（instMatchesCostFilterで判定＝道化師クランの付与コストも見る。BS05天焦がす大聖火Lv2：コスト5以上） // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ、any=状態条件なし。イリュージョナ／牛霊スモゥグ／オルカリア）。targetMinBp指定時は相手スピリットの実効BPがこれ以上のものだけ指定できる（BS05シンクロニシティ：BP4000以上。BP条件だけで絞りたい場合はtargetFilter:"any"と組み合わせる）
     | { type: "cantAttack"; unlessOpponentHasColorSpirit?: Color } // このスピリットはアタックできない（カイザレオン大帝Lv1）。unlessOpponentHasColorSpirit 指定時は「持ち主から見た相手のフィールドに指定色のスピリットがいない間」だけ有効（activeConstraints が判定して外す。BS04鎧装獣ヘイズ・ルーン＝赤）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
@@ -540,6 +540,8 @@ export type EffectDef =
           keywordFilter?: Keyword // event: "ownSpiritSummoned" 限定：召喚されたスピリットがこのキーワードエントリを静的に持つときのみ発火（hasKeywordで判定。BS05最古龍の顎：転召持ちが召喚されたとき）
           costFilter?: { max?: number; min?: number } // event: "ownSpiritDestroyed" | "anySpiritAttacked" | "ownSpiritExhausted" | "anySpiritExhausted" 限定：破壊/消滅したスピリット、アタックしたスピリット、疲労したスピリットのコストがmax以下/min以上のときのみ発火（BS05天使クレイオ：コスト2／BS04鎧装獣ヘイズ・ルーン：コスト1以下／BS05藍紫の虚空：コスト1以下）
           eventTargetIsSelf?: true // event: "ownSpiritExhausted" | "anySpiritExhausted" 限定：イベント対象が発生源自身のときのみ発火（「**このスピリット**が疲労したとき」。BS02スクルディア）
+          nameIncludes?: string[] // イベント対象（selfOverrideのインスタンス）のカード名がいずれかの文字列を含むときのみ発火（cardNameContainsで判定＝「〜として扱う」付与名も見る。BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）
+          targetSameLevelAsSelf?: true // targetInstanceId のスピリットのLvが、イベント対象（selfOverride）のLvと同じときのみ発火（BS05ペンタン帝国Lv2：同じLvの相手にブロックされたとき）
       }
     | {
           id: string
@@ -808,6 +810,8 @@ export type EffectDef =
           minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05シンクロニシティ：覚醒持ちに指定アタックを付与）
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ（reviveOnDestroy.vanillaFilterと同型。BS05ポテンシャルパワー）
+          minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ（instanceSymbolCountで判定＝ダブルハートの追加シンボルも見る。BS05最古龍の顎Lv2：シンボル2つ以上）
+          nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ（cardNameContainsで判定＝「〜として扱う」付与名も見る。BS05天焦がす大聖火Lv2：「巨人」）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
           constraint: ConstraintDef
       }

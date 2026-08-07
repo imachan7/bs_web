@@ -15,6 +15,7 @@ import {
     instAllCosts,
     instHasColor,
     instHasCost,
+    instMatchesCostFilter,
     isVanillaCard,
     KEYWORDS,
     spiritHasKeyword,
@@ -108,6 +109,13 @@ export function matchesDirectedAttackFilter(
         effectiveBp(board, targetPid, target) < filter.targetMinBp
     ) {
         return `BP${filter.targetMinBp}以上のスピリットしか指定できません`
+    }
+    // BS05天焦がす大聖火Lv2：コスト5以上のみ指定できる（道化師クランの付与コストも見る）
+    if (
+        filter.targetMinCost !== undefined &&
+        !instMatchesCostFilter(target, { min: filter.targetMinCost })
+    ) {
+        return `コスト${filter.targetMinCost}以上のスピリットしか指定できません`
     }
     return null
 }

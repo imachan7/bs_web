@@ -7733,6 +7733,36 @@
       "amount": 2000
      }
     }
+   },
+   {
+    "id": "BS03-X10-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green"
+    ]
+   },
+   {
+    "id": "BS03-X10-e3",
+    "kind": "keywordGrant",
+    "levels": [
+     3
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green",
+     "yellow",
+     "blue"
+    ]
    }
   ]
  },
