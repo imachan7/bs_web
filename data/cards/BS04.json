@@ -4402,6 +4402,15 @@
   "effects": [
    {
     "id": "BS04-078-e1",
+    "kind": "jugekiCoreToVoid",
+    "levels": [
+     1,
+     2
+    ],
+    "count": 1
+   },
+   {
+    "id": "BS04-078-e2",
     "kind": "exhaustOnManualCoreAdd",
     "levels": [
      2

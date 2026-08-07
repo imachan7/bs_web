@@ -37,11 +37,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS04-078": {
-            "name": "魔影街",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS04-081": {
             "name": "強者統べる大地",
             "textBlocks": 2,
@@ -59,16 +54,6 @@
         },
         "BS05-038": {
             "name": "シーサーズ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-040": {
-            "name": "プリンセス・スノーホワイト",
-            "textBlocks": 2,
-            "implCount": 1
-        },
-        "BS05-065": {
-            "name": "青嵐の虚空",
             "textBlocks": 2,
             "implCount": 1
         },

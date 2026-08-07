@@ -23,6 +23,7 @@ import {
     effectiveBp,
     emitEvent,
     exhaustSpirit,
+    applyJugekiCoreToVoid,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
     fireSummonTrigger,
@@ -1008,6 +1009,8 @@ function resolveBattle(state: GameState): void {
                     state,
                     `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
                 )
+                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
                     sourcePid: attackerPid,
                     sourceType: "spirit",

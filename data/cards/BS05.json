@@ -2286,6 +2286,20 @@
   "effects": [
    {
     "id": "BS05-040-e1",
+    "kind": "magicTargetRedirect",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "turn": "opponent",
+    "protectFamily": [
+     "氷姫"
+    ],
+    "protectColor": "white"
+   },
+   {
+    "id": "BS05-040-e2",
     "kind": "reviveOnDestroy",
     "levels": [
      2,
@@ -3850,6 +3864,17 @@
       2
      ]
     }
+   },
+   {
+    "id": "BS05-065-e2",
+    "kind": "magicRestriction",
+    "levels": [
+     2
+    ],
+    "restriction": "costLimitAll",
+    "maxCost": 4,
+    "requireOwnKeyword": "tensho",
+    "phase": "attack"
    }
   ]
  },

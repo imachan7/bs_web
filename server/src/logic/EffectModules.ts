@@ -2821,6 +2821,33 @@ export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void 
     fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
 }
 
+// 魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
+// 【呪撃】で破壊される相手スピリット上のコアを指定個数ボイドへ置く。
+// GameEngine の呪撃解決が destroySpirit の**直前**に呼ぶ（破壊後だとコアは持ち主のリザーブへ
+// 移っており「そのスピリット上のコア」を取れないため）。ボイド行きなのでリザーブには戻らない
+export function applyJugekiCoreToVoid(
+    state: GameState,
+    attackerPid: PlayerId,
+    victimPid: PlayerId,
+    victim: CardInstance,
+): void {
+    for (const source of effectSources(state, attackerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "jugekiCoreToVoid") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            const removed = Math.min(effect.count, victim.cores)
+            if (removed === 0) continue
+            victim.cores -= removed
+            log(
+                state,
+                `${getCard(source.cardId).name}：【呪撃】で破壊される${getCard(victim.cardId).name}のコア${removed}個をボイドに置いた。`,
+            )
+            notifySpiritCoresRemovedByOpponent(state, victimPid, 1)
+        }
+    }
+}
+
 // フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 // （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数。
 // removeCores / removeCoresToTrash（actorPid !== ownerPidのとき）から呼ばれる
@@ -2864,10 +2891,26 @@ function setMagicRedirect(
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
             // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
-            if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
-            // そもそもこのアクションの絞り込みに合致しなければ「対象に含む」ではない
-            // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
-            if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
+            if (effect.protectFamily !== undefined) {
+                // スノーホワイト：守る対象は「持ち主の指定系統（＋指定色）のスピリット」で、
+                // 絞り込み先は発生源自身。守る対象が1体も対象に含まれていなければ発動しない
+                const guarded = state.players[defenderPid].field.spirits.filter(
+                    (s) =>
+                        matchesFamilyFilter(state, defenderPid, s, effect.protectFamily!) &&
+                        (effect.protectColor === undefined || instHasColor(s, effect.protectColor)),
+                )
+                if (guarded.length === 0) continue
+                const included =
+                    targetInstanceId !== undefined
+                        ? guarded.some((s) => s.instanceId === targetInstanceId)
+                        : guarded.some((s) => redirectTargetMatches(state, defenderPid, s, action))
+                if (!included) continue
+            } else {
+                if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
+                // そもそもこのアクションの絞り込みに合致しなければ「対象に含む」ではない
+                // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
+                if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
+            }
             state.magicRedirectTo = { pid: defenderPid, instanceId: inst.instanceId }
             log(
                 state,

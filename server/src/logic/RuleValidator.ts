@@ -18,6 +18,7 @@ import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 import {
     effectiveCost,
     hasMagicFreeGrant,
+    hasMagicCostLock,
     hasMagicRestriction,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
@@ -243,6 +244,10 @@ export function validateCastMagic(
     // 作戦参謀フォクシン：フィールドに発生源があれば、お互いターンに1回しかマジックの効果を使用できない
     if (hasMagicRestriction(state, pid, "oncePerTurnAll") && (state.magicUsedThisTurn[pid] ?? 0) >= 1) {
         return "このターンはすでにマジックの効果を使用しているため使用できません"
+    }
+    // 青嵐の虚空Lv2：どちらかのフィールドに発生源があれば、お互い指定コスト以下のマジックを使用できない
+    if (hasMagicCostLock(state, card)) {
+        return "このコストのマジックは、場の効果によって使用できません"
     }
     // 螺旋の塔Lv2：相手フィールドに発生源があれば、マジックのコストはすべてリザーブから支払う
     // （フィールドのコアを支払い元に指定できない）

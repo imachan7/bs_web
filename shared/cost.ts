@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, matchesCostFilter, matchesFamilyFilter } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -115,6 +115,7 @@ export function hasMagicRestriction(
                 if (effect.kind !== "magicRestriction") continue
                 if (effect.restriction !== restriction) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 return true
@@ -123,6 +124,40 @@ export function hasMagicRestriction(
     }
     return false
 }
+
+// コスト上限によるマジック使用制約（restriction:"costLimitAll"）の判定。
+// hasMagicRestriction と分けているのは、こちらだけ「使おうとしているカードのコスト」を要るため。
+// 「お互い」に効くので usingPid と発生源の持ち主の一致チェックはしない（oncePerTurnAll と同じ）。
+// コストは**カード記載のコスト（軽減前）**で比べる（BS05青嵐の虚空Lv2＝コスト4以下）。
+// requireOwnKeyword 指定時は、発生源の持ち主のフィールドにそのキーワードを持つスピリットがいる間だけ有効
+export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
+        for (const source of sources) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "magicRestriction") continue
+                if (effect.restriction !== "costLimitAll") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.maxCost === undefined || cardData.cost > effect.maxCost) continue
+                if (
+                    effect.requireOwnKeyword !== undefined &&
+                    !board.players[ownerPid].field.spirits.some((s) =>
+                        spiritHasKeyword(board, ownerPid, s, effect.requireOwnKeyword!),
+                    )
+                ) {
+                    continue
+                }
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
 // レベル有効・色一致（またはscope一致）・phaseTurn一致の発生源があるかを調べる
 // （薔薇人バロッサ：自分のアタックステップに自分の黄マジックカードを無償化）。
