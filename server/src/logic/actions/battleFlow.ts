@@ -15,6 +15,7 @@ import {
     requestCardChoice,
     requestChoice,
     resolveKoboOnBattleEnd,
+    resolveTensho,
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
@@ -460,6 +461,12 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
             player.field.spirits.push(inst)
             summonedNames.push(card.name)
             summonedCount++
+            // 【転召】はコストを支払わない召喚でも必ず行う（公式Q&A 2024-10-31）。
+            // 現データでこの経路から召喚されうるカード（天霊／怪虫）に転召持ちはいないため実質no-opだが、
+            // 経路ごとに扱いを変えると将来のカードで無言の取りこぼしになるので必ず通す。
+            // 転召が対象選択を要求したら（選択待ちが立ったら）そこで召喚を打ち切る
+            if (!state.winner) resolveTensho(state, owner, inst)
+            if (state.pendingChoice) break
         }
         if (summonedCount === 0) {
             log(state, `${sourceName}：召喚できる対象がいなかった。`)

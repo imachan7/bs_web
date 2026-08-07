@@ -8,8 +8,12 @@
 //   - CardInstance.returnToDeckBottomAtEndStep ＋ PhaseManager.endTurn の遅延処理
 //   - requestCardChoice の alwaysAsk（候補1枚でも選択を出す＝「召喚できる」の任意性）
 //
-// ⚠️ この効果は summonFromHandFree / summonFromTrashFree と違い、効果文に
-//    「召喚時効果は発揮されない」の記載が**無い**ので、召喚時効果と【転召】を通常どおり発揮する。
+// ⚠️ 召喚時効果の扱い: summonFromHandFree / summonFromTrashFree と違い、効果文に
+//    「召喚時効果は発揮されない」の記載が**無い**ので、召喚時効果は通常どおり発揮する。
+// ⚠️ 【転召】の扱い: 「【転召】を発揮したものとして」＝**転召を済ませたものとして扱う**ので、
+//    このカードでは転召を解決しない（コアも失わず、犠牲になるスピリットも出ない）。
+//    通常の効果による召喚では転召を必ず行う（公式Q&A 2024-10-31）ので、これが唯一の例外。
+//    その一般側の検証は part114。
 import { assert, act, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
@@ -85,14 +89,17 @@ console.log("=== BS05-069：召喚した個体はエンドステップに自分�
     )
 }
 
-console.log("=== BS05-069：【転召】を発揮したものとして扱う（自分のスピリットのコアが移る） ===")
+console.log("=== BS05-069：「【転召】を発揮したものとして」＝スピリットを犠牲にしない ===")
 {
+    // 公式Q&A（2024-10-31）では「コストを支払わずに召喚した場合でも【転召】はしなければならない」。
+    // この一文はその例外で、転召を**済ませたものとして扱う**＝コアを置く必要がない、の意味。
+    // したがって転召の対象は指定されず、自分のスピリットは1体も犠牲にならない
     const s = createGame("bs05-069-tensho", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "green" })
     runTurnStart(s)
     s.turnPlayer = "p1"
     s.phase = "main"
     s.players.p1.reserve = 10
-    // 転召の対象になれる自分のスピリット（コスト5以上・コア3個）
+    // 転召の対象になれてしまう自分のスピリット（コスト5以上・コア3個）
     const victim = putSpirit(s, "p1", "BS04-020", 3) // 闇帝オプス・キュリテ（コスト6）
     s.players.p1.deck.unshift("BS01-002", "BS04-010", "BS01-001")
     const trashCoresBefore = s.players.p1.trashCores
@@ -102,12 +109,13 @@ console.log("=== BS05-069：【転召】を発揮したものとして扱う（�
         "【転召】持ちが召喚された",
     )
     assert(
-        !s.players.p1.field.spirits.some((x) => x.instanceId === victim.instanceId),
-        "【転召】でコアをすべて失った対象は維持コア割れで消滅する",
+        s.players.p1.field.spirits.some((x) => x.instanceId === victim.instanceId),
+        "転召の対象は取られず、自分のスピリットは犠牲にならない",
     )
+    assert(victim.cores === 3, `対象候補のコアも減らない（実際${victim.cores}）`)
     assert(
-        s.players.p1.trashCores === trashCoresBefore + 3,
-        `転召で移したコア3個がトラッシュへ（実際+${s.players.p1.trashCores - trashCoresBefore}）`,
+        s.players.p1.trashCores === trashCoresBefore,
+        `トラッシュのコアも増えない（実際+${s.players.p1.trashCores - trashCoresBefore}）`,
     )
 }
 

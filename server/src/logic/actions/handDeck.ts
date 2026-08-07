@@ -18,7 +18,6 @@ import {
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
-    resolveTensho,
     returnSpiritToDeckBottom,
     returnSpiritToDeckTop,
     returnSpiritToHand,
@@ -569,8 +568,13 @@ function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: stri
 }
 
 // 公開したカード1枚をコストを支払わず召喚する。
-// **召喚時効果と【転召】は通常どおり発揮する**（効果文に「発揮されない」の記載が無いため。
-// summonFromHandFree / summonFromTrashFree とはここが違う）
+//
+// **召喚時効果は通常どおり発揮する**（効果文に「発揮されない」の記載が無い。
+// summonFromHandFree / summonFromTrashFree とはここが違う）。
+// 一方で **【転召】は解決しない**：効果文の「【転召】を発揮したものとして」は
+// 「転召を済ませたものとして扱う＝スピリットを犠牲にしなくてよい」の意味。
+// 通常の効果による召喚では転召を必ず行う（公式Q&A 2024-10-31）ので、
+// **この一文を持つカードだけが例外**という関係になる
 function summonRevealedFree(
     ctx: ActionCtx,
     action: { returnToDeckBottomAtEndStep?: true },
@@ -589,10 +593,12 @@ function summonRevealedFree(
     const inst = createInstance(cardId, state.turn, maintain)
     if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
     player.field.spirits.push(inst)
-    log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。`)
+    log(
+        state,
+        `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+            "（【転召】を発揮したものとして扱うため、コアを置く必要はない）",
+    )
     fireSummonTrigger(state, owner, inst)
-    // 【転召】を発揮したものとして扱う（効果文どおり。対象がいなければ不発）
-    if (!state.winner) resolveTensho(state, owner, inst)
 }
 
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {

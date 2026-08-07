@@ -1729,6 +1729,9 @@ export function summonFreeFromHandIndex(
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
             "（このスピリットの召喚時効果は発揮されない）",
     )
+    // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
+    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない
+    if (!state.winner) resolveTensho(state, owner, inst)
 }
 
 // summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
@@ -1761,6 +1764,9 @@ export function summonFreeFromTrashIndex(
         `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。` +
             "（このスピリットの召喚時効果は発揮されない）",
     )
+    // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
+    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない
+    if (!state.winner) resolveTensho(state, owner, inst)
 }
 
 // instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
