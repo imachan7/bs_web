@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
+    bothSidesPids,
     countEffectCounter,
     drawDoubleMultiplier,
     findSpiritAny,
@@ -29,10 +30,16 @@ import { COLOR_LABELS } from "../../../../data/constants"
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）
-        draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+        // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
+        // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {
-            draw(state, opp, action.count * drawDoubleMultiplier(state, opp))
+            const pids = bothSidesPids(state, srcType, true)
+            for (const pid of [owner, opp]) {
+                if (!pids.includes(pid)) continue
+                draw(state, pid, action.count * drawDoubleMultiplier(state, pid))
+            }
+        } else {
+            draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
         }
         return
 }
@@ -955,7 +962,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
-        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
         for (const pid of sides) {
             // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す

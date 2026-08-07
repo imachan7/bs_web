@@ -4,6 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
+    bothSidesPids,
     destroySpirit,
     emitEvent,
     findSpiritAny,
@@ -581,9 +582,11 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 // 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
 // 破棄するカードは手札の末尾から＝各自が選ぶ処理の決定的簡略化
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, sourceName, srcType } = ctx
     if (action.count <= 0) return
+    const pids = bothSidesPids(state, srcType)
     for (const pid of [owner, opponentOf(owner)]) {
+        if (!pids.includes(pid)) continue
         const player = state.players[pid]
         const discarded = Math.min(action.count, player.hand.length)
         for (let i = 0; i < discarded; i++) {

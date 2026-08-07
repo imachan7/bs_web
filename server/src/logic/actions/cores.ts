@@ -4,6 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { coresForLevel, getCard, log, minLevelCores } from "../GameState"
 import {
+    bothSidesPids,
     checkExhaustOnCoreChange,
     countEffectCounter,
     destroySpirit,
@@ -501,12 +502,12 @@ const coreToVoidOwnHandler: ActionHandler<"coreToVoidOwn"> = (ctx, action) => {
 }
 
 const bothSidesCoreToTrashHandler: ActionHandler<"bothSidesCoreToTrash"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, sourceName, srcType } = ctx
         // 両プレイヤーが各自のフィールドのスピリットから、コアの多い個体から順に
         // 合計count個を各持ち主のトラッシュへ（1体で足りなければ次にコアが多い個体へ繰り越す。
         // 維持コア割れの消滅処理はopponentCoresToTrashHandlerと同じ判定を用いる。
         // 片側のみ対象がいてもその側は処理する。BS01メタルディー・バグ＝count1、BS02マインドコントロール＝count4）
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const pid of bothSidesPids(state, srcType)) {
             const player = state.players[pid]
             if (player.field.spirits.length === 0) {
                 log(state, `${sourceName}：${player.name}のフィールドにスピリットがいなかった。`)
@@ -1209,10 +1210,10 @@ const opponentNexusOrReserveCoreToTrashHandler: ActionHandler<"opponentNexusOrRe
 }
 
 const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, sourceName, srcType } = ctx
         // インフェルノアイズ：両プレイヤーが各自のスピリット+ネクサスから、コアの多い個体から順に
         // 合計count個をボイドへ（維持コア割れの消滅処理はスピリットのみ。ネクサスは消滅しない）
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const pid of bothSidesPids(state, srcType)) {
             const player = state.players[pid]
             let remaining = action.count
             let moved = 0

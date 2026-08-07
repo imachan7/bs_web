@@ -4,6 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, draw, getCard, log, minLevelCores } from "../GameState"
 import {
+    bothSidesPids,
     destroyNexus,
     destroySpirit,
     findSpiritAny,
@@ -448,9 +449,9 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
 }
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
+    const { state, owner, opp, sourceName, srcType } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
-        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         // levelFilter指定時はcurrentLevelがこれに含まれるネクサスのみ対象（BS03バスターランス＝Lv1のみ）
         const matchesLevel = (n: CardInstance) =>
             action.levelFilter === undefined || action.levelFilter.includes(currentLevel(n).level)
@@ -766,10 +767,10 @@ const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCor
 }
 
 const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
+    const { state, opp, sourceName, srcType } = ctx
         // フォールダウン：指定側のネクサスすべての上のコアすべてを、各持ち主のトラッシュへ。
         // ネクサスはコア0になっても消滅しない
-        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let total = 0
         for (const pid of sides) {
             const player = state.players[pid]

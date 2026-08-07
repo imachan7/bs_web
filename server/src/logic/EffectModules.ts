@@ -11,6 +11,7 @@ import type {
     AuraDef,
     CardData,
     CardInstance,
+    CardType,
     Color,
     ConstraintDef,
     DestroyContext,
@@ -2819,6 +2820,38 @@ export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: n
 export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void {
     if (state.winner) return
     fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
+}
+
+// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
+// 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
+// bothSidesCoreToVoid / exhaustAll side:"both" / returnAllToHand side:"both" / nexusCoresToTrash side:"both" /
+// draw side:"both" / discardBothHands）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
+// beneficial=true は「受ける側にとって得な効果」（ドロー）で、そのときだけ相手を外す。
+// マジック以外の発生源（スピリット・ネクサスの効果）は対象外なので、そのまま両陣営を返す
+export function bothSidesPids(
+    state: GameState,
+    srcType: CardType | undefined,
+    beneficial = false,
+): PlayerId[] {
+    const all: PlayerId[] = ["p1", "p2"]
+    if (srcType !== "magic") return all
+    for (const ownerPid of all) {
+        for (const source of effectSources(state, ownerPid)) {
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "bothSidesTargetRedirect") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+                const excluded = beneficial ? opponentOf(ownerPid) : ownerPid
+                log(
+                    state,
+                    `${getCard(source.cardId).name}：このマジックの効果の対象を${state.players[opponentOf(excluded)].name}のみに変更した。（どちらに変更するかは簡略化）`,
+                )
+                return all.filter((p) => p !== excluded)
+            }
+        }
+    }
+    return all
 }
 
 // 果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが

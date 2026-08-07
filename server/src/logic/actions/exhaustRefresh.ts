@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
+    bothSidesPids,
     destroySpirit,
     exhaustSpirit,
     findSpiritAny,
@@ -161,7 +162,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
 const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットをBP範囲で疲労させる（相手側のみ装甲・疲労免疫を尊重）
-        const sides: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [opp]
+        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let exhausted = 0
         for (const pid of sides) {
             for (const s of [...state.players[pid].field.spirits]) {
