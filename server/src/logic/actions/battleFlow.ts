@@ -20,7 +20,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, matchesCostFilter } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -491,8 +491,52 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             const candidate = getCard(candidateId)
             if (candidate.type !== "spirit") return false
             if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
-            if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
+            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+            if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
+        }
+        // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
+        // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
+        // 時点で打ち切り。プレイヤー選択・対象選択は伴わないため choseCardIndex / interactiveTargets 分岐は不要）
+        if (action.costBudget !== undefined) {
+            let remainingBudget = action.costBudget
+            const summonedNames: string[] = []
+            while (true) {
+                let bestIndex = -1
+                let bestCost = -1
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    const candidateId = player.trashCards[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const candidate = getCard(candidateId)
+                    if (candidate.cost > remainingBudget) continue
+                    if (minLevelCores(candidate) > player.reserve) continue
+                    if (candidate.cost > bestCost) {
+                        bestCost = candidate.cost
+                        bestIndex = i
+                    }
+                }
+                if (bestIndex === -1) break
+                const cardId = player.trashCards[bestIndex]!
+                const card = getCard(cardId)
+                const maintain = minLevelCores(card)
+                player.trashCards.splice(bestIndex, 1)
+                player.reserve -= maintain
+                remainingBudget -= card.cost
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.spirits.push(inst)
+                summonedNames.push(card.name)
+                if (!state.winner) resolveTensho(state, owner, inst)
+                if (state.pendingChoice) break
+            }
+            if (summonedNames.length === 0) {
+                log(state, `${sourceName}：召喚できる対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
+            )
+            return
         }
         if (chosenCardIndex !== undefined) {
             summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex)

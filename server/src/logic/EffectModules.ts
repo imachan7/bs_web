@@ -935,7 +935,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
                     for (const spirit of player.field.spirits) {
-                        if (effect.familyFilter && !spiritHasFamily(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
@@ -1259,7 +1259,26 @@ function tryReviveOnDestroy(
             }
             return false
         }
+        if (effect.cost?.handDiscardOne) {
+            // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
+            if (player.hand.length === 0) return false
+            const cardId = player.hand.pop()!
+            player.trashCards.push(cardId)
+            return true
+        }
         return true
+    }
+
+    // oncePerTurn（BS06暴かれた墓石Lv2）：発生源（sourceInst）が同一ターンに既に復活を成立させていたら不発
+    const oncePerTurnBlocked = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        sourceInst: CardInstance,
+    ): boolean => effect.oncePerTurn === true && sourceInst.reviveOnDestroyUsedTurn === state.turn
+    const markOncePerTurn = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        sourceInst: CardInstance,
+    ): void => {
+        if (effect.oncePerTurn) sourceInst.reviveOnDestroyUsedTurn = state.turn
     }
 
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
@@ -1292,7 +1311,9 @@ function tryReviveOnDestroy(
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
+        if (oncePerTurnBlocked(effect, inst)) return false
         if (!applyCost(effect)) return false
+        markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
         applyRevived(effect.revived)
         log(
@@ -1330,7 +1351,9 @@ function tryReviveOnDestroy(
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
+            if (oncePerTurnBlocked(effect, source)) continue
             if (!applyCost(effect)) continue
+            markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             applyRevived(effect.revived)
             log(
@@ -2701,6 +2724,9 @@ export function fireFieldEventTriggers(
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+            // ownOnly（BS06冥騎士アンドラー／冥府の深淵）：発生源の持ち主（pid）のスピリットがアタックしたときのみ
+            // （selfOverride.pidが発生源の持ち主と一致するときだけ通す。「自分のスピリットが」の限定）
+            if (effect.ownOnly && selfOverride?.pid !== pid) continue
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
@@ -2749,12 +2775,15 @@ export function fireFieldEventTriggers(
                           matchesFamilyFilter(state, selfOverride.pid, selfOverride.inst, effect.familyFilter)
                 if (!ok) continue
             }
-            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）
-            if (
-                effect.keywordFilter !== undefined &&
-                !hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
-            ) {
-                continue
+            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
+            // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
+            // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
+            if (effect.keywordFilter !== undefined) {
+                const hasKw =
+                    (event === "anySpiritAttacked" || event === "ownSpiritDealtLife") && selfOverride !== undefined
+                        ? spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
+                        : hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
+                if (!hasKw) continue
             }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {

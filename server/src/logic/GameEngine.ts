@@ -687,6 +687,17 @@ function resolveLifeDamage(state: GameState): void {
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
     if (dealt > 0) {
         fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+        // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
+        // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
+        if (!state.winner) {
+            fireFieldEventTriggers(
+                state,
+                attackerPid,
+                "ownSpiritDealtLife",
+                { pid: attackerPid, inst: attacker },
+                instColors(attacker),
+            )
+        }
     }
 
     resolveKoboOnBattleEnd(state, attackerPid, attacker)

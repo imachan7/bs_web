@@ -30,7 +30,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -105,6 +105,59 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             removeCores(state, found.pid, found.inst, removeCount, owner)
         }
         return
+}
+
+// BS06-096レベルドレイン：相手のスピリット1体の上のコアを、1つ下のLvに必要なコア数と同じになるまで
+// 相手のトラッシュへ置く（coreRemoveHandlerと同じ対象選択・装甲/マジック効果耐性の判定を踏襲）。
+// Lv1のスピリット（1つ下のLvが無い）は対象にしても何も起きない
+const coreDrainToLowerLevelHandler: ActionHandler<"coreDrainToLowerLevel"> = (ctx) => {
+    const { state, owner, opp, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId === undefined && state.interactiveTargets) {
+        const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+        if (candidates.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：対象を選んでください`,
+                candidates.map((s) => s.instanceId),
+                false,
+                { type: "coreDrainToLowerLevel" },
+                ctx.self,
+            )
+            return
+        }
+    }
+    const found = targetInstanceId
+        ? findSpiritAny(state, targetInstanceId)
+        : (() => {
+              const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+              return t ? { pid: opp, inst: t } : null
+          })()
+    if (!found) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (
+        isEffectBlocked(state, found.inst, srcType) ||
+        (found.pid !== owner &&
+            (hasArmorAgainst(found.inst, srcColors) ||
+                (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
+    ) {
+        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+        return
+    }
+    const card = getCard(found.inst.cardId)
+    const level = currentLevel(found.inst).level
+    if (level <= 1) {
+        log(state, `${sourceName}：${card.name}はLv1のため効果がなかった。`)
+        return
+    }
+    const lowerCores = coresForLevel(card, level - 1)
+    if (lowerCores === null || found.inst.cores <= lowerCores) {
+        log(state, `${sourceName}：${card.name}のコアはこれ以上取り除けなかった。`)
+        return
+    }
+    removeCoresToTrash(state, found.pid, found.inst, found.inst.cores - lowerCores, owner)
 }
 
 // coreRemoveMulti の対象1体への適用（装甲・マジック効果耐性の判定を含む）。
@@ -1457,6 +1510,7 @@ const handlers = {
     swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,
     coreRemove: coreRemoveHandler,
+    coreDrainToLowerLevel: coreDrainToLowerLevelHandler,
     coreRemoveMulti: coreRemoveMultiHandler,
     coreRemoveSelf: coreRemoveSelfHandler,
     coreToTrashSelf: coreToTrashSelfHandler,

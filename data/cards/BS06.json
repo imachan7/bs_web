@@ -416,6 +416,685 @@
   ]
  },
  {
+  "cardId": "BS06-013",
+  "name": "ピジョンヘディレス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-014",
+  "name": "スモッグゴート",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット上のコア1個を相手のリザーブに置く。\nこの効果で相手のスピリット上のコアを0個にはできない。",
+  "effects": [
+   {
+    "id": "BS06-014-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1,
+     "leaveAtLeast": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-015",
+  "name": "ストレイソウル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "幽魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
+  "effects": [
+   {
+    "id": "BS06-015-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-016",
+  "name": "ブロンズメイデン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS06-016-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-017",
+  "name": "冥空士ブーネイ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-018",
+  "name": "人狼ルー・ガウル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体の上のコアを1個だけ残し、それ以外を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-018-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreSqueezeOne",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-019",
+  "name": "冥楽士ムール",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2･Lv3『このスピリットの破壊時』\n相手のスピリット上のコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-019-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-019-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-020",
+  "name": "スカルゴイル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-021",
+  "name": "蛇后妃メドゥーサ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇",
+   "魔神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\n自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS06-021-e1",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-022",
+  "name": "斬首刀のシャドウスライサー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の手札にある系統：「虚神」を持つスピリットカードすべてをコスト6にする。\nLv1･Lv2『このスピリットのアタック時』\n自分のトラッシュにある系統：「無魔」を持つスピリットカード1枚を手札に戻す。\nLv2\n系統：「無魔」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-022-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2
+    ],
+    "mode": "set",
+    "setTo": 6,
+    "familyFilter": "虚神"
+   },
+   {
+    "id": "BS06-022-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "familyFilter": "無魔"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-022-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amountPer": 1000,
+     "counter": {
+      "ownFamily": "無魔"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-023",
+  "name": "闇司教バクルス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔",
+   "魔神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nスピリットすべてのコアを、それぞれ1個だけになるように持ち主のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-023-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreSqueezeAll"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-024",
+  "name": "冥騎士アンドラー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nコアが2個以下しか置かれていない相手のスピリット1体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n【呪撃】を持つ自分のスピリットがアタックしたとき、相手のスピリット上のコア1個を相手のリザーブに置く。\nLv3『このスピリットの破壊時』\n【呪撃】を持つ自分のスピリット1体につき、相手のスピリット上のコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-024-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxCores": 2
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-024-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "keywordFilter": "jugeki",
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS06-024-e3",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": {
+      "ownKeyword": "jugeki"
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS06-025",
   "name": "メェ～ポン",
   "type": "spirit",
@@ -1114,6 +1793,196 @@
   ]
  },
  {
+  "cardId": "BS06-076",
+  "name": "暴かれた墓石",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。\nLv2\nターンに1回、系統：「無魔」を持つ自分のスピリットが破壊されたとき、自分の手札1枚を破棄することで、回復状態で自分のフィールドに残る。",
+  "effects": [
+   {
+    "id": "BS06-076-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS06-076-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "familyFilter": "無魔",
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "handDiscardOne": true
+    },
+    "oncePerTurn": true,
+    "when": {}
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-077",
+  "name": "冥府の深淵",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「冥主」/「無魔」を持つ自分のスピリットすべてに“【呪撃】『このスピリットのアタック時』バトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する”を与える。\nLv2『自分のアタックステップ』\n【呪撃】を持つ自分のスピリットがアタックしたとき、相手のスピリットのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS06-077-e1",
+    "kind": "keywordGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "keyword": "jugeki",
+    "target": "ownAll",
+    "familyFilter": [
+     "冥主",
+     "無魔"
+    ]
+   },
+   {
+    "id": "BS06-077-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "keywordFilter": "jugeki",
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-078",
+  "name": "魔帝の寝所",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のメインステップ』\nスピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。\nLv2『相手のアタックステップ』\nアタックしたスピリットは、そのスピリット上のコア1個を持ち主のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS06-078-e1",
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "any"
+   },
+   {
+    "id": "BS06-078-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "action": {
+     "type": "coreToTrashSelf",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-081",
   "name": "賢者の樹の実",
   "type": "nexus",
@@ -1289,6 +2158,148 @@
   ]
  },
  {
+  "cardId": "BS06-095",
+  "name": "ベリアルドロー",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、アタックした自分の紫のスピリットが、BPを比べ相手のスピリットに破壊されるたび、自分はデッキから2枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS06-095-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-095-e2",
+    "kind": "fieldEvent",
+    "levels": null,
+    "lentOnly": true,
+    "event": "ownSpiritDestroyed",
+    "byBattleOnly": true,
+    "colorFilter": "purple",
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
+   },
+   {
+    "id": "BS06-095-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-096",
+  "name": "レベルドレイン",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体の上のコアを、1つ下のLvコストと同じになるように相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS06-096-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreDrainToLowerLevel"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-097",
+  "name": "ブラッディコフィン",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n疲労状態のコスト4以下のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS06-097-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "anySide": true,
+     "filter": {
+      "cost": {
+       "max": 4
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-098",
+  "name": "カウンターカース",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のスピリットすべての【呪撃】の効果を“【呪撃】『このスピリットのブロック時』このスピリットは、バトルした相手のスピリット1体をバトル終了時に破壊する”に変更する。",
+  "effects": []
+ },
+ {
   "cardId": "BS06-100",
   "name": "ソーンプリズン",
   "type": "magic",
@@ -1316,6 +2327,82 @@
      "type": "exhaust",
      "count": 2,
      "chooserIsTarget": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-X22",
+  "name": "魔界七将ベルゼビート",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある【呪撃】を持つスピリットカードをコスト合計13まで、コストを支払わずに召喚できる。\nLv2･Lv3『自分のアタックステップ』\n【呪撃】を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS06-X22-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "summonFromTrashFree",
+     "keywordFilter": "jugeki",
+     "costBudget": 13
+    },
+    "optional": true
+   },
+   {
+    "id": "BS06-X22-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDealtLife",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "keywordFilter": "jugeki",
+    "action": {
+     "type": "destroy",
+     "count": 1
     }
    }
   ]
