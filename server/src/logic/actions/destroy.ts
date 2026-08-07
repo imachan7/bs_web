@@ -528,6 +528,32 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04ヘルウィッチ）
         const matchesExhaustedCandidate = (s: CardInstance) =>
             s.isRested && matchesTarget(state, opp, s, exhaustedFilter, self?.instanceId)
+        // all：範囲効果として条件を満たす疲労スピリットをすべて破壊する（BS05ソウルクラッシュ）。
+        // 相手側にだけ装甲・範囲免疫・マジック効果耐性を適用する（既存の範囲破壊と同じ非対称ルール）。
+        // 破壊時誘発で配列が変化しうるのでスナップショットを取ってから回す
+        if (action.all) {
+            const sides: PlayerId[] = action.anySide ? ["p1", "p2"] : [opp]
+            let destroyed = 0
+            for (const pid of sides) {
+                for (const s of [...state.players[pid].field.spirits]) {
+                    if (!matchesExhaustedCandidate(s)) continue
+                    if (isImmuneToArea(s) || isEffectBlocked(state, s, srcType)) continue
+                    if (
+                        pid !== owner &&
+                        (hasArmorAgainst(s, srcColors) ||
+                            hasFullEffectImmunity(s, srcType) ||
+                            (srcType === "magic" && hasMagicImmunity(state, pid, s)))
+                    ) {
+                        continue
+                    }
+                    destroySpirit(state, pid, s.instanceId)
+                    destroyed++
+                    if (state.winner) return
+                }
+            }
+            log(state, `${sourceName}：疲労状態のスピリット${destroyed}体を破壊した。`)
+            return
+        }
         if (action.anySide) {
             // 「自分か相手の疲労スピリット1体」（BS02-024 ブラッディ・シーザー）。
             // 実対戦ではプレイヤーが両陣営から選ぶ。相手側の候補には免疫・装甲チェックを適用し、

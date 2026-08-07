@@ -60,6 +60,14 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
+// （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
+// **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
+export function instIsVanilla(inst: CardInstance): boolean {
+    if (inst.treatedAsVanillaContinuous === true) return true
+    return isVanillaCard(card(inst.cardId))
+}
+
 // 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
 // 前者はスピリット・ネクサス。後者は現時点ではターン限定の仮想発生源（マジックが貸した継続効果。
 // PlayerState.turnVirtualInstances）のみだが、**今後ここに種類が追加される想定**（例: 次弾以降の新カードタイプ
@@ -76,9 +84,29 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     const player = board.players[pid]
     return [
         ...player.field.spirits, // フィールドに実在するスピリット
-        ...player.field.nexuses, // フィールドに実在するネクサス
+        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
+        ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
     ]
+}
+
+// pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
+// （BS05ネクサスブロケイド）。
+// ⚠️ ここで effectSources を呼ぶと無限再帰するので、相手側の配列を**直接**走査する。
+// ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
+// 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
+function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
+    const opp = board.players[pid === "p1" ? "p2" : "p1"]
+    const sources = [...opp.field.spirits, ...opp.field.nexuses, ...opp.turnVirtualInstances]
+    for (const source of sources) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return true
+        }
+    }
+    return false
 }
 
 // このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
@@ -230,7 +258,7 @@ export function hasContinuousKeywordGrant(
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
-            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             return true
         }
     }
@@ -451,7 +479,7 @@ export function auraAppliesTo(
     if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
         return false
     }
-    if (aura.vanillaFilter && !isVanillaCard(card(targetInst.cardId))) {
+    if (aura.vanillaFilter && !instIsVanilla(targetInst)) {
         return false
     }
     return true
@@ -562,7 +590,7 @@ export function matchesTarget(
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
-    if (filter.vanilla !== undefined && !isVanillaCard(card(inst.cardId))) return false
+    if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
@@ -655,7 +683,7 @@ export function activeConstraints(
             // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
-            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             // BS05最古龍の顎Lv2：シンボル2つ以上のスピリットのみ（ダブルハートの追加シンボルも数える）
             if (effect.minSymbols !== undefined && instanceSymbolCount(inst) < effect.minSymbols) continue
             // BS05天焦がす大聖火Lv2：カード名に「巨人」を含むスピリットのみ（「〜として扱う」付与名も見る）

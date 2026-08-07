@@ -42,7 +42,7 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
-    "destroyedCoresToTrash", "nameAsGrant",
+    "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
 ])
 
 export interface ValidationIssue {
@@ -110,7 +110,11 @@ function checkLentEffects(
         // ※ ここを kind:"magic" だけの除外にしていると、スピリットの triggered から
         //   lendSelfThisTurn を撃つ形（BS01-055 エメアント等）で、発動側のエントリ自身と
         //   同一カードの無関係な誘発まで「levels が null でない」と誤って弾かれる
-        if (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword") continue
+        // ただし lentOnly:true が明示されているエントリは「貸される側」なので検査する
+        // （fieldEvent は action 持ちだが、lentOnly を書けば仮想発生源からのみ発火する貸与効果になる。
+        //  levels を null 以外で書くと仮想発生源は Lv0 なので**無言で一度も発火しない**）
+        const lentOnlyEntry = (e as { lentOnly?: boolean }).lentOnly === true
+        if (!lentOnlyEntry && (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword")) continue
 
         // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
         // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**

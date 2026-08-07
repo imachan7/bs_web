@@ -72,7 +72,7 @@ import {
     instHasColor,
     instHasCost,
     isUntargetableByOpponent,
-    isVanillaCard,
+    instIsVanilla,
     isVirtualSource,
     cardNameContains,
     matchesTarget,
@@ -105,7 +105,6 @@ export {
     instHasColor,
     instHasCost,
     isUntargetableByOpponent,
-    isVanillaCard,
     isVirtualSource,
     cardNameContains,
     matchesTarget,
@@ -848,6 +847,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.colorsAsContinuous
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
+            delete inst.treatedAsVanillaContinuous
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
@@ -890,11 +890,30 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "vanillaAsGrant") {
+                    // 「系統：『造兵』を持つ自分のスピリットすべてを、カードに効果の記述を持たない
+                    // スピリットとしても扱う」（BS04スイッチヒッター）。instIsVanilla は state を受け取らない
+                    // 純粋述語なので、対象の CardInstance.treatedAsVanillaContinuous へ毎回再構築して反映する
+                    if (effect.lentOnly && !isVirtualSource(source)) continue
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (
+                            effect.familyFilter &&
+                            !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)
+                        ) {
+                            continue
+                        }
+                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
+                        spirit.treatedAsVanillaContinuous = true
+                    }
+                    continue
+                }
                 if (effect.kind === "nameAsGrant") {
                     // 「コストNの自分のスピリットすべては、カード名に『◯◯』が入っているものとして扱う」
                     // （アルカナプリンス・オベロLv2／アルカナプリンセス・アンLv2）。
                     // cardNameContains は state を受け取らない純粋述語なので、colorsAsContinuous と同じく
                     // 対象の CardInstance.namesAsContinuous へ毎回再構築して反映する
+                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         // 「コストNの自分のスピリット」は付与コスト（道化師クラン）も込みで判定する
@@ -995,7 +1014,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）。
                     // summonedThisTurnOnly 指定時は「召喚されたターンの間」だけ（BS04心臓破りの巨大坂Lv2）
                     for (const spirit of player.field.spirits) {
-                        if (!isVanillaCard(getCard(spirit.cardId))) continue
+                        if (!instIsVanilla(spirit)) continue
                         if (effect.summonedThisTurnOnly && spirit.summonedTurn !== state.turn) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
@@ -1093,7 +1112,7 @@ export function destroySpirit(
     // selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで「破壊されたスピリットのBP以下」を
     // 参照できるようにする。既存カードはselfを参照しないアクションのみのため挙動は変わらない）
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
-        vanilla: isVanillaCard(master),
+        vanilla: instIsVanilla(inst),
         byBattle: context?.battle !== undefined,
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
@@ -1212,7 +1231,7 @@ function tryReviveOnDestroy(
 
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (!effectActiveAtLevel(effect.levels, level)) return false
-        if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) return false
+        if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
@@ -1244,7 +1263,7 @@ function tryReviveOnDestroy(
             if (effect.kind !== "reviveOnDestroy") continue
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.vanillaFilter && !isVanillaCard(getCard(inst.cardId))) continue
+            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
@@ -1284,7 +1303,7 @@ function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId): boolea
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.condition) {
                 const vanillaCount = player.field.spirits.filter((s) =>
-                    isVanillaCard(getCard(s.cardId)),
+                    instIsVanilla(s),
                 ).length
                 if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
             }
@@ -1378,6 +1397,11 @@ export function returnSpiritToHand(
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}は手札に戻った。`)
     notifyHandGained(state, ownerPid, 1)
+    // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
+    // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
+    if (!state.winner) {
+        fireFieldEventTriggers(state, ownerPid, "ownSpiritReturnedToHand", { pid: ownerPid, inst }, instColors(inst))
+    }
 }
 
 // スピリットを持ち主のデッキの一番上へ戻す：コアはリザーブへ、カードはデッキトップへ。
@@ -2385,7 +2409,7 @@ export function fireBattleWonTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
-            if (effect.vanillaWinnerOnly && !isVanillaCard(getCard(winnerInst.cardId))) continue
+            if (effect.vanillaWinnerOnly && !instIsVanilla(winnerInst)) continue
             // 勝利したスピリットのカード名で絞る（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
             if (
                 effect.winnerNameContains !== undefined &&
@@ -2567,13 +2591,18 @@ export function fireFieldEventTriggers(
     },
 ): void {
     const player = state.players[pid]
-    const instances = [...player.field.spirits, ...player.field.nexuses]
+    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
+    // BS05ソウルクラッシュ）も含める。「誰が誘発効果を出しているか」を問うA分類の走査
+    // （TURN_EFFECT_SOURCES.md §1）
+    const instances = effectSources(state, pid)
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
             if (effect.kind !== "fieldEvent") continue
             if (effect.event !== event) continue
+            // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue

@@ -12,11 +12,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS01-123": {
-            "name": "リターンドロー",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS02-079": {
             "name": "紫水晶の森",
             "textBlocks": 2,
@@ -52,11 +47,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS03-134": {
-            "name": "パペットストリング",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS03-147": {
             "name": "ゴーレムクラフト",
             "textBlocks": 2,
@@ -87,11 +77,6 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS04-109": {
-            "name": "スイッチヒッター",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS04-X14": {
             "name": "魔界七将パンデミウム",
             "textBlocks": 3,
@@ -117,20 +102,10 @@
             "textBlocks": 2,
             "implCount": 1
         },
-        "BS05-070": {
-            "name": "ソウルクラッシュ",
-            "textBlocks": 2,
-            "implCount": 1
-        },
         "BS05-079": {
             "name": "スリーカード",
             "textBlocks": 1,
             "implCount": 0
-        },
-        "BS05-081": {
-            "name": "ネクサスブロケイド",
-            "textBlocks": 2,
-            "implCount": 1
         }
     }
 }

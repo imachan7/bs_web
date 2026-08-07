@@ -4081,6 +4081,30 @@
    {
     "id": "BS05-070-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-070-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": null,
+    "lentOnly": true,
+    "nameIncludes": [
+     "魔界七将"
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "anySide": true,
+     "all": true
+    }
+   },
+   {
+    "id": "BS05-070-e3",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
@@ -4501,6 +4525,27 @@
   "effects": [
    {
     "id": "BS05-081-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "想獣",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS05-081-e2",
+    "kind": "nexusEffectsDisabled",
+    "levels": null,
+    "target": "opponentAll",
+    "lentOnly": true
+   },
+   {
+    "id": "BS05-081-e3",
     "kind": "magic",
     "timing": "flash",
     "action": {

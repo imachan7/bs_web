@@ -15,8 +15,8 @@ import {
     instAllCosts,
     instHasColor,
     instHasCost,
+    instIsVanilla,
     instMatchesCostFilter,
-    isVanillaCard,
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
@@ -84,7 +84,7 @@ export function canBlock(
             }
             // BS05幻獣王リーンLv3：カードに効果の記述を持つスピリットにブロックされない
             // （バニラ＝効果の記述を持たないスピリットならブロックできる）
-            if (c.nonVanilla && !isVanillaCard(card(blockerInst.cardId))) {
+            if (c.nonVanilla && !instIsVanilla(blockerInst)) {
                 return "このスピリットは効果を持つスピリットにブロックされません"
             }
         }

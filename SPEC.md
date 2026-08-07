@@ -610,10 +610,19 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 | **`self` は使えない** | マジックの `resolveAction` は `self = null` で呼ばれる。ハンドラで `if (!self) return` と書くと**唯一の用途で必ず no-op** になる（型検査も smoke も通ってしまう）。発生源は **`ctx.sourceCardId`** から取る |
 | **走査の A/B 分類** | 「誰が継続効果を出しているか」＝A（`effectSources` を使う）。「盤面に何が存在するか」＝B（`player.field` を直接見る）。**関数単位ではなく、その走査が何を問うているかで判定する**。`countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（色ロック）・`checkAuraCondition` の `hasOwnColor` 分岐はB。混ぜると「場に赤が1枚も無いのに赤のマジックを貸しただけで条件成立」「軽減シンボルが増える」といった別のバグになる |
 
-現在 `effectSources` へ差し替え済みのA分類は10個（`tryReviveOnDestroy` / `activeConstraints` /
+現在 `effectSources` へ差し替え済みのA分類は11個（`tryReviveOnDestroy` / `activeConstraints` /
 `hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査 /
 `spiritHasFamily` の familyGrant 走査 / `refreshLevelAsOverrides` / **`hasGlobalConstraint`** /
-**`costCantAct`**）。残りは段階移行の対象。
+**`costCantAct`** / **`fireFieldEventTriggers`**）。残りは段階移行の対象。
+
+`fireFieldEventTriggers` を寄せたことで、**マジックから誘発効果も貸せる**ようになった
+（BS05ソウルクラッシュ＝「このターンの間、『魔界七将』が召喚されたとき疲労スピリットを全破壊」）。
+`kind:"fieldEvent"` は action を持つため `validate-cards.ts` の貸与検査からは既定で外れているので、
+**貸す側は `lentOnly: true` を必ず書く**こと（書けば検査対象に戻り、`levels: null` が強制される）。
+
+`effectSources` は `kind:"nexusEffectsDisabled"` を持つ発生源が相手にいる間、**対象プレイヤーのネクサスを
+一覧から丸ごと外す**（BS05ネクサスブロケイド＝「相手のネクサスすべての効果は発揮されない」）。
+判定関数は再帰を避けるため相手側の配列を直接走査する。
 
 ⚠️ `hasGlobalConstraint` / `costCantAct` は 2026-08-01 まで `player.field` の直接走査だったため、
 **マジックから貸した globalConstraint が無言で無視されていた**（グレートウォール実装時に発覚）。
@@ -622,8 +631,12 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
 
 `instHasCost` / `instHasColor` のように **state を受け取らない純粋述語**が読む値は、走査ではなく
 `refreshLevelAsOverrides` が `CardInstance` へ**都度全消去→再構築**する
-（`colorsAsContinuous` / `alsoCostsContinuous` / `armorColorsGranted`）。全呼び出し箇所の signature を
-変えずに継続効果へ対応させる定石。
+（`colorsAsContinuous` / `alsoCostsContinuous` / `armorColorsGranted` / **`treatedAsVanillaContinuous`**）。
+全呼び出し箇所の signature を変えずに継続効果へ対応させる定石。
+
+⚠️ バニラ判定は **`instIsVanilla(inst)`** に一本化した（2026-08-07）。`isVanillaCard(card(inst.cardId))` を
+直接書くと `kind:"vanillaAsGrant"` の継続付与（BS04スイッチヒッター＝「造兵をバニラとしても扱う」）が
+**無言で無視される**。カード（手札・デッキ側＝インスタンスが無い経路）を判定するときだけ `isVanillaCard` を使う。
 
 ### 効果の無効化・読み替え（2026-08-01 バッチ）
 

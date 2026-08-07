@@ -7000,6 +7000,32 @@
    {
     "id": "BS03-134-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-134-e2",
+    "kind": "familyGrant",
+    "levels": null,
+    "target": "ownAll",
+    "family": "四道",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e3",
+    "kind": "nameAsGrant",
+    "levels": null,
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e4",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",

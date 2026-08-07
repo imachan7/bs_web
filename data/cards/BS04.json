@@ -5886,6 +5886,22 @@
    {
     "id": "BS04-109-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS04-109-e2",
+    "kind": "vanillaAsGrant",
+    "levels": null,
+    "target": "ownAll",
+    "familyFilter": "造兵",
+    "lentOnly": true
+   },
+   {
+    "id": "BS04-109-e3",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
