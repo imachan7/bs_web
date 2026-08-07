@@ -2139,13 +2139,16 @@ export function requestCardChoice(
     optional: boolean,
     action: EffectAction,
     self: CardInstance | null,
+    // 候補が1枚でも自動解決せず必ず選択を出す。「〜できる」（任意発動）の効果で、
+    // 候補が1枚しかないときも「やらない」を選べるようにするために使う（BS05トランスマイグレーション）
+    alwaysAsk = false,
 ): void {
     if (cardIndices.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
         return
     }
     const only = cardIndices[0]
-    if (cardIndices.length === 1 && only !== undefined) {
+    if (!alwaysAsk && cardIndices.length === 1 && only !== undefined) {
         resolveAction(state, pid, self, action, undefined, undefined, undefined, undefined, only)
         return
     }

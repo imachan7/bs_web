@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, log } from "./GameState"
-import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -121,6 +121,15 @@ export function endTurn(state: GameState): void {
     state.phase = "end"
     fireStepTriggers(state, "end")
     if (state.winner) return
+
+    // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
+    // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
+    // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
+    for (const pid of ["p1", "p2"] as const) {
+        for (const inst of [...state.players[pid].field.spirits]) {
+            if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
+        }
+    }
 
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {

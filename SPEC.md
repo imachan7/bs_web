@@ -556,6 +556,23 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 巨人王ランドルフ Lv3・幽霊船長シルバーシャーク Lv2 などが丸ごと落ちていた）。
 **進捗は枚数ではなく「効果節」の単位で数えること。** 現状は `npm run gaps:report` が正。
 
+### 山札公開からの無償召喚（revealAndSummonKeyword）
+
+`{ type: "revealAndSummonKeyword", count, keyword, returnToDeckBottomAtEndStep? }`（BS05トランスマイグレーション）。
+デッキ上 count 枚を公開し、その中の**指定キーワードを静的に持つスピリットカード**1枚をコストを支払わず召喚、
+残りはすべてトラッシュへ破棄する。
+
+- **召喚時効果と【転召】は通常どおり発揮する**。`summonFromHandFree` / `summonFromTrashFree` は効果文に
+  「この効果で召喚されたスピリットの召喚時効果は発揮されない」と書かれているのでそれを再現しているが、
+  このカードには**その記載が無い**（むしろ「【転召】を発揮したものとして」と明記されている）
+- 「召喚**できる**」＝任意なので、`requestCardChoice` に **`alwaysAsk`** を渡して候補1枚でも選択（スキップ可）を出す
+- ⚠️ **「残りは破棄する」は選んでもスキップしても走らせる必要がある**。スキップは `doResolveChoice` が
+  ハンドラを再入させないため、選択待ちの `queue` に後始末アクション `revealDiscardRest` を積んでおく。
+  積み忘れると `flushRevealedCardsIfIdle` が公開ゾーンを**デッキの下へ戻して**しまい、効果文と食い違う
+- `returnToDeckBottomAtEndStep` は召喚した個体に `CardInstance.returnToDeckBottomAtEndStep` を立てる。
+  `PhaseManager.endTurn` が `fireStepTriggers("end")` の**直後**（エンドステップの誘発からは見えている状態）で
+  `returnSpiritToDeckBottom` を呼ぶ
+
 ### 山札公開（deckReveal）
 
 `{ type: "deckReveal", count, pickType? }`。自分のデッキ上から count 枚を公開し、pickType に一致する

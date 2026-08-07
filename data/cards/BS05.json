@@ -4051,6 +4051,17 @@
    {
     "id": "BS05-069-e1",
     "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "revealAndSummonKeyword",
+     "count": 3,
+     "keyword": "tensho",
+     "returnToDeckBottomAtEndStep": true
+    }
+   },
+   {
+    "id": "BS05-069-e2",
+    "kind": "magic",
     "timing": "flash",
     "action": {
      "type": "bpBuff",
