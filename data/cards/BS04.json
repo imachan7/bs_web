@@ -4603,6 +4603,19 @@
     "revived": {
      "rested": true
     }
+   },
+   {
+    "id": "BS04-081-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "markUnblockableThisTurn",
+     "minBp": 10000
+    }
    }
   ]
  },
@@ -6292,6 +6305,35 @@
     "action": {
      "type": "draw",
      "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS04-X14-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "byBattleOnly": true,
+    "selfMode": "source",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS04-X14-e3",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "discardBothHands",
+     "count": 5
     },
     "optional": false
    }

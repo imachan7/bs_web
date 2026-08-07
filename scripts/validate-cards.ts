@@ -35,7 +35,7 @@ const VALID_TRIGGERS = new Set([
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
-    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid",
+    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",

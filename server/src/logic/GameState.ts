@@ -220,6 +220,16 @@ export function log(state: GameState, message: string): void {
 
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）
 export function clearBattle(state: GameState): void {
+    // 「ターンに1回だけブロックされない」印は、そのアタックの解決（＝このバトルの終了）で使い切る
+    // （強者統べる大地Lv2）。ブロックされずライフに通った場合もここを通る
+    const attackerId = state.battle?.attackerInstanceId
+    if (attackerId !== undefined) {
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const inst of state.players[pid].field.spirits) {
+                if (inst.instanceId === attackerId) inst.unblockableOnceThisTurn = false
+            }
+        }
+    }
     state.battle = null
     state.isFlashTiming = false
     state.flashCount = 0

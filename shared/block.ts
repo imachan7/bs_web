@@ -48,6 +48,11 @@ export function canBlock(
     // アタッカー側の制約（unblockableBy）。
     // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
     if (attackerInst && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
+        // 強者統べる大地Lv2：指定された自分のスピリットは、ターンに1回だけブロックされない
+        // （印は次のバトルの終了時に消えるので、同じターンの2回目のアタックはブロックできる）
+        if (attackerInst.unblockableOnceThisTurn) {
+            return "このスピリットはこのターン1回だけブロックされません"
+        }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {

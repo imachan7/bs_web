@@ -24,6 +24,7 @@ import {
     emitEvent,
     exhaustSpirit,
     applyJugekiCoreToVoid,
+    battleBp,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
     fireSummonTrigger,
@@ -922,8 +923,9 @@ function resolveBattle(state: GameState): void {
         clearBattle(state)
         return
     }
-    const attackerBp = effectiveBp(state, attackerPid, attacker)
-    const blockerBp = effectiveBp(state, defenderPid, blocker)
+    // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
+    const attackerBp = battleBp(state, attackerPid, attacker)
+    const blockerBp = battleBp(state, defenderPid, blocker)
     // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
     // byBattleKillerLevel判定用）。命名はattackerColorと同じく歴史的なもので、実際は勝者側の値
     const attackerLevel = currentLevel(attacker).level

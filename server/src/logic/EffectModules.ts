@@ -2821,6 +2821,34 @@ export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void 
     fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
 }
 
+// 果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
+// 別のレベルのBPを使う。effectiveBp（バフ・オーラ込み）に「使うレベルのBP − 本来のレベルのBP」の差を足す形で
+// 実装するので、BP増減の効果とは独立して働く。GameEngine.resolveBattle からのみ呼ぶ
+// （効果の対象条件やオーラのBP判定には影響させない ＝「バトルでBPを比べるとき」の限定を守る）
+export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): number {
+    const base = effectiveBp(state, pid, inst)
+    const level = currentLevel(inst).level
+    for (const source of effectSources(state, pid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "battleBpAsLevel") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.fromLevel !== level) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+            }
+            const levels = getCard(inst.cardId).levels
+            const from = levels.find((l) => l.level === effect.fromLevel)
+            const use = levels.find((l) => l.level === effect.useLevel)
+            if (!from || !use) continue
+            return base + (use.bp - from.bp)
+        }
+    }
+    return base
+}
+
 // 魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
 // 【呪撃】で破壊される相手スピリット上のコアを指定個数ボイドへ置く。
 // GameEngine の呪撃解決が destroySpirit の**直前**に呼ぶ（破壊後だとコアは持ち主のリザーブへ

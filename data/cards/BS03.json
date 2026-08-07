@@ -5744,6 +5744,20 @@
   "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のLv1スピリットすべては、バトルでBPを比べるときLv2BPを使用する。\nLv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、自分のリザーブにあるコア1個を自分のトラッシュに置くことで、手札に戻る。",
   "effects": [
    {
+    "id": "BS03-107-e1",
+    "kind": "battleBpAsLevel",
+    "levels": [
+     1,
+     2
+    ],
+    "fromLevel": 1,
+    "useLevel": 2,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
     "id": "BS03-107-e2",
     "kind": "reviveOnDestroy",
     "levels": [
