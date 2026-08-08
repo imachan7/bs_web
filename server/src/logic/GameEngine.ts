@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts, noLifeDamageByCost } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -645,6 +645,17 @@ function resolveLifeDamage(state: GameState): void {
     // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
     // ミストカーテン：指定されたアタッカーのアタックでは、このターン使用者のライフが減らない
     if (attacker.lifeDamageNegatedFor === defenderPid) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+    // BS07「勇傑」各色に共通：コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない。
+    // 両陣営に効く全体制約なので、発生源の持ち主を問わず hasGlobalConstraintByCost で見る
+    if (noLifeDamageByCost(state, attacker)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,

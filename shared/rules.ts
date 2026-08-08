@@ -42,6 +42,8 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kobo: { id: "kobo", label: "光芒" },
     tensho: { id: "tensho", label: "転召" },
     bofu: { id: "bofu", label: "暴風" },
+    seimei: { id: "seimei", label: "聖命" },
+    kyoshu: { id: "kyoshu", label: "強襲" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
@@ -932,6 +934,26 @@ export function costCantAct(board: Board, cost: number): boolean {
 // （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと）
 export function instCostCantAct(board: Board, inst: CardInstance): boolean {
     return instAllCosts(inst).some((cost) => costCantAct(board, cost))
+}
+
+// フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
+// お互いのライフが減らされない（BS07の「勇傑」各色に共通。天槍の勇者アーク等）。
+// costCantAct と同じ「しきい値を比較する専用判定」の形。道化師クランの付与コストも見る（instAllCosts）
+export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
+        for (const inst of effectSources(board, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noLifeDamageByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { maxCost } = effect.constraint
+                if (instAllCosts(attacker).some((cost) => cost <= maxCost)) return true
+            }
+        }
+    }
+    return false
 }
 
 export function hasMagicImmunity(

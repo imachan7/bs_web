@@ -17,7 +17,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -488,6 +488,52 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         return
 }
 
+// 【強襲】：自分の回復状態のネクサス1つを疲労させることで、このスピリットを回復する（BS07）。
+// ターン中の上限回数は self が持つ kind:"keyword" keyword:"kyoshu" の count から読む
+// （暴風と同じ設計＝キーワードエントリは宣言で、挙動と回数の読み出しはこちらが持つ）。
+// 疲労させるネクサスの選択は決定的簡略化：コア数が最少のもの（同数はフィールドの先頭側）。
+// ネクサスはリフレッシュステップで回復する（PhaseManager が spirits と nexuses の両方を回復させる）
+const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) {
+        log(state, `${sourceName}：回復対象がいなかった。`)
+        return
+    }
+    if (!self.isRested) {
+        log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+        return
+    }
+    const level = currentLevel(self).level
+    const entry = getCard(self.cardId).effects.find(
+        (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, level),
+    )
+    const limit = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    if (limit === 0) {
+        log(state, `${getCard(self.cardId).name}は【強襲】を持たないため回復しなかった。`)
+        return
+    }
+    const used = self.kyoshuUsed?.turn === state.turn ? self.kyoshuUsed.count : 0
+    if (used >= limit) {
+        log(state, `${getCard(self.cardId).name}の【強襲】はこのターンの上限（${limit}回）に達している。`)
+        return
+    }
+    const candidates = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：疲労させられる自分のネクサスがなかった。`)
+        return
+    }
+    const nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
+    if (!nexus) return
+    nexus.isRested = true
+    self.isRested = false
+    self.kyoshuUsed = { turn: state.turn, count: used + 1 }
+    log(
+        state,
+        `【強襲】${getCard(self.cardId).name}は${getCard(nexus.cardId).name}を疲労させて回復した。（このターン${used + 1}/${limit}回目）`,
+    )
+    return
+}
+
 const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
         // このスピリット自身を疲労させる（唯一の入口exhaustSpirit経由。BS06雪ん子イエティ／天使長ファニム）
@@ -600,6 +646,7 @@ const handlers = {
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
+    refreshSelfByExhaustNexus: refreshSelfByExhaustNexusHandler,
     exhaustSelf: exhaustSelfHandler,
     refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,

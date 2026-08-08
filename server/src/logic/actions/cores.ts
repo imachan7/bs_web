@@ -1203,6 +1203,15 @@ const voidCoreToOwnTrashHandler: ActionHandler<"voidCoreToOwnTrash"> = (ctx, act
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
+        // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
+        if (action.from === "void") {
+            player.life += action.count
+            log(
+                state,
+                `${player.name}はボイドからライフにコア${action.count}個を置いた。（現在ライフ${player.life}）`,
+            )
+            return
+        }
         const amount = Math.min(action.count, player.reserve)
         player.reserve -= amount
         player.life += amount
