@@ -382,19 +382,11 @@ const __covEid = (e: unknown): string =>
     // magicFreeGrant: hasMagicFreeGrant が true を返す時点（shared/cost.ts）
     patch(
         fc,
-        `            return true
-        }
-    }
-    return false
-}
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合`,
-        `            __covRec2C("cont\\t" + __covEid2C(effect))
-            return true
-        }
-    }
-    return false
-}
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合`,
+        `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            return true`,
+        `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            __covRec2C("cont\\t" + __covEid2C(effect))
+            return true`,
     )
 }
 
@@ -463,12 +455,14 @@ process.on("exit", () => {
         // (4) reviveOnDestroy: 実際に復活が確定した時点。
         //     **経路は2つある**（inst 自身が持つ reviveOnDestroy と、フィールドの他カード由来）。
         //     インデントで区別して両方に入れる（片方だけだと「復活したのに未計測」が出る）
+        //     BS07ブラックリチュアルの fireDestroyTriggerFirst で両経路に1行挟まったため、
+        //     アンカーは applyRevived の行だけにした。**先頭の改行は必須**：これが無いと
+        //     8スペース版のパターンが12スペース版の一部にも一致して「2箇所」になる
         for (const indent of ["        ", "            "]) {
             patch(
                 path.join(tree, "server/src/logic/EffectModules.ts"),
-                `${indent}const name = getCard(inst.cardId).name\n${indent}applyRevived(effect.revived)`,
-                `${indent}const name = getCard(inst.cardId).name\n` +
-                    `${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
+                `\n${indent}applyRevived(effect.revived)`,
+                `\n${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
                     `${indent}applyRevived(effect.revived)`,
             )
         }
