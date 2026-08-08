@@ -6,6 +6,7 @@ import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from ".
 import {
     bothSidesPids,
     countEffectCounter,
+    destroySpirit,
     drawDoubleMultiplier,
     findSpiritAny,
     fireSummonTrigger,
@@ -26,7 +27,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, hasGlobalConstraint, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -644,6 +645,20 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             if (!hit) return
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
         }
+        // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
+        // 払えなければ何も起きない（実効BP最小を自動選択＝犠牲を最小化する簡略化）
+        if (action.costDestroyOwnKeyword !== undefined && chosenCardIndex === undefined) {
+            const kw = action.costDestroyOwnKeyword
+            const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
+                return
+            }
+            const victim = candidates.reduce((min, sp) =>
+                effectiveBp(state, owner, sp) < effectiveBp(state, owner, min) ? sp : min,
+            )
+            destroySpirit(state, owner, victim.instanceId, "destroy", { sourcePid: owner })
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -1104,6 +1119,55 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
 }
 
+// BS07魔札の占い師ディーシャLv2：相手は手札からcount枚を選んで自分のデッキの一番上に戻す。
+// 選ぶのは戻される側（相手）なので、interactiveTargets では相手本人に選択を出す（discardOpponent と同じ形）
+const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ctx, action) => {
+    const { state, opp, self, sourceName, chosenCardIndex } = ctx
+        const target = state.players[opp]
+        if (chosenCardIndex !== undefined) {
+            const cardId = target.hand[chosenCardIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}：対象の手札がなかった。`)
+                return
+            }
+            target.hand.splice(chosenCardIndex, 1)
+            target.deck.unshift(cardId)
+            log(state, `${target.name}は手札1枚をデッキの上に戻した。`)
+            return
+        }
+        if (target.hand.length === 0) {
+            log(state, `${sourceName}：${target.name}の手札がなかった。`)
+            return
+        }
+        if (state.interactiveTargets) {
+            const indices = target.hand.map((_, i) => i)
+            if (
+                tryInteractiveCardChoice(
+                    state,
+                    opp,
+                    self,
+                    `${sourceName}：デッキの上に戻すカードを選んでください`,
+                    "hand",
+                    indices,
+                    { type: "opponentHandToDeckTop", count: 1 },
+                    action.count > 1 ? { type: "opponentHandToDeckTop", count: action.count - 1 } : null,
+                )
+            ) {
+                return
+            }
+        }
+        // 自動時は手札末尾から（本来は相手が選ぶ。決定的簡略化）
+        let moved = 0
+        for (let i = 0; i < action.count; i++) {
+            const cardId = target.hand.pop()
+            if (cardId === undefined) break
+            target.deck.unshift(cardId)
+            moved++
+        }
+        log(state, `${target.name}は手札${moved}枚をデッキの上に戻した。`)
+        return
+}
+
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
@@ -1329,6 +1393,7 @@ const handlers = {
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    opponentHandToDeckTop: opponentHandToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,

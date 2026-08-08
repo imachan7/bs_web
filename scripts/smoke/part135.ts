@@ -208,7 +208,11 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
         const s = base(`jugeki-${card.cardId}`)
         const attacker = put(s, "p1", card.cardId, coresForLevel(card, level))
         const blocker = put(s, "p2", WALL.cardId, 1)
-        // 壁役のBPが上回っていてはじめて「BP比較ではなく呪撃で破壊された」と言える
+        // 壁役のBPが上回っていてはじめて「BP比較ではなく呪撃で破壊された」と言える。
+        // バニラのLv1 BPは5000が上限で、それを超えるアタッカー（BS07冥勇士デスカラビアLv2＝6000）が
+        // 現れたため、足りない分をここで補って必ず壁役が勝つようにする
+        const gap = effectiveBp(s, "p1", attacker) - effectiveBp(s, "p2", blocker)
+        if (gap >= 0) blocker.tempBpBuff += gap + 1000
         if (effectiveBp(s, "p2", blocker) <= effectiveBp(s, "p1", attacker)) {
             assert(false, `${card.cardId} ${card.name}：壁役のBPがアタッカーを上回る（対照条件）`)
             continue

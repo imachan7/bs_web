@@ -954,11 +954,31 @@ export function costCantAct(board: Board, cost: number): boolean {
     return false
 }
 
-// フィールド上のインスタンスに対する costCantAct 判定。実コストに加えて、道化師クランの
-// tempAlsoCosts／alsoCostsContinuous（「コストNとしても扱う」）のいずれかが該当すれば行動不可とする
-// （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと）
+// フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
+// tempAlsoCosts／alsoCostsContinuous（「コストNとしても扱う」）のいずれかが該当すれば行動不可とする。
+// **コスト条件（costCantAct）に加えてレベル条件（levelCantAct）も見る**
+// （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと。名前は歴史的にコスト由来だが、
+//  サーバーとクライアントの唯一の入口なので、新しい行動不可の軸はここへ足して両者を同時に揃える）
 export function instCostCantAct(board: Board, inst: CardInstance): boolean {
-    return instAllCosts(inst).some((cost) => costCantAct(board, cost))
+    if (instAllCosts(inst).some((cost) => costCantAct(board, cost))) return true
+    return levelCantAct(board, currentLevel(inst).level)
+}
+
+// フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
+// アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
+export function levelCantAct(board: Board, level: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, pid)) {
+            const sourceLevel = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "levelCantAct") continue
+                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+                if (effect.constraint.levels.includes(level)) return true
+            }
+        }
+    }
+    return false
 }
 
 // フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは

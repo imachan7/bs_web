@@ -198,9 +198,21 @@ const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) =
             applyCoreRemoveMultiTarget(state, opp, found, action, srcColors, srcType, owner, sourceName)
             return
         }
-        if (action.targets <= 0) return
         // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
         const matchesFilter = (s: CardInstance) => instMatchesCostFilter(s, action.costFilter)
+        // allTargets（BS07腐りゆく湖沼）：条件を満たす相手すべてが対象。範囲効果なので選択を挟まない
+        if (action.allTargets) {
+            const all = pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType)
+            if (all.length === 0) {
+                log(state, `${sourceName}のコア除去：対象がいなかった。`)
+                return
+            }
+            for (const target of [...all]) {
+                applyCoreRemoveMultiTarget(state, opp, target, action, srcColors, srcType, owner, sourceName)
+            }
+            return
+        }
+        if (action.targets <= 0) return
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType)
             if (

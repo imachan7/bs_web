@@ -570,6 +570,12 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             if (candidate.type !== "spirit") return false
             if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
             if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+            // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
+            // カード静的な family で判定する（配列＝OR）
+            if (action.familyFilter !== undefined) {
+                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                if (!wanted.some((f) => candidate.family.includes(f))) return false
+            }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
         }

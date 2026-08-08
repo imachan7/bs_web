@@ -1450,6 +1450,22 @@ function tryReviveOnDestroy(
             player.trashCards.push(cardId)
             return true
         }
+        if (effect.cost?.millSelfOneMatching) {
+            // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
+            // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
+            const { color, cardType } = effect.cost.millSelfOneMatching
+            const cardId = player.deck.shift()
+            if (cardId === undefined) {
+                log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
+                return false
+            }
+            const milled = getCard(cardId)
+            player.trashCards.push(cardId)
+            log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
+            const ok = milled.type === cardType && milled.colors.includes(color)
+            if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
+            return ok
+        }
         if (effect.cost?.exhaustOwnFamilyOne) {
             // BS07パオ・ペイール：持ち主の「想獣」の回復状態スピリット1体を疲労させる。
             // 破壊されようとしている個体自身は除く。候補は実効BP最小を選ぶ（犠牲を最小化する簡略化）
@@ -1525,6 +1541,9 @@ function tryReviveOnDestroy(
         if (!applyCost(effect)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
+        // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
+        // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
+        if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
         applyRevived(effect.revived)
         log(
             state,
@@ -1568,6 +1587,8 @@ function tryReviveOnDestroy(
             if (!applyCost(effect)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
+            // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
+            if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
             applyRevived(effect.revived)
             log(
                 state,
