@@ -14,8 +14,8 @@ import { act, assert, createGame, createInstance, runTurnStart } from "./helpers
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
-// 対象にできるスピリットを制限する filter は minSymbols（BS04のシンボル2つ以上を要求する6枚）と
-// nameContains（BS07の「勇者」を含むスピリット）のみ。
+// 対象にできるスピリットを制限する filter は minSymbols（BS04のシンボル2つ以上を要求する6枚）・
+// nameContains（BS07の「勇者」を含むスピリット）・family（BS07ニードルショットの「剣獣」）のみ。
 // それ以外の filter が現れたらこのパートの前提が崩れるので、下の列挙で検出して落とす
 interface FlashBpEntry {
     cardId: string
@@ -24,6 +24,7 @@ interface FlashBpEntry {
     amount: number
     minSymbols: number
     nameContains?: string
+    family?: string
 }
 
 const cards = loadAllCards() as unknown as {
@@ -41,11 +42,12 @@ for (const c of cards) {
         if (!action || action["type"] !== "bpBuff") continue
         const filter = action["filter"] as Record<string, unknown> | undefined
         const filterKeys = Object.keys(filter ?? {})
-        if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains")) {
+        if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains" && k !== "family")) {
             unexpectedFilters.push(`${c.cardId} ${c.name}（${filterKeys.join(",")}）`)
             continue
         }
         const nameContains = filter?.["nameContains"]
+        const family = filter?.["family"]
         entries.push({
             cardId: c.cardId,
             name: c.name,
@@ -53,13 +55,14 @@ for (const c of cards) {
             amount: Number(action["amount"] ?? 0),
             minSymbols: Number(filter?.["minSymbols"] ?? 1),
             ...(typeof nameContains === "string" ? { nameContains } : {}),
+            ...(typeof family === "string" ? { family } : {}),
         })
     }
 }
 
 // 対象にするアタッカー。minSymbols:2 の6枚だけはシンボル2つのスピリットを立てる必要がある。
 // カードIDの直書きは事故のもとなので、**データから条件で選び**、選んだ結果も検証する
-function pickAttacker(minSymbols: number, nameContains?: string): { cardId: string; name: string } {
+function pickAttacker(minSymbols: number, nameContains?: string, family?: string): { cardId: string; name: string } {
     const all = loadAllCards() as unknown as {
         cardId: string
         name: string
@@ -76,6 +79,14 @@ function pickAttacker(minSymbols: number, nameContains?: string): { cardId: stri
         )
         if (!named) throw new Error(`カード名に「${nameContains}」を含むアタッカー候補が見つかりません`)
         return { cardId: named.cardId, name: named.name }
+    }
+    // family 指定時も同じ理由でバニラ縛りを外し、系統だけで選ぶ（BS07ニードルショット＝「剣獣」）
+    if (family !== undefined) {
+        const byFamily = (all as unknown as { cardId: string; name: string; type?: string; family?: string[]; levels?: { cores?: number }[] }[]).find(
+            (c) => c.type === "spirit" && (c.family ?? []).includes(family) && (c.levels?.[0]?.cores ?? 99) === 1,
+        )
+        if (!byFamily) throw new Error(`系統「${family}」のアタッカー候補が見つかりません`)
+        return { cardId: byFamily.cardId, name: byFamily.name }
     }
     const found = all.find(
         (c) =>
@@ -124,9 +135,11 @@ for (const e of entries) {
     const attackerCard =
         e.nameContains !== undefined
             ? pickAttacker(1, e.nameContains)
-            : e.minSymbols >= 2
-              ? ATTACKER_2SYM
-              : ATTACKER_1SYM
+            : e.family !== undefined
+              ? pickAttacker(1, undefined, e.family)
+              : e.minSymbols >= 2
+                ? ATTACKER_2SYM
+                : ATTACKER_1SYM
     const attacker = put(s, "p1", attackerCard.cardId, 1)
     s.players.p1.hand = [e.cardId]
 

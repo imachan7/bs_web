@@ -1,7 +1,7 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
+import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     bothSidesPids,
@@ -17,6 +17,7 @@ import {
     pickEnemyCandidates,
     requestChoice,
     tryInteractiveTargetChoice,
+    hasBofuChooserSelf,
 } from "../EffectModules"
 import { KEYWORDS, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -33,6 +34,16 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         // excludeTarget（BS01甲精ディース）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
         // 疲労させる対象ではなく**除外する**対象。以降の候補判定から外し、明示ターゲット扱いもしない
         const excludedId = action.excludeTarget ? targetInstanceId : undefined
+        // BS07ワールウィンド：【暴風】で疲労させる対象を、疲労させられる側ではなく持ち主自身が選ぶ。
+        // 以降は chooserIsTarget を落とした action として扱う（選択者と表示プロンプトが切り替わる）
+        if (action.chooserIsTarget && hasBofuChooserSelf(state, owner)) {
+            const { chooserIsTarget: _dropped, ...rest } = action
+            log(state, `${sourceName}：【暴風】で疲労させる相手のスピリットを自分で指定する。`)
+            // targetInstanceId（excludeTarget が除外に使うブロッカー）と発生源の色・種別は
+            // 明示的に引き継ぐ（ctx.resolve は省略すると undefined を渡す設計のため）
+            ctx.resolve(rest, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
+            return
+        }
         const matchesLevel = (s: CardInstance) =>
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
@@ -237,7 +248,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
                 ([, label]) => label === chosenOption,
             )
             if (entry) {
-                exhaustSpiritsOfColor(ctx, entry[0])
+                exhaustSpiritsOfColor(ctx, entry[0], action.side)
                 return
             }
         }
@@ -267,15 +278,17 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
             log(state, `${sourceName}：対象の色がなかった。`)
             return
         }
-        exhaustSpiritsOfColor(ctx, chosen)
+        exhaustSpiritsOfColor(ctx, chosen, action.side)
         return
 }
 
 // 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
-function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color): void {
-    const { state, owner, sourceName, srcColors, srcType } = ctx
+function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent"): void {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
     let exhausted = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
+    // side:"opponent" 指定時は相手のスピリットだけ（BS07大風車の丘。既定は両陣営）
+    const pids: PlayerId[] = side === "opponent" ? [opp] : (["p1", "p2"] as PlayerId[])
+    for (const pid of pids) {
         for (const s of [...state.players[pid].field.spirits]) {
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
@@ -336,6 +349,18 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         return
 }
 
+// このスピリットが**カードに静的に持つ**指定キーワードエントリの count（レベル有効なもの）。
+// 【暴風：1】と【暴風：2】を区別する用途。付与キーワードは count を持たないため対象外
+function staticKeywordCount(inst: CardInstance, keyword: Keyword): number | undefined {
+    const level = currentLevel(inst).level
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "keyword" || effect.keyword !== keyword) continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        return effect.count ?? 1
+    }
+    return undefined
+}
+
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
         // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
@@ -346,6 +371,11 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
                 if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
+                // keywordCount（BS07突風侯爵コカトリーフLv2＝【暴風：1】限定）：
+                // カードが静的に持つキーワードエントリの count が一致するものだけ
+                if (action.keywordCount !== undefined && staticKeywordCount(s, action.keyword) !== action.keywordCount) {
+                    continue
+                }
                 refreshSpirit(state, pid, s)
                 count++
             }

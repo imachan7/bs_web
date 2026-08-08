@@ -35,6 +35,7 @@ import {
     hasArmorAgainst,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
+    hasBofuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
     hasSummonedExhaustGrant,
@@ -64,6 +65,18 @@ import {
     validateSummon,
     validateTakeLife,
 } from "./RuleValidator"
+
+// このスピリットが**カードに静的に持つ**【暴風】の指定数（レベル有効なもの）。
+// 0 は「持っていない」。付与された暴風（keywordGrant）は count を持たないためここでは数えない
+function staticBofuCount(inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        return effect.count ?? 1
+    }
+    return 0
+}
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -1005,6 +1018,21 @@ function resolveBattle(state: GameState): void {
     // 宣言時点では回復状態のまま＝【強襲】が空振りしてしまう
     if (hasKyoshuOnBlock(state, defenderPid)) {
         resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+    }
+    // 【暴風】を『このスピリットのブロック時』へ差し替える継続付与（BS07大風車の丘Lv2）。
+    // 本来は「アタックしてブロックされたとき」だが、これがある間はブロックした側が発揮する。
+    // 疲労させられるのはアタッカー側で、既に疲労しているアタッカー自身は除く（excludeTarget）
+    if (hasBofuOnBlock(state, defenderPid)) {
+        const count = staticBofuCount(blocker)
+        if (count > 0) {
+            resolveAction(
+                state,
+                defenderPid,
+                blocker,
+                { type: "exhaust", count, chooserIsTarget: true, excludeTarget: true },
+                attacker.instanceId,
+            )
+        }
     }
     // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
     // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）

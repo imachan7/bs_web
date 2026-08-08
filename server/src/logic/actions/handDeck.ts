@@ -933,6 +933,18 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
             return
         }
+        // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
+        // 払えなければ何も起きない。カード側で optional:true を立てて発動確認を出す
+        if (action.costReserveToTrash !== undefined) {
+            const player = state.players[owner]
+            if (player.reserve < action.costReserveToTrash) {
+                log(state, `${sourceName}：リザーブのコアが足りず発動しなかった。`)
+                return
+            }
+            player.reserve -= action.costReserveToTrash
+            player.trashCores += action.costReserveToTrash
+            log(state, `${player.name}はリザーブのコア${action.costReserveToTrash}個をトラッシュに置いた。`)
+        }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)

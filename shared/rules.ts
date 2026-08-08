@@ -723,6 +723,8 @@ export function matchesTarget(
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
+    // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false

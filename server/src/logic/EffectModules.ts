@@ -542,6 +542,40 @@ export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
+// 持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
+// hasKyoshuOnBlock と同型で、こちらは phase に加えて turn 条件も持つ
+export function hasBofuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "bofuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 持ち主のフィールドに bofuChooserSelf（BS07ワールウィンド）が有効な発生源があるか。
+// あるとき、【暴風】の疲労対象は「疲労させられる側」ではなく持ち主自身が選ぶ
+export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "bofuChooserSelf") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true
+        }
+    }
+    return false
+}
+
 // kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 // 「相手のスピリットは召喚されたとき疲労する」を持つ発生源が有効か（condition.selfRestedは発生源自身が
 // 疲労状態のときのみ）。GameEngine.doSummonが召喚した側から見た相手（=このgrantの持ち主）に対して呼ぶ
@@ -2101,16 +2135,18 @@ export function pickBpBuffTarget(
     keywordFilter?: Keyword,
     nameContains?: string,
     attackingOnly?: boolean,
+    familyFilter?: FamilyFilter,
 ): CardInstance | null {
     // minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
     // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」）・attackingOnly（BS07桜の妖精オウカ＝
-    // アタックしているスピリット）は、どれも「対象になれるか」の絞り込み。
-    // 対象指定・自動選択の両方で同じ条件を適用する
+    // アタックしているスピリット）・familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
+    // どれも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する
     const passes = (inst: CardInstance): boolean => {
         if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
         if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
         if (nameContains !== undefined && !cardNameContains(inst, nameContains)) return false
         if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
+        if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
         return true
     }
     if (targetInstanceId) {
@@ -2639,6 +2675,12 @@ export function fireTrigger(
                     0,
                 )
                 if (currentLevel(found.inst).level >= maxLevel) return false
+            } else if ("battleLoserMaxCost" in effect.condition) {
+                // BS07天刃の勇者ヴォルザLv2：直前のバトルで破壊した相手のコストがこれ以下のときのみ。
+                // resolveBattle が onBattleWin を発火させるのは「BP比較で相手だけを破壊した」枝で、
+                // その直前に lastBattleDestroyedCost を必ず記録している。よって値は常に有効で、
+                // **0 を「未記録」と読み替えてはいけない**（コスト0のスピリットが実在する）
+                if (state.lastBattleDestroyedCost > effect.condition.battleLoserMaxCost) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast

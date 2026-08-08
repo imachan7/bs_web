@@ -99,7 +99,8 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象1体の経路は matchesTarget を通らないため、この経路が扱える軸を filter から取り出して渡す
         // （minSymbols＝ライトニングバリスタ等／nameContains＝BS07ウィリアンスラッシュ「勇者」／
-        //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」）
+        //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」／
+        //   family＝BS07ニードルショット「系統：剣獣」）
         const target = pickBpBuffTarget(
             state,
             owner,
@@ -108,6 +109,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             action.filter?.keyword,
             action.filter?.nameContains,
             action.filter?.attackingOnly,
+            action.filter?.family,
         )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)

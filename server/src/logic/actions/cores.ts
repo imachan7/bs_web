@@ -948,10 +948,16 @@ const voidCoreToOwnNexusesHandler: ActionHandler<"voidCoreToOwnNexuses"> = (ctx,
 
 const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）
+        // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）。
+        // familyFilter 指定時はその系統を持つ自分のスピリットだけが対象（BS07デルファングス＝虚神/神将）
+        const eligible = state.players[owner].field.spirits.filter(
+            (s) =>
+                action.familyFilter === undefined ||
+                matchesFamilyFilter(state, owner, s, action.familyFilter),
+        )
         const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
+            ? eligible.find((s) => s.instanceId === targetInstanceId)
+            : eligible.reduce<CardInstance | undefined>(
                   (best, s) =>
                       !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
                           ? s

@@ -547,6 +547,560 @@
   ]
  },
  {
+  "cardId": "BS07-019",
+  "name": "スペアミンク",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS07-020",
+  "name": "ガリーバー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、系統：「剣獣」を持つ自分のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-020-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS07-020-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "bpBuffAll",
+     "amount": 1000,
+     "filter": {
+      "family": "剣獣"
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-021",
+  "name": "天刃の勇者ヴォルザ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\nコスト2以下のスピリットのアタックでは、お互いのライフは減らされない。\nLv2『このスピリットのバトル時』\nBPを比べ相手のコスト3以下のスピリットだけを破壊したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS07-021-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noLifeDamageByCost",
+     "maxCost": 2
+    }
+   },
+   {
+    "id": "BS07-021-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "battleLoserMaxCost": 3
+    },
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-022",
+  "name": "ブラックカラカロッサム",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ\n自分の手札のこのスピリットカードは、バトルしている自分の[カラカロッサム]1体を手札に戻すことで、疲労状態で召喚して代わりにバトルする。",
+  "effects": []
+ },
+ {
+  "cardId": "BS07-023",
+  "name": "ラクダチョウ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリットを指定された体数疲労させる。",
+  "effects": [
+   {
+    "id": "BS07-023-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS07-023-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-024",
+  "name": "デルファングス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nボイドからコア1個を、系統：「虚神」/「神将」を持つ自分のスピリット1体の上に置く。\nLv3\n系統：「虚神」/「神将」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS07-024-e1",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1,
+     "familyFilter": [
+      "虚神",
+      "神将"
+     ]
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-024-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": [
+     "虚神",
+     "神将"
+    ],
+    "treatAs": "max",
+    "sourceLevels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-025",
+  "name": "草林の長老ブチ・エナジ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nバトル終了時、自分の手札にあるコスト3以下の緑のスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。",
+  "effects": [
+   {
+    "id": "BS07-025-e1",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "summonFromHandFree",
+     "colorFilter": "green",
+     "costFilter": {
+      "max": 3
+     }
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-026",
+  "name": "烈針獣マツノアラシ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv1･Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフにあるコア1個を相手のリザーブに置く。\nLv2\n系統：「剣獣」を持つ自分のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-026-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS07-026-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2
+    ],
+    "battleRole": "attacker",
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-026-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "剣獣",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-027",
+  "name": "突風侯爵コカトリーフ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：2】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリットを指定された体数疲労させる。\nLv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、【暴風：1】を持つ自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS07-027-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 2,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS07-027-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-027-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "bofu",
+     "side": "own",
+     "keywordCount": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS07-037",
   "name": "ヒッポカンプー",
   "type": "spirit",
@@ -1939,6 +2493,140 @@
   ]
  },
  {
+  "cardId": "BS07-059",
+  "name": "大風車の丘",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のネクサスが、相手のスピリット/ネクサス/マジックの効果で破壊されたとき、色をひとつ選び、その色を持つ相手のスピリットすべてを疲労させる。\nLv2『相手のアタックステップ』\n自分のスピリットが持つ【暴風】の効果を“【暴風：1】『このスピリットのブロック時』相手は、相手のスピリットを指定された体数疲労させる”に変更する。",
+  "effects": [
+   {
+    "id": "BS07-059-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "selfMode": "source",
+    "action": {
+     "type": "exhaustAllByColor",
+     "side": "opponent"
+    }
+   },
+   {
+    "id": "BS07-059-e2",
+    "kind": "bofuOnBlock",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent"
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-060",
+  "name": "爪牙の奇岩遺跡",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「剣獣」を持つ自分のスピリットすべてに“【暴風：1】『このスピリットのアタック時』このスピリットがブロックされたとき、相手は、相手のスピリットを指定された体数疲労させる”という効果を与える。\nLv2『お互いのアタックステップ』\n系統：「剣獣」を持つ自分のスピリットすべては、BPを比べ相手のスピリットだけを破壊したとき回復する。",
+  "effects": [
+   {
+    "id": "BS07-060-e1",
+    "kind": "keywordGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "keyword": "bofu",
+    "target": "ownAll",
+    "familyFilter": "剣獣"
+   },
+   {
+    "id": "BS07-060-e2",
+    "kind": "effectGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": "剣獣",
+    "granted": {
+     "trigger": "onBlocked",
+     "action": {
+      "type": "exhaust",
+      "count": 1,
+      "chooserIsTarget": true,
+      "excludeTarget": true
+     }
+    }
+   },
+   {
+    "id": "BS07-060-e3",
+    "kind": "battleWon",
+    "levels": [
+     2
+    ],
+    "role": "any",
+    "winnerFamilyFilter": "剣獣",
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS07-063",
   "name": "秘密の花園",
   "type": "nexus",
@@ -2344,6 +3032,151 @@
   ]
  },
  {
+  "cardId": "BS07-073",
+  "name": "ワールウィンド",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【暴風】の効果で相手が疲労させるスピリットを自分で指定する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS07-073-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-073-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS07-073-e3",
+    "kind": "bofuChooserSelf",
+    "levels": null,
+    "lentOnly": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-074",
+  "name": "ニードルショット",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのバトルの間、系統：「剣獣」を持つ自分のスピリット1体をBP+2000する。\nそのスピリットが、BPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS07-074-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000,
+     "filter": {
+      "family": "剣獣"
+     }
+    }
+   },
+   {
+    "id": "BS07-074-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-074-e3",
+    "kind": "battleWon",
+    "levels": null,
+    "lentOnly": true,
+    "role": "any",
+    "winnerFamilyFilter": "剣獣",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-075",
+  "name": "フォーディアスラッシュ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、相手のスピリット/ネクサス/マジックの「BPを+する」効果は発揮されない。\nフラッシュ：\nこのターンの間、カード名に「勇者」と入っている自分のスピリット1体をBP+5000する。",
+  "effects": [
+   {
+    "id": "BS07-075-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-075-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "filter": {
+      "nameContains": "勇者"
+     }
+    }
+   },
+   {
+    "id": "BS07-075-e3",
+    "kind": "bpBuffSuppression",
+    "levels": null
+   }
+  ]
+ },
+ {
   "cardId": "BS07-079",
   "name": "ブルームフルート",
   "type": "magic",
@@ -2674,6 +3507,87 @@
      "type": "canDirectAttack",
      "targetFilter": "any"
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-X26",
+  "name": "剣王獣ビャク・ガロウ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：2】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット2体を疲労させる。\nLv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、自分のリザーブのコア1個を自分のトラッシュに置くことで、【転召】を持たない相手のスピリット2体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS07-X26-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 2,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS07-X26-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true,
+     "excludeTarget": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-X26-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 2,
+     "costReserveToTrash": 1,
+     "filter": {
+      "keywordExclude": "tensho"
+     }
+    },
+    "optional": true
    }
   ]
  },
