@@ -266,6 +266,9 @@ export function hasContinuousKeywordGrant(
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
+            // turn（BS07龍星皇メテオヴルムLv2-3：『自分のアタックステップ』）は phase と併用する
+            if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             return true
         }
@@ -380,6 +383,9 @@ export function spiritHasFamily(
                 continue
             }
             if (effect.phase && board.phase !== effect.phase) continue
+            // turn（BS07重刀竜ブレイガザウラーLv2-3：『自分のアタックステップ』）は phase と併用する
+            if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.condition) {
                 // 「スピリットとネクサスが合計N以上」は**場に実在するもの**を数える（分類B。
                 // 仮想発生源を混ぜてはいけないため sources ではなく field を見る。TURN_EFFECT_SOURCES.md §1）

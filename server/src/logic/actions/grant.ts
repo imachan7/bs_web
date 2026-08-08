@@ -118,6 +118,23 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
         return
 }
 
+const grantColorThisTurnHandler: ActionHandler<"grantColorThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // BS07メテオフォール：自分のスピリット1体を、このターンの間その色としても扱う（色は固定）。
+        // 対象の選び方は grantKeyword と同じ（指定優先→バトル中→フィールド先頭）
+        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (!target.tempColors.includes(action.color)) target.tempColors.push(action.color)
+        log(
+            state,
+            `${getCard(target.cardId).name}に色「${COLOR_LABELS[action.color]}」が与えられた（ターン終了時まで）。`,
+        )
+        return
+}
+
 const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 第3段階を先に判定する：doResolveChoiceのoption応答はtargetInstanceIdを渡さず
@@ -595,6 +612,7 @@ const handlers = {
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
+    grantColorThisTurn: grantColorThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,

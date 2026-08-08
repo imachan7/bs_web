@@ -634,6 +634,16 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
+        // BS07ドラグロン占術師：手札に戻したカードが指定系統のときだけ、続けて相手1体を破壊する。
+        // トラッシュのカードが対象なのでカード静的な family で判定する（回収条件の familyOk と同じ扱い）
+        const followUp = (recoveredIds: string[]): void => {
+            const spec = action.thenDestroyIfFamily
+            if (spec === undefined) return
+            const wanted = Array.isArray(spec.family) ? spec.family : [spec.family]
+            const hit = recoveredIds.some((id) => wanted.some((f) => getCard(id).family.includes(f)))
+            if (!hit) return
+            ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -644,6 +654,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             player.hand.push(cardId)
             log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
             notifyHandGained(state, owner, 1)
+            followUp([cardId])
             return
         }
         // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
@@ -678,6 +689,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
                 `${player.name}は「${recoveredIds.map((id) => getCard(id).name).join("、")}」をトラッシュから手札に戻した。`,
             )
             notifyHandGained(state, owner, recoveredIds.length)
+            followUp(recoveredIds)
             return
         }
         if (state.interactiveTargets) {
@@ -703,6 +715,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // 既存の決定的自動選択：トラッシュの末尾（新しい方）からスピリットカードを探して
         // count枚手札に戻す（本来は好きな1枚を選べるが、決定的な自動選択で簡略化）
         let recovered = 0
+        const recoveredIds: string[] = []
         for (let i = 0; i < action.count; i++) {
             let idx = -1
             for (let j = player.trashCards.length - 1; j >= 0; j--) {
@@ -719,9 +732,11 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             player.trashCards.splice(idx, 1)
             player.hand.push(cardId)
             recovered++
+            recoveredIds.push(cardId)
             log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
         }
         notifyHandGained(state, owner, recovered)
+        followUp(recoveredIds)
         return
 }
 

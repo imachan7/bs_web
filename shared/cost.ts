@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -55,11 +55,15 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
 export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: CardData): Color[] {
     const extra: Color[] = []
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    // effectSources：このターンだけの仮想発生源（マジックが lendSelfThisTurn で貸した継続効果）も含める
+    // （BS07リボーンフレイム。従来は field だけを見ており、貸与された reductionGrant が無言で効かなかった）
+    const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "reductionGrant") continue
+            // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue

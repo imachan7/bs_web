@@ -647,6 +647,42 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         return
 }
 
+// BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
+// destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
+const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
+    const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+        let remaining = action.budget
+        let destroyedCount = 0
+        const destroyedNames: string[] = []
+        while (remaining > 0) {
+            const candidates = pickEnemyCandidates(
+                state,
+                opp,
+                Infinity,
+                (s) => effectiveBp(state, opp, s) <= remaining,
+                srcColors,
+                srcType,
+            )
+            if (candidates.length === 0) break
+            const target = candidates.reduce((best, s) =>
+                effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+            )
+            remaining -= effectiveBp(state, opp, target)
+            destroyedNames.push(getCard(target.cardId).name)
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${sourceName}：BP合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
+        )
+        return
+}
+
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
     const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
         // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する
@@ -1100,6 +1136,7 @@ const handlers = {
     destroyNexus: destroyNexusHandler,
     destroyExhausted: destroyExhaustedHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
+    destroyByBpBudget: destroyByBpBudgetHandler,
     destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,

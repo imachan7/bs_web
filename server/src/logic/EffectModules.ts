@@ -2240,6 +2240,13 @@ export function countEffectCounter(
     if ("ownColor" in counter) {
         return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor))
     }
+    // { enemyCost: {max,min} }：相手フィールドのコスト条件を満たすスピリット数（BS07バジリザード）。
+    // 道化師クランの付与コストも見る（instMatchesCostFilter）
+    if ("enemyCost" in counter) {
+        return countSpiritsWeighted(state, owner, opp, (s) =>
+            instMatchesCostFilter(s, counter.enemyCost),
+        )
+    }
     // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー）
     if ("ownNexusColor" in counter) {
         return state.players[owner].field.nexuses.filter((n) =>

@@ -1,5 +1,552 @@
 [
  {
+  "cardId": "BS07-001",
+  "name": "レイニードル",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS07-002",
+  "name": "翼竜人プテラディア",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。",
+  "effects": [
+   {
+    "id": "BS07-002-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-003",
+  "name": "バジリザード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手のコスト3以下のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-003-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "enemyCost": {
+       "max": 3
+      }
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-004",
+  "name": "怒石竜ドラゴロック",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+  "effects": [
+   {
+    "id": "BS07-004-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-005",
+  "name": "天槍の勇者アーク",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nコスト2以下のスピリットのアタックでは、お互いのライフは減らされない。\nLv2･Lv3『このスピリットのアタック時』\nBP2000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS07-005-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "noLifeDamageByCost",
+     "maxCost": 2
+    }
+   },
+   {
+    "id": "BS07-005-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 2000
+     },
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-006",
+  "name": "ラ・ディアブロード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「神将」を持つ自分のスピリットすべてをBP+2000する。\nLv3\n系統：「虚神」/「神将」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS07-006-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "神将",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS07-006-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": [
+     "虚神",
+     "神将"
+    ],
+    "treatAs": "max",
+    "sourceLevels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-007",
+  "name": "ドラグロン占術師",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるスピリットカード1枚を選んで手札に戻す。\nそのカードが系統：「勇傑」を持つスピリットカードのとき、BP3000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS07-007-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "thenDestroyIfFamily": {
+      "family": "勇傑",
+      "maxBp": 3000
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-008",
+  "name": "重刀竜ブレイガザウラー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n系統：「勇傑」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてに、系統：「勇傑」を与える。",
+  "effects": [
+   {
+    "id": "BS07-008-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "勇傑"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-008-e2",
+    "kind": "familyGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "family": "勇傑",
+    "familyFilter": "地竜",
+    "phase": "attack",
+    "turn": "own"
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-009",
+  "name": "剣龍皇エクス・キャリバス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\nBP合計6000まで相手のスピリットを好きなだけ破壊できる。\nLv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+  "effects": [
+   {
+    "id": "BS07-009-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS07-009-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyByBpBudget",
+     "budget": 6000
+    },
+    "optional": true
+   },
+   {
+    "id": "BS07-009-e3",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
   "cardId": "BS07-037",
   "name": "ヒッポカンプー",
   "type": "spirit",
@@ -1260,6 +1807,138 @@
   ]
  },
  {
+  "cardId": "BS07-055",
+  "name": "流星群の夜空",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「勇傑」を持つ自分のスピリットすべてに“【覚醒】自分のスピリット上から、フラッシュのタイミングで、コアを好きなだけこのスピリット上に置くことができる”という効果を与える。\nLv2『自分のアタックステップ』\n系統：「星竜」を持つ自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS07-055-e1",
+    "kind": "keywordGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "keyword": "awaken",
+    "target": "ownAll",
+    "familyFilter": "勇傑"
+   },
+   {
+    "id": "BS07-055-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "星竜",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-056",
+  "name": "隕石落下地点",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のネクサスが、相手のスピリット/ネクサス/マジックの効果で破壊されたとき、BP3000以下の相手のスピリットすべてを破壊する。\nLv2『自分のアタックステップ』\n【激突】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、BP3000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS07-056-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "selfMode": "source",
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   },
+   {
+    "id": "BS07-056-e2",
+    "kind": "battleWon",
+    "levels": [
+     2
+    ],
+    "role": "any",
+    "turn": "own",
+    "winnerKeywordFilter": "clash",
+    "selfMode": "source",
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 3000
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS07-063",
   "name": "秘密の花園",
   "type": "nexus",
@@ -1522,6 +2201,149 @@
   ]
  },
  {
+  "cardId": "BS07-067",
+  "name": "メテオフォール",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体の色を青として扱い、さらにBP+2000する。",
+  "effects": [
+   {
+    "id": "BS07-067-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantColorThisTurn",
+     "color": "blue"
+    }
+   },
+   {
+    "id": "BS07-067-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-068",
+  "name": "フェラールスラッシュ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nBP2000以下の相手のスピリットすべてを破壊する。\nフラッシュ：\nこのターンの間、カード名に「勇者」と入っている自分のスピリット1体をBP+5000する。",
+  "effects": [
+   {
+    "id": "BS07-068-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 2000
+     }
+    }
+   },
+   {
+    "id": "BS07-068-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "filter": {
+      "nameContains": "勇者"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-069",
+  "name": "リボーンフレイム",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにあるスピリットカード1枚を手札に戻す。\nこのターンの間、自分の手札にある系統：「星竜」を持つスピリットカードすべてに軽減シンボル[赤]を与える。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-069-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS07-069-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-069-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "BS07-069-e4",
+    "kind": "reductionGrant",
+    "levels": null,
+    "lentOnly": true,
+    "cardType": "spirit",
+    "familyFilter": "星竜",
+    "symbols": [
+     "red"
+    ]
+   }
+  ]
+ },
+ {
   "cardId": "BS07-079",
   "name": "ブルームフルート",
   "type": "magic",
@@ -1767,6 +2589,90 @@
      "type": "destroyOwnByCost",
      "maxCost": 4,
      "thenDestroyEnemyByCostBudget": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-X25",
+  "name": "龍星皇メテオヴルム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『自分のアタックステップ』\n系統：「勇傑」を持つ自分のスピリットすべてに【激突】を与える。\nLv3『自分のアタックステップ』\n【激突】を持つ自分のスピリットすべては、アタックするとき相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "effects": [
+   {
+    "id": "BS07-X25-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS07-X25-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "keyword": "clash",
+    "target": "ownAll",
+    "familyFilter": "勇傑",
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS07-X25-e3",
+    "kind": "constraintGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "keywordFilter": "clash",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
     }
    }
   ]
