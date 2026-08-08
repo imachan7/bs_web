@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts, noLifeDamageByCost } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -665,6 +665,16 @@ function resolveLifeDamage(state: GameState): void {
         clearBattle(state)
         return
     }
+    // BS07秘密の花園Lv2：このターンの間、コスト条件を満たすアタックでは**この防御側のライフだけ**が減らない
+    if (lifeProtectedByCostThisTurn(state, defenderPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
     if (hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
         log(
             state,
@@ -744,14 +754,22 @@ function doActivateAbility(
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
 
-    // コスト支払い（リザーブからトラッシュへ）
-    const n = effect.cost.reserveToTrash
-    player.reserve -= n
-    player.trashCores += n
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
-    )
+    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）
+    if ("exhaustSelf" in effect.cost) {
+        exhaustSpirit(state, pid, inst)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
+        )
+    } else {
+        const n = effect.cost.reserveToTrash
+        player.reserve -= n
+        player.trashCores += n
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
+        )
+    }
 
     resolveAction(state, pid, inst, effect.action)
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す

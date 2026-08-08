@@ -209,13 +209,13 @@ export function canAwaken(view: GameView, inst: CardInstance): boolean {
     return sharedCanAwaken(view, view.you, inst)
 }
 
-// 起動能力が今このスピリットで発動可能なら {effectId, cost} を返す
+// 起動能力が今このスピリットで発動可能なら {effectId, costLabel} を返す
 // （判定はサーバー validateActivateAbility と同一の共有実装）
 export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
-): { effectId: string; cost: number } | null {
+): { effectId: string; costLabel: string } | null {
     return sharedActivatableAbility(view, you, inst)
 }
 
@@ -865,7 +865,7 @@ function fieldCardEl(
             badge.dataset.activate = inst.instanceId
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
-            badge.title = `コア${activatable.cost}個を払って効果を発動`
+            badge.title = activatable.costLabel
             el.appendChild(badge)
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可

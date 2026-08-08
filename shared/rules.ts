@@ -86,7 +86,9 @@ export function instIsVanilla(inst: CardInstance): boolean {
 export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     const player = board.players[pid]
     return [
-        ...player.field.spirits, // フィールドに実在するスピリット
+        // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
+        // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
+        ...player.field.spirits.filter((s) => s.effectsDisabledContinuous !== true),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
@@ -227,6 +229,9 @@ export function spiritHasKeyword(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
+    // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
+    // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
+    if (inst.effectsDisabledContinuous === true) return false
     if (hasKeyword(inst.cardId, keyword)) return true
     if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
@@ -721,6 +726,8 @@ export function matchesTarget(
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
     if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
+    // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
+    if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
     return true
 }
 
@@ -764,6 +771,10 @@ export function activeConstraints(
     pid: PlayerId,
     inst: CardInstance,
 ): ConstraintDef[] {
+    // 「持つ効果すべては発揮されない」を受けている個体は制約を1つも出さない
+    // （自前の kind:"constraint" だけでなく、他の発生源からの継続付与 constraintGrant も含めて打ち切る。
+    //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
+    if (inst.effectsDisabledContinuous === true) return []
     const level = currentLevel(inst).level
     const own = card(inst.cardId)
         .effects.filter(
@@ -962,6 +973,22 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
     return false
 }
 
+// 片側限定のライフ保護（TurnConstraintDef "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
+// このターンの間、コストがmaxCost以下のスピリットのアタックでは defenderPid のライフだけが減らされない。
+// noLifeDamageByCost（両陣営）と違い、守られるのは積んだ側だけ
+export function lifeProtectedByCostThisTurn(
+    board: Board,
+    defenderPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "noLifeDamageByCostForPid" &&
+            c.pid === defenderPid &&
+            instAllCosts(attacker).some((cost) => cost <= c.maxCost),
+    )
+}
+
 export function hasMagicImmunity(
     board: Board,
     ownerPid: PlayerId,
@@ -1092,25 +1119,32 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 
-// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
-// フラッシュ中・優先権保持・self がバトル当事者・コスト支払い可能をすべて満たす必要がある
+// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
+// フラッシュ中・優先権保持・（condition が要求するなら）self がバトル当事者・コスト支払い可能を満たす必要がある。
+// バトル当事者であることは condition:"selfInBattle" のときだけの条件で、
+// 発動タイミングがバトル中（timing:"flashBattle"）であること自体とは別（BS07桜の妖精オウカは
+// バトルに参加していなくてもアタック中の味方をBP+できる）
 export function activatableAbility(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
-): { effectId: string; cost: number } | null {
+): { effectId: string; costLabel: string } | null {
     if (!board.battle || !board.isFlashTiming) return null
     if (board.priorityPlayer !== pid) return null
     const inBattle =
         board.battle.attackerInstanceId === inst.instanceId ||
         board.battle.blockerInstanceId === inst.instanceId
-    if (!inBattle) return null
     const level = currentLevel(inst).level
     for (const e of card(inst.cardId).effects) {
         if (e.kind !== "activated") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
+        if (e.condition === "selfInBattle" && !inBattle) continue
+        if ("exhaustSelf" in e.cost) {
+            if (inst.isRested) continue
+            return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
+        }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
-        return { effectId: e.id, cost: e.cost.reserveToTrash }
+        return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }
     }
     return null
 }

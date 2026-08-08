@@ -51,7 +51,7 @@ import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
 import type { KeywordInfo } from "../../../shared/rules"
 export type { KeywordInfo }
-import { ownFieldSymbolColors } from "../../../shared/cost"
+import { isSelfInBattle, ownFieldSymbolColors } from "../../../shared/cost"
 import {
     activeConstraints,
     auraAmount,
@@ -1002,6 +1002,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
             delete inst.treatedAsVanillaContinuous
+            delete inst.effectsDisabledContinuous
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
@@ -1073,6 +1074,36 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         spirit.treatedAsVanillaContinuous = true
+                    }
+                    continue
+                }
+                if (effect.kind === "spiritEffectsDisabledGrant") {
+                    // 「自分のスピリットをブロックした【転召】を持たない相手のスピリットが持つ効果すべては
+                    // 発揮されない」（BS07ルナースラッシュ）。treatedAsVanillaContinuous（＝対象判定用の述語）とは別物で、
+                    // こちらは effectSources / activeConstraints / spiritHasKeyword / fireTrigger の
+                    // 4か所が CardInstance.effectsDisabledContinuous を見て実際に発揮を止める
+                    if (effect.lentOnly && !isVirtualSource(source)) continue
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
+                    for (const spirit of state.players[targetPid].field.spirits) {
+                        if (
+                            effect.familyFilter &&
+                            !matchesFamilyFilter(state, targetPid, spirit, effect.familyFilter)
+                        ) {
+                            continue
+                        }
+                        // 【転召】を持たない相手のみ。除外判定にはこのスピリットの静的キーワードだけを見る
+                        // （spiritHasKeyword は effectsDisabledContinuous を見るため、ここで使うと
+                        //   「無効化したせいでキーワードが消え、次の再構築でも無効化され続ける」自己参照になる）
+                        if (
+                            effect.keywordExclude !== undefined &&
+                            hasKeyword(spirit.cardId, effect.keywordExclude)
+                        ) {
+                            continue
+                        }
+                        // 「自分のスピリットをブロックした相手のスピリット」＝現在のバトルのブロッカーのみ
+                        if (effect.blockingOnly && state.battle?.blockerInstanceId !== spirit.instanceId) continue
+                        spirit.effectsDisabledContinuous = true
                     }
                     continue
                 }
@@ -1383,6 +1414,23 @@ function tryReviveOnDestroy(
             if (player.hand.length === 0) return false
             const cardId = player.hand.pop()!
             player.trashCards.push(cardId)
+            return true
+        }
+        if (effect.cost?.exhaustOwnFamilyOne) {
+            // BS07パオ・ペイール：持ち主の「想獣」の回復状態スピリット1体を疲労させる。
+            // 破壊されようとしている個体自身は除く。候補は実効BP最小を選ぶ（犠牲を最小化する簡略化）
+            const family = effect.cost.exhaustOwnFamilyOne
+            const candidates = player.field.spirits.filter(
+                (s) =>
+                    s.instanceId !== inst.instanceId &&
+                    !s.isRested &&
+                    matchesFamilyFilter(state, ownerPid, s, family),
+            )
+            if (candidates.length === 0) return false
+            const chosen = candidates.reduce((min, s) =>
+                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
+            )
+            exhaustSpirit(state, ownerPid, chosen)
             return true
         }
         return true
@@ -2051,12 +2099,18 @@ export function pickBpBuffTarget(
     targetInstanceId?: string,
     minSymbols?: number,
     keywordFilter?: Keyword,
+    nameContains?: string,
+    attackingOnly?: boolean,
 ): CardInstance | null {
-    // minSymbols（シンボル数下限）と keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）は
-    // どちらも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する
+    // minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
+    // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」）・attackingOnly（BS07桜の妖精オウカ＝
+    // アタックしているスピリット）は、どれも「対象になれるか」の絞り込み。
+    // 対象指定・自動選択の両方で同じ条件を適用する
     const passes = (inst: CardInstance): boolean => {
         if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
         if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
+        if (nameContains !== undefined && !cardNameContains(inst, nameContains)) return false
+        if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
         return true
     }
     if (targetInstanceId) {
@@ -2467,6 +2521,11 @@ export function fireTrigger(
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
+    // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ）は誘発も出さない
+    if (selfInstance.effectsDisabledContinuous === true) {
+        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
+        return
+    }
     const card = getCard(selfInstance.cardId)
     const level = currentLevel(selfInstance).level
     // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
@@ -2562,6 +2621,24 @@ export function fireTrigger(
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) return false
                 if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCost })) return false
+            } else if ("targetNotMaxLevel" in effect.condition) {
+                // BS07神帝獣スフィン・クロスLv3：ブロックしたスピリット（targetInstanceId）が
+                // そのカードの最高Lvに達していないときのみ発火
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                const maxLevel = getCard(found.inst.cardId).levels.reduce(
+                    (max, lv) => Math.max(max, lv.level),
+                    0,
+                )
+                if (currentLevel(found.inst).level >= maxLevel) return false
+            } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
+                // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
+                const { names, count } = effect.condition.ownNameIncludesCountAtLeast
+                const total = state.players[owner].field.spirits.filter((s) =>
+                    names.some((n) => cardNameContains(s, n)),
+                ).length
+                if (total < count) return false
             }
         }
         return true
@@ -3371,6 +3448,44 @@ function resolveMagicEffects(
     timing: "main" | "flash",
     targetInstanceId?: string,
 ): void {
+    // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
+    // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
+    // 「発揮後にもう1度」は約束どおり行う）
+    const repeat = hasMagicRepeatGrant(state, owner)
+    runMagicActions(state, owner, cardId, timing, targetInstanceId)
+    // 選択待ちで中断したときは、残りの効果を pendingChoice の queue が引き継いでいるのでここで抜ける
+    if (state.pendingChoice) return
+    if (repeat && !state.winner) {
+        log(state, `${getCard(cardId).name}の効果をもう1度発揮する。`)
+        runMagicActions(state, owner, cardId, timing, targetInstanceId)
+        if (state.pendingChoice) return
+    }
+    fireMagicUsedTriggers(state, owner, getCard(cardId), timing)
+}
+
+// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発生源があるか（BS07大天使イスフィール）
+function hasMagicRepeatGrant(state: GameState, pid: PlayerId): boolean {
+    for (const source of effectSources(state, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicRepeatGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition === "selfInBattle" && !isSelfInBattle(state, source.instanceId)) continue
+            return true
+        }
+    }
+    return false
+}
+
+// マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
+// （「マジックの効果を使用したとき」の誘発は呼び出し側が最後に1回だけ発火させる）
+function runMagicActions(
+    state: GameState,
+    owner: PlayerId,
+    cardId: string,
+    timing: "main" | "flash",
+    targetInstanceId?: string,
+): void {
     const card = getCard(cardId)
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
         effect.kind === "magic" && effect.timing === timing
@@ -3477,7 +3592,6 @@ function resolveMagicEffects(
     }
     // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
     delete state.magicRedirectTo
-    fireMagicUsedTriggers(state, owner, card, timing)
 }
 
 // 「マジックの効果を使用したとき」の誘発（使用者側・相手側）。

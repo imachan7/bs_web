@@ -44,6 +44,7 @@ const VALID_KINDS = new Set([
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
+    "spiritEffectsDisabledGrant", "magicRepeatGrant",
 ])
 
 export interface ValidationIssue {
@@ -201,12 +202,15 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
-    "sameCostAsBlocker",
+    "sameCostAsBlocker", "attackingOnly",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+    // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
+    // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly"],
 }
 
 function checkTargetFilters(

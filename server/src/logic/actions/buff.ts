@@ -97,9 +97,18 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象1体の経路は matchesTarget を通らないため、シンボル数の軸だけ filter から取り出して渡す
-        // （ライトニングバリスタ等＝シンボル2個以上のスピリットのみ対象）
-        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.filter?.minSymbols)
+        // 対象1体の経路は matchesTarget を通らないため、この経路が扱える軸を filter から取り出して渡す
+        // （minSymbols＝ライトニングバリスタ等／nameContains＝BS07ウィリアンスラッシュ「勇者」／
+        //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」）
+        const target = pickBpBuffTarget(
+            state,
+            owner,
+            targetInstanceId,
+            action.filter?.minSymbols,
+            action.filter?.keyword,
+            action.filter?.nameContains,
+            action.filter?.attackingOnly,
+        )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return

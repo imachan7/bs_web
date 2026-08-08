@@ -445,7 +445,10 @@ export function validateActivateAbility(
     }
     // フラッシュ優先権（手札のカードではなくスピリットの能力なので lockFlash は適用しない）
     if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-    if (state.players[pid].reserve < effect.cost.reserveToTrash) {
+    // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない
+    if ("exhaustSelf" in effect.cost) {
+        if (inst.isRested) return "すでに疲労しています"
+    } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
         return "コアが足りません"
     }
     return null

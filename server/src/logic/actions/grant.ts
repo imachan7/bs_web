@@ -8,12 +8,13 @@ import {
     getAllFamilies,
     pickAnySideCandidates,
     pickEnemyByBp,
+    exhaustSpirit,
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
@@ -409,6 +410,36 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
         return
 }
 
+const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
+        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない
+        if (action.costExhaustFamily !== undefined) {
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
+                return
+            }
+            // 犠牲を最小化する簡略化（実効BP最小を自動選択）
+            const chosen = candidates.reduce((min, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
+            )
+            exhaustSpirit(state, owner, chosen)
+        }
+        state.turnConstraints.push({
+            type: "noLifeDamageByCostForPid",
+            maxCost: action.maxCost,
+            pid: owner,
+        })
+        log(
+            state,
+            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
+        )
+        return
+}
+
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
@@ -575,6 +606,7 @@ const handlers = {
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,

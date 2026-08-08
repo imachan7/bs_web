@@ -1,5 +1,655 @@
 [
  {
+  "cardId": "BS07-037",
+  "name": "ヒッポカンプー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS07-038",
+  "name": "桜の妖精オウカ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ\nこのスピリットを疲労させることで、アタックしている【聖命】を持つ自分のスピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS07-038-e1",
+    "kind": "activated",
+    "timing": "flashBattle",
+    "levels": [
+     1,
+     2
+    ],
+    "cost": {
+     "exhaustSelf": true
+    },
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000,
+     "filter": {
+      "keyword": "seimei",
+      "attackingOnly": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-039",
+  "name": "マカロニペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "歌鳥･漂精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるとき、このスピリットは手札に戻る。",
+  "effects": [
+   {
+    "id": "BS07-039-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownNameIncludesCountAtLeast": {
+      "names": [
+       "皇帝アンプルール",
+       "女帝ペンプレス"
+      ],
+      "count": 1
+     }
+    },
+    "action": {
+     "type": "returnSelfToHand"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-040",
+  "name": "百合の妖精ユリィ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS07-040-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS07-040-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-041",
+  "name": "天剣の勇者リュート",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nコスト2以下のスピリットのアタックでは、お互いのライフは減らされない。\nLv3『このスピリットのバトル時』\nこのスピリットとバトルした相手のスピリットはLv1として扱う。",
+  "effects": [
+   {
+    "id": "BS07-041-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "noLifeDamageByCost",
+     "maxCost": 2
+    }
+   },
+   {
+    "id": "BS07-041-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "levelOverrideTarget",
+     "level": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-041-e3",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "levelOverrideTarget",
+     "level": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-042",
+  "name": "パオ・ペイール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n系統：「想獣」を持つ自分のスピリット1体を疲労させることで、このスピリットは回復状態で自分のフィールドに残る。\nLv3\n系統：「虚神」/「神将」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS07-042-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "scope": "self",
+    "when": {},
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "exhaustOwnFamilyOne": "想獣"
+    }
+   },
+   {
+    "id": "BS07-042-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": [
+     "虚神",
+     "神将"
+    ],
+    "treatAs": "max",
+    "sourceLevels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-043",
+  "name": "女帝ペンプレス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "皇獣",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nカード名に「ペンタン」と入っている自分のスピリットが破壊されたとき、このスピリットは回復する。\nLv2･Lv3\n自分の手札にあるカード名に「ペンタン」と入っているスピリットカードすべてのコストを3にする。\nLv3\nカード名に「ペンタン」と入っているスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-043-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "nameIncludes": [
+     "ペンタン"
+    ],
+    "selfMode": "source",
+    "action": {
+     "type": "refreshSelf"
+    }
+   },
+   {
+    "id": "BS07-043-e2",
+    "kind": "costMod",
+    "levels": [
+     2,
+     3
+    ],
+    "mode": "set",
+    "setTo": 3,
+    "nameContains": "ペンタン",
+    "cardTypeFilter": "spirit"
+   },
+   {
+    "id": "BS07-043-e3",
+    "kind": "aura",
+    "levels": [
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "counter": {
+      "ownNameIncludes": "ペンタン"
+     },
+     "amountPer": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-044",
+  "name": "天使長トロン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\nこのターンの間、このスピリットはブロックされない。\nLv2【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS07-044-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS07-044-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "markUnblockableThisTurn",
+     "minBp": 0,
+     "target": "self"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-044-e3",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     2
+    ]
+   },
+   {
+    "id": "BS07-044-e4",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-045",
+  "name": "神帝獣スフィン・クロス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 10,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "虚神",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 10,
+    "bp": 14000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「想獣」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv3『このスピリットのアタック時』\n最高Lvではない相手のスピリットにブロックされたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS07-045-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "summonFromHandFree",
+     "familyFilter": "想獣"
+    },
+    "optional": true
+   },
+   {
+    "id": "BS07-045-e2",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS07-045-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS07-045-e4",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "targetNotMaxLevel": true
+    },
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS07-046",
   "name": "豹人ベルセルカス",
   "type": "spirit",
@@ -287,7 +937,10 @@
      "虚神",
      "神将"
     ],
-    "treatAs": "max"
+    "treatAs": "max",
+    "sourceLevels": [
+     3
+    ]
    }
   ]
  },
@@ -607,6 +1260,136 @@
   ]
  },
  {
+  "cardId": "BS07-063",
+  "name": "秘密の花園",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のネクサスが、相手のスピリット/ネクサス/マジックの効果で破壊されたとき、ボイドからコア1個を自分のライフに置く。\nLv2『相手のスタートステップ』\n系統：「楽族」を持つ自分のスピリット1体を疲労させることで、このターンの間、コスト3以下のスピリットのアタックでは、自分のライフは減らされない。",
+  "effects": [
+   {
+    "id": "BS07-063-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "selfMode": "source",
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    }
+   },
+   {
+    "id": "BS07-063-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "protectLifeByCostThisTurn",
+     "maxCost": 3,
+     "costExhaustFamily": "楽族"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-064",
+  "name": "聖なる命の泉",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n【聖命】を持つ自分のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\n【聖命】を持つ自分のスピリットすべては、相手のコスト3以下のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS07-064-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "seimei",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "BS07-064-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "keywordFilter": "seimei",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "unblockableBy",
+     "maxCost": 3
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS07-065",
   "name": "造兵工房",
   "type": "nexus",
@@ -739,6 +1522,139 @@
   ]
  },
  {
+  "cardId": "BS07-079",
+  "name": "ブルームフルート",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのバトルの間、【聖命】を持つ自分のスピリットがブロックされたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS07-079-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-079-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": null,
+    "lentOnly": true,
+    "keywordFilter": "seimei",
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-080",
+  "name": "ノーエントリー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、コスト3以下のスピリットすべては、アタックとブロックができない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
+  "effects": [
+   {
+    "id": "BS07-080-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "banActByCostThisTurn",
+     "maxCost": 3
+    }
+   },
+   {
+    "id": "BS07-080-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-081",
+  "name": "ルナースラッシュ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリットをブロックした【転召】を持たない相手のスピリットが持つ効果すべては発揮されない。\nフラッシュ：\nこのターンの間、カード名に「勇者」と入っている自分のスピリット1体をBP+5000する。",
+  "effects": [
+   {
+    "id": "BS07-081-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS07-081-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "filter": {
+      "nameContains": "勇者"
+     }
+    }
+   },
+   {
+    "id": "BS07-081-e3",
+    "kind": "spiritEffectsDisabledGrant",
+    "levels": null,
+    "lentOnly": true,
+    "target": "opponentAll",
+    "keywordExclude": "tensho",
+    "blockingOnly": true
+   }
+  ]
+ },
+ {
   "cardId": "BS07-082",
   "name": "ネクサスアタック",
   "type": "magic",
@@ -852,6 +1768,94 @@
      "maxCost": 4,
      "thenDestroyEnemyByCostBudget": true
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS07-X27",
+  "name": "大天使イスフィール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\n自分のマジックカード1枚をコストを支払わずに使用でき、マジックの効果発揮後、同じ効果をもう1度だけ発揮できる。\nLv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS07-X27-e1",
+    "kind": "magicFreeGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "scope": "allMagicHandAndTegamoto",
+    "condition": "selfInBattle"
+   },
+   {
+    "id": "BS07-X27-e2",
+    "kind": "magicRepeatGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": "selfInBattle"
+   },
+   {
+    "id": "BS07-X27-e3",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS07-X27-e4",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
    }
   ]
  },

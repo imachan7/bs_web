@@ -215,10 +215,22 @@ export function hasMagicFreeGrant(
                 if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
             }
+            // 『このスピリットのバトル時』（BS07大天使イスフィール）：発生源自身がバトルの当事者のときだけ
+            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
             return true
         }
     }
     return false
+}
+
+// 発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）か。
+// magicFreeGrant / magicRepeatGrant の condition:"selfInBattle" が共用する
+export function isSelfInBattle(board: Board, instanceId: string): boolean {
+    if (!board.battle) return false
+    return (
+        board.battle.attackerInstanceId === instanceId ||
+        board.battle.blockerInstanceId === instanceId
+    )
 }
 // pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 // 軽減シンボルと同じシンボル集計対象を色の集合として求める）
@@ -252,6 +264,9 @@ export function costSetOverride(
             }
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
             if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
+            // BS07女帝ペンプレスLv2-3：手札のカード名に「ペンタン」を含むスピリットカードのみ
+            if (effect.nameContains !== undefined && !cardData.name.includes(effect.nameContains)) continue
+            if (effect.cardTypeFilter !== undefined && cardData.type !== effect.cardTypeFilter) continue
             // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
             if (result === undefined || effect.setTo < result) result = effect.setTo
         }

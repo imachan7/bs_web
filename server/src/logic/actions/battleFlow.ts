@@ -679,7 +679,14 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
 // 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
+    // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
+    if (action.target === "self") {
+        if (!self) return
+        self.unblockableOnceThisTurn = true
+        log(state, `${getCard(self.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`)
+        return
+    }
     let best: CardInstance | undefined
     let bestBp = -1
     for (const inst of state.players[owner].field.spirits) {
