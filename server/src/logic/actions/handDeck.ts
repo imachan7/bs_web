@@ -25,7 +25,8 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const noopHandler: ActionHandler<"noop"> = () => {
@@ -869,6 +870,13 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
+        // （BS06レインディア：ブロックしたスピリットが系統「空牙」のときのみ手札に戻す）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
+            return
+        }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -883,6 +891,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                return
+            }
+            if (!matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
             returnSpiritToHand(state, found.pid, found.inst)
@@ -907,7 +919,8 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (action.anySide) {
-            const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp
+            const matchesBp = (s: CardInstance) =>
+                effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
             const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType)
             if (
                 state.interactiveTargets &&
@@ -935,8 +948,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             return
         }
+        const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColors, srcType)
+            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -953,7 +967,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
         for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColors, srcType)
+            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
@@ -965,6 +979,12 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
 
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // filter指定時はさらにTargetFilterの軸で絞り込む（既存costFilterは残す。BS06鎧神機ヴァルハランスLv3＝BP4000以下）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
@@ -973,6 +993,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
             const targets = state.players[pid].field.spirits.filter((s) => {
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
+                if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
                 if (isEffectBlocked(state, s, srcType)) return false
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
                 return true

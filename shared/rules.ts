@@ -357,9 +357,11 @@ export function spiritHasFamily(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             // familyFilter は**カード静的な系統のみ**で判定する。ここで spiritHasFamily を呼ぶと
-            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）
-            if (effect.familyFilter && !card(inst.cardId).family.includes(effect.familyFilter)) {
-                continue
+            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）。配列＝いずれかの系統でOR
+            // （BS06無限なる軌道母艦：機人/動器のいずれかを持つスピリットに武装を付与）
+            if (effect.familyFilter) {
+                const wantedFamilies = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
+                if (!wantedFamilies.some((f) => card(inst.cardId).family.includes(f))) continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
@@ -551,6 +553,10 @@ export function auraAppliesTo(
     if (aura.attackingOnly) {
         if (!board.battle) return false
         if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
+    }
+    if (aura.blockingOnly) {
+        if (!board.battle) return false
+        if (board.battle.blockerInstanceId !== targetInst.instanceId) return false
     }
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false

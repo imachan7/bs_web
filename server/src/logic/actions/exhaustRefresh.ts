@@ -392,7 +392,11 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         for (const s of player.field.spirits) {
             if (!s.isRested) continue
             s.isRested = false
-            s.cantAttackThisTurn = true
+            // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
+            // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
+            if (!action.exemptFamily || !matchesFamilyFilter(state, owner, s, action.exemptFamily)) {
+                s.cantAttackThisTurn = true
+            }
             count++
         }
         if (count === 0) {

@@ -1716,6 +1716,698 @@
   ]
  },
  {
+  "cardId": "BS06-037",
+  "name": "双子妖精フギン＆ムニン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：緑】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS06-037-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "green"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-038",
+  "name": "センザンゴウ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "甲獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nこのスピリットはアタックできない。\nLv1･Lv2\n自分のライフが減ったとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS06-038-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "BS06-038-e2",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-039",
+  "name": "浮遊魚モラモラー",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-040",
+  "name": "薄氷の侍女長フッラ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-041",
+  "name": "鎧装獣アウドムラ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "巨獣",
+   "甲獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\nボイドからコア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "BS06-041-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-042",
+  "name": "機海兵ゼーロイヴァー",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤/紫/白】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2『お互いのアタックステップ』\n相手がコスト4/5のマジックの効果を使用したとき、相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS06-042-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red",
+     "purple",
+     "white"
+    ]
+   },
+   {
+    "id": "BS06-042-e2",
+    "kind": "fieldEvent",
+    "event": "opponentMagicUsed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "magicCostEquals": 4,
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS06-042-e3",
+    "kind": "fieldEvent",
+    "event": "opponentMagicUsed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "magicCostEquals": 5,
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-043",
+  "name": "盾機兵バルドル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n疲労状態の自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-043-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownExhausted",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-044",
+  "name": "レインディア",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2『このスピリットのブロック時』\nこのスピリットがブロックした系統：「空牙」を持つ相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS06-044-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   },
+   {
+    "id": "BS06-044-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 1,
+     "filter": {
+      "family": "空牙"
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-045",
+  "name": "トンビュール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "光虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-046",
+  "name": "鍵鎚のヴァルグリンド",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の手札にある系統：「虚神」を持つスピリットカードすべてのコストを6にする。\nLv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を手札に戻す。\nLv2『このスピリットのブロック時』\nBP4000以上の相手のスピリットをブロックしたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS06-046-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2
+    ],
+    "mode": "set",
+    "setTo": 6,
+    "familyFilter": "虚神"
+   },
+   {
+    "id": "BS06-046-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-046-e3",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "targetMinBp": 4000
+    },
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-047",
+  "name": "輝竜殿ブレイザブリク",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nボイドからコア1個をこのスピリット上に置く。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+4000する。",
+  "effects": [
+   {
+    "id": "BS06-047-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-047-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 4000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-048",
+  "name": "銀狼皇ガグンラーズ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "戦騎"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n【装甲】を持つ自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2『このスピリットのブロック時』\n相手のスピリット2体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS06-048-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownKeyword": "armor"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-048-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 2
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS06-073",
   "name": "灼熱の谷",
   "type": "nexus",
@@ -2043,6 +2735,204 @@
   ]
  },
  {
+  "cardId": "BS06-082",
+  "name": "無限なる軌道母艦",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「機人」/「動器」を持つ自分のスピリットすべてに、系統：「武装」を与える。\nLv2『自分のアタックステップ』\n系統：「武装」を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき手札に戻る。",
+  "effects": [
+   {
+    "id": "BS06-082-e1",
+    "kind": "familyGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "family": "武装",
+    "familyFilter": [
+     "機人",
+     "動器"
+    ]
+   },
+   {
+    "id": "BS06-082-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "familyFilter": "武装",
+    "revived": {
+     "toHand": true
+    },
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-083",
+  "name": "希望の大灯台",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手のスピリット/ネクサス/マジックの効果で、自分のスピリット上のコアを取り除かれたとき、ボイドから、取り除かれたコア1個につきコア1個を、自分のリザーブに置く。\nLv2『相手のアタックステップ』\nブロックしている自分のスピリットすべてを、疲労状態の自分のスピリット1体につき、BP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-083-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritCoresRemovedByOpponent",
+    "levels": [
+     1,
+     2
+    ],
+    "countMode": "cores",
+    "repeatPerCount": true,
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS06-083-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "blockingOnly": true,
+     "amountPer": 1000,
+     "counter": "ownExhausted",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-084",
+  "name": "侵食されゆく尖塔",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のスタートステップ』\n自分のトラッシュにあるコアすべてを、自分のリザーブに置く。\nLv2『自分のスタートステップ』\n相手のスピリット1体を手札に戻す。",
+  "limitCount": 1,
+  "effects": [
+   {
+    "id": "BS06-084-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "reclaimTrashCores"
+    }
+   },
+   {
+    "id": "BS06-084-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-091",
   "name": "バスタージャベリン",
   "type": "magic",
@@ -2332,6 +3222,166 @@
   ]
  },
  {
+  "cardId": "BS06-103",
+  "name": "キャバルリー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n疲労状態の自分のスピリットすべてを回復させる。\nこのターンの間、この効果で回復した、系統：「戦騎」を持たないスピリットはアタックできない。",
+  "effects": [
+   {
+    "id": "BS06-103-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshAllOwn",
+     "exemptFamily": "戦騎"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-104",
+  "name": "アバランチオーラ",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、ブロックしている自分のスピリットすべてをBP+2000する。\nさらにブロックしている【装甲】を持つ自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS06-104-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-104-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "blockingOnly": true,
+     "amount": 2000,
+     "lentOnly": true
+    }
+   },
+   {
+    "id": "BS06-104-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "blockingOnly": true,
+     "amount": 2000,
+     "lentOnly": true,
+     "keywordFilter": "armor"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-105",
+  "name": "ホーリーエリクサー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nリザーブから、自分のライフにコア1個を置く。",
+  "effects": [
+   {
+    "id": "BS06-105-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lifeCharge",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-106",
+  "name": "ホワイトホール",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nネクサスすべてを持ち主の手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS06-106-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "returnNexusToHand",
+     "count": 0,
+     "all": true,
+     "side": "both"
+    }
+   },
+   {
+    "id": "BS06-106-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-X22",
   "name": "魔界七将ベルゼビート",
   "type": "spirit",
@@ -2404,6 +3454,91 @@
      "type": "destroy",
      "count": 1
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-X24",
+  "name": "鎧神機ヴァルハランス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "戦騎"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【装甲：∞】\nこのスピリットは、相手のフィールドにあるシンボルの色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2･Lv3『このスピリットのバトル時』\n系統：「武装」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する。\nLv3『このスピリットのアタック時』\nBP4000以下の相手のスピリットすべてを手札に戻す。",
+  "effects": [
+   {
+    "id": "BS06-X24-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "colorsFrom": "opponentFieldSymbols"
+   },
+   {
+    "id": "BS06-X24-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffByExhaustFamily",
+     "familyFilter": "武装"
+    },
+    "optional": true
+   },
+   {
+    "id": "BS06-X24-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "returnAllToHand",
+     "side": "opponent",
+     "filter": {
+      "maxBp": 4000
+     }
+    },
+    "optional": false
    }
   ]
  }

@@ -51,6 +51,7 @@ import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
 import type { KeywordInfo } from "../../../shared/rules"
 export type { KeywordInfo }
+import { ownFieldSymbolColors } from "../../../shared/cost"
 import {
     activeConstraints,
     auraAmount,
@@ -947,6 +948,20 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "keyword" && effect.keyword === "armor" && effect.colorsFrom === "opponentFieldSymbols") {
+                    // 【装甲：∞】：持ち主から見た相手フィールドのシンボル色を毎回算出して自身へ反映する
+                    // （hasArmorAgainstはstateを受け取らない純粋述語のため、armorColorsGrantedへ都度全消去→再構築で渡す。
+                    // BS06鎧神機ヴァルハランス。sourceは実在するカード自身＝effectSourcesが返す実フィールド発生源）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    const oppColors = ownFieldSymbolColors(state, opponentOf(pid))
+                    if (oppColors.size > 0) {
+                        if (!source.armorColorsGranted) source.armorColorsGranted = []
+                        for (const c of oppColors) {
+                            if (!source.armorColorsGranted.includes(c)) source.armorColorsGranted.push(c)
+                        }
+                    }
+                    continue
+                }
                 if (effect.kind === "vanillaAsGrant") {
                     // 「系統：『造兵』を持つ自分のスピリットすべてを、カードに効果の記述を持たない
                     // スピリットとしても扱う」（BS04スイッチヒッター）。instIsVanilla は state を受け取らない
@@ -1554,7 +1569,7 @@ export function removeCores(
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
 }
 
@@ -1585,7 +1600,7 @@ export function removeCoresToTrash(
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
 }
 
@@ -1614,7 +1629,7 @@ export function removeCoresToVoid(
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1)
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
 }
 
@@ -2389,6 +2404,12 @@ export function fireTrigger(
                 ) {
                     return false
                 }
+            } else if ("targetMinBp" in effect.condition) {
+                // 鍵鎚のヴァルグリンドLv2：ブロックしたスピリット（targetInstanceId）の実効BPがこれ以上のときのみ発火
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (effectiveBp(state, found.pid, found.inst) < effect.condition.targetMinBp) return false
             }
         }
         return true
@@ -2705,6 +2726,9 @@ export function fireFieldEventTriggers(
         // 道化師クランの付与コストも含めた複数値になりうるため、配列で受け取りいずれかが
         // costFilter を満たせばよい（instMatchesCostFilterと同じOR意味論）
         costs?: number[]
+        // event: "ownSpiritCoresRemovedByOpponent" 限定：実際に取り除かれたコア数。
+        // effect.countMode === "cores" のエントリのみ repeatPerCount の繰り返し回数として使う（BS06希望の大灯台Lv1）
+        coresRemoved?: number
     },
 ): void {
     const player = state.players[pid]
@@ -2808,8 +2832,16 @@ export function fireFieldEventTriggers(
                     if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
                 }
             }
-            // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す
-            const repeatTimes = effect.repeatPerCount && eventCount ? eventCount : 1
+            // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す。
+            // countMode:"cores"（希望の大灯台Lv1）指定時は、影響を受けたスピリット数(eventCount)ではなく
+            // 取り除かれたコア数(eventInfo.coresRemoved)を繰り返し回数にする（省略時は従来どおりeventCount）
+            const repeatTimes = effect.repeatPerCount
+                ? effect.countMode === "cores" && eventInfo?.coresRemoved !== undefined
+                    ? eventInfo.coresRemoved
+                    : eventCount
+                      ? eventCount
+                      : 1
+                : 1
             for (let i = 0; i < repeatTimes; i++) {
                 // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
                 // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
@@ -2938,18 +2970,20 @@ export function applyJugekiCoreToVoid(
                 state,
                 `${getCard(source.cardId).name}：【呪撃】で破壊される${getCard(victim.cardId).name}のコア${removed}個をボイドに置いた。`,
             )
-            notifySpiritCoresRemovedByOpponent(state, victimPid, 1)
+            notifySpiritCoresRemovedByOpponent(state, victimPid, 1, removed)
         }
     }
 }
 
 // フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
-// （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数。
-// removeCores / removeCoresToTrash（actorPid !== ownerPidのとき）から呼ばれる
+// （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数（従来どおりのeventCount）。
+// removedCoreCount指定時は「取り除かれたコア数」も渡す（countMode:"cores"のエントリのみ使う。BS06希望の大灯台Lv1）。
+// removeCores / removeCoresToTrash / removeCoresToVoid（actorPid !== ownerPidのとき）から呼ばれる
 export function notifySpiritCoresRemovedByOpponent(
     state: GameState,
     spiritOwnerPid: PlayerId,
     affectedCount: number,
+    removedCoreCount?: number,
 ): void {
     if (affectedCount < 1 || state.winner) return
     fireFieldEventTriggers(
@@ -2960,6 +2994,7 @@ export function notifySpiritCoresRemovedByOpponent(
         undefined,
         undefined,
         affectedCount,
+        removedCoreCount !== undefined ? { coresRemoved: removedCoreCount } : undefined,
     )
 }
 

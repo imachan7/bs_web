@@ -843,7 +843,7 @@ const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexu
 }
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
         // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
         // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
@@ -855,6 +855,21 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
                     `${sourceName}：相手のネクサスを手札に戻したため、ボイドからコア${action.voidCoreToOwnTrashIfOpponent}個を自分のトラッシュに置いた。`,
                 )
             }
+        }
+        // all：countを無視し、side（省略時はopponent）が指すネクサスすべてを戻す。
+        // side:"both"は両陣営すべて（bothSidesPidsで封印された魔導書系の対象片側化にも対応。BS06ホワイトホール）
+        if (action.all) {
+            const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
+            let bounced = 0
+            for (const pid of sides) {
+                // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
+                for (const nexus of [...state.players[pid].field.nexuses]) {
+                    bounceOne(pid, nexus)
+                    bounced++
+                }
+            }
+            if (bounced === 0) log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
+            return
         }
         // anySide：自分/相手どちらのネクサスも対象にできる。
         // targetInstanceId優先→interactiveTargets時はrequestChoiceで両陣営から選択→
