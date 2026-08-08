@@ -321,4 +321,41 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
     }
     assert(targets.length >= 4, `【暴風】持ちを列挙できる（${targets.length}枚）`)
     assert(ok === targets.length, `【暴風】持ち全${targets.length}枚がブロック時に相手を疲労させる（成功${ok}枚）`)
+
+    // 【暴風】の keyword エントリ（指定数）そのものを読むのは颶風高原だけ——
+    // ブロック時の疲労は対になる triggered エントリの担当なので、指定数の読み出しは別に確かめる。
+    // ネクサスもIDを直書きせず、voidCoreToSelfPerBofuCount を持つカードとしてデータから引く
+    const bofuNexus = CARDS.find((c) =>
+        (c.effects ?? []).some(
+            (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "voidCoreToSelfPerBofuCount",
+        ),
+    )
+    assert(bofuNexus !== undefined, "【暴風】の指定数を読むネクサス（颶風高原）をデータから引ける")
+    let okCount = 0
+    for (const { card, entry, level } of targets) {
+        if (!bofuNexus) break
+        const count = Number(entry["count"] ?? 1)
+        const s = base(`bofu-count-${card.cardId}`)
+        const nexus = createInstance(bofuNexus.cardId, s.turn, 0)
+        s.players.p1.field.nexuses.push(nexus)
+        s.players.p1.hand = [card.cardId]
+        if (act(s, "p1", { type: "summon", handIndex: 0, level }) !== null) {
+            assert(false, `${card.cardId} ${card.name}：Lv${level}で召喚できる`)
+            continue
+        }
+        const summoned = s.players.p1.field.spirits.find((x) => x.cardId === card.cardId)
+        const expected = coresForLevel(card, level) + count
+        if (summoned?.cores !== expected) {
+            assert(
+                false,
+                `${card.cardId} ${card.name}：颶風高原で【暴風：${count}】ぶんコアが乗る（期待${expected}／実際${String(summoned?.cores)}）`,
+            )
+            continue
+        }
+        okCount++
+    }
+    assert(
+        okCount === targets.length,
+        `【暴風】全${targets.length}枚の指定数が颶風高原に読まれる（成功${okCount}枚）`,
+    )
 }

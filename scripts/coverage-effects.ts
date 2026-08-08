@@ -484,6 +484,34 @@ process.on("exit", () => {
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
         )
 
+        // (4.6) 【装甲：∞】（keyword armor の colorsFrom:"opponentFieldSymbols"。BS06鎧神機ヴァルハランス）も
+        //     armorColorsGranted 経由で materialize される別経路。hasArmorAgainst の静的判定（e.colors）を
+        //     通らないため、(4.5) と同じ書き込み時点で記録する。
+        //     ※ 読む側（hasArmorAgainst の granted 分岐）は keywordGrant 由来と区別できないため、
+        //       ここだけは「相手フィールドにシンボルがある状態で場に居た」で実行済みとする
+        patch(
+            path.join(tree, "server/src/logic/EffectModules.ts"),
+            `                        if (!source.armorColorsGranted) source.armorColorsGranted = []`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        if (!source.armorColorsGranted) source.armorColorsGranted = []`,
+        )
+
+        // (4.7) keyword「暴風」: **挙動そのものは対になる triggered エントリ（onBlocked の exhaust）が持つ**ため、
+        //     keyword エントリ自体が読まれるのは颶風高原（voidCoreToSelfPerBofuCount）が指定数を引く1箇所だけ。
+        //     そこを計測点にする（「暴風を持っている」ではなく「指定数が実際に使われた」時点）
+        const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
+        patch(
+            coresFile,
+            `import { coresForLevel, getCard, log, minLevelCores } from "../GameState"`,
+            `import { coresForLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
+        )
+        patch(
+            coresFile,
+            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0`,
+            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (entry && count > 0) __covRecord("cont\\t" + String((entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+        )
+
         // (5) EffectModules 側で __covRecord を使うための import 追記
         patch(
             path.join(tree, "server/src/logic/EffectModules.ts"),
