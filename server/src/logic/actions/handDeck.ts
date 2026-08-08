@@ -1156,6 +1156,60 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
         return
 }
 
+const revealHandMagicToTegamotoDrawHandler: ActionHandler<"revealHandMagicToTegamotoDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        // 占いペンタン：handMagicToTegamotoDrawの単発版。自分の手札にあるマジックカード1枚を
+        // オープンして手元に置き、1枚ドローする（「〜することで」の任意コストはtriggered.optionalで表現）
+        const player = state.players[owner]
+        if (chosenCardIndex !== undefined) {
+            const cardId = player.hand[chosenCardIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            player.hand.splice(chosenCardIndex, 1)
+            player.tegamoto.push(cardId)
+            draw(state, owner, 1)
+            log(
+                state,
+                `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
+            )
+            return
+        }
+        const indices: number[] = []
+        for (let i = 0; i < player.hand.length; i++) {
+            if (getCard(player.hand[i]!).type === "magic") indices.push(i)
+        }
+        if (indices.length === 0) {
+            log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            return
+        }
+        if (state.interactiveTargets) {
+            requestCardChoice(
+                state,
+                owner,
+                `${sourceName}：オープンして手元に置くマジックカードを選んでください`,
+                "hand",
+                indices,
+                false,
+                action,
+                self,
+            )
+            return
+        }
+        // 非interactive時：手札末尾（新しい方）の該当カード1枚を機械的に選ぶ（決定的簡略化）
+        const idx = indices[indices.length - 1]!
+        const cardId = player.hand[idx]!
+        player.hand.splice(idx, 1)
+        player.tegamoto.push(cardId)
+        draw(state, owner, 1)
+        log(
+            state,
+            `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
+        )
+        return
+}
+
 const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTegamotoDestroyPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 透明人間エクリア：相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ破棄し、
@@ -1206,6 +1260,7 @@ const handlers = {
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
+    revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,
 } satisfies Partial<ActionRegistry>
 

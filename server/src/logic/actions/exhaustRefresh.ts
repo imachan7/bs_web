@@ -473,6 +473,22 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         return
 }
 
+const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        // このスピリット自身を疲労させる（唯一の入口exhaustSpirit経由。BS06雪ん子イエティ／天使長ファニム）
+        if (!self) {
+            log(state, `${sourceName}：疲労対象がいなかった。`)
+            return
+        }
+        if (self.isRested) {
+            log(state, `${getCard(self.cardId).name}はすでに疲労状態のため何もしなかった。`)
+            return
+        }
+        exhaustSpirit(state, owner, self)
+        log(state, `${getCard(self.cardId).name}は疲労した。`)
+        return
+}
+
 const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分の疲労スピリットのうちfamilyFilter一致（配列=OR）を実効BP最大からcount体まで回復
@@ -569,6 +585,7 @@ const handlers = {
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
+    exhaustSelf: exhaustSelfHandler,
     refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,
 } satisfies Partial<ActionRegistry>

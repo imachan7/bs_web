@@ -153,6 +153,18 @@ const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx,
         return
 }
 
+const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+        // イマジンフィールド：現在のバトルにフラグを立て、解決時にBPの代わりにコアの数を比較させる
+        if (!state.battle) {
+            log(state, `${sourceName}：バトル外のため不発。`)
+            return
+        }
+        state.battle.compareByCores = true
+        log(state, `${sourceName}：バトル解決時、BPの代わりにコアの数を比較する。`)
+        return
+}
+
 const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!state.battle) {
@@ -342,6 +354,35 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
             if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
             return true
+        }
+        // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
+        // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
+        // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
+        if (action.count !== undefined) {
+            let summonedCount = 0
+            for (let n = 0; n < action.count; n++) {
+                let bestIdx = -1
+                let bestCost = -1
+                for (let i = 0; i < player.hand.length; i++) {
+                    const candidateId = player.hand[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const cost = getCard(candidateId).cost
+                    if (cost > bestCost) {
+                        bestCost = cost
+                        bestIdx = i
+                    }
+                }
+                if (bestIdx === -1) break
+                const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
+                if (player.reserve < maintain) break
+                summonFreeFromHandIndex(state, owner, sourceName, bestIdx)
+                summonedCount++
+                if (state.winner) return
+            }
+            if (summonedCount === 0) {
+                log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
+            }
+            return
         }
         // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
         // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
@@ -655,6 +696,7 @@ const handlers = {
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
     battleCompareByLevel: battleCompareByLevelHandler,
+    battleCompareByCores: battleCompareByCoresHandler,
     lockFlash: lockFlashHandler,
     lifeCrush: lifeCrushHandler,
     deployNexus: deployNexusHandler,

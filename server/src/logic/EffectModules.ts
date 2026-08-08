@@ -462,6 +462,22 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
+// kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
+// 「相手のスピリットは召喚されたとき疲労する」を持つ発生源が有効か（condition.selfRestedは発生源自身が
+// 疲労状態のときのみ）。GameEngine.doSummonが召喚した側から見た相手（=このgrantの持ち主）に対して呼ぶ
+export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "summonedExhaustGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition?.selfRested && !source.isRested) continue
+            return true
+        }
+    }
+    return false
+}
+
 // 士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
 // 『このスピリットのブロック時』にも発揮させる発生源が、持ち主のフィールドにあるか。
 // 「**にも**」なのでアタック時の発揮はそのまま残る（移し替えではない）
@@ -1320,10 +1336,19 @@ function tryReviveOnDestroy(
         return player.field.spirits.some((s) => getCard(s.cardId).name === name)
     }
 
+    // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
+    // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
+    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number }): boolean => {
+        if (!condition) return true
+        const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
+        return oppColors.size <= condition.opponentFieldSymbolColorsAtMost
+    }
+
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
+        if (!matchesReviveCondition(effect.condition)) return false
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (oncePerTurnBlocked(effect, inst)) return false
@@ -1358,12 +1383,15 @@ function tryReviveOnDestroy(
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
+            if (!matchesReviveCondition(effect.condition)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (oncePerTurnBlocked(effect, source)) continue
@@ -1907,6 +1935,8 @@ export function applyMagicBuffBonus(
             if (effect.colorFilter && !(srcColors ?? []).includes(effect.colorFilter)) continue
             if (effect.target === "self") {
                 if (source.instanceId !== target.instanceId) continue
+            } else if (effect.target === "ownAll") {
+                // BS06混迷する魔法実験場：対象となった持ち主のスピリットすべて（色不問、発生源自身も含む）
             } else {
                 // ownOthers：発生源以外の、持ち主の緑スピリットが対象のときのみ
                 if (source.instanceId === target.instanceId) continue
@@ -2043,6 +2073,14 @@ export function countEffectCounter(
     if ("ownNameIncludes" in counter) {
         return countSpiritsWeighted(state, owner, owner, (s) =>
             cardNameContains(s, counter.ownNameIncludes),
+        )
+    }
+    // { anyNameIncludes: string }：両陣営のフィールドで、カード名に指定文字列を含むスピリット数
+    // （ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット1体につき」）
+    if ("anyNameIncludes" in counter) {
+        return (
+            countSpiritsWeighted(state, owner, "p1", (s) => cardNameContains(s, counter.anyNameIncludes)) +
+            countSpiritsWeighted(state, owner, "p2", (s) => cardNameContains(s, counter.anyNameIncludes))
         )
     }
     // { ownColor: Color }：自分フィールドの指定色スピリット数
@@ -3019,15 +3057,19 @@ function setMagicRedirect(
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "magicTargetRedirect") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
-            // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき
+            // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき／『自分のターン』＝turnPlayerのとき
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
-            if (effect.protectFamily !== undefined) {
+            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
+            if (effect.protectFamily !== undefined || effect.protectCost !== undefined) {
                 // スノーホワイト：守る対象は「持ち主の指定系統（＋指定色）のスピリット」で、
                 // 絞り込み先は発生源自身。守る対象が1体も対象に含まれていなければ発動しない
+                // （BS06細剣の猫騎士ケット・シー：protectCostで「持ち主の指定コストのスピリット」を守る同型版）
                 const guarded = state.players[defenderPid].field.spirits.filter(
                     (s) =>
-                        matchesFamilyFilter(state, defenderPid, s, effect.protectFamily!) &&
-                        (effect.protectColor === undefined || instHasColor(s, effect.protectColor)),
+                        (effect.protectFamily === undefined ||
+                            matchesFamilyFilter(state, defenderPid, s, effect.protectFamily)) &&
+                        (effect.protectColor === undefined || instHasColor(s, effect.protectColor)) &&
+                        (effect.protectCost === undefined || instHasCost(s, effect.protectCost)),
                 )
                 if (guarded.length === 0) continue
                 const included =

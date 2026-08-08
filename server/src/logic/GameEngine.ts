@@ -36,6 +36,7 @@ import {
     hasFunsaiOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
+    hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
     millDeck,
@@ -287,6 +288,13 @@ function doSummon(
             undefined,
             { families: card.family },
         )
+    }
+    // 天使長ファニム：召喚した側（pid）から見た相手がsummonedExhaustGrantを持つ間、
+    // 召喚されたこのスピリットは疲労する（kind:"summonedExhaustGrant"）
+    if (!state.winner && player.field.spirits.some((s) => s.instanceId === inst.instanceId)) {
+        if (hasSummonedExhaustGrant(state, opponentOf(pid))) {
+            exhaustSpirit(state, pid, inst)
+        }
     }
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
@@ -980,8 +988,13 @@ function resolveBattle(state: GameState): void {
     if (compareByLevel) {
         log(state, "バトル解決：BPの代わりにLvを比較する。")
     }
-    const attackerValue = compareByLevel ? currentLevel(attacker).level : attackerBp
-    const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
+    // イマジンフィールド：バトル解決時、BPの代わりにコアの数を比較する（コアが少ない方が破壊される。同数は相打ち）
+    const compareByCores = state.battle.compareByCores === true
+    if (compareByCores) {
+        log(state, "バトル解決：BPの代わりにコアの数を比較する。")
+    }
+    const attackerValue = compareByLevel ? currentLevel(attacker).level : compareByCores ? attacker.cores : attackerBp
+    const blockerValue = compareByLevel ? currentLevel(blocker).level : compareByCores ? blocker.cores : blockerBp
 
     if (attackerValue > blockerValue) {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）

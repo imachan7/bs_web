@@ -479,6 +479,10 @@ export function countAuraCounter(
             cardNameContains(s, counter.ownNameIncludes),
         )
     }
+    // { ownCost: number }：発生源自身を含む自分フィールドの指定コストのスピリット数（BS06細剣の猫騎士ケット・シー）
+    if ("ownCost" in counter) {
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => instHasCost(s, counter.ownCost))
+    }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
         matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),

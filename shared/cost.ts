@@ -64,6 +64,8 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
+            // phase指定時はこのステップ中のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』。BS06賢獣アイベリックス）
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
             // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
             if (effect.familyFilter !== undefined) {
                 const families = Array.isArray(effect.familyFilter)
