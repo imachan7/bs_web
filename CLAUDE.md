@@ -68,6 +68,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
 ```
 
+### 実行時カバレッジ（`npm run coverage:effects`）— 弾の取り込みが一段落したら回す
+
+上の定型に**は入れない**（HEAD の使い捨て worktree を作って smoke を丸ごと1回走らせるので遅い）。
+代わりに**1つの弾・大きなバッチを入れ終えたタイミングで回す**。
+
+`validate:gaps` が「**書かれていない効果**」を静的に探すのに対し、これは
+「**書かれているのに一度も発火していない効果エントリ**」を実測で洗い出す。
+カードデータを大量に足した直後は「データは書いたが smoke が一度も通していない」経路が積み上がるため、
+ここでしか見つからない層がある（実績: `returnSelfToHand` の実行実績0、【激突】と turnStartResumeStep の実バグ）。
+実行実績0の行が出たら smoke の穴なので、テストを足して潰す。
+
 ## 重要な罠
 
 - **cardId のハードコード注意**: カードデータは Wiki 実データ由来で、過去に ID が全面的にズレた事故がある。cardId を書く箇所（デッキレシピ・テスト等）では必ず python3 等でカードデータをパースし、ID・名前・色の一致を機械検証する。名前の記憶や既存コメントを信用しない
