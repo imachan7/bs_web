@@ -50,6 +50,7 @@ import {
     resolveKoboOnBattleEnd,
     resolveMagic,
     resolveTensho,
+    returnSpiritToHand,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -133,7 +134,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
         case "castMagic":
@@ -254,20 +255,80 @@ function forceEndTurnIfFlagged(state: GameState): void {
     endTurn(state)
 }
 
+// kind:"battleSwapSummon" の召喚本体。validateSummon で検証済みの前提で呼ぶ。
+// 手順は「入れ替え元を手札に戻す → 維持コアをリザーブから置いて疲労状態で召喚 →
+// バトルの枠（アタッカー／ブロッカー）を新しい個体に差し替える」の順。
+// **手札に戻すのを先にする**：戻す処理が『手札に戻ったとき』の誘発を回すので、
+// 盤面が動きうる前に召喚を確定させると差し替え先を見失う
+function doBattleSwapSummon(
+    state: GameState,
+    pid: PlayerId,
+    handIndex: number,
+    substituteInstanceId: string,
+): string | null {
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const battle = state.battle
+    if (!battle) return "バトルが発生していません"
+    const wasAttacker = battle.attackerInstanceId === substituteInstanceId
+
+    const substitute = findSpirit(player, substituteInstanceId)
+    if (!substitute) return "入れ替え元のスピリットが見つかりません"
+    const substituteName = getCard(substitute.cardId).name
+    returnSpiritToHand(state, pid, substitute)
+
+    const maintain = minLevelCores(card)
+    player.reserve -= maintain
+    player.hand.splice(handIndex, 1)
+    const inst = createInstance(cardId, state.turn, maintain)
+    inst.isRested = true
+    player.field.spirits.push(inst)
+    log(
+        state,
+        `${player.name}は${substituteName}を手札に戻し、代わりに${card.name}を疲労状態で召喚した。`,
+    )
+    emitEvent(state, { type: "summon", pid, cardName: card.name })
+
+    // バトルを引き継ぐ（入れ替え元が就いていた側の枠を差し替える）
+    if (state.battle) {
+        if (wasAttacker) {
+            state.battle.attackerInstanceId = inst.instanceId
+        } else {
+            state.battle.blockerInstanceId = inst.instanceId
+        }
+    }
+
+    fireSummonTrigger(state, pid, inst)
+    if (!state.winner) resolveTensho(state, pid, inst)
+    passFlashPriority(state, pid)
+    if (state.winner) state.battle = null
+    return null
+}
+
 function doSummon(
     state: GameState,
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    substituteInstanceId?: string,
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId)
     if (error) return error
 
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+
+    // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
+    // 手札に戻し、その代わりに疲労状態で召喚してバトルを引き継ぐ。召喚コストは支払わない
+    if (substituteInstanceId !== undefined) {
+        return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId)
+    }
+
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される

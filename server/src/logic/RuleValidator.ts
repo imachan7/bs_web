@@ -98,12 +98,41 @@ export function validateSummon(
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    substituteInstanceId?: string,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "spirit") return "スピリットカードではありません"
+
+    // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
+    // 手札に戻すことを代価に、フラッシュで疲労状態の召喚を行う。通常の召喚検証（タイミング・
+    // コスト・フィールド上限）はどれも通らないので、ここで完結させて早期 return する
+    if (substituteInstanceId !== undefined) {
+        const swap = card.effects.find((e) => e.kind === "battleSwapSummon")
+        if (!swap || swap.kind !== "battleSwapSummon") {
+            return "このカードは入れ替え召喚できません"
+        }
+        if (!state.isFlashTiming || !state.battle) return "フラッシュタイミングではありません"
+        if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
+        if (isFlashLockedFor(state, pid)) {
+            return "効果により、フラッシュで手札のカードを使用できません"
+        }
+        const substitute = findSpirit(player, substituteInstanceId)
+        if (!substitute) return "入れ替え元のスピリットが見つかりません"
+        const inBattle =
+            state.battle.attackerInstanceId === substituteInstanceId ||
+            state.battle.blockerInstanceId === substituteInstanceId
+        if (!inBattle) return "入れ替え元のスピリットはバトルに参加していません"
+        // [カード名]表記は完全一致（reviveOnDestroy.requireOwnFieldHasName と同じ扱い）
+        if (getCard(substitute.cardId).name !== swap.substituteName) {
+            return `入れ替え元は[${swap.substituteName}]である必要があります`
+        }
+        // 召喚コストは支払わないが、置く維持コアはリザーブから出す（通常の召喚と同じ）
+        if (player.reserve < minLevelCores(card)) return "コアが足りません"
+        return null
+    }
 
     // 神速：フラッシュタイミングなら手札から召喚できる（自分・相手ターン問わず）
     // grantKeywordToHandCardで一時的に神速を付与された手札カードも同様に扱う（ビートプリースト）

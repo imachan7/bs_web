@@ -2782,7 +2782,7 @@ export function fireTrigger(
     // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
     // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
     // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
-    const grantedActions = collectGrantedTriggerActions(state, owner, selfInstance, event)
+    const grantedActions = collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId)
 
     const effects = card.effects
     for (let i = 0; i < effects.length; i++) {
@@ -2832,6 +2832,7 @@ function collectGrantedTriggerActions(
     owner: PlayerId,
     selfInstance: CardInstance,
     event: TriggerEvent,
+    targetInstanceId?: string,
 ): EffectAction[] {
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める
     const sources = effectSources(state, owner)
@@ -2854,6 +2855,14 @@ function collectGrantedTriggerActions(
                 continue
             }
             if (effect.keywordFilter && !hasKeyword(selfInstance.cardId, effect.keywordFilter)) continue
+            // 付与された誘発の発火条件（BS07ライフセービング＝コスト3以下をブロックしたとき）。
+            // fireTrigger が渡す targetInstanceId（onBlock ならアタッカー）を見る
+            if (effect.granted.condition !== undefined) {
+                if (targetInstanceId === undefined) continue
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) continue
+                if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
+            }
             actions.push(effect.granted.action)
         }
     }

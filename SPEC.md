@@ -384,8 +384,9 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   発生源がLv3のときだけ効く点に注意（`levels` は常に null で、レベル条件は `sourceLevels` 側で持つ）
 - **各色のネクサス1枚が「自分のネクサスが相手の効果で破壊されたとき」を持つ**。
   実装はいずれも破壊の発生源を問わない簡略化で、`data/card-notes.json` に理由を記録している
-- 未実装1枚（BS07-022 ブラックカラカロッサム＝手札からフラッシュで特殊召喚してバトルを引き継ぐ器が無い）。
-  簡略化は `data/card-notes.json` を参照
+- **未実装は0枚**。BS07-022 ブラックカラカロッサムの「手札からフラッシュで特殊召喚してバトルを引き継ぐ」は
+  `kind:"battleSwapSummon"` として実装した（`GameAction summon` の `substituteInstanceId` を使う専用経路。
+  **クライアントUIは未対応で、いまはサーバー側のみ**）。簡略化は `data/card-notes.json` を参照
 - 回帰テストは `scripts/smoke/part136〜143`（色ごとに1パート＋実行時カバレッジの穴埋め1パート）
 
 ### デッキ

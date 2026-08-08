@@ -1283,7 +1283,17 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2：フラッシュ\n自分の手札のこのスピリットカードは、バトルしている自分の[カラカロッサム]1体を手札に戻すことで、疲労状態で召喚して代わりにバトルする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS07-022-e1",
+    "kind": "battleSwapSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "substituteName": "カラカロッサム"
+   }
+  ]
  },
  {
   "cardId": "BS07-023",
@@ -4768,6 +4778,9 @@
      "action": {
       "type": "selfCoreToOwnLife",
       "count": 1
+     },
+     "condition": {
+      "targetMaxCost": 3
      }
     }
    }

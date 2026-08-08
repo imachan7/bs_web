@@ -44,7 +44,7 @@ const VALID_KINDS = new Set([
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
-    "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard",
+    "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
 ])
 
 export interface ValidationIssue {

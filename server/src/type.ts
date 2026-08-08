@@ -596,6 +596,17 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "battleSwapSummon" // **手札にあるこのスピリットカード**を、フラッシュ中のバトルで
+          // 「バトルしている自分の substituteNameContains 一致スピリット1体を手札に戻す」ことを代価に
+          // 疲労状態で召喚し、そのスピリットの代わりにバトルを引き継ぐ（召喚コストは支払わない）。
+          // GameAction summon の substituteInstanceId を指定した経路で使う
+          // （RuleValidator.validateSummon と GameEngine.doSummon が判定・実行する。BS07ブラックカラカロッサム）
+          levels: number[] | null // 手札のカードが対象なので実質レベル不問だが、効果文の見出しに合わせて持つ
+          substituteName: string // 手札に戻す対象のカード名。効果文の[カード名]表記は**完全一致**なので
+          // 部分一致にしない（"カラカロッサム" を部分一致にすると[ブラックカラカロッサム]自身も対象になってしまう）
+      }
+    | {
+          id: string
           kind: "handKeywordGrant" // 発生源が場にありレベル有効の間、持ち主の**手札**にある条件一致のカードにキーワードを与える。tempHandKeywordGrants（ターン限定の一時付与）と違い、手札には書き込まず判定時に場の発生源を見る。shared/rules.hasHandKeywordGrant が RuleValidator とクライアント表示の双方から呼ばれる（BS02緑芽吹く原野Lv2＝手札の「怪虫」に【神速】）
           levels: number[] | null
           keyword: Keyword
@@ -928,7 +939,13 @@ export type EffectDef =
           colorFilter?: Color // 指定時はこの色を持つスピリットのみ（instHasColorで判定。nameIncludesとはAND条件。BS03バッチ）
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ（matchesFamilyFilterで判定。BS05紫煙の竜使いヴァイオレット：龍帝/虚神）
           keywordFilter?: Keyword // 指定時はこのキーワードエントリを静的に持つスピリットのみ（hasKeywordで判定。BS05藍紫の虚空：転召持ちにアタック時効果を付与）
-          granted: { trigger: TriggerEvent; action: EffectAction } // 付与される誘発効果（levelsは常に有効扱い）
+          granted: {
+              trigger: TriggerEvent
+              action: EffectAction
+              // 付与された誘発の発火条件。fireTrigger が渡す targetInstanceId（onBlock ならアタッカー、
+              // onBlocked ならブロッカー）を見る。triggered.condition の同名軸と同じ判定
+              condition?: { targetMaxCost: number } // BS07ライフセービング＝相手のコスト3以下をブロックしたとき
+          } // 付与される誘発効果（levelsは常に有効扱い）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS03ブリッツ）
       }
     | {
@@ -1375,7 +1392,7 @@ export interface GameView {
 // ---- クライアント → サーバーのアクション ----
 
 export type GameAction =
-    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[] } // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）
+    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string } // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは支払わない。BS07ブラックカラカロッサム）
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[] } // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
     | { type: "moveCore"; instanceId: string; direction: "add" | "remove" }

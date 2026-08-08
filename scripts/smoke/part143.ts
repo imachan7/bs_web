@@ -257,3 +257,127 @@ console.log("=== BS07：オーラ（剣獣すべてBP+／「ペンタン」1体�
         `「${nameIncludes}」2体ぶんBP+${amountPer * 2}（${alone}→${effectiveBp(s, "p1", boss)}）`,
     )
 }
+
+console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて疲労状態で召喚する（ブラックカラカロッサム） ===")
+{
+    const black = findByEffect((e) => e["kind"] === "battleSwapSummon")
+    const swap = entryOf(black, (e) => e["kind"] === "battleSwapSummon")
+    const substituteName = String(swap["substituteName"])
+    const original = CARDS.find((c) => c.type === "spirit" && c.name === substituteName)!
+
+    // ブロッカー側で入れ替える（自分のスピリットがバトルしていれば攻守どちらでもよい）
+    const s = base("black-karakarossum")
+    const blocker = put(s, "p1", original.cardId, 1)
+    const attacker = put(s, "p2", FILLER.cardId, 1)
+    s.players.p1.hand.push(black.cardId)
+    const handIndex = s.players.p1.hand.length - 1
+    s.turnPlayer = "p2"
+    s.phase = "main"
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
+    assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2 がアタック")
+    assert(declareBlock(s, "p1", blocker.instanceId) === null, `${original.name}でブロック`)
+    // ブロック宣言後のフラッシュは防御側（p1）から優先権を持つ
+    assert(
+        act(s, "p1", { type: "summon", handIndex, substituteInstanceId: blocker.instanceId }) === null,
+        `${black.name}を入れ替え召喚する`,
+    )
+    const summoned = s.players.p1.field.spirits.find((sp) => sp.cardId === black.cardId)
+    assert(summoned !== undefined, `${black.name}がフィールドに出る`)
+    assert(summoned?.isRested === true, "疲労状態で召喚される")
+    assert(
+        s.players.p1.hand.includes(original.cardId),
+        `入れ替え元の${original.name}は手札に戻る`,
+    )
+    assert(
+        !s.players.p1.field.spirits.some((sp) => sp.instanceId === blocker.instanceId),
+        `${original.name}はフィールドから離れる`,
+    )
+    assert(
+        s.battle?.blockerInstanceId === summoned?.instanceId,
+        "バトルのブロッカー枠が新しいスピリットに引き継がれる",
+    )
+
+    // 対照実験1：バトルしていない[カラカロッサム]とは入れ替えられない
+    const s2 = base("black-not-in-battle")
+    const bench = put(s2, "p1", original.cardId, 1)
+    const blocker2 = put(s2, "p1", FILLER.cardId, 1)
+    const attacker2 = put(s2, "p2", FILLER.cardId, 1)
+    s2.players.p1.hand.push(black.cardId)
+    s2.turnPlayer = "p2"
+    s2.phase = "main"
+    assert(act(s2, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
+    assert(act(s2, "p2", { type: "attack", instanceId: attacker2.instanceId }) === null, "p2 がアタック")
+    assert(declareBlock(s2, "p1", blocker2.instanceId) === null, "別のスピリットでブロック")
+    assert(
+        act(s2, "p1", {
+            type: "summon",
+            handIndex: s2.players.p1.hand.length - 1,
+            substituteInstanceId: bench.instanceId,
+        }) !== null,
+        "対照実験：バトルしていない個体とは入れ替えられない",
+    )
+
+    // 対照実験2：カード名が違えば入れ替えられない（[カード名]は完全一致）
+    const s3 = base("black-wrong-name")
+    const wrong = put(s3, "p1", FILLER.cardId, 1)
+    const attacker3 = put(s3, "p2", FILLER.cardId, 1)
+    s3.players.p1.hand.push(black.cardId)
+    s3.turnPlayer = "p2"
+    s3.phase = "main"
+    assert(act(s3, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
+    assert(act(s3, "p2", { type: "attack", instanceId: attacker3.instanceId }) === null, "p2 がアタック")
+    assert(declareBlock(s3, "p1", wrong.instanceId) === null, "別名のスピリットでブロック")
+    assert(
+        act(s3, "p1", {
+            type: "summon",
+            handIndex: s3.players.p1.hand.length - 1,
+            substituteInstanceId: wrong.instanceId,
+        }) !== null,
+        `対照実験：[${substituteName}]でなければ入れ替えられない`,
+    )
+}
+
+console.log("=== BS07：ライフセービングはコスト3以下をブロックしたときだけ発揮する ===")
+{
+    const saving = findByEffect(
+        (e) =>
+            ((e["granted"] as Record<string, unknown> | undefined)?.["condition"] as Record<string, unknown> | undefined)?.[
+                "targetMaxCost"
+            ] !== undefined,
+    )
+    const grant = entryOf(saving, (e) => e["kind"] === "effectGrant")
+    const family = String(grant["familyFilter"])
+    const maxCost = Number(
+        ((grant["granted"] as Record<string, unknown>)["condition"] as Record<string, unknown>)["targetMaxCost"],
+    )
+    const blockerCard = CARDS.find(
+        (c) => c.type === "spirit" && (c.family ?? []).includes(family) && (c.levels?.[0]?.cores ?? 99) === 1,
+    )!
+    const pricey = CARDS.find(
+        (c) =>
+            c.type === "spirit" &&
+            (c.effects ?? []).length === 0 &&
+            (c.cost ?? 0) > maxCost &&
+            (c.levels?.[0]?.cores ?? 99) === 1,
+    )!
+
+    const s = base("saving-cost-limit")
+    const blocker = put(s, "p1", blockerCard.cardId, 3)
+    const attacker = put(s, "p2", pricey.cardId, 1)
+    s.players.p1.hand.push(saving.cardId)
+    s.turnPlayer = "p2"
+    s.phase = "main"
+    assert(act(s, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
+    assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2 がアタック")
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null,
+        `${saving.name}をフラッシュで使用`,
+    )
+    const lifeBefore = s.players.p1.life
+    const coresBefore = blocker.cores
+    assert(declareBlock(s, "p1", blocker.instanceId) === null, "ブロック")
+    assert(
+        s.players.p1.life === lifeBefore && blocker.cores === coresBefore,
+        `対照実験：コストが${maxCost}を超える${pricey.name}をブロックしても発揮しない`,
+    )
+}
