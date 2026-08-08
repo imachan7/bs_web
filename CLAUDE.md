@@ -135,6 +135,11 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ## エージェント間連絡（chatbox）
 
 実装担当（Claude）・設計担当（Claude）・UI担当（Gemini）の連絡は `chatbox/` を使う。
+
+**UIは UI担当（Gemini）の担当。実装担当は `public/` を書き換えない**（2026-08-09 ユーザー指示）。
+UI担当は `bs_web-ui` の別クローンで並行作業しているため、こちらが `public/` を触ると衝突する。
+サーバー側APIの追加・型の変更でクライアントの修正が必要になったら、**直さずに chatbox で依頼する**
+（例外は、共有層の型変更に追随するだけの機械的な1〜2行。それも編集中でないことを確認してから）。
 運用ルールの全文は `chatbox/README.md`。**守るべき点は5つ**:
 
 - 起動時に読むのは `chatbox/INDEX.md` と自分宛の未処理メッセージ**だけ**。
@@ -179,3 +184,17 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 中断→再開のたびにトークンを浪費する。コミットメッセージは日本語で変更を要約。
 
 メインループ側も、smoke の結果確認は `npm run smoke:quiet 2>&1 | grep -E "❌|合格"` で結論のみ取る。
+
+#### `[release]` プレフィックス（対戦者向けのお知らせになる）
+
+`[release]` で始まるコミットは、**トップ画面の「お知らせ」欄にそのまま出る**
+（`GET /api/changelog` が `git log --grep=^\[release` で拾う）。開発ログではなく
+**対戦者が読む文面**なので、内部用語を書かない。付け方は2つだけ（2026-08-09 ユーザー指示）:
+
+| いつ | 書き方 | 例 |
+| :-- | :-- | :-- |
+| **弾など、ある程度まとまった単位が入り終わったとき** | `[release] …` | `[release] 第七弾のカードを追加しました` |
+| **バグを直したとき（その修正コミット自体に付ける）** | `[release:fix] …` | `[release:fix] 【聖命】がライフを2個置いていた問題を修正` |
+
+色1色ぶんのバッチのような**途中経過にはプレフィックスを付けない**。
+カテゴリは `fix` / `ui` / `new` / `info`（クライアントの `parseReleaseMessage()` が解釈する）。
