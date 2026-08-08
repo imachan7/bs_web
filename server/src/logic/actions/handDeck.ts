@@ -11,6 +11,7 @@ import {
     fireSummonTrigger,
     isImmuneToArea,
     isEffectBlocked,
+    millCapBonusFor,
     millDeck,
     notifyHandGained,
     pickAnySideByBp,
@@ -25,7 +26,8 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, hasGlobalConstraint, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const noopHandler: ActionHandler<"noop"> = () => {
@@ -418,9 +420,17 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             for (const id of remaining) player.deck.push(id)
             return
         }
+        // familyFilter：カード静的な系統のみで判定する（デッキ内のカードにはインスタンスが無く、
+        // 継続付与された系統は考慮できないため。reductionGrant.familyFilter と同じ簡略化）
+        const matchesFamily = (id: string): boolean => {
+            if (action.familyFilter === undefined) return true
+            const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+            return wanted.some((f) => getCard(id).family.includes(f))
+        }
         const matchesPick = (id: string): boolean =>
             (action.pickType === undefined || getCard(id).type === action.pickType) &&
-            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes))
+            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes)) &&
+            matchesFamily(id)
         // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
         // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。
         // 選択後は chosenCardIndex を持って再入し、下の pickIndex 経路に合流する
@@ -473,12 +483,15 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             notifyHandGained(state, owner, 1)
         }
         // 残ったカードの処理：discardNonMatching指定時はトラッシュへ破棄（BS05天焦がす大聖火）、
+        // returnToTop指定時は公開順のまま山札の上に戻す（BS06曲刀竜パラサウル）、
         // それ以外は公開順のまま山札の下に戻す（下に戻す＝push）
         if (action.discardNonMatching) {
             for (const id of revealed) player.trashCards.push(id)
             if (revealed.length > 0) {
                 log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
             }
+        } else if (action.returnToTop) {
+            player.deck.unshift(...revealed)
         } else {
             for (const id of revealed) player.deck.push(id)
         }
@@ -614,6 +627,11 @@ function summonRevealedFree(
 
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -709,6 +727,11 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
 
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -766,6 +789,11 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
 
 const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // 大天使ヴァリエル：緑/黄から1色を指定し、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
         const player = state.players[owner]
         const recoverColor = (color: Color): void => {
@@ -857,7 +885,9 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const raw = countEffectCounter(state, owner, self, action.counter)
         let count = raw * (action.multiplier ?? 1)
-        if (action.cap !== undefined) count = Math.min(count, action.cap)
+        // マキシマムブレイク（kind:"millCapBonus"）：持ち主のスピリットの効果によるデッキ破棄枚数の
+        // 上限（cap）に+amountする
+        if (action.cap !== undefined) count = Math.min(count, action.cap + millCapBonusFor(state, owner))
         if (count === 0) {
             log(state, `${sourceName}の可変粉砕：カウントが0のため粉砕しなかった。`)
             return
@@ -867,8 +897,27 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
         return
 }
 
+const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+        // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
+        const cost = state.lastBattleDestroyedCost
+        if (cost === 0) {
+            log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいなかった。`)
+            return
+        }
+        millDeck(state, opponentOf(owner), cost, owner)
+        return
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
+        // （BS06レインディア：ブロックしたスピリットが系統「空牙」のときのみ手札に戻す）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
+            return
+        }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -877,12 +926,16 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             if (
-                isEffectBlocked(state, found.inst, srcType) ||
+                isEffectBlocked(state, found.inst, srcType, owner) ||
                 (found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColors) ||
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
             ) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                return
+            }
+            if (!matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
             returnSpiritToHand(state, found.pid, found.inst)
@@ -907,7 +960,8 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (action.anySide) {
-            const matchesBp = (s: CardInstance) => effectiveBp(state, owner, s) <= limitBp
+            const matchesBp = (s: CardInstance) =>
+                effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
             const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType)
             if (
                 state.interactiveTargets &&
@@ -935,8 +989,12 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             return
         }
+        // このブランチは常に相手（opp）側が対象なので、バウンス免疫（against:"bounce"。BS06恐竜姫ジュラ）を
+        // matchesFilter に直接組み込める（pickEnemyCandidates/pickEnemyByBp は他アクションとも共有するため触らない）
+        const matchesFilter = (s: CardInstance) =>
+            matchesTarget(state, opp, s, filter, self?.instanceId) && !hasBounceImmunity(state, opp, s)
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, undefined, srcColors, srcType)
+            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -953,7 +1011,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
         for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, undefined, srcColors, srcType)
+            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
@@ -965,6 +1023,12 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
 
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // filter指定時はさらにTargetFilterの軸で絞り込む（既存costFilterは残す。BS06鎧神機ヴァルハランスLv3＝BP4000以下）
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
@@ -973,7 +1037,8 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
             const targets = state.players[pid].field.spirits.filter((s) => {
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
-                if (isEffectBlocked(state, s, srcType)) return false
+                if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
+                if (isEffectBlocked(state, s, srcType, owner)) return false
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
                 return true
             })
@@ -1135,6 +1200,60 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
         return
 }
 
+const revealHandMagicToTegamotoDrawHandler: ActionHandler<"revealHandMagicToTegamotoDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        // 占いペンタン：handMagicToTegamotoDrawの単発版。自分の手札にあるマジックカード1枚を
+        // オープンして手元に置き、1枚ドローする（「〜することで」の任意コストはtriggered.optionalで表現）
+        const player = state.players[owner]
+        if (chosenCardIndex !== undefined) {
+            const cardId = player.hand[chosenCardIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            player.hand.splice(chosenCardIndex, 1)
+            player.tegamoto.push(cardId)
+            draw(state, owner, 1)
+            log(
+                state,
+                `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
+            )
+            return
+        }
+        const indices: number[] = []
+        for (let i = 0; i < player.hand.length; i++) {
+            if (getCard(player.hand[i]!).type === "magic") indices.push(i)
+        }
+        if (indices.length === 0) {
+            log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            return
+        }
+        if (state.interactiveTargets) {
+            requestCardChoice(
+                state,
+                owner,
+                `${sourceName}：オープンして手元に置くマジックカードを選んでください`,
+                "hand",
+                indices,
+                false,
+                action,
+                self,
+            )
+            return
+        }
+        // 非interactive時：手札末尾（新しい方）の該当カード1枚を機械的に選ぶ（決定的簡略化）
+        const idx = indices[indices.length - 1]!
+        const cardId = player.hand[idx]!
+        player.hand.splice(idx, 1)
+        player.tegamoto.push(cardId)
+        draw(state, owner, 1)
+        log(
+            state,
+            `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
+        )
+        return
+}
+
 const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTegamotoDestroyPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 透明人間エクリア：相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ破棄し、
@@ -1179,12 +1298,14 @@ const handlers = {
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     mill: millHandler,
     millPer: millPerHandler,
+    millPerLoserCost: millPerLoserCostHandler,
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
+    revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,
 } satisfies Partial<ActionRegistry>
 

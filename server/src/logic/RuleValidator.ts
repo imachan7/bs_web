@@ -334,6 +334,14 @@ export function validateCastMagic(
         if (usedEntries.length > 0 && usedEntries.every((e) => e.mainForbidden)) {
             return "このマジックはメインステップでは使用できません"
         }
+        // 軍師ショウジョウジ／鎖縛の武舞台Lv2：フラッシュ効果（timing:"flash"のエントリしか無く、
+        // メインステップからそのまま使用しようとしている場合）の使用を禁止する
+        if (
+            usedTiming === "flash" &&
+            (hasMagicRestriction(state, pid, "noFlashAll") || hasMagicRestriction(state, pid, "noFlashOpponent"))
+        ) {
+            return "このターン、マジックカードのフラッシュ効果を使用できません"
+        }
     }
 
     const payError = validatePaySources(state, pid, effectiveCost(state, pid, card), paySources)
@@ -504,7 +512,8 @@ export function validateBlock(
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
-    if (inst.isRested) return "疲労しているためブロックできません"
+    // 疲労状態でのブロック可否（canBlockWhileRested。BS06計画された場外乱闘）はアタッカー情報が要るため、
+    // 下のcanBlock呼び出し（共有実装）にまとめて判定させる（ここでは早期リターンしない）
     if (currentLevel(inst).level < 1) return "レベル1未満のためブロックできません"
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはブロックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {

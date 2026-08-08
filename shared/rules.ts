@@ -41,6 +41,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     funsai: { id: "funsai", label: "粉砕" },
     kobo: { id: "kobo", label: "光芒" },
     tensho: { id: "tensho", label: "転召" },
+    bofu: { id: "bofu", label: "暴風" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
@@ -356,9 +357,11 @@ export function spiritHasFamily(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             // familyFilter は**カード静的な系統のみ**で判定する。ここで spiritHasFamily を呼ぶと
-            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）
-            if (effect.familyFilter && !card(inst.cardId).family.includes(effect.familyFilter)) {
-                continue
+            // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）。配列＝いずれかの系統でOR
+            // （BS06無限なる軌道母艦：機人/動器のいずれかを持つスピリットに武装を付与）
+            if (effect.familyFilter) {
+                const wantedFamilies = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
+                if (!wantedFamilies.some((f) => card(inst.cardId).family.includes(f))) continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
@@ -476,6 +479,10 @@ export function countAuraCounter(
             cardNameContains(s, counter.ownNameIncludes),
         )
     }
+    // { ownCost: number }：発生源自身を含む自分フィールドの指定コストのスピリット数（BS06細剣の猫騎士ケット・シー）
+    if ("ownCost" in counter) {
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => instHasCost(s, counter.ownCost))
+    }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
         matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
@@ -505,6 +512,10 @@ export function checkAuraCondition(
         return player.field.spirits.some((s) =>
             spiritHasKeyword(board, sourcePid, s, condition.ownHasKeyword),
         )
+    }
+    // { ownLifeAtMost: number }：自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー）
+    if ("ownLifeAtMost" in condition) {
+        return player.life <= condition.ownLifeAtMost
     }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
@@ -550,6 +561,10 @@ export function auraAppliesTo(
     if (aura.attackingOnly) {
         if (!board.battle) return false
         if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
+    }
+    if (aura.blockingOnly) {
+        if (!board.battle) return false
+        if (board.battle.blockerInstanceId !== targetInst.instanceId) return false
     }
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false
@@ -779,6 +794,8 @@ export function activeConstraints(
             if (effect.kind !== "constraintGrant") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
+            if (effect.familyFilter && !matchesFamilyFilter(board, pid, inst, effect.familyFilter)) continue
             // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
@@ -922,13 +939,34 @@ export function hasMagicImmunity(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): boolean {
+    return hasImmunityAgainst(board, ownerPid, inst, "magic")
+}
+
+// 発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
+// （returnToHand/returnAllToHand）を受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
+// 呼び出し側（handDeck.tsのbounceガード）は自分自身の効果には適用しない（対象の持ち主==効果の持ち主なら呼ばない）
+export function hasBounceImmunity(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    return hasImmunityAgainst(board, ownerPid, inst, "bounce")
+}
+
+// hasMagicImmunity / hasBounceImmunity 共通の判定本体（kind:"immunityGrant" の against で分岐）
+function hasImmunityAgainst(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    against: "magic" | "bounce",
+): boolean {
     const player = board.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
-            if (effect.against !== "magic") continue
+            if (effect.against !== against) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
             // （BS05白亜の竜使いアルブス：自身は対象系統を持たないが対象に含む）

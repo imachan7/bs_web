@@ -17,6 +17,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ※ トークン消費を抑えるため Opus は既定で使わない（2026-07-12 ユーザー指示）。設計はメインループが事前にピン留めするので、実装は Sonnet で十分こなせる前提。
 - **委譲時のルール**:
+  - **委譲先は `general-purpose` を `model: sonnet` で直接指定する。`japanese-coder` は使わない**。
+    このエージェントは定義本文に「Task tool で japanese-coder を起動する」という例が入っているため、
+    **自分では実装せず即座に別のサブエージェントを再スポーンし、コールドスタート（5〜18万トークン）を二重に払う**
+    （2026-08-08 の BS06 紫バッチで実際に発生。ツール呼び出しが Agent 1回だけになる）
+  - **委譲プロンプトに「Agent／Task ツールは使わず、自分で実装すること」を明記する**（再委譲の二重払いを防ぐ）。
+    委譲直後に、そのエージェントの最初のツール呼び出しが Agent でないことを確認する
   - プロンプトには確定済みスキーマ・対象ファイル・変更禁止ファイル・完了条件（typecheck 0エラー / smoke 全合格）を明記する
   - 並行実行する場合は編集ファイルが重ならないようタスクを分割する
   - 下位エージェントには「設計に迷う点・仕様の不明点は勝手に判断せず、質問・相談事項として報告に含める」よう指示する。メインループが SendMessage で回答してエージェントを再開させる
@@ -48,10 +54,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run smoke` — エンジン単体テスト（scripts/smoke.ts）
 - `npm run validate:cards` — カードデータの構造検査（旧フィールド・未知の軸・未知の trigger 名）
 - **`npm run validate:gaps` — 効果の実装漏れが増えていないかの検査**（下記）
+- **`npm run validate:notes` — `data/card-notes.json` の検査**。status と effects の整合（unimplemented なのに
+  構造化済み等）、**note が140文字以内で句点終わり**か、効果文があるのに構造化0件のカードが載っているかを見る。
+  note は**対戦者が読む文面**なので長さ制限がある。`card-notes.json` を触ったら必ず通すこと
 - E2E: `PORT=3100 npx tsx server/src/index.ts` を起動後、`PORT=3100 npx tsx scripts/e2e.ts`
 - クライアントビルド: `npm run build:client`（esbuild）
 
-変更後は typecheck / smoke を必ず通すこと。**カードデータを触ったら `validate:cards` と `validate:gaps` も通すこと。**
+変更後は typecheck / smoke を必ず通すこと。
+**カードデータを触ったら `validate:cards` / `validate:gaps` / `validate:notes` の3つも通すこと。**
+バッチ完了時の定型は次の1行（`validate:notes` を落とさない）:
+
+```
+npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
+```
+
+### 実行時カバレッジ（`npm run coverage:effects`）— 弾の取り込みが一段落したら回す
+
+上の定型に**は入れない**（HEAD の使い捨て worktree を作って smoke を丸ごと1回走らせるので遅い）。
+代わりに**1つの弾・大きなバッチを入れ終えたタイミングで回す**。
+
+`validate:gaps` が「**書かれていない効果**」を静的に探すのに対し、これは
+「**書かれているのに一度も発火していない効果エントリ**」を実測で洗い出す。
+カードデータを大量に足した直後は「データは書いたが smoke が一度も通していない」経路が積み上がるため、
+ここでしか見つからない層がある（実績: `returnSelfToHand` の実行実績0、【激突】と turnStartResumeStep の実バグ）。
+実行実績0の行が出たら smoke の穴なので、テストを足して潰す。
 
 ## 重要な罠
 

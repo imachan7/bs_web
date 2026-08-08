@@ -125,15 +125,20 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType)
+            // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
+            // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
             if (
                 tryInteractiveTargetChoice(
                     state,
                     owner,
                     self,
-                    `${sourceName}の疲労付与：対象を選んでください`,
+                    action.chooserIsTarget
+                        ? `${sourceName}：疲労させる自分のスピリットを選んでください`
+                        : `${sourceName}の疲労付与：対象を選んでください`,
                     candidates,
                     { ...actionForChoice, count: 1 },
                     action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
+                    action.chooserIsTarget ? opp : undefined,
                 )
             ) {
                 return
@@ -331,11 +336,12 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
 }
 
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, owner, sourceName } = ctx
         // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
-        // refreshAllByCostと同型でcantAttackThisTurnは付与しない
+        // refreshAllByCostと同型でcantAttackThisTurnは付与しない。
+        // side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
         let count = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const pid of (action.side === "own" ? [owner] : (["p1", "p2"] as PlayerId[]))) {
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
                 if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
@@ -387,7 +393,11 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         for (const s of player.field.spirits) {
             if (!s.isRested) continue
             s.isRested = false
-            s.cantAttackThisTurn = true
+            // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
+            // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
+            if (!action.exemptFamily || !matchesFamilyFilter(state, owner, s, action.exemptFamily)) {
+                s.cantAttackThisTurn = true
+            }
             count++
         }
         if (count === 0) {
@@ -459,8 +469,38 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
+        // costReserveToVoid（BS06-X23天帝ホウオウガLv3）：lifeCrush.costReserveToVoidと同じ方針。
+        // 自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから回復する
+        if (action.costReserveToVoid !== undefined) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.reserve < action.costReserveToVoid) {
+                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
+                return
+            }
+            ownerPlayer.reserve -= action.costReserveToVoid
+            log(
+                state,
+                `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
+            )
+        }
         self.isRested = false
         log(state, `${getCard(self.cardId).name}は回復した。`)
+        return
+}
+
+const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        // このスピリット自身を疲労させる（唯一の入口exhaustSpirit経由。BS06雪ん子イエティ／天使長ファニム）
+        if (!self) {
+            log(state, `${sourceName}：疲労対象がいなかった。`)
+            return
+        }
+        if (self.isRested) {
+            log(state, `${getCard(self.cardId).name}はすでに疲労状態のため何もしなかった。`)
+            return
+        }
+        exhaustSpirit(state, owner, self)
+        log(state, `${getCard(self.cardId).name}は疲労した。`)
         return
 }
 
@@ -560,6 +600,7 @@ const handlers = {
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
+    exhaustSelf: exhaustSelfHandler,
     refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,
 } satisfies Partial<ActionRegistry>

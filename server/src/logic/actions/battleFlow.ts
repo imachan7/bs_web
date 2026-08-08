@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     bothSidesPids,
+    destroyNexus,
     destroySpirit,
     emitEvent,
     findSpiritAny,
@@ -20,7 +21,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, matchesCostFilter } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -150,6 +151,18 @@ const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx,
         }
         state.battle.compareByLevel = true
         log(state, `${sourceName}：バトル解決時、BPの代わりにLvを比較する。`)
+        return
+}
+
+const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+        // イマジンフィールド：現在のバトルにフラグを立て、解決時にBPの代わりにコアの数を比較させる
+        if (!state.battle) {
+            log(state, `${sourceName}：バトル外のため不発。`)
+            return
+        }
+        state.battle.compareByCores = true
+        log(state, `${sourceName}：バトル解決時、BPの代わりにコアの数を比較する。`)
         return
 }
 
@@ -335,13 +348,49 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
                 if (!wanted.some((f) => candidate.family.includes(f))) return false
             }
-            // costFilter：コストが完全一致するもののみ（BS05シーサーズ：コスト2）
-            if (action.costFilter !== undefined && candidate.cost !== action.costFilter) return false
+            // costFilter：数値指定時はコストが完全一致するもののみ（BS05シーサーズ：コスト2）。
+            // {max,min}指定時は範囲一致（BS06リクラメーション：コスト4以下）
+            if (action.costFilter !== undefined) {
+                if (typeof action.costFilter === "number") {
+                    if (candidate.cost !== action.costFilter) return false
+                } else if (!matchesCostFilter(candidate.cost, action.costFilter)) {
+                    return false
+                }
+            }
             // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
             if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
             return true
+        }
+        // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
+        // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
+        // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
+        if (action.count !== undefined) {
+            let summonedCount = 0
+            for (let n = 0; n < action.count; n++) {
+                let bestIdx = -1
+                let bestCost = -1
+                for (let i = 0; i < player.hand.length; i++) {
+                    const candidateId = player.hand[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const cost = getCard(candidateId).cost
+                    if (cost > bestCost) {
+                        bestCost = cost
+                        bestIdx = i
+                    }
+                }
+                if (bestIdx === -1) break
+                const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
+                if (player.reserve < maintain) break
+                summonFreeFromHandIndex(state, owner, sourceName, bestIdx)
+                summonedCount++
+                if (state.winner) return
+            }
+            if (summonedCount === 0) {
+                log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
+            }
+            return
         }
         // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
         // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
@@ -359,6 +408,25 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
             log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
             destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+        }
+        // costDestroyOwnNexus：自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコスト
+        // （BS06リクラメーション）。破壊できるネクサスがなければ不発
+        if (action.costDestroyOwnNexus && chosenCardIndex === undefined) {
+            const nexuses = player.field.nexuses
+            if (nexuses.length === 0) {
+                log(state, `${sourceName}：破壊できるネクサスがないため発動しなかった。`)
+                return
+            }
+            let victim = nexuses[0]!
+            for (const n of nexuses) {
+                if (n.cores < victim.cores) victim = n
+            }
+            // destroyNexus自体が成否のログを出す（破壊耐性で不発の場合あり）。
+            // 不発ならコストを支払えなかったとして召喚もしない
+            if (!destroyNexus(state, owner, victim.instanceId)) {
+                log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
+                return
+            }
         }
         if (chosenCardIndex !== undefined) {
             summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)
@@ -491,8 +559,52 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             const candidate = getCard(candidateId)
             if (candidate.type !== "spirit") return false
             if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
-            if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
+            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+            if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
+        }
+        // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
+        // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
+        // 時点で打ち切り。プレイヤー選択・対象選択は伴わないため choseCardIndex / interactiveTargets 分岐は不要）
+        if (action.costBudget !== undefined) {
+            let remainingBudget = action.costBudget
+            const summonedNames: string[] = []
+            while (true) {
+                let bestIndex = -1
+                let bestCost = -1
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    const candidateId = player.trashCards[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const candidate = getCard(candidateId)
+                    if (candidate.cost > remainingBudget) continue
+                    if (minLevelCores(candidate) > player.reserve) continue
+                    if (candidate.cost > bestCost) {
+                        bestCost = candidate.cost
+                        bestIndex = i
+                    }
+                }
+                if (bestIndex === -1) break
+                const cardId = player.trashCards[bestIndex]!
+                const card = getCard(cardId)
+                const maintain = minLevelCores(card)
+                player.trashCards.splice(bestIndex, 1)
+                player.reserve -= maintain
+                remainingBudget -= card.cost
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.spirits.push(inst)
+                summonedNames.push(card.name)
+                if (!state.winner) resolveTensho(state, owner, inst)
+                if (state.pendingChoice) break
+            }
+            if (summonedNames.length === 0) {
+                log(state, `${sourceName}：召喚できる対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
+            )
+            return
         }
         if (chosenCardIndex !== undefined) {
             summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex)
@@ -611,6 +723,7 @@ const handlers = {
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
     battleCompareByLevel: battleCompareByLevelHandler,
+    battleCompareByCores: battleCompareByCoresHandler,
     lockFlash: lockFlashHandler,
     lifeCrush: lifeCrushHandler,
     deployNexus: deployNexusHandler,

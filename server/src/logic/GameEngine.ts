@@ -36,6 +36,7 @@ import {
     hasFunsaiOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
+    hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
     millDeck,
@@ -287,6 +288,13 @@ function doSummon(
             undefined,
             { families: card.family },
         )
+    }
+    // 天使長ファニム：召喚した側（pid）から見た相手がsummonedExhaustGrantを持つ間、
+    // 召喚されたこのスピリットは疲労する（kind:"summonedExhaustGrant"）
+    if (!state.winner && player.field.spirits.some((s) => s.instanceId === inst.instanceId)) {
+        if (hasSummonedExhaustGrant(state, opponentOf(pid))) {
+            exhaustSpirit(state, pid, inst)
+        }
     }
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
@@ -687,6 +695,17 @@ function resolveLifeDamage(state: GameState): void {
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
     if (dealt > 0) {
         fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+        // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
+        // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
+        if (!state.winner) {
+            fireFieldEventTriggers(
+                state,
+                attackerPid,
+                "ownSpiritDealtLife",
+                { pid: attackerPid, inst: attacker },
+                instColors(attacker),
+            )
+        }
     }
 
     resolveKoboOnBattleEnd(state, attackerPid, attacker)
@@ -934,6 +953,7 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedColors = []
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
+    state.lastBattleDestroyedCost = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColors = instColors(attacker)
@@ -969,8 +989,13 @@ function resolveBattle(state: GameState): void {
     if (compareByLevel) {
         log(state, "バトル解決：BPの代わりにLvを比較する。")
     }
-    const attackerValue = compareByLevel ? currentLevel(attacker).level : attackerBp
-    const blockerValue = compareByLevel ? currentLevel(blocker).level : blockerBp
+    // イマジンフィールド：バトル解決時、BPの代わりにコアの数を比較する（コアが少ない方が破壊される。同数は相打ち）
+    const compareByCores = state.battle.compareByCores === true
+    if (compareByCores) {
+        log(state, "バトル解決：BPの代わりにコアの数を比較する。")
+    }
+    const attackerValue = compareByLevel ? currentLevel(attacker).level : compareByCores ? attacker.cores : attackerBp
+    const blockerValue = compareByLevel ? currentLevel(blocker).level : compareByCores ? blocker.cores : blockerBp
 
     if (attackerValue > blockerValue) {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
@@ -980,6 +1005,8 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
         // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
         state.lastBattleDestroyedBp = blockerBp
+        // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
+        state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
@@ -994,6 +1021,7 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp
+        state.lastBattleDestroyedCost = getCard(attacker.cardId).cost
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
