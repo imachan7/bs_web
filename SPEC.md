@@ -1264,32 +1264,49 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 | `npm run validate:cards` | cards.json の構造検査（型検査では止まらないデータ誤りの本体。costMod mode:"set" の setTo 必須、TargetFilter の旧フィールド残存・未知の軸など） |
 | `npm run coverage:effects` | **実行時カバレッジ**。HEAD の使い捨て worktree に計測コードを差し込んで smoke を回し、どの効果エントリが実際に適用されたかを数える（`--all` で ★一覧を全件表示） |
 
-smoke テストの本体は `scripts/smoke/part1〜74.ts` に分割（`scripts/smoke.ts` はランナー、
+smoke テストの本体は `scripts/smoke/part1〜135.ts` に分割（`scripts/smoke.ts` はランナー、
 共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
 テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
-現在の合格数は **2,860件**（part57＝TargetFilter 直交化。第2段階で旧形式ケース3件を撤去、part58＝多色カード対応、
-part68＝カードデータ経由で未検証だった action 13種、part69/part73/part74＝
-「場に出ているのに発火していない効果」48件の回帰）。
+現在の合格数は **5,296件**。
 
-### 実行時カバレッジの読み方（2026-07-30 時点）
+### 実行時カバレッジの読み方（2026-08-08 時点）
 
 `coverage:effects` は3つの指標を出す。**★が最重要**で、「カードは場に出ているのに
 その効果行だけ一度も適用されていない＝通っているつもりで通っていない」を指す。
 
 | 指標 | 現在値 |
 | :-- | :-- |
-| ★ 場に出ているのに未適用 | **0件**（48件を part68/69/73/74 で解消） |
-| (a) 一度も実行されていない action.type | 0種 |
-| (b) 手で組んだ action でしか実行されていない（カードデータ経由が未検証） | 0種 |
-| action を持つ効果の実行率 | 299/443（67.5%） |
-| 継続効果（計測対応済み）の実行率 | 99/117（84.6%） |
-| 継続効果（未計測の kind） | 121件 ※ keyword / globalConstraint / levelAs / effectGrant 等 |
+| ★ 場に出ているのに未適用 | 49件（triggered=25 / aura=6 / constraint=4 ほか） |
+| (a) 一度も実行されていない action.type | 1種（`noop`＝BS06-107。意図どおり何もしない） |
+| (b) 手で組んだ action でしか実行されていない（カードデータ経由が未検証） | 2種 |
+| action を持つ効果の実行率 | 552/653（84.5%） |
+| 継続効果（計測対応済み）の実行率 | 313/356（87.9%） |
+| 継続効果（未計測の kind） | 30件（22種。nameAsGrant / magicTargetRedirect 等の後発 kind） |
 
-**⚠️ 計測点の追随が要る**: 走査点を増やす／改名するとカバレッジが誤検出になる。実例2件——
+**プール全体を回すハーネス**（2026-08-08 追加。カードIDを直書きせずデータから列挙するので、
+新しい弾で同型のカードが増えても自動的に検証対象に入る）:
+
+| パート | 対象 |
+| :-- | :-- |
+| part133 | マジックのフラッシュ側「このターンの間、スピリット1体をBP+N」82件 |
+| part134 | 【神速】12枚／【覚醒】10枚／【激突】4枚 |
+| part135 | 【装甲】16件／【転召】12枚／【粉砕】9枚／【呪撃】10枚／【光芒】9枚／【暴風】4枚 |
+
+**⚠️ 計測が丸ごと no-op になる事故に注意**（2026-08-08）。GameState.ts へ差し込む記録コードが
+`fs.writeFileSync` を使っていたが、カード読み込みが `data/loadCards.ts` へ移って同ファイルの
+`fs` import が消えたため ReferenceError になり、それを `catch` が飲んで **act/inst の記録が
+丸ごと0**になっていた（アクション実行率が実際の 74% に対し 2.3% と表示されていた）。
+現在は `require("fs")` を使い、3つの記録ファイルが揃っていなければ落とす検査を入れてある。
+
+**⚠️ 計測点の追随が要る**: 走査点を増やす／改名するとカバレッジが誤検出になる。実例——
 `costMod` の `amount` → `setTo` 改名で計測スクリプトが起動時に落ちた（2026-07-30 修正）。
 装甲の `keywordGrant` は `hasContinuousKeywordGrant` を通らず
 `refreshLevelAsOverrides` が `armorColorsGranted` へ materialize する別経路のため、
 実際に効いているのに「未適用」と出ていた（同日、materialize 地点にも計測点を追加）。
+2026-08-08 には差し込みアンカー13箇所がエンジンの変更（`instIsVanilla` への一本化、
+`hasActiveGlobalConstraint` への統合、`exhaustSpirit` の一元化、levelAs の分岐追加）とズレていた。
+**【暴風】は挙動を対になる `triggered` エントリが持つ**ため、keyword エントリ自体を読むのは
+颶風高原が指定数を引く1箇所だけ——そこが計測点になる。
 
 ---
 
