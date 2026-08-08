@@ -1170,6 +1170,16 @@ const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ct
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ぶんの処理を count 回繰り返す。
+        // 戻す順番は選べず、毎回その時点の実効BP最大から（プレイヤー選択の決定的簡略化）
+        if (action.count !== undefined && action.count > 1 && targetInstanceId === undefined) {
+            const { count: _n, ...single } = action
+            for (let i = 0; i < action.count; i++) {
+                ctx.resolve(single, { sourceColors: srcColors, sourceType: srcType })
+                if (state.pendingChoice || state.winner) return
+            }
+            return
+        }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {

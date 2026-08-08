@@ -85,6 +85,10 @@ export function canBlock(
             }
             // BS07聖なる命の泉Lv2：ブロッカーのコストがこれ以下ならブロックできない。
             // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instMatchesCostFilter）
+            // BS07鋼翼魚オルカノンLv2：ブロッカーの実効BPがこれ以下ならブロックできない
+            if (c.maxBp !== undefined && effectiveBp(board, blockerPid, blockerInst) <= c.maxBp) {
+                return `このスピリットはBP${c.maxBp}以下のスピリットにブロックされません`
+            }
             if (c.maxCost !== undefined && instMatchesCostFilter(blockerInst, { max: c.maxCost })) {
                 return `このスピリットはコスト${c.maxCost}以下のスピリットにブロックされません`
             }

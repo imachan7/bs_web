@@ -153,6 +153,7 @@ export function endTurn(state: GameState): void {
             inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn
+            delete inst.blockTriggersAsAttackThisTurn
             delete inst.unblockableOnceThisTurn
             delete inst.countAsThisTurn
         }

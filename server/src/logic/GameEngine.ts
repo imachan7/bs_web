@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -38,6 +38,7 @@ import {
     hasBofuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
+    tryLifeDamageMillGuard,
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
@@ -698,6 +699,17 @@ function resolveLifeDamage(state: GameState): void {
         return
     }
 
+    // BS07六花の司書長サーガ：ライフが減る直前にデッキを1枚破棄し、条件に合えばライフが減らない
+    if (tryLifeDamageMillGuard(state, defenderPid)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+
     // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
     const damage = instanceSymbolCount(attacker)
@@ -1007,6 +1019,10 @@ function resolveBattle(state: GameState): void {
     const blockerCosts = instAllCosts(blocker)
     const skipRest = activeConstraints(state, defenderPid, blocker).some((c) => {
         if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
+        // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
+        if (c.type === "noRestWhenBlockingWithoutKeyword") {
+            return !spiritHasKeyword(state, attackerPid, attacker, c.keyword)
+        }
         if (c.type !== "noRestWhenBlockingCost") return false
         if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
         const max = c.maxCost

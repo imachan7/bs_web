@@ -118,6 +118,33 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
         return
 }
 
+// BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
+// このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
+const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        const hasBlockTrigger = (inst: CardInstance): boolean =>
+            getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
+        const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
+        const target = targetInstanceId
+            ? mine.find((s) => s.instanceId === targetInstanceId)
+            : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
+              mine.reduce<CardInstance | undefined>(
+                  (best, s) =>
+                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                  undefined,
+              )
+        if (!target) {
+            log(state, `${sourceName}：『ブロック時』効果を持つ自分のスピリットがいなかった。`)
+            return
+        }
+        target.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、${getCard(target.cardId).name}の『ブロック時』効果は『アタック時』に発揮される。`,
+        )
+        return
+}
+
 const grantColorThisTurnHandler: ActionHandler<"grantColorThisTurn"> = (ctx, action) => {
     const { state, owner, sourceName, targetInstanceId } = ctx
         // BS07メテオフォール：自分のスピリット1体を、このターンの間その色としても扱う（色は固定）。
@@ -613,6 +640,7 @@ const handlers = {
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
     grantColorThisTurn: grantColorThisTurnHandler,
+    blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,

@@ -1218,6 +1218,31 @@ const voidCoreToOwnTrashHandler: ActionHandler<"voidCoreToOwnTrash"> = (ctx, act
         return
 }
 
+// BS07ライフセービング：このスピリット（self）の上のコアを自分のライフに置く。
+// 維持コア割れになる場合は消滅処理を通す（checkExhaustOnCoreChange と同じ扱いを destroySpirit に委ねる）
+const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        if (!self) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        const moved = Math.min(action.count, self.cores)
+        if (moved === 0) {
+            log(state, `${sourceName}：置けるコアがなかった。`)
+            return
+        }
+        self.cores -= moved
+        state.players[owner].life += moved
+        log(
+            state,
+            `${getCard(self.cardId).name}の上のコア${moved}個を${state.players[owner].name}のライフに置いた。（現在ライフ${state.players[owner].life}）`,
+        )
+        if (self.cores < minLevelCores(getCard(self.cardId))) {
+            destroySpirit(state, owner, self.instanceId, "deplete")
+        }
+        return
+}
+
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -1596,6 +1621,7 @@ const handlers = {
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
     voidCoreToOwnTrash: voidCoreToOwnTrashHandler,
     lifeCharge: lifeChargeHandler,
+    selfCoreToOwnLife: selfCoreToOwnLifeHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
     voidCoresToNexusLevel: voidCoresToNexusLevelHandler,
     opponentNexusOrReserveCoreToTrash: opponentNexusOrReserveCoreToTrashHandler,

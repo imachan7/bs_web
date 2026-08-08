@@ -224,15 +224,15 @@ console.log("=== BS07 緑：ボイドからのコアを系統条件を満たす�
 
 console.log("=== BS07 緑：【転召】を持たない相手だけを手札に戻す（剣王獣ビャク・ガロウ） ===")
 {
-    const byakko = findByEffect(
-        (e) =>
-            ((e["action"] as Record<string, unknown> | undefined)?.["filter"] as Record<string, unknown> | undefined)?.[
-                "keywordExclude"
-            ] !== undefined,
-    )
-    const action = entryOf(byakko, (e) => ((e["action"] as Record<string, unknown> | undefined)?.["filter"] as Record<string, unknown> | undefined)?.["keywordExclude"] !== undefined)[
-        "action"
-    ] as Record<string, unknown>
+    // keywordExclude と costReserveToTrash を両方持つエントリ（＝ビャク・ガロウ）に絞る
+    // （keywordExclude だけなら BS07鋼翼魚オルカノンも該当してしまう）
+    const hasBoth = (e: Record<string, unknown>): boolean => {
+        const a = e["action"] as Record<string, unknown> | undefined
+        if (a === undefined || a["costReserveToTrash"] === undefined) return false
+        return (a["filter"] as Record<string, unknown> | undefined)?.["keywordExclude"] !== undefined
+    }
+    const byakko = findByEffect((e) => hasBoth(e))
+    const action = entryOf(byakko, hasBoth)["action"] as Record<string, unknown>
     const excluded = String((action["filter"] as Record<string, unknown>)["keywordExclude"])
     const cost = Number(action["costReserveToTrash"])
     const withKw = CARDS.find(

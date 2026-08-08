@@ -542,6 +542,39 @@ export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
+// kind:"lifeDamageMillGuard"（BS07六花の司書長サーガ）：defenderPid のライフが減る直前に呼ぶ。
+// 発生源が有効なら持ち主のデッキを上から1枚破棄し、そのカードが match に一致していれば true（ライフを守る）。
+// keepToHandIfType 指定時は、破棄したカードがその種別なら（守れたかを問わず）トラッシュでなく手札へ加える。
+// 「〜できる」は自動適用の簡略化。発生源が複数あっても最初の1つだけを使う（デッキを何度も削らない）
+export function tryLifeDamageMillGuard(state: GameState, defenderPid: PlayerId): boolean {
+    const player = state.players[defenderPid]
+    for (const source of effectSources(state, defenderPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "lifeDamageMillGuard") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            const cardId = player.deck.shift()
+            if (cardId === undefined) {
+                log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
+                return false
+            }
+            const milled = getCard(cardId)
+            const guarded = milled.type === effect.match.cardType && milled.colors.includes(effect.match.color)
+            // keepToHandIfType（サーガLv2-3）：破棄したカードが指定種別なら手札へ。そうでなければトラッシュへ
+            if (effect.keepToHandIfType !== undefined && milled.type === effect.keepToHandIfType) {
+                player.hand.push(cardId)
+                log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄し、手札に加えた。`)
+                notifyHandGained(state, defenderPid, 1)
+            } else {
+                player.trashCards.push(cardId)
+                log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
+            }
+            return guarded
+        }
+    }
+    return false
+}
+
 // 持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 // hasKyoshuOnBlock と同型で、こちらは phase に加えて turn 条件も持つ
 export function hasBofuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
@@ -610,6 +643,34 @@ export function hasKoboOnBlock(state: GameState, ownerPid: PlayerId): boolean {
 // 対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
 // target:"anyAll" は両陣営のスピリットが対象になりうるので、**両プレイヤーの発生源**を走査する。
 // phaseTurn は発生源の持ち主基準で判定する（『相手のアタックステップ』＝発生源の持ち主が非ターンプレイヤー）
+// kind:"blockTriggersAsAttackGrant"（BS07大械獣ギガ・テリウム）：
+// 対象スピリットの『ブロック時』効果を『アタック時』へ移す継続付与が有効か。
+// hasAttackTriggersAsBlock の逆向きで、判定の形はそろえてある
+export function hasBlockTriggersAsAttack(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "blockTriggersAsAttackGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (state.phase !== phase) continue
+                if (turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (turn === "opponent" && ownerPid === state.turnPlayer) continue
+            }
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) {
+                continue
+            }
+            return true
+        }
+    }
+    return false
+}
+
 export function hasAttackTriggersAsBlock(
     state: GameState,
     ownerPid: PlayerId,
@@ -2600,7 +2661,12 @@ export function fireTrigger(
         hasAttackTriggersAsBlock(state, owner, selfInstance)
     // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
     // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
-    const movedToAttack = state.blockTriggersAsAttackThisTurn === true
+    // アタックシフト（全体・このターン）に加えて、個体単位の移し替え（BS07マクラーンスラッシュ）と
+    // 継続付与（BS07大械獣ギガ・テリウム）も見る
+    const movedToAttack =
+        state.blockTriggersAsAttackThisTurn === true ||
+        selfInstance.blockTriggersAsAttackThisTurn === true ||
+        hasBlockTriggersAsAttack(state, owner, selfInstance)
     if (movedToBlock && event === "onAttack") {
         return
     }
