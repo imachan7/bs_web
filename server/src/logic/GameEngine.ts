@@ -34,6 +34,7 @@ import {
     fireTrigger,
     hasArmorAgainst,
     hasFunsaiOnBlock,
+    hasKyoshuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
     hasSummonedExhaustGrant,
@@ -967,11 +968,26 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedCost = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
+    // 【noRestWhenBlockingCost】：アタッカーのコストが条件を満たす場合も疲労しない
+    // （maxCost以下＝BS07シルバー・ゴレム／sameCost＝ブロッカー自身と同じコスト＝BS07造兵工房）。
+    // コストは道化師クランの付与コストも見る（instAllCosts）
     const attackerColors = instColors(attacker)
-    const skipRest = activeConstraints(state, defenderPid, blocker).some(
-        (c) => c.type === "noRestWhenBlockingColor" && attackerColors.includes(c.color),
-    )
+    const attackerCosts = instAllCosts(attacker)
+    const blockerCosts = instAllCosts(blocker)
+    const skipRest = activeConstraints(state, defenderPid, blocker).some((c) => {
+        if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
+        if (c.type !== "noRestWhenBlockingCost") return false
+        if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
+        const max = c.maxCost
+        return max !== undefined && attackerCosts.some((a) => a <= max)
+    })
     if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
+    // **ブロック宣言時ではなくここで呼ぶ**：ブロッカーが疲労するのはこの直上なので、
+    // 宣言時点では回復状態のまま＝【強襲】が空振りしてしまう
+    if (hasKyoshuOnBlock(state, defenderPid)) {
+        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+    }
     // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
     // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
     if (state.winner) return

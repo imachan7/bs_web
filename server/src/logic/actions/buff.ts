@@ -186,7 +186,7 @@ const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
             return
         }
-        const target = pickBpBuffTarget(state, owner, targetInstanceId)
+        const target = pickBpBuffTarget(state, owner, targetInstanceId, undefined, action.keywordFilter)
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return

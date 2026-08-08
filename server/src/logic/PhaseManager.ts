@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, log } from "./GameState"
-import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, returnSpiritToDeckBottom } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -58,7 +58,8 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
                 if (isRefreshBlockedByMark(state, pid, inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
-                inst.isRested = false
+                // 回復は refreshSpirit を通す（「このスピリットが回復したとき」＝onRefreshed を発火させる唯一の入口）
+                refreshSpirit(state, pid, inst)
             }
             fireStepTriggers(state, "refresh", refreshedInstanceIds)
         },

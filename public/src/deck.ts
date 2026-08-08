@@ -314,9 +314,20 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
 
     const meta = document.createElement("div")
     meta.className = "detail-meta"
+    let reductionText = "軽減0"
+    if (card.reduction.length > 0) {
+        const counts = new Map<Color, number>()
+        for (const c of card.reduction) {
+            counts.set(c, (counts.get(c) ?? 0) + 1)
+        }
+        const redParts = Array.from(counts.entries()).map(([c, count]) => `${COLOR_LABELS[c]}${count}`)
+        reductionText = `軽減: ${redParts.join("・")}`
+    }
+
     const bp = maxBp(card)
+    const symbolCount = card.symbol ? card.symbol.length : 0
     const parts = [
-        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
+        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（${reductionText}） / シンボル${symbolCount}`,
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
     if (bp !== null && card.type !== "nexus") parts.push(`BP${bp}`)

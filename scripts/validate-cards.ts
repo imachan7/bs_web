@@ -30,7 +30,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed",
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
@@ -40,7 +40,7 @@ const VALID_KINDS = new Set([
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
-    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
+    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",

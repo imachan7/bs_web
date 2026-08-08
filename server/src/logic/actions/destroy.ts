@@ -14,6 +14,7 @@ import {
     notifyNexusDeployed,
     pickAnySideByBp,
     pickAnySideCandidates,
+    millDeck,
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
@@ -685,6 +686,57 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
         return
 }
 
+// BS07巨人大帝アレクサンダーLv2：相手のスピリット1体を破壊し、
+// **破壊したスピリットのコストと同じ枚数**だけ相手のデッキを上から破棄する。
+// 「破壊した対象のコスト」を後段で使うため、汎用 destroy のオプションにせず専用ハンドラにする
+// （destroy は出口が複数あり、どこで破壊が確定したかを一箇所に集約できないため）
+const destroyThenMillByCostHandler: ActionHandler<"destroyThenMillByCost"> = (ctx, action) => {
+    const { state, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) {
+        log(state, `${sourceName}：BP参照元がいなかった。`)
+        return
+    }
+    const matches = (sp: CardInstance) => matchesTarget(state, opp, sp, filter, self?.instanceId)
+    // pendingChoice 解決時は選ばれた1体、それ以外は実効BP最大を自動選択（既存の破壊系と同じ簡略化）
+    const chosen = targetInstanceId
+        ? state.players[opp].field.spirits.find((sp) => sp.instanceId === targetInstanceId && matches(sp))
+        : undefined
+    if (!chosen && targetInstanceId === undefined && state.interactiveTargets) {
+        const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                ctx.owner,
+                self,
+                `${sourceName}：破壊する相手のスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+    }
+    const target = chosen ?? pickEnemyByBp(state, opp, Infinity, matches, srcColors, srcType)
+    if (!target) {
+        log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        return
+    }
+    // コストは破壊前に読む（破壊後はフィールドから消えるため）。
+    // 「破壊した相手のスピリットのコスト」なので付与コストではなくカード本来のコストを使う
+    const cost = getCard(target.cardId).cost
+    const name = getCard(target.cardId).name
+    destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+    if (cost <= 0) {
+        log(state, `${sourceName}：${name}のコストが0のため、デッキは破棄しなかった。`)
+        return
+    }
+    log(state, `${sourceName}：破壊した${name}のコストと同じ${cost}枚を相手のデッキから破棄する。`)
+    millDeck(state, opp, cost)
+    return
+}
+
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
@@ -736,6 +788,12 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
                 state,
                 `${sourceName}：破壊した${targetName}のコストと同じ数のコア${targetCost}個をボイドから自分のリザーブに置いた。（リザーブ${player.reserve}）`,
             )
+        }
+        // thenDestroyEnemyByCostBudget（BS07アームズインパクト）：破壊した自分のスピリットのコストを
+        // 予算として、相手のスピリットを合計コストがその範囲に収まるだけ破壊する。
+        // 選び方は destroyByCostBudget と同じ貪欲（残り予算内でコスト最大→同コストは実効BP最大）
+        if (action.thenDestroyEnemyByCostBudget) {
+            ctx.resolve({ type: "destroyByCostBudget", budget: targetCost })
         }
         return
 }
@@ -1042,6 +1100,7 @@ const handlers = {
     destroyNexus: destroyNexusHandler,
     destroyExhausted: destroyExhaustedHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
+    destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,

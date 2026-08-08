@@ -172,6 +172,16 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
             log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
             return
         }
+        // attackerFamilyFilter（BS07ウィリアンスラッシュ）：アタックしているのが指定系統の
+        // 自分のスピリットのときだけロックする。アタッカーが自分側でない／系統が一致しないなら不発
+        if (action.attackerFamilyFilter !== undefined) {
+            const attackerId = state.battle.attackerInstanceId
+            const attacker = state.players[owner].field.spirits.find((sp) => sp.instanceId === attackerId)
+            if (!attacker || !matchesFamilyFilter(state, owner, attacker, action.attackerFamilyFilter)) {
+                log(state, `${sourceName}：指定の系統を持つ自分のスピリットがアタックしていないため効かなかった。`)
+                return
+            }
+        }
         state.battle.flashLockedPlayer = opp
         log(
             state,

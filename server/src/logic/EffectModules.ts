@@ -390,6 +390,16 @@ export function exhaustSpirit(state: GameState, ownerPid: PlayerId, inst: CardIn
     fireExhaustedTriggers(state, ownerPid, inst)
 }
 
+// スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
+// 実際に回復したときだけ「このスピリットが回復したとき」（onRefreshed）を発火する。
+// リフレッシュステップ・効果による回復・【強襲】のいずれもここを通す
+// （疲労を exhaustSpirit に一元化したのと同じ理由で、2026-08-09 に11箇所から集約した。BS07）
+export function refreshSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    if (!inst.isRested) return
+    inst.isRested = false
+    fireTrigger(state, ownerPid, inst, "onRefreshed")
+}
+
 // 「スピリットが疲労したとき」のフィールドイベント発火。
 // ownSpiritExhausted は持ち主のフィールドから、anySpiritExhausted は両者のフィールドから
 // （anyNexusDestroyed / ownNexusDestroyed と同じ組み合わせ）。self には疲労したスピリットを渡す。
@@ -488,6 +498,45 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "funsaiOnBlock") continue
             if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
+// pid がいま「フラッシュで手札のカードを使えない」状態か。
+// ① action "lockFlash" がこのバトルに立てたロック（state.battle.flashLockedPlayer）
+// ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
+//    相手の指定系統スピリットがアタックしている間だけ効く
+export function isFlashLockedFor(state: GameState, pid: PlayerId): boolean {
+    if (state.battle?.flashLockedPlayer === pid) return true
+    const attackerId = state.battle?.attackerInstanceId
+    if (attackerId === undefined) return false
+    const opp = opponentOf(pid)
+    const attacker = state.players[opp].field.spirits.find((s) => s.instanceId === attackerId)
+    if (!attacker) return false
+    for (const source of effectSources(state, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "flashLockWhileAttackingFamily") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (matchesFamilyFilter(state, opp, attacker, effect.familyFilter)) return true
+        }
+    }
+    return false
+}
+
+// 持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
+// hasFunsaiOnBlock と同型だが、phase 指定（相手のアタックステップ限定）を持つ
+export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
+    const player = state.players[ownerPid]
+    const sources = [...player.field.spirits, ...player.field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "kyoshuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            return true
         }
     }
     return false
@@ -2001,18 +2050,22 @@ export function pickBpBuffTarget(
     owner: PlayerId,
     targetInstanceId?: string,
     minSymbols?: number,
+    keywordFilter?: Keyword,
 ): CardInstance | null {
+    // minSymbols（シンボル数下限）と keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）は
+    // どちらも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する
+    const passes = (inst: CardInstance): boolean => {
+        if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
+        if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
+        return true
+    }
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null
-        if (minSymbols !== undefined && instanceSymbolCount(found.inst) < minSymbols) {
-            return null
-        }
+        if (!passes(found.inst)) return null
         return found.inst
     }
-    const mine = state.players[owner].field.spirits.filter(
-        (s) => minSymbols === undefined || instanceSymbolCount(s) >= minSymbols,
-    )
+    const mine = state.players[owner].field.spirits.filter(passes)
     let target: CardInstance | null = null
     if (state.battle) {
         target =
@@ -2102,6 +2155,10 @@ export function countEffectCounter(
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
+    // ownRestedNexuses：自分の疲労状態のネクサス数（【強襲】がネクサスを疲労させる。BS07ネクサスアタック）
+    if (counter === "ownRestedNexuses") {
+        return state.players[owner].field.nexuses.filter((n) => n.isRested).length
+    }
     // 直前の【粉砕】で破棄した総枚数／うちスピリットカードの枚数（resolveFunsaiが記録。BS03巨人王ランドルフ／BS04二刀流のアムブローズ）
     if (counter === "lastFunsaiTotal") return state.lastFunsai?.total ?? 0
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
@@ -3347,6 +3404,17 @@ function resolveMagicEffects(
                         state,
                         `${card.name}：シンボル${minSymbols}個以上を持つスピリットがいないため発動しなかった。`,
                     )
+                    continue
+                }
+            } else if ("ownSpiritIsBlocking" in effect.condition) {
+                // BS07アームズインパクト：自分のスピリットが現在のバトルでブロッカーのときだけ使える
+                const blockerId = state.battle?.blockerInstanceId
+                const blocking =
+                    blockerId !== undefined &&
+                    blockerId !== null &&
+                    state.players[owner].field.spirits.some((s) => s.instanceId === blockerId)
+                if (!blocking) {
+                    log(state, `${card.name}：自分のスピリットがブロックしていないため発動しなかった。`)
                     continue
                 }
             } else if ("bothFieldsHaveNexus" in effect.condition) {

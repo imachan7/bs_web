@@ -38,6 +38,7 @@ import {
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasKeyword,
+    isFlashLockedFor,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
@@ -119,8 +120,8 @@ export function validateSummon(
         // フラッシュ中の神速召喚は優先権を持つプレイヤーのみ
         if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
         // lockFlash 適用中は手札のカード（神速召喚も含む）を使用できない
-        if (state.battle?.flashLockedPlayer === pid) {
-            return "このバトルの間、フラッシュで手札のカードを使用できません"
+        if (isFlashLockedFor(state, pid)) {
+            return "効果により、フラッシュで手札のカードを使用できません"
         }
     }
 
@@ -316,8 +317,8 @@ export function validateCastMagic(
         if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
         if (!card.flash) return "このマジックはフラッシュタイミングで使用できません"
         // lockFlash 適用中はフラッシュで手札のカードを使用できない
-        if (state.battle.flashLockedPlayer === pid) {
-            return "このバトルの間、フラッシュで手札のカードを使用できません"
+        if (isFlashLockedFor(state, pid)) {
+            return "効果により、フラッシュで手札のカードを使用できません"
         }
     } else {
         const timing = checkMainTiming(state, pid)

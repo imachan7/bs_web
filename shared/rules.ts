@@ -586,6 +586,12 @@ export function auraAppliesTo(
     if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
         return false
     }
+    // costMinFilter（BS07造兵工房Lv2：コスト3以上）。costFilter＝完全一致とは別軸で、
+    // 付与コスト（道化師クラン）も含めていずれかが下限以上なら通す
+    const costMin = aura.costMinFilter
+    if (costMin !== undefined && !instAllCosts(targetInst).some((cost) => cost >= costMin)) {
+        return false
+    }
     if (
         aura.familyFilter &&
         !matchesFamilyFilter(board, targetOwnerPid, targetInst, aura.familyFilter)

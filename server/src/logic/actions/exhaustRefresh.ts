@@ -7,6 +7,7 @@ import {
     bothSidesPids,
     destroySpirit,
     exhaustSpirit,
+    refreshSpirit,
     findSpiritAny,
     isExhaustImmune,
     isImmuneToArea,
@@ -323,14 +324,14 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         }
         // all指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）
         if (action.all) {
-            for (const c of candidates) c.isRested = false
+            for (const c of candidates) refreshSpirit(state, owner, c)
             log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        target.isRested = false
+        refreshSpirit(state, owner, target)
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
 }
@@ -345,7 +346,7 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
                 if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
-                s.isRested = false
+                refreshSpirit(state, pid, s)
                 count++
             }
         }
@@ -381,7 +382,7 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
             log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
-        self.isRested = false
+        refreshSpirit(state, owner, self)
         log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
         return
 }
@@ -392,7 +393,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         let count = 0
         for (const s of player.field.spirits) {
             if (!s.isRested) continue
-            s.isRested = false
+            refreshSpirit(state, owner, s)
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
             if (!action.exemptFamily || !matchesFamilyFilter(state, owner, s, action.exemptFamily)) {
@@ -446,7 +447,7 @@ const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action)
                 if (!s.isRested) continue
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instHasCost(s, action.cost)) continue
-                s.isRested = false
+                refreshSpirit(state, pid, s)
                 count++
             }
         }
@@ -483,7 +484,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
             )
         }
-        self.isRested = false
+        refreshSpirit(state, owner, self)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return
 }
@@ -525,7 +526,7 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
     const nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
     if (!nexus) return
     nexus.isRested = true
-    self.isRested = false
+    refreshSpirit(state, owner, self)
     self.kyoshuUsed = { turn: state.turn, count: used + 1 }
     log(
         state,
@@ -561,7 +562,7 @@ const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) =
             log(state, `${sourceName}の回復：対象がいなかった。`)
             return
         }
-        for (const s of candidates) s.isRested = false
+        for (const s of candidates) refreshSpirit(state, owner, s)
         log(state, `${sourceName}：${candidates.length}体を回復させた。`)
         return
 }
@@ -626,7 +627,7 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
         .filter((s) => s.isRested && spiritHasFamily(state, owner, s, family))
         .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
         .slice(0, count)
-    for (const s of candidates) s.isRested = false
+    for (const s of candidates) refreshSpirit(state, owner, s)
     log(
         state,
         `${sourceName}：系統「${family}」を選び、${candidates.length}体を回復させた。`,
