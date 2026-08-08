@@ -25,7 +25,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -419,9 +419,17 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             for (const id of remaining) player.deck.push(id)
             return
         }
+        // familyFilter：カード静的な系統のみで判定する（デッキ内のカードにはインスタンスが無く、
+        // 継続付与された系統は考慮できないため。reductionGrant.familyFilter と同じ簡略化）
+        const matchesFamily = (id: string): boolean => {
+            if (action.familyFilter === undefined) return true
+            const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+            return wanted.some((f) => getCard(id).family.includes(f))
+        }
         const matchesPick = (id: string): boolean =>
             (action.pickType === undefined || getCard(id).type === action.pickType) &&
-            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes))
+            (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes)) &&
+            matchesFamily(id)
         // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
         // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。
         // 選択後は chosenCardIndex を持って再入し、下の pickIndex 経路に合流する
@@ -474,12 +482,15 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             notifyHandGained(state, owner, 1)
         }
         // 残ったカードの処理：discardNonMatching指定時はトラッシュへ破棄（BS05天焦がす大聖火）、
+        // returnToTop指定時は公開順のまま山札の上に戻す（BS06曲刀竜パラサウル）、
         // それ以外は公開順のまま山札の下に戻す（下に戻す＝push）
         if (action.discardNonMatching) {
             for (const id of revealed) player.trashCards.push(id)
             if (revealed.length > 0) {
                 log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
             }
+        } else if (action.returnToTop) {
+            player.deck.unshift(...revealed)
         } else {
             for (const id of revealed) player.deck.push(id)
         }
@@ -885,7 +896,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             if (
-                isEffectBlocked(state, found.inst, srcType) ||
+                isEffectBlocked(state, found.inst, srcType, owner) ||
                 (found.pid !== owner &&
                     (hasArmorAgainst(found.inst, srcColors) ||
                         (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
@@ -948,7 +959,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             return
         }
-        const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
+        // このブランチは常に相手（opp）側が対象なので、バウンス免疫（against:"bounce"。BS06恐竜姫ジュラ）を
+        // matchesFilter に直接組み込める（pickEnemyCandidates/pickEnemyByBp は他アクションとも共有するため触らない）
+        const matchesFilter = (s: CardInstance) =>
+            matchesTarget(state, opp, s, filter, self?.instanceId) && !hasBounceImmunity(state, opp, s)
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (
@@ -994,7 +1008,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
-                if (isEffectBlocked(state, s, srcType)) return false
+                if (isEffectBlocked(state, s, srcType, owner)) return false
                 if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
                 return true
             })

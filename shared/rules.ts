@@ -937,13 +937,34 @@ export function hasMagicImmunity(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): boolean {
+    return hasImmunityAgainst(board, ownerPid, inst, "magic")
+}
+
+// 発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
+// （returnToHand/returnAllToHand）を受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
+// 呼び出し側（handDeck.tsのbounceガード）は自分自身の効果には適用しない（対象の持ち主==効果の持ち主なら呼ばない）
+export function hasBounceImmunity(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    return hasImmunityAgainst(board, ownerPid, inst, "bounce")
+}
+
+// hasMagicImmunity / hasBounceImmunity 共通の判定本体（kind:"immunityGrant" の against で分岐）
+function hasImmunityAgainst(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    against: "magic" | "bounce",
+): boolean {
     const player = board.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
-            if (effect.against !== "magic") continue
+            if (effect.against !== against) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
             // （BS05白亜の竜使いアルブス：自身は対象系統を持たないが対象に含む）

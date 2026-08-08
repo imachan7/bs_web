@@ -69,6 +69,7 @@ import {
     hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
+    hasBounceImmunity,
     hasKeyword,
     instanceSymbolCount,
     instAllCosts,
@@ -104,6 +105,7 @@ export {
     hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
+    hasBounceImmunity,
     hasKeyword,
     instanceSymbolCount,
     instColors,
@@ -269,7 +271,20 @@ export function isEffectBlocked(
     state: GameState,
     inst: CardInstance,
     sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourcePid?: PlayerId, // ④ バウンス免疫用：この効果の発生源の持ち主。指定した呼び出し元（returnToHand/returnAllToHandのガード）のみ判定される
 ): boolean {
+    // ④ 相手の効果によるバウンスを受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
+    // sourcePid を渡す呼び出し元（バウンス系アクション）でのみ判定し、自分自身の効果は対象外
+    if (sourcePid !== undefined) {
+        const targetOwner = ownerPidOfInstance(state, inst)
+        if (
+            targetOwner !== undefined &&
+            targetOwner !== sourcePid &&
+            hasBounceImmunity(state, targetOwner, inst)
+        ) {
+            return true
+        }
+    }
     // ② 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
     const redirect = state.magicRedirectTo
     if (
@@ -2451,6 +2466,18 @@ export function fireTrigger(
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) return false
                 if (effectiveBp(state, found.pid, found.inst) < effect.condition.targetMinBp) return false
+            } else if ("targetHasColor" in effect.condition) {
+                // 鉄蠍竜スコルド・ゴランLv3：ブロックしたスピリット（targetInstanceId）がこの色を持つときのみ発火
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (!instHasColor(found.inst, effect.condition.targetHasColor)) return false
+            } else if ("targetMaxCost" in effect.condition) {
+                // 激神皇カタストロフドラゴンLv3：ブロックしたスピリット（targetInstanceId）のコストがこれ以下のときのみ発火
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCost })) return false
             }
         }
         return true
@@ -2856,6 +2883,9 @@ export function fireFieldEventTriggers(
                 if (effect.condition === "selfIsAttacking") {
                     // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
                     if (!state.battle || state.battle.attackerInstanceId !== inst.instanceId) continue
+                } else if ("firstAttackOfTurn" in effect.condition) {
+                    // 神鳴る霊峰Lv2：そのターンの最初のアタックのときのみ（triggered.conditionの同名軸と同じ判定）
+                    if (state.attacksThisTurn !== 1) continue
                 } else if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
                     const { color, count } = effect.condition.ownColorTotalAtLeast

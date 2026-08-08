@@ -186,6 +186,56 @@
   "effects": []
  },
  {
+  "cardId": "BS06-005",
+  "name": "恐竜姫ジュラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "道化",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「地竜」を持つ自分のスピリットすべては、相手のスピリット/ネクサス/マジックの効果では、自分のフィールドから手札に戻らない。",
+  "effects": [
+   {
+    "id": "BS06-005-e1",
+    "kind": "immunityGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": "地竜",
+    "against": "bounce"
+   }
+  ]
+ },
+ {
   "cardId": "BS06-006",
   "name": "サーベカウラス",
   "type": "spirit",
@@ -252,6 +302,77 @@
       "turn": "own"
      }
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-007",
+  "name": "曲刀竜パラサウル",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のデッキを上から1枚オープンし、そのカードが系統：「地竜」を持つスピリットカードのとき手札に加える。\n他のカードのときはデッキの上に戻す。\nLv2『このスピリットのアタック時』\n系統：「地竜」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-007-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deckReveal",
+     "count": 1,
+     "pickType": "spirit",
+     "familyFilter": "地竜",
+     "returnToTop": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-007-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "地竜"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
    }
   ]
  },
@@ -340,6 +461,155 @@
     "action": {
      "type": "selfBuff",
      "amount": 4000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-010",
+  "name": "戦斧のアポロディノス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分の手札にある系統：「虚神」を持つスピリットカードすべてのコストを6にする。\nLv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nLv2･Lv3『自分のアタックステップ』\n【激突】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS06-010-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "mode": "set",
+    "setTo": 6,
+    "familyFilter": "虚神"
+   },
+   {
+    "id": "BS06-010-e2",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-010-e3",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "own",
+    "winnerKeywordFilter": "clash",
+    "selfMode": "source",
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-011",
+  "name": "鉄蠍竜スコルド・ゴラン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv3『このスピリットのアタック時』\n白のスピリットにブロックされたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS06-011-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-011-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "targetHasColor": "white"
+    },
+    "action": {
+     "type": "refreshSelf"
     },
     "optional": false
    }
@@ -3277,6 +3547,159 @@
   ]
  },
  {
+  "cardId": "BS06-074",
+  "name": "紅玉の火山弾",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「地竜」を持つ自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、または手札に戻ったとき、BP3000以下の相手のスピリット1体を破壊する。\nLv2\n自分の赤のスピリットすべてに“『このスピリットのアタック時』系統：「地竜」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS06-074-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "byBattleOnly": true,
+    "familyFilter": "地竜",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   },
+   {
+    "id": "BS06-074-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritReturnedToHand",
+    "levels": [
+     1,
+     2
+    ],
+    "familyFilter": "地竜",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   },
+   {
+    "id": "BS06-074-e3",
+    "kind": "effectGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "colorFilter": "red",
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "selfBuffByExhaustFamily",
+      "familyFilter": "地竜"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-075",
+  "name": "神鳴る霊峰",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n【激突】を持つ自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、その破壊されたスピリット上のコアすべてを自分のスピリット1体の上に置く。\nLv2『自分のアタックステップ』\n【激突】を持つ自分のスピリット1体が自分のターンの最初のアタックをしたとき、そのスピリットを回復させる。",
+  "effects": [
+   {
+    "id": "BS06-075-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "byBattleOnly": true,
+    "keywordFilter": "clash",
+    "action": {
+     "type": "destructionCoresToOwnSpirit"
+    }
+   },
+   {
+    "id": "BS06-075-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "keywordFilter": "clash",
+    "condition": {
+     "firstAttackOfTurn": true
+    },
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-076",
   "name": "暴かれた墓石",
   "type": "nexus",
@@ -4088,6 +4511,61 @@
   ]
  },
  {
+  "cardId": "BS06-093",
+  "name": "ライトニングオーラ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、アタックしている自分のスピリットすべてをBP+1000する。\nさらにアタックしている【激突】を持つ自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS06-093-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-093-e2",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
+     "amount": 1000,
+     "lentOnly": true
+    }
+   },
+   {
+    "id": "BS06-093-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
+     "amount": 2000,
+     "lentOnly": true,
+     "keywordFilter": "clash"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-094",
   "name": "トライデントフレア",
   "type": "magic",
@@ -4688,6 +5166,94 @@
     "action": {
      "type": "battleCompareByCores"
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-X21",
+  "name": "激神皇カタストロフドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 10,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "虚神",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 10,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「古竜」を持つ自分のスピリット1体につき、自分はデッキから1枚ドローする。\nLv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならスピリットでブロックする。\nただし、アルティメットでブロックしてもよい。\nLv3『このスピリットのアタック時』\nコスト5以下の相手のスピリットにブロックされたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS06-X21-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "drawPer",
+     "counter": {
+      "ownFamily": "古竜"
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-X21-e2",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-X21-e3",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "targetMaxCost": 5
+    },
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
    }
   ]
  },
