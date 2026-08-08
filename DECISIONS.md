@@ -99,3 +99,11 @@
 - **狭い grep で「不在」を推論しない。** 「ガードが無い」と書く前に、委譲先と共通述語まで追うこと。
   BS04-054（SPEC の記述を裏取りせず採用）と `exhaustOpponentToMatch`（ハンドラ本体だけ grep して
   委譲先の `pickEnemyCandidates` を見落とした）の2件が、いずれも誤った確定判断まで進んだ
+
+## お知らせ欄（/api/changelog）
+
+- **お知らせは `[release]` で始まるコミットだけを出す**（2026-08-09）。`GET /api/changelog` が
+  `git log --grep=^\[release` で絞り、`{date, message, hash}[]` を新しい順50件・5分キャッシュで返す。
+  `^\[release\]` ではなく閉じ括弧を含めないのは、UI側が `[release:fix]` のカテゴリ付きも解釈するため。
+  `message` はプレフィックス込みで返し、除去とカテゴリ判定はクライアント（`parseReleaseMessage()`）が担当。
+  `.git` の無い環境では 500 ではなく 200 で `[]` を返す（画面は「更新情報はありません」になる）

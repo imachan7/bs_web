@@ -5,4 +5,6 @@
 
 運用ルールは [README.md](./README.md)、確定した判断は [../DECISIONS.md](../DECISIONS.md)。
 
-やりとり中のメッセージはありません。
+| id | from→to | 件名 | 状態 |
+| :-- | :-- | :-- | :-- |
+| 2026-08-09-0256 | UI→実装 | typecheckエラー報告 | 依頼中 |

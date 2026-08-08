@@ -1,4 +1,5 @@
 // サーバー起動、Socket.io初期化、接続イベントの入口
+import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as http from "node:http"
 import * as path from "node:path"
@@ -37,6 +38,53 @@ app.get("/api/cards", (_req, res) => {
 // data/cards.json は既に存在せず、上の express.static は next() で素通りするのでここへ届く
 app.get("/data/cards.json", (_req, res) => {
     res.json(ALL_CARDS)
+})
+
+// ---- お知らせ（Gitのコミット履歴） ----
+// トップ画面の「お知らせ」欄が読む。**メッセージが [release] で始まるコミットだけ**を返す
+// （開発中の細かいコミットは対戦者に見せない）。カテゴリ付きの [release:fix] 形式も拾うため、
+// grep は閉じ括弧まで含めずに ^\[release で当てる。プレフィックスの解釈・除去はクライアント側で行う。
+// .git が無い環境（Azureのデプロイ成果物など）では空配列を返して、画面には「更新情報はありません」を出す
+const CHANGELOG_LIMIT = 50
+const CHANGELOG_CACHE_MS = 5 * 60 * 1000
+let changelogCache: { at: number; entries: { date: string; message: string; hash: string }[] } | null = null
+
+function readChangelog(): { date: string; message: string; hash: string }[] {
+    if (changelogCache && Date.now() - changelogCache.at < CHANGELOG_CACHE_MS) {
+        return changelogCache.entries
+    }
+    let entries: { date: string; message: string; hash: string }[] = []
+    try {
+        // %x1f（Unit Separator）区切り。コミットメッセージに現れない制御文字なので分割が安全
+        const out = execFileSync(
+            "git",
+            [
+                "log",
+                "--extended-regexp",
+                "--grep=^\\[release",
+                `--max-count=${CHANGELOG_LIMIT}`,
+                "--date=short",
+                "--pretty=format:%h%x1f%ad%x1f%s",
+            ],
+            { cwd: path.resolve(__dirname, "../../"), encoding: "utf-8", timeout: 5000 },
+        )
+        entries = out
+            .split("\n")
+            .filter((line) => line !== "")
+            .map((line) => {
+                const [hash = "", date = "", message = ""] = line.split("\u001f")
+                return { date, message, hash }
+            })
+    } catch {
+        // gitが無い／リポジトリ外／タイムアウト：お知らせは出さない（画面は「更新情報はありません」）
+        entries = []
+    }
+    changelogCache = { at: Date.now(), entries }
+    return entries
+}
+
+app.get("/api/changelog", (_req, res) => {
+    res.json(readChangelog())
 })
 
 // ---- バグ報告フォーム ----
