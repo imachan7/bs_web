@@ -546,12 +546,116 @@ function closestData(
     return (e.target as HTMLElement).closest<HTMLElement>(`[${attr}]`)
 }
 
+// ---- お知らせ（Gitコミット履歴から自動取得） ----
+
+interface ChangelogEntry {
+    date: string    // "2026-08-09"（--date=short）
+    message: string // "[release:fix] ○○を直した"（プレフィックス込みの生メッセージ）
+    hash: string    // "9170e7c"（短縮ハッシュ）
+}
+
+// コミットメッセージからカテゴリと表示テキストを抽出する
+// 例: "[release:fix] ○○を修正" → { category: "fix", text: "○○を修正" }
+//     "[release] ○○を追加"     → { category: "update", text: "○○を追加" }
+const CATEGORY_MAP: Record<string, { label: string; cssClass: string }> = {
+    fix:    { label: "バグ修正",  cssClass: "badge fix" },
+    ui:     { label: "UI改善",    cssClass: "badge update" },
+    new:    { label: "機能追加",  cssClass: "badge new" },
+    info:   { label: "お知らせ",  cssClass: "badge info" },
+    update: { label: "更新",      cssClass: "badge update" },
+}
+
+function parseReleaseMessage(message: string): { category: string; text: string } {
+    // [release:カテゴリ] テキスト
+    const match = message.match(/^\[release(?::(\w+))?\]\s*(.*)$/)
+    if (!match) return { category: "update", text: message }
+    const category = match[1] ?? "update"
+    const text = match[2] ?? ""
+    return { category, text }
+}
+
+function loadChangelog(): void {
+    const container = document.getElementById("announcement-list")
+    if (!container) return
+
+    fetch("/api/changelog")
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            return res.json() as Promise<ChangelogEntry[]>
+        })
+        .then(entries => {
+            container.textContent = ""
+
+            if (entries.length === 0) {
+                const empty = document.createElement("div")
+                empty.className = "announcement-loading"
+                empty.textContent = "更新情報はありません"
+                container.appendChild(empty)
+                return
+            }
+
+            // 日付でグループ化（同じ日のコミットをまとめる）
+            const byDate = new Map<string, ChangelogEntry[]>()
+            for (const entry of entries) {
+                const group = byDate.get(entry.date) ?? []
+                group.push(entry)
+                byDate.set(entry.date, group)
+            }
+
+            for (const [date, group] of byDate) {
+                const item = document.createElement("div")
+                item.className = "announcement-item"
+
+                const dateRow = document.createElement("div")
+                dateRow.className = "announcement-meta"
+                const dateEl = document.createElement("span")
+                dateEl.className = "date"
+                dateEl.textContent = date.replace(/-/g, ".")
+                dateRow.appendChild(dateEl)
+                item.appendChild(dateRow)
+
+                for (const entry of group) {
+                    const row = document.createElement("div")
+                    row.className = "announcement-entry"
+
+                    const parsed = parseReleaseMessage(entry.message)
+                    const catInfo = CATEGORY_MAP[parsed.category] ?? CATEGORY_MAP.update!
+
+                    const badge = document.createElement("span")
+                    badge.className = catInfo.cssClass
+                    badge.textContent = catInfo.label
+                    row.appendChild(badge)
+
+                    const text = document.createElement("span")
+                    text.className = "announcement-text"
+                    text.textContent = parsed.text
+                    row.appendChild(text)
+
+                    item.appendChild(row)
+                }
+
+                container.appendChild(item)
+            }
+        })
+        .catch(() => {
+            if (!container) return
+            container.textContent = ""
+            const err = document.createElement("div")
+            err.className = "announcement-loading"
+            err.textContent = "更新情報の取得に失敗しました"
+            container.appendChild(err)
+        })
+}
+
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
     populateCustomDecks()
     setupEffectTooltip()
+
+    // お知らせ（Gitコミット履歴）を非同期で取得・表示
+    loadChangelog()
 
     byId("join-btn").addEventListener("click", () => {
         const name =
