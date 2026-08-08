@@ -16,6 +16,7 @@ import type {
 
 export interface BoardPlayer {
     id: PlayerId
+    life: number
     reserve: number
     trashCores: number
     trashCards: string[]

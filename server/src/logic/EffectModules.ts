@@ -2060,6 +2060,9 @@ export function countEffectCounter(
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
     if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
+    // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
+    if (counter === "targetSymbols") return 0
     // 直前の【粉砕】で破棄した総枚数／うちスピリットカードの枚数（resolveFunsaiが記録。BS03巨人王ランドルフ／BS04二刀流のアムブローズ）
     if (counter === "lastFunsaiTotal") return state.lastFunsai?.total ?? 0
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
@@ -2807,6 +2810,8 @@ export function fireFieldEventTriggers(
             if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
             // 「このスピリットが疲労したとき」（スクルディア）：イベント対象が発生源自身のときだけ
             if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
+            // 「[カード名]以外の」の除外（BS06鉄拳のカクタスガルー）：イベント対象が発生源自身のときは発火しない
+            if (effect.excludeSelfAsEventTarget && selfOverride?.inst.instanceId === inst.instanceId) continue
             // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）
             if (
                 effect.nameIncludes !== undefined &&
@@ -2971,6 +2976,8 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
             if (effect.kind !== "battleBpAsLevel") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.fromLevel !== level) continue
+            // keywordFilter（BS06神葉樹の森Lv2）：指定キーワードを持つスピリットのみ対象
+            if (effect.keywordFilter && !spiritHasKeyword(state, pid, inst, effect.keywordFilter)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue

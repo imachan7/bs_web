@@ -513,6 +513,10 @@ export function checkAuraCondition(
             spiritHasKeyword(board, sourcePid, s, condition.ownHasKeyword),
         )
     }
+    // { ownLifeAtMost: number }：自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー）
+    if ("ownLifeAtMost" in condition) {
+        return player.life <= condition.ownLifeAtMost
+    }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
         matchesFamilyFilter(board, sourcePid, s, condition.hasOwnFamily),

@@ -468,6 +468,20 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
+        // costReserveToVoid（BS06-X23天帝ホウオウガLv3）：lifeCrush.costReserveToVoidと同じ方針。
+        // 自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから回復する
+        if (action.costReserveToVoid !== undefined) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.reserve < action.costReserveToVoid) {
+                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
+                return
+            }
+            ownerPlayer.reserve -= action.costReserveToVoid
+            log(
+                state,
+                `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
+            )
+        }
         self.isRested = false
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return

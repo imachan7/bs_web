@@ -12,6 +12,11 @@
             "textBlocks": 2,
             "implCount": 1
         },
+        "BS06-080": {
+            "name": "颶風高原",
+            "textBlocks": 2,
+            "implCount": 1
+        },
         "BS06-085": {
             "name": "混迷する魔法実験場",
             "textBlocks": 2,
@@ -21,6 +26,11 @@
             "name": "カウンターカース",
             "textBlocks": 1,
             "implCount": 0
+        },
+        "BS06-101": {
+            "name": "ミストラルコア",
+            "textBlocks": 2,
+            "implCount": 1
         },
         "BS06-108": {
             "name": "ディスコンティニュー",

@@ -30,7 +30,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -369,6 +369,31 @@ const voidCoreToSelfPerHandler: ActionHandler<"voidCoreToSelfPer"> = (ctx, actio
             state,
             `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
         )
+        return
+}
+
+const voidCoreToSelfPerBofuCountHandler: ActionHandler<"voidCoreToSelfPerBofuCount"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+        // 颶風高原：召喚されたスピリット（self＝fieldEventのselfOverride）自身が持つ【暴風】の指定数ぶん、
+        // ボイドからそのスピリット上にコアを置く（【暴風】を持たない／selfが無いならno-op）
+        if (!self) {
+            log(state, `${sourceName}：コアを置く対象がいなかった。`)
+            return
+        }
+        const level = currentLevel(self).level
+        const entry = getCard(self.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "bofu" && effectActiveAtLevel(e.levels, level),
+        )
+        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (count === 0) {
+            log(state, `${sourceName}：${getCard(self.cardId).name}は【暴風】を持たないため置かなかった。`)
+            return
+        }
+        log(
+            state,
+            `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
+        )
+        placeCoresOnSpirit(state, self, count, owner)
         return
 }
 
@@ -1521,6 +1546,7 @@ const handlers = {
     coreGainPer: coreGainPerHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
+    voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,
     voidCoreToOther: voidCoreToOtherHandler,
     coreSqueezeAll: coreSqueezeAllHandler,
     coreSqueezeOne: coreSqueezeOneHandler,

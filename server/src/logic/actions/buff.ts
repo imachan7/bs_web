@@ -159,6 +159,28 @@ const bpBuffAllByArmorColors: ActionHandler<"bpBuffAllByArmorColors"> = (ctx, ac
 
 const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // targetSymbols（BS06サベージパワー）：**対象スピリット自身**のシンボル数を数えるため、
+        // 対象選択をカウント計算より先に行う（マジックはself=nullでselfSymbolsが使えない）
+        if (action.counter === "targetSymbols") {
+            const target = pickBpBuffTarget(state, owner, targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}のBP増加：対象がいなかった。`)
+                return
+            }
+            const count = instanceSymbolCount(target)
+            if (count === 0) {
+                log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+                return
+            }
+            const amount = count * action.amountPer
+            target.tempBpBuff += amount
+            log(
+                state,
+                `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+            )
+            applyMagicBuffBonus(state, target, srcType, srcColors)
+            return
+        }
         const count = countEffectCounter(state, owner, self, action.counter)
         if (count === 0) {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
