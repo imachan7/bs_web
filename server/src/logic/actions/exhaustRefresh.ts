@@ -336,11 +336,12 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
 }
 
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, owner, sourceName } = ctx
         // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
-        // refreshAllByCostと同型でcantAttackThisTurnは付与しない
+        // refreshAllByCostと同型でcantAttackThisTurnは付与しない。
+        // side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
         let count = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const pid of (action.side === "own" ? [owner] : (["p1", "p2"] as PlayerId[]))) {
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
                 if (!spiritHasKeyword(state, pid, s, action.keyword)) continue

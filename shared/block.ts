@@ -32,6 +32,16 @@ export function canBlock(
     // ブロッカー側の制約（cantBlock / cantBlockLowerBp）。
     // バーストファイアで無効化されている場合はこれらのチェックをスキップする
     const blockerConstraints = activeConstraints(board, blockerPid, blockerInst)
+    // 疲労状態でのブロック（BS06計画された場外乱闘Lv1-2）：canBlockWhileRestedを持ち、
+    // targetMaxCost指定時はアタッカーのコストがこれ以下のときのみブロックできる
+    if (blockerInst.isRested) {
+        const canBlockRested = blockerConstraints.some((c) => {
+            if (c.type !== "canBlockWhileRested") return false
+            if (c.targetMaxCost === undefined) return true
+            return attackerInst !== undefined && instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })
+        })
+        if (!canBlockRested) return "疲労しているためブロックできません"
+    }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {
             return "このスピリットはブロックできません"

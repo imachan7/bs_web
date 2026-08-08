@@ -3470,6 +3470,644 @@
   ]
  },
  {
+  "cardId": "BS06-061",
+  "name": "ドルフィーノ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-062",
+  "name": "戦闘獣ゾウウチ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "戦獣",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のフィールドに系統：「獣頭」を持つスピリットがいる間、このスピリットをLv2として扱う。",
+  "effects": [
+   {
+    "id": "BS06-062-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": 2,
+    "condition": {
+     "ownFieldHasFamily": "獣頭"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-063",
+  "name": "造兵技師ガタン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「造兵」を持つ自分のスピリットすべてをBP+1000する。\nLv2\n系統：「造兵」を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊するたび、ボイドからコア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "BS06-063-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "造兵",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "BS06-063-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "winnerFamilyFilter": "造兵",
+    "selfMode": "source",
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-064",
+  "name": "マンティゴア",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nカードに効果の記述を持たない自分のLv1/Lv2スピリットすべてはLv2として扱う。",
+  "effects": [
+   {
+    "id": "BS06-064-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsVanilla",
+    "treatAs": 2,
+    "phase": "attack",
+    "turn": "opponent"
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-065",
+  "name": "ブロック・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のネクサス1つにつき、相手のデッキを上から2枚破棄する。(上限4枚)",
+  "effects": [
+   {
+    "id": "BS06-065-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": "ownNexuses",
+     "multiplier": 2,
+     "cap": 4
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-066",
+  "name": "力自慢のハンフリー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS06-066-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-067",
+  "name": "武器商人ゴロン・ガラン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-068",
+  "name": "軍師ショウジョウジ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのメインステップ』\nお互い、マジックカードのフラッシュ効果を使用できない。",
+  "effects": [
+   {
+    "id": "BS06-068-e1",
+    "kind": "magicRestriction",
+    "levels": [
+     1,
+     2
+    ],
+    "restriction": "noFlashAll",
+    "phase": "main"
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-069",
+  "name": "ツァトゥグァ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS06-070",
+  "name": "爆砕巨人ダグラス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で破棄したカードの中にスピリットカードがあったとき、相手のコスト3以下のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS06-070-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS06-070-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "condition": {
+     "lastFunsaiHasSpirit": true
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-071",
+  "name": "重槍のモーガン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の手札にある系統：「虚神」を持つスピリットカードすべてのコストを6にする。\nLv1･Lv2『このスピリットの召喚時』\n相手のコスト4のスピリットすべてを破壊する。\nLv2\n系統：「闘神」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS06-071-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2
+    ],
+    "mode": "set",
+    "setTo": 6,
+    "familyFilter": "虚神"
+   },
+   {
+    "id": "BS06-071-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "cost": {
+       "max": 4,
+       "min": 4
+      }
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "BS06-071-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amountPer": 1000,
+     "counter": {
+      "ownFamily": "闘神"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-072",
+  "name": "大巨人エウリュトス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト3以下のスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS06-072-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "anySide": true,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS06-073",
   "name": "灼熱の谷",
   "type": "nexus",
@@ -4430,6 +5068,197 @@
   ]
  },
  {
+  "cardId": "BS06-088",
+  "name": "計画された場外乱闘",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「闘神」を持つ自分のスピリットすべては、相手のコスト1以下のスピリットすべてを疲労状態でブロックできる。\nLv2『自分のアタックステップ』\n系統：「闘神」を持つ自分のスピリットがブロックされたとき、そのブロックしたスピリットと同じコストを持つ、他の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS06-088-e1",
+    "kind": "constraintGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": "闘神",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "constraint": {
+     "type": "canBlockWhileRested",
+     "targetMaxCost": 1
+    }
+   },
+   {
+    "id": "BS06-088-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "familyFilter": "闘神",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "excludeTarget": true,
+     "filter": {
+      "sameCostAsBlocker": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-089",
+  "name": "鎖縛の武舞台",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互い、トラッシュからカードを手札に戻せない。\nLv2『相手のメインステップ』\n相手はマジックカードのフラッシュ効果を使用できない。",
+  "effects": [
+   {
+    "id": "BS06-089-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noTrashRecovery"
+    }
+   },
+   {
+    "id": "BS06-089-e2",
+    "kind": "magicRestriction",
+    "levels": [
+     2
+    ],
+    "restriction": "noFlashOpponent",
+    "phase": "main",
+    "turn": "opponent"
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-090",
+  "name": "名誉ある御前試合",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n【粉砕】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、相手のデッキを上から、その破壊したスピリットのコストと同じ枚数破棄する。\nLv2『自分のエンドステップ』\n【粉砕】を持つ自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS06-090-e1",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "winnerKeywordFilter": "funsai",
+    "action": {
+     "type": "millPerLoserCost"
+    }
+   },
+   {
+    "id": "BS06-090-e2",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "funsai",
+     "side": "own"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS06-091",
   "name": "バスタージャベリン",
   "type": "magic",
@@ -5165,6 +5994,183 @@
     "timing": "flash",
     "action": {
      "type": "battleCompareByCores"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-111",
+  "name": "リクラメーション",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のネクサス1つを破壊することで、自分の手札にあるコスト4以下の青のスピリットカード1枚をコストを支払わずに召喚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS06-111-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "summonFromHandFree",
+     "colorFilter": "blue",
+     "costFilter": {
+      "max": 4
+     },
+     "costDestroyOwnNexus": true
+    }
+   },
+   {
+    "id": "BS06-111-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-112",
+  "name": "マッスルチャージ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、系統：「闘神」を持つ自分のスピリットすべてのLvを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS06-112-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-112-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "lentOnly": true,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": "闘神",
+    "treatAs": "max"
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-113",
+  "name": "マキシマムブレイク",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリットすべての効果によるデッキ破棄枚数の(上限*枚)の数を+10枚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+  "effects": [
+   {
+    "id": "BS06-113-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-113-e2",
+    "kind": "millCapBonus",
+    "levels": null,
+    "lentOnly": true,
+    "amount": 10
+   },
+   {
+    "id": "BS06-113-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS06-114",
+  "name": "デモリッシュ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【粉砕】の効果で相手のデッキを破棄したとき、破棄するカードを+3枚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+5000する。",
+  "effects": [
+   {
+    "id": "BS06-114-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-114-e2",
+    "kind": "funsaiBonus",
+    "levels": null,
+    "lentOnly": true,
+    "amount": 3
+   },
+   {
+    "id": "BS06-114-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000
     }
    }
   ]

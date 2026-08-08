@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     bothSidesPids,
+    destroyNexus,
     destroySpirit,
     emitEvent,
     findSpiritAny,
@@ -347,8 +348,15 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
                 if (!wanted.some((f) => candidate.family.includes(f))) return false
             }
-            // costFilter：コストが完全一致するもののみ（BS05シーサーズ：コスト2）
-            if (action.costFilter !== undefined && candidate.cost !== action.costFilter) return false
+            // costFilter：数値指定時はコストが完全一致するもののみ（BS05シーサーズ：コスト2）。
+            // {max,min}指定時は範囲一致（BS06リクラメーション：コスト4以下）
+            if (action.costFilter !== undefined) {
+                if (typeof action.costFilter === "number") {
+                    if (candidate.cost !== action.costFilter) return false
+                } else if (!matchesCostFilter(candidate.cost, action.costFilter)) {
+                    return false
+                }
+            }
             // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
@@ -400,6 +408,25 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
             log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
             destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+        }
+        // costDestroyOwnNexus：自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコスト
+        // （BS06リクラメーション）。破壊できるネクサスがなければ不発
+        if (action.costDestroyOwnNexus && chosenCardIndex === undefined) {
+            const nexuses = player.field.nexuses
+            if (nexuses.length === 0) {
+                log(state, `${sourceName}：破壊できるネクサスがないため発動しなかった。`)
+                return
+            }
+            let victim = nexuses[0]!
+            for (const n of nexuses) {
+                if (n.cores < victim.cores) victim = n
+            }
+            // destroyNexus自体が成否のログを出す（破壊耐性で不発の場合あり）。
+            // 不発ならコストを支払えなかったとして召喚もしない
+            if (!destroyNexus(state, owner, victim.instanceId)) {
+                log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
+                return
+            }
         }
         if (chosenCardIndex !== undefined) {
             summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)

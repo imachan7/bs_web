@@ -447,15 +447,31 @@ export function millDeck(state: GameState, pid: PlayerId, count: number, actorPi
     return actual
 }
 
-// 持ち主フィールドの funsaiBonus（崩壊する戦線）合計：【粉砕】の破棄枚数に加算する
+// 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
+// effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。lentOnly。BS06デモリッシュ）も含める
 function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
-    const player = state.players[ownerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
     let total = 0
-    for (const source of sources) {
+    for (const source of effectSources(state, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "funsaiBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount
+        }
+    }
+    return total
+}
+
+// 持ち主フィールドの millCapBonus（BS06マキシマムブレイク）合計：millPer.cap の上限値に加算する。
+// funsaiBonusTotal と同じ考え方（effectSources経由でlendSelfThisTurnによる貸与にも対応）
+export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
+    let total = 0
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "millCapBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             total += effect.amount
         }
@@ -1074,6 +1090,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.condition) {
                     if ("maxOwnSpirits" in effect.condition) {
                         if (player.field.spirits.length > effect.condition.maxOwnSpirits) continue
@@ -1111,6 +1128,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             (e) => e.kind === "keyword" && e.keyword === effect.keywordFilter,
                         )
                         if (!hasStaticKeyword) continue
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "ownSpiritsByFamily") {
+                    // マッスルチャージ：familyFilterの系統（配列＝OR）を持つ持ち主のスピリットすべてを
+                    // それぞれの最高Lvとして扱う（BS06。matchesFamilyFilterはtempKeywords等の付与も考慮する）
+                    for (const spirit of player.field.spirits) {
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsVanilla") {
@@ -2450,6 +2474,9 @@ export function fireTrigger(
             } else if ("lastFunsaiHasNexus" in effect.condition) {
                 // 伝説巨人ジュード：直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火
                 if ((state.lastFunsai?.nexuses ?? 0) === 0) return false
+            } else if ("lastFunsaiHasSpirit" in effect.condition) {
+                // 爆砕巨人ダグラスLv2-3：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火
+                if ((state.lastFunsai?.spirits ?? 0) === 0) return false
             } else if ("ownFieldHasKeyword" in effect.condition) {
                 // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
                 const kw = effect.condition.ownFieldHasKeyword

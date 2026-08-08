@@ -106,10 +106,14 @@ export function hasMagicRestriction(
         | "noReductionOpponent"
         | "colorLockOpponent"
         | "noFreeCastOpponent"
-        | "reserveOnlyOpponent",
+        | "reserveOnlyOpponent"
+        | "noFlashAll"
+        | "noFlashOpponent",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        if (restriction !== "oncePerTurnAll" && usingPid === ownerPid) continue
+        // noFlashAll（BS06軍師ショウジョウジ）はoncePerTurnAllと同じく「お互い」に効くため、
+        // usingPid===ownerPidでもスキップしない
+        if (restriction !== "oncePerTurnAll" && restriction !== "noFlashAll" && usingPid === ownerPid) continue
         const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
         for (const source of sources) {
             const level = currentLevel(source).level

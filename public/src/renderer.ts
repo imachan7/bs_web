@@ -892,11 +892,12 @@ function fieldCardEl(
         ) {
             el.classList.add("clickable", "usable")
         }
-        // ブロック可能（cantBlock / cantBlockLowerBp / unblockableBy / singleCoreCantAct の制約を反映）
+        // ブロック可能（cantBlock / cantBlockLowerBp / unblockableBy / singleCoreCantAct の制約を反映）。
+        // 疲労状態でも canBlockWhileRested（BS06計画された場外乱闘）を持てばブロックできるため、
+        // isRestedでの早期除外はせず canBlockAttacker（shared/block.canBlock）にまとめて判定させる
         if (
             canDefend &&
             !view.battle?.blockerInstanceId &&
-            !inst.isRested &&
             !singleCoreLocked &&
             !costLocked &&
             level >= 1 &&

@@ -11,6 +11,7 @@ import {
     fireSummonTrigger,
     isImmuneToArea,
     isEffectBlocked,
+    millCapBonusFor,
     millDeck,
     notifyHandGained,
     pickAnySideByBp,
@@ -25,7 +26,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, hasGlobalConstraint, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -626,6 +627,11 @@ function summonRevealedFree(
 
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -721,6 +727,11 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
 
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         if (chosenCardIndex !== undefined) {
@@ -778,6 +789,11 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
 
 const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
+        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
         // 大天使ヴァリエル：緑/黄から1色を指定し、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
         const player = state.players[owner]
         const recoverColor = (color: Color): void => {
@@ -869,13 +885,27 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const raw = countEffectCounter(state, owner, self, action.counter)
         let count = raw * (action.multiplier ?? 1)
-        if (action.cap !== undefined) count = Math.min(count, action.cap)
+        // マキシマムブレイク（kind:"millCapBonus"）：持ち主のスピリットの効果によるデッキ破棄枚数の
+        // 上限（cap）に+amountする
+        if (action.cap !== undefined) count = Math.min(count, action.cap + millCapBonusFor(state, owner))
         if (count === 0) {
             log(state, `${sourceName}の可変粉砕：カウントが0のため粉砕しなかった。`)
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         millDeck(state, targetPid, count, owner)
+        return
+}
+
+const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+        // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
+        const cost = state.lastBattleDestroyedCost
+        if (cost === 0) {
+            log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいなかった。`)
+            return
+        }
+        millDeck(state, opponentOf(owner), cost, owner)
         return
 }
 
@@ -1268,6 +1298,7 @@ const handlers = {
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     mill: millHandler,
     millPer: millPerHandler,
+    millPerLoserCost: millPerLoserCostHandler,
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,

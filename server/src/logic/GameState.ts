@@ -195,6 +195,7 @@ export function createGame(
         lastBattleDestroyedColors: [],
         lastBattleDestroyedFamilies: [],
         lastBattleDestroyedBp: 0,
+        lastBattleDestroyedCost: 0,
         pendingChoice: null,
         turnStartResumeStep: null,
         interactiveTargets: false,

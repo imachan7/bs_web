@@ -953,6 +953,7 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedColors = []
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
+    state.lastBattleDestroyedCost = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
     const attackerColors = instColors(attacker)
@@ -1004,6 +1005,8 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
         // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
         state.lastBattleDestroyedBp = blockerBp
+        // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
+        state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
@@ -1018,6 +1021,7 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp
+        state.lastBattleDestroyedCost = getCard(attacker.cardId).cost
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",

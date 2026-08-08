@@ -48,8 +48,12 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         }
         // BP上限も filter 側で判定するため、候補列挙には上限を渡さない（Infinity）
         const limitBp = Infinity
-        const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
-        if (targetInstanceId !== undefined) {
+        // excludeTarget（BS06計画された場外乱闘Lv2）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
+        // 破壊する対象ではなく**除外する**対象。exhaustHandlerのexcludeTargetと同じ考え方
+        const excludedId = action.excludeTarget ? targetInstanceId : undefined
+        const matchesFilter = (s: CardInstance) =>
+            s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
+        if (targetInstanceId !== undefined && !action.excludeTarget) {
             // pendingChoice解決：選ばれた1体のみ破壊する。
             // 候補列挙（pickEnemyCandidates）では除外済みでも、この経路はここで改めて免疫を判定する
             // （coreRemove / returnToHand と同じ考え方。選択の提示から解決までの間に状態が変わりうる）。
