@@ -178,3 +178,46 @@ console.log("--- 貸与がなければコアは置かれない ---")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロック")
     assert(attacker.cores === coresBefore, "貸与がなければコアは置かれない")
 }
+
+console.log("--- 装甲を持つ相手は、デッキの下に戻されない ---")
+{
+    // 対象を GameState の記録から引く形なので、他のハンドラのように候補選びの中で
+    // 耐性を弾く経路が無い。範囲効果として明示的に判定していることを確かめる。
+    // 【装甲】は【暴風】の疲労自体も防ぐため、自然な流れでは記録に載らない
+    // （＝バトル中に装甲を付与された等でだけ起きる）。ここは記録を直接組んで判定だけを見る
+    const highland = findByEffect(
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnBofuExhaustedToDeckBottom",
+    )
+    const sourceColor = (highland.colors ?? [])[0]!
+    const armored = CARDS.find((c) =>
+        (c.effects ?? []).some(
+            (e) =>
+                e["kind"] === "keyword" &&
+                e["keyword"] === "armor" &&
+                ((e["colors"] as string[] | undefined) ?? []).includes(sourceColor) &&
+                (((e["levels"] as number[] | null) ?? [1])[0] === 1),
+        ),
+    )!
+
+    const s = base("highland-armor")
+    const guarded = put(s, "p2", armored.cardId, armored.levels?.[0]?.cores ?? 1)
+    const plain = put(s, "p2", FILLER.cardId, 1)
+    s.bofuExhaustedThisBattle = [
+        { pid: "p2", instanceId: guarded.instanceId },
+        { pid: "p2", instanceId: plain.instanceId },
+    ]
+    resolveAction(
+        s,
+        "p1",
+        null,
+        { type: "returnBofuExhaustedToDeckBottom" },
+        undefined,
+        [sourceColor] as never,
+        "nexus",
+    )
+    assert(
+        ON_FIELD(s, "p2", guarded.instanceId),
+        `【装甲：${sourceColor}】を持つ${armored.name}はデッキの下に戻されない`,
+    )
+    assert(!ON_FIELD(s, "p2", plain.instanceId), "装甲を持たないスピリットは戻される")
+}

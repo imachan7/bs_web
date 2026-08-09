@@ -1440,7 +1440,7 @@ const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ct
 // BS06颶風高原Lv2：このバトル中に自分の【暴風】で疲労させた相手のスピリットすべてをデッキの下へ。
 // 戻す順番は選べず記録順（プレイヤー選択の決定的簡略化）
 const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhaustedToDeckBottom"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, sourceName, srcColors, srcType } = ctx
         const records = state.bofuExhaustedThisBattle
         if (records.length === 0) {
             log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
@@ -1451,6 +1451,21 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
             if (rec.pid === owner) continue // 自分側が疲労した記録は対象外（「相手のスピリット」）
             const inst = state.players[rec.pid].field.spirits.find((sp) => sp.instanceId === rec.instanceId)
             if (!inst) continue // 既に場から居ない個体は飛ばす
+            // **対象を記録から引いているので、他のハンドラのように候補選びの中で耐性を弾けない**。
+            // 相手側スピリットへの範囲効果として、returnAllToHand と同じ耐性判定をここで行う
+            if (isEffectBlocked(state, inst, srcType, owner)) {
+                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                continue
+            }
+            if (
+                hasArmorAgainst(inst, srcColors) ||
+                (srcType === "magic" && hasMagicImmunity(state, rec.pid, inst)) ||
+                isImmuneToArea(inst) ||
+                hasFullEffectImmunity(inst, srcType)
+            ) {
+                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                continue
+            }
             returnSpiritToDeckBottom(state, rec.pid, inst)
             returned += 1
         }
