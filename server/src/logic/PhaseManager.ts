@@ -38,7 +38,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
         // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
         () => {
             state.phase = "draw"
-            draw(state, pid, 1)
+            draw(state, pid, 1, true)
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
             fireStepTriggers(state, "draw")
         },

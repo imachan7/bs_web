@@ -66,6 +66,8 @@ import {
     effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
+    continuousKeywordGrantCount,
+    handSizeOf,
     hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
@@ -103,6 +105,8 @@ export {
     effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
+    continuousKeywordGrantCount,
+    handSizeOf,
     hasFullEffectImmunity,
     hasGlobalConstraint,
     hasMagicImmunity,
@@ -481,7 +485,11 @@ function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
             if (effect.kind !== "funsaiBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount
+            // amountPerSymbolColor（BS08神造巨兵オリハルコン・ゴレム）：固定amountの代わりに、
+            // 持ち主のフィールドが持つ指定色のシンボル総数を動的に加算する
+            total += effect.amountPerSymbolColor
+                ? countSymbols(state.players[ownerPid], [effect.amountPerSymbolColor])
+                : (effect.amount ?? 0)
         }
     }
     return total
@@ -1152,6 +1160,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.levelAsContinuous
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
+            delete inst.symbolsOverrideContinuous
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
             delete inst.treatedAsVanillaContinuous
@@ -1290,6 +1299,18 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         for (const c of effect.colors) {
                             if (!target.colorsAsContinuous.includes(c)) target.colorsAsContinuous.push(c)
                         }
+                    }
+                    continue
+                }
+                if (effect.kind === "symbolFix") {
+                    // 持ち主の対象スピリット（familyFilter一致）のシンボルを、そのスピリット元々の
+                    // シンボル1色目でcount個に固定する（継続。BS08海底に眠りし古代都市Lv2）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        const baseColor = getCard(spirit.cardId).symbol[0]
+                        if (!baseColor) continue
+                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)
                     }
                     continue
                 }
@@ -2868,6 +2889,10 @@ export function fireTrigger(
                 // その直前に lastBattleDestroyedCost を必ず記録している。よって値は常に有効で、
                 // **0 を「未記録」と読み替えてはいけない**（コスト0のスピリットが実在する）
                 if (state.lastBattleDestroyedCost > effect.condition.battleLoserMaxCost) return false
+            } else if ("opponentHandAtLeast" in effect.condition) {
+                // BS08ボクルガー：発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火。
+                // サーバー内部のstate.players[opp].handは常に実配列（隠匿マスクはviewFor変換時のみ）
+                if (state.players[opponentOf(owner)].hand.length < effect.condition.opponentHandAtLeast) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast

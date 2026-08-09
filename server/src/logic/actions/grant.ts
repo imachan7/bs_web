@@ -38,6 +38,25 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
         return
 }
 
+// BS08グロウアップ：自分のスピリット1体を、このターンの間「実コスト+amount」の値もコストとして扱う
+// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget。元のコストも残るため厳密には
+// 「コスト以下」を参照する効果は元のコストでも引き続き反応する簡略化。CardInstance.tempAlsoCosts）
+const alsoCostBuffHandler: ActionHandler<"alsoCostBuff"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+    if (!target) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    const baseCost = getCard(target.cardId).cost
+    target.tempAlsoCosts.push(baseCost + action.amount)
+    log(
+        state,
+        `${getCard(target.cardId).name}は、このターンの間コスト${baseCost + action.amount}としても扱われる。`,
+    )
+    return
+}
+
 // BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
 // 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
 const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
@@ -808,6 +827,7 @@ const handlers = {
     lendSelfThisTurn: lendSelfThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
+    alsoCostBuff: alsoCostBuffHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -2999,6 +2999,616 @@
   ]
  },
  {
+  "cardId": "BS08-046",
+  "name": "戦闘獣バビルーザ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-047",
+  "name": "豚人チョウハッカイ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "獣頭",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nお互い、ドローステップ以外でドローできない。",
+  "effects": [
+   {
+    "id": "BS08-047-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "noDrawOutsideDrawStep"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-048",
+  "name": "ブラックウガルルム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、【転召】させずに召喚できる。\nLv2『相手のアタックステップ』\n相手の手札が5枚以上のとき、自分のスピリットすべてをBP+3000する。",
+  "effects": [
+   {
+    "id": "BS08-048-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
+    "id": "BS08-048-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 3000,
+     "condition": {
+      "opponentHandAtLeast": 5
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-049",
+  "name": "獣司祭ガーネス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、ボイドからコア3個を自分のネクサス1つの上に置く。",
+  "effects": [
+   {
+    "id": "BS08-049-e1",
+    "kind": "triggered",
+    "trigger": "onTenshoTarget",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "count": 3,
+     "single": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-050",
+  "name": "ボクルガー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手の手札が6枚以上のとき、相手は手札を3枚になるように破棄する。",
+  "effects": [
+   {
+    "id": "BS08-050-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "opponentHandAtLeast": 6
+    },
+    "action": {
+     "type": "discardOpponentDownTo",
+     "limit": 3
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-051",
+  "name": "古将ドグウ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のデッキを上から、自分のネクサス1つにつき1枚オープンできる。\nその中に系統：「虚神」/「神将」を持つスピリットカードがあれば1枚手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる。",
+  "effects": [
+   {
+    "id": "BS08-051-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deckReveal",
+     "countPer": {
+      "ownNexuses": true
+     },
+     "pickType": "spirit",
+     "familyFilter": [
+      "虚神",
+      "神将"
+     ]
+    },
+    "optional": true
+   },
+   {
+    "id": "BS08-051-e2",
+    "kind": "keyword",
+    "keyword": "kyoshu",
+    "count": 1,
+    "levels": [
+     2
+    ]
+   },
+   {
+    "id": "BS08-051-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelfByExhaustNexus"
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-052",
+  "name": "海帝竜騎ヴァン・ソロミュー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "竜騎",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nターンに1回、自分の手札にある【転召】を持つスピリットカード1枚を【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv1･Lv2『自分のアタックステップ』\n系統：「龍帝」を持つ自分のスピリットがアタックしたとき、コスト合計4まで、相手のスピリットを好きなだけ破壊できる。",
+  "effects": [
+   {
+    "id": "BS08-052-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    }
+   },
+   {
+    "id": "BS08-052-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "familyFilter": "龍帝",
+    "action": {
+     "type": "destroyByCostBudget",
+     "budget": 4
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-053",
+  "name": "夢想法師サンゾール",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【転召：コスト1以上/トラッシュ】\n召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある[猿人モンゴクウ][豚人チョウハッカイ][鮫人サンゴジョー]1枚ずつを手札に戻す。\nLv2･Lv3\n相手は、コスト4以下のスピリットはターンに1体しか召喚できない。",
+  "effects": [
+   {
+    "id": "BS08-053-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 1,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-053-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "nameIncludes": "猿人モンゴクウ"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-053-e3",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "nameIncludes": "豚人チョウハッカイ"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-053-e4",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "nameIncludes": "鮫人サンゴジョー"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-053-e5",
+    "kind": "globalConstraint",
+    "levels": [
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "summonLimitByCostForOpponent",
+     "maxCost": 4,
+     "limit": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-054",
+  "name": "異神獣クトゥルム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、コスト3以上の自分のスピリット1体のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\n【転召】を持たないスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS08-054-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-054-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "keywordExclude": "tensho"
+     },
+     "anySide": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS08-055",
   "name": "竜騎集う円卓",
   "type": "nexus",
@@ -3594,6 +4204,131 @@
   "limited": false,
   "effect": "Lv1･Lv2\nこのネクサスが配置されたターンの間、自分のデッキは破棄されない。\nこのネクサスカードは相手のスピリットの効果でデッキから破棄されたとき、コストを支払わずに配置される。\nLv2\n【粉砕】以外の相手のスピリットの効果で自分のデッキが破棄されるとき、自分のライフのコア1個を自分のリザーブに置くことで、その効果を無効にする。",
   "effects": []
+ },
+ {
+  "cardId": "BS08-065",
+  "name": "五行寺院",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のコスト3以下のスピリットがアタックしたとき、ボイドからコア1個を、系統：「獣頭」を持つ自分のスピリット1体の上に置く。\nLv2『お互いのアタックステップ』\n系統：「獣頭」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS08-065-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "costFilter": {
+     "max": 3
+    },
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1,
+     "familyFilter": "獣頭"
+    }
+   },
+   {
+    "id": "BS08-065-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": "獣頭",
+    "treatAs": "max",
+    "phase": "attack",
+    "sourceLevels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-066",
+  "name": "海底に眠りし古代都市",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n系統：「異合」を持つ自分のスピリットが召喚されたとき、ボイドからコア1個を自分のリザーブに置く。\nLv2\n系統：「異合」を持つ自分のスピリットすべてのシンボルを、そのシンボル1つと同じシンボル2つに固定する。",
+  "limitCount": 1,
+  "effects": [
+   {
+    "id": "BS08-066-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     1,
+     2
+    ],
+    "familyFilter": "異合",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS08-066-e2",
+    "kind": "symbolFix",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": "異合",
+    "count": 2
+   }
+  ]
  },
  {
   "cardId": "BS08-067",
@@ -4210,6 +4945,157 @@
   ]
  },
  {
+  "cardId": "BS08-082",
+  "name": "グロウアップ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリット1体をコスト+3する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-082-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "alsoCostBuff",
+     "amount": 3
+    }
+   },
+   {
+    "id": "BS08-082-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-083",
+  "name": "ブレイクバースト",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【粉砕】を持つ自分のスピリットがアタックしたとき、相手のコスト3以下のスピリット1体を破壊できる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS08-083-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS08-083-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": null,
+    "lentOnly": true,
+    "ownOnly": true,
+    "keywordFilter": "funsai",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
+    },
+    "optional": true
+   },
+   {
+    "id": "BS08-083-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-084",
+  "name": "キマイラアサルト",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、系統：「異合」を持つ自分のスピリットすべてに“【強襲：1】『このスピリットのアタック時』このスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS08-084-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS08-084-e2",
+    "kind": "keywordGrant",
+    "levels": null,
+    "keyword": "kyoshu",
+    "count": 1,
+    "target": "ownAll",
+    "familyFilter": "異合",
+    "lentOnly": true
+   },
+   {
+    "id": "BS08-084-e3",
+    "kind": "effectGrant",
+    "levels": null,
+    "target": "ownAll",
+    "familyFilter": "異合",
+    "lentOnly": true,
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "refreshSelfByExhaustNexus"
+     }
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS08-X29",
   "name": "魔帝龍騎ダーク・クリムゾン",
   "type": "spirit",
@@ -4687,6 +5573,187 @@
      "type": "draw",
      "count": 1
     }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-X34",
+  "name": "神造巨兵オリハルコン・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で破棄するカードを、自分の青のシンボル1つにつき+1枚する。\nLv2･Lv3【強襲：2】『このスピリットのアタック時』\nこのスピリットは、ターン中に2回まで、自分のネクサス1つを疲労させることで回復できる。",
+  "effects": [
+   {
+    "id": "BS08-X34-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS08-X34-e2",
+    "kind": "funsaiBonus",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "amountPerSymbolColor": "blue"
+   },
+   {
+    "id": "BS08-X34-e3",
+    "kind": "keyword",
+    "keyword": "kyoshu",
+    "count": 2,
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS08-X34-e4",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshSelfByExhaustNexus"
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "X003D",
+  "name": "極帝龍騎ジーク・クリムゾン",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "竜騎",
+   "龍帝"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "red",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP3000以下のスピリットすべてを破壊する。\nこの効果で破壊したスピリット1体につき、ボイドからコア1個をこのスピリット上に置く。\nLv3『このスピリットのアタック時』\nこのスピリットをBP+5000する。",
+  "effects": [
+   {
+    "id": "X003D-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "X003D-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 3000
+     },
+     "anySide": true,
+     "voidCoreToSelfPerDestroyed": true
+    },
+    "optional": false
+   },
+   {
+    "id": "X003D-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
    }
   ]
  }

@@ -23,6 +23,7 @@ import {
     returnNexusToHand,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
+    placeCoresOnSpirit,
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -186,6 +187,15 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
         // drawPerDestroyed（BS08ドラゴンスクランブル）：実際に破壊できた数ぶん自分がドロー
         if (action.drawPerDestroyed) draw(state, owner, targets.length)
+        // voidCoreToSelfPerDestroyed（X003D極帝龍騎ジーク・クリムゾン）：実際に破壊できた数ぶん、
+        // ボイドからコアをself上に置く
+        if (action.voidCoreToSelfPerDestroyed && self && targets.length > 0) {
+            placeCoresOnSpirit(state, self, targets.length, owner)
+            log(
+                state,
+                `${getCard(self.cardId).name}は、破壊した${targets.length}体につきボイドからコア${targets.length}個を自身の上に置いた。`,
+            )
+        }
         return
 }
 

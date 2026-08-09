@@ -28,7 +28,7 @@ import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOver
 import { setCardLookup } from "../../../shared/cardDb"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
-import { countSymbols, currentLevel } from "../../../shared/rules"
+import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
 export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
@@ -241,7 +241,14 @@ export function clearBattle(state: GameState): void {
 }
 
 // デッキからドローする。引けない場合は相手の勝利（デッキアウト）
-export function draw(state: GameState, pid: PlayerId, count: number): void {
+// fromDrawStep: PhaseManagerのドローステップからの呼び出しだけtrueを渡す。
+// globalConstraint "noDrawOutsideDrawStep"（BS08豚人チョウハッカイ）は、この引数がfalseの
+// すべてのドロー（効果によるドロー）をここで一律に無効化する（draw/drawPer等の共通経路）
+export function draw(state: GameState, pid: PlayerId, count: number, fromDrawStep?: boolean): void {
+    if (!fromDrawStep && hasGlobalConstraint(state, "noDrawOutsideDrawStep")) {
+        log(state, `${state.players[pid].name}は、ドローステップ以外でドローできないため、ドローしなかった。`)
+        return
+    }
     const player = state.players[pid]
     for (let i = 0; i < count; i++) {
         const cardId = player.deck.shift()

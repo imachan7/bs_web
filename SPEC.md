@@ -414,6 +414,34 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   クライアントUIは chatbox 2026-08-09-0532 でUI担当へ依頼済み。簡略化は `data/card-notes.json` を参照
 - 回帰テストは `scripts/smoke/part136〜143`（色ごとに1パート＋実行時カバレッジの穴埋め1パート）
 
+### 第八弾：戦嵐（BS08・91枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 赤 | 10 | 2 | 3 | 15 |
+| 紫 | 10 | 2 | 3 | 15 |
+| 緑 | 10 | 2 | 3 | 15 |
+| 白 | 10 | 2 | 3 | 15 |
+| 黄 | 10 | 2 | 3 | 15 |
+| 青 | 10 | 2 | 3 | 15 |
+
+（Xレア6枚 BS08-X29〜X34 は各色の内訳に含む。加えて**多色1枚 `X003D` 極帝龍騎ジーク・クリムゾン**
+＝赤/白の2色で、cardId が `BS08-` 始まりでない唯一のカード。効果文なしのバニラ6枚／効果文持ち85枚）
+
+- **新キーワードは【氷壁】の1つ**。他は既出（転召15・激突3・装甲3・氷壁3・聖命3・暴風2・強襲2・呪撃1・光芒1・粉砕1で計34エントリ）
+- **弾のテーマは【転召】**。15エントリと突出して多く、`【転召：コストN以上/トラッシュ】`＝
+  `kind:"keyword" keyword:"tensho" minCost dest` で表す。周辺カードが3方向に分かれる:
+  - `constraint:"tenshoCoreSubstitute"`（転召の対象になったとき、疲労で代替できる）
+  - `action:"summonFromHandFree"` の `keywordFilter:"tensho" skipTensho`（転召させずに召喚）
+  - `filter.keywordExclude:"tensho"` / `fieldEvent:"ownTensho"`（転召持ちかどうかで対象を分ける）
+- **青は「相手の手札枚数」と「シンボル数」を参照する軸を持ち込んだ**。
+  前者は `aura.condition{opponentHandAtLeast}` と `triggered.condition{opponentHandAtLeast}`、
+  後者は `kind:"symbolFix"`（シンボルを固定＝軽減計算にも効く）と
+  `funsaiBonus.amountPerSymbolColor`（【粉砕】の枚数を自色シンボル数ぶん増やす）
+- **未実装は2枚**（BS08-038 猫娘アニー＝手札のカード自身が発揮する召喚条件、
+  BS08-064 鳳翼の聖剣＝デッキ破棄経路への割り込み。いずれも `data/card-notes.json` に理由を記録）
+- 回帰テストは `scripts/smoke/part144〜149`（色ごとに1パート。多色1枚は青のパートに含む）
+
 ### デッキ
 
 `data/constants.ts` の `DECK_RECIPES` に赤・紫・緑・白・黄・青の単色40枚を定義。

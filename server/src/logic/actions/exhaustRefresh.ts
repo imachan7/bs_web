@@ -20,6 +20,7 @@ import {
     tryInteractiveTargetChoice,
     hasBofuChooserSelf,
     bofuCountFor,
+    continuousKeywordGrantCount,
 } from "../EffectModules"
 import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -598,7 +599,11 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
     const entry = getCard(self.cardId).effects.find(
         (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, level),
     )
-    const limit = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    const staticLimit = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    // 継続付与された【強襲】（kind:"keywordGrant"。BS08キマイラアサルト）も上限として見る。
+    // 静的な【強襲】と両方持つことは通常無いが、念のため大きい方を採用する
+    const grantedLimit = continuousKeywordGrantCount(state, owner, self, "kyoshu")
+    const limit = Math.max(staticLimit, grantedLimit)
     if (limit === 0) {
         log(state, `${getCard(self.cardId).name}は【強襲】を持たないため回復しなかった。`)
         return

@@ -158,6 +158,10 @@ export function validateSummon(
         }
     }
 
+    // 相手からの「コストX以下のスピリットはターンにN体まで」制限（BS08夢想法師サンゾール）
+    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
+    if (summonLimitError) return summonLimitError
+
     // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
     // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
     // 許可したインスタンスの上のコアだけ、例外的に使える
@@ -203,6 +207,30 @@ function maxSpiritsOnField(state: GameState): number | null {
         }
     }
     return cap
+}
+
+// globalConstraint "summonLimitByCostForOpponent"（BS08夢想法師サンゾール：相手はコスト4以下を
+// ターンに1体まで）: pidの**相手**フィールドにこの制約の発生源があれば、pid自身のこのターンの
+// 該当コスト以下の召喚数（CardInstance.summonedTurnで計測）が上限に達していないか検証する
+function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
+    const opponent = state.players[opponentOf(pid)]
+    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "summonLimitByCostForOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            const { maxCost, limit } = effect.constraint
+            if (card.cost > maxCost) continue
+            const countThisTurn = state.players[pid].field.spirits.filter(
+                (s) => s.summonedTurn === state.turn && getCard(s.cardId).cost <= maxCost,
+            ).length
+            if (countThisTurn >= limit) {
+                return `効果により、コスト${maxCost}以下のスピリットはこのターンあと召喚できません`
+            }
+        }
+    }
+    return null
 }
 
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。

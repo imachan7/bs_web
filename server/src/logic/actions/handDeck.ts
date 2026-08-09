@@ -417,10 +417,13 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         // pickAllOfType指定時は一致するカードすべてを手札に加える。
         // 簡略化: 本来はプレイヤーが選ぶ／戻す順を選ぶ処理を、決定的な自動選択で代替する。
         const player = state.players[owner]
-        const count = action.countPer
-            ? [...player.field.spirits, ...player.field.nexuses].filter(
-                  (s) => instHasColor(s, action.countPer!.ownColorTotal),
-              ).length
+        const countPer = action.countPer
+        const count = countPer
+            ? "ownColorTotal" in countPer
+                ? [...player.field.spirits, ...player.field.nexuses].filter(
+                      (s) => instHasColor(s, countPer.ownColorTotal),
+                  ).length
+                : player.field.nexuses.length
             : action.count ?? 0
         const revealed = player.deck.splice(0, count)
         if (revealed.length === 0) {

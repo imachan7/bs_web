@@ -201,6 +201,11 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
 // インスタンスのシンボル数：カードの静的シンボル数 + このターンの追加シンボル数（tempExtraSymbols。ダブルハート）。
 // ライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
 export function instanceSymbolCount(inst: CardInstance): number {
+    // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
+    // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
+    if (inst.symbolsOverrideContinuous) {
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0)
+    }
     return card(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
 }
 
@@ -211,7 +216,8 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
-        const cardSymbols = card(inst.cardId).symbol
+        // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
+        const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         let matched = false
         for (const sym of cardSymbols) {
             if (colors.includes(sym)) {
@@ -222,6 +228,12 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
     }
     return count
+}
+
+// 手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
+// 無ければhand.length（サーバー内部のPlayerStateは常に実配列）にフォールバックする
+export function handSizeOf(player: BoardPlayer): number {
+    return player.handCount ?? player.hand?.length ?? 0
 }
 
 // ---- 盤面の位置 ----
@@ -256,6 +268,18 @@ export function hasContinuousKeywordGrant(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
+    return continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0
+}
+
+// 継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
+// 一致するエントリのeffect.count（省略時1）を返す。該当なしは0（＝持たない）。
+// hasContinuousKeywordGrant と同じ走査・絞り込みを共有する（BS08キマイラアサルト：付与する【強襲】はcount:1）
+export function continuousKeywordGrantCount(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): number {
     const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
@@ -282,10 +306,10 @@ export function hasContinuousKeywordGrant(
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            return true
+            return effect.count ?? 1
         }
     }
-    return false
+    return 0
 }
 
 // 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
@@ -541,6 +565,11 @@ export function checkAuraCondition(
     // { ownLifeAtMost: number }：自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー）
     if ("ownLifeAtMost" in condition) {
         return player.life <= condition.ownLifeAtMost
+    }
+    // { opponentHandAtLeast: number }：相手の手札枚数がこれ以上（BS08ブラックウガルルムLv2）
+    if ("opponentHandAtLeast" in condition) {
+        const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return handSizeOf(board.players[oppPid]) >= condition.opponentHandAtLeast
     }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
