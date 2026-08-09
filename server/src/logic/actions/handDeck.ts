@@ -752,8 +752,12 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
                 : [action.familyFilter]
             return wanted.some((f) => getCard(cardId).family.includes(f))
         }
+        // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
+        // カード静的なキーワード保有（hasKeyword）で判定する
+        const keywordOk = (cardId: string): boolean =>
+            action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)
         const isRecoverable = (cardId: string): boolean =>
-            getCard(cardId).type === "spirit" && familyOk(cardId)
+            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId)
         // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
         if (action.all) {
             const indices: number[] = []
@@ -980,6 +984,38 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         millDeck(state, targetPid, action.count, owner)
         return
+}
+
+// BS08冥将アマイモン：自分のデッキを上から、指定系統を持つスピリットカードが出るまで（上限maxCount枚）破棄し、
+// 出ればそのカード1枚を手札に戻す。デッキ切れ・上限到達まで出なければ手札には戻らない
+const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const wanted = Array.isArray(action.family) ? action.family : [action.family]
+    let found: string | undefined
+    let milled = 0
+    for (let i = 0; i < action.maxCount; i++) {
+        const cardId = player.deck.shift()
+        if (cardId === undefined) break
+        player.trashCards.push(cardId)
+        milled++
+        const candidate = getCard(cardId)
+        if (candidate.type === "spirit" && wanted.some((f) => candidate.family.includes(f))) {
+            found = cardId
+            break
+        }
+    }
+    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
+    if (found === undefined) {
+        log(state, `${sourceName}：対象のスピリットカードが出なかった。`)
+        return
+    }
+    const idx = player.trashCards.lastIndexOf(found)
+    if (idx === -1) return
+    player.trashCards.splice(idx, 1)
+    player.hand.push(found)
+    log(state, `${player.name}は${sourceName}の効果で${getCard(found).name}を手札に戻した。`)
+    notifyHandGained(state, owner, 1)
 }
 
 const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
@@ -1470,6 +1506,7 @@ const handlers = {
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     mill: millHandler,
+    millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millPer: millPerHandler,
     millPerLoserCost: millPerLoserCostHandler,
     returnToHand: returnToHandHandler,

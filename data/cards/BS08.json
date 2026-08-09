@@ -597,6 +597,580 @@
   ]
  },
  {
+  "cardId": "BS08-010",
+  "name": "デモ・ボーン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
+  "effects": [
+   {
+    "id": "BS08-010-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-011",
+  "name": "冥狼士アーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-012",
+  "name": "ダークスカルデーモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、【転召】させずに召喚できる。\nLv2･Lv3『相手のアタックステップ』\nBP6000以下の相手のスピリットがアタックしたとき、相手は、相手のスピリット上のコア1個を相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS08-012-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
+    "id": "BS08-012-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "opponent",
+    "maxBp": 6000,
+    "action": {
+     "type": "coreToTrashSelf",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-013",
+  "name": "アンドレアルファス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族",
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のエンドステップ』\n自分のトラッシュにあるカード名に「勇者」と入っているスピリットカード1枚を召喚できる。",
+  "effects": [
+   {
+    "id": "BS08-013-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromTrashFree",
+     "nameIncludes": "勇者"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-014",
+  "name": "冥将アマイモン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のデッキを上から、系統：「虚神」を持つスピリットカードが出るまで破棄できる(上限6枚)。\nその後、トラッシュにあるそのスピリットカード1枚を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS08-014-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "millUntilFamilyToHand",
+     "family": "虚神",
+     "maxCount": 6
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-015",
+  "name": "闇帝竜騎サブナ・ルーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "竜騎",
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\nターンに1回、自分の手札にある【転召】を持つスピリットカード1枚を【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2･Lv3『自分のアタックステップ』\n系統：「龍帝」を持つ自分のスピリットがアタックしたとき、【転召】を持たない相手のスピリットすべての上のコア1個ずつを、相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS08-015-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    }
+   },
+   {
+    "id": "BS08-015-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "familyFilter": "龍帝",
+    "action": {
+     "type": "coreRemoveMulti",
+     "targets": 0,
+     "allTargets": true,
+     "count": 1,
+     "keywordExclude": "tensho"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-016",
+  "name": "冥蛇士ボティス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【転召：コスト1以上/トラッシュ】\n召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。系統：「冥主」を持つスピリットで【転召】したとき、ドローするカードを3枚にする。",
+  "effects": [
+   {
+    "id": "BS08-016-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 1,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-016-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-016-e3",
+    "kind": "fieldEvent",
+    "event": "ownTensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "familyFilter": "冥主",
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-017",
+  "name": "骸蛇スカルピオーネ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔",
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのメインステップ』\nスピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手は手札1枚を破棄する。",
+  "effects": [
+   {
+    "id": "BS08-017-e1",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-018",
+  "name": "暗黒騎士シュヴァルト",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある系統：「魔影」を持つスピリットカード1枚を手札に戻す。\nLv2･Lv3『このスピリットのアタック時』\n疲労状態の相手のコスト4以下のスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS08-018-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-018-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "familyFilter": "魔影"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-018-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyExhausted",
+     "count": 1,
+     "all": true,
+     "filter": {
+      "cost": {
+       "max": 4
+      }
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS08-055",
   "name": "竜騎集う円卓",
   "type": "nexus",
@@ -715,6 +1289,120 @@
     },
     "cost": {
      "ownLifeOneToVoid": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-057",
+  "name": "赤き砂の座",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコアが1個しか置かれていないスピリットはアタックできない。\nLv2『自分のメインステップ』\n【転召】を持つスピリットカードを召喚するとき、系統：「冥主」を持つ自分のスピリットすべてをコスト+3する。",
+  "effects": [
+   {
+    "id": "BS08-057-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "singleCoreCantAttack"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-058",
+  "name": "倒逆ピラミッド群",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のエンドステップ』\nBP5000以下の相手のスピリット1体の上のコア1個を相手のリザーブに置く。\nLv2『自分のアタックステップ』\n系統：「冥主」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、そのコアはリザーブではなくボイドに置かれる。",
+  "effects": [
+   {
+    "id": "BS08-058-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1,
+     "filter": {
+      "maxBp": 5000
+     }
+    }
+   },
+   {
+    "id": "BS08-058-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": "冥主",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "lifeDamageToVoid"
     }
    }
   ]
@@ -853,6 +1541,120 @@
   ]
  },
  {
+  "cardId": "BS08-070",
+  "name": "ターンインフェルノ",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにある【転召】を持つスピリットカード1枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-070-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "keywordFilter": "tensho"
+    }
+   },
+   {
+    "id": "BS08-070-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-071",
+  "name": "ビクティム",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分は、スピリットカード1枚の召喚に支払うコストすべて、または一部を、コスト1につき、自分の手札1枚を破棄することで支払うことができる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-071-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-072",
+  "name": "マインドブレイク",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のスピリット上のコア5個を自分のトラッシュに置くことで、相手は、相手のスピリット上のコア5個を相手のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS08-072-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "costOwnSpiritCoresToTrashThenOpponent",
+     "count": 5
+    }
+   },
+   {
+    "id": "BS08-072-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS08-X29",
   "name": "魔帝龍騎ダーク・クリムゾン",
   "type": "spirit",
@@ -930,6 +1732,114 @@
      "filter": {
       "maxBp": 5000
      }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-X30",
+  "name": "魔界七将アスモディオス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 9,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "purple",
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、自分のコスト6以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリットすべての上のコア2個ずつを相手のリザーブに置く。\n[魔界七将デストロード]/[魔界七将ベルゼビート]で【転召】したとき、さらに相手は手札4枚を破棄する。\nLv3『このスピリットのアタック時』\n相手のスピリット上のコア2個をボイドに置く。",
+  "effects": [
+   {
+    "id": "BS08-X30-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 6,
+    "dest": "void"
+   },
+   {
+    "id": "BS08-X30-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "coreRemoveMulti",
+     "targets": 0,
+     "allTargets": true,
+     "count": 2
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-X30-e3",
+    "kind": "fieldEvent",
+    "event": "ownTensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "nameIncludes": [
+     "魔界七将デストロード",
+     "魔界七将ベルゼビート"
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 4
+    }
+   },
+   {
+    "id": "BS08-X30-e4",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 2,
+     "dest": "void"
     },
     "optional": false
    }

@@ -497,6 +497,10 @@ export function validateAttack(
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
     }
+    // フィールド全体制約（BS08赤き砂の座）：コア1個しか置いていないスピリットはアタックできない（ブロックは可能）
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) {
+        return "コア1個しか置いていないスピリットはアタックできません"
+    }
     // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはアタックできない
     if (instCostCantAct(state, inst)) {
         return "コストが低いためアタックできません"
@@ -597,6 +601,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
+        // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
+        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
         if (instCostCantAct(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外

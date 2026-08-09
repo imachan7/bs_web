@@ -585,6 +585,9 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
                 const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
                 if (!wanted.some((f) => candidate.family.includes(f))) return false
             }
+            // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
+            // カード静的な名前で判定する
+            if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
         }

@@ -816,6 +816,7 @@ export function resolveTensho(
 export function fireTenshoEvent(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
     fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, {
         families: [...getCard(inst.cardId).family],
+        names: [getCard(inst.cardId).name],
     })
 }
 
@@ -3111,6 +3112,8 @@ export function fireFieldEventTriggers(
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
+        // event: "ownTensho" 限定：【転召】の犠牲になったスピリットのカード名（nameIncludesの判定に使う。BS08魔界七将アスモディオス）
+        names?: string[]
         // 対象スピリットが「扱われている」コストの一覧（instAllCosts）。本来のコストに加え、
         // 道化師クランの付与コストも含めた複数値になりうるため、配列で受け取りいずれかが
         // costFilter を満たせばよい（instMatchesCostFilterと同じOR意味論）
@@ -3153,6 +3156,14 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
+            // アタックしたスピリット（selfOverride）の実効BPで絞る（BS08ダークスカルデーモン：BP6000以下）
+            if (
+                effect.maxBp !== undefined &&
+                (selfOverride === undefined ||
+                    effectiveBp(state, selfOverride.pid, selfOverride.inst) > effect.maxBp)
+            ) {
+                continue
+            }
             // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
             if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
@@ -3162,13 +3173,16 @@ export function fireFieldEventTriggers(
             if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
             // 「[カード名]以外の」の除外（BS06鉄拳のカクタスガルー）：イベント対象が発生源自身のときは発火しない
             if (effect.excludeSelfAsEventTarget && selfOverride?.inst.instanceId === inst.instanceId) continue
-            // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）
-            if (
-                effect.nameIncludes !== undefined &&
-                !(selfOverride !== undefined &&
-                    effect.nameIncludes.some((n) => cardNameContains(selfOverride.inst, n)))
-            ) {
-                continue
+            // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）。
+            // event: "ownTensho" はselfOverrideを渡さないため、eventInfo.names（【転召】の犠牲になった
+            // スピリットのカード名）があればそちらで判定する（BS08魔界七将アスモディオス）
+            if (effect.nameIncludes !== undefined) {
+                const nameOk =
+                    eventInfo?.names !== undefined
+                        ? effect.nameIncludes.some((n) => eventInfo.names?.some((name) => name.includes(n)))
+                        : selfOverride !== undefined &&
+                          effect.nameIncludes.some((n) => cardNameContains(selfOverride.inst, n))
+                if (!nameOk) continue
             }
             // targetInstanceId のスピリットのLvがイベント対象と同じときだけ
             // （BS05ペンタン帝国Lv2：同じLvの相手のスピリットにブロックされたとき）
