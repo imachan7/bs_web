@@ -1380,6 +1380,16 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
     }
+    magicRedirect?: {
+        // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
+        // 選べば GameState.magicRedirectDecision に承認を記録してからマジックの解決へ進み、
+        // 選ばなければ拒否を記録して同じく解決へ進む（どちらも doResolveChoice が resolveMagicEffects を呼ぶ）
+        casterPid: PlayerId
+        cardId: string
+        timing: "main" | "flash"
+        targetInstanceId: string | undefined
+        sourceInstanceId: string // 絞り込み先＝確認を出す側の発生源
+    }
     action: EffectAction // 選択後に resolveAction する本体
     actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
     // **選択者と実行者が別**のケースで使う（BS02-012 ケンドラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として行う）
@@ -1413,6 +1423,10 @@ export interface GameState {
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 「デッキを上からN枚オープンする」の公開ゾーン（両者に見える一時領域）。
     // deckReveal が積み、手札に加える／デッキの下に戻す処理が終わったら消す。cardZone:"reveal" の選択元になる
     magicRedirectTo?: { pid: PlayerId; instanceId: string } // 解決中のマジックの対象が1体へ絞り込まれている間だけ立つ（kind:"magicTargetRedirect"。この pid のスピリットのうち instanceId 以外は、そのマジックの効果を受けない）。resolveMagic が解決の前後で設定・解除する
+    // 「そのマジックの効果の対象を、このスピリットのみに**できる**」の任意性（BS04サンク／BS05スノーホワイト）。
+    // 対話モードでは resolveMagic が守る側に1回だけ確認し、その答えをこのマジックの解決中ずっと使う
+    // （アクションごとに聞き直さない）。**非対話（テスト・自動解決）ではセットされず、従来どおり自動で絞り込む**
+    magicRedirectDecision?: { sourceInstanceId: string; approved: boolean }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主

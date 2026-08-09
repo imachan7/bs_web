@@ -25,6 +25,7 @@ import {
     exhaustSpirit,
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
+    applyMagicRedirectChoice,
     battleBp,
     bofuCountFor,
     declineMagicNegateChoice,
@@ -926,6 +927,24 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
+    // 承認・拒否のどちらでも中断していたマジックの解決を続ける（絞り込むかだけが変わる）
+    if (pending.magicRedirect) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.magicRedirect
+        state.pendingChoice = null
+        if (option === undefined) {
+            const source = findInstanceAnywhere(state, info.sourceInstanceId)
+            const name = source ? getCard(source.cardId).name : "効果"
+            log(state, `${name}：${getCard(info.cardId).name}の対象を絞り込まなかった。`)
+        }
+        applyMagicRedirectChoice(state, info, option !== undefined)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid, pending.queue)
     }

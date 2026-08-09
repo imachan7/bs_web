@@ -130,3 +130,61 @@ console.log("--- 絞り込みは解決中のマジックにのみ効き、次の
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "2枚目のフレイムテンペスト")
     assert(!alive(s, "p1", ally1), "サンク不在なら味方は守られない")
 }
+
+console.log("=== 実対戦では絞り込むかを守る側に確認する（『〜にできる』の任意性） ===")
+{
+    // 2026-08-10 修正: 以前は「できる」を選べず常に自動で絞り込んでいた。
+    // 対話モードでは、マジックの解決に入る前に守る側（サンクの持ち主）へ1回だけ確認する
+    const s = setup("sank-redirect-confirm")
+    s.interactiveTargets = true
+    const sank = put(s, "p1", "BS04-054", 2) // Lv2＝効果が有効
+    sank.tempBpBuff = -1000 // BP4000→3000。Lv2のままフレイムテンペストの対象に入れる
+    const ally1 = put(s, "p1", "BS02-049", 1)
+    const ally2 = put(s, "p1", "BS02-051", 1)
+    s.players.p2.hand[0] = "BS01-122" // フレイムテンペスト（BP3000以下を全体破壊）
+
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "相手がマジックを使用")
+    assert(s.pendingChoice !== null, "絞り込むかの確認が立つ")
+    assert(s.pendingChoice?.pid === "p1", "選択するのは守る側（サンクの持ち主）")
+    assert(alive(s, "p1", ally1), "確認中はマジックの効果がまだ解決されていない")
+
+    assert(
+        act(s, "p1", { type: "resolveChoice", option: "このスピリットのみにする" }) === null,
+        "「このスピリットのみにする」を選ぶ",
+    )
+    assert(s.pendingChoice === null, "選択待ちが解消される")
+    assert(!alive(s, "p1", sank), "対象がサンクのみになるので、サンクは破壊される")
+    assert(alive(s, "p1", ally1) && alive(s, "p1", ally2), "味方は守られる")
+}
+
+console.log("--- 絞り込まないことも選べる（味方が巻き込まれる） ---")
+{
+    const s = setup("sank-redirect-decline")
+    s.interactiveTargets = true
+    const sank = put(s, "p1", "BS04-054", 2)
+    sank.tempBpBuff = -1000
+    const ally1 = put(s, "p1", "BS02-049", 1)
+    const ally2 = put(s, "p1", "BS02-051", 1)
+    s.players.p2.hand[0] = "BS01-122"
+
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "相手がマジックを使用")
+    assert(s.pendingChoice !== null, "絞り込むかの確認が立つ")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "スキップ（絞り込まない）")
+    assert(s.pendingChoice === null, "選択待ちが解消される")
+    assert(!alive(s, "p1", sank), "絞り込まなくてもサンク自身は対象なので破壊される")
+    assert(!alive(s, "p1", ally1) && !alive(s, "p1", ally2), "味方も通常どおり巻き込まれる")
+}
+
+console.log("--- 絞り込みが起こりえない場面では確認を出さない ---")
+{
+    const s = setup("sank-redirect-no-prompt")
+    s.interactiveTargets = true
+    const sank = put(s, "p1", "BS04-054", 2) // BP4000
+    const ally1 = put(s, "p1", "BS02-049", 1)
+    s.players.p2.hand[0] = "BS01-122" // BP3000以下＝サンクは対象外
+
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "相手がマジックを使用")
+    assert(s.pendingChoice === null, "サンクが対象に含まれないので確認は出さない")
+    assert(alive(s, "p1", sank), "サンクは対象外なので残る")
+    assert(!alive(s, "p1", ally1), "味方は通常どおり巻き込まれる")
+}

@@ -3587,6 +3587,28 @@ function setMagicRedirect(
     action: EffectAction,
 ): void {
     delete state.magicRedirectTo
+    const found = findMagicRedirectSource(state, casterPid, targetInstanceId, action)
+    if (!found) return
+    // 対話モードでは、絞り込むかどうかを発生源の持ち主（＝守る側）に確認済み。
+    // 「しない」を選んでいたら絞り込まない（『〜にできる』の任意性。BS04サンク／BS05スノーホワイト）。
+    // 決定が無い＝非対話（テスト・自動解決）なので、従来どおり自動で絞り込む
+    const decision = state.magicRedirectDecision
+    if (decision && decision.sourceInstanceId === found.instanceId && !decision.approved) return
+    state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }
+    log(
+        state,
+        `${getCard(found.cardId).name}：このマジックの効果の対象を、このスピリットのみにした。`,
+    )
+}
+
+// magicTargetRedirect の発生源を探す（実際に絞り込むかは呼び出し側が決める）。
+// resolveMagic の事前確認（このマジックで絞り込みが起こりうるか）と setMagicRedirect が共用する
+function findMagicRedirectSource(
+    state: GameState,
+    casterPid: PlayerId,
+    targetInstanceId: string | undefined,
+    action: EffectAction,
+): CardInstance | null {
     const defenderPid = opponentOf(casterPid)
     for (const inst of state.players[defenderPid].field.spirits) {
         for (const effect of getCard(inst.cardId).effects) {
@@ -3618,14 +3640,10 @@ function setMagicRedirect(
                 // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
                 if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
             }
-            state.magicRedirectTo = { pid: defenderPid, instanceId: inst.instanceId }
-            log(
-                state,
-                `${getCard(inst.cardId).name}：このマジックの効果の対象を、このスピリットのみにした。`,
-            )
-            return
+            return inst
         }
     }
+    return null
 }
 
 // 絞り込み対象（サンク）が、そのアクションの filter に合致するか。
@@ -3752,7 +3770,65 @@ export function resolveMagic(
         return
     }
 
+    // 対象の絞り込み（BS04サンク／BS05スノーホワイト）は「〜にできる」＝任意なので、
+    // 守る側に1回だけ確認する。**このマジックの効果のどれかで実際に絞り込みが起こる場合だけ聞く**
+    // （聞いても意味がない場面で確認を出さないため）。答えはマジックの解決中ずっと使い回す
+    delete state.magicRedirectDecision
+    if (state.interactiveTargets) {
+        const redirectSource = findMagicRedirectSourceForCard(state, owner, card, timing, targetInstanceId)
+        if (redirectSource) {
+            state.pendingChoice = {
+                pid: opponentOf(owner),
+                kind: "option",
+                prompt: `${getCard(redirectSource.cardId).name}：${card.name}の効果の対象を、このスピリットのみにしますか？`,
+                candidates: [],
+                options: ["このスピリットのみにする"],
+                optional: true,
+                confirm: true,
+                magicRedirect: {
+                    casterPid: owner,
+                    cardId,
+                    timing,
+                    targetInstanceId,
+                    sourceInstanceId: redirectSource.instanceId,
+                },
+                action: { type: "noop" },
+                selfInstanceId: redirectSource.instanceId,
+                queue: [],
+            }
+            return
+        }
+    }
+
     resolveMagicEffects(state, owner, cardId, timing, targetInstanceId)
+}
+
+// このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
+// あればその発生源を返す（確認を出すかどうかの事前判定。runMagicActions と同じ timing 絞り込みを使う）
+function findMagicRedirectSourceForCard(
+    state: GameState,
+    casterPid: PlayerId,
+    card: CardData,
+    timing: "main" | "flash",
+    targetInstanceId: string | undefined,
+): CardInstance | null {
+    for (const effect of card.effects) {
+        if (effect.kind !== "magic" || effect.timing !== timing) continue
+        const found = findMagicRedirectSource(state, casterPid, targetInstanceId, effect.action)
+        if (found) return found
+    }
+    return null
+}
+
+// pendingChoice（対象の絞り込みの確認）の後処理。承認・拒否のどちらでも、中断していた解決を続ける。
+// GameEngine.doResolveChoice から呼ぶ
+export function applyMagicRedirectChoice(
+    state: GameState,
+    info: NonNullable<PendingChoice["magicRedirect"]>,
+    approved: boolean,
+): void {
+    state.magicRedirectDecision = { sourceInstanceId: info.sourceInstanceId, approved }
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
 }
 
 // pendingChoice（無効化の確認）で「無効にする」が選ばれたときの後処理。
