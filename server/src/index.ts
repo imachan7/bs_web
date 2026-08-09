@@ -10,10 +10,13 @@ import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } 
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
 import { DECK_RECIPES } from "../../data/constants"
+import { accessLogMiddleware, logSocketJoin } from "./accessLog"
 
 const PORT = Number(process.env.PORT ?? 3000)
 
 const app = express()
+// アクセスログは express.static より前（static は該当ファイルを返した時点で後段へ進まない）
+app.use(accessLogMiddleware)
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
@@ -293,6 +296,11 @@ io.on("connection", (socket: Socket) => {
         }) => {
             const roomId = String(payload.roomId || "room1")
             const name = String(payload.name || "プレイヤー")
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                roomId,
+            )
 
             // deckCards（カスタムデッキ）が指定されていれば deck キーより優先する
             let deckSpec: DeckSpec
