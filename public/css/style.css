@@ -1348,13 +1348,15 @@ button:active {
 .announcement-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .announcement-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     padding: 12px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
@@ -1365,6 +1367,7 @@ button:active {
 .announcement-item:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(4px);
 }
 
 .announcement-date-header {

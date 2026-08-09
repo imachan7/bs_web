@@ -634,44 +634,34 @@ function loadChangelog(): void {
                 return
             }
 
-            // 日付でグルーピング（API が新しい順で返すため、出現順を保持する）
-            const groups = new Map<string, ChangelogEntry[]>()
             for (const entry of entries) {
-                const list = groups.get(entry.date) ?? []
-                list.push(entry)
-                groups.set(entry.date, list)
-            }
+                const item = document.createElement("div")
+                item.className = "announcement-item"
 
-            for (const [date, group] of groups) {
-                const section = document.createElement("div")
-                section.className = "announcement-item"
+                const meta = document.createElement("div")
+                meta.className = "announcement-meta"
 
-                const dateEl = document.createElement("div")
-                dateEl.className = "announcement-date-header"
-                dateEl.textContent = date.replace(/-/g, ".")
-                section.appendChild(dateEl)
+                const dateEl = document.createElement("span")
+                dateEl.className = "date"
+                dateEl.textContent = entry.date.replace(/-/g, ".")
+                meta.appendChild(dateEl)
 
-                for (const entry of group) {
-                    const parsed = parseReleaseMessage(entry.message)
-                    const catInfo = CATEGORY_MAP[parsed.category] ?? CATEGORY_MAP.update!
+                const parsed = parseReleaseMessage(entry.message)
+                const catInfo = CATEGORY_MAP[parsed.category] ?? CATEGORY_MAP.update!
 
-                    const row = document.createElement("div")
-                    row.className = "announcement-entry"
+                const badge = document.createElement("span")
+                badge.className = catInfo.cssClass
+                badge.textContent = catInfo.label
+                meta.appendChild(badge)
 
-                    const badge = document.createElement("span")
-                    badge.className = catInfo.cssClass
-                    badge.textContent = catInfo.label
-                    row.appendChild(badge)
+                item.appendChild(meta)
 
-                    const text = document.createElement("span")
-                    text.className = "announcement-text"
-                    text.textContent = parsed.text
-                    row.appendChild(text)
+                const text = document.createElement("p")
+                text.className = "announcement-text"
+                text.textContent = parsed.text
+                item.appendChild(text)
 
-                    section.appendChild(row)
-                }
-
-                container.appendChild(section)
+                container.appendChild(item)
             }
         })
         .catch(() => {
