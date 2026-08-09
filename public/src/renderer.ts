@@ -224,6 +224,7 @@ export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
+    substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
 }
 
@@ -236,6 +237,8 @@ export interface UiState {
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
+    battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
@@ -392,7 +395,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null
     show("btn-cancel-target", anyMode)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
@@ -475,6 +478,9 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.summonLevelSelect) {
         $("targeting-info").textContent =
             `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
+    } else if (ui.battleSwapSummon) {
+        $("targeting-info").textContent =
+            `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -843,6 +849,13 @@ function fieldCardEl(
         if (ui.directedAttack !== null) {
             if (inst.instanceId === ui.directedAttack.attackerInstanceId) {
                 el.classList.add("directed-attacker")
+            }
+            return el
+        }
+        // 入れ替え召喚の対象選択中
+        if (ui.battleSwapSummon !== null) {
+            if (ui.battleSwapSummon.substituteInstanceIds.includes(inst.instanceId)) {
+                el.classList.add("targetable", "clickable")
             }
             return el
         }
