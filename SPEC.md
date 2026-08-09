@@ -1250,16 +1250,41 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ## 5. 既知の簡略化・今後の課題
 
-### 残りの未対応カード（2026-08-07 時点。data/card-notes.json が唯一の実態）
+### 未着手の課題
+
+#### 範囲コア奪取が【装甲】等の耐性を素通りする（2026-08-10 発見・未修正）
+
+`server/src/logic/actions/cores.ts` のコア奪取ハンドラで、耐性判定の有無が**不揃い**になっている。
+
+| 耐性を見ている | 見ていない（＝装甲を素通りする） |
+| :-- | :-- |
+| `coreRemove` / `coreDrainToLowerLevel` / `coreToOpponentTrashChoice` / `coreToTrashAllByCost` / `coreRemovePerHandDiscard` | `bothSidesCoreToTrash` / `bothSidesCoreToVoid` / `coreDrainAllOthers` / `coreSqueezeAll` / `coreSqueezeOne` / `moveCoresLeavingOne` / `opponentCoresToTrash` / `opponentCoresToVoidByTotal` / `costOwnAllCoresThenEnemyCoresToReserve` / `swapOpponentCores` |
+
+「1体ずつ選んで取る」効果は【装甲】で防げるのに、「範囲でまとめて奪う」効果は防げない。
+**意図した簡略化ではなく単なる実装の不揃い**（既に半数は判定している）。影響は14枚:
+BS01-025 要塞龍ギガ / BS01-041 コブライガ / BS01-046 幻龍シェイロン / BS01-087 メタルディー・バグ /
+BS01-130 チェンジングコア / BS01-X02 魔界七将デスペラード / BS02-091 セブンスクリムゾン /
+BS02-093 マインドコントロール / BS02-094 ブラッディレイン / BS03-125 ウィークネス /
+BS04-045 氷の女神フリッグ / BS04-053 天使スローン / BS04-096 インフェルノアイズ / BS06-018 人狼ルー・ガウル /
+BS06-023 闇司教バクルス。
+
+直し方は `returnAllToHand` と同じ判定（`isEffectBlocked` ＋ 相手側のみ
+`hasArmorAgainst` / `hasMagicImmunity` / `isImmuneToArea` / `hasFullEffectImmunity`）を
+各ハンドラの**相手側に触れる箇所**へ入れる。既存テストがこの穴を前提にしていないか要確認。
+
+※ ネクサス側は問題なし。**装甲を持つネクサスは0枚**（装甲はスピリット用キーワード）で、
+ネクサス破壊は `destroyNexus` の単一入口が破壊耐性を必ず見ている。
+
+### 残りの未対応カード（**枚数は `data/card-notes.json` が唯一の実態**。下表は 2026-08-10 時点）
 
 **BS01〜BS03 に「表示のみ」のカードは1枚も残っていない**（かつてここにあった「BS02 の未対応20枚」の表は
 すべて解消済みのため削除した）。現在の残りは `data/card-notes.json` の状態で数えるのが正確:
 
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
-| `unimplemented`（効果が発揮されない） | 1 | BS05-079 スリーカード（DECISIONS.md 参照）。**それ以外のカードは全609枚が構造化済み** |
-| `partial`（一部のレベル・節だけ未実装） | 6 | BS02-063（支配権の一時移動）・BS02-083 Lv2（マジック効果の無効化）・BS03-147 メイン（ネクサスをスピリット扱い）・BS04-088 Lv1（配置コストの支払い方法の選択）・BS05-038 Lv2（2体分として数える）・BS05-060（コア保護のすり抜け）。**いずれも「器の作り替えになる」と判断して見送ったもの** |
-| `simplified`（原作と挙動が異なる簡略化） | 10 | 対戦は成立する。カード詳細に注記を表示している |
+| `unimplemented`（効果が発揮されない） | 0 | **0枚**。全906枚が何らかの形で構造化済み（2026-08-10 達成） |
+| `partial`（一部のレベル・節だけ未実装） | 8 | BS02-063 / BS03-147 / BS05-060 / BS08-017 / BS08-055 / BS08-057 / BS08-064 / BS08-071。BS02-063 は**禁止カードのため実装しない方針** |
+| `simplified`（原作と挙動が異なる簡略化） | 28 | 対戦は成立する。カード詳細に注記を表示している |
 
 **`docs/design/EFFECT_GAPS_PLAYBOOK.md` が対象にしていた実装漏れは 2026-08-07 に解消済み**
 （`npm run validate:gaps` のベースラインは 17 件 → 5 件。残り5件はすべて上表の見送り分で、
