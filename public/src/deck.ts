@@ -30,6 +30,12 @@ const SERIES_LABELS: Record<string, string> = {
     "BS03": "覇闘",
     "BS04": "龍帝",
     "BS05": "皇騎",
+    "BS06": "爆神",
+    "BS07": "天醒",
+    "BS08": "戦嵐",
+    "BS09": "超星",
+    "X003": "プロモ",
+    "X004": "プロモ",
 }
 
 // ---- 状態 ----
@@ -44,8 +50,8 @@ let deck = new Map<string, number>()
 const filterColors = new Set<Color>()
 const filterTypes = new Set<CardType>()
 const filterCosts = new Set<number>() // COST_BANDS のインデックス
-const filterSeries = new Set<string>()
-const filterKeywords = new Set<Keyword>()
+let filterSeries = ""
+let filterKeywords = ""
 let filterFamily = ""
 let searchText = ""
 let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
@@ -134,11 +140,11 @@ function passesFilter(card: CardData): boolean {
         }
         if (!hit) return false
     }
-    if (filterSeries.size > 0 && !filterSeries.has(card.cardId.substring(0, 4))) return false
-    if (filterKeywords.size > 0) {
+    if (filterSeries !== "" && card.cardId.substring(0, 4) !== filterSeries) return false
+    if (filterKeywords !== "") {
         let hasKw = false
-        for (const kw of filterKeywords) {
-            if (card.effects.some(e => e.kind === "keyword" && e.keyword === kw)) {
+        for (const effect of card.effects) {
+            if (effect.kind === "keyword" && effect.keyword === filterKeywords) {
                 hasKw = true
                 break
             }
@@ -997,45 +1003,31 @@ function setupFilterChips(): void {
         }
     }
 
-    const seriesContainer = $("filter-series")
+    const seriesSelect = $("filter-series") as HTMLSelectElement
     const sortedSeries = Array.from(availableSeries).sort()
     for (const s of sortedSeries) {
-        const btn = document.createElement("button")
-        btn.className = "chip"
-        btn.dataset.series = s
-        btn.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
-        btn.addEventListener("click", () => {
-            if (filterSeries.has(s)) {
-                filterSeries.delete(s)
-                btn.classList.remove("active")
-            } else {
-                filterSeries.add(s)
-                btn.classList.add("active")
-            }
-            renderPool()
-        })
-        seriesContainer.appendChild(btn)
+        const option = document.createElement("option")
+        option.value = s
+        option.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
+        seriesSelect.appendChild(option)
     }
+    seriesSelect.addEventListener("change", () => {
+        filterSeries = seriesSelect.value
+        renderPool()
+    })
 
-    const kwContainer = $("filter-keywords")
+    const kwSelect = $("filter-keywords") as HTMLSelectElement
     const sortedKw = Array.from(availableKeywords).sort()
     for (const kw of sortedKw) {
-        const btn = document.createElement("button")
-        btn.className = "chip"
-        btn.dataset.keyword = kw
-        btn.textContent = KEYWORDS[kw]?.label ?? kw
-        btn.addEventListener("click", () => {
-            if (filterKeywords.has(kw)) {
-                filterKeywords.delete(kw)
-                btn.classList.remove("active")
-            } else {
-                filterKeywords.add(kw)
-                btn.classList.add("active")
-            }
-            renderPool()
-        })
-        kwContainer.appendChild(btn)
+        const option = document.createElement("option")
+        option.value = kw
+        option.textContent = KEYWORDS[kw]?.label ?? kw
+        kwSelect.appendChild(option)
     }
+    kwSelect.addEventListener("change", () => {
+        filterKeywords = kwSelect.value
+        renderPool()
+    })
 
     const familySelect = $("filter-family") as HTMLSelectElement
     const sortedFamilies = Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))
@@ -1106,8 +1098,13 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
-        filterSeries.clear()
-        filterKeywords.clear()
+        
+        filterSeries = ""
+        ;(document.getElementById("filter-series") as HTMLSelectElement).value = ""
+        
+        filterKeywords = ""
+        ;(document.getElementById("filter-keywords") as HTMLSelectElement).value = ""
+        
         filterFamily = ""
         const familySelect = $("filter-family") as HTMLSelectElement
         familySelect.value = ""
