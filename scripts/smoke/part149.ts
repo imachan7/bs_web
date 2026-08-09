@@ -14,6 +14,7 @@
 //   action"deckReveal".countPer{ownNexuses}（BS08古将ドグウ・ゴレム）／
 //   kind"keywordGrant".count＋kind"effectGrant"での【強襲】付与（BS08キマイラアサルト）
 import {
+    act,
     assert,
     createGame,
     createInstance,
@@ -255,10 +256,16 @@ console.log("=== BS08グロウアップ：action alsoCostBuff（このターン�
     const entry = entryOf(growup, (e) => actionOf(e)?.["type"] === "alsoCostBuff")
     const amount = Number(actionOf(entry)["amount"])
 
+    // 実カードを手札からメインで使用する（resolveAction を直接叩くと、カードデータ側の
+    // timing・引数の書き方を一度も通さないまま緑になるため。2026-08-09 の実行時カバレッジ由来）
     const s = base("grow-up")
     const target = put(s, "p1", VANILLA.cardId, coresFor(VANILLA, 1))
     const baseCost = VANILLA.cost ?? 0
-    resolveAction(s, "p1", null, actionOf(entry) as unknown as EffectAction, target.instanceId)
+    s.players.p1.hand.push(growup.cardId)
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null,
+        `${growup.name}をメインで使用`,
+    )
     assert(instHasCost(target, baseCost + amount), `コスト${baseCost + amount}としても扱われる`)
     assert(instHasCost(target, baseCost), "元のコストも残る（“としても”なので置換ではない）")
 }

@@ -249,15 +249,17 @@ const __covEid = (e: unknown): string =>
                 __covRec2C("cont\t" + __covEid2C(effect))
                 return true`,
     )
-    // keywordGrant: 継続付与が成立して true を返す時点
+    // keywordGrant: 継続付与が成立して指定数を返す時点
     // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
+    // （2026-08-09: hasContinuousKeywordGrant が continuousKeywordGrantCount へ実体を移し、
+    //   返り値が true から effect.count ?? 1 に変わったためアンカーを追随させた）
     patch(
         f,
         `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            return true`,
+            return effect.count ?? 1`,
         `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             __covRec2("cont\t" + __covEid(effect))
-            return true`,
+            return effect.count ?? 1`,
     )
     // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
     // isUntargetableByOpponent が直接 effects を走査する。ここを入れないと
@@ -623,15 +625,15 @@ process.on("exit", () => {
         patch(
             em,
             // ※ 2026-08-08: lentOnly（BS06デモリッシュ＝貸与時のみ有効）の判定が間に入った
+            // ※ 2026-08-09: 加算式に amountPerSymbolColor（BS08オリハルコン・ゴレム）の分岐が入ったため、
+            //    アンカーを絞り込み側の3行だけにして加算式そのものを含めないようにした
+            `            if (effect.kind !== "funsaiBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue`,
             `            if (effect.kind !== "funsaiBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount`,
-            `            if (effect.kind !== "funsaiBonus") continue
-            if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            total += effect.amount`,
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
         // keyword「粉砕」: resolveFunsai で粉砕保持が確定した時点。
         // 2026-07-31: 判定が静的 hasKeyword から状態対応の spiritHasKeyword へ変わったため
