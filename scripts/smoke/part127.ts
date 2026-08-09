@@ -69,7 +69,11 @@ console.log("=== カードデータの機械確認（cardIdのズレ検出） ==
     }
     assert(hasKeyword("BS06-015", "jugeki"), "ストレイソウルは【呪撃】を持つ")
     assert(hasKeyword("BS06-019", "jugeki"), "冥楽士ムールは【呪撃】を持つ")
-    assert(getCard("BS06-098").effects.length === 0, "カウンターカースは未実装（effects空）")
+    // カウンターカースは 2026-08-10 に実装した（kind:"jugekiOnBlockReplace"。挙動は part152 で検証）
+    assert(
+        getCard("BS06-098").effects.some((e) => e.kind === "jugekiOnBlockReplace"),
+        "カウンターカースは【呪撃】の発揮タイミングを差し替える",
+    )
 }
 
 console.log("=== BS06-014 スモッグゴート：leaveAtLeast=1（コア1個の相手からは取れない） ===")

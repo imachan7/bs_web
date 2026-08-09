@@ -469,6 +469,7 @@ export type GlobalConstraintDef =
     | { type: "noSummonTriggerByCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす。BS08共鳴する音叉の塔：コスト4以下）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（**カード静的なコスト**で判定＝軽減前の値。使用コスト計算の共通経路で軽減分を0にする。BS08超時空重力炉：コスト3以下）
     | { type: "coreFloorByCost" } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない（removeCores/removeCoresToTrash/removeCoresToVoidの共通処理で判定。**簡略化**：coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、コアを直接操作する範囲効果はこの下限を尊重しない。BS08聖なる柱状彫刻）
+    | { type: "noDeckMillByOpponent"; whileSourceDeployedTurnOnly?: true } // 相手の効果では、**この発生源の持ち主**のデッキは破棄されない（millDeck の冒頭で判定。他の globalConstraint と違い両陣営ではなく持ち主だけを守る＝millCap と同じ向き）。whileSourceDeployedTurnOnly指定時は、発生源が このターンに場へ出た（summonedTurn === state.turn）ときのみ有効（BS08鳳翼の聖剣「このネクサスが配置されたターンの間」）。自分自身の効果・コスト支払いによる破棄は止めない（millCap と同じ範囲）
     | { type: "noDrawOutsideDrawStep" } // お互い、ドローステップ以外でドローできない（GameState.drawの共通経路冒頭で判定。ドローステップ自身はfromDrawStep引数で除外する。BS08豚人チョウハッカイ）
     | { type: "summonLimitByCostForOpponent"; maxCost: number; limit: number } // 発生源の持ち主から見た**相手**は、コストがmaxCost以下のスピリットをターンにlimit体までしか召喚できない（RuleValidator.validateSummonが、相手フィールドのCardInstance.summonedTurnで自分のこのターンの該当召喚数を数えて判定。神速召喚も対象。BS08夢想法師サンゾール：コスト4以下は1体まで）
 
@@ -639,6 +640,16 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "freeSummonFromHandOnLifeDamaged" // **手札にあるこのカード自身**の効果。持ち主のライフが
+          // 相手によって減らされたとき、コストを支払わずに召喚できる（「できる」＝任意）。
+          // 場やトラッシュではなく手札のカードが発揮する唯一の形なので、fireFieldEventTriggers ではなく
+          // GameEngine の ownLifeDamaged 発火点が持ち主の手札を走査して拾う。
+          // 実対戦では確認を出し（PendingChoice.handFreeSummon）、非対話では自動で召喚する。BS08猫娘アニー
+          levels: null // 手札のカードにレベルは無いので常に null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 『相手のアタックステップ』等の限定
+      }
+    | {
+          id: string
           kind: "handKeywordGrant" // 発生源が場にありレベル有効の間、持ち主の**手札**にある条件一致のカードにキーワードを与える。tempHandKeywordGrants（ターン限定の一時付与）と違い、手札には書き込まず判定時に場の発生源を見る。shared/rules.hasHandKeywordGrant が RuleValidator とクライアント表示の双方から呼ばれる（BS02緑芽吹く原野Lv2＝手札の「怪虫」に【神速】）
           levels: number[] | null
           keyword: Keyword
@@ -697,6 +708,10 @@ export type EffectDef =
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
           vanillaOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
+          byOpponentEffectOnly?: true // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果で破壊されたときのみ発火（BS07の各色ネクサス6枚）。
+          // destroyNexus に渡された DestroyContext で判定する（sourceType があり＝効果による破壊、かつ sourcePid が持ち主と異なる）。
+          // 発生源不明（context 省略＝テストや将来の経路）のときは**発火しない**側に倒す：
+          // 「相手の効果で」という限定を、文脈が分からないときに緩める方が誤りが大きいため
           condition?:
               | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上のときのみ発火（花の子リップ）
               | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（instHasColor判定。修理屋バラン・バラン）
@@ -725,6 +740,23 @@ export type EffectDef =
           ownOnly?: true // event: "anySpiritAttacked" 限定：発生源の持ち主のスピリットがアタックしたときのみ発火（selfOverride.pid === 発生源の持ち主。BS06冥騎士アンドラー／冥府の深淵）
           excludeSelfAsEventTarget?: true // イベント対象（selfOverride）が発生源自身（inst）のときは発火しない（「[カード名]以外の」の除外。BS06鉄拳のカクタスガルー：自分自身がライフを減らしても回復しない）
           optional?: true // 「〜できる」＝任意。interactiveTargets では発動確認を出す（triggered/step/battleWonのoptionalと同じ扱い。BS08聖なる柱状彫刻Lv2：自分のライフが減らされたとき、〜召喚できる）
+      }
+    | {
+          id: string
+          kind: "milledMagicToTegamoto" // 発生源が場にありレベル有効の間、持ち主のデッキが**相手の効果で**破棄されるとき、
+          // その中のマジックカードすべてをトラッシュではなく手元(tegamoto)へ置き、以後は手札同様に使用できるようにする
+          // （PlayerState.tegamotoPlayable に記録するので、**このネクサスが場を離れても使用権は残る**＝「ゲーム終了時まで」）。
+          // millDeck が onMilledFromDeck の解決後に処理する（カード自身の効果の方が優先）。BS06混迷する魔法実験場Lv2
+          levels: number[] | null
+      }
+    | {
+          id: string
+          kind: "onMilledFromDeck" // **このカード自身が**デッキから破棄されたときに発揮する（手札・フィールドからの破棄は対象外）。
+          // millDeck が、破棄したカードのマスターデータを1枚ずつ見て発火させる。トラッシュへ入れた直後に
+          // そこから取り除いて解決するため、破棄されたカードはトラッシュに残らない
+          levels: null // デッキのカードにレベルは無いので常に null
+          by: "opponentEffect" | "opponentSpiritEffect" // 破棄の発生源の限定。opponentSpiritEffect は「相手の**スピリット**の効果で」（BS08鳳翼の聖剣）
+          then: "castThisMagicFree" | "deployThisNexusFree" // castThisMagicFree=このマジックの効果をコストを支払わず即時に発揮（BS06ディスコンティニュー）／deployThisNexusFree=このネクサスをコストを支払わず配置（BS08鳳翼の聖剣）
       }
     | {
           id: string
@@ -847,6 +879,11 @@ export type EffectDef =
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊／無法者の荒野／深緑の樹海／子供部屋 午前0時）
           levels: number[] | null
           scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          optional?: true // 効果文が「〜できる」＝任意のとき指定する。実対戦（interactiveTargets）では
+          // **破壊をいったん見送って場に残したまま**保留し、アクションが一段落した安全な地点で持ち主に確認する
+          // （GameState.pendingReviveConfirms → PendingChoice.reviveConfirm）。承認でコスト支払い＋復活が確定し、
+          // 断ればその場で破壊する。非対話（テスト・自動解決）では従来どおり即時に確定させる。
+          // 省略時は「必ず戻る」＝任意ではない効果（BS05プリンセス・スノーホワイトLv2-3）
           vanillaFilter?: true // scope:"ownAll" 用：カードに効果の記述を持たない（バニラ）スピリットのみ対象
           colorFilter?: Color // scope:"ownAll" 用：この色を持つスピリットのみ対象（instHasColorで判定。BS06夢中漂う桃幻郷Lv2＝黄）
           keywordFilter?: Keyword // scope:"ownAll" 用：このキーワードエントリを静的に持つカードのみ対象（vanillaFilterと同列。tempKeywords等の一時付与は見ない。果て無き地平線）
@@ -1122,6 +1159,16 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "jugekiOnBlockReplace" // 持ち主のスピリットの【呪撃】の発揮タイミングを『このスピリットのブロック時』へ**差し替える**
+          // （funsaiOnBlock 等の「にも発揮される」＝追加とは違い、アタック時には発揮されなくなる）。
+          // 差し替えが有効な側では、ブロッカーが持つ【呪撃】がバトルした相手（＝アタッカー）を
+          // バトル終了時に破壊し、アタッカー側の【呪撃】は発揮しない。
+          // GameEngine.resolveBattle の【呪撃】解決点が hasJugekiOnBlockReplace で参照する。BS06カウンターカース
+          levels: number[] | null
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味
+      }
+    | {
+          id: string
           kind: "flashLockWhileAttackingFamily" // 発生源が場にある間、その持ち主の familyFilter 一致スピリットがアタックしている間だけ、相手はフラッシュで手札のカードを使用できない（既存の action "lockFlash" が「このバトルの間」なのに対し、こちらは発生源が居る間ずっと効く継続効果。マジックは lendSelfThisTurn で1ターン貸す。BS07ウィリアンスラッシュ）
           levels: number[] | null
           familyFilter: FamilyFilter
@@ -1213,6 +1260,7 @@ export type EffectDef =
           scope?: "allMagicHandAndTegamoto" // 色を問わず、持ち主の手札/手元(tegamoto)のマジックカードすべてを無償化（大天使ミカファールLv2。手札からの使用にも適用される＝effectiveCostはfromTegamoto不問で判定）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           condition?: "selfInBattle" // 指定時、発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）であるときのみ有効（『このスピリットのバトル時』。BS07大天使イスフィール）
+          oncePerBattle?: true // 指定時、この発生源が無償化できるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBattleMagicFreeUsed で消費を記録。BS07大天使イスフィール＝「マジックカード1枚を」。省略時は枚数無制限＝BS02ミカファール/BS03バロッサの「すべて」）
       }
     | {
           id: string
@@ -1220,6 +1268,7 @@ export type EffectDef =
           // （resolveMagicEffects が効果の並びを2周する。2周目の途中で選択待ちになった場合はそこで打ち切る。BS07大天使イスフィール）
           levels: number[] | null
           condition?: "selfInBattle" // magicFreeGrant と同じ（『このスピリットのバトル時』）
+          oncePerBattle?: true // 指定時、この発生源が再発揮させるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBattleMagicRepeatUsed で消費を記録。BS07大天使イスフィール＝「1枚を…もう1度だけ」）
       }
     | {
           id: string
@@ -1319,6 +1368,12 @@ export interface PlayerState {
     hand: string[]
     trashCards: string[]
     tegamoto: string[] // 公開ゾーン「手元」（cardId配列）。マジックブックの手元配置・ミカファールLv2の無償使用対象・エクリアの破壊効果が参照する。公開ゾーンのためviewForは両者分をそのまま配信する
+    // 手元のカードのうち「手札にあるときと同様に使用できる」ものの cardId 多重集合
+    // （BS06混迷する魔法実験場Lv2 が相手の効果によるデッキ破棄から手元へ置いたぶん）。
+    // **tegamoto の並びとは独立に持つ**：同じ cardId ならどれを使っても同じなので、
+    // 並び替えやインデックスのズレに強い。使用・破棄のたびに1件ずつ取り除く。
+    // マジックブックが置いたカードはここに入らない（あちらはミカファールLv2の無償化がないと使えない）
+    tegamotoPlayable: string[]
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]
@@ -1337,6 +1392,13 @@ export interface BattleState {
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     compareByCores?: boolean // trueの場合、バトル解決時にBPの代わりに置かれているコアの数を比較する（BS06イマジンフィールド）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
+    // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
+    // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
+    // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
+    // 再発揮は resolveMagicEffects が repeat を確定させる時点。1つのリストにすると、
+    // 1枚目の無償化を記録した時点で同じ1枚目の再発揮まで消えてしまう
+    oncePerBattleMagicFreeUsed?: string[]
+    oncePerBattleMagicRepeatUsed?: string[]
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
@@ -1366,6 +1428,31 @@ export interface PendingChoice {
         timing: "main" | "flash"
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
+    }
+    handFreeSummon?: {
+        // 手札のカード自身による無償召喚（kind:"freeSummonFromHandOnLifeDamaged"）の確認待ち。
+        // **action は解決しない**。選べば手札のそのカードをコストを支払わず召喚する
+        pid: PlayerId
+        cardId: string
+    }
+    reviveConfirm?: {
+        // 「破壊される代わりに復活できる」の確認待ち。magicNegate と同じく **action は解決しない**。
+        // 選べばコストを払って復活が確定し、選ばなければその場で破壊する
+        pid: PlayerId
+        instanceId: string
+        effectId: string
+        sourceInstanceId: string
+        context?: DestroyContext
+    }
+    magicRedirect?: {
+        // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
+        // 選べば GameState.magicRedirectDecision に承認を記録してからマジックの解決へ進み、
+        // 選ばなければ拒否を記録して同じく解決へ進む（どちらも doResolveChoice が resolveMagicEffects を呼ぶ）
+        casterPid: PlayerId
+        cardId: string
+        timing: "main" | "flash"
+        targetInstanceId: string | undefined
+        sourceInstanceId: string // 絞り込み先＝確認を出す側の発生源
     }
     action: EffectAction // 選択後に resolveAction する本体
     actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
@@ -1400,6 +1487,10 @@ export interface GameState {
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 「デッキを上からN枚オープンする」の公開ゾーン（両者に見える一時領域）。
     // deckReveal が積み、手札に加える／デッキの下に戻す処理が終わったら消す。cardZone:"reveal" の選択元になる
     magicRedirectTo?: { pid: PlayerId; instanceId: string } // 解決中のマジックの対象が1体へ絞り込まれている間だけ立つ（kind:"magicTargetRedirect"。この pid のスピリットのうち instanceId 以外は、そのマジックの効果を受けない）。resolveMagic が解決の前後で設定・解除する
+    // 「そのマジックの効果の対象を、このスピリットのみに**できる**」の任意性（BS04サンク／BS05スノーホワイト）。
+    // 対話モードでは resolveMagic が守る側に1回だけ確認し、その答えをこのマジックの解決中ずっと使う
+    // （アクションごとに聞き直さない）。**非対話（テスト・自動解決）ではセットされず、従来どおり自動で絞り込む**
+    magicRedirectDecision?: { sourceInstanceId: string; approved: boolean }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
@@ -1408,6 +1499,17 @@ export interface GameState {
     lastBattleDestroyedBp: number // 同上の実効BP（破壊直前に測る。0=まだ発生していない。TargetFilter.sameBpAsBattleLoser が参照。BS03熾烈極める最前線Lv2）
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    // 「破壊される代わりに復活**できる**」（reviveOnDestroy.optional）の確認待ち行列。
+    // 破壊処理の途中では中断できない（destroySpirit の呼び出しはループの中にあり、
+    // pendingChoice の queue は EffectAction の列しか運べない）ため、いったん破壊を見送って
+    // ここへ積み、handleAction の末尾＝安全な地点で1件ずつ確認する
+    pendingReviveConfirms?: {
+        pid: PlayerId
+        instanceId: string
+        effectId: string // 適用する reviveOnDestroy エントリのid（承認時にコスト・復活先を再解決する）
+        sourceInstanceId: string // 発生源（oncePerTurn の記録先。scope:"self" なら対象自身）
+        context?: DestroyContext // 断ったときに破壊し直すための文脈
+    }[]
     turnStartResumeStep: number | null // ターン開始処理（start→core→draw→refresh→main）がステップ誘発のpendingChoiceで中断したときの再開ステップ番号。null=中断なし。選択解決後に resumeTurnStart が続きから再開する（百識の谷Lv1のドローステップ破棄選択など）
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）

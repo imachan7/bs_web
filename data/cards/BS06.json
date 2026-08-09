@@ -4940,6 +4940,13 @@
     ],
     "target": "ownAll",
     "amountBonus": 2000
+   },
+   {
+    "id": "BS06-085-e2",
+    "kind": "milledMagicToTegamoto",
+    "levels": [
+     2
+    ]
    }
   ]
  },
@@ -5571,7 +5578,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリットすべての【呪撃】の効果を“【呪撃】『このスピリットのブロック時』このスピリットは、バトルした相手のスピリット1体をバトル終了時に破壊する”に変更する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS06-098-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-098-e2",
+    "kind": "jugekiOnBlockReplace",
+    "levels": null,
+    "lentOnly": true
+   }
+  ]
  },
  {
   "cardId": "BS06-099",
@@ -5938,7 +5960,31 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のデッキは破棄されない。\nこのマジックカードが相手のスピリット/ネクサス/マジックの効果で自分のデッキから破棄されたとき、この効果はコストを支払わずに即時に発揮される。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS06-108-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-108-e2",
+    "kind": "globalConstraint",
+    "levels": null,
+    "constraint": {
+     "type": "noDeckMillByOpponent"
+    }
+   },
+   {
+    "id": "BS06-108-e3",
+    "kind": "onMilledFromDeck",
+    "levels": null,
+    "by": "opponentEffect",
+    "then": "castThisMagicFree"
+   }
+  ]
  },
  {
   "cardId": "BS06-109",

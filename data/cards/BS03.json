@@ -5788,7 +5788,8 @@
     },
     "cost": {
      "reserveOneToTrash": true
-    }
+    },
+    "optional": true
    }
   ]
  },

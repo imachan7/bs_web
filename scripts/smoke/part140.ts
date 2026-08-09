@@ -150,7 +150,9 @@ console.log("=== BS07 緑：ネクサス破壊で、選んだ色の「相手だ�
     const enemyA = put(s, "p2", carrier.cardId, 1)
     const enemyB = put(s, "p2", carrier.cardId, 1)
     const mine = put(s, "p1", carrier.cardId, 1)
-    destroyNexus(s, "p1", victimNexus.instanceId)
+    // 発生源つきで破壊する：この誘発は「**相手の**スピリット/ネクサス/マジックの効果で
+    // 破壊されたとき」限定（byOpponentEffectOnly）なので、相手(p2)の効果として渡す
+    destroyNexus(s, "p1", victimNexus.instanceId, { sourcePid: "p2", sourceType: "magic" })
     assert(enemyA.isRested && enemyB.isRested, `色「${color}」の相手スピリットがすべて疲労する`)
     assert(!mine.isRested, "対照実験：同じ色でも自分のスピリットは疲労しない（side:opponent）")
 }

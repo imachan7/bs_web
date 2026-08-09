@@ -3581,7 +3581,8 @@
      "filter": {
       "maxBp": 3000
      }
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-056-e2",
@@ -3650,7 +3651,8 @@
      "allTargets": true,
      "count": 1,
      "dest": "trash"
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-057-e2",
@@ -3782,7 +3784,8 @@
     "action": {
      "type": "exhaustAllByColor",
      "side": "opponent"
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-059-e2",
@@ -3990,7 +3993,8 @@
     "action": {
      "type": "returnToDeckTop",
      "count": 3
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-062-e2",
@@ -4055,7 +4059,8 @@
      "type": "lifeCharge",
      "count": 1,
      "from": "void"
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-063-e2",
@@ -4260,7 +4265,8 @@
        "max": 3
       }
      }
-    }
+    },
+    "byOpponentEffectOnly": true
    },
    {
     "id": "BS07-066-e2",
@@ -5296,7 +5302,8 @@
      3
     ],
     "scope": "allMagicHandAndTegamoto",
-    "condition": "selfInBattle"
+    "condition": "selfInBattle",
+    "oncePerBattle": true
    },
    {
     "id": "BS07-X27-e2",
@@ -5306,7 +5313,8 @@
      2,
      3
     ],
-    "condition": "selfInBattle"
+    "condition": "selfInBattle",
+    "oncePerBattle": true
    },
    {
     "id": "BS07-X27-e3",

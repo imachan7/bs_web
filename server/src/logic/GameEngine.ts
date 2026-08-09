@@ -25,6 +25,11 @@ import {
     exhaustSpirit,
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
+    applyMagicRedirectChoice,
+    applyHandFreeSummon,
+    applyReviveConfirm,
+    declineReviveConfirm,
+    tryHandFreeSummonOnLifeDamaged,
     battleBp,
     bofuCountFor,
     declineMagicNegateChoice,
@@ -36,6 +41,7 @@ import {
     hasArmorAgainst,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
+    hasJugekiOnBlockReplace,
     hasBofuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
@@ -92,7 +98,39 @@ export function handleAction(
     // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で必ず落とす
     // （選択を挟んで中断した召喚時効果も、解決しきったここでクリアされる）
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+    // 「破壊される代わりに復活できる」の確認は、破壊処理の途中では中断できないので
+    // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
+    // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
+    requestPendingReviveConfirm(state)
     return result
+}
+
+// 保留していた復活の確認を1件だけ pendingChoice として立てる。
+// 対象が場から居なくなっていた項目は捨てる（確認を出すまでの間に別の効果で消えた場合）
+function requestPendingReviveConfirm(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    const queue = state.pendingReviveConfirms
+    if (!queue || queue.length === 0) return
+    while (queue.length > 0) {
+        const entry = queue.shift()!
+        const inst = state.players[entry.pid].field.spirits.find((s) => s.instanceId === entry.instanceId)
+        if (!inst) continue
+        state.pendingChoice = {
+            pid: entry.pid,
+            kind: "option",
+            prompt: `${getCard(inst.cardId).name}：破壊される代わりに復活させますか？`,
+            candidates: [],
+            options: ["復活させる"],
+            optional: true,
+            confirm: true,
+            reviveConfirm: entry,
+            action: { type: "noop" },
+            selfInstanceId: entry.instanceId,
+            queue: [],
+        }
+        return
+    }
+    if (queue.length === 0) delete state.pendingReviveConfirms
 }
 
 // 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
@@ -433,6 +471,10 @@ function doCastMagic(
     payCost(state, pid, cost, paySources)
     if (fromTegamoto) {
         player.tegamoto.splice(handIndex, 1)
+        // 手元の使用権（BS06混迷する魔法実験場Lv2）も1件ぶん消費する。
+        // cardId の多重集合として持っているので、同名が複数あってもどれを消しても等価
+        const playableIdx = player.tegamotoPlayable.indexOf(cardId)
+        if (playableIdx !== -1) player.tegamotoPlayable.splice(playableIdx, 1)
     } else {
         player.hand.splice(handIndex, 1)
     }
@@ -832,6 +874,9 @@ function resolveLifeDamage(state: GameState): void {
         // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
         // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
         fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
+        // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
+        tryHandFreeSummonOnLifeDamaged(state, defenderPid)
     }
     // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
@@ -926,6 +971,57 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 手札からの無償召喚の確認（BS08猫娘アニー）。action は解決しない
+    if (pending.handFreeSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.handFreeSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyHandFreeSummon(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}：手札から召喚しなかった。`)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 「破壊される代わりに復活できる」の確認。action は解決せず、
+    // 選べばコストを払って復活が確定し、選ばなければ見送っていた破壊をここで行う
+    if (pending.reviveConfirm) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.reviveConfirm
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyReviveConfirm(state, entry)
+        } else {
+            declineReviveConfirm(state, entry)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
+    // 承認・拒否のどちらでも中断していたマジックの解決を続ける（絞り込むかだけが変わる）
+    if (pending.magicRedirect) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.magicRedirect
+        state.pendingChoice = null
+        if (option === undefined) {
+            const source = findInstanceAnywhere(state, info.sourceInstanceId)
+            const name = source ? getCard(source.cardId).name : "効果"
+            log(state, `${name}：${getCard(info.cardId).name}の対象を絞り込まなかった。`)
+        }
+        applyMagicRedirectChoice(state, info, option !== undefined)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid, pending.queue)
     }
@@ -1232,12 +1328,14 @@ function resolveBattle(state: GameState): void {
     // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
     // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
     // destroySpirit 後も cardId・cores は読み取れる）。
-    const hasJugeki = getCard(attacker.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "jugeki" &&
-            effectActiveAtLevel(e.levels, attackerLevel),
-    )
+    const staticJugeki = (cardId: string, level: number): boolean =>
+        getCard(cardId).effects.some(
+            (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
+        )
+    // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
+    // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
+    const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
+    const hasJugeki = staticJugeki(attacker.cardId, attackerLevel) && !attackerJugekiReplaced
     if (hasJugeki) {
         const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
         if (stillOnField) {
@@ -1257,6 +1355,29 @@ function resolveBattle(state: GameState): void {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
                     battle: { attackerColors, attackerLevel },
+                })
+            }
+        }
+    }
+
+    // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
+    // バトルした相手（＝アタッカー）をバトル終了時に破壊する
+    if (hasJugekiOnBlockReplace(state, defenderPid) && staticJugeki(blocker.cardId, blockerLevel)) {
+        const attackerStill = findSpirit(state.players[attackerPid], attacker.instanceId)
+        if (attackerStill) {
+            const blockerColors = instColors(blocker)
+            if (hasArmorAgainst(attackerStill, blockerColors)) {
+                log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
+            } else {
+                log(
+                    state,
+                    `${getCard(blocker.cardId).name}の【呪撃】（ブロック時）：${getCard(attacker.cardId).name}を破壊した。`,
+                )
+                applyJugekiCoreToVoid(state, defenderPid, attackerPid, attackerStill)
+                destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+                    sourcePid: defenderPid,
+                    sourceType: "spirit",
+                    battle: { attackerColors: blockerColors, attackerLevel: blockerLevel },
                 })
             }
         }

@@ -202,12 +202,28 @@ export function hasMagicFreeGrant(
     cardData: CardData,
     requireTegamotoScope = false,
 ): boolean {
+    return findMagicFreeGrantSource(board, pid, cardData, requireTegamotoScope) !== null
+}
+
+// hasMagicFreeGrant の実体。無償化を成立させている**発生源のinstanceId**を返す（無ければ null）。
+// oncePerBattle の消費を記録する側（EffectModules.consumeOncePerBattleMagicFree）が、
+// 同じ絞り込みを二重に書かずに済むよう分けてある
+export function findMagicFreeGrantSource(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+    requireTegamotoScope = false,
+): string | null {
     const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "magicFreeGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // oncePerBattle（BS07大天使イスフィール）：このバトルで既に1枚使っていれば、もう無償にしない
+            if (effect.oncePerBattle && board.battle?.oncePerBattleMagicFreeUsed?.includes(source.instanceId)) {
+                continue
+            }
             const isAllScope = effect.scope === "allMagicHandAndTegamoto"
             if (requireTegamotoScope) {
                 if (!isAllScope) continue
@@ -221,10 +237,10 @@ export function hasMagicFreeGrant(
             }
             // 『このスピリットのバトル時』（BS07大天使イスフィール）：発生源自身がバトルの当事者のときだけ
             if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
-            return true
+            return source.instanceId
         }
     }
-    return false
+    return null
 }
 
 // 発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）か。

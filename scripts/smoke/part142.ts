@@ -320,7 +320,9 @@ console.log("=== BS07 白：ネクサス破壊で相手のスピリット3体を
     const victimNexus = putNexus(s, "p1", CARDS.find((c) => c.type === "nexus" && c.cardId !== necklace.cardId)!.cardId, 0)
     for (let i = 0; i < count + 1; i++) put(s, "p2", FILLER.cardId, 1)
     const deckBefore = s.players.p2.deck.length
-    destroyNexus(s, "p1", victimNexus.instanceId)
+    // 発生源つきで破壊する：この誘発は「**相手の**スピリット/ネクサス/マジックの効果で
+    // 破壊されたとき」限定（byOpponentEffectOnly）なので、相手(p2)の効果として渡す
+    destroyNexus(s, "p1", victimNexus.instanceId, { sourcePid: "p2", sourceType: "magic" })
     assert(
         s.players.p2.field.spirits.length === 1,
         `相手のスピリット${count}体がデッキへ戻る（残り${s.players.p2.field.spirits.length}体）`,
@@ -361,4 +363,59 @@ console.log("=== BS07 白：ブロックしたスピリットのコアを自分�
         s.players.p1.life === lifeBefore + 1 && blocker.cores === coresBefore - 1,
         `ブロックしたスピリットのコア1個が自分のライフへ（ライフ${lifeBefore}→${s.players.p1.life} / コア${coresBefore}→${blocker.cores}）`,
     )
+}
+
+console.log("=== BS07の各色ネクサス：fieldEvent.byOpponentEffectOnly（自分の効果で壊しても発揮しない） ===")
+{
+    // 2026-08-10 修正: 効果文は「自分のネクサスが、**相手の**スピリット/ネクサス/マジックの効果で
+    // 破壊されたとき」だが、以前は破壊の発生源を問わず発火していた（自壊させるコンボが成立した）。
+    // 第七弾の各色ネクサス6枚が同じ形なので、データから全部引いて同じ観点で回す
+    const guarded = CARDS.filter((c) =>
+        (c.effects ?? []).some(
+            (e) => e["kind"] === "fieldEvent" && e["event"] === "ownNexusDestroyed" && e["byOpponentEffectOnly"] === true,
+        ),
+    )
+    assert(guarded.length === 6, `byOpponentEffectOnly を持つネクサスは6枚（実際は${guarded.length}枚）`)
+
+    // 観測しやすい1枚（ライフが増えるもの）で、発生源の違いによる発火の有無を見る
+    const garden = guarded.find((c) =>
+        (c.effects ?? []).some(
+            (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "lifeCharge",
+        ),
+    )!
+    const spareNexus = CARDS.find(
+        (c) =>
+        c.type === "nexus" &&
+        c.cardId !== garden.cardId &&
+        // 効果を持たないネクサスは存在しないので、**盤面に干渉する kind を持たない**もので代用する
+        !(c.effects ?? []).some((e) =>
+            ["fieldEvent", "globalConstraint", "step", "triggered", "onMilledFromDeck", "constraintGrant"].includes(
+                String(e["kind"]),
+            ),
+        ),
+    )!
+
+    // ① 相手の効果で壊された → 発揮する
+    const s1 = base("nexus-destroyed-by-opponent")
+    putNexus(s1, "p1", garden.cardId, 0)
+    const victim1 = putNexus(s1, "p1", spareNexus.cardId, 0)
+    const life1 = s1.players.p1.life
+    destroyNexus(s1, "p1", victim1.instanceId, { sourcePid: "p2", sourceType: "magic" })
+    assert(s1.players.p1.life === life1 + 1, "相手のマジックの効果で壊されたときは発揮する")
+
+    // ② 自分の効果で壊した → 発揮しない
+    const s2 = base("nexus-destroyed-by-self")
+    putNexus(s2, "p1", garden.cardId, 0)
+    const victim2 = putNexus(s2, "p1", spareNexus.cardId, 0)
+    const life2 = s2.players.p1.life
+    destroyNexus(s2, "p1", victim2.instanceId, { sourcePid: "p1", sourceType: "spirit" })
+    assert(s2.players.p1.life === life2, "自分の効果で自分のネクサスを壊しても発揮しない")
+
+    // ③ 発生源が分からない破壊 → 発揮しない（「相手の効果で」という限定を緩めない側に倒す）
+    const s3 = base("nexus-destroyed-unknown-source")
+    putNexus(s3, "p1", garden.cardId, 0)
+    const victim3 = putNexus(s3, "p1", spareNexus.cardId, 0)
+    const life3 = s3.players.p1.life
+    destroyNexus(s3, "p1", victim3.instanceId)
+    assert(s3.players.p1.life === life3, "発生源が渡されない破壊では発揮しない")
 }

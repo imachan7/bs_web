@@ -444,7 +444,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
             // destroyNexus自体が成否のログを出す（破壊耐性で不発の場合あり）。
             // 不発ならコストを支払えなかったとして召喚もしない
-            if (!destroyNexus(state, owner, victim.instanceId)) {
+            if (!destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
                 log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
                 return
             }

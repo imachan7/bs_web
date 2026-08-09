@@ -812,7 +812,7 @@ const trashCoresToKeywordSpiritHandler: ActionHandler<"trashCoresToKeywordSpirit
 }
 
 const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
         // BS05マジックスパナ：familyFilter一致の自分のスピリット1体のコアすべてをボイドに置き、
         // そのスピリットのコストと同じ枚数だけ相手のデッキをトラッシュへ送る
         const player = state.players[owner]
@@ -854,7 +854,7 @@ const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (
         if (voided < minLevelCores(getCard(target.cardId))) {
             destroySpirit(state, owner, target.instanceId, "deplete")
         }
-        millDeck(state, opp, cost, owner)
+        millDeck(state, opp, cost, owner, srcType ? { sourceType: srcType } : undefined)
         return
 }
 
