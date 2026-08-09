@@ -25,7 +25,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { dumpAllCoresTensho, resolveMagic } from "../../server/src/logic/EffectModules"
+import { dumpAllCoresTensho, fireSummonTrigger, fireTrigger, resolveMagic } from "../../server/src/logic/EffectModules"
 import { canBlock } from "../../shared/block"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -288,4 +288,59 @@ console.log("=== BS08ロイヤルストレートフラッシュ：magic.conditio
     resolveMagic(s, "p1", "BS08-081", "main")
     assert(s.players.p2.field.spirits.length === 1, "5枚が揃っていないとき：メイン効果は発動しない")
     assert(s.players.p2.field.nexuses.length === 1, "5枚が揃っていないとき：ネクサスも破壊されない")
+}
+
+// ---- 誘発経由の確認（2026-08-09 の実行時カバレッジで見つかった穴） ----
+//
+// 上の各テストは resolveAction を直接叩いており、**カードデータ側の記述**
+// （trigger 名・levels・action の引数）を一度も通していなかった。
+// たとえば trigger を "onAttack" でなく "onSummon" と書き間違えても、上のテストは
+// 全緑のまま通ってしまう。ここでは実インスタンスの誘発として発火させる。
+console.log("=== BS08勇者フェニックスペンタン／堕天使ミカファール：カードデータの誘発記述を通す ===")
+{
+    // ID のハードコードに対する保険（過去に cardId が全面的にズレた事故があるため）
+    assert(getCard("BS08-045").name === "勇者フェニックスペンタン", "BS08-045 は勇者フェニックスペンタン")
+    assert(getCard("BS08-X33").name === "堕天使ミカファール", "BS08-X33 は堕天使ミカファール")
+    assert(getCard("BS02-058").name === "ペンタン", "BS02-058 はペンタン")
+    assert(getCard("BS08-079").name === "キャッツアイ", "BS08-079 はキャッツアイ（黄のマジック）")
+}
+{
+    const s = base("phoenixpentan-trigger-onattack")
+    const pentan = put(s, "p1", "BS08-045", 3) // Lv2：e2 の levels に入る
+    pentan.isRested = true
+    put(s, "p1", "BS02-058", 1)
+    fireTrigger(s, "p1", pentan, "onAttack")
+    assert(!pentan.isRested, "『このスピリットのアタック時』の誘発として回復する")
+    assert(s.players.p1.deck[0] === "BS02-058", "[ペンタン]がデッキの一番上に戻る")
+}
+{
+    const s = base("phoenixpentan-trigger-level1")
+    const pentan = put(s, "p1", "BS08-045", 1) // Lv1：e2 の levels [2,3] に入らない
+    pentan.isRested = true
+    put(s, "p1", "BS02-058", 1)
+    fireTrigger(s, "p1", pentan, "onAttack")
+    assert(pentan.isRested, "Lv1では発揮しない（levels の指定が効いている）")
+}
+{
+    const s = base("mikafael-trigger-onsummon")
+    const mika = put(s, "p1", "BS08-X33", 1)
+    s.players.p1.hand = ["BS01-001", "BS01-002"]
+    const deckBefore = s.players.p1.deck.length
+    fireSummonTrigger(s, "p1", mika)
+    assert(s.players.p1.hand.length === 2, "『召喚時』の誘発として、破棄した枚数ぶん引き直す")
+    assert(s.players.p1.deck.length === deckBefore - 2, "デッキが破棄した枚数ぶん減る")
+}
+{
+    const s = base("mikafael-trigger-onattack")
+    // 使用されるキャッツアイの levelOverrideTarget は、対象未指定のとき
+    // **持ち主のフィールドの先頭**を自動選択する（非対話モードのフォールバック）。
+    // ミカファールより先に置いて、どちらが選ばれるかを決定的にする
+    const target = put(s, "p1", "BS01-005", 3)
+    const mika = put(s, "p1", "BS08-X33", 2) // Lv2：e2 の levels に入る
+    s.players.p1.trashCards.push("BS08-079")
+    const reserveBefore = s.players.p1.reserve
+    fireTrigger(s, "p1", mika, "onAttack")
+    // 支払い額はカード静的なコストではなく**軽減後**（自分の黄シンボルぶん減る）
+    assert(s.players.p1.reserve < reserveBefore, "『アタック時』の誘発としてトラッシュのマジックを使用する")
+    assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
 }
