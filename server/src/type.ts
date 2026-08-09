@@ -640,6 +640,16 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "freeSummonFromHandOnLifeDamaged" // **手札にあるこのカード自身**の効果。持ち主のライフが
+          // 相手によって減らされたとき、コストを支払わずに召喚できる（「できる」＝任意）。
+          // 場やトラッシュではなく手札のカードが発揮する唯一の形なので、fireFieldEventTriggers ではなく
+          // GameEngine の ownLifeDamaged 発火点が持ち主の手札を走査して拾う。
+          // 実対戦では確認を出し（PendingChoice.handFreeSummon）、非対話では自動で召喚する。BS08猫娘アニー
+          levels: null // 手札のカードにレベルは無いので常に null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 『相手のアタックステップ』等の限定
+      }
+    | {
+          id: string
           kind: "handKeywordGrant" // 発生源が場にありレベル有効の間、持ち主の**手札**にある条件一致のカードにキーワードを与える。tempHandKeywordGrants（ターン限定の一時付与）と違い、手札には書き込まず判定時に場の発生源を見る。shared/rules.hasHandKeywordGrant が RuleValidator とクライアント表示の双方から呼ばれる（BS02緑芽吹く原野Lv2＝手札の「怪虫」に【神速】）
           levels: number[] | null
           keyword: Keyword
@@ -1149,6 +1159,16 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "jugekiOnBlockReplace" // 持ち主のスピリットの【呪撃】の発揮タイミングを『このスピリットのブロック時』へ**差し替える**
+          // （funsaiOnBlock 等の「にも発揮される」＝追加とは違い、アタック時には発揮されなくなる）。
+          // 差し替えが有効な側では、ブロッカーが持つ【呪撃】がバトルした相手（＝アタッカー）を
+          // バトル終了時に破壊し、アタッカー側の【呪撃】は発揮しない。
+          // GameEngine.resolveBattle の【呪撃】解決点が hasJugekiOnBlockReplace で参照する。BS06カウンターカース
+          levels: number[] | null
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味
+      }
+    | {
+          id: string
           kind: "flashLockWhileAttackingFamily" // 発生源が場にある間、その持ち主の familyFilter 一致スピリットがアタックしている間だけ、相手はフラッシュで手札のカードを使用できない（既存の action "lockFlash" が「このバトルの間」なのに対し、こちらは発生源が居る間ずっと効く継続効果。マジックは lendSelfThisTurn で1ターン貸す。BS07ウィリアンスラッシュ）
           levels: number[] | null
           familyFilter: FamilyFilter
@@ -1408,6 +1428,12 @@ export interface PendingChoice {
         timing: "main" | "flash"
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
+    }
+    handFreeSummon?: {
+        // 手札のカード自身による無償召喚（kind:"freeSummonFromHandOnLifeDamaged"）の確認待ち。
+        // **action は解決しない**。選べば手札のそのカードをコストを支払わず召喚する
+        pid: PlayerId
+        cardId: string
     }
     reviveConfirm?: {
         // 「破壊される代わりに復活できる」の確認待ち。magicNegate と同じく **action は解決しない**。

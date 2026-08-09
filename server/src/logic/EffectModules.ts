@@ -667,6 +667,21 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
+// 持ち主のスピリットの【呪撃】が『ブロック時』へ差し替えられているか（BS06カウンターカース）。
+// hasFunsaiOnBlock と違い**追加ではなく差し替え**なので、これが true の側はアタック時に呪撃を発揮しない。
+// effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含める
+export function hasJugekiOnBlockReplace(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "jugekiOnBlockReplace") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
+        }
+    }
+    return false
+}
+
 // 持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
 // hasFunsaiOnBlock と同型だが、phase 指定（相手のアタックステップ限定）を持つ
 export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
@@ -1618,6 +1633,55 @@ export function destroySpirit(
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
     })
+}
+
+// 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
+// ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
+export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId): void {
+    if (state.pendingChoice || state.winner) return
+    const player = state.players[pid]
+    for (let i = 0; i < player.hand.length; i++) {
+        const cardId = player.hand[i]
+        if (cardId === undefined) continue
+        const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnLifeDamaged")
+        if (!effect || effect.kind !== "freeSummonFromHandOnLifeDamaged") continue
+        if (effect.phaseTurn) {
+            if (state.phase !== effect.phaseTurn.phase) continue
+            if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+            if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+        }
+        // 維持コアを置けないなら召喚できないので、確認自体を出さない
+        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (state.interactiveTargets) {
+            state.pendingChoice = {
+                pid,
+                kind: "option",
+                prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
+                candidates: [],
+                options: ["召喚する"],
+                optional: true,
+                confirm: true,
+                handFreeSummon: { pid, cardId },
+                action: { type: "noop" },
+                selfInstanceId: null,
+                queue: [],
+            }
+            return
+        }
+        summonFreeFromHandIndex(state, pid, getCard(cardId).name, i)
+        return
+    }
+}
+
+// pendingChoice（手札からの無償召喚の確認）で「召喚する」が選ばれたときの後処理。
+// 確認を出したあとに手札から失われていた場合は何もしない
+export function applyHandFreeSummon(
+    state: GameState,
+    info: NonNullable<PendingChoice["handFreeSummon"]>,
+): void {
+    const index = state.players[info.pid].hand.indexOf(info.cardId)
+    if (index === -1) return
+    summonFreeFromHandIndex(state, info.pid, getCard(info.cardId).name, index)
 }
 
 // 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。

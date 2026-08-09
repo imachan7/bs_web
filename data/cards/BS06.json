@@ -5578,7 +5578,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、自分のスピリットすべての【呪撃】の効果を“【呪撃】『このスピリットのブロック時』このスピリットは、バトルした相手のスピリット1体をバトル終了時に破壊する”に変更する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS06-098-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS06-098-e2",
+    "kind": "jugekiOnBlockReplace",
+    "levels": null,
+    "lentOnly": true
+   }
+  ]
  },
  {
   "cardId": "BS06-099",

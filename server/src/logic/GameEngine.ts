@@ -26,8 +26,10 @@ import {
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
+    applyHandFreeSummon,
     applyReviveConfirm,
     declineReviveConfirm,
+    tryHandFreeSummonOnLifeDamaged,
     battleBp,
     bofuCountFor,
     declineMagicNegateChoice,
@@ -39,6 +41,7 @@ import {
     hasArmorAgainst,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
+    hasJugekiOnBlockReplace,
     hasBofuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
@@ -871,6 +874,9 @@ function resolveLifeDamage(state: GameState): void {
         // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
         // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
         fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
+        // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
+        tryHandFreeSummonOnLifeDamaged(state, defenderPid)
     }
     // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
@@ -964,6 +970,22 @@ function doResolveChoice(
         } else {
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 手札からの無償召喚の確認（BS08猫娘アニー）。action は解決しない
+    if (pending.handFreeSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.handFreeSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyHandFreeSummon(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}：手札から召喚しなかった。`)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid, pending.queue)
@@ -1306,12 +1328,14 @@ function resolveBattle(state: GameState): void {
     // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
     // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
     // destroySpirit 後も cardId・cores は読み取れる）。
-    const hasJugeki = getCard(attacker.cardId).effects.some(
-        (e) =>
-            e.kind === "keyword" &&
-            e.keyword === "jugeki" &&
-            effectActiveAtLevel(e.levels, attackerLevel),
-    )
+    const staticJugeki = (cardId: string, level: number): boolean =>
+        getCard(cardId).effects.some(
+            (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
+        )
+    // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
+    // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
+    const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
+    const hasJugeki = staticJugeki(attacker.cardId, attackerLevel) && !attackerJugekiReplaced
     if (hasJugeki) {
         const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
         if (stillOnField) {
@@ -1331,6 +1355,29 @@ function resolveBattle(state: GameState): void {
                     sourcePid: attackerPid,
                     sourceType: "spirit",
                     battle: { attackerColors, attackerLevel },
+                })
+            }
+        }
+    }
+
+    // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
+    // バトルした相手（＝アタッカー）をバトル終了時に破壊する
+    if (hasJugekiOnBlockReplace(state, defenderPid) && staticJugeki(blocker.cardId, blockerLevel)) {
+        const attackerStill = findSpirit(state.players[attackerPid], attacker.instanceId)
+        if (attackerStill) {
+            const blockerColors = instColors(blocker)
+            if (hasArmorAgainst(attackerStill, blockerColors)) {
+                log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
+            } else {
+                log(
+                    state,
+                    `${getCard(blocker.cardId).name}の【呪撃】（ブロック時）：${getCard(attacker.cardId).name}を破壊した。`,
+                )
+                applyJugekiCoreToVoid(state, defenderPid, attackerPid, attackerStill)
+                destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
+                    sourcePid: defenderPid,
+                    sourceType: "spirit",
+                    battle: { attackerColors: blockerColors, attackerLevel: blockerLevel },
                 })
             }
         }
