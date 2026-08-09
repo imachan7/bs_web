@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     applyMagicBuffBonus,
+    bofuCountFor,
     countEffectCounter,
     effectActiveAtLevel,
     effectiveBp,
@@ -164,6 +165,58 @@ const bpBuffAllByArmorColors: ActionHandler<"bpBuffAllByArmorColors"> = (ctx, ac
         log(
             state,
             `${state.players[owner].name}の【装甲】を持つスピリット${count}体が、装甲の色数に応じてBP増加（ターン終了時まで）。`,
+        )
+        return
+}
+
+// BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
+// （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
+const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action) => {
+    const { state, owner } = ctx
+        let count = 0
+        for (const s of state.players[owner].field.spirits) {
+            const bofu = bofuCountFor(state, owner, s)
+            if (bofu === 0) continue
+            s.tempBpBuff += action.amountPer * bofu
+            count++
+        }
+        if (count === 0) {
+            log(state, `${state.players[owner].name}：【暴風】を持つスピリットがいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${state.players[owner].name}の【暴風】を持つスピリット${count}体が、指定数に応じてBP増加（ターン終了時まで）。`,
+        )
+        return
+}
+
+// BS08ダークパワー：カウント値×amountPerを、filter一致の自分のスピリットすべてにBP+
+// （bpBuffPerの単体対象を「全体」に広げた版）
+const bpBuffAllPer: ActionHandler<"bpBuffAllPer"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        const count = countEffectCounter(state, owner, self, action.counter)
+        if (count === 0) {
+            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
+            return
+        }
+        const spirits = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, filter, self?.instanceId),
+        )
+        if (spirits.length === 0) {
+            log(state, `${sourceName}のBP増加：対象条件を満たすスピリットがいなかった。`)
+            return
+        }
+        const amount = count * action.amountPer
+        for (const s of spirits) s.tempBpBuff += amount
+        log(
+            state,
+            `${state.players[owner].name}の対象スピリット${spirits.length}体がBP+${amount}（ターン終了時まで）。`,
         )
         return
 }
@@ -410,6 +463,8 @@ const handlers = {
     bpBuff,
     bpBuffAll,
     bpBuffAllByArmorColors,
+    bpBuffAllByBofuCount,
+    bpBuffAllPer,
     bpBuffPer,
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,

@@ -744,8 +744,12 @@ export function matchesTarget(
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
-    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
-    if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
+    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
+    // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
+    if (filter.nameContains !== undefined) {
+        const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
+        if (!names.some((n) => cardNameContains(inst, n))) return false
+    }
     // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）

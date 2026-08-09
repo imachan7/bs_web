@@ -120,7 +120,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 手札の条件一致カード1枚に、このターンの間キーワードを付与する
+        // 手札の条件一致カード（all指定時はすべて、それ以外は1枚）に、このターンの間キーワードを付与する
         const player = state.players[owner]
         const label = KEYWORDS[action.keyword].label
         const grant = (cardId: string): void => {
@@ -145,13 +145,21 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
             .filter((i) => {
                 const c = getCard(player.hand[i]!)
                 if (action.cardType !== undefined && c.type !== action.cardType) return false
-                if (action.familyFilter !== undefined && !c.family.includes(action.familyFilter)) {
-                    return false
+                if (action.familyFilter !== undefined) {
+                    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                    if (!wanted.some((f) => c.family.includes(f))) return false
                 }
                 return true
             })
         if (indices.length === 0) {
             log(state, `${sourceName}：対象の手札がなかった。`)
+            return
+        }
+        if (action.all) {
+            // BS08ライトニングスピード：選択を挟まず、条件一致する手札カードすべてに付与する。
+            // 付与はcardId単位（RuleValidatorがcardId一致で判定）のため、同名重複カードは1回にまとめる
+            const uniqueCardIds = new Set(indices.map((i) => player.hand[i]!))
+            for (const cardId of uniqueCardIds) grant(cardId)
             return
         }
         if (state.interactiveTargets) {

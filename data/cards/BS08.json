@@ -1171,6 +1171,583 @@
   ]
  },
  {
+  "cardId": "BS08-019",
+  "name": "エメアントマン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "怪虫",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS08-019-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-020",
+  "name": "ディオ・マンティス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-021",
+  "name": "ブラックアメンボーグ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、【転召】させずに召喚できる。\nLv2『相手のアタックステップ』\nBP6000以下の相手のスピリットがアタックしたとき、相手は、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS08-021-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
+    "id": "BS08-021-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "turn": "opponent",
+    "maxBp": 6000,
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-022",
+  "name": "マンゴース",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のメインステップ』\n相手がドローしたカード1枚につき、系統：「剣獣」を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS08-022-e1",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "turn": "opponent",
+    "repeatPerCount": true,
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "family": "剣獣"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-023",
+  "name": "ゲラン准将",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。\nLv2\n自分のスピリットすべての【暴風】の指定数を+1する。",
+  "effects": [
+   {
+    "id": "BS08-023-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS08-023-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-023-e3",
+    "kind": "bofuCountBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-024",
+  "name": "陸帝竜騎ベスピニアー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "竜騎",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nターンに1回、自分の手札にある【転召】を持つスピリットカード1枚を【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\n系統：「龍帝」を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS08-024-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    }
+   },
+   {
+    "id": "BS08-024-e2",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     2
+    ],
+    "winnerFamilyFilter": "龍帝",
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-025",
+  "name": "女王アントレーヌ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【転召：コスト1以上/トラッシュ】\n召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\nボイドからコア2個を自分のリザーブに置く。\nカード名に「アントマン」と入っているスピリットで【転召】したとき、置くコアを4個にする。",
+  "effects": [
+   {
+    "id": "BS08-025-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 1,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-025-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 2
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-025-e3",
+    "kind": "fieldEvent",
+    "event": "ownTensho",
+    "levels": [
+     1,
+     2
+    ],
+    "nameIncludes": [
+     "アントマン"
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-026",
+  "name": "超重甲蟲ゴライアース",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。\nLv2『このスピリットのバトル時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS08-026-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-026-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-027",
+  "name": "輝虹翼戦士ジュエルグΣ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2【暴風：2】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット2体を疲労させる。\nLv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS08-027-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-027-e2",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 2,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS08-027-e3",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-027-e4",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS08-055",
   "name": "竜騎集う円卓",
   "type": "nexus",
@@ -1403,6 +1980,140 @@
     },
     "constraint": {
      "type": "lifeDamageToVoid"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-059",
+  "name": "聖なる柱状彫刻",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nスピリットすべての上のコアの数はLv1コストより少なくならない。\nLv2『相手のアタックステップ』\n自分のライフが減らされたとき、自分の手札にある【転召】を持つスピリットカード1枚を、【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。",
+  "effects": [
+   {
+    "id": "BS08-059-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "constraint": {
+     "type": "coreFloorByCost"
+    }
+   },
+   {
+    "id": "BS08-059-e2",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-060",
+  "name": "無限蟻の地底都市",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nBP6000以下の相手のスピリットがアタックしたとき、ボイドからコア1個を、系統：「殻虫」/「殻人」を持つ自分のスピリット1体の上に置く。\nLv2『自分のエンドステップ』\n系統：「殻虫」/「殻人」を持つ自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS08-060-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "maxBp": 6000,
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1,
+     "familyFilter": [
+      "殻虫",
+      "殻人"
+     ]
+    }
+   },
+   {
+    "id": "BS08-060-e2",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "family": [
+       "殻虫",
+       "殻人"
+      ]
+     },
+     "all": true
     }
    }
   ]
@@ -1655,6 +2366,122 @@
   ]
  },
  {
+  "cardId": "BS08-073",
+  "name": "ライトニングスピード",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分の手札にある系統：「殻虫」/「殻人」を持つスピリットカードすべてに“【神速】このスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS08-073-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantKeywordToHandCard",
+     "keyword": "soku",
+     "cardType": "spirit",
+     "familyFilter": [
+      "殻虫",
+      "殻人"
+     ],
+     "all": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-074",
+  "name": "スナイピングブラスト",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリットすべてを、そのスピリットが持つ【暴風】の指定体数1につき、BP+2000する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-074-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "bpBuffAllByBofuCount",
+     "amountPer": 2000
+    }
+   },
+   {
+    "id": "BS08-074-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-075",
+  "name": "ダークパワー",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、カード名に「ダーク」/「ブラック」と入っている自分のスピリットすべてを、疲労状態の自分のスピリット1体につき、BP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-075-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuffAllPer",
+     "counter": "ownExhausted",
+     "amountPer": 2000,
+     "filter": {
+      "nameContains": [
+       "ダーク",
+       "ブラック"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS08-X29",
   "name": "魔帝龍騎ダーク・クリムゾン",
   "type": "spirit",
@@ -1842,6 +2669,92 @@
      "dest": "void"
     },
     "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-X31",
+  "name": "ブラックタウロス大王",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 8,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻虫",
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト3以上/ボイド】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nLv2･Lv3『このスピリットのアタック時』\n相手のライフを減らしたとき、このスピリット上のコア2個をボイドに置くことで、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS08-X31-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "void"
+   },
+   {
+    "id": "BS08-X31-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-X31-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "refreshSelf",
+     "costSelfCoresToVoid": 2
+    }
    }
   ]
  }

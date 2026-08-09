@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
-import { currentLevel, getCard, log } from "../GameState"
+import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
     destroySpirit,
@@ -18,6 +18,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
     hasBofuChooserSelf,
+    bofuCountFor,
 } from "../EffectModules"
 import { KEYWORDS, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -25,6 +26,20 @@ import { COLOR_LABELS } from "../../../../data/constants"
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
+        // 実効指定数（静的 count ＋ bofuCountBonus）で解決し直す。BS08ゲラン准将Lv2 の
+        // 「自分のスピリットすべての【暴風】の指定数を+1する」はこの経路でだけ届く
+        if (action.countFromBofu) {
+            const bofu = self ? bofuCountFor(state, owner, self) : 0
+            if (bofu === 0) {
+                log(state, `${sourceName}：【暴風】を持たないため疲労させなかった。`)
+                return
+            }
+            // フラグは**ここで落とす**。残したまま interactive の再入（count-1 の派生 action）へ
+            // 引き継ぐと、再入のたびに実効指定数へ戻って疲労が止まらなくなる
+            const { countFromBofu: _resolved, ...rest } = action
+            action = { ...rest, count: bofu }
+        }
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
@@ -512,6 +527,21 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             log(
                 state,
                 `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
+            )
+        }
+        // costSelfCoresToVoid（BS08ブラックタウロス大王）：リザーブでなく**このスピリット自身**の上のコアから支払う。
+        // 支払うとLv1コア数を下回るなら不発（selfCoreToOwnLifeと異なり、支払った上で回復させる効果のため
+        // 維持コア割れを起こさない範囲でしか払えない、という決定的簡略化）
+        if (action.costSelfCoresToVoid !== undefined) {
+            const minCores = minLevelCores(getCard(self.cardId))
+            if (self.cores - action.costSelfCoresToVoid < minCores) {
+                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
+                return
+            }
+            self.cores -= action.costSelfCoresToVoid
+            log(
+                state,
+                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
             )
         }
         refreshSpirit(state, owner, self)

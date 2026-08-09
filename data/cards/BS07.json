@@ -1352,7 +1352,8 @@
      "type": "exhaust",
      "count": 1,
      "chooserIsTarget": true,
-     "excludeTarget": true
+     "excludeTarget": true,
+     "countFromBofu": true
     },
     "optional": false
    }
@@ -1625,7 +1626,8 @@
      "type": "exhaust",
      "count": 2,
      "chooserIsTarget": true,
-     "excludeTarget": true
+     "excludeTarget": true,
+     "countFromBofu": true
     },
     "optional": false
    },
@@ -5220,7 +5222,8 @@
      "type": "exhaust",
      "count": 2,
      "chooserIsTarget": true,
-     "excludeTarget": true
+     "excludeTarget": true,
+     "countFromBofu": true
     },
     "optional": false
    },

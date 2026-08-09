@@ -26,6 +26,7 @@ import {
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
     battleBp,
+    bofuCountFor,
     declineMagicNegateChoice,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
@@ -67,18 +68,6 @@ import {
     validateSummon,
     validateTakeLife,
 } from "./RuleValidator"
-
-// このスピリットが**カードに静的に持つ**【暴風】の指定数（レベル有効なもの）。
-// 0 は「持っていない」。付与された暴風（keywordGrant）は count を持たないためここでは数えない
-function staticBofuCount(inst: CardInstance): number {
-    const level = currentLevel(inst).level
-    for (const effect of getCard(inst.cardId).effects) {
-        if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
-        return effect.count ?? 1
-    }
-    return 0
-}
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -1110,7 +1099,7 @@ function resolveBattle(state: GameState): void {
     // 本来は「アタックしてブロックされたとき」だが、これがある間はブロックした側が発揮する。
     // 疲労させられるのはアタッカー側で、既に疲労しているアタッカー自身は除く（excludeTarget）
     if (hasBofuOnBlock(state, defenderPid)) {
-        const count = staticBofuCount(blocker)
+        const count = bofuCountFor(state, defenderPid, blocker)
         if (count > 0) {
             resolveAction(
                 state,

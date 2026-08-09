@@ -259,7 +259,9 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
     // 対戦開始時の初期手札はdeck.spliceで直接配られdraw()を経由しないため、
     // フィールド未初期化での呼び出しは発生しない（createPlayerがfield.spirits/nexusesを
     // 同期的に初期化済みでもあり、fireFieldEventTriggersはフィールドが空でも安全に何もしない）。
-    fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew")
+    // eventCount=count：repeatPerCount指定のエントリが「ドローしたカード1枚につき」を表現できるようにする
+    // （BS08マンゴース：相手がドローしたカード1枚につき系統「剣獣」を1体回復）
+    fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew", undefined, undefined, undefined, count)
     // フィールドイベント誘発「相手の手札にカードが加えられたとき」（犬人マードック／英雄の喪失）
     notifyHandGained(state, pid, count)
 }

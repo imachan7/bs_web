@@ -229,6 +229,19 @@ function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean 
     return hasActiveGlobalConstraint(state, "battlingCoresProtected")
 }
 
+// globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
+// そのカードのコスト（Lv1コスト）を下回るまで取り除けない。ネクサスは対象外（カードに「コスト」はあるが
+// 効果文は「スピリットすべて」なのでtype==="spirit"のみに適用）。
+// **簡略化**：removeCores/removeCoresToTrash/removeCoresToVoid（単体除去の共通処理）だけが尊重する。
+// coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、
+// .coresを直接書き換える範囲効果はこの下限を見ない（data/card-notes.jsonに明記）
+function coreFloorFor(state: GameState, inst: CardInstance): number {
+    const card = getCard(inst.cardId)
+    if (card.type !== "spirit") return 0
+    if (!hasActiveGlobalConstraint(state, "coreFloorByCost")) return 0
+    return card.cost
+}
+
 // 指定インスタンスが今まさにバトルの当事者（アタッカーかブロッカー）か
 function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
     if (!state.battle) return false
@@ -487,6 +500,37 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
         }
     }
     return total
+}
+
+// 持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
+// funsaiBonusTotal と同じ考え方（effectSources経由でlendSelfThisTurnによる貸与にも対応）
+function bofuCountBonusFor(state: GameState, ownerPid: PlayerId): number {
+    let total = 0
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount
+        }
+    }
+    return total
+}
+
+// このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
+// 暴風を持たない（base=0）スピリットにはボーナスを加算しない。GameEngine.resolveBattleの
+// hasBofuOnBlock分岐と、action:"bpBuffAllByBofuCount"の両方から参照する（BS08ゲラン准将／スナイピングブラスト）
+export function bofuCountFor(state: GameState, ownerPid: PlayerId, inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    let base = 0
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        base = effect.count ?? 1
+        break
+    }
+    if (base === 0) return 0
+    return base + bofuCountBonusFor(state, ownerPid)
 }
 
 // 持ち主フィールドに funsaiOnBlock（士気高き大本営）が有効な発生源があるか
@@ -1839,7 +1883,9 @@ export function removeCores(
     if (bonus > 0 && inst.cores > count) {
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
-    const removed = Math.min(count + bonus, inst.cores)
+    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
+    const floor = coreFloorFor(state, inst)
+    const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
     player.reserve += removed
     log(
@@ -1870,7 +1916,8 @@ export function removeCoresToTrash(
         return
     }
     const player = state.players[ownerPid]
-    const removed = Math.min(count, inst.cores)
+    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -1900,7 +1947,8 @@ export function removeCoresToVoid(
         return
     }
     const player = state.players[ownerPid]
-    const removed = Math.min(count, inst.cores)
+    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
     inst.cores -= removed
     log(
         state,
@@ -2221,18 +2269,22 @@ export function pickBpBuffTarget(
     targetInstanceId?: string,
     minSymbols?: number,
     keywordFilter?: Keyword,
-    nameContains?: string,
+    nameContains?: string | string[],
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
 ): CardInstance | null {
     // minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
-    // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」）・attackingOnly（BS07桜の妖精オウカ＝
-    // アタックしているスピリット）・familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
+    // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」。配列＝OR。BS08ダークパワー）・
+    // attackingOnly（BS07桜の妖精オウカ＝アタックしているスピリット）・
+    // familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
     // どれも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する
     const passes = (inst: CardInstance): boolean => {
         if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
         if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
-        if (nameContains !== undefined && !cardNameContains(inst, nameContains)) return false
+        if (nameContains !== undefined) {
+            const names = Array.isArray(nameContains) ? nameContains : [nameContains]
+            if (!names.some((n) => cardNameContains(inst, n))) return false
+        }
         if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
         if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
         return true
@@ -3260,6 +3312,15 @@ export function fireFieldEventTriggers(
                       : 1
                 : 1
             for (let i = 0; i < repeatTimes; i++) {
+                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
+                // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
+                if (effect.optional && state.interactiveTargets) {
+                    const actionPid = effect.selfMode === "source" ? pid : (selfOverride?.pid ?? pid)
+                    const actionSelf = effect.selfMode === "source" ? inst : (selfOverride?.inst ?? inst)
+                    requestActivationConfirm(state, actionPid, `${card.name}の効果を発動しますか？`, effect.action, actionSelf)
+                    if (state.pendingChoice) return
+                    continue
+                }
                 // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
                 // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
                 if (effect.selfMode === "source") {

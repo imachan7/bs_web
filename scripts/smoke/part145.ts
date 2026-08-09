@@ -348,7 +348,11 @@ console.log("=== BS08マインドブレイク：costOwnSpiritCoresToTrashThenOpp
 console.log("=== BS08魔界七将アスモディオス：ownTenshoのnameIncludes（eventInfo.names経由） ===")
 {
     const asmodeus = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownTensho" && Array.isArray(e["nameIncludes"]),
+        (e) =>
+            e["kind"] === "fieldEvent" &&
+            e["event"] === "ownTensho" &&
+            Array.isArray(e["nameIncludes"]) &&
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "discardOpponent",
     )
     const entry = entryOf(asmodeus, (e) => e["kind"] === "fieldEvent" && e["event"] === "ownTensho")
     const names = entry["nameIncludes"] as string[]
