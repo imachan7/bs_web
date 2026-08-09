@@ -597,8 +597,9 @@ export type EffectDef =
     | {
           id: string
           kind: "battleSwapSummon" // **手札にあるこのスピリットカード**を、フラッシュ中のバトルで
-          // 「バトルしている自分の substituteNameContains 一致スピリット1体を手札に戻す」ことを代価に
-          // 疲労状態で召喚し、そのスピリットの代わりにバトルを引き継ぐ（召喚コストは支払わない）。
+          // 「バトルしている自分の substituteName 一致スピリット1体を手札に戻す」ことを**追加コスト**として
+          // 疲労状態で召喚し、そのスピリットの代わりにバトルを引き継ぐ。
+          // 効果文に「コストを支払わずに」が無いので**召喚コストは通常どおり支払う**。
           // GameAction summon の substituteInstanceId を指定した経路で使う
           // （RuleValidator.validateSummon と GameEngine.doSummon が判定・実行する。BS07ブラックカラカロッサム）
           levels: number[] | null // 手札のカードが対象なので実質レベル不問だが、効果文の見出しに合わせて持つ
@@ -1392,7 +1393,7 @@ export interface GameView {
 // ---- クライアント → サーバーのアクション ----
 
 export type GameAction =
-    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string } // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは支払わない。BS07ブラックカラカロッサム）
+    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string } // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは通常どおり必要。発動可否は shared/rules.ts の canBattleSwapSummon で判定できる。BS07ブラックカラカロッサム）
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[] } // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
     | { type: "moveCore"; instanceId: string; direction: "add" | "remove" }

@@ -19,6 +19,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
+import { canBattleSwapSummon } from "../../shared/summon"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {
@@ -274,6 +275,10 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
     const handIndex = s.players.p1.hand.length - 1
     s.turnPlayer = "p2"
     s.phase = "main"
+    assert(
+        canBattleSwapSummon(s, "p1", handIndex) === null,
+        "バトルが始まる前（フラッシュ外）はヘルパーが発動不可と答える",
+    )
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2 がアタック")
     assert(declareBlock(s, "p1", blocker.instanceId) === null, `${original.name}でブロック`)
@@ -281,6 +286,21 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
     // コストは召喚宣言時（入れ替え元がまだ場にいる時点）の軽減シンボルで決まる
     const swapCost = effectiveCost(s, "p1", byId(black.cardId) as never)
     const substituteCores = blocker.cores
+
+    // 共有ヘルパー（UIの発動可否表示が使う）がサーバー検証と同じ答えを出すこと。
+    // ここがズレると「UIにボタンが出るのにサーバーが弾く」種類のバグになる
+    const option = canBattleSwapSummon(s, "p1", handIndex)
+    assert(option !== null, "canBattleSwapSummon が発動可能と答える")
+    assert(
+        option?.substituteInstanceIds.length === 1 &&
+            option.substituteInstanceIds[0] === blocker.instanceId,
+        "入れ替え元の候補としてバトル中の個体だけを返す",
+    )
+    assert(
+        option?.totalCores === swapCost + (black.levels?.[0]?.cores ?? 1),
+        `必要なコア数を返す（コスト${swapCost}＋置くコア＝${option?.totalCores}）`,
+    )
+
     // ブロック宣言後のフラッシュは防御側（p1）から優先権を持つ
     assert(
         act(s, "p1", { type: "summon", handIndex, substituteInstanceId: blocker.instanceId }) === null,
@@ -329,6 +349,10 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
         }) !== null,
         "対照実験：バトルしていない個体とは入れ替えられない",
     )
+    assert(
+        canBattleSwapSummon(s2, "p1", s2.players.p1.hand.length - 1) === null,
+        "対照実験：ヘルパーも発動不可（バトル中の[カラカロッサム]がいない）と答える",
+    )
 
     // 対照実験2：カード名が違えば入れ替えられない（[カード名]は完全一致）
     const s3 = base("black-wrong-name")
@@ -347,6 +371,10 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
             substituteInstanceId: wrong.instanceId,
         }) !== null,
         `対照実験：[${substituteName}]でなければ入れ替えられない`,
+    )
+    assert(
+        canBattleSwapSummon(s3, "p1", s3.players.p1.hand.length - 1) === null,
+        "対照実験：ヘルパーも発動不可（別名）と答える",
     )
 
     // 対照実験3：召喚コスト＋置くコアを払えなければ入れ替え召喚できない
@@ -368,6 +396,13 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
             substituteInstanceId: blocker4.instanceId,
         }) !== null,
         "対照実験：コストを払えなければ入れ替え召喚できない",
+    )
+    // ヘルパーは**コアの過不足を判定しない**（支払い元の選択はUIが行うため、必要数だけを返す契約）。
+    // ここが null になってしまうと「コアが足りない」ことを画面で説明できなくなる
+    const option4 = canBattleSwapSummon(s4, "p1", s4.players.p1.hand.length - 1)
+    assert(
+        option4?.totalCores === need4,
+        `ヘルパーはコア不足でも必要数（${need4}個）を返す（可否判定はサーバーに任せる契約）`,
     )
 }
 

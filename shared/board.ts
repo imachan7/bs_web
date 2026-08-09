@@ -20,6 +20,10 @@ export interface BoardPlayer {
     reserve: number
     trashCores: number
     trashCards: string[]
+    // 手札。**相手の手札は隠匿情報なので GameView では null になる**（PlayerView.hand と同じ形）。
+    // 共有層でこれを読む関数は「自分の手札についてだけ答える」ものに限り、null は
+    // 「判定できない」として扱うこと（canBattleSwapSummon が該当）
+    hand: string[] | null
     tegamoto: string[]
     field: { spirits: CardInstance[]; nexuses: CardInstance[] }
     turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する

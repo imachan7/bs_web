@@ -1197,3 +1197,43 @@ export function directAttackFilter(
     if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
     return filter
 }
+
+// ---- 維持コア ----
+
+// 維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+// これを下回るとスピリットは消滅する（ネクサスはレベルが下がるだけ）。
+// 現行カードはすべて Lv1 を持つため値は Lv1 のコア数と一致するが、Lv3 から始まるカード
+// （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
+// 旧名 lv1Cores（2026-07-26 改名。挙動は不変）。
+// サーバー側は server/src/logic/GameState.ts の re-export 経由で使う
+export function minLevelCores(cardData: CardData): number {
+    const min = cardData.levels.reduce<{ level: number; cores: number } | null>(
+        (best, l) => (best === null || l.level < best.level ? l : best),
+        null,
+    )
+    return min ? min.cores : 0
+}
+
+// ---- フラッシュのロック ----
+
+// pid がいま「フラッシュで手札のカードを使えない」状態か。
+// ① action "lockFlash" がこのバトルに立てたロック（board.battle.flashLockedPlayer）
+// ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
+//    相手の指定系統スピリットがアタックしている間だけ効く
+export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
+    if (board.battle?.flashLockedPlayer === pid) return true
+    const attackerId = board.battle?.attackerInstanceId
+    if (attackerId === undefined) return false
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    const attacker = board.players[opp].field.spirits.find((s) => s.instanceId === attackerId)
+    if (!attacker) return false
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "flashLockWhileAttackingFamily") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true
+        }
+    }
+    return false
+}

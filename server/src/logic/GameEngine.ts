@@ -332,7 +332,8 @@ function doSummon(
     const card = getCard(cardId)
 
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
-    // 手札に戻し、その代わりに疲労状態で召喚してバトルを引き継ぐ。召喚コストは支払わない
+    // 手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ。
+    // 召喚コスト自体は通常どおり支払うので paySources をそのまま渡す
     if (substituteInstanceId !== undefined) {
         return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId, paySources)
     }

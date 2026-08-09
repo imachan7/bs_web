@@ -11,7 +11,8 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, sokuPayableInstanceIds } from "../../../shared/rules"
+import { battleSwapSummonCheck } from "../../../shared/summon"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -38,7 +39,6 @@ import {
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasKeyword,
-    isFlashLockedFor,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
@@ -109,35 +109,21 @@ export function validateSummon(
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
     // 手札に戻すことを**追加コスト**として、フラッシュで疲労状態の召喚を行う。
     // 効果文に「コストを支払わずに」が無いので、**召喚コストは通常どおり支払う**。
-    // タイミングとフィールド上限の検証だけが通常経路と異なるため、ここで完結させて早期 return する
+    // タイミングとフィールド上限の検証だけが通常経路と異なるため、ここで完結させて早期 return する。
+    //
+    // 判定本体は共有層の battleSwapSummonCheck に置いてある。クライアントUIの発動可否表示
+    // （canBattleSwapSummon）と同じ実装を通すことで、「UIにボタンが出るのにサーバーが弾く」
+    // 種類のズレを構造的に防ぐ（activatableAbility で実際に起きた事故と同じ轍を踏まないため）
     if (substituteInstanceId !== undefined) {
-        const swap = card.effects.find((e) => e.kind === "battleSwapSummon")
-        if (!swap || swap.kind !== "battleSwapSummon") {
-            return "このカードは入れ替え召喚できません"
-        }
-        if (!state.isFlashTiming || !state.battle) return "フラッシュタイミングではありません"
-        if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-        if (isFlashLockedFor(state, pid)) {
-            return "効果により、フラッシュで手札のカードを使用できません"
-        }
-        const substitute = findSpirit(player, substituteInstanceId)
-        if (!substitute) return "入れ替え元のスピリットが見つかりません"
-        const inBattle =
-            state.battle.attackerInstanceId === substituteInstanceId ||
-            state.battle.blockerInstanceId === substituteInstanceId
-        if (!inBattle) return "入れ替え元のスピリットはバトルに参加していません"
-        // [カード名]表記は完全一致（reviveOnDestroy.requireOwnFieldHasName と同じ扱い）
-        if (getCard(substitute.cardId).name !== swap.substituteName) {
-            return `入れ替え元は[${swap.substituteName}]である必要があります`
-        }
-        // 召喚コスト＋置くコア（Lv1の維持コア）を通常どおり支払えるか。
+        const swap = battleSwapSummonCheck(state, pid, handIndex, substituteInstanceId)
+        if (typeof swap === "string") return swap
+        // 召喚コスト＋置くコア（最小レベルの維持コア）を通常どおり支払えるか。
+        // 支払い元の妥当性はサーバー専用の検証なので共有層には置いていない。
         // フィールドのコアも支払い元にできる（【神速】のリザーブ限定ルールはこのカードには掛からない）
-        const swapCost = effectiveCost(state, pid, card)
-        const swapMaintain = minLevelCores(card)
-        const swapPayError = validatePaySources(state, pid, swapCost + swapMaintain, paySources)
+        const swapPayError = validatePaySources(state, pid, swap.totalCores, paySources)
         if (swapPayError) {
             return swapPayError === "コアが足りません"
-                ? `コアが足りません（コスト+置くコアで${swapCost + swapMaintain}個必要）`
+                ? `コアが足りません（コスト+置くコアで${swap.totalCores}個必要）`
                 : swapPayError
         }
         return null

@@ -283,18 +283,10 @@ export function rawLevel(inst: CardInstance): number {
 // （該当レベルがカードに無ければ通常計算にフォールバック）
 
 
-// 維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
-// これを下回るとスピリットは消滅する（ネクサスはレベルが下がるだけ）。
-// 現行カードはすべて Lv1 を持つため値は Lv1 のコア数と一致するが、Lv3 から始まるカード
-// （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
-// 旧名 lv1Cores（2026-07-26 改名。挙動は不変）
-export function minLevelCores(card: CardData): number {
-    const min = card.levels.reduce<{ level: number; cores: number } | null>(
-        (best, l) => (best === null || l.level < best.level ? l : best),
-        null,
-    )
-    return min ? min.cores : 0
-}
+// 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
+// （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
+// サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
+export { minLevelCores } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）

@@ -503,28 +503,6 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
     return false
 }
 
-// pid がいま「フラッシュで手札のカードを使えない」状態か。
-// ① action "lockFlash" がこのバトルに立てたロック（state.battle.flashLockedPlayer）
-// ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
-//    相手の指定系統スピリットがアタックしている間だけ効く
-export function isFlashLockedFor(state: GameState, pid: PlayerId): boolean {
-    if (state.battle?.flashLockedPlayer === pid) return true
-    const attackerId = state.battle?.attackerInstanceId
-    if (attackerId === undefined) return false
-    const opp = opponentOf(pid)
-    const attacker = state.players[opp].field.spirits.find((s) => s.instanceId === attackerId)
-    if (!attacker) return false
-    for (const source of effectSources(state, opp)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "flashLockWhileAttackingFamily") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (matchesFamilyFilter(state, opp, attacker, effect.familyFilter)) return true
-        }
-    }
-    return false
-}
-
 // 持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
 // hasFunsaiOnBlock と同型だが、phase 指定（相手のアタックステップ限定）を持つ
 export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
