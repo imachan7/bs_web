@@ -158,6 +158,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         hand,
         trashCards: [],
         tegamoto: [],
+        tegamotoPlayable: [],
         field: { spirits: [], nexuses: [] },
         turnVirtualInstances: [],
     }

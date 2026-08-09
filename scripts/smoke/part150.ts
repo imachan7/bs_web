@@ -5,7 +5,7 @@
 //     whileSourceDeployedTurnOnly＝配置されたターンの間だけ有効な版も）／
 //   kind"onMilledFromDeck"（**そのカード自身が**デッキから破棄されたときに発揮する。
 //     castThisMagicFree＝マジックを無償で即時発揮／deployThisNexusFree＝ネクサスを無償で配置）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import { millDeck, resolveFunsai } from "../../server/src/logic/EffectModules"
@@ -14,6 +14,7 @@ interface CardRow {
     cardId: string
     name: string
     type?: string
+    cost?: number
     effects?: Record<string, unknown>[]
     levels?: { level?: number; cores?: number; bp?: number }[]
 }
@@ -150,5 +151,83 @@ console.log("=== 【粉砕】経由でも同じ経路を通る（実カードの
     assert(
         s.players.p1.field.nexuses.length === nexusBefore + 1,
         `【粉砕】（${getCard(funsaiSpirit.cardId).name}）による破棄でも配置される`,
+    )
+}
+
+console.log("=== BS06混迷する魔法実験場Lv2：破棄されたマジックを手元に置き、手札同様に使用できる ===")
+{
+    const lab = findByEffect((e) => e["kind"] === "milledMagicToTegamoto")
+    const labLevel = ((lab.effects ?? []).find((e) => e["kind"] === "milledMagicToTegamoto")!["levels"] as number[])[0]!
+    const labCores = lab.levels?.[labLevel - 1]?.cores ?? 3
+    // 検証用のマジック：メインでもフラッシュでも1エントリで完結する単純なもの
+    const magic = CARDS.find(
+        (c) => c.type === "magic" && (c.effects ?? []).length === 1 && (c.cost ?? 0) > 0,
+    )!
+
+    const s = base("lab-milled-to-tegamoto")
+    putNexus(s, "p1", lab.cardId, labCores)
+    s.players.p1.deck = [magic.cardId, FILLER.cardId, ...new Array<string>(20).fill(FILLER.cardId)]
+    const trashBefore = s.players.p1.trashCards.length
+    millDeck(s, "p1", 2, "p2", { sourceType: "magic" })
+    assert(s.players.p1.tegamoto.includes(magic.cardId), "破棄されたマジックが手元に置かれる")
+    assert(s.players.p1.tegamotoPlayable.includes(magic.cardId), "手札同様に使用できるものとして記録される")
+    assert(!s.players.p1.trashCards.includes(magic.cardId), "トラッシュには入らない")
+    assert(s.players.p1.trashCards.length === trashBefore + 1, "マジック以外（バニラ）は通常どおりトラッシュへ")
+
+    // 発生源が場を離れても使用権は残る（「ゲーム終了時まで」）
+    s.players.p1.field.nexuses = []
+    refreshLevelAsOverrides(s)
+    assert(
+        s.players.p1.tegamotoPlayable.includes(magic.cardId),
+        "ネクサスが場を離れても、既に手元にあるカードの使用権は残る",
+    )
+}
+
+console.log("--- 手元からの使用はコストを支払う（無償化とは別の経路） ---")
+{
+    const lab = findByEffect((e) => e["kind"] === "milledMagicToTegamoto")
+    const labLevel = ((lab.effects ?? []).find((e) => e["kind"] === "milledMagicToTegamoto")!["levels"] as number[])[0]!
+    const labCores = lab.levels?.[labLevel - 1]?.cores ?? 3
+    const magic = CARDS.find(
+        (c) =>
+            c.type === "magic" &&
+            (c.effects ?? []).length === 1 &&
+            (c.effects ?? []).some((e) => e["kind"] === "magic" && e["timing"] === "flash") &&
+            (c.cost ?? 0) > 0,
+    )!
+
+    const s = base("lab-cast-from-tegamoto")
+    putNexus(s, "p1", lab.cardId, labCores)
+    s.players.p1.deck = [magic.cardId, ...new Array<string>(20).fill(FILLER.cardId)]
+    millDeck(s, "p1", 1, "p2", { sourceType: "magic" })
+    const index = s.players.p1.tegamoto.indexOf(magic.cardId)
+    assert(index !== -1, "手元にある")
+
+    const reserveBefore = s.players.p1.reserve
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: index, fromTegamoto: true }) === null,
+        `手元から${magic.name}を使用できる`,
+    )
+    assert(s.players.p1.reserve < reserveBefore, "無償ではなくコストを支払う")
+    assert(!s.players.p1.tegamoto.includes(magic.cardId), "使用した分は手元から無くなる")
+    assert(!s.players.p1.tegamotoPlayable.includes(magic.cardId), "使用権も1件ぶん消費される")
+}
+
+console.log("--- 発生源が無ければ手元には置かれず、手元のカードも使えない ---")
+{
+    const magic = CARDS.find(
+        (c) => c.type === "magic" && (c.effects ?? []).length === 1 && (c.cost ?? 0) > 0,
+    )!
+    const s = base("lab-absent")
+    s.players.p1.deck = [magic.cardId, ...new Array<string>(20).fill(FILLER.cardId)]
+    millDeck(s, "p1", 1, "p2", { sourceType: "magic" })
+    assert(s.players.p1.tegamoto.length === 0, "発生源が無ければ手元に置かれない")
+    assert(s.players.p1.trashCards.includes(magic.cardId), "通常どおりトラッシュへ")
+
+    // 手元に直接置いても、使用権が無ければ使えない（マジックブック経由のカードと同じ扱い）
+    s.players.p1.tegamoto.push(magic.cardId)
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, fromTegamoto: true }) !== null,
+        "使用権が無い手元のカードは使用できない",
     )
 }

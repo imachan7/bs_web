@@ -496,8 +496,41 @@ export function millDeck(
     // 上のフィールド誘発の**後**に処理する（破棄そのものは先に確定させる）
     if (byOpponent && milled.length > 0 && !state.winner) {
         resolveMilledFromDeck(state, pid, milled, cause)
+        // 破棄されたマジックを手元へ（BS06混迷する魔法実験場Lv2）。
+        // カード自身の効果（onMilledFromDeck）の方が優先なので、その解決の**後**に残りを拾う
+        collectMilledMagicToTegamoto(state, pid, milled)
     }
     return actual
+}
+
+// kind:"milledMagicToTegamoto"（BS06混迷する魔法実験場Lv2）：破棄されたマジックカードを
+// トラッシュから手元(tegamoto)へ移し、手札同様に使用できるものとして記録する
+function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, milled: string[]): void {
+    const active = effectSources(state, pid).some((source) =>
+        getCard(source.cardId).effects.some(
+            (e) =>
+                e.kind === "milledMagicToTegamoto" &&
+                effectActiveAtLevel(e.levels, currentLevel(source).level),
+        ),
+    )
+    if (!active) return
+    const player = state.players[pid]
+    const moved: string[] = []
+    for (const cardId of milled) {
+        if (getCard(cardId).type !== "magic") continue
+        const idx = player.trashCards.lastIndexOf(cardId)
+        if (idx === -1) continue // onMilledFromDeck が先に取り除いたカード
+        player.trashCards.splice(idx, 1)
+        player.tegamoto.push(cardId)
+        player.tegamotoPlayable.push(cardId)
+        moved.push(getCard(cardId).name)
+    }
+    if (moved.length > 0) {
+        log(
+            state,
+            `${player.name}は、破棄されたマジックカード${moved.length}枚（${moved.join("、")}）をオープンして手元に置いた。`,
+        )
+    }
 }
 
 // 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。

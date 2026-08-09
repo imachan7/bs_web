@@ -434,6 +434,10 @@ function doCastMagic(
     payCost(state, pid, cost, paySources)
     if (fromTegamoto) {
         player.tegamoto.splice(handIndex, 1)
+        // 手元の使用権（BS06混迷する魔法実験場Lv2）も1件ぶん消費する。
+        // cardId の多重集合として持っているので、同名が複数あってもどれを消しても等価
+        const playableIdx = player.tegamotoPlayable.indexOf(cardId)
+        if (playableIdx !== -1) player.tegamotoPlayable.splice(playableIdx, 1)
     } else {
         player.hand.splice(handIndex, 1)
     }

@@ -310,11 +310,15 @@ export function validateCastMagic(
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
     // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）
     if (fromTegamoto) {
+        // BS06混迷する魔法実験場Lv2 が手元へ置いたカードは「手札にあるときと同様に」使える
+        // （＝無償ではなく通常どおりコストを支払う）。使用権は PlayerState.tegamotoPlayable に持つ
+        const playableAsHand = player.tegamotoPlayable.includes(cardId)
         if (
-            !hasMagicFreeGrant(state, pid, card, true) ||
-            hasMagicRestriction(state, pid, "noFreeCastOpponent")
+            !playableAsHand &&
+            (!hasMagicFreeGrant(state, pid, card, true) ||
+                hasMagicRestriction(state, pid, "noFreeCastOpponent"))
         ) {
-            return "手元のマジックカードを無償使用できる効果がありません"
+            return "手元のマジックカードを使用できる効果がありません"
         }
     }
 

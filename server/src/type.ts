@@ -733,6 +733,14 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "milledMagicToTegamoto" // 発生源が場にありレベル有効の間、持ち主のデッキが**相手の効果で**破棄されるとき、
+          // その中のマジックカードすべてをトラッシュではなく手元(tegamoto)へ置き、以後は手札同様に使用できるようにする
+          // （PlayerState.tegamotoPlayable に記録するので、**このネクサスが場を離れても使用権は残る**＝「ゲーム終了時まで」）。
+          // millDeck が onMilledFromDeck の解決後に処理する（カード自身の効果の方が優先）。BS06混迷する魔法実験場Lv2
+          levels: number[] | null
+      }
+    | {
+          id: string
           kind: "onMilledFromDeck" // **このカード自身が**デッキから破棄されたときに発揮する（手札・フィールドからの破棄は対象外）。
           // millDeck が、破棄したカードのマスターデータを1枚ずつ見て発火させる。トラッシュへ入れた直後に
           // そこから取り除いて解決するため、破棄されたカードはトラッシュに残らない
@@ -1335,6 +1343,12 @@ export interface PlayerState {
     hand: string[]
     trashCards: string[]
     tegamoto: string[] // 公開ゾーン「手元」（cardId配列）。マジックブックの手元配置・ミカファールLv2の無償使用対象・エクリアの破壊効果が参照する。公開ゾーンのためviewForは両者分をそのまま配信する
+    // 手元のカードのうち「手札にあるときと同様に使用できる」ものの cardId 多重集合
+    // （BS06混迷する魔法実験場Lv2 が相手の効果によるデッキ破棄から手元へ置いたぶん）。
+    // **tegamoto の並びとは独立に持つ**：同じ cardId ならどれを使っても同じなので、
+    // 並び替えやインデックスのズレに強い。使用・破棄のたびに1件ずつ取り除く。
+    // マジックブックが置いたカードはここに入らない（あちらはミカファールLv2の無償化がないと使えない）
+    tegamotoPlayable: string[]
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]

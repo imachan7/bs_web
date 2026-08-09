@@ -1637,6 +1637,7 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
         const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
         target.trashCards.push(...target.tegamoto)
         target.tegamoto = []
+        target.tegamotoPlayable = [] // 手元が空になるので使用権も残さない
         log(
             state,
             `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`,
