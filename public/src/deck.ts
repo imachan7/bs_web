@@ -51,7 +51,7 @@ let searchText = ""
 let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
 // 詳細パネルに固定表示するカード（クリックで選択）
-let selectedCardId: string | null = null
+
 
 // 保存済みデッキ（localStorage の内容）
 interface SavedDeck {
@@ -265,13 +265,12 @@ function renderPool(): void {
         }
 
         el.addEventListener("mouseenter", () => {
-            if (selectedCardId === null) renderDetail(card, el)
+            renderDetail(card, el)
         })
         el.addEventListener("mouseleave", () => {
-            if (selectedCardId === null) hideDetail()
+            hideDetail()
         })
         el.addEventListener("click", () => {
-            selectedCardId = card.cardId
             renderDetail(card, el)
             addCard(card.cardId)
         })
@@ -556,11 +555,10 @@ function renderDeck(): void {
         })
         row.appendChild(minus)
 
-        // 行クリックで詳細表示
-        row.addEventListener("click", () => {
-            selectedCardId = cardId
-            renderDetail(card, row)
-        })
+        // ホバーおよびクリックで詳細表示
+        row.addEventListener("mouseenter", () => renderDetail(card, row))
+        row.addEventListener("mouseleave", () => hideDetail())
+        row.addEventListener("click", () => renderDetail(card, row))
 
         list.appendChild(row)
     }
@@ -1156,7 +1154,6 @@ function setupDeckIo(): void {
 
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
-        selectedCardId = null
         hideDetail()
     })
 }
