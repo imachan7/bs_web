@@ -4203,7 +4203,27 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nこのネクサスが配置されたターンの間、自分のデッキは破棄されない。\nこのネクサスカードは相手のスピリットの効果でデッキから破棄されたとき、コストを支払わずに配置される。\nLv2\n【粉砕】以外の相手のスピリットの効果で自分のデッキが破棄されるとき、自分のライフのコア1個を自分のリザーブに置くことで、その効果を無効にする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS08-064-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noDeckMillByOpponent",
+     "whileSourceDeployedTurnOnly": true
+    }
+   },
+   {
+    "id": "BS08-064-e2",
+    "kind": "onMilledFromDeck",
+    "levels": null,
+    "by": "opponentSpiritEffect",
+    "then": "deployThisNexusFree"
+   }
+  ]
  },
  {
   "cardId": "BS08-065",

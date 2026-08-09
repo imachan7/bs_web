@@ -1144,7 +1144,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, action.count, owner)
+        millDeck(state, targetPid, action.count, owner, srcType ? { sourceType: srcType } : undefined)
         return
 }
 
@@ -1192,19 +1192,19 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, count, owner)
+        millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
         return
 }
 
 const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, sourceName, srcType } = ctx
         // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
         const cost = state.lastBattleDestroyedCost
         if (cost === 0) {
             log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいなかった。`)
             return
         }
-        millDeck(state, opponentOf(owner), cost, owner)
+        millDeck(state, opponentOf(owner), cost, owner, srcType ? { sourceType: srcType } : undefined)
         return
 }
 

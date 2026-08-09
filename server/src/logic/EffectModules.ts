@@ -454,19 +454,34 @@ export function isRefreshBlockedByMark(state: GameState, pid: PlayerId, inst: Ca
 // millCapFor(pid) の上限で count をクランプする（BS05エターナルシールド。自分自身のミル＝粉砕を
 // 自分のデッキに向ける等では上限を適用しない。省略時は従来どおり上限なし）。
 // 戻り値は実際に破棄した枚数（ownFunsaiMilledの発火判定・repeatPerCountに使う）
-export function millDeck(state: GameState, pid: PlayerId, count: number, actorPid?: PlayerId): number {
+export function millDeck(
+    state: GameState,
+    pid: PlayerId,
+    count: number,
+    actorPid?: PlayerId,
+    cause?: { sourceType?: "spirit" | "nexus" | "magic" },
+): number {
     let effectiveCount = count
-    if (actorPid !== undefined && actorPid !== pid) {
+    const byOpponent = actorPid !== undefined && actorPid !== pid
+    // 「自分のデッキは破棄されない」（BS06ディスコンティニュー／BS08鳳翼の聖剣）。
+    // millCap と同じく**相手の効果による破棄だけ**を止める（自分のコスト支払い等は通す）
+    if (byOpponent && isDeckMillBlocked(state, pid)) {
+        log(state, `${state.players[pid].name}のデッキは破棄されなかった。`)
+        return 0
+    }
+    if (byOpponent) {
         effectiveCount = Math.min(effectiveCount, millCapFor(state, pid))
         // ターン累計の上限（BS04侵されざる聖域Lv2：ターンに5枚まで）
         effectiveCount = Math.min(effectiveCount, millCapPerTurnRemaining(state, pid))
     }
     const player = state.players[pid]
     const actual = Math.min(effectiveCount, player.deck.length)
+    const milled: string[] = []
     for (let i = 0; i < actual; i++) {
         const cardId = player.deck.shift()
         if (cardId === undefined) break
         player.trashCards.push(cardId)
+        milled.push(cardId)
     }
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
     if (actorPid !== undefined && actorPid !== pid && actual > 0) {
@@ -477,7 +492,65 @@ export function millDeck(state: GameState, pid: PlayerId, count: number, actorPi
     if (actual > 0 && !state.winner) {
         fireFieldEventTriggers(state, opponentOf(pid), "opponentDeckMilled", undefined, undefined, undefined, actual)
     }
+    // 破棄されたカード自身の『デッキから破棄されたとき』（kind:"onMilledFromDeck"）。
+    // 上のフィールド誘発の**後**に処理する（破棄そのものは先に確定させる）
+    if (byOpponent && milled.length > 0 && !state.winner) {
+        resolveMilledFromDeck(state, pid, milled, cause)
+    }
     return actual
+}
+
+// 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
+// millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
+function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
+    for (const source of effectSources(state, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "noDeckMillByOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // 「このネクサスが配置されたターンの間」（BS08鳳翼の聖剣）
+            if (effect.constraint.whileSourceDeployedTurnOnly && source.summonedTurn !== state.turn) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
+// 発火したカードは**トラッシュから取り除いてから**処理する（マジックは即時発揮、ネクサスは無償配置）
+function resolveMilledFromDeck(
+    state: GameState,
+    pid: PlayerId,
+    milled: string[],
+    cause?: { sourceType?: "spirit" | "nexus" | "magic" },
+): void {
+    const player = state.players[pid]
+    for (const cardId of milled) {
+        for (const effect of getCard(cardId).effects) {
+            if (effect.kind !== "onMilledFromDeck") continue
+            // 「相手の**スピリット**の効果で」（BS08鳳翼の聖剣）は発生源の種別まで一致を要求する。
+            // 種別が渡っていない呼び出しでは、限定を緩めない側に倒して発火させない
+            if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
+            const idx = player.trashCards.lastIndexOf(cardId)
+            if (idx === -1) continue
+            player.trashCards.splice(idx, 1)
+            const name = getCard(cardId).name
+            if (effect.then === "deployThisNexusFree") {
+                const inst = createInstance(cardId, state.turn, 0)
+                player.field.nexuses.push(inst)
+                log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに配置された。`)
+                notifyNexusDeployed(state, pid)
+            } else {
+                log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに発揮された。`)
+                // 破棄されたマジックは「使用」ではなく効果だけが発揮される。トラッシュへは既に入れてあるので、
+                // resolveMagic を通さず効果本体だけを解決する（コスト・無効化・使用時誘発を挟まない）
+                player.trashCards.push(cardId)
+                resolveMagicEffects(state, pid, cardId, "flash", undefined)
+            }
+            break
+        }
+    }
 }
 
 // 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
@@ -762,7 +835,8 @@ export function resolveFunsai(
     const opponentPid = opponentOf(ownerPid)
     const trashCards = state.players[opponentPid].trashCards
     const beforeLen = trashCards.length
-    const actual = millDeck(state, opponentPid, level + bonus, ownerPid)
+    // 【粉砕】の発生源は常にスピリット（onMilledFromDeck の by:"opponentSpiritEffect" 判定に使う）
+    const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit" })
     if (actual > 0) {
         const milledCardIds = trashCards.slice(beforeLen, beforeLen + actual)
         let spirits = 0

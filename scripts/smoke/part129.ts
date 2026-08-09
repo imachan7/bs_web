@@ -58,7 +58,8 @@ console.log("=== カードデータの機械確認（cardIdのズレ検出） ==
     ] as const) {
         assert(getCard(cid).name === name, `${cid} は${name}`)
     }
-    for (const cid of ["BS06-049", "BS06-053", "BS06-055", "BS06-108"]) {
+    // BS06-108 ディスコンティニューは 2026-08-10 に実装したのでこの一覧から外した
+    for (const cid of ["BS06-049", "BS06-053", "BS06-055"]) {
         assert(getCard(cid).effects.length === 0, `${cid}：効果文なし／未実装のためeffects空`)
     }
 }

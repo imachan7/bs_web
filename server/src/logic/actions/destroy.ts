@@ -799,7 +799,7 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
 // 「破壊した対象のコスト」を後段で使うため、汎用 destroy のオプションにせず専用ハンドラにする
 // （destroy は出口が複数あり、どこで破壊が確定したかを一箇所に集約できないため）
 const destroyThenMillByCostHandler: ActionHandler<"destroyThenMillByCost"> = (ctx, action) => {
-    const { state, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
         log(state, `${sourceName}：BP参照元がいなかった。`)
@@ -841,7 +841,7 @@ const destroyThenMillByCostHandler: ActionHandler<"destroyThenMillByCost"> = (ct
         return
     }
     log(state, `${sourceName}：破壊した${name}のコストと同じ${cost}枚を相手のデッキから破棄する。`)
-    millDeck(state, opp, cost)
+    millDeck(state, opp, cost, owner, srcType ? { sourceType: srcType } : undefined)
     return
 }
 

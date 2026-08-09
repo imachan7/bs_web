@@ -92,7 +92,16 @@ function putNexus(s: GameState, pid: PlayerId, cardId: string, cores: number): R
 
 // 効果を持たない素材カード（テストの副作用を避ける）
 const VANILLA = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
-const PLAIN_NEXUS = CARDS.find((c) => c.type === "nexus" && (c.effects ?? []).length === 0)!
+const PLAIN_NEXUS = CARDS.find(
+    (c) =>
+        c.type === "nexus" &&
+        // 効果を持たないネクサスは存在しないので、**盤面に干渉する kind を持たない**もので代用する
+        !(c.effects ?? []).some((e) =>
+            ["fieldEvent", "globalConstraint", "step", "triggered", "onMilledFromDeck", "constraintGrant"].includes(
+                String(e["kind"]),
+            ),
+        ),
+)!
 
 console.log("=== BS08豚人チョウハッカイ：globalConstraint noDrawOutsideDrawStep（ドローの共通経路で判定） ===")
 {

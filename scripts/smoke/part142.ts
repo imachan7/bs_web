@@ -384,7 +384,15 @@ console.log("=== BS07の各色ネクサス：fieldEvent.byOpponentEffectOnly（�
         ),
     )!
     const spareNexus = CARDS.find(
-        (c) => c.type === "nexus" && (c.effects ?? []).length === 0 && c.cardId !== garden.cardId,
+        (c) =>
+        c.type === "nexus" &&
+        c.cardId !== garden.cardId &&
+        // 効果を持たないネクサスは存在しないので、**盤面に干渉する kind を持たない**もので代用する
+        !(c.effects ?? []).some((e) =>
+            ["fieldEvent", "globalConstraint", "step", "triggered", "onMilledFromDeck", "constraintGrant"].includes(
+                String(e["kind"]),
+            ),
+        ),
     )!
 
     // ① 相手の効果で壊された → 発揮する
