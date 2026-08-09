@@ -221,3 +221,27 @@ console.log("--- 装甲を持つ相手は、デッキの下に戻されない --
     )
     assert(!ON_FIELD(s, "p2", plain.instanceId), "装甲を持たないスピリットは戻される")
 }
+
+console.log("=== BS08骸蛇スカルピオーネ：効果以外でコアが増えたスピリットは疲労する（お互いのメインステップ） ===")
+{
+    // BS02夢魔の寝所 / BS06魔帝の寝所 と同じ効果文（相手→お互い の違いだけ）。
+    // 既存の kind:"exhaustOnManualCoreAdd" は「メインステップ（ターン問わず）」で判定するので、
+    // scope:"any"（陣営の指定が無い＝両者のスピリットが対象）を足すだけで表せる
+    const scorpio = CARDS.find((c) =>
+        (c.effects ?? []).some((e) => e["kind"] === "exhaustOnManualCoreAdd" && e["scope"] === "any" && c.type === "spirit"),
+    )!
+    const s = base("scorpione-manual-core")
+    s.phase = "main"
+    const self = put(s, "p1", scorpio.cardId, scorpio.levels?.[0]?.cores ?? 1)
+    const mine = put(s, "p1", FILLER.cardId, 1)
+    const theirs = put(s, "p2", FILLER.cardId, 1)
+
+    // 手動のコア移動（moveCore）でコアが増えると疲労する
+    assert(act(s, "p1", { type: "moveCore", instanceId: mine.instanceId, direction: "add" }) === null, "自分のスピリットへコアを移動")
+    assert(mine.isRested, "効果以外でコアを増やした自分のスピリットも疲労する（scope:any）")
+
+    s.turnPlayer = "p2"
+    assert(act(s, "p2", { type: "moveCore", instanceId: theirs.instanceId, direction: "add" }) === null, "相手のスピリットへコアを移動")
+    assert(theirs.isRested, "相手のスピリットも疲労する（『お互いのメインステップ』）")
+    assert(!self.isRested, "発生源自身はコアが増えていないので疲労しない")
+}
