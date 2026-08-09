@@ -810,6 +810,15 @@ export function resolveTensho(
     dumpAllCoresTensho(state, ownerPid, chosen, dest)
 }
 
+// フィールドイベント誘発「自分の【転召】が解決したとき」（BS08関将龍皇ドラグロン）。
+// dumpAllCoresTenshoが唯一の解決点なので、呼び出し側（自動/interactive選択のいずれの経路）から
+// 「実際に転召が確定した」タイミングでちょうど1回ずつ呼ぶ
+export function fireTenshoEvent(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, {
+        families: [...getCard(inst.cardId).family],
+    })
+}
+
 // 対象スピリットの上のコアすべてをdestへ置く（trash=持ち主のトラッシュ、void=消滅）。
 // 維持コア割れは既存の消滅処理に委ねる（【転召】／resolveAction "tenshoCoreDump" 共通）
 export function dumpAllCoresTensho(
@@ -845,8 +854,10 @@ export function dumpAllCoresTensho(
         // 自動時（テスト）はコアを失わない側を選ぶ決定的簡略化
         log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
         exhaustSpirit(state, ownerPid, inst)
+        fireTenshoEvent(state, ownerPid, inst)
         return
     }
+    fireTenshoEvent(state, ownerPid, inst)
     const player = state.players[ownerPid]
     const count = inst.cores
     inst.cores = 0
@@ -1522,6 +1533,18 @@ function tryReviveOnDestroy(
             exhaustSpirit(state, ownerPid, chosen)
             return true
         }
+        if (effect.cost?.ownLifeOneToVoid) {
+            // BS08太陽石の神殿：持ち主のライフのコア1個をボイドへ（リザーブには戻らない）。
+            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる
+            if (player.life <= 0) return false
+            player.life -= 1
+            log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
+            if (player.life <= 0 && !state.winner) {
+                state.winner = opponentOf(ownerPid)
+                log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            }
+            return true
+        }
         return true
     }
 
@@ -2066,6 +2089,7 @@ export function summonFreeFromHandIndex(
     owner: PlayerId,
     sourceName: string,
     handIndex: number,
+    skipTensho?: true,
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2086,11 +2110,14 @@ export function summonFreeFromHandIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
-            "（このスピリットの召喚時効果は発揮されない）",
+            (skipTensho
+                ? "（このスピリットの召喚時効果は発揮されない。【転召】も発揮したものとして扱う）"
+                : "（このスピリットの召喚時効果は発揮されない）"),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
-    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない
-    if (!state.winner) resolveTensho(state, owner, inst)
+    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない。
+    // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ：「【転召】させずに召喚できる」の明記あり）
+    if (!state.winner && !skipTensho) resolveTensho(state, owner, inst)
 }
 
 // summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
@@ -2760,7 +2787,15 @@ export function fireTrigger(
     // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
     // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
     // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
-    const grantedActions = collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId)
+    // 加えて、action:"grantEffectToTargetThisTurn" でこの個体1体に直接付与された、このターン限りの
+    // 誘発効果（tempGrantedTriggers）も同様に合成する（BS08メテオストーム）
+    const tempGranted = (selfInstance.tempGrantedTriggers ?? [])
+        .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
+        .map((g) => g.action)
+    const grantedActions = [
+        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
+        ...tempGranted,
+    ]
 
     const effects = card.effects
     for (let i = 0; i < effects.length; i++) {
@@ -2879,6 +2914,8 @@ export function fireBattleWonTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
+            // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
+            if (effect.firstAttackOfTurn && state.attacksThisTurn !== 1) continue
             if (effect.vanillaWinnerOnly && !instIsVanilla(winnerInst)) continue
             // 勝利したスピリットのカード名で絞る（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
             if (
@@ -3098,6 +3135,8 @@ export function fireFieldEventTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
+            if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
             // ownOnly（BS06冥騎士アンドラー／冥府の深淵）：発生源の持ち主（pid）のスピリットがアタックしたときのみ
@@ -3170,6 +3209,13 @@ export function fireFieldEventTriggers(
                 } else if ("firstAttackOfTurn" in effect.condition) {
                     // 神鳴る霊峰Lv2：そのターンの最初のアタックのときのみ（triggered.conditionの同名軸と同じ判定）
                     if (state.attacksThisTurn !== 1) continue
+                } else if ("targetMaxBp" in effect.condition) {
+                    // BS08竜騎集う円卓：ライフを減らしたスピリット（targetInstanceId＝アタッカー）の
+                    // 実効BPがこれ以下のときのみ（見つからなければ発火しない）
+                    if (targetInstanceId === undefined) continue
+                    const found = findSpiritAny(state, targetInstanceId)
+                    if (!found) continue
+                    if (effectiveBp(state, found.pid, found.inst) > effect.condition.targetMaxBp) continue
                 } else if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
                     const { color, count } = effect.condition.ownColorTotalAtLeast
@@ -3664,6 +3710,16 @@ function runMagicActions(
                     log(
                         state,
                         `${card.name}：どちらかのフィールドにネクサスがないため発動しなかった。`,
+                    )
+                    continue
+                }
+            } else if ("ownSpiritCountAtLeast" in effect.condition) {
+                // BS08ジャッジメントフレア：自分のフィールドのスピリット数がこれ以上ないと使用できない
+                const minCount = effect.condition.ownSpiritCountAtLeast
+                if (state.players[owner].field.spirits.length < minCount) {
+                    log(
+                        state,
+                        `${card.name}：自分のスピリットが${minCount}体未満のため発動しなかった。`,
                     )
                     continue
                 }

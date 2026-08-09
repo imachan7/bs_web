@@ -19,6 +19,7 @@ import type {
     Keyword,
     PlayerId,
     ResolvedTargetFilter,
+    TriggerEvent,
 } from "../server/src/type"
 import type { Board, BoardPlayer } from "./board"
 import { card } from "./cardDb"
@@ -44,11 +45,22 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     bofu: { id: "bofu", label: "暴風" },
     seimei: { id: "seimei", label: "聖命" },
     kyoshu: { id: "kyoshu", label: "強襲" },
+    hyoheki: { id: "hyoheki", label: "氷壁" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
 export function hasKeyword(cardId: string, keyword: Keyword): boolean {
     return card(cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword)
+}
+
+// 指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
+// 継続付与された誘発効果（kind:"effectGrant"）や一時付与（tempGrantedTriggers）は見ない簡略化
+// （BS08プテラディア捕獲部隊：『召喚時』効果を持つ相手のスピリット）
+export function instHasTriggerEffect(inst: CardInstance, trigger: TriggerEvent): boolean {
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) => e.kind === "triggered" && e.trigger === trigger && effectActiveAtLevel(e.levels, level),
+    )
 }
 
 // ---- レベル・基本述語 ----
@@ -736,6 +748,8 @@ export function matchesTarget(
     if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
     // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
+    // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
+    if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
     return true
 }
 

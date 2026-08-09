@@ -14,8 +14,9 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -33,6 +34,60 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
             state,
             `${getCard(target.cardId).name}に【${KEYWORDS[action.keyword].label}】を付与した。`,
         )
+        return
+}
+
+// BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
+// 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
+const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        if (targetInstanceId !== undefined) {
+            const target = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            target.tempGrantedTriggers = [
+                ...(target.tempGrantedTriggers ?? []),
+                { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+            ]
+            log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, filter, self?.instanceId),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：効果を付与するスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        // 自動選択：実効BP最大の1体（決定的簡略化）
+        const target = candidates.reduce((best, s) =>
+            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        )
+        target.tempGrantedTriggers = [
+            ...(target.tempGrantedTriggers ?? []),
+            { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+        ]
+        log(state, `${getCard(target.cardId).name}に効果を付与した。`)
         return
 }
 
@@ -636,6 +691,7 @@ const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> =
 
 const handlers = {
     grantKeyword: grantKeywordHandler,
+    grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,

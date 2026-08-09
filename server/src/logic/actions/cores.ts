@@ -11,6 +11,7 @@ import {
     dumpAllCoresTensho,
     exhaustSpirit,
     findSpiritAny,
+    fireTenshoEvent,
     isImmuneToArea,
     isEffectBlocked,
     millDeck,
@@ -297,6 +298,7 @@ const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (
         if (chosenOption === TENSHO_SUBSTITUTE_REST) {
             log(state, `【転召】${getCard(self.cardId).name}は疲労し、コアをそのまま維持した。`)
             exhaustSpirit(state, owner, self)
+            fireTenshoEvent(state, owner, self)
             return
         }
         // 「疲労せずコアを置く」：置換を飛ばして通常のコア移動を行う（再度の確認を出さない）

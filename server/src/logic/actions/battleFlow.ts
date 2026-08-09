@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     bothSidesPids,
+    countEffectCounter,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -209,7 +210,13 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
-        const dealt = Math.min(action.count, player.life)
+        // countCounter指定時はcountを無視しEffectCounterの値を個数として使う（BS08メテオストーム）
+        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter) : action.count
+        if (count <= 0) {
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+            return
+        }
+        const dealt = Math.min(count, player.life)
         player.life -= dealt
         player.reserve += dealt
         log(
@@ -371,6 +378,8 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
             if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
+            // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
+            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
             return true
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
@@ -393,7 +402,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 if (bestIdx === -1) break
                 const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
                 if (player.reserve < maintain) break
-                summonFreeFromHandIndex(state, owner, sourceName, bestIdx)
+                summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho)
                 summonedCount++
                 if (state.winner) return
             }
@@ -439,7 +448,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
         }
         if (chosenCardIndex !== undefined) {
-            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)
+            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho)
             return
         }
         if (state.interactiveTargets) {
@@ -477,7 +486,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
             return
         }
-        summonFreeFromHandIndex(state, owner, sourceName, bestIndex)
+        summonFreeFromHandIndex(state, owner, sourceName, bestIndex, action.skipTensho)
         return
 }
 

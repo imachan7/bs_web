@@ -156,6 +156,7 @@ export function endTurn(state: GameState): void {
             delete inst.blockTriggersAsAttackThisTurn
             delete inst.unblockableOnceThisTurn
             delete inst.countAsThisTurn
+            delete inst.tempGrantedTriggers
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット

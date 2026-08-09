@@ -133,8 +133,16 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             log(state, `${sourceName}の手札破棄：${target.name}の手札がなかった。`)
             return
         }
+        // cardTypeFilter（BS08関将龍皇ドラグロン：相手の手札を見てスピリットカード1枚を破棄）：
+        // このカード種別のカードだけを候補にする。該当がなければ不発
+        const matchesType = (cardId: string): boolean =>
+            action.cardTypeFilter === undefined || getCard(cardId).type === action.cardTypeFilter
         if (state.interactiveTargets) {
-            const indices = target.hand.map((_, i) => i)
+            const indices = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
+            if (indices.length === 0) {
+                log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                return
+            }
             if (
                 tryInteractiveCardChoice(
                     state,
@@ -145,7 +153,12 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
                     indices,
                     { type: "discardOpponent", count: 1, forcedTargetPid: targetPid },
                     action.count > 1
-                        ? { type: "discardOpponent", count: action.count - 1, forcedTargetPid: targetPid }
+                        ? {
+                              type: "discardOpponent",
+                              count: action.count - 1,
+                              forcedTargetPid: targetPid,
+                              ...(action.cardTypeFilter !== undefined ? { cardTypeFilter: action.cardTypeFilter } : {}),
+                          }
                         : null,
                 )
             ) {
@@ -153,12 +166,24 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             }
         }
         // 既存の決定的自動選択：本来は相手が選ぶが、簡略化して手札末尾からcount枚を破棄する
+        // （cardTypeFilter指定時は末尾から見て最初に一致した1枚を破棄する）
         const discarded: string[] = []
         for (let i = 0; i < action.count; i++) {
-            const cardId = target.hand.pop()
+            const idx = (() => {
+                for (let j = target.hand.length - 1; j >= 0; j--) {
+                    if (matchesType(target.hand[j]!)) return j
+                }
+                return -1
+            })()
+            if (idx === -1) break
+            const [cardId] = target.hand.splice(idx, 1)
             if (cardId === undefined) break
             target.trashCards.push(cardId)
             discarded.push(getCard(cardId).name)
+        }
+        if (discarded.length === 0) {
+            log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+            return
         }
         log(
             state,
@@ -576,6 +601,52 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
         for (const id of revealed) player.trashCards.push(id)
         if (revealed.length > 0) {
             log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+        }
+        return
+}
+
+// BS08魔帝龍騎ダーク・クリムゾン：デッキ上からcount枚を公開し、その中の指定系統を持つ
+// スピリットカード**すべて**を、コストを支払わず、【転召】させずに召喚する（任意選択を挟まない範囲効果）。
+// この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordと対照的）。
+// 系統不一致・維持コア不足で召喚できなかったカードはすべてトラッシュへ
+const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFamily"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        const player = state.players[owner]
+        const revealed = player.deck.splice(0, action.count)
+        if (revealed.length === 0) {
+            log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+            return
+        }
+        log(
+            state,
+            `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+        )
+        const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+        let summonedCount = 0
+        let discardedCount = 0
+        for (const cardId of revealed) {
+            const card = getCard(cardId)
+            const maintain = minLevelCores(card)
+            if (card.type !== "spirit" || !wanted.some((f) => card.family.includes(f)) || player.reserve < maintain) {
+                player.trashCards.push(cardId)
+                discardedCount++
+                continue
+            }
+            player.reserve -= maintain
+            const inst = createInstance(cardId, state.turn, maintain)
+            player.field.spirits.push(inst)
+            summonedCount++
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わず、【転召】させずに召喚した。` +
+                    "（このスピリットの召喚時効果は発揮されない）",
+            )
+        }
+        if (summonedCount === 0) {
+            log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
+        }
+        if (discardedCount > 0) {
+            log(state, `${player.name}は残り${discardedCount}枚をトラッシュに置いた。`)
         }
         return
 }
@@ -1392,6 +1463,7 @@ const handlers = {
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealAndSummonKeyword: revealAndSummonKeywordHandler,
+    revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     revealDiscardRest: revealDiscardRestHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,

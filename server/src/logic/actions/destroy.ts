@@ -5,6 +5,7 @@ import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, draw, getCard, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
+    countEffectCounter,
     destroyNexus,
     destroySpirit,
     fireTrigger,
@@ -183,6 +184,8 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
             return
         }
         for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
+        // drawPerDestroyed（BS08ドラゴンスクランブル）：実際に破壊できた数ぶん自分がドロー
+        if (action.drawPerDestroyed) draw(state, owner, targets.length)
         return
 }
 
@@ -651,8 +654,10 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
 // BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
 // destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
 const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
-    const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
-        let remaining = action.budget
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）
+        let remaining = action.budgetFromSelfBp && self ? effectiveBp(state, owner, self) : (action.budget ?? 0)
+        const budgetForLog = remaining
         let destroyedCount = 0
         const destroyedNames: string[] = []
         while (remaining > 0) {
@@ -679,8 +684,64 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
         }
         log(
             state,
-            `${sourceName}：BP合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
+            `${sourceName}：BP合計${budgetForLog}まで「${destroyedNames.join("、")}」を破壊した。`,
         )
+        return
+}
+
+// BS08魔帝龍騎ダーク・クリムゾン：カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する
+const destroyPerHandler: ActionHandler<"destroyPer"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+        const count = countEffectCounter(state, owner, self, action.counter)
+        if (count <= 0) {
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
+            return
+        }
+        let destroyedCount = 0
+        for (let i = 0; i < count; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) break
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        }
+        return
+}
+
+// BS08ジャッジメントフレア：相手のスピリットを、自分のフィールドのスピリット数と同じになるまで破壊する
+const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ctx) => {
+    const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+        const ownCount = state.players[owner].field.spirits.length
+        const oppCount = state.players[opp].field.spirits.length
+        const need = oppCount - ownCount
+        if (need <= 0) {
+            log(state, `${sourceName}：相手のスピリットは既に自分と同数以下のため発動しなかった。`)
+            return
+        }
+        let destroyedCount = 0
+        for (let i = 0; i < need; i++) {
+            const target = pickEnemyByBp(state, opp, Infinity, () => true, srcColors, srcType)
+            if (!target) break
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        }
         return
 }
 
@@ -1163,6 +1224,8 @@ const handlers = {
     destroyExhausted: destroyExhaustedHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
+    destroyPer: destroyPerHandler,
+    destroyDownToOwnCount: destroyDownToOwnCountHandler,
     destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,

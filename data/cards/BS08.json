@@ -1,0 +1,938 @@
+[
+ {
+  "cardId": "BS08-001",
+  "name": "ディノニクソー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-002",
+  "name": "プテラディア捕獲部隊",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n『このスピリットの召喚時』効果を持つBP3000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS08-002-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 3000,
+      "hasTrigger": "onSummon"
+     },
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-003",
+  "name": "ダークアンキラーザウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、【転召】させずに召喚できる。\nLv2･Lv3『相手のターン』\nドローステップ以外で相手がドローしたとき、BP4000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS08-003-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
+    "id": "BS08-003-e2",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "opponent",
+    "excludePhase": "draw",
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 4000
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-004",
+  "name": "恐竜人ティラノイド",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のフィールドにスピリットが2体以下の間、このスピリットはLv3として扱う。",
+  "effects": [
+   {
+    "id": "BS08-004-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": 3,
+    "condition": {
+     "maxOwnSpirits": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-005",
+  "name": "闘将カタパルドス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から2枚オープンできる。\nその中の系統：「虚神」/「神将」を持つスピリットカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならスピリットでブロックする。\nただし、アルティメットでブロックしてもよい。",
+  "effects": [
+   {
+    "id": "BS08-005-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "deckReveal",
+     "count": 2,
+     "pickType": "spirit",
+     "familyFilter": [
+      "虚神",
+      "神将"
+     ]
+    },
+    "optional": true
+   },
+   {
+    "id": "BS08-005-e2",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-006",
+  "name": "雷帝竜騎レイブリッツ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜騎",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nターンに1回、自分の手札にある【転召】を持つスピリットカード1枚を【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\n系統：「龍帝」/「竜騎」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS08-006-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS08-006-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByFamily",
+    "familyFilter": [
+     "龍帝",
+     "竜騎"
+    ],
+    "treatAs": "max",
+    "sourceLevels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-007",
+  "name": "火砕竜プロメテオーズ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【転召：コスト1以上/トラッシュ】\n召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\n『このスピリットの召喚時』効果を持つBP5000以下の相手のスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS08-007-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 1,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-007-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 5000,
+      "hasTrigger": "onSummon"
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-008",
+  "name": "黒皇龍ダークヴルム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『自分のアタックステップ』\n系統：「星竜」を持つ自分のスピリットすべてをBP+3000し、さらに【激突】を与える。",
+  "effects": [
+   {
+    "id": "BS08-008-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS08-008-e2",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "星竜",
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS08-008-e3",
+    "kind": "keywordGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "keyword": "clash",
+    "target": "ownAll",
+    "familyFilter": "星竜",
+    "phase": "attack",
+    "turn": "own"
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-009",
+  "name": "関将龍皇ドラグロン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\n【神速】を持つスピリットすべてを破壊する。\n系統：「竜人」を持つスピリットで【転召】したとき、さらに自分は相手の手札すべてを見て、その中のスピリットカード1枚を破棄する。\nLv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+  "effects": [
+   {
+    "id": "BS08-009-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-009-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "keyword": "soku"
+     },
+     "anySide": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-009-e3",
+    "kind": "fieldEvent",
+    "event": "ownTensho",
+    "levels": [
+     1,
+     2
+    ],
+    "familyFilter": "竜人",
+    "action": {
+     "type": "discardOpponent",
+     "count": 1,
+     "cardTypeFilter": "spirit"
+    }
+   },
+   {
+    "id": "BS08-009-e4",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-055",
+  "name": "竜騎集う円卓",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nBP5000以下の相手のスピリットのアタックによって自分のライフが減らされたとき、そのスピリットを破壊する。\nLv2『自分のアタックステップ』\n系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない。",
+  "effects": [
+   {
+    "id": "BS08-055-e1",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "targetMaxBp": 5000
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-056",
+  "name": "太陽石の神殿",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n【激突】を持つ自分のスピリット1体が自分のターンの最初のアタックをし、BPを比べ相手のスピリットだけを破壊したとき、BP合計(破壊したスピリットのBP)まで、相手のスピリットを好きなだけ破壊できる。\nLv2『自分のアタックステップ』\n【激突】を持つ自分のスピリットが破壊されたとき、自分のライフのコア1個をボイドに置くことで、回復状態で自分のフィールドに戻る。",
+  "effects": [
+   {
+    "id": "BS08-056-e1",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     1,
+     2
+    ],
+    "firstAttackOfTurn": true,
+    "winnerKeywordFilter": "clash",
+    "optional": true,
+    "action": {
+     "type": "destroyByBpBudget",
+     "budgetFromSelfBp": true
+    }
+   },
+   {
+    "id": "BS08-056-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "keywordFilter": "clash",
+    "when": {},
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "ownLifeOneToVoid": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-067",
+  "name": "ドラゴンスクランブル",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、系統：「龍帝」/「竜騎」を持つ自分のスピリットがアタックしたとき、BP3000以下のスピリットすべてを破壊する。\nこの効果で破壊したスピリット1体につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-067-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS08-067-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": null,
+    "lentOnly": true,
+    "ownOnly": true,
+    "familyFilter": [
+     "龍帝",
+     "竜騎"
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 3000
+     },
+     "anySide": true,
+     "drawPerDestroyed": true
+    }
+   },
+   {
+    "id": "BS08-067-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-068",
+  "name": "メテオストーム",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、カード名に「ヴルム」と入っている自分のスピリット1体に“『このスピリットのアタック時』BPを比べ相手のスピリットだけを破壊したとき、このスピリットが持つシンボルと同じ数、相手のライフのコアを相手のリザーブに置く”を与える。",
+  "effects": [
+   {
+    "id": "BS08-068-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantEffectToTargetThisTurn",
+     "trigger": "onBattleWin",
+     "battleRole": "attacker",
+     "filter": {
+      "nameContains": "ヴルム"
+     },
+     "action": {
+      "type": "lifeCrush",
+      "count": 0,
+      "countCounter": "selfSymbols"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-069",
+  "name": "ジャッジメントフレア",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のフィールドにスピリットが2体以上いるとき、相手は、相手のスピリットを自分のスピリットと同じ体数になるように破壊する。この効果は、メインステップで使用できない。",
+  "effects": [
+   {
+    "id": "BS08-069-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "mainForbidden": true,
+    "condition": {
+     "ownSpiritCountAtLeast": 2
+    },
+    "action": {
+     "type": "destroyDownToOwnCount"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-X29",
+  "name": "魔帝龍騎ダーク・クリムゾン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜騎",
+   "龍帝"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のデッキを上から7枚オープンする。\nその中の系統：「龍帝」/「竜騎」を持つスピリットカードすべてを、コストを支払わず、【転召】させずに召喚できる。\nただし、それらの『このスピリットの召喚時』効果は発揮されない。\n残ったカードは破棄する。\nLv2･Lv3『このスピリットのアタック時』\n系統：「龍帝」を持つ自分のスピリット1体につき、BP5000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS08-X29-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "revealAndSummonAllByFamily",
+     "count": 7,
+     "familyFilter": [
+      "龍帝",
+      "竜騎"
+     ]
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-X29-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyPer",
+     "counter": {
+      "ownFamily": "龍帝"
+     },
+     "filter": {
+      "maxBp": 5000
+     }
+    },
+    "optional": false
+   }
+  ]
+ }
+]

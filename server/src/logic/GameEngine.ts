@@ -805,8 +805,9 @@ function resolveLifeDamage(state: GameState): void {
         log(state, `${state.players[attackerPid].name}の勝利！`)
     } else if (dealt > 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
-        // ライフ0で敗北が決まった場合は発火しない
-        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged")
+        // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
+        // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
+        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
     }
     // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
