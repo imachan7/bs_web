@@ -412,3 +412,56 @@ console.log('=== BS08機神獣インフェニット・ヴォルス：lifeCrush.d
         "ライフのコアはリザーブに戻らない（増えるのは破壊されたアタッカーのコア分だけ）",
     )
 }
+
+console.log("=== BS08アンブッシュブロッカー／インフィニティシールド：カードデータ経由（実際にマジックを使用する） ===")
+{
+    // 上のテストは resolveAction で action を直接叩いており、**カードデータの記述（timing・引数）は未検証**
+    // だった（npm run coverage:effects の「カード経由が未検証」に挙がっていた）。
+    // ここでは手札から実際に使用して、カードに書いた通りに効くことを確かめる
+    const ambush = CARDS.find((c) => c.cardId === "BS08-076")!
+    const shield = CARDS.find((c) => c.cardId === "BS08-077")!
+    const ambushAction = entryOf(ambush, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
+    const shieldAction = entryOf(shield, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
+    const maxCost = Number(ambushAction["maxCost"])
+    const families = shieldAction["familyFilter"] as string[]
+    // カードIDの取り違えを防ぐため、名前も突き合わせておく（cardId は過去に全面的にズレた事故がある）
+    assert(ambush.name === "アンブッシュブロッカー", "BS08-076 はアンブッシュブロッカー")
+    assert(shield.name === "インフィニティシールド", "BS08-077 はインフィニティシールド")
+
+    // どちらも timing:"flash"。アタック宣言後、防御側に優先権があるタイミングで使う
+    const cheap = CARDS.find((c) => c.type === "spirit" && (c.cost ?? 99) <= maxCost)!
+    const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
+
+    // アタック宣言後の優先権は**防御側**に渡る。フラッシュマジックを使えるのはそちらなので、
+    // 相手（p2）にアタックさせ、防御側の p1 が使う形にする
+    const s = base("ambush-via-card")
+    const marked = put(s, "p2", cheap.cardId, coresFor(cheap, 1))
+    const attacker = put(s, "p2", attackerCard.cardId, coresFor(attackerCard, 1))
+    s.players.p1.hand.push(ambush.cardId)
+    s.turnPlayer = "p2"
+    s.phase = "attack"
+    assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2がアタック宣言（防御側p1に優先権）")
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null,
+        "アンブッシュブロッカーをフラッシュで使用",
+    )
+    assert(
+        s.turnConstraints.some((c) => c.type === "mustAttackByCost" && c.pid === "p2" && c.maxCost === maxCost),
+        `カード記述どおりコスト${maxCost}以下の相手に強制アタックが積まれる`,
+    )
+    assert(marked.cardId === cheap.cardId, "対象となるコスト以下のスピリットが場にいる")
+
+    const s2 = base("shield-via-card")
+    const blocker = CARDS.find((c) => c.type === "spirit" && families.some((f) => (c.family ?? []).includes(f)))!
+    const rested = put(s2, "p2", blocker.cardId, coresFor(blocker, 1))
+    rested.isRested = true
+    const attacker2 = put(s2, "p1", attackerCard.cardId, coresFor(attackerCard, 1))
+    s2.players.p2.hand.push(shield.cardId)
+    assert(act(s2, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ")
+    assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "アタック宣言（防御側p2に優先権）")
+    assert(
+        act(s2, "p2", { type: "castMagic", handIndex: s2.players.p2.hand.length - 1 }) === null,
+        "インフィニティシールドをフラッシュで使用",
+    )
+    assert(declareBlock(s2, "p2", rested.instanceId) === null, "カード記述どおり疲労状態でもブロックできる")
+}
