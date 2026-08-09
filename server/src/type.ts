@@ -861,6 +861,9 @@ export type EffectDef =
           // 効くのは転召の生贄判定（dumpAllCoresTensho の候補列挙）だけで、召喚コストや instAllCosts 一般には影響しない（局所的な簡略化）。BS08冥機グングニル
           levels: number[] | null
           amount: number
+          target?: "ownAll" // 省略時は「このカード自身」（従来＝グングニル）。"ownAll" 指定時は**発生源の持ち主のスピリットすべて**が対象になり、
+          // 発生源自身（ネクサス）ではなくそのスピリットたちのコストが上がる（BS08赤き砂の座Lv2＝系統「冥主」を持つ自分のスピリットすべて）
+          familyFilter?: FamilyFilter // target:"ownAll" 用。指定系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ
       }
     | {
           id: string

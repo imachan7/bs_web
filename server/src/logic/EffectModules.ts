@@ -974,7 +974,7 @@ export function resolveTensho(
         (s) =>
             s.instanceId !== spirit.instanceId &&
             (instMatchesCostFilter(s, { min: minCost }) ||
-                getCard(s.cardId).cost + tenshoSelfCostBonus(s) >= minCost),
+                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
     )
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
@@ -1000,22 +1000,38 @@ export function resolveTensho(
     // 自動選択（プレイヤー選択の決定的簡略化）：コスト最大の1体。
     // 複数コストを持つ状態では「最大」を定義できないため、カード本来のコストのまま比較する
     const chosen = candidates.reduce((best, s) =>
-        getCard(s.cardId).cost + tenshoSelfCostBonus(s) > getCard(best.cardId).cost + tenshoSelfCostBonus(best)
+        getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >
+        getCard(best.cardId).cost + tenshoSelfCostBonus(state, ownerPid, best)
             ? s
             : best,
     )
     dumpAllCoresTensho(state, ownerPid, chosen, dest)
 }
 
-// kind:"tenshoSelfCostBonus"（BS08冥機グングニル）：【転召】の生贄候補列挙でだけ自身のコストに+amountする。
+// kind:"tenshoSelfCostBonus"：【転召】の生贄候補列挙でだけ、その候補のコストに+amountする。
+// 2種類を合算する:
+//   ① 候補自身が持つエントリ（target 省略。BS08冥機グングニル＝「このスピリットをコスト+3」）
+//   ② 持ち主フィールドの発生源が配る target:"ownAll" のエントリ
+//      （BS08赤き砂の座Lv2＝「系統『冥主』を持つ自分のスピリットすべてをコスト+3」）
 // 効くのはresolveTenshoの候補判定だけで、instAllCosts等の一般的なコスト計算には影響しない局所的な簡略化
-function tenshoSelfCostBonus(inst: CardInstance): number {
-    const level = currentLevel(inst).level
+function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: CardInstance): number {
     let bonus = 0
+    const instLevel = currentLevel(inst).level
     for (const effect of getCard(inst.cardId).effects) {
         if (effect.kind !== "tenshoSelfCostBonus") continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
+        if (effect.target === "ownAll") continue // 自身のエントリでも ownAll 版は②で数える
+        if (!effectActiveAtLevel(effect.levels, instLevel)) continue
         bonus += effect.amount
+    }
+    for (const source of effectSources(state, ownerPid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "tenshoSelfCostBonus") continue
+            if (effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
+            bonus += effect.amount
+        }
     }
     return bonus
 }

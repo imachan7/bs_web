@@ -3794,6 +3794,16 @@
     "constraint": {
      "type": "singleCoreCantAttack"
     }
+   },
+   {
+    "id": "BS08-057-e2",
+    "kind": "tenshoSelfCostBonus",
+    "levels": [
+     2
+    ],
+    "amount": 3,
+    "target": "ownAll",
+    "familyFilter": "冥主"
    }
   ]
  },

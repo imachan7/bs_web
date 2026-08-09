@@ -8,11 +8,14 @@
 import { act, assert, createGame, createInstance, declareBlock, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
+import { resolveTensho } from "../../server/src/logic/EffectModules"
 
 interface CardRow {
     cardId: string
     name: string
     type?: string
+    cost?: number
+    family?: string[]
     colors?: string[]
     effects?: Record<string, unknown>[]
     levels?: { level?: number; cores?: number; bp?: number }[]
@@ -244,4 +247,63 @@ console.log("=== BS08骸蛇スカルピオーネ：効果以外でコアが増�
     assert(act(s, "p2", { type: "moveCore", instanceId: theirs.instanceId, direction: "add" }) === null, "相手のスピリットへコアを移動")
     assert(theirs.isRested, "相手のスピリットも疲労する（『お互いのメインステップ』）")
     assert(!self.isRested, "発生源自身はコアが増えていないので疲労しない")
+}
+
+console.log("=== BS08赤き砂の座Lv2：【転召】の生贄判定で、系統「冥主」のコストを+3する ===")
+{
+    // BS08-031 冥機グングニル（「このスピリットをコスト+3」）の**系統指定・全体版**。
+    // 発生源はネクサスなので自身は生贄になれず、持ち主の「冥主」スピリットのコストを底上げする
+    const sands = findByEffect((e) => e["kind"] === "tenshoSelfCostBonus" && e["target"] === "ownAll")
+    const entry = (sands.effects ?? []).find((e) => e["kind"] === "tenshoSelfCostBonus")!
+    const level = (entry["levels"] as number[])[0]!
+    const amount = Number(entry["amount"])
+    const family = String(entry["familyFilter"])
+
+    // 【転召：コストN以上】を持つスピリットと、「N未満だが +amount で届く」冥主スピリット
+    const tensho = CARDS.find((c) =>
+        (c.effects ?? []).some(
+            (e) => e["kind"] === "keyword" && e["keyword"] === "tensho" && Number(e["minCost"] ?? 0) >= 3,
+        ),
+    )!
+    const minCost = Number(
+        (tensho.effects ?? []).find((e) => e["kind"] === "keyword" && e["keyword"] === "tensho")!["minCost"],
+    )
+    const meishu = CARDS.find(
+        (c) =>
+            (c.family ?? []).includes(family) &&
+            (c.cost ?? 0) < minCost &&
+            (c.cost ?? 0) + amount >= minCost,
+    )!
+
+    // 発生源なし：コストが足りないので生贄にできず、【転召】は不発
+    const s = base("sands-absent")
+    const sacrifice = put(s, "p1", meishu.cardId, 2)
+    const summoned = put(s, "p1", tensho.cardId, 1)
+    resolveTensho(s, "p1", summoned)
+    assert(sacrifice.cores === 2, `発生源が無ければ、コスト${meishu.cost}は【転召：コスト${minCost}以上】の生贄にならない`)
+
+    // 発生源あり（Lv2）：コスト+3で届くので生贄になる
+    const s2 = base("sands-present")
+    putNexus(s2, "p1", sands.cardId, sands.levels?.[level - 1]?.cores ?? 3)
+    const sacrifice2 = put(s2, "p1", meishu.cardId, 2)
+    const summoned2 = put(s2, "p1", tensho.cardId, 1)
+    resolveTensho(s2, "p1", summoned2)
+    assert(sacrifice2.cores === 0, `${sands.name}Lv${level}があればコスト+${amount}で生贄になる`)
+
+    // 系統が違えば対象外
+    const other = CARDS.find(
+        (c) =>
+            c.type === "spirit" &&
+            !(c.family ?? []).includes(family) &&
+            (c.cost ?? 0) === (meishu.cost ?? 0) &&
+            (c.effects ?? []).length === 0,
+    )
+    if (other) {
+        const s3 = base("sands-other-family")
+        putNexus(s3, "p1", sands.cardId, sands.levels?.[level - 1]?.cores ?? 3)
+        const notMeishu = put(s3, "p1", other.cardId, 2)
+        const summoned3 = put(s3, "p1", tensho.cardId, 1)
+        resolveTensho(s3, "p1", summoned3)
+        assert(notMeishu.cores === 2, `系統「${family}」を持たないスピリットは底上げされない`)
+    }
 }
