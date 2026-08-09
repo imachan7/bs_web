@@ -5296,7 +5296,8 @@
      3
     ],
     "scope": "allMagicHandAndTegamoto",
-    "condition": "selfInBattle"
+    "condition": "selfInBattle",
+    "oncePerBattle": true
    },
    {
     "id": "BS07-X27-e2",
@@ -5306,7 +5307,8 @@
      2,
      3
     ],
-    "condition": "selfInBattle"
+    "condition": "selfInBattle",
+    "oncePerBattle": true
    },
    {
     "id": "BS07-X27-e3",

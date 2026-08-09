@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-08-10",
+   "category": "fix",
+   "text": "[大天使イスフィール]の無償使用を、効果文どおり1バトルにつきマジック1枚までに修正しました"
+  },
+  {
    "date": "2026-08-09",
    "category": "new",
    "text": "第八弾「戦嵐」のカード91枚を追加しました"

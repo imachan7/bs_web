@@ -1213,6 +1213,7 @@ export type EffectDef =
           scope?: "allMagicHandAndTegamoto" // 色を問わず、持ち主の手札/手元(tegamoto)のマジックカードすべてを無償化（大天使ミカファールLv2。手札からの使用にも適用される＝effectiveCostはfromTegamoto不問で判定）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           condition?: "selfInBattle" // 指定時、発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）であるときのみ有効（『このスピリットのバトル時』。BS07大天使イスフィール）
+          oncePerBattle?: true // 指定時、この発生源が無償化できるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBattleMagicFreeUsed で消費を記録。BS07大天使イスフィール＝「マジックカード1枚を」。省略時は枚数無制限＝BS02ミカファール/BS03バロッサの「すべて」）
       }
     | {
           id: string
@@ -1220,6 +1221,7 @@ export type EffectDef =
           // （resolveMagicEffects が効果の並びを2周する。2周目の途中で選択待ちになった場合はそこで打ち切る。BS07大天使イスフィール）
           levels: number[] | null
           condition?: "selfInBattle" // magicFreeGrant と同じ（『このスピリットのバトル時』）
+          oncePerBattle?: true // 指定時、この発生源が再発揮させるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBattleMagicRepeatUsed で消費を記録。BS07大天使イスフィール＝「1枚を…もう1度だけ」）
       }
     | {
           id: string
@@ -1337,6 +1339,13 @@ export interface BattleState {
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     compareByCores?: boolean // trueの場合、バトル解決時にBPの代わりに置かれているコアの数を比較する（BS06イマジンフィールド）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
+    // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
+    // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
+    // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
+    // 再発揮は resolveMagicEffects が repeat を確定させる時点。1つのリストにすると、
+    // 1枚目の無償化を記録した時点で同じ1枚目の再発揮まで消えてしまう
+    oncePerBattleMagicFreeUsed?: string[]
+    oncePerBattleMagicRepeatUsed?: string[]
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに

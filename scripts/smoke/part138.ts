@@ -666,3 +666,63 @@ console.log("=== BS07 黄：バトル中はマジックが無償になり、効�
         "対照実験：効果は1回だけ発揮される",
     )
 }
+
+console.log("=== BS07大天使イスフィール：無償化と再発揮は1バトルにつき1枚まで（magicFreeGrant/magicRepeatGrant の oncePerBattle） ===")
+{
+    // 2026-08-10 修正: 効果文は「自分のマジックカード**1枚**を」なのに、以前は
+    // バトル中に使うマジックすべてが無償かつ2回発揮になっていた
+    const isfil = findByEffect((e) => e["kind"] === "magicRepeatGrant")
+    const repeatEntry = kindOf(isfil, "magicRepeatGrant")
+    assert(repeatEntry["oncePerBattle"] === true, "再発揮エントリに oncePerBattle が指定されている")
+    assert(kindOf(isfil, "magicFreeGrant")["oncePerBattle"] === true, "無償化エントリにも oncePerBattle が指定されている")
+    const level = (repeatEntry["levels"] as number[])[0]!
+    const cores = isfil.levels?.[level - 1]?.cores ?? 1
+    const buffMagic = CARDS.find(
+        (c) =>
+            c.type === "magic" &&
+            (c.effects ?? []).length === 1 &&
+            (c.effects ?? []).some(
+                (e) =>
+                    e["kind"] === "magic" &&
+                    e["timing"] === "flash" &&
+                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
+                    (e["action"] as Record<string, unknown>)["filter"] === undefined,
+            ) &&
+            (c.cost ?? 0) > 0,
+    )!
+    const buffAmount = Number(((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)["amount"])
+
+    const s = base("isfil-once-per-battle")
+    const isfilInst = put(s, "p1", isfil.cardId, cores)
+    put(s, "p2", FILLER.cardId, 1)
+    s.players.p1.hand.push(buffMagic.cardId, buffMagic.cardId) // 同じマジックを2枚使う
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: isfilInst.instanceId }) === null, "イスフィール自身がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側がパスして優先権が攻撃側へ")
+
+    // 1枚目：無償かつ効果が2回
+    const reserve1 = s.players.p1.reserve
+    const bp1 = effectiveBp(s, "p1", isfilInst)
+    assert(act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null, "1枚目を使用")
+    assert(s.players.p1.reserve === reserve1, "1枚目はコストを払わない")
+    assert(effectiveBp(s, "p1", isfilInst) === bp1 + buffAmount * 2, "1枚目は効果が2回発揮される")
+
+    // 2枚目：同じバトルなので通常どおりコストを払い、効果は1回だけ
+    // （マジックを使うたび優先権は相手へ渡るので、もう一度パスしてもらう）
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側が再度パスして優先権が戻る")
+    const reserve2 = s.players.p1.reserve
+    const bp2 = effectiveBp(s, "p1", isfilInst)
+    assert(act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null, "2枚目を使用")
+    assert(s.players.p1.reserve < reserve2, "2枚目はコストを払う（無償化は1枚で使い切っている）")
+    assert(effectiveBp(s, "p1", isfilInst) === bp2 + buffAmount, "2枚目の効果は1回だけ")
+
+    // 消費の記録はバトル状態に載る＝バトルが終われば破棄され、次のバトルでまた1枚使える
+    assert(
+        s.battle?.oncePerBattleMagicFreeUsed?.includes(isfilInst.instanceId) === true,
+        "消費はBattleStateに記録される（バトル終了時に破棄されるので次のバトルでは復活する）",
+    )
+    assert(
+        s.battle?.oncePerBattleMagicRepeatUsed?.includes(isfilInst.instanceId) === true,
+        "再発揮側の消費も同様に記録される",
+    )
+}

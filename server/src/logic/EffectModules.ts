@@ -51,7 +51,12 @@ import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
 import type { KeywordInfo } from "../../../shared/rules"
 export type { KeywordInfo }
-import { isSelfInBattle, ownFieldSymbolColors } from "../../../shared/cost"
+import {
+    findMagicFreeGrantSource,
+    hasMagicRestriction,
+    isSelfInBattle,
+    ownFieldSymbolColors,
+} from "../../../shared/cost"
 import {
     activeConstraints,
     auraAmount,
@@ -3694,6 +3699,10 @@ export function resolveMagic(
         state.battle.usedMagicCardIds[owner].push(cardId)
     }
     const card = getCard(cardId)
+    // oncePerBattle の無償化（BS07大天使イスフィール＝「マジックカード1枚を」）は、ここで使い切る。
+    // 再発揮（magicRepeatGrant）の消費は resolveMagicEffects 側で別に記録するので、
+    // この記録によって**同じ1枚目の再発揮まで消えることはない**
+    consumeOncePerBattleMagicFree(state, owner, card)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
 
     // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
@@ -3768,7 +3777,7 @@ function resolveMagicEffects(
     // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
     // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
     // 「発揮後にもう1度」は約束どおり行う）
-    const repeat = hasMagicRepeatGrant(state, owner)
+    const repeat = hasMagicRepeatGrant(state, owner, true)
     runMagicActions(state, owner, cardId, timing, targetInstanceId)
     // 選択待ちで中断したときは、残りの効果を pendingChoice の queue が引き継いでいるのでここで抜ける
     if (state.pendingChoice) return
@@ -3780,18 +3789,46 @@ function resolveMagicEffects(
     fireMagicUsedTriggers(state, owner, getCard(cardId), timing)
 }
 
-// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発生源があるか（BS07大天使イスフィール）
-function hasMagicRepeatGrant(state: GameState, pid: PlayerId): boolean {
+// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発生源があるか（BS07大天使イスフィール）。
+// consume=true のときは oncePerBattle の発生源を「このバトルで使い切った」として記録する
+// （呼び出し元は resolveMagicEffects の1箇所だけ。ここが再発揮を確定させる時点なので、
+// 消費もここで行う。無償化側とは消費点が違うのでリストを分けている＝BattleState のコメント参照）
+function hasMagicRepeatGrant(state: GameState, pid: PlayerId, consume = false): boolean {
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicRepeatGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.condition === "selfInBattle" && !isSelfInBattle(state, source.instanceId)) continue
+            if (effect.oncePerBattle) {
+                if (!state.battle) continue // バトル外では消費を記録できないので成立させない
+                const used = (state.battle.oncePerBattleMagicRepeatUsed ??= [])
+                if (used.includes(source.instanceId)) continue
+                if (consume) used.push(source.instanceId)
+            }
             return true
         }
     }
     return false
+}
+
+// oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
+// resolveMagic の冒頭（＝マジックの使用が確定した時点）で呼ぶ。コスト0の判定自体は
+// その手前の支払い経路（shared/cost.ts effectiveCost）で済んでいるため、ここでは記録だけを行う
+function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, cardData: CardData): void {
+    if (!state.battle) return
+    if (hasMagicRestriction(state, pid, "noFreeCastOpponent")) return // 無償化が封じられていたなら消費しない
+    // 手元(tegamoto)からの使用も手札からの使用も、成立させている発生源は同じ絞り込みで引ける
+    const sourceId =
+        findMagicFreeGrantSource(state, pid, cardData) ?? findMagicFreeGrantSource(state, pid, cardData, true)
+    if (!sourceId) return
+    const effects = getCard(
+        [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses].find(
+            (s) => s.instanceId === sourceId,
+        )!.cardId,
+    ).effects
+    if (!effects.some((e) => e.kind === "magicFreeGrant" && e.oncePerBattle)) return
+    ;(state.battle.oncePerBattleMagicFreeUsed ??= []).push(sourceId)
 }
 
 // マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
