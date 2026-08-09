@@ -1252,28 +1252,20 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ### 未着手の課題
 
-#### 範囲コア奪取が【装甲】等の耐性を素通りする（2026-08-10 発見・未修正）
+#### ~~範囲コア奪取が【装甲】等の耐性を素通りする~~ — **2026-08-10 解消**
 
-`server/src/logic/actions/cores.ts` のコア奪取ハンドラで、耐性判定の有無が**不揃い**になっている。
+「1体ずつ選んで取る」効果（`coreRemove` 等）は候補選び（`pickEnemy*`）が装甲・免疫を弾いていたが、
+「範囲でまとめて奪う」効果は候補を自前で走査していたため、**【装甲】もバトル中のコア保護
+（BS05茨の決戦地Lv1）もコア下限（BS08聖なる柱状彫刻）も素通り**していた。根本原因は、
+それらのハンドラが共通ヘルパーを通さず `inst.cores -= n` を直接いじっていたこと。
 
-| 耐性を見ている | 見ていない（＝装甲を素通りする） |
-| :-- | :-- |
-| `coreRemove` / `coreDrainToLowerLevel` / `coreToOpponentTrashChoice` / `coreToTrashAllByCost` / `coreRemovePerHandDiscard` | `bothSidesCoreToTrash` / `bothSidesCoreToVoid` / `coreDrainAllOthers` / `coreSqueezeAll` / `coreSqueezeOne` / `moveCoresLeavingOne` / `opponentCoresToTrash` / `opponentCoresToVoidByTotal` / `costOwnAllCoresThenEnemyCoresToReserve` / `swapOpponentCores` |
+対応: `removeCores` / `removeCoresToTrash` / `removeCoresToVoid` が**実際に取り除けた数を返す**ように
+してから、範囲側のハンドラをそこへ寄せた。手前には共通の `canTakeCoresFrom`
+（判定軸は `returnAllToHand` と同じ）を置いている。回帰テストは `scripts/smoke/part154.ts`。
 
-「1体ずつ選んで取る」効果は【装甲】で防げるのに、「範囲でまとめて奪う」効果は防げない。
-**意図した簡略化ではなく単なる実装の不揃い**（既に半数は判定している）。影響は14枚:
-BS01-025 要塞龍ギガ / BS01-041 コブライガ / BS01-046 幻龍シェイロン / BS01-087 メタルディー・バグ /
-BS01-130 チェンジングコア / BS01-X02 魔界七将デスペラード / BS02-091 セブンスクリムゾン /
-BS02-093 マインドコントロール / BS02-094 ブラッディレイン / BS03-125 ウィークネス /
-BS04-045 氷の女神フリッグ / BS04-053 天使スローン / BS04-096 インフェルノアイズ / BS06-018 人狼ルー・ガウル /
-BS06-023 闇司教バクルス。
-
-直し方は `returnAllToHand` と同じ判定（`isEffectBlocked` ＋ 相手側のみ
-`hasArmorAgainst` / `hasMagicImmunity` / `isImmuneToArea` / `hasFullEffectImmunity`）を
-各ハンドラの**相手側に触れる箇所**へ入れる。既存テストがこの穴を前提にしていないか要確認。
-
-※ ネクサス側は問題なし。**装甲を持つネクサスは0枚**（装甲はスピリット用キーワード）で、
-ネクサス破壊は `destroyNexus` の単一入口が破壊耐性を必ず見ている。
+**残っている穴**: ネクサス上のコアと、コアを入れ替える系（`swapOpponentCores` 等）はまだ
+共通ヘルパーを通っていない。ネクサスには装甲・維持コアの概念が無いため実害は小さいが、
+コア下限は本来効くはず（`data/card-notes.json` の BS08-059 に記載）。
 
 ### 残りの未対応カード（**枚数は `data/card-notes.json` が唯一の実態**。下表は 2026-08-10 時点）
 

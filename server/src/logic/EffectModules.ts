@@ -2202,6 +2202,31 @@ export function returnSpiritToDeckBottom(
     log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`)
 }
 
+// 相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。
+//
+// **なぜ必要か**: コアを1体ずつ選んで取る効果（coreRemove 等）は、対象選びの中で
+// pickEnemyByBp / pickEnemyCandidates が装甲・免疫を弾いてくれる。しかし「範囲でまとめて奪う」
+// 効果（幻龍シェイロン・氷の女神フリッグ等）は候補を自前で走査するため、その経路を通らず
+// **【装甲】を素通りしていた**（2026-08-10 修正）。判定軸は returnAllToHand と揃えてある。
+// 自分側のスピリットには適用しない（装甲は「相手の効果を受けない」ため）
+export function canTakeCoresFrom(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    actorPid: PlayerId,
+    srcColors?: Color[],
+    srcType?: "spirit" | "nexus" | "magic",
+): boolean {
+    if (isEffectBlocked(state, inst, srcType, actorPid)) return false
+    if (ownerPid === actorPid) return true
+    return !(
+        hasArmorAgainst(inst, srcColors) ||
+        (srcType === "magic" && hasMagicImmunity(state, ownerPid, inst)) ||
+        isImmuneToArea(inst) ||
+        hasFullEffectImmunity(inst, srcType)
+    )
+}
+
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
 // actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
 // actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
@@ -2212,10 +2237,12 @@ export function removeCores(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
-): void {
+): number {
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
+    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     if (isBattlingCoreProtected(state, inst)) {
         log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return
+        return 0
     }
     const player = state.players[ownerPid]
     // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
@@ -2240,6 +2267,7 @@ export function removeCores(
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
         notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
+    return removed
 }
 
 // コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
@@ -2251,10 +2279,12 @@ export function removeCoresToTrash(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
-): void {
+): number {
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
+    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     if (isBattlingCoreProtected(state, inst)) {
         log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return
+        return 0
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
@@ -2272,6 +2302,7 @@ export function removeCoresToTrash(
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
         notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
+    return removed
 }
 
 // コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
@@ -2282,10 +2313,12 @@ export function removeCoresToVoid(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
-): void {
+): number {
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
+    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     if (isBattlingCoreProtected(state, inst)) {
         log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return
+        return 0
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
@@ -2302,6 +2335,7 @@ export function removeCoresToVoid(
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
         notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
     }
+    return removed
 }
 
 // ---- アクションの実行 ----

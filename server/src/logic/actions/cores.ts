@@ -22,6 +22,7 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     placeCoresOnSpirit,
+    canTakeCoresFrom,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -457,20 +458,20 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
         // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ
         let squeezed = 0
         const affectedByPid: Record<PlayerId, number> = { p1: 0, p2: 0 }
-        const toDeplete: { pid: PlayerId; instanceId: string }[] = []
         for (const pid of ["p1", "p2"] as PlayerId[]) {
-            const player = state.players[pid]
-            for (const inst of [...player.field.spirits]) {
+            for (const inst of [...state.players[pid].field.spirits]) {
                 if (inst.cores <= 1) continue
-                const excess = inst.cores - 1
-                inst.cores = 1
-                player.reserve += excess
+                // 範囲でまとめて奪う効果は候補選びの経路（pickEnemy*）を通らないので、ここで耐性を見る
+                if (!canTakeCoresFrom(state, pid, inst, owner, srcColors, srcType)) {
+                    log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                    continue
+                }
+                // removeCores を通すことで、バトル中のコア保護（BS05茨の決戦地Lv1）・コア下限
+                // （BS08聖なる柱状彫刻）・チャウーLv2の加算・維持コア割れの消滅がまとめて効く
+                const removed = removeCores(state, pid, inst, inst.cores - 1, owner)
+                if (removed === 0) continue
                 squeezed++
                 affectedByPid[pid]++
-                // 残った1個が維持コア数を下回るなら消滅対象（Lv1維持コアが2個以上のスピリット）
-                if (inst.cores < minLevelCores(getCard(inst.cardId))) {
-                    toDeplete.push({ pid, instanceId: inst.instanceId })
-                }
             }
         }
         if (squeezed === 0) {
@@ -486,9 +487,6 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
             if (pid !== owner && affectedByPid[pid] > 0) {
                 notifySpiritCoresRemovedByOpponent(state, pid, affectedByPid[pid])
             }
-        }
-        for (const { pid, instanceId } of toDeplete) {
-            destroySpirit(state, pid, instanceId, "deplete")
         }
         return
 }
@@ -605,7 +603,7 @@ const coreToVoidOwnHandler: ActionHandler<"coreToVoidOwn"> = (ctx, action) => {
 }
 
 const bothSidesCoreToTrashHandler: ActionHandler<"bothSidesCoreToTrash"> = (ctx, action) => {
-    const { state, sourceName, srcType } = ctx
+    const { state, owner, sourceName, srcColors, srcType } = ctx
         // 両プレイヤーが各自のフィールドのスピリットから、コアの多い個体から順に
         // 合計count個を各持ち主のトラッシュへ（1体で足りなければ次にコアが多い個体へ繰り越す。
         // 維持コア割れの消滅処理はopponentCoresToTrashHandlerと同じ判定を用いる。
@@ -618,22 +616,30 @@ const bothSidesCoreToTrashHandler: ActionHandler<"bothSidesCoreToTrash"> = (ctx,
             }
             let remaining = action.count
             let moved = 0
+            // 耐性・保護で取れなかった個体。同じ相手を選び続けて無限ループにならないよう覚えておく
+            const skip = new Set<string>()
             while (remaining > 0) {
                 const richest = player.field.spirits
-                    .filter((s) => s.cores > 0)
+                    .filter((s) => s.cores > 0 && !skip.has(s.instanceId))
                     .reduce<CardInstance | undefined>(
                         (best, s) => (best === undefined || s.cores > best.cores ? s : best),
                         undefined,
                     )
                 if (!richest) break
-                const take = Math.min(remaining, richest.cores)
-                richest.cores -= take
-                player.trashCores += take
-                remaining -= take
-                moved += take
-                if (richest.cores < minLevelCores(getCard(richest.cardId))) {
-                    destroySpirit(state, pid, richest.instanceId, "deplete")
+                // 耐性で弾かれる個体は候補から外す（範囲でまとめて奪う効果は pickEnemy* を通らない）
+                if (!canTakeCoresFrom(state, pid, richest, owner, srcColors, srcType)) {
+                    log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
+                    skip.add(richest.instanceId)
+                    continue
                 }
+                // removeCoresToTrash 経由でバトル中のコア保護・コア下限・維持コア割れの消滅を効かせる
+                const removed = removeCoresToTrash(state, pid, richest, Math.min(remaining, richest.cores), owner)
+                if (removed === 0) {
+                    skip.add(richest.instanceId) // 保護されていて取れない：無限ループを避ける
+                    continue
+                }
+                remaining -= removed
+                moved += removed
             }
             if (moved > 0) {
                 log(state, `${sourceName}：${player.name}のスピリットからコア${moved}個をトラッシュに置いた。`)
@@ -1202,22 +1208,26 @@ const opponentCoresToTrashHandler: ActionHandler<"opponentCoresToTrash"> = (ctx,
         target.reserve -= fromReserve
         target.trashCores += fromReserve
         remaining -= fromReserve
+        const skip = new Set<string>() // 耐性・保護で取れなかった個体（無限ループ防止）
         while (remaining > 0) {
             const richest = target.field.spirits
-                .filter((s) => s.cores > 0)
+                .filter((s) => s.cores > 0 && !skip.has(s.instanceId))
                 .reduce<CardInstance | undefined>(
                     (best, s) => (best === undefined || s.cores > best.cores ? s : best),
                     undefined,
                 )
             if (!richest) break
-            const take = Math.min(remaining, richest.cores)
-            richest.cores -= take
-            target.trashCores += take
-            remaining -= take
-            // 維持コア（Lv1）を下回ったスピリットは消滅する
-            if (richest.cores < minLevelCores(getCard(richest.cardId))) {
-                destroySpirit(state, opp, richest.instanceId, "deplete")
+            if (!canTakeCoresFrom(state, opp, richest, owner, srcColors, srcType)) {
+                log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
+                skip.add(richest.instanceId)
+                continue
             }
+            const removed = removeCoresToTrash(state, opp, richest, Math.min(remaining, richest.cores), owner)
+            if (removed === 0) {
+                skip.add(richest.instanceId)
+                continue
+            }
+            remaining -= removed
         }
         const moved = action.count - remaining
         log(state, `${sourceName}：${target.name}のコア${moved}個をトラッシュに置いた。`)
@@ -1404,18 +1414,19 @@ const opponentNexusOrReserveCoreToTrashHandler: ActionHandler<"opponentNexusOrRe
 }
 
 const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, action) => {
-    const { state, sourceName, srcType } = ctx
+    const { state, owner, sourceName, srcColors, srcType } = ctx
         // インフェルノアイズ：両プレイヤーが各自のスピリット+ネクサスから、コアの多い個体から順に
         // 合計count個をボイドへ（維持コア割れの消滅処理はスピリットのみ。ネクサスは消滅しない）
         for (const pid of bothSidesPids(state, srcType)) {
             const player = state.players[pid]
             let remaining = action.count
             let moved = 0
+            const skip = new Set<string>() // 耐性・保護で取れなかった個体（無限ループ防止）
             while (remaining > 0) {
                 let richest: CardInstance | undefined
                 let richestKind: "spirit" | "nexus" | undefined
                 for (const s of player.field.spirits) {
-                    if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+                    if (s.cores > 0 && !skip.has(s.instanceId) && (!richest || s.cores > richest.cores)) {
                         richest = s
                         richestKind = "spirit"
                     }
@@ -1427,13 +1438,26 @@ const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, a
                     }
                 }
                 if (!richest || !richestKind) break
+                if (richestKind === "spirit") {
+                    if (!canTakeCoresFrom(state, pid, richest, owner, srcColors, srcType)) {
+                        log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
+                        skip.add(richest.instanceId)
+                        continue
+                    }
+                    const removed = removeCoresToVoid(state, pid, richest, Math.min(remaining, richest.cores), owner)
+                    if (removed === 0) {
+                        skip.add(richest.instanceId)
+                        continue
+                    }
+                    remaining -= removed
+                    moved += removed
+                    continue
+                }
+                // ネクサスは装甲・維持コアの概念が無いので従来どおり直接動かす
                 const take = Math.min(remaining, richest.cores)
                 richest.cores -= take
                 remaining -= take
                 moved += take
-                if (richestKind === "spirit" && richest.cores < minLevelCores(getCard(richest.cardId))) {
-                    destroySpirit(state, pid, richest.instanceId, "deplete")
-                }
             }
             if (moved > 0) {
                 log(state, `${sourceName}：${player.name}のスピリット/ネクサスからコア${moved}個をボイドに置いた。`)
@@ -1448,7 +1472,7 @@ const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, a
 // 「相手がその中から選ぶ」を、リザーブ→トラッシュ→フィールド（コアの多い個体から）の順で
 // 機械的に取り除く決定的簡略化にしてある（相手の不利が最小になる順序）
 const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTotal"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
     const player = state.players[opp]
     const fieldCores =
         player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
@@ -1478,11 +1502,12 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
     remaining -= fromTrash
     // フィールド（コアの多い個体から。維持コア割れのスピリットは消滅）
     let fromField = 0
+    const skip = new Set<string>() // 耐性・保護で取れなかった個体（無限ループ防止）
     while (remaining > 0) {
         let richest: CardInstance | undefined
         let richestKind: "spirit" | "nexus" | undefined
         for (const s of player.field.spirits) {
-            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+            if (s.cores > 0 && !skip.has(s.instanceId) && (!richest || s.cores > richest.cores)) {
                 richest = s
                 richestKind = "spirit"
             }
@@ -1494,13 +1519,26 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
             }
         }
         if (!richest || !richestKind) break
+        if (richestKind === "spirit") {
+            if (!canTakeCoresFrom(state, opp, richest, owner, srcColors, srcType)) {
+                log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
+                skip.add(richest.instanceId)
+                continue
+            }
+            const removed = removeCoresToVoid(state, opp, richest, Math.min(remaining, richest.cores), owner)
+            if (removed === 0) {
+                skip.add(richest.instanceId)
+                continue
+            }
+            remaining -= removed
+            fromField += removed
+            continue
+        }
+        // ネクサスは装甲・維持コアの概念が無いので従来どおり直接動かす
         const take = Math.min(remaining, richest.cores)
         richest.cores -= take
         remaining -= take
         fromField += take
-        if (richestKind === "spirit" && richest.cores < minLevelCores(getCard(richest.cardId))) {
-            destroySpirit(state, opp, richest.instanceId, "deplete")
-        }
     }
     log(
         state,
