@@ -1348,13 +1348,13 @@ button:active {
 .announcement-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 .announcement-item {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     padding: 12px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
@@ -1365,7 +1365,16 @@ button:active {
 .announcement-item:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.1);
-    transform: translateX(4px);
+}
+
+.announcement-date-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .announcement-meta {
@@ -1407,9 +1416,10 @@ button:active {
 
 .announcement-entry {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
-    padding: 4px 0;
+    padding: 2px 0;
+    line-height: 1.4;
 }
 
 .announcement-entry .badge {
