@@ -1437,6 +1437,29 @@ const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ct
         return
 }
 
+// BS06颶風高原Lv2：このバトル中に自分の【暴風】で疲労させた相手のスピリットすべてをデッキの下へ。
+// 戻す順番は選べず記録順（プレイヤー選択の決定的簡略化）
+const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhaustedToDeckBottom"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+        const records = state.bofuExhaustedThisBattle
+        if (records.length === 0) {
+            log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
+            return
+        }
+        let returned = 0
+        for (const rec of [...records]) {
+            if (rec.pid === owner) continue // 自分側が疲労した記録は対象外（「相手のスピリット」）
+            const inst = state.players[rec.pid].field.spirits.find((sp) => sp.instanceId === rec.instanceId)
+            if (!inst) continue // 既に場から居ない個体は飛ばす
+            returnSpiritToDeckBottom(state, rec.pid, inst)
+            returned += 1
+        }
+        if (returned === 0) {
+            log(state, `${sourceName}：デッキの下に戻せるスピリットがいなかった。`)
+        }
+        return
+}
+
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ぶんの処理を count 回繰り返す。
@@ -1678,6 +1701,7 @@ const handlers = {
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,

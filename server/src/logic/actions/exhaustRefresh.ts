@@ -39,8 +39,10 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             }
             // フラグは**ここで落とす**。残したまま interactive の再入（count-1 の派生 action）へ
             // 引き継ぐと、再入のたびに実効指定数へ戻って疲労が止まらなくなる
+            // bofuSource は落とさずに立てる：選択の再入（count-1 の派生 action や chooserIsTarget の
+            // 差し替え）をまたいで「この疲労は【暴風】由来」を持ち回るため
             const { countFromBofu: _resolved, ...rest } = action
-            action = { ...rest, count: bofu }
+            action = { ...rest, count: bofu, bofuSourcePid: owner }
         }
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)
@@ -91,7 +93,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            exhaustSpirit(state, found.pid, found.inst)
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid)
             log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
             return
         }
@@ -143,7 +145,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
                 // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target)
+                exhaustSpirit(state, targetPid, target, action.bofuSourcePid)
                 exhausted += 1
                 log(state, `${getCard(target.cardId).name}は疲労した。`)
             }
@@ -187,7 +189,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            exhaustSpirit(state, opp, target)
+            exhaustSpirit(state, opp, target, action.bofuSourcePid)
             log(state, `${getCard(target.cardId).name}は疲労した。`)
         }
         return

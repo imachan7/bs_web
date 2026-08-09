@@ -197,6 +197,7 @@ export function createGame(
         lastBattleDestroyedFamilies: [],
         lastBattleDestroyedBp: 0,
         lastBattleDestroyedCost: 0,
+        bofuExhaustedThisBattle: [],
         pendingChoice: null,
         turnStartResumeStep: null,
         interactiveTargets: false,
@@ -233,6 +234,8 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
+    state.bofuExhaustedThisBattle = []
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer

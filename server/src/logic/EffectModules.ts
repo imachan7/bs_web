@@ -407,9 +407,20 @@ export function checkExhaustOnCoreChange(
 // 実際に疲労したときだけ「疲労したとき」のフィールドイベントを発火する。
 // アタック宣言・ブロック宣言・効果による疲労のいずれもここを通す
 // （疲労の代入が13箇所に散っていて誘発点が無かったのを 2026-08-07 に一元化）。
-export function exhaustSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+export function exhaustSpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    // 【暴風】の効果による疲労のとき、その【暴風】の持ち主を渡す。
+    // 記録（BS06颶風高原Lv2）と "ownBofuExhausted" の発火（BS06ミストラルコア）に使う
+    bofuSourcePid?: PlayerId,
+): void {
     if (inst.isRested) return
     inst.isRested = true
+    if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
+        state.bofuExhaustedThisBattle.push({ pid: ownerPid, instanceId: inst.instanceId })
+        fireFieldEventTriggers(state, bofuSourcePid, "ownBofuExhausted", { pid: ownerPid, inst })
+    }
     fireExhaustedTriggers(state, ownerPid, inst)
 }
 
