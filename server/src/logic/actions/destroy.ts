@@ -5,8 +5,10 @@ import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, draw, getCard, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
+    countEffectCounter,
     destroyNexus,
     destroySpirit,
+    fireTrigger,
     findSpiritAny,
     isImmuneToArea,
     isEffectBlocked,
@@ -14,12 +16,14 @@ import {
     notifyNexusDeployed,
     pickAnySideByBp,
     pickAnySideCandidates,
+    millDeck,
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
     returnNexusToHand,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
+    placeCoresOnSpirit,
 } from "../EffectModules"
 import { effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -181,6 +185,17 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
             return
         }
         for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
+        // drawPerDestroyed（BS08ドラゴンスクランブル）：実際に破壊できた数ぶん自分がドロー
+        if (action.drawPerDestroyed) draw(state, owner, targets.length)
+        // voidCoreToSelfPerDestroyed（X003D極帝龍騎ジーク・クリムゾン）：実際に破壊できた数ぶん、
+        // ボイドからコアをself上に置く
+        if (action.voidCoreToSelfPerDestroyed && self && targets.length > 0) {
+            placeCoresOnSpirit(state, self, targets.length, owner)
+            log(
+                state,
+                `${getCard(self.cardId).name}は、破壊した${targets.length}体につきボイドからコア${targets.length}個を自身の上に置いた。`,
+            )
+        }
         return
 }
 
@@ -646,6 +661,100 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
         return
 }
 
+// BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
+// destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
+const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）
+        let remaining = action.budgetFromSelfBp && self ? effectiveBp(state, owner, self) : (action.budget ?? 0)
+        const budgetForLog = remaining
+        let destroyedCount = 0
+        const destroyedNames: string[] = []
+        while (remaining > 0) {
+            const candidates = pickEnemyCandidates(
+                state,
+                opp,
+                Infinity,
+                (s) => effectiveBp(state, opp, s) <= remaining,
+                srcColors,
+                srcType,
+            )
+            if (candidates.length === 0) break
+            const target = candidates.reduce((best, s) =>
+                effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+            )
+            remaining -= effectiveBp(state, opp, target)
+            destroyedNames.push(getCard(target.cardId).name)
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${sourceName}：BP合計${budgetForLog}まで「${destroyedNames.join("、")}」を破壊した。`,
+        )
+        return
+}
+
+// BS08魔帝龍騎ダーク・クリムゾン：カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する
+const destroyPerHandler: ActionHandler<"destroyPer"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
+        const count = countEffectCounter(state, owner, self, action.counter)
+        if (count <= 0) {
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
+            return
+        }
+        let destroyedCount = 0
+        for (let i = 0; i < count; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) break
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        }
+        return
+}
+
+// BS08ジャッジメントフレア：相手のスピリットを、自分のフィールドのスピリット数と同じになるまで破壊する
+const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ctx) => {
+    const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+        const ownCount = state.players[owner].field.spirits.length
+        const oppCount = state.players[opp].field.spirits.length
+        const need = oppCount - ownCount
+        if (need <= 0) {
+            log(state, `${sourceName}：相手のスピリットは既に自分と同数以下のため発動しなかった。`)
+            return
+        }
+        let destroyedCount = 0
+        for (let i = 0; i < need; i++) {
+            const target = pickEnemyByBp(state, opp, Infinity, () => true, srcColors, srcType)
+            if (!target) break
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroyedCount++
+        }
+        if (destroyedCount === 0) {
+            log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        }
+        return
+}
+
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
     const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
         // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する
@@ -683,6 +792,57 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
             `${sourceName}：コスト合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
         )
         return
+}
+
+// BS07巨人大帝アレクサンダーLv2：相手のスピリット1体を破壊し、
+// **破壊したスピリットのコストと同じ枚数**だけ相手のデッキを上から破棄する。
+// 「破壊した対象のコスト」を後段で使うため、汎用 destroy のオプションにせず専用ハンドラにする
+// （destroy は出口が複数あり、どこで破壊が確定したかを一箇所に集約できないため）
+const destroyThenMillByCostHandler: ActionHandler<"destroyThenMillByCost"> = (ctx, action) => {
+    const { state, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) {
+        log(state, `${sourceName}：BP参照元がいなかった。`)
+        return
+    }
+    const matches = (sp: CardInstance) => matchesTarget(state, opp, sp, filter, self?.instanceId)
+    // pendingChoice 解決時は選ばれた1体、それ以外は実効BP最大を自動選択（既存の破壊系と同じ簡略化）
+    const chosen = targetInstanceId
+        ? state.players[opp].field.spirits.find((sp) => sp.instanceId === targetInstanceId && matches(sp))
+        : undefined
+    if (!chosen && targetInstanceId === undefined && state.interactiveTargets) {
+        const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                ctx.owner,
+                self,
+                `${sourceName}：破壊する相手のスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+    }
+    const target = chosen ?? pickEnemyByBp(state, opp, Infinity, matches, srcColors, srcType)
+    if (!target) {
+        log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        return
+    }
+    // コストは破壊前に読む（破壊後はフィールドから消えるため）。
+    // 「破壊した相手のスピリットのコスト」なので付与コストではなくカード本来のコストを使う
+    const cost = getCard(target.cardId).cost
+    const name = getCard(target.cardId).name
+    destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+    if (cost <= 0) {
+        log(state, `${sourceName}：${name}のコストが0のため、デッキは破棄しなかった。`)
+        return
+    }
+    log(state, `${sourceName}：破壊した${name}のコストと同じ${cost}枚を相手のデッキから破棄する。`)
+    millDeck(state, opp, cost)
+    return
 }
 
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
@@ -737,6 +897,37 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
                 `${sourceName}：破壊した${targetName}のコストと同じ数のコア${targetCost}個をボイドから自分のリザーブに置いた。（リザーブ${player.reserve}）`,
             )
         }
+        // thenDestroyEnemyByCostBudget（BS07アームズインパクト）：破壊した自分のスピリットのコストを
+        // 予算として、相手のスピリットを合計コストがその範囲に収まるだけ破壊する。
+        // 選び方は destroyByCostBudget と同じ貪欲（残り予算内でコスト最大→同コストは実効BP最大）
+        if (action.thenDestroyEnemyByCostBudget) {
+            ctx.resolve({ type: "destroyByCostBudget", budget: targetCost })
+        }
+        return
+}
+
+// BS07女教皇リル・サキュバス：自分のスピリットすべての『このスピリットの破壊時』効果を、
+// **破壊させずに**発揮させる。フィールドからは取り除かないので、コアも場に残ったまま
+const fireOwnDestroyTriggersHandler: ActionHandler<"fireOwnDestroyTriggers"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+        // 解決中に破壊・召喚で並びが変わりうるので、開始時点のスナップショットに対して回す
+        const targets = [...state.players[owner].field.spirits]
+        let fired = 0
+        for (const inst of targets) {
+            // 途中で場を離れた個体（自身の破壊時効果で消えた等）は飛ばす
+            if (!state.players[owner].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
+            if (!getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")) {
+                continue
+            }
+            fireTrigger(state, owner, inst, "onDestroy")
+            fired++
+            if (state.winner) break
+        }
+        if (fired === 0) {
+            log(state, `${sourceName}：『破壊時』効果を持つ自分のスピリットがいなかった。`)
+            return
+        }
+        log(state, `${sourceName}：自分のスピリット${fired}体の『破壊時』効果を、破壊させずに発揮した。`)
         return
 }
 
@@ -1042,8 +1233,13 @@ const handlers = {
     destroyNexus: destroyNexusHandler,
     destroyExhausted: destroyExhaustedHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
+    destroyByBpBudget: destroyByBpBudgetHandler,
+    destroyPer: destroyPerHandler,
+    destroyDownToOwnCount: destroyDownToOwnCountHandler,
+    destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
+    fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
     sacrificeNexusThenWipeEnemyNexusCores: sacrificeNexusThenWipeEnemyNexusCoresHandler,

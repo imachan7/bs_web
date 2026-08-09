@@ -11,7 +11,8 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
+import { battleSwapSummonCheck } from "../../../shared/summon"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -97,12 +98,36 @@ export function validateSummon(
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    substituteInstanceId?: string,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "spirit") return "スピリットカードではありません"
+
+    // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
+    // 手札に戻すことを**追加コスト**として、フラッシュで疲労状態の召喚を行う。
+    // 効果文に「コストを支払わずに」が無いので、**召喚コストは通常どおり支払う**。
+    // タイミングとフィールド上限の検証だけが通常経路と異なるため、ここで完結させて早期 return する。
+    //
+    // 判定本体は共有層の battleSwapSummonCheck に置いてある。クライアントUIの発動可否表示
+    // （canBattleSwapSummon）と同じ実装を通すことで、「UIにボタンが出るのにサーバーが弾く」
+    // 種類のズレを構造的に防ぐ（activatableAbility で実際に起きた事故と同じ轍を踏まないため）
+    if (substituteInstanceId !== undefined) {
+        const swap = battleSwapSummonCheck(state, pid, handIndex, substituteInstanceId)
+        if (typeof swap === "string") return swap
+        // 召喚コスト＋置くコア（最小レベルの維持コア）を通常どおり支払えるか。
+        // 支払い元の妥当性はサーバー専用の検証なので共有層には置いていない。
+        // フィールドのコアも支払い元にできる（【神速】のリザーブ限定ルールはこのカードには掛からない）
+        const swapPayError = validatePaySources(state, pid, swap.totalCores, paySources)
+        if (swapPayError) {
+            return swapPayError === "コアが足りません"
+                ? `コアが足りません（コスト+置くコアで${swap.totalCores}個必要）`
+                : swapPayError
+        }
+        return null
+    }
 
     // 神速：フラッシュタイミングなら手札から召喚できる（自分・相手ターン問わず）
     // grantKeywordToHandCardで一時的に神速を付与された手札カードも同様に扱う（ビートプリースト）
@@ -119,8 +144,8 @@ export function validateSummon(
         // フラッシュ中の神速召喚は優先権を持つプレイヤーのみ
         if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
         // lockFlash 適用中は手札のカード（神速召喚も含む）を使用できない
-        if (state.battle?.flashLockedPlayer === pid) {
-            return "このバトルの間、フラッシュで手札のカードを使用できません"
+        if (isFlashLockedFor(state, pid)) {
+            return "効果により、フラッシュで手札のカードを使用できません"
         }
     }
 
@@ -132,6 +157,10 @@ export function validateSummon(
             return `効果により、スピリットは${cap}体までしか召喚できません`
         }
     }
+
+    // 相手からの「コストX以下のスピリットはターンにN体まで」制限（BS08夢想法師サンゾール）
+    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
+    if (summonLimitError) return summonLimitError
 
     // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
     // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
@@ -178,6 +207,30 @@ function maxSpiritsOnField(state: GameState): number | null {
         }
     }
     return cap
+}
+
+// globalConstraint "summonLimitByCostForOpponent"（BS08夢想法師サンゾール：相手はコスト4以下を
+// ターンに1体まで）: pidの**相手**フィールドにこの制約の発生源があれば、pid自身のこのターンの
+// 該当コスト以下の召喚数（CardInstance.summonedTurnで計測）が上限に達していないか検証する
+function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
+    const opponent = state.players[opponentOf(pid)]
+    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "summonLimitByCostForOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            const { maxCost, limit } = effect.constraint
+            if (card.cost > maxCost) continue
+            const countThisTurn = state.players[pid].field.spirits.filter(
+                (s) => s.summonedTurn === state.turn && getCard(s.cardId).cost <= maxCost,
+            ).length
+            if (countThisTurn >= limit) {
+                return `効果により、コスト${maxCost}以下のスピリットはこのターンあと召喚できません`
+            }
+        }
+    }
+    return null
 }
 
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
@@ -316,8 +369,8 @@ export function validateCastMagic(
         if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
         if (!card.flash) return "このマジックはフラッシュタイミングで使用できません"
         // lockFlash 適用中はフラッシュで手札のカードを使用できない
-        if (state.battle.flashLockedPlayer === pid) {
-            return "このバトルの間、フラッシュで手札のカードを使用できません"
+        if (isFlashLockedFor(state, pid)) {
+            return "効果により、フラッシュで手札のカードを使用できません"
         }
     } else {
         const timing = checkMainTiming(state, pid)
@@ -426,9 +479,19 @@ export function validateActivateAbility(
     if (!effectActiveAtLevel(effect.levels, level)) {
         return "現在のレベルでは発動できません"
     }
-    // 発動可能タイミング（現状はフラッシュ中のバトルのみ）
+    // 発動可能タイミング
     if (effect.timing === "flashBattle") {
         if (!state.isFlashTiming || !state.battle) {
+            return "フラッシュタイミングではありません"
+        }
+    } else if (effect.timing === "flash") {
+        // flashBattleと異なり、バトル外（自分のメインステップ）でも発動できる（BS08機人フィアラル）。
+        // このエンジンにはバトル外の「フラッシュ優先権」窓が無いため、自分のメインステップを
+        // 唯一のバトル外発動タイミングとする決定的簡略化（castMagicのmainForbidden無し・main不在
+        // フラッシュ専用マジックの扱いと同じ考え方）
+        const inBattleFlash = state.isFlashTiming && state.battle !== null
+        const inOwnMain = !state.battle && state.turnPlayer === pid && state.phase === "main"
+        if (!inBattleFlash && !inOwnMain) {
             return "フラッシュタイミングではありません"
         }
     }
@@ -444,7 +507,10 @@ export function validateActivateAbility(
     }
     // フラッシュ優先権（手札のカードではなくスピリットの能力なので lockFlash は適用しない）
     if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-    if (state.players[pid].reserve < effect.cost.reserveToTrash) {
+    // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない
+    if ("exhaustSelf" in effect.cost) {
+        if (inst.isRested) return "すでに疲労しています"
+    } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
         return "コアが足りません"
     }
     return null
@@ -467,6 +533,10 @@ export function validateAttack(
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
+        return "コア1個しか置いていないスピリットはアタックできません"
+    }
+    // フィールド全体制約（BS08赤き砂の座）：コア1個しか置いていないスピリットはアタックできない（ブロックは可能）
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) {
         return "コア1個しか置いていないスピリットはアタックできません"
     }
     // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）：コストがmaxCost以下のスピリットはアタックできない
@@ -569,6 +639,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
+        // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
+        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
         if (instCostCantAct(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
@@ -576,7 +648,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         const constraints = activeConstraints(state, pid, inst)
         // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
         if (constraints.some((c) => c.type === "cantAttack")) continue
-        if (constraints.some((c) => c.type === "mustAttack")) {
+        if (constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)) {
             return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
         }
     }

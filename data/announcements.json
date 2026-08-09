@@ -1,0 +1,36 @@
+{
+ "version": 1,
+ "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
+ "entries": [
+  {
+   "date": "2026-08-09",
+   "category": "new",
+   "text": "第八弾「戦嵐」のカード91枚を追加しました"
+  },
+  {
+   "date": "2026-08-09",
+   "category": "new",
+   "text": "第七弾「天醒」のカード88枚を追加しました"
+  },
+  {
+   "date": "2026-08-09",
+   "category": "ui",
+   "text": "ロビー画面のお知らせ表示を見やすくしました"
+  },
+  {
+   "date": "2026-08-09",
+   "category": "new",
+   "text": "デッキビルダーに新しい絞り込み機能を追加しました"
+  },
+  {
+   "date": "2026-08-09",
+   "category": "fix",
+   "text": "画面のレイアウトが崩れる問題を修正しました"
+  },
+  {
+   "date": "2026-08-09",
+   "category": "info",
+   "text": "不具合を見つけたら「🐛 バグ報告」からお知らせください"
+  }
+ ]
+}

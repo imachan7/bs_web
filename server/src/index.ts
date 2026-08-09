@@ -10,10 +10,13 @@ import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } 
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
 import { DECK_RECIPES } from "../../data/constants"
+import { accessLogMiddleware, logSocketJoin } from "./accessLog"
 
 const PORT = Number(process.env.PORT ?? 3000)
 
 const app = express()
+// アクセスログは express.static より前（static は該当ファイルを返した時点で後段へ進まない）
+app.use(accessLogMiddleware)
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
@@ -37,6 +40,70 @@ app.get("/api/cards", (_req, res) => {
 // data/cards.json は既に存在せず、上の express.static は next() で素通りするのでここへ届く
 app.get("/data/cards.json", (_req, res) => {
     res.json(ALL_CARDS)
+})
+
+// ---- お知らせ ----
+// トップ画面の「お知らせ」欄が読む。実体は data/announcements.json。
+//
+// **かつては git log のコミットメッセージ（[release] 始まり）から作っていたが、JSONへ移した**（2026-08-09）。
+// 理由は3つ:
+//   1. 文面を直すのに履歴の書き換えが要る（実際に誤記を1件直せなかった）
+//   2. .git が無い環境（Azureのデプロイ成果物）では常に空になる＝本番で機能しない
+//   3. 開発者向けのコミット履歴と、対戦者が読む文面は目的が別
+//
+// クライアントとのレスポンス契約は据え置き（{date, message, hash}[]）。message は
+// "[release:fix] …" の形に組み立てて返し、プレフィックスの解釈・除去は従来どおり
+// クライアントの parseReleaseMessage が行う。hash はJSON由来では空文字。
+const ANNOUNCEMENTS_FILE = path.resolve(__dirname, "../../data/announcements.json")
+const ANNOUNCEMENT_LIMIT = 50
+const ANNOUNCEMENT_CACHE_MS = 60 * 1000
+const ANNOUNCEMENT_CATEGORIES = ["fix", "ui", "new", "info", "update"]
+let announcementCache: { at: number; mtimeMs: number; entries: { date: string; message: string; hash: string }[] } | null = null
+
+function readAnnouncements(): { date: string; message: string; hash: string }[] {
+    let mtimeMs = 0
+    try {
+        mtimeMs = fs.statSync(ANNOUNCEMENTS_FILE).mtimeMs
+    } catch {
+        // ファイルが無い＝お知らせなし（画面には「更新情報はありません」が出る）
+        return []
+    }
+    // 更新時刻が変わっていれば即座に読み直す（編集がすぐ画面へ反映されるように）
+    if (
+        announcementCache &&
+        announcementCache.mtimeMs === mtimeMs &&
+        Date.now() - announcementCache.at < ANNOUNCEMENT_CACHE_MS
+    ) {
+        return announcementCache.entries
+    }
+    let entries: { date: string; message: string; hash: string }[] = []
+    try {
+        const raw = JSON.parse(fs.readFileSync(ANNOUNCEMENTS_FILE, "utf-8")) as {
+            entries?: { date?: unknown; category?: unknown; text?: unknown }[]
+        }
+        entries = (raw.entries ?? [])
+            .filter((e) => typeof e.date === "string" && typeof e.text === "string" && e.text !== "")
+            .map((e) => {
+                const category = typeof e.category === "string" && ANNOUNCEMENT_CATEGORIES.includes(e.category)
+                    ? e.category
+                    : "update"
+                return { date: String(e.date), message: `[release:${category}] ${String(e.text)}`, hash: "" }
+            })
+            // 新しい順。日付が同じものはファイルの並び順を保つ（安定ソート）
+            .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+            .slice(0, ANNOUNCEMENT_LIMIT)
+    } catch (e) {
+        // 壊れたJSONで画面を落とさない。サーバーログにだけ残す
+        console.error("data/announcements.json の読み込みに失敗しました:", e)
+        entries = []
+    }
+    announcementCache = { at: Date.now(), mtimeMs, entries }
+    return entries
+}
+
+// パスは歴史的に /api/changelog のまま（クライアントが参照しているため変えない）
+app.get("/api/changelog", (_req, res) => {
+    res.json(readAnnouncements())
 })
 
 // ---- バグ報告フォーム ----
@@ -229,6 +296,11 @@ io.on("connection", (socket: Socket) => {
         }) => {
             const roomId = String(payload.roomId || "room1")
             const name = String(payload.name || "プレイヤー")
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                roomId,
+            )
 
             // deckCards（カスタムデッキ）が指定されていれば deck キーより優先する
             let deckSpec: DeckSpec

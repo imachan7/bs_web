@@ -19,6 +19,7 @@ import type {
     Keyword,
     PlayerId,
     ResolvedTargetFilter,
+    TriggerEvent,
 } from "../server/src/type"
 import type { Board, BoardPlayer } from "./board"
 import { card } from "./cardDb"
@@ -42,11 +43,24 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kobo: { id: "kobo", label: "光芒" },
     tensho: { id: "tensho", label: "転召" },
     bofu: { id: "bofu", label: "暴風" },
+    seimei: { id: "seimei", label: "聖命" },
+    kyoshu: { id: "kyoshu", label: "強襲" },
+    hyoheki: { id: "hyoheki", label: "氷壁" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
 export function hasKeyword(cardId: string, keyword: Keyword): boolean {
     return card(cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword)
+}
+
+// 指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
+// 継続付与された誘発効果（kind:"effectGrant"）や一時付与（tempGrantedTriggers）は見ない簡略化
+// （BS08プテラディア捕獲部隊：『召喚時』効果を持つ相手のスピリット）
+export function instHasTriggerEffect(inst: CardInstance, trigger: TriggerEvent): boolean {
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) => e.kind === "triggered" && e.trigger === trigger && effectActiveAtLevel(e.levels, level),
+    )
 }
 
 // ---- レベル・基本述語 ----
@@ -84,7 +98,9 @@ export function instIsVanilla(inst: CardInstance): boolean {
 export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     const player = board.players[pid]
     return [
-        ...player.field.spirits, // フィールドに実在するスピリット
+        // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
+        // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
+        ...player.field.spirits.filter((s) => s.effectsDisabledContinuous !== true),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
@@ -185,6 +201,11 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
 // インスタンスのシンボル数：カードの静的シンボル数 + このターンの追加シンボル数（tempExtraSymbols。ダブルハート）。
 // ライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
 export function instanceSymbolCount(inst: CardInstance): number {
+    // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
+    // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
+    if (inst.symbolsOverrideContinuous) {
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0)
+    }
     return card(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
 }
 
@@ -195,7 +216,8 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
-        const cardSymbols = card(inst.cardId).symbol
+        // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
+        const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         let matched = false
         for (const sym of cardSymbols) {
             if (colors.includes(sym)) {
@@ -206,6 +228,12 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
     }
     return count
+}
+
+// 手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
+// 無ければhand.length（サーバー内部のPlayerStateは常に実配列）にフォールバックする
+export function handSizeOf(player: BoardPlayer): number {
+    return player.handCount ?? player.hand?.length ?? 0
 }
 
 // ---- 盤面の位置 ----
@@ -225,6 +253,9 @@ export function spiritHasKeyword(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
+    // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
+    // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
+    if (inst.effectsDisabledContinuous === true) return false
     if (hasKeyword(inst.cardId, keyword)) return true
     if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
@@ -237,6 +268,18 @@ export function hasContinuousKeywordGrant(
     inst: CardInstance,
     keyword: Keyword,
 ): boolean {
+    return continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0
+}
+
+// 継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
+// 一致するエントリのeffect.count（省略時1）を返す。該当なしは0（＝持たない）。
+// hasContinuousKeywordGrant と同じ走査・絞り込みを共有する（BS08キマイラアサルト：付与する【強襲】はcount:1）
+export function continuousKeywordGrantCount(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): number {
     const sources = effectSources(board, ownerPid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
@@ -259,11 +302,14 @@ export function hasContinuousKeywordGrant(
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.phase && board.phase !== effect.phase) continue
+            // turn（BS07龍星皇メテオヴルムLv2-3：『自分のアタックステップ』）は phase と併用する
+            if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            return true
+            return effect.count ?? 1
         }
     }
-    return false
+    return 0
 }
 
 // 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
@@ -373,6 +419,9 @@ export function spiritHasFamily(
                 continue
             }
             if (effect.phase && board.phase !== effect.phase) continue
+            // turn（BS07重刀竜ブレイガザウラーLv2-3：『自分のアタックステップ』）は phase と併用する
+            if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.condition) {
                 // 「スピリットとネクサスが合計N以上」は**場に実在するもの**を数える（分類B。
                 // 仮想発生源を混ぜてはいけないため sources ではなく field を見る。TURN_EFFECT_SOURCES.md §1）
@@ -517,6 +566,11 @@ export function checkAuraCondition(
     if ("ownLifeAtMost" in condition) {
         return player.life <= condition.ownLifeAtMost
     }
+    // { opponentHandAtLeast: number }：相手の手札枚数がこれ以上（BS08ブラックウガルルムLv2）
+    if ("opponentHandAtLeast" in condition) {
+        const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return handSizeOf(board.players[oppPid]) >= condition.opponentHandAtLeast
+    }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
         matchesFamilyFilter(board, sourcePid, s, condition.hasOwnFamily),
@@ -582,6 +636,12 @@ export function auraAppliesTo(
         return false
     }
     if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
+        return false
+    }
+    // costMinFilter（BS07造兵工房Lv2：コスト3以上）。costFilter＝完全一致とは別軸で、
+    // 付与コスト（道化師クラン）も含めていずれかが下限以上なら通す
+    const costMin = aura.costMinFilter
+    if (costMin !== undefined && !instAllCosts(targetInst).some((cost) => cost >= costMin)) {
         return false
     }
     if (
@@ -704,6 +764,8 @@ export function matchesTarget(
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
+    // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
@@ -711,8 +773,16 @@ export function matchesTarget(
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
-    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）
-    if (filter.nameContains !== undefined && !cardNameContains(inst, filter.nameContains)) return false
+    // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
+    // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
+    if (filter.nameContains !== undefined) {
+        const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
+        if (!names.some((n) => cardNameContains(inst, n))) return false
+    }
+    // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
+    if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
+    // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
+    if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
     return true
 }
 
@@ -756,6 +826,10 @@ export function activeConstraints(
     pid: PlayerId,
     inst: CardInstance,
 ): ConstraintDef[] {
+    // 「持つ効果すべては発揮されない」を受けている個体は制約を1つも出さない
+    // （自前の kind:"constraint" だけでなく、他の発生源からの継続付与 constraintGrant も含めて打ち切る。
+    //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
+    if (inst.effectsDisabledContinuous === true) return []
     const level = currentLevel(inst).level
     const own = card(inst.cardId)
         .effects.filter(
@@ -927,11 +1001,152 @@ export function costCantAct(board: Board, cost: number): boolean {
     return false
 }
 
-// フィールド上のインスタンスに対する costCantAct 判定。実コストに加えて、道化師クランの
-// tempAlsoCosts／alsoCostsContinuous（「コストNとしても扱う」）のいずれかが該当すれば行動不可とする
-// （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと）
+// フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
+// tempAlsoCosts／alsoCostsContinuous（「コストNとしても扱う」）のいずれかが該当すれば行動不可とする。
+// **コスト条件（costCantAct）に加えてレベル条件（levelCantAct）も見る**
+// （アタック可否／ブロック可否／mustAttack対象判定はこちらを使うこと。名前は歴史的にコスト由来だが、
+//  サーバーとクライアントの唯一の入口なので、新しい行動不可の軸はここへ足して両者を同時に揃える）
 export function instCostCantAct(board: Board, inst: CardInstance): boolean {
-    return instAllCosts(inst).some((cost) => costCantAct(board, cost))
+    if (instAllCosts(inst).some((cost) => costCantAct(board, cost))) return true
+    return levelCantAct(board, currentLevel(inst).level)
+}
+
+// フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
+// アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
+export function levelCantAct(board: Board, level: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, pid)) {
+            const sourceLevel = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "levelCantAct") continue
+                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+                if (effect.constraint.levels.includes(level)) return true
+            }
+        }
+    }
+    return false
+}
+
+// フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
+// お互いのライフが減らされない（BS07の「勇傑」各色に共通。天槍の勇者アーク等）。
+// costCantAct と同じ「しきい値を比較する専用判定」の形。道化師クランの付与コストも見る（instAllCosts）
+export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolean {
+    // keywordExclude の判定に持ち主が要る（spiritHasKeyword は付与キーワードを持ち主基準で見る）
+    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
+        for (const inst of effectSources(board, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noLifeDamageByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { maxCost, costs, keywordExclude } = effect.constraint
+                // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
+                if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
+                // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
+                const costsOfAttacker = instAllCosts(attacker)
+                if (costs) {
+                    if (costsOfAttacker.some((cost) => costs.includes(cost))) return true
+                    continue
+                }
+                if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// 片側限定のライフ保護（TurnConstraintDef "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
+// このターンの間、コストがmaxCost以下のスピリットのアタックでは defenderPid のライフだけが減らされない。
+// noLifeDamageByCost（両陣営）と違い、守られるのは積んだ側だけ
+export function lifeProtectedByCostThisTurn(
+    board: Board,
+    defenderPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "noLifeDamageByCostForPid" &&
+            c.pid === defenderPid &&
+            instAllCosts(attacker).some((cost) => cost <= c.maxCost),
+    )
+}
+
+// このターンだけの強制アタック（TurnConstraintDef "mustAttackByCost" / "mustAttackByInstance"。
+// action:"forceAttackThisTurn" が積む。BS08アンブッシュブロッカー／獣機合神セイ・ドリガン）：
+// pid の対象スピリットが、恒久的な constraint:"mustAttack" と同じ扱いで強制アタックの対象になるか
+export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.turnConstraints.some((c) => {
+        if (c.type === "mustAttackByCost") return c.pid === pid && instAllCosts(inst).some((cost) => cost <= c.maxCost)
+        if (c.type === "mustAttackByInstance") return c.pid === pid && c.instanceId === inst.instanceId
+        return false
+    })
+}
+
+// このターンだけの疲労状態ブロック許可（TurnConstraintDef "canBlockWhileRestedThisTurn"。
+// action:"grantCanBlockWhileRestedThisTurn" が積む。constraint:"canBlockWhileRested" のターン付与版。BS08インフィニティシールド）
+export function canBlockWhileRestedThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.turnConstraints.some((c) => {
+        if (c.type !== "canBlockWhileRestedThisTurn" || c.pid !== pid) return false
+        if (c.familyFilter === undefined) return true
+        return matchesFamilyFilter(board, pid, inst, c.familyFilter)
+    })
+}
+
+// constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
+// 実効BPが、defenderPid の場にいるこの制約持ちスピリット自身の実効BP以下のとき、そのアタックでは
+// defenderPid のライフが減らない（片側のみ）。ライフダメージ直前（resolveLifeDamage）から呼ぶ
+export function protectedByBpUpToSelf(
+    board: Board,
+    defenderPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
+    const attackerBp = effectiveBp(board, attackerPid, attacker)
+    return board.players[defenderPid].field.spirits.some(
+        (inst) =>
+            attackerBp <= effectiveBp(board, defenderPid, inst) &&
+            activeConstraints(board, defenderPid, inst).some((c) => c.type === "protectOwnLifeByBpUpToSelf"),
+    )
+}
+
+// フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
+// 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
+export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {
+    const costs = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noSummonTriggerByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { maxCost } = effect.constraint
+                if (costs.some((cost) => cost <= maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
+// 召喚するとき、軽減シンボルによるコスト軽減ができなくなる（BS08超時空重力炉）。
+// **カード静的なコスト**（軽減前の値）で判定する。effectiveCost（shared/cost.ts）から呼ぶ
+export function noReductionBySummonCost(board: Board, staticCost: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noReductionBySummonCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (staticCost <= effect.constraint.maxCost) return true
+            }
+        }
+    }
+    return false
 }
 
 export function hasMagicImmunity(
@@ -1064,25 +1279,32 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 
-// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, cost} を返す。
-// フラッシュ中・優先権保持・self がバトル当事者・コスト支払い可能をすべて満たす必要がある
+// 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
+// フラッシュ中・優先権保持・（condition が要求するなら）self がバトル当事者・コスト支払い可能を満たす必要がある。
+// バトル当事者であることは condition:"selfInBattle" のときだけの条件で、
+// 発動タイミングがバトル中（timing:"flashBattle"）であること自体とは別（BS07桜の妖精オウカは
+// バトルに参加していなくてもアタック中の味方をBP+できる）
 export function activatableAbility(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
-): { effectId: string; cost: number } | null {
+): { effectId: string; costLabel: string } | null {
     if (!board.battle || !board.isFlashTiming) return null
     if (board.priorityPlayer !== pid) return null
     const inBattle =
         board.battle.attackerInstanceId === inst.instanceId ||
         board.battle.blockerInstanceId === inst.instanceId
-    if (!inBattle) return null
     const level = currentLevel(inst).level
     for (const e of card(inst.cardId).effects) {
         if (e.kind !== "activated") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
+        if (e.condition === "selfInBattle" && !inBattle) continue
+        if ("exhaustSelf" in e.cost) {
+            if (inst.isRested) continue
+            return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
+        }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
-        return { effectId: e.id, cost: e.cost.reserveToTrash }
+        return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }
     }
     return null
 }
@@ -1106,4 +1328,44 @@ export function directAttackFilter(
     if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
     if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
     return filter
+}
+
+// ---- 維持コア ----
+
+// 維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+// これを下回るとスピリットは消滅する（ネクサスはレベルが下がるだけ）。
+// 現行カードはすべて Lv1 を持つため値は Lv1 のコア数と一致するが、Lv3 から始まるカード
+// （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
+// 旧名 lv1Cores（2026-07-26 改名。挙動は不変）。
+// サーバー側は server/src/logic/GameState.ts の re-export 経由で使う
+export function minLevelCores(cardData: CardData): number {
+    const min = cardData.levels.reduce<{ level: number; cores: number } | null>(
+        (best, l) => (best === null || l.level < best.level ? l : best),
+        null,
+    )
+    return min ? min.cores : 0
+}
+
+// ---- フラッシュのロック ----
+
+// pid がいま「フラッシュで手札のカードを使えない」状態か。
+// ① action "lockFlash" がこのバトルに立てたロック（board.battle.flashLockedPlayer）
+// ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
+//    相手の指定系統スピリットがアタックしている間だけ効く
+export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
+    if (board.battle?.flashLockedPlayer === pid) return true
+    const attackerId = board.battle?.attackerInstanceId
+    if (attackerId === undefined) return false
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    const attacker = board.players[opp].field.spirits.find((s) => s.instanceId === attackerId)
+    if (!attacker) return false
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "flashLockWhileAttackingFamily") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true
+        }
+    }
+    return false
 }

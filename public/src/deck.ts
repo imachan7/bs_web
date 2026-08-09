@@ -51,7 +51,7 @@ let searchText = ""
 let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
 // 詳細パネルに固定表示するカード（クリックで選択）
-let selectedCardId: string | null = null
+
 
 // 保存済みデッキ（localStorage の内容）
 interface SavedDeck {
@@ -265,13 +265,12 @@ function renderPool(): void {
         }
 
         el.addEventListener("mouseenter", () => {
-            if (selectedCardId === null) renderDetail(card, el)
+            renderDetail(card, el)
         })
         el.addEventListener("mouseleave", () => {
-            if (selectedCardId === null) hideDetail()
+            hideDetail()
         })
         el.addEventListener("click", () => {
-            selectedCardId = card.cardId
             renderDetail(card, el)
             addCard(card.cardId)
         })
@@ -314,9 +313,20 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
 
     const meta = document.createElement("div")
     meta.className = "detail-meta"
+    let reductionText = "軽減0"
+    if (card.reduction.length > 0) {
+        const counts = new Map<Color, number>()
+        for (const c of card.reduction) {
+            counts.set(c, (counts.get(c) ?? 0) + 1)
+        }
+        const redParts = Array.from(counts.entries()).map(([c, count]) => `${COLOR_LABELS[c]}${count}`)
+        reductionText = `軽減: ${redParts.join("・")}`
+    }
+
     const bp = maxBp(card)
+    const symbolCount = card.symbol ? card.symbol.length : 0
     const parts = [
-        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
+        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（${reductionText}） / シンボル${symbolCount}`,
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
     if (bp !== null && card.type !== "nexus") parts.push(`BP${bp}`)
@@ -545,11 +555,10 @@ function renderDeck(): void {
         })
         row.appendChild(minus)
 
-        // 行クリックで詳細表示
-        row.addEventListener("click", () => {
-            selectedCardId = cardId
-            renderDetail(card, row)
-        })
+        // ホバーおよびクリックで詳細表示
+        row.addEventListener("mouseenter", () => renderDetail(card, row))
+        row.addEventListener("mouseleave", () => hideDetail())
+        row.addEventListener("click", () => renderDetail(card, row))
 
         list.appendChild(row)
     }
@@ -1145,7 +1154,6 @@ function setupDeckIo(): void {
 
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
-        selectedCardId = null
         hideDetail()
     })
 }

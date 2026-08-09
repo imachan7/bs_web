@@ -28,7 +28,7 @@ import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOver
 import { setCardLookup } from "../../../shared/cardDb"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
-import { countSymbols, currentLevel } from "../../../shared/rules"
+import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
 export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
@@ -235,10 +235,20 @@ export function clearBattle(state: GameState): void {
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer
+    // マジックミラーが参照する「直前に使用したマジック」はバトルごとにリセットする
+    // （「このフラッシュタイミングで」の限定を、バトル単位で近似する簡略化。BS08マジックミラー）
+    delete state.lastMagicCast
 }
 
 // デッキからドローする。引けない場合は相手の勝利（デッキアウト）
-export function draw(state: GameState, pid: PlayerId, count: number): void {
+// fromDrawStep: PhaseManagerのドローステップからの呼び出しだけtrueを渡す。
+// globalConstraint "noDrawOutsideDrawStep"（BS08豚人チョウハッカイ）は、この引数がfalseの
+// すべてのドロー（効果によるドロー）をここで一律に無効化する（draw/drawPer等の共通経路）
+export function draw(state: GameState, pid: PlayerId, count: number, fromDrawStep?: boolean): void {
+    if (!fromDrawStep && hasGlobalConstraint(state, "noDrawOutsideDrawStep")) {
+        log(state, `${state.players[pid].name}は、ドローステップ以外でドローできないため、ドローしなかった。`)
+        return
+    }
     const player = state.players[pid]
     for (let i = 0; i < count; i++) {
         const cardId = player.deck.shift()
@@ -259,7 +269,9 @@ export function draw(state: GameState, pid: PlayerId, count: number): void {
     // 対戦開始時の初期手札はdeck.spliceで直接配られdraw()を経由しないため、
     // フィールド未初期化での呼び出しは発生しない（createPlayerがfield.spirits/nexusesを
     // 同期的に初期化済みでもあり、fireFieldEventTriggersはフィールドが空でも安全に何もしない）。
-    fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew")
+    // eventCount=count：repeatPerCount指定のエントリが「ドローしたカード1枚につき」を表現できるようにする
+    // （BS08マンゴース：相手がドローしたカード1枚につき系統「剣獣」を1体回復）
+    fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew", undefined, undefined, undefined, count)
     // フィールドイベント誘発「相手の手札にカードが加えられたとき」（犬人マードック／英雄の喪失）
     notifyHandGained(state, pid, count)
 }
@@ -283,18 +295,10 @@ export function rawLevel(inst: CardInstance): number {
 // （該当レベルがカードに無ければ通常計算にフォールバック）
 
 
-// 維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
-// これを下回るとスピリットは消滅する（ネクサスはレベルが下がるだけ）。
-// 現行カードはすべて Lv1 を持つため値は Lv1 のコア数と一致するが、Lv3 から始まるカード
-// （アルティメット。ULTIMATE.md §4）では Lv1 が存在しないため、最小レベルを見る必要がある。
-// 旧名 lv1Cores（2026-07-26 改名。挙動は不変）
-export function minLevelCores(card: CardData): number {
-    const min = card.levels.reduce<{ level: number; cores: number } | null>(
-        (best, l) => (best === null || l.level < best.level ? l : best),
-        null,
-    )
-    return min ? min.cores : 0
-}
+// 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
+// （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
+// サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
+export { minLevelCores } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）

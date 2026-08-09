@@ -1,12 +1,13 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
-import { currentLevel, getCard, log } from "../GameState"
+import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
+import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
     destroySpirit,
     exhaustSpirit,
+    refreshSpirit,
     findSpiritAny,
     isExhaustImmune,
     isImmuneToArea,
@@ -15,14 +16,32 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
+    returnSpiritToDeckTop,
     tryInteractiveTargetChoice,
+    hasBofuChooserSelf,
+    bofuCountFor,
+    continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
+        // 実効指定数（静的 count ＋ bofuCountBonus）で解決し直す。BS08ゲラン准将Lv2 の
+        // 「自分のスピリットすべての【暴風】の指定数を+1する」はこの経路でだけ届く
+        if (action.countFromBofu) {
+            const bofu = self ? bofuCountFor(state, owner, self) : 0
+            if (bofu === 0) {
+                log(state, `${sourceName}：【暴風】を持たないため疲労させなかった。`)
+                return
+            }
+            // フラグは**ここで落とす**。残したまま interactive の再入（count-1 の派生 action）へ
+            // 引き継ぐと、再入のたびに実効指定数へ戻って疲労が止まらなくなる
+            const { countFromBofu: _resolved, ...rest } = action
+            action = { ...rest, count: bofu }
+        }
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
@@ -32,6 +51,16 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         // excludeTarget（BS01甲精ディース）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
         // 疲労させる対象ではなく**除外する**対象。以降の候補判定から外し、明示ターゲット扱いもしない
         const excludedId = action.excludeTarget ? targetInstanceId : undefined
+        // BS07ワールウィンド：【暴風】で疲労させる対象を、疲労させられる側ではなく持ち主自身が選ぶ。
+        // 以降は chooserIsTarget を落とした action として扱う（選択者と表示プロンプトが切り替わる）
+        if (action.chooserIsTarget && hasBofuChooserSelf(state, owner)) {
+            const { chooserIsTarget: _dropped, ...rest } = action
+            log(state, `${sourceName}：【暴風】で疲労させる相手のスピリットを自分で指定する。`)
+            // targetInstanceId（excludeTarget が除外に使うブロッカー）と発生源の色・種別は
+            // 明示的に引き継ぐ（ctx.resolve は省略すると undefined を渡す設計のため）
+            ctx.resolve(rest, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
+            return
+        }
         const matchesLevel = (s: CardInstance) =>
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
@@ -236,7 +265,7 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
                 ([, label]) => label === chosenOption,
             )
             if (entry) {
-                exhaustSpiritsOfColor(ctx, entry[0])
+                exhaustSpiritsOfColor(ctx, entry[0], action.side)
                 return
             }
         }
@@ -266,15 +295,17 @@ const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, actio
             log(state, `${sourceName}：対象の色がなかった。`)
             return
         }
-        exhaustSpiritsOfColor(ctx, chosen)
+        exhaustSpiritsOfColor(ctx, chosen, action.side)
         return
 }
 
 // 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
-function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color): void {
-    const { state, owner, sourceName, srcColors, srcType } = ctx
+function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent"): void {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
     let exhausted = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
+    // side:"opponent" 指定時は相手のスピリットだけ（BS07大風車の丘。既定は両陣営）
+    const pids: PlayerId[] = side === "opponent" ? [opp] : (["p1", "p2"] as PlayerId[])
+    for (const pid of pids) {
         for (const s of [...state.players[pid].field.spirits]) {
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
@@ -323,16 +354,28 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         }
         // all指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）
         if (action.all) {
-            for (const c of candidates) c.isRested = false
+            for (const c of candidates) refreshSpirit(state, owner, c)
             log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        target.isRested = false
+        refreshSpirit(state, owner, target)
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
+}
+
+// このスピリットが**カードに静的に持つ**指定キーワードエントリの count（レベル有効なもの）。
+// 【暴風：1】と【暴風：2】を区別する用途。付与キーワードは count を持たないため対象外
+function staticKeywordCount(inst: CardInstance, keyword: Keyword): number | undefined {
+    const level = currentLevel(inst).level
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "keyword" || effect.keyword !== keyword) continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        return effect.count ?? 1
+    }
+    return undefined
 }
 
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
@@ -345,7 +388,12 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
             for (const s of state.players[pid].field.spirits) {
                 if (!s.isRested) continue
                 if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
-                s.isRested = false
+                // keywordCount（BS07突風侯爵コカトリーフLv2＝【暴風：1】限定）：
+                // カードが静的に持つキーワードエントリの count が一致するものだけ
+                if (action.keywordCount !== undefined && staticKeywordCount(s, action.keyword) !== action.keywordCount) {
+                    continue
+                }
+                refreshSpirit(state, pid, s)
                 count++
             }
         }
@@ -381,8 +429,37 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
             log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
-        self.isRested = false
+        refreshSpirit(state, owner, self)
         log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
+        return
+}
+
+// BS08勇者フェニックスペンタンLv2-3：「〜することで」の任意コストは自動発動で簡略化（refreshSelfByDestroyFamilyの
+// 「破壊」を「デッキの一番上に戻す」に差し替えた版）。犠牲はnameIncludes一致・self以外から実効BP最小を自動選択する
+const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByReturnToDeckTopName"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        if (!self) {
+            log(state, `${sourceName}：回復対象がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter(
+            (s) => s.instanceId !== self.instanceId && cardNameContains(s, action.nameIncludes),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：デッキの上に戻せる対象がいなかったため発動しなかった。`)
+            return
+        }
+        const target = candidates.reduce((worst, s) =>
+            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+        )
+        const name = getCard(target.cardId).name
+        returnSpiritToDeckTop(state, owner, target)
+        if (!self.isRested) {
+            log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+            return
+        }
+        refreshSpirit(state, owner, self)
+        log(state, `${name}はデッキの上に戻り、${getCard(self.cardId).name}は回復した。`)
         return
 }
 
@@ -392,7 +469,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         let count = 0
         for (const s of player.field.spirits) {
             if (!s.isRested) continue
-            s.isRested = false
+            refreshSpirit(state, owner, s)
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
             if (!action.exemptFamily || !matchesFamilyFilter(state, owner, s, action.exemptFamily)) {
@@ -446,7 +523,7 @@ const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action)
                 if (!s.isRested) continue
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instHasCost(s, action.cost)) continue
-                s.isRested = false
+                refreshSpirit(state, pid, s)
                 count++
             }
         }
@@ -483,9 +560,74 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
             )
         }
-        self.isRested = false
+        // costSelfCoresToVoid（BS08ブラックタウロス大王）：リザーブでなく**このスピリット自身**の上のコアから支払う。
+        // 支払うとLv1コア数を下回るなら不発（selfCoreToOwnLifeと異なり、支払った上で回復させる効果のため
+        // 維持コア割れを起こさない範囲でしか払えない、という決定的簡略化）
+        if (action.costSelfCoresToVoid !== undefined) {
+            const minCores = minLevelCores(getCard(self.cardId))
+            if (self.cores - action.costSelfCoresToVoid < minCores) {
+                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
+                return
+            }
+            self.cores -= action.costSelfCoresToVoid
+            log(
+                state,
+                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
+            )
+        }
+        refreshSpirit(state, owner, self)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return
+}
+
+// 【強襲】：自分の回復状態のネクサス1つを疲労させることで、このスピリットを回復する（BS07）。
+// ターン中の上限回数は self が持つ kind:"keyword" keyword:"kyoshu" の count から読む
+// （暴風と同じ設計＝キーワードエントリは宣言で、挙動と回数の読み出しはこちらが持つ）。
+// 疲労させるネクサスの選択は決定的簡略化：コア数が最少のもの（同数はフィールドの先頭側）。
+// ネクサスはリフレッシュステップで回復する（PhaseManager が spirits と nexuses の両方を回復させる）
+const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) {
+        log(state, `${sourceName}：回復対象がいなかった。`)
+        return
+    }
+    if (!self.isRested) {
+        log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+        return
+    }
+    const level = currentLevel(self).level
+    const entry = getCard(self.cardId).effects.find(
+        (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, level),
+    )
+    const staticLimit = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    // 継続付与された【強襲】（kind:"keywordGrant"。BS08キマイラアサルト）も上限として見る。
+    // 静的な【強襲】と両方持つことは通常無いが、念のため大きい方を採用する
+    const grantedLimit = continuousKeywordGrantCount(state, owner, self, "kyoshu")
+    const limit = Math.max(staticLimit, grantedLimit)
+    if (limit === 0) {
+        log(state, `${getCard(self.cardId).name}は【強襲】を持たないため回復しなかった。`)
+        return
+    }
+    const used = self.kyoshuUsed?.turn === state.turn ? self.kyoshuUsed.count : 0
+    if (used >= limit) {
+        log(state, `${getCard(self.cardId).name}の【強襲】はこのターンの上限（${limit}回）に達している。`)
+        return
+    }
+    const candidates = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：疲労させられる自分のネクサスがなかった。`)
+        return
+    }
+    const nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
+    if (!nexus) return
+    nexus.isRested = true
+    refreshSpirit(state, owner, self)
+    self.kyoshuUsed = { turn: state.turn, count: used + 1 }
+    log(
+        state,
+        `【強襲】${getCard(self.cardId).name}は${getCard(nexus.cardId).name}を疲労させて回復した。（このターン${used + 1}/${limit}回目）`,
+    )
+    return
 }
 
 const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
@@ -515,7 +657,7 @@ const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) =
             log(state, `${sourceName}の回復：対象がいなかった。`)
             return
         }
-        for (const s of candidates) s.isRested = false
+        for (const s of candidates) refreshSpirit(state, owner, s)
         log(state, `${sourceName}：${candidates.length}体を回復させた。`)
         return
 }
@@ -580,7 +722,7 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
         .filter((s) => s.isRested && spiritHasFamily(state, owner, s, family))
         .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
         .slice(0, count)
-    for (const s of candidates) s.isRested = false
+    for (const s of candidates) refreshSpirit(state, owner, s)
     log(
         state,
         `${sourceName}：系統「${family}」を選び、${candidates.length}体を回復させた。`,
@@ -596,10 +738,12 @@ const handlers = {
     refreshOne: refreshOneHandler,
     refreshAllByKeyword: refreshAllByKeywordHandler,
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
+    refreshSelfByReturnToDeckTopName: refreshSelfByReturnToDeckTopNameHandler,
     refreshAllOwn: refreshAllOwnHandler,
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
+    refreshSelfByExhaustNexus: refreshSelfByExhaustNexusHandler,
     exhaustSelf: exhaustSelfHandler,
     refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,

@@ -19,7 +19,8 @@
         "validate:gaps": "tsx scripts/check-effect-gaps.ts --check",
         "gaps:report": "tsx scripts/check-effect-gaps.ts",
         "gaps:update": "tsx scripts/check-effect-gaps.ts --update-baseline",
-        "coverage:effects": "tsx scripts/coverage-effects.ts"
+        "coverage:effects": "tsx scripts/coverage-effects.ts",
+        "access:stats": "tsx scripts/access-stats.ts"
     },
     "engines": {
         "node": ">=20"

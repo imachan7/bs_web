@@ -48,6 +48,26 @@ npm run typecheck && npm run build:client
 - コメント・ログ・エラーメッセージ・UI文言は日本語
 - コミットメッセージは日本語
 
+## コミット
+
+変更後は自分でコミットする。
+
+```
+git add -A && git commit -m "コミットメッセージ"
+```
+
+ユーザー向けお知らせに載せたい変更は `[release]` プレフィックスを付ける。
+カテゴリは `:fix` / `:ui` / `:new` / `:info` を使い分ける。
+
+```
+git commit -m "[release:fix] ○○のバグを修正"
+git commit -m "[release:ui] ○○の表示を改善"
+git commit -m "[release:new] ○○を追加"
+git commit -m "[release:info] 第五弾を準備中です"
+```
+
+お知らせに載せる必要のない内部的な変更は `[release]` なしで普通にコミットする。
+
 ## 注意
 
 - **ルール判定を `public/src/` に自前実装しない。** 判定は `shared/rules.ts` /

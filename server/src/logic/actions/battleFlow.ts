@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     bothSidesPids,
+    countEffectCounter,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -172,6 +173,16 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
             log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
             return
         }
+        // attackerFamilyFilter（BS07ウィリアンスラッシュ）：アタックしているのが指定系統の
+        // 自分のスピリットのときだけロックする。アタッカーが自分側でない／系統が一致しないなら不発
+        if (action.attackerFamilyFilter !== undefined) {
+            const attackerId = state.battle.attackerInstanceId
+            const attacker = state.players[owner].field.spirits.find((sp) => sp.instanceId === attackerId)
+            if (!attacker || !matchesFamilyFilter(state, owner, attacker, action.attackerFamilyFilter)) {
+                log(state, `${sourceName}：指定の系統を持つ自分のスピリットがアタックしていないため効かなかった。`)
+                return
+            }
+        }
         state.battle.flashLockedPlayer = opp
         log(
             state,
@@ -199,12 +210,20 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
-        const dealt = Math.min(action.count, player.life)
+        // countCounter指定時はcountを無視しEffectCounterの値を個数として使う（BS08メテオストーム）
+        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter) : action.count
+        if (count <= 0) {
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+            return
+        }
+        const dealt = Math.min(count, player.life)
         player.life -= dealt
-        player.reserve += dealt
+        // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
+        if (action.dest === "trash") player.trashCores += dealt
+        else player.reserve += dealt
         log(
             state,
-            `${sourceName}：${player.name}のライフからコア${dealt}個をリザーブに置いた。（残りライフ${player.life}）`,
+            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
@@ -361,6 +380,8 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
             if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
+            // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
+            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
             return true
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
@@ -383,7 +404,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 if (bestIdx === -1) break
                 const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
                 if (player.reserve < maintain) break
-                summonFreeFromHandIndex(state, owner, sourceName, bestIdx)
+                summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho)
                 summonedCount++
                 if (state.winner) return
             }
@@ -429,7 +450,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
         }
         if (chosenCardIndex !== undefined) {
-            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex)
+            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho)
             return
         }
         if (state.interactiveTargets) {
@@ -467,7 +488,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
             return
         }
-        summonFreeFromHandIndex(state, owner, sourceName, bestIndex)
+        summonFreeFromHandIndex(state, owner, sourceName, bestIndex, action.skipTensho)
         return
 }
 
@@ -560,6 +581,15 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             if (candidate.type !== "spirit") return false
             if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
             if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+            // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
+            // カード静的な family で判定する（配列＝OR）
+            if (action.familyFilter !== undefined) {
+                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                if (!wanted.some((f) => candidate.family.includes(f))) return false
+            }
+            // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
+            // カード静的な名前で判定する
+            if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
         }
@@ -669,7 +699,14 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
 // 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
+    // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
+    if (action.target === "self") {
+        if (!self) return
+        self.unblockableOnceThisTurn = true
+        log(state, `${getCard(self.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`)
+        return
+    }
     let best: CardInstance | undefined
     let bestBp = -1
     for (const inst of state.players[owner].field.spirits) {

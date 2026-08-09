@@ -204,9 +204,14 @@ const __covEid = (e: unknown): string =>
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
         f,
-        `                total += auraAmount(board, pid, effect.aura, inst)`,
-        `                __covRec2("cont\\t" + __covEid(effect))
-                total += auraAmount(board, pid, effect.aura, inst)`,
+        // ※ 2026-08-08: bpBuffSuppressed（BPバフ無効化）の導入で
+        //    「auraAmount を求める行」と「加算する行」が分かれた。
+        //    計測点は**抑止を通過して実際に加算する時点**に置く
+        `                if (bpBuffSuppressed && amount > 0) continue
+                total += amount`,
+        `                if (bpBuffSuppressed && amount > 0) continue
+                __covRec2("cont\\t" + __covEid(effect))
+                total += amount`,
     )
     // constraint: activeConstraints が自身の制約として採用する時点
     patch(
@@ -244,15 +249,17 @@ const __covEid = (e: unknown): string =>
                 __covRec2C("cont\t" + __covEid2C(effect))
                 return true`,
     )
-    // keywordGrant: 継続付与が成立して true を返す時点
+    // keywordGrant: 継続付与が成立して指定数を返す時点
     // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
+    // （2026-08-09: hasContinuousKeywordGrant が continuousKeywordGrantCount へ実体を移し、
+    //   返り値が true から effect.count ?? 1 に変わったためアンカーを追随させた）
     patch(
         f,
-        `            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
-            return true`,
-        `            if (effect.vanillaFilter && !isVanillaCard(card(inst.cardId))) continue
+        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            return effect.count ?? 1`,
+        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             __covRec2("cont\t" + __covEid(effect))
-            return true`,
+            return effect.count ?? 1`,
     )
     // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
     // isUntargetableByOpponent が直接 effects を走査する。ここを入れないと
@@ -351,8 +358,11 @@ const __covEid = (e: unknown): string =>
     // globalConstraint（costCantAct）: しきい値を実際に満たして true を返す時点
     patch(
         f,
-        `                if (cost <= effect.constraint.maxCost) return true`,
-        `                if (cost <= effect.constraint.maxCost) {
+        // ※ 2026-08-08: costs（コスト完全一致・グレートウォール）の追加で判定式が変わった
+        `                if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
+                    return true
+                }`,
+        `                if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
                     __covRec2("cont\\t" + __covEid(effect))
                     return true
                 }`,
@@ -360,15 +370,12 @@ const __covEid = (e: unknown): string =>
     // immunityGrant: hasMagicImmunity が true を返す時点
     patch(
         f,
-        `            if (effect.condition) {
-                const { cost, count } = effect.condition.ownCostCountAtLeast
-                const matchCount = player.field.spirits.filter((s) => card(s.cardId).cost === cost).length
+        // ※ 2026-08-08: 集計が countSpiritsWeighted + instHasCost（道化師クランの付与コスト対応）へ変わった
+        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
                 if (matchCount < count) continue
             }
             return true`,
-        `            if (effect.condition) {
-                const { cost, count } = effect.condition.ownCostCountAtLeast
-                const matchCount = player.field.spirits.filter((s) => card(s.cardId).cost === cost).length
+        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
                 if (matchCount < count) continue
             }
             __covRec2("cont\\t" + __covEid(effect))
@@ -377,19 +384,11 @@ const __covEid = (e: unknown): string =>
     // magicFreeGrant: hasMagicFreeGrant が true を返す時点（shared/cost.ts）
     patch(
         fc,
-        `            return true
-        }
-    }
-    return false
-}
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合`,
-        `            __covRec2C("cont\\t" + __covEid2C(effect))
-            return true
-        }
-    }
-    return false
-}
-// pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合`,
+        `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            return true`,
+        `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            __covRec2C("cont\\t" + __covEid2C(effect))
+            return true`,
     )
 }
 
@@ -433,12 +432,15 @@ export function getCard(cardId: string): CardData {`,
             `let instanceSeq = 0`,
             `let instanceSeq = 0
 // [計測] 実行された効果エントリと、場に出たカードを記録する
+// ※ 書き出しは require("fs") で行う（GameState.ts は node:fs を import していない。
+//    2026-08-03 にカード読み込みが data/loadCards.ts へ移って fs 参照が消えたため、
+//    fs.writeFileSync と書いていた版は ReferenceError で無言のまま記録0になっていた）
 const __covOut = process.env["COV_OUT"]
 const __covSet = new Set<string>()
 export const __covRecord = (line: string): void => { __covSet.add(line) }
 process.on("exit", () => {
     if (__covOut !== undefined) {
-        try { fs.writeFileSync(__covOut, [...__covSet].join("\\n")) } catch { /* 計測失敗は無視 */ }
+        require("fs").writeFileSync(__covOut, [...__covSet].join("\\n"))
     }
 })`,
         )
@@ -455,12 +457,14 @@ process.on("exit", () => {
         // (4) reviveOnDestroy: 実際に復活が確定した時点。
         //     **経路は2つある**（inst 自身が持つ reviveOnDestroy と、フィールドの他カード由来）。
         //     インデントで区別して両方に入れる（片方だけだと「復活したのに未計測」が出る）
+        //     BS07ブラックリチュアルの fireDestroyTriggerFirst で両経路に1行挟まったため、
+        //     アンカーは applyRevived の行だけにした。**先頭の改行は必須**：これが無いと
+        //     8スペース版のパターンが12スペース版の一部にも一致して「2箇所」になる
         for (const indent of ["        ", "            "]) {
             patch(
                 path.join(tree, "server/src/logic/EffectModules.ts"),
-                `${indent}const name = getCard(inst.cardId).name\n${indent}applyRevived(effect.revived)`,
-                `${indent}const name = getCard(inst.cardId).name\n` +
-                    `${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
+                `\n${indent}applyRevived(effect.revived)`,
+                `\n${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
                     `${indent}applyRevived(effect.revived)`,
             )
         }
@@ -474,6 +478,34 @@ process.on("exit", () => {
             `                        if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
+        )
+
+        // (4.6) 【装甲：∞】（keyword armor の colorsFrom:"opponentFieldSymbols"。BS06鎧神機ヴァルハランス）も
+        //     armorColorsGranted 経由で materialize される別経路。hasArmorAgainst の静的判定（e.colors）を
+        //     通らないため、(4.5) と同じ書き込み時点で記録する。
+        //     ※ 読む側（hasArmorAgainst の granted 分岐）は keywordGrant 由来と区別できないため、
+        //       ここだけは「相手フィールドにシンボルがある状態で場に居た」で実行済みとする
+        patch(
+            path.join(tree, "server/src/logic/EffectModules.ts"),
+            `                        if (!source.armorColorsGranted) source.armorColorsGranted = []`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        if (!source.armorColorsGranted) source.armorColorsGranted = []`,
+        )
+
+        // (4.7) keyword「暴風」: **挙動そのものは対になる triggered エントリ（onBlocked の exhaust）が持つ**ため、
+        //     keyword エントリ自体が読まれるのは颶風高原（voidCoreToSelfPerBofuCount）が指定数を引く1箇所だけ。
+        //     そこを計測点にする（「暴風を持っている」ではなく「指定数が実際に使われた」時点）
+        const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
+        patch(
+            coresFile,
+            `import { coresForLevel, getCard, log, minLevelCores } from "../GameState"`,
+            `import { coresForLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
+        )
+        patch(
+            coresFile,
+            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0`,
+            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (entry && count > 0) __covRecord("cont\\t" + String((entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
 
         // (5) EffectModules 側で __covRecord を使うための import 追記
@@ -490,32 +522,36 @@ process.on("exit", () => {
         // globalConstraint「ownNexusIndestructible」: hasOwnNexusIndestructible の true 判定
         patch(
             em,
+            // ※ 2026-08-07 にバニラ判定が instIsVanilla(s) へ一本化された（isVanillaCard(getCard(...)) から変更）。
+            //    差し込み先はエンジンの現在の形に追随させること
             `            if (effect.condition) {
                 const vanillaCount = player.field.spirits.filter((s) =>
-                    isVanillaCard(getCard(s.cardId)),
+                    instIsVanilla(s),
                 ).length
                 if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
             }
             return true`,
             `            if (effect.condition) {
                 const vanillaCount = player.field.spirits.filter((s) =>
-                    isVanillaCard(getCard(s.cardId)),
+                    instIsVanilla(s),
                 ).length
                 if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true`,
         )
-        // globalConstraint「battlingCoresProtected」: isBattlingCoreProtected の true 判定
+        // globalConstraint「battlingCoresProtected」「battlingEffectImmune」: true 判定
+        // ※ 2026-08-08: 2つのインライン走査が hasActiveGlobalConstraint(state, type) へ一本化された。
+        //    共通ループを1箇所差し込めば両方を記録できる（記録するのは実際に成立した効果エントリ）
         patch(
             em,
-            `                if (effect.constraint.type !== "battlingCoresProtected") continue
+            `                if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 return true`,
-            `                if (effect.constraint.type !== "battlingCoresProtected") continue
+            `                if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
@@ -588,13 +624,16 @@ process.on("exit", () => {
         // funsaiBonus: funsaiBonusTotal の集計点
         patch(
             em,
+            // ※ 2026-08-08: lentOnly（BS06デモリッシュ＝貸与時のみ有効）の判定が間に入った
+            // ※ 2026-08-09: 加算式に amountPerSymbolColor（BS08オリハルコン・ゴレム）の分岐が入ったため、
+            //    アンカーを絞り込み側の3行だけにして加算式そのものを含めないようにした
             `            if (effect.kind !== "funsaiBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount`,
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue`,
             `            if (effect.kind !== "funsaiBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            total += effect.amount`,
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
         // keyword「粉砕」: resolveFunsai で粉砕保持が確定した時点。
         // 2026-07-31: 判定が静的 hasKeyword から状態対応の spiritHasKeyword へ変わったため
@@ -659,7 +698,7 @@ process.on("exit", () => {
                             String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
                         if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
         )
-        // levelAs: refreshLevelAsOverrides の5つの levelAsContinuous 代入点（target ごと）
+        // levelAs: refreshLevelAsOverrides の8つの levelAsContinuous 代入点（target ごと）
         patch(
             em,
             `                if (effect.target === "self") {
@@ -696,35 +735,58 @@ process.on("exit", () => {
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,
         )
+        // ※ 2026-08-08: 分岐が5つ→8つに増えた（ownSpiritsByFamily / opponentSpiritsAll /
+        //    allSpiritsByChosenColor が後から追加された）。計測点を入れ忘れると
+        //    「実装済みなのに実行実績0」と誤報するので、分岐を足したらここも足すこと
         patch(
             em,
             `                        if (!hasStaticKeyword) continue
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                } else if (effect.target === "ownSpiritsVanilla") {`,
+                } else if (effect.target === "ownSpiritsByFamily") {`,
             `                        if (!hasStaticKeyword) continue
                         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                } else if (effect.target === "ownSpiritsVanilla") {`,
+                } else if (effect.target === "ownSpiritsByFamily") {`,
         )
         patch(
             em,
-            `                } else if (effect.target === "ownSpiritsVanilla") {
-                    // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）
-                    for (const spirit of player.field.spirits) {
-                        if (!isVanillaCard(getCard(spirit.cardId))) continue
+            `                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
+            `                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
+        )
+        patch(
+            em,
+            `                        if (!instIsVanilla(spirit)) continue
+                        if (effect.summonedThisTurnOnly && spirit.summonedTurn !== state.turn) continue
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
+            `                        if (!instIsVanilla(spirit)) continue
+                        if (effect.summonedThisTurnOnly && spirit.summonedTurn !== state.turn) continue
+                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
+        )
+        patch(
+            em,
+            `                    for (const spirit of state.players[opponentOf(pid)].field.spirits) {
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                }`,
-            `                } else if (effect.target === "ownSpiritsVanilla") {
-                    // カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）
-                    for (const spirit of player.field.spirits) {
-                        if (!isVanillaCard(getCard(spirit.cardId))) continue
+                } else if (effect.target === "allSpiritsByChosenColor") {`,
+            `                    for (const spirit of state.players[opponentOf(pid)].field.spirits) {
                         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                }`,
+                } else if (effect.target === "allSpiritsByChosenColor") {`,
+        )
+        patch(
+            em,
+            `                            if (!instHasColor(spirit, chosenColor)) continue
+                            spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
+            `                            if (!instHasColor(spirit, chosenColor)) continue
+                            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                            spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
         )
         // magicBuffBonus: applyMagicBuffBonus が tempBpBuff を実際に加算する時点
         patch(
@@ -758,11 +820,12 @@ process.on("exit", () => {
         // exhaustOnManualCoreAdd: checkExhaustOnCoreChange が実際に疲労させる時点
         patch(
             em,
-            `            if (opts.viaEffect && opts.isRemoval && !effect.onRemove) continue
-            affectedInst.isRested = true`,
-            `            if (opts.viaEffect && opts.isRemoval && !effect.onRemove) continue
-            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            affectedInst.isRested = true`,
+            // ※ 2026-08-07 に疲労の代入が exhaustSpirit() へ一元化された（誘発点を1箇所にするため）
+            `                exhaustSpirit(state, affectedPid, affectedInst)
+                return`,
+            `                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                exhaustSpirit(state, affectedPid, affectedInst)
+                return`,
         )
 
         // (5b) RuleValidator.ts: 強制ブロック・激突・スピリット数上限・神速召喚（keyword「神速」）
@@ -784,13 +847,14 @@ process.on("exit", () => {
         // keyword「神速」: フラッシュタイミングで静的神速により召喚が許可される分岐
         patch(
             rv,
-            `    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku)`,
+            // ※ 2026-08-08: hasFieldSoku（緑芽吹く原野Lv2＝手札のカードへの継続付与）が加わった
+            `    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku)`,
             `    const __staticSoku = hasKeyword(cardId, "soku")
     if (state.isFlashTiming && __staticSoku) {
         const __sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
         if (__sokuEntry) __covRecord("cont\\t" + String((__sokuEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
     }
-    const flashSummon = state.isFlashTiming && (__staticSoku || hasTempSoku)`,
+    const flashSummon = state.isFlashTiming && (__staticSoku || hasTempSoku || hasFieldSoku)`,
         )
         // mustBlockGrant: hasMustBlockAgainst が true を返す時点
         patch(
@@ -801,7 +865,7 @@ process.on("exit", () => {
             ) {
                 continue
             }
-            return true`,
+            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }`,
             `            if (
                 effect.familyFilter !== undefined &&
                 !matchesFamilyFilter(state, attackerPid, attacker, effect.familyFilter)
@@ -809,7 +873,7 @@ process.on("exit", () => {
                 continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            return true`,
+            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }`,
         )
         // keyword「激突」: 【激突】によりライフ受けが実際に拒否される時点
         patch(
@@ -833,19 +897,33 @@ process.on("exit", () => {
             `    getCard,\n    log,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
             `    getCard,\n    log,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
         )
+        // ※ 2026-08-08: リザーブからの【覚醒】（ディノゾールLv2）が分岐として増え、
+        //    コア移動の実行点が2つになった。両方に同じ記録を入れる（記録関数を1つ差し込んで共有）
         patch(
             ge,
-            `    if (!target || !from) return "対象のスピリットが見つかりません"
+            `    // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
+    if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        player.reserve -= count`,
+            `    const __recAwaken = () => {
+        const __awakenLevel = currentLevel(target).level
+        const __awakenEntry = getCard(target.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, __awakenLevel),
+        )
+        if (__awakenEntry) __covRecord("cont\\t" + String((__awakenEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+    }
+    // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
+    if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        __recAwaken()
+        player.reserve -= count`,
+        )
+        patch(
+            ge,
+            `    if (!from) return "対象のスピリットが見つかりません"
 
     from.cores -= count`,
-            `    if (!target || !from) return "対象のスピリットが見つかりません"
+            `    if (!from) return "対象のスピリットが見つかりません"
 
-    const __awakenLevel = currentLevel(target).level
-    const __awakenEntry = getCard(target.cardId).effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, __awakenLevel),
-    )
-    if (__awakenEntry) __covRecord("cont\\t" + String((__awakenEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-
+    __recAwaken()
     from.cores -= count`,
         )
         patch(
@@ -855,6 +933,8 @@ process.on("exit", () => {
                     state,
                     \`\${getCard(attacker.cardId).name}の【呪撃】：\${getCard(blocker.cardId).name}を破壊した。\`,
                 )
+                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
             `            } else {
                 log(
@@ -865,6 +945,8 @@ process.on("exit", () => {
                     (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, attackerLevel),
                 )
                 if (__jugekiEntry) __covRecord("cont\\t" + String((__jugekiEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
                 destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
         )
 
@@ -899,6 +981,17 @@ process.on("exit", () => {
         const directOnlyTypes = new Set<string>()
         const instantiated = new Set<string>()
 
+        // 3つの記録ファイルは**すべて**出ていなければならない。1つでも欠けていたら
+        // その計測系統が丸ごと no-op になっている（記録の一部だけが生きていると
+        // 「実行実績0」の山として現れ、実装漏れの誤報になる。2026-08-08 に act/inst 側で実際に発生）
+        for (const f of [outFile, outFile + ".shared", outFile + ".cost"]) {
+            if (!fs.existsSync(f)) {
+                throw new Error(
+                    `記録ファイルが出ていません: ${path.basename(f)}\n` +
+                        `計測コードの差し込みが no-op になっています。scripts/coverage-effects.ts を追随させてください。`,
+                )
+            }
+        }
         const readRecords = (file: string): string[] =>
             fs.existsSync(file) ? fs.readFileSync(file, "utf-8").split("\n") : []
         for (const line of [

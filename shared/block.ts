@@ -10,6 +10,7 @@ import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
+    canBlockWhileRestedThisTurn,
     currentLevel,
     effectiveBp,
     instAllCosts,
@@ -35,11 +36,23 @@ export function canBlock(
     // 疲労状態でのブロック（BS06計画された場外乱闘Lv1-2）：canBlockWhileRestedを持ち、
     // targetMaxCost指定時はアタッカーのコストがこれ以下のときのみブロックできる
     if (blockerInst.isRested) {
-        const canBlockRested = blockerConstraints.some((c) => {
-            if (c.type !== "canBlockWhileRested") return false
-            if (c.targetMaxCost === undefined) return true
-            return attackerInst !== undefined && instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })
-        })
+        const canBlockRested =
+            blockerConstraints.some((c) => {
+                if (c.type !== "canBlockWhileRested") return false
+                if (c.targetMaxCost !== undefined) {
+                    if (attackerInst === undefined || !instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })) {
+                        return false
+                    }
+                }
+                // targetKeywordExclude（BS08一角魚モノケロック：【転召】を持たない相手のスピリット）：
+                // アタッカーがそのキーワードを持つときはこのエントリでは許可しない
+                if (c.targetKeywordExclude !== undefined) {
+                    if (attackerInst === undefined || spiritHasKeyword(board, attackerPid, attackerInst, c.targetKeywordExclude)) {
+                        return false
+                    }
+                }
+                return true
+            }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
@@ -74,6 +87,14 @@ export function canBlock(
             ) {
                 return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
             }
+            // keywordFilterAbsent（BS08光帝竜騎アルカナジョーカーLv3）：指定キーワードを持た**ない**
+            // スピリットにブロックされない（keywordFilterの否定版）
+            if (
+                c.keywordFilterAbsent !== undefined &&
+                !spiritHasKeyword(board, blockerPid, blockerInst, c.keywordFilterAbsent)
+            ) {
+                return `このスピリットは【${KEYWORDS[c.keywordFilterAbsent].label}】を持たないスピリットにブロックされません`
+            }
             if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) {
                 return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
             }
@@ -82,6 +103,15 @@ export function canBlock(
                 c.levelFilter.includes(currentLevel(blockerInst).level)
             ) {
                 return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
+            }
+            // BS07聖なる命の泉Lv2：ブロッカーのコストがこれ以下ならブロックできない。
+            // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instMatchesCostFilter）
+            // BS07鋼翼魚オルカノンLv2：ブロッカーの実効BPがこれ以下ならブロックできない
+            if (c.maxBp !== undefined && effectiveBp(board, blockerPid, blockerInst) <= c.maxBp) {
+                return `このスピリットはBP${c.maxBp}以下のスピリットにブロックされません`
+            }
+            if (c.maxCost !== undefined && instMatchesCostFilter(blockerInst, { max: c.maxCost })) {
+                return `このスピリットはコスト${c.maxCost}以下のスピリットにブロックされません`
             }
             // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
             if (c.costNot !== undefined && !instHasCost(blockerInst, c.costNot)) {

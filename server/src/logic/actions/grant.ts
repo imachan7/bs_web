@@ -8,13 +8,16 @@ import {
     getAllFamilies,
     pickAnySideCandidates,
     pickEnemyByBp,
+    pickEnemyCandidates,
+    exhaustSpirit,
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -32,6 +35,79 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
             state,
             `${getCard(target.cardId).name}に【${KEYWORDS[action.keyword].label}】を付与した。`,
         )
+        return
+}
+
+// BS08グロウアップ：自分のスピリット1体を、このターンの間「実コスト+amount」の値もコストとして扱う
+// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget。元のコストも残るため厳密には
+// 「コスト以下」を参照する効果は元のコストでも引き続き反応する簡略化。CardInstance.tempAlsoCosts）
+const alsoCostBuffHandler: ActionHandler<"alsoCostBuff"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+    if (!target) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    const baseCost = getCard(target.cardId).cost
+    target.tempAlsoCosts.push(baseCost + action.amount)
+    log(
+        state,
+        `${getCard(target.cardId).name}は、このターンの間コスト${baseCost + action.amount}としても扱われる。`,
+    )
+    return
+}
+
+// BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
+// 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
+const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        if (targetInstanceId !== undefined) {
+            const target = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            target.tempGrantedTriggers = [
+                ...(target.tempGrantedTriggers ?? []),
+                { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+            ]
+            log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, filter, self?.instanceId),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：効果を付与するスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        // 自動選択：実効BP最大の1体（決定的簡略化）
+        const target = candidates.reduce((best, s) =>
+            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        )
+        target.tempGrantedTriggers = [
+            ...(target.tempGrantedTriggers ?? []),
+            { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+        ]
+        log(state, `${getCard(target.cardId).name}に効果を付与した。`)
         return
 }
 
@@ -64,7 +140,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 手札の条件一致カード1枚に、このターンの間キーワードを付与する
+        // 手札の条件一致カード（all指定時はすべて、それ以外は1枚）に、このターンの間キーワードを付与する
         const player = state.players[owner]
         const label = KEYWORDS[action.keyword].label
         const grant = (cardId: string): void => {
@@ -89,13 +165,21 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
             .filter((i) => {
                 const c = getCard(player.hand[i]!)
                 if (action.cardType !== undefined && c.type !== action.cardType) return false
-                if (action.familyFilter !== undefined && !c.family.includes(action.familyFilter)) {
-                    return false
+                if (action.familyFilter !== undefined) {
+                    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                    if (!wanted.some((f) => c.family.includes(f))) return false
                 }
                 return true
             })
         if (indices.length === 0) {
             log(state, `${sourceName}：対象の手札がなかった。`)
+            return
+        }
+        if (action.all) {
+            // BS08ライトニングスピード：選択を挟まず、条件一致する手札カードすべてに付与する。
+            // 付与はcardId単位（RuleValidatorがcardId一致で判定）のため、同名重複カードは1回にまとめる
+            const uniqueCardIds = new Set(indices.map((i) => player.hand[i]!))
+            for (const cardId of uniqueCardIds) grant(cardId)
             return
         }
         if (state.interactiveTargets) {
@@ -114,6 +198,50 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
         // 自動時：手札末尾（新しい方）の該当カードを対象にする簡略化
         const idx = indices[indices.length - 1]!
         grant(player.hand[idx]!)
+        return
+}
+
+// BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
+// このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
+const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        const hasBlockTrigger = (inst: CardInstance): boolean =>
+            getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
+        const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
+        const target = targetInstanceId
+            ? mine.find((s) => s.instanceId === targetInstanceId)
+            : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
+              mine.reduce<CardInstance | undefined>(
+                  (best, s) =>
+                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                  undefined,
+              )
+        if (!target) {
+            log(state, `${sourceName}：『ブロック時』効果を持つ自分のスピリットがいなかった。`)
+            return
+        }
+        target.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、${getCard(target.cardId).name}の『ブロック時』効果は『アタック時』に発揮される。`,
+        )
+        return
+}
+
+const grantColorThisTurnHandler: ActionHandler<"grantColorThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // BS07メテオフォール：自分のスピリット1体を、このターンの間その色としても扱う（色は固定）。
+        // 対象の選び方は grantKeyword と同じ（指定優先→バトル中→フィールド先頭）
+        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (!target.tempColors.includes(action.color)) target.tempColors.push(action.color)
+        log(
+            state,
+            `${getCard(target.cardId).name}に色「${COLOR_LABELS[action.color]}」が与えられた（ターン終了時まで）。`,
+        )
         return
 }
 
@@ -409,6 +537,119 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
         return
 }
 
+const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
+        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない
+        if (action.costExhaustFamily !== undefined) {
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
+                return
+            }
+            // 犠牲を最小化する簡略化（実効BP最小を自動選択）
+            const chosen = candidates.reduce((min, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
+            )
+            exhaustSpirit(state, owner, chosen)
+        }
+        state.turnConstraints.push({
+            type: "noLifeDamageByCostForPid",
+            maxCost: action.maxCost,
+            pid: owner,
+        })
+        log(
+            state,
+            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
+        )
+        return
+}
+
+const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // maxCost指定時：コスト条件を満たす相手スピリットすべてに一括で課す（BS08アンブッシュブロッカー）
+        if (action.maxCost !== undefined) {
+            state.turnConstraints.push({ type: "mustAttackByCost", pid: opp, maxCost: action.maxCost })
+            log(
+                state,
+                `${sourceName}：このターンの間、${state.players[opp].name}のコスト${action.maxCost}以下のスピリットは可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        // 対象指定時：その1体に課す（targetInstanceId優先→interactiveTargets時はpendingChoice→自動時は実効BP最大。BS08獣機合神セイ・ドリガン）
+        if (targetInstanceId) {
+            const found = findSpiritAny(state, targetInstanceId)
+            if (!found || found.pid !== opp) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: found.inst.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(found.inst.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        const count = action.count ?? 1
+        const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：必ずアタックさせる相手のスピリットを選んでください`,
+                candidates,
+                action,
+                count > 1 ? { ...action, count: count - 1 } : null,
+            )
+        ) {
+            return
+        }
+        const chosenIds = new Set<string>()
+        let marked = 0
+        for (let i = 0; i < count; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => !chosenIds.has(s.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) break
+            chosenIds.add(target.instanceId)
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            marked++
+        }
+        if (marked === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+        }
+        return
+}
+
+const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        state.turnConstraints.push({
+            type: "canBlockWhileRestedThisTurn",
+            pid: owner,
+            ...(action.familyFilter !== undefined ? { familyFilter: action.familyFilter } : {}),
+        })
+        const familyLabel = action.familyFilter
+            ? `系統：「${(Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]).join("」/「")}」を持つ`
+            : ""
+        log(
+            state,
+            `${sourceName}：このターンの間、${state.players[owner].name}の${familyLabel}スピリットすべては疲労状態でもブロックできる。`,
+        )
+        return
+}
+
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
@@ -561,9 +802,12 @@ const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> =
 
 const handlers = {
     grantKeyword: grantKeywordHandler,
+    grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
+    grantColorThisTurn: grantColorThisTurnHandler,
+    blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
@@ -575,11 +819,15 @@ const handlers = {
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
+    forceAttackThisTurn: forceAttackThisTurnHandler,
+    grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
+    alsoCostBuff: alsoCostBuffHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

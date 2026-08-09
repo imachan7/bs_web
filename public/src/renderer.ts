@@ -209,13 +209,13 @@ export function canAwaken(view: GameView, inst: CardInstance): boolean {
     return sharedCanAwaken(view, view.you, inst)
 }
 
-// 起動能力が今このスピリットで発動可能なら {effectId, cost} を返す
+// 起動能力が今このスピリットで発動可能なら {effectId, costLabel} を返す
 // （判定はサーバー validateActivateAbility と同一の共有実装）
 export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
-): { effectId: string; cost: number } | null {
+): { effectId: string; costLabel: string } | null {
     return sharedActivatableAbility(view, you, inst)
 }
 
@@ -224,6 +224,7 @@ export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
+    substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
 }
 
@@ -236,6 +237,8 @@ export interface UiState {
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
+    battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
@@ -392,7 +395,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null
     show("btn-cancel-target", anyMode)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
@@ -475,6 +478,9 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.summonLevelSelect) {
         $("targeting-info").textContent =
             `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
+    } else if (ui.battleSwapSummon) {
+        $("targeting-info").textContent =
+            `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -846,6 +852,13 @@ function fieldCardEl(
             }
             return el
         }
+        // 入れ替え召喚の対象選択中
+        if (ui.battleSwapSummon !== null) {
+            if (ui.battleSwapSummon.substituteInstanceIds.includes(inst.instanceId)) {
+                el.classList.add("targetable", "clickable")
+            }
+            return el
+        }
         // 対象選択中（自分側）
         if (ui.targeting?.side === "self") el.classList.add("targetable", "clickable")
         // 覚醒可能（フラッシュ中で優先権あり）：バッジのクリックで覚醒モード開始
@@ -865,7 +878,7 @@ function fieldCardEl(
             badge.dataset.activate = inst.instanceId
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
-            badge.title = `コア${activatable.cost}個を払って効果を発動`
+            badge.title = activatable.costLabel
             el.appendChild(badge)
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可

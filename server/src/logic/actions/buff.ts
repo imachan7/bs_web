@@ -5,6 +5,7 @@ import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     applyMagicBuffBonus,
+    bofuCountFor,
     countEffectCounter,
     effectActiveAtLevel,
     effectiveBp,
@@ -97,11 +98,37 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象1体の経路は matchesTarget を通らないため、シンボル数の軸だけ filter から取り出して渡す
-        // （ライトニングバリスタ等＝シンボル2個以上のスピリットのみ対象）
-        const target = pickBpBuffTarget(state, owner, targetInstanceId, action.filter?.minSymbols)
+        // 対象1体の経路は matchesTarget を通らないため、この経路が扱える軸を filter から取り出して渡す
+        // （minSymbols＝ライトニングバリスタ等／nameContains＝BS07ウィリアンスラッシュ「勇者」／
+        //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」／
+        //   family＝BS07ニードルショット「系統：剣獣」）
+        const target = pickBpBuffTarget(
+            state,
+            owner,
+            targetInstanceId,
+            action.filter?.minSymbols,
+            action.filter?.keyword,
+            action.filter?.nameContains,
+            action.filter?.attackingOnly,
+            action.filter?.family,
+        )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
+            return
+        }
+        // amountFromSelfBp（BS08機人フィアラル）：amountを無視し、発生源自身の実効BPを加算量として使う
+        if (action.amountFromSelfBp) {
+            if (!self) {
+                log(state, `${sourceName}のBP増加：発生源がいなかった。`)
+                return
+            }
+            const amount = effectiveBp(state, owner, self)
+            target.tempBpBuff += amount
+            log(
+                state,
+                `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+            )
+            applyMagicBuffBonus(state, target, srcType, srcColors)
             return
         }
         target.tempBpBuff += action.amount
@@ -157,6 +184,58 @@ const bpBuffAllByArmorColors: ActionHandler<"bpBuffAllByArmorColors"> = (ctx, ac
         return
 }
 
+// BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
+// （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
+const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action) => {
+    const { state, owner } = ctx
+        let count = 0
+        for (const s of state.players[owner].field.spirits) {
+            const bofu = bofuCountFor(state, owner, s)
+            if (bofu === 0) continue
+            s.tempBpBuff += action.amountPer * bofu
+            count++
+        }
+        if (count === 0) {
+            log(state, `${state.players[owner].name}：【暴風】を持つスピリットがいなかった。`)
+            return
+        }
+        log(
+            state,
+            `${state.players[owner].name}の【暴風】を持つスピリット${count}体が、指定数に応じてBP増加（ターン終了時まで）。`,
+        )
+        return
+}
+
+// BS08ダークパワー：カウント値×amountPerを、filter一致の自分のスピリットすべてにBP+
+// （bpBuffPerの単体対象を「全体」に広げた版）
+const bpBuffAllPer: ActionHandler<"bpBuffAllPer"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        const count = countEffectCounter(state, owner, self, action.counter)
+        if (count === 0) {
+            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
+            return
+        }
+        const spirits = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, filter, self?.instanceId),
+        )
+        if (spirits.length === 0) {
+            log(state, `${sourceName}のBP増加：対象条件を満たすスピリットがいなかった。`)
+            return
+        }
+        const amount = count * action.amountPer
+        for (const s of spirits) s.tempBpBuff += amount
+        log(
+            state,
+            `${state.players[owner].name}の対象スピリット${spirits.length}体がBP+${amount}（ターン終了時まで）。`,
+        )
+        return
+}
+
 const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // targetSymbols（BS06サベージパワー）：**対象スピリット自身**のシンボル数を数えるため、
@@ -186,7 +265,7 @@ const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
             return
         }
-        const target = pickBpBuffTarget(state, owner, targetInstanceId)
+        const target = pickBpBuffTarget(state, owner, targetInstanceId, undefined, action.keywordFilter)
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
@@ -399,6 +478,8 @@ const handlers = {
     bpBuff,
     bpBuffAll,
     bpBuffAllByArmorColors,
+    bpBuffAllByBofuCount,
+    bpBuffAllPer,
     bpBuffPer,
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,

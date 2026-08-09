@@ -135,6 +135,11 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ## エージェント間連絡（chatbox）
 
 実装担当（Claude）・設計担当（Claude）・UI担当（Gemini）の連絡は `chatbox/` を使う。
+
+**UIは UI担当（Gemini）の担当。実装担当は `public/` を書き換えない**（2026-08-09 ユーザー指示）。
+UI担当は `bs_web-ui` の別クローンで並行作業しているため、こちらが `public/` を触ると衝突する。
+サーバー側APIの追加・型の変更でクライアントの修正が必要になったら、**直さずに chatbox で依頼する**
+（例外は、共有層の型変更に追随するだけの機械的な1〜2行。それも編集中でないことを確認してから）。
 運用ルールの全文は `chatbox/README.md`。**守るべき点は5つ**:
 
 - 起動時に読むのは `chatbox/INDEX.md` と自分宛の未処理メッセージ**だけ**。
@@ -179,3 +184,23 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 中断→再開のたびにトークンを浪費する。コミットメッセージは日本語で変更を要約。
 
 メインループ側も、smoke の結果確認は `npm run smoke:quiet 2>&1 | grep -E "❌|合格"` で結論のみ取る。
+
+#### お知らせ（`data/announcements.json`）
+
+トップ画面の「お知らせ」欄は **`data/announcements.json` を編集して出す**（`GET /api/changelog` が読む）。
+**コミットメッセージのプレフィックスは使わない**（2026-08-09 に廃止）。
+
+```json
+{ "date": "2026-08-09", "category": "new", "text": "第七弾「天醒」のカード88枚を追加しました" }
+```
+
+- `category` は `fix` / `ui` / `new` / `info` / `update`（クライアントの `parseReleaseMessage` が解釈する）
+- **`text` は対戦者が読む文面**。内部用語・ファイル名・カード ID を書かない
+- 出すのは「弾などまとまった単位が入り終わったとき」と「対戦者に影響するバグを直したとき」の2つ。
+  色1色ぶんのバッチのような途中経過は出さない
+
+かつては `[release]` で始まるコミットを `git log --grep` で拾っていたが、次の3点でJSONへ移した:
+
+1. 文面を直すのに履歴の書き換えが要る（実際に誤記を1件直せなかった）
+2. `.git` が無い環境（Azureのデプロイ成果物）では常に空になり、**本番で機能しない**
+3. 開発者向けのコミット履歴と、対戦者が読む文面は目的が別

@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -55,11 +55,15 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
 export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: CardData): Color[] {
     const extra: Color[] = []
-    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    // effectSources：このターンだけの仮想発生源（マジックが lendSelfThisTurn で貸した継続効果）も含める
+    // （BS07リボーンフレイム。従来は field だけを見ており、貸与された reductionGrant が無言で効かなかった）
+    const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "reductionGrant") continue
+            // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
@@ -215,10 +219,22 @@ export function hasMagicFreeGrant(
                 if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
             }
+            // 『このスピリットのバトル時』（BS07大天使イスフィール）：発生源自身がバトルの当事者のときだけ
+            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
             return true
         }
     }
     return false
+}
+
+// 発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）か。
+// magicFreeGrant / magicRepeatGrant の condition:"selfInBattle" が共用する
+export function isSelfInBattle(board: Board, instanceId: string): boolean {
+    if (!board.battle) return false
+    return (
+        board.battle.attackerInstanceId === instanceId ||
+        board.battle.blockerInstanceId === instanceId
+    )
 }
 // pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 // 軽減シンボルと同じシンボル集計対象を色の集合として求める）
@@ -252,6 +268,9 @@ export function costSetOverride(
             }
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
             if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
+            // BS07女帝ペンプレスLv2-3：手札のカード名に「ペンタン」を含むスピリットカードのみ
+            if (effect.nameContains !== undefined && !cardData.name.includes(effect.nameContains)) continue
+            if (effect.cardTypeFilter !== undefined && cardData.type !== effect.cardTypeFilter) continue
             // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
             if (result === undefined || effect.setTo < result) result = effect.setTo
         }
@@ -292,8 +311,12 @@ export function effectiveCost(
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
         // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
         // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
+        // noReductionBySummonCost（BS08超時空重力炉）：コストがmaxCost以下のスピリットカードを
+        // 召喚するとき、軽減シンボルによる軽減が一切できなくなる（**カード静的なコスト**で判定）
+        const reductionBlockedBySummonCost =
+            cardData.type === "spirit" && noReductionBySummonCost(board, cardData.cost)
         let reduction = 0
-        if (!reductionBlocked) {
+        if (!reductionBlocked && !reductionBlockedBySummonCost) {
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
                 const have = countSymbols(board.players[pid], [color])

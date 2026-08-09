@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -26,6 +26,7 @@ import {
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
     battleBp,
+    bofuCountFor,
     declineMagicNegateChoice,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
@@ -34,8 +35,11 @@ import {
     fireTrigger,
     hasArmorAgainst,
     hasFunsaiOnBlock,
+    hasKyoshuOnBlock,
+    hasBofuOnBlock,
     hasKoboOnBlock,
     hasLifeDamageNegate,
+    tryLifeDamageMillGuard,
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
@@ -47,6 +51,7 @@ import {
     resolveKoboOnBattleEnd,
     resolveMagic,
     resolveTensho,
+    returnSpiritToHand,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -118,7 +123,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
         case "castMagic":
@@ -239,20 +244,89 @@ function forceEndTurnIfFlagged(state: GameState): void {
     endTurn(state)
 }
 
+// kind:"battleSwapSummon" の召喚本体。validateSummon で検証済みの前提で呼ぶ。
+// 手順は「入れ替え元を手札に戻す → 維持コアをリザーブから置いて疲労状態で召喚 →
+// バトルの枠（アタッカー／ブロッカー）を新しい個体に差し替える」の順。
+// **手札に戻すのを先にする**：戻す処理が『手札に戻ったとき』の誘発を回すので、
+// 盤面が動きうる前に召喚を確定させると差し替え先を見失う
+function doBattleSwapSummon(
+    state: GameState,
+    pid: PlayerId,
+    handIndex: number,
+    substituteInstanceId: string,
+    paySources?: PaySource[],
+): string | null {
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const battle = state.battle
+    if (!battle) return "バトルが発生していません"
+    const wasAttacker = battle.attackerInstanceId === substituteInstanceId
+
+    const substitute = findSpirit(player, substituteInstanceId)
+    if (!substitute) return "入れ替え元のスピリットが見つかりません"
+    const substituteName = getCard(substitute.cardId).name
+
+    // 効果文に「コストを支払わずに」が無いので、召喚コストは通常どおり支払う
+    // （[カラカロッサム]を手札に戻すのは**追加コスト**）。
+    // **コストは入れ替え元を手札に戻す前に確定させる**：軽減シンボルは召喚を宣言した時点、
+    // つまり入れ替え元がまだ場にいる時点で数える。後で計算すると validateSummon が通した額より
+    // 高くなり、検証を通ったのに払えないという食い違いが起きる
+    const cost = effectiveCost(state, pid, card)
+    returnSpiritToHand(state, pid, substitute)
+    const maintain = minLevelCores(card)
+    const placedFromField = payCost(state, pid, cost, paySources, maintain)
+    player.reserve -= maintain - placedFromField
+    player.hand.splice(handIndex, 1)
+    const inst = createInstance(cardId, state.turn, maintain)
+    inst.isRested = true
+    player.field.spirits.push(inst)
+    log(
+        state,
+        `${player.name}は${substituteName}を手札に戻し、代わりに${card.name}を疲労状態で召喚した。（コスト${cost}）`,
+    )
+    emitEvent(state, { type: "summon", pid, cardName: card.name })
+
+    // バトルを引き継ぐ（入れ替え元が就いていた側の枠を差し替える）
+    if (state.battle) {
+        if (wasAttacker) {
+            state.battle.attackerInstanceId = inst.instanceId
+        } else {
+            state.battle.blockerInstanceId = inst.instanceId
+        }
+    }
+
+    fireSummonTrigger(state, pid, inst)
+    if (!state.winner) resolveTensho(state, pid, inst)
+    passFlashPriority(state, pid)
+    if (state.winner) state.battle = null
+    return null
+}
+
 function doSummon(
     state: GameState,
     pid: PlayerId,
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    substituteInstanceId?: string,
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId)
     if (error) return error
 
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+
+    // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
+    // 手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ。
+    // 召喚コスト自体は通常どおり支払うので paySources をそのまま渡す
+    if (substituteInstanceId !== undefined) {
+        return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId, paySources)
+    }
+
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
@@ -368,15 +442,39 @@ function doCastMagic(
     state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
 
     // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
+    // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
+    // （clearBattleでバトルごとにクリアされる。BS08マジックミラー）。
+    // **resolveMagicの後で、かつ解決中に書き換わっていなければ**記録すること：
+    // この使用自体がマジックミラーだった場合、マジックミラー自身の解決（action:"magicMirrorRepeat"）が
+    // 「直前に使用されたマジック」を読んでからここと同じ場所を書き換える。先に（resolveMagicの前に）
+    // 記録すると自分自身を読んでしまい、後で（無条件に）書き換えるとマジックミラー側の記録を潰してしまう
+    const beforeLastMagicCast = state.lastMagicCast
     if (state.battle) {
         resolveMagic(state, pid, cardId, "flash", targetInstanceId)
+        if (state.lastMagicCast === beforeLastMagicCast) {
+            state.lastMagicCast = {
+                pid,
+                cardId,
+                timing: "flash",
+                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+            }
+        }
         // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
         passFlashPriority(state, pid)
     } else {
         const hasMain = card.effects.some(
             (e) => e.kind === "magic" && e.timing === "main",
         )
-        resolveMagic(state, pid, cardId, hasMain ? "main" : "flash", targetInstanceId)
+        const timing = hasMain ? "main" : "flash"
+        resolveMagic(state, pid, cardId, timing, targetInstanceId)
+        if (state.lastMagicCast === beforeLastMagicCast) {
+            state.lastMagicCast = {
+                pid,
+                cardId,
+                timing,
+                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+            }
+        }
     }
     if (state.winner) state.battle = null
     return null
@@ -653,7 +751,50 @@ function resolveLifeDamage(state: GameState): void {
         clearBattle(state)
         return
     }
+    // BS07「勇傑」各色に共通：コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない。
+    // 両陣営に効く全体制約なので、発生源の持ち主を問わず hasGlobalConstraintByCost で見る
+    if (noLifeDamageByCost(state, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+    // BS07秘密の花園Lv2：このターンの間、コスト条件を満たすアタックでは**この防御側のライフだけ**が減らない
+    if (lifeProtectedByCostThisTurn(state, defenderPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+    // BS08空帝竜騎プラチナム：ブロックされなかったアタッカーの実効BPがこのスピリット自身の実効BP以下のとき、
+    // そのアタックでは自分のライフは減らない（片側のみ）
+    if (protectedByBpUpToSelf(state, defenderPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
     if (hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+
+    // BS07六花の司書長サーガ：ライフが減る直前にデッキを1枚破棄し、条件に合えばライフが減らない
+    if (tryLifeDamageMillGuard(state, defenderPid)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
@@ -688,8 +829,9 @@ function resolveLifeDamage(state: GameState): void {
         log(state, `${state.players[attackerPid].name}の勝利！`)
     } else if (dealt > 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
-        // ライフ0で敗北が決まった場合は発火しない
-        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged")
+        // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
+        // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
+        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
     }
     // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
     // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
@@ -732,14 +874,22 @@ function doActivateAbility(
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
 
-    // コスト支払い（リザーブからトラッシュへ）
-    const n = effect.cost.reserveToTrash
-    player.reserve -= n
-    player.trashCores += n
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
-    )
+    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）
+    if ("exhaustSelf" in effect.cost) {
+        exhaustSpirit(state, pid, inst)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
+        )
+    } else {
+        const n = effect.cost.reserveToTrash
+        player.reserve -= n
+        player.trashCores += n
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
+        )
+    }
 
     resolveAction(state, pid, inst, effect.action)
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
@@ -956,11 +1106,45 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedCost = 0
 
     // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
+    // 【noRestWhenBlockingCost】：アタッカーのコストが条件を満たす場合も疲労しない
+    // （maxCost以下＝BS07シルバー・ゴレム／sameCost＝ブロッカー自身と同じコスト＝BS07造兵工房）。
+    // コストは道化師クランの付与コストも見る（instAllCosts）
     const attackerColors = instColors(attacker)
-    const skipRest = activeConstraints(state, defenderPid, blocker).some(
-        (c) => c.type === "noRestWhenBlockingColor" && attackerColors.includes(c.color),
-    )
+    const attackerCosts = instAllCosts(attacker)
+    const blockerCosts = instAllCosts(blocker)
+    const skipRest = activeConstraints(state, defenderPid, blocker).some((c) => {
+        if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
+        // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
+        if (c.type === "noRestWhenBlockingWithoutKeyword") {
+            return !spiritHasKeyword(state, attackerPid, attacker, c.keyword)
+        }
+        if (c.type !== "noRestWhenBlockingCost") return false
+        if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
+        const max = c.maxCost
+        return max !== undefined && attackerCosts.some((a) => a <= max)
+    })
     if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
+    // **ブロック宣言時ではなくここで呼ぶ**：ブロッカーが疲労するのはこの直上なので、
+    // 宣言時点では回復状態のまま＝【強襲】が空振りしてしまう
+    if (hasKyoshuOnBlock(state, defenderPid)) {
+        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+    }
+    // 【暴風】を『このスピリットのブロック時』へ差し替える継続付与（BS07大風車の丘Lv2）。
+    // 本来は「アタックしてブロックされたとき」だが、これがある間はブロックした側が発揮する。
+    // 疲労させられるのはアタッカー側で、既に疲労しているアタッカー自身は除く（excludeTarget）
+    if (hasBofuOnBlock(state, defenderPid)) {
+        const count = bofuCountFor(state, defenderPid, blocker)
+        if (count > 0) {
+            resolveAction(
+                state,
+                defenderPid,
+                blocker,
+                { type: "exhaust", count, chooserIsTarget: true, excludeTarget: true },
+                attacker.instanceId,
+            )
+        }
+    }
     // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
     // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
     if (state.winner) return
@@ -1010,7 +1194,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColors, attackerLevel },
+            battle: { attackerColors, attackerLevel, attackerBp },
         })
         // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（ブロッカー敗北）。
         // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
@@ -1025,7 +1209,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
         })
         // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（アタッカー敗北）
         if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleLose")
@@ -1035,12 +1219,12 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColors, attackerLevel },
+            battle: { attackerColors, attackerLevel, attackerBp },
         })
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
         })
     }
 

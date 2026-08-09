@@ -30,7 +30,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
@@ -40,10 +40,12 @@ const VALID_KINDS = new Set([
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
-    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
+    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
+    "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
+    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix",
 ])
 
 export interface ValidationIssue {
@@ -201,12 +203,15 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
-    "sameCostAsBlocker",
+    "sameCostAsBlocker", "attackingOnly", "keywordExclude", "hasTrigger",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+    // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
+    // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family"],
 }
 
 function checkTargetFilters(

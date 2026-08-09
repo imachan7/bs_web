@@ -17,6 +17,7 @@ import {
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
 import { canPayNexusCostByMill } from "../../shared/cost"
+import { canBattleSwapSummon } from "../../shared/summon"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -29,7 +30,7 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -126,9 +127,16 @@ function sendPlay(
     targetInstanceId?: string,
     paySources?: PaySource[],
     level?: number,
+    substituteInstanceId?: string,
 ): void {
     if (cardType === "spirit") {
-        send({ type: "summon", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}) })
+        send({ 
+            type: "summon", 
+            handIndex, 
+            ...(paySources ? { paySources } : {}), 
+            ...(level !== undefined ? { level } : {}),
+            ...(substituteInstanceId ? { substituteInstanceId } : {})
+        })
     } else if (cardType === "nexus") {
         send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}) })
     } else {
@@ -142,11 +150,12 @@ function sendPlay(
 }
 
 // 軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
-function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number): void {
+function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string): void {
     if (!view) return
     const cost = effectiveCost(view, view.you, card)
     
-    if (level === undefined && (card.type === "spirit" || card.type === "nexus")) {
+    // 入れ替え召喚（substituteInstanceId あり）の場合は強制Lv1（維持コア=minLevelCores）になるためレベル選択をスキップする
+    if (level === undefined && substituteInstanceId === undefined && (card.type === "spirit" || card.type === "nexus")) {
         const reserve = view.players[view.you].reserve
         const cardIdForField = view.players[view.you].hand?.[handIndex]
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
@@ -186,14 +195,21 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
             : 0
 
     if (reserve + millPayable >= cost + maintain) {
-        sendPlay(card.type, handIndex, targetInstanceId, undefined, level)
+        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId)
         return
     }
     // コアが足りない → 支払いモードを開始（他のモードは排他的に解除する）
     ui.targeting = null
     ui.awakenTarget = null
     ui.summonLevelSelect = null
-    ui.paying = { handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), assigned: {}, ...(level !== undefined ? { level } : {}) }
+    ui.battleSwapSummon = null
+    ui.paying = { 
+        handIndex, 
+        ...(targetInstanceId ? { targetInstanceId } : {}), 
+        assigned: {}, 
+        ...(level !== undefined ? { level } : {}),
+        ...(substituteInstanceId ? { substituteInstanceId } : {})
+    }
     rerender()
 }
 
@@ -210,6 +226,7 @@ socket.on("state", (v: GameView) => {
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
     ui.summonLevelSelect = null // レベル選択もリセット
+    ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
     rerender()
 })
 
@@ -268,12 +285,22 @@ function onHandClick(handIndex: number): void {
         }
     }
 
-    // 神速召喚：静的に持つか、grantKeywordToHandCardで一時付与された手札スピリット
+    // 神速召喚または入れ替え召喚（フラッシュで手札のスピリットを使用）
     if (card.type === "spirit" && inFlash) {
+        const swapOpt = canBattleSwapSummon(view, view.you, handIndex)
         const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
             (g) => g.cardId === cardId && g.keyword === "soku",
         )
-        if (hasKeyword(cardId, "soku") || tempSoku) {
+        const canSoku = hasKeyword(cardId, "soku") || tempSoku
+
+        // 現在「神速」と「入れ替え召喚」を両方持つカードは存在しないため、排他的に処理する
+        if (swapOpt) {
+            ui.battleSwapSummon = { handIndex, substituteInstanceIds: swapOpt.substituteInstanceIds }
+            rerender()
+            return
+        }
+
+        if (canSoku) {
             tryPlay(handIndex, card, undefined)
             return
         }
@@ -336,6 +363,19 @@ function onMySpiritClick(instanceId: string): void {
             count: 1,
         })
         ui.awakenTarget = null
+        return
+    }
+
+    // 入れ替え召喚の対象選択モード中
+    if (ui.battleSwapSummon !== null) {
+        if (ui.battleSwapSummon.substituteInstanceIds.includes(instanceId)) {
+            const handIndex = ui.battleSwapSummon.handIndex
+            const cardId = view.players[view.you].hand?.[handIndex]
+            ui.battleSwapSummon = null
+            if (cardId !== undefined) {
+                tryPlay(handIndex, master(cardId), undefined, undefined, instanceId)
+            }
+        }
         return
     }
 
@@ -422,7 +462,7 @@ function assignPayCore(instanceId: string): void {
         const paySources: PaySource[] = Object.entries(pay.assigned).map(
             ([id, count]) => ({ instanceId: id, count }),
         )
-        sendPlay(card.type, pay.handIndex, pay.targetInstanceId, paySources, pay.level)
+        sendPlay(card.type, pay.handIndex, pay.targetInstanceId, paySources, pay.level, pay.substituteInstanceId)
         ui.paying = null
         return
     }
@@ -546,12 +586,103 @@ function closestData(
     return (e.target as HTMLElement).closest<HTMLElement>(`[${attr}]`)
 }
 
+// ---- お知らせ（Gitコミット履歴から自動取得） ----
+
+interface ChangelogEntry {
+    date: string    // "2026-08-09"（--date=short）
+    message: string // "[release:fix] ○○を直した"（プレフィックス込みの生メッセージ）
+    hash: string    // "9170e7c"（短縮ハッシュ）
+}
+
+// コミットメッセージからカテゴリと表示テキストを抽出する
+// 例: "[release:fix] ○○を修正" → { category: "fix", text: "○○を修正" }
+//     "[release] ○○を追加"     → { category: "update", text: "○○を追加" }
+const CATEGORY_MAP: Record<string, { label: string; cssClass: string }> = {
+    fix:    { label: "バグ修正",  cssClass: "badge fix" },
+    ui:     { label: "UI改善",    cssClass: "badge update" },
+    new:    { label: "機能追加",  cssClass: "badge new" },
+    info:   { label: "お知らせ",  cssClass: "badge info" },
+    update: { label: "更新",      cssClass: "badge update" },
+}
+
+function parseReleaseMessage(message: string): { category: string; text: string } {
+    // [release:カテゴリ] テキスト
+    const match = message.match(/^\[release(?::(\w+))?\]\s*(.*)$/)
+    if (!match) return { category: "update", text: message }
+    const category = match[1] ?? "update"
+    const text = match[2] ?? ""
+    return { category, text }
+}
+
+function loadChangelog(): void {
+    const container = document.getElementById("announcement-list")
+    if (!container) return
+
+    fetch("/api/changelog")
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            return res.json() as Promise<ChangelogEntry[]>
+        })
+        .then(entries => {
+            container.textContent = ""
+
+            if (entries.length === 0) {
+                const empty = document.createElement("div")
+                empty.className = "announcement-loading"
+                empty.textContent = "更新情報はありません"
+                container.appendChild(empty)
+                return
+            }
+
+            for (const entry of entries) {
+                const item = document.createElement("div")
+                item.className = "announcement-item"
+
+                const meta = document.createElement("div")
+                meta.className = "announcement-meta"
+
+                const dateEl = document.createElement("span")
+                dateEl.className = "date"
+                dateEl.textContent = entry.date.replace(/-/g, ".")
+                meta.appendChild(dateEl)
+
+                const parsed = parseReleaseMessage(entry.message)
+                const catInfo = CATEGORY_MAP[parsed.category] ?? CATEGORY_MAP.update!
+
+                const badge = document.createElement("span")
+                badge.className = catInfo.cssClass
+                badge.textContent = catInfo.label
+                meta.appendChild(badge)
+
+                item.appendChild(meta)
+
+                const text = document.createElement("p")
+                text.className = "announcement-text"
+                text.textContent = parsed.text
+                item.appendChild(text)
+
+                container.appendChild(item)
+            }
+        })
+        .catch(() => {
+            if (!container) return
+            container.textContent = ""
+            const err = document.createElement("div")
+            err.className = "announcement-loading"
+            err.textContent = "更新情報の取得に失敗しました"
+            container.appendChild(err)
+        })
+}
+
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
     populateCustomDecks()
     setupEffectTooltip()
+
+    // お知らせ（Gitコミット履歴）を非同期で取得・表示
+    loadChangelog()
 
     byId("join-btn").addEventListener("click", () => {
         const name =
@@ -718,6 +849,7 @@ async function init(): Promise<void> {
         ui.paying = null
         ui.directedAttack = null
         ui.summonLevelSelect = null
+        ui.battleSwapSummon = null
         rerender()
     })
     byId("btn-skip-choice").addEventListener("click", () => {
