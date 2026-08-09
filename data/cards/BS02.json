@@ -2829,7 +2829,8 @@
     },
     "cost": {
      "keepOneCoreRestToTrash": true
-    }
+    },
+    "optional": true
    }
   ]
  },
@@ -4429,7 +4430,8 @@
     },
     "cost": {
      "oneCoreToVoid": true
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS02-079-e2",
@@ -4689,7 +4691,8 @@
     },
     "revived": {
      "rested": true
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS02-083-e2",

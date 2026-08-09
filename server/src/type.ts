@@ -869,6 +869,11 @@ export type EffectDef =
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊／無法者の荒野／深緑の樹海／子供部屋 午前0時）
           levels: number[] | null
           scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          optional?: true // 効果文が「〜できる」＝任意のとき指定する。実対戦（interactiveTargets）では
+          // **破壊をいったん見送って場に残したまま**保留し、アクションが一段落した安全な地点で持ち主に確認する
+          // （GameState.pendingReviveConfirms → PendingChoice.reviveConfirm）。承認でコスト支払い＋復活が確定し、
+          // 断ればその場で破壊する。非対話（テスト・自動解決）では従来どおり即時に確定させる。
+          // 省略時は「必ず戻る」＝任意ではない効果（BS05プリンセス・スノーホワイトLv2-3）
           vanillaFilter?: true // scope:"ownAll" 用：カードに効果の記述を持たない（バニラ）スピリットのみ対象
           colorFilter?: Color // scope:"ownAll" 用：この色を持つスピリットのみ対象（instHasColorで判定。BS06夢中漂う桃幻郷Lv2＝黄）
           keywordFilter?: Keyword // scope:"ownAll" 用：このキーワードエントリを静的に持つカードのみ対象（vanillaFilterと同列。tempKeywords等の一時付与は見ない。果て無き地平線）
@@ -1404,6 +1409,15 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
     }
+    reviveConfirm?: {
+        // 「破壊される代わりに復活できる」の確認待ち。magicNegate と同じく **action は解決しない**。
+        // 選べばコストを払って復活が確定し、選ばなければその場で破壊する
+        pid: PlayerId
+        instanceId: string
+        effectId: string
+        sourceInstanceId: string
+        context?: DestroyContext
+    }
     magicRedirect?: {
         // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
         // 選べば GameState.magicRedirectDecision に承認を記録してからマジックの解決へ進み、
@@ -1459,6 +1473,17 @@ export interface GameState {
     lastBattleDestroyedBp: number // 同上の実効BP（破壊直前に測る。0=まだ発生していない。TargetFilter.sameBpAsBattleLoser が参照。BS03熾烈極める最前線Lv2）
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    // 「破壊される代わりに復活**できる**」（reviveOnDestroy.optional）の確認待ち行列。
+    // 破壊処理の途中では中断できない（destroySpirit の呼び出しはループの中にあり、
+    // pendingChoice の queue は EffectAction の列しか運べない）ため、いったん破壊を見送って
+    // ここへ積み、handleAction の末尾＝安全な地点で1件ずつ確認する
+    pendingReviveConfirms?: {
+        pid: PlayerId
+        instanceId: string
+        effectId: string // 適用する reviveOnDestroy エントリのid（承認時にコスト・復活先を再解決する）
+        sourceInstanceId: string // 発生源（oncePerTurn の記録先。scope:"self" なら対象自身）
+        context?: DestroyContext // 断ったときに破壊し直すための文脈
+    }[]
     turnStartResumeStep: number | null // ターン開始処理（start→core→draw→refresh→main）がステップ誘発のpendingChoiceで中断したときの再開ステップ番号。null=中断なし。選択解決後に resumeTurnStart が続きから再開する（百識の谷Lv1のドローステップ破棄選択など）
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）

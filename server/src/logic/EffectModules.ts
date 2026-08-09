@@ -1563,6 +1563,9 @@ export function destroySpirit(
     instanceId: string,
     cause: "destroy" | "deplete" = "destroy",
     context?: DestroyContext,
+    // skipRevive: 復活の確認で「復活させない」が選ばれたあとの破壊。
+    // 再び復活判定に入って無限に確認を出すのを防ぐ
+    options?: { skipRevive?: true },
 ): void {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
@@ -1576,7 +1579,7 @@ export function destroySpirit(
     // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
     // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
     // 「〜できる」の任意発動は常に発動する簡略化とする。
-    if (cause === "destroy" && tryReviveOnDestroy(state, ownerPid, inst, context)) {
+    if (cause === "destroy" && !options?.skipRevive && tryReviveOnDestroy(state, ownerPid, inst, context)) {
         return
     }
 
@@ -1617,6 +1620,59 @@ export function destroySpirit(
     })
 }
 
+// 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。
+// 破壊はこの時点では行わない（対象は場に残ったまま）。承認・拒否は handleAction の末尾で確認したあと、
+// applyReviveConfirm / declineReviveConfirm が決着させる
+function queueReviveConfirm(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effectId: string,
+    sourceInstanceId: string,
+    context?: DestroyContext,
+): void {
+    ;(state.pendingReviveConfirms ??= []).push({
+        pid: ownerPid,
+        instanceId: inst.instanceId,
+        effectId,
+        sourceInstanceId,
+        ...(context ? { context } : {}),
+    })
+    log(
+        state,
+        `${state.players[ownerPid].name}の${getCard(inst.cardId).name}は、破壊される代わりに復活するか確認を待っている。`,
+    )
+}
+
+// 保留していた復活の確認で「復活させる」が選ばれたときの後処理。
+// ここで初めてコストを支払い、復活先（場に残る／手札へ戻る）を適用する。
+// コストを払えなければ復活は成立せず、そのまま破壊する
+export function applyReviveConfirm(
+    state: GameState,
+    entry: NonNullable<PendingChoice["reviveConfirm"]>,
+): void {
+    const player = state.players[entry.pid]
+    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    if (!inst) return // 確認を出したあとに場から居なくなっていたら何もしない
+    // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
+    // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
+    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId })) {
+        declineReviveConfirm(state, entry)
+    }
+}
+
+// 保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
+export function declineReviveConfirm(
+    state: GameState,
+    entry: NonNullable<PendingChoice["reviveConfirm"]>,
+): void {
+    const player = state.players[entry.pid]
+    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    if (!inst) return
+    log(state, `${player.name}の${getCard(inst.cardId).name}は復活しなかった。`)
+    destroySpirit(state, entry.pid, entry.instanceId, "destroy", entry.context, { skipRevive: true })
+}
+
 // reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
 // 優先順位: instのカード自身が持つ scope:"self" の効果 → 持ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
 function tryReviveOnDestroy(
@@ -1624,6 +1680,9 @@ function tryReviveOnDestroy(
     ownerPid: PlayerId,
     inst: CardInstance,
     context?: DestroyContext,
+    // 指定時は「このエントリだけを、確認済みとして確定させる」モード。
+    // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
+    forced?: { effectId: string },
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -1807,6 +1866,7 @@ function tryReviveOnDestroy(
     }
 
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
+        if (forced && effect.id !== forced.effectId) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
@@ -1814,6 +1874,12 @@ function tryReviveOnDestroy(
         if (!matchesWhen(effect.when)) return false
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (oncePerTurnBlocked(effect, inst)) return false
+        // 「〜できる」＝任意（optional）は、実対戦では持ち主に確認してから確定させる。
+        // 破壊処理の途中では中断できないので、いったん破壊を見送って（＝場に残して）保留へ積む
+        if (effect.optional && state.interactiveTargets && !forced) {
+            queueReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
+            return true
+        }
         if (!applyCost(effect)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
@@ -1844,6 +1910,7 @@ function tryReviveOnDestroy(
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "reviveOnDestroy") continue
+            if (forced && effect.id !== forced.effectId) continue
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
@@ -1860,6 +1927,11 @@ function tryReviveOnDestroy(
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (oncePerTurnBlocked(effect, source)) continue
+            // optional は self 由来と同じく保留する（発生源は source 側＝oncePerTurn の記録先）
+            if (effect.optional && state.interactiveTargets && !forced) {
+                queueReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
+                return true
+            }
             if (!applyCost(effect)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name

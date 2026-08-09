@@ -26,6 +26,8 @@ import {
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
+    applyReviveConfirm,
+    declineReviveConfirm,
     battleBp,
     bofuCountFor,
     declineMagicNegateChoice,
@@ -93,7 +95,39 @@ export function handleAction(
     // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で必ず落とす
     // （選択を挟んで中断した召喚時効果も、解決しきったここでクリアされる）
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+    // 「破壊される代わりに復活できる」の確認は、破壊処理の途中では中断できないので
+    // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
+    // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
+    requestPendingReviveConfirm(state)
     return result
+}
+
+// 保留していた復活の確認を1件だけ pendingChoice として立てる。
+// 対象が場から居なくなっていた項目は捨てる（確認を出すまでの間に別の効果で消えた場合）
+function requestPendingReviveConfirm(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    const queue = state.pendingReviveConfirms
+    if (!queue || queue.length === 0) return
+    while (queue.length > 0) {
+        const entry = queue.shift()!
+        const inst = state.players[entry.pid].field.spirits.find((s) => s.instanceId === entry.instanceId)
+        if (!inst) continue
+        state.pendingChoice = {
+            pid: entry.pid,
+            kind: "option",
+            prompt: `${getCard(inst.cardId).name}：破壊される代わりに復活させますか？`,
+            candidates: [],
+            options: ["復活させる"],
+            optional: true,
+            confirm: true,
+            reviveConfirm: entry,
+            action: { type: "noop" },
+            selfInstanceId: entry.instanceId,
+            queue: [],
+        }
+        return
+    }
+    if (queue.length === 0) delete state.pendingReviveConfirms
 }
 
 // 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
@@ -930,6 +964,23 @@ function doResolveChoice(
         } else {
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
+    // 「破壊される代わりに復活できる」の確認。action は解決せず、
+    // 選べばコストを払って復活が確定し、選ばなければ見送っていた破壊をここで行う
+    if (pending.reviveConfirm) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.reviveConfirm
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyReviveConfirm(state, entry)
+        } else {
+            declineReviveConfirm(state, entry)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid, pending.queue)
