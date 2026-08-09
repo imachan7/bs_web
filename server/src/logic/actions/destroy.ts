@@ -282,7 +282,7 @@ const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOw
     }
     let destroyed = 0
     for (const instanceId of ownNexusIds) {
-        if (destroyNexus(state, owner, instanceId)) destroyed++
+        if (destroyNexus(state, owner, instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed++
     }
     log(
         state,
@@ -462,7 +462,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
             const targets = state.players[pid].field.nexuses.filter(
                 (n) => !instColors(n).some((c) => safeColors.has(c)),
             )
-            for (const t of targets) destroyNexus(state, pid, t.instanceId)
+            for (const t of targets) destroyNexus(state, pid, t.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
         }
         return
 }
@@ -488,7 +488,7 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     break
                 }
-                const ok = destroyNexus(state, pid, nexus.instanceId)
+                const ok = destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
                 if (!ok) break // 破壊耐性で不発：同じネクサスを再試行しても結果は変わらないため打ち切る
                 destroyed++
             }
@@ -952,7 +952,7 @@ const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCor
                 .filter((n) => n.cores >= 1)
                 .map((n) => n.instanceId)
             for (const instanceId of targets) {
-                if (destroyNexus(state, pid, instanceId)) destroyed++
+                if (destroyNexus(state, pid, instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed++
             }
         }
         if (destroyed === 0) {
@@ -1013,7 +1013,7 @@ const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexu
             }
         }
         const sacrifice = chosenNexus ?? mine.reduce((best, n) => (n.cores < best.cores ? n : best))
-        const destroyed = destroyNexus(state, owner, sacrifice.instanceId)
+        const destroyed = destroyNexus(state, owner, sacrifice.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
         if (!destroyed) {
             log(state, `${sourceName}：ネクサスを破壊できなかったため効果は発動しなかった。`)
             return

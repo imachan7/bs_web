@@ -1802,6 +1802,7 @@ export function destroyNexus(
     state: GameState,
     ownerPid: PlayerId,
     instanceId: string,
+    context?: DestroyContext,
 ): boolean {
     const player = state.players[ownerPid]
     const index = player.field.nexuses.findIndex(
@@ -1837,8 +1838,16 @@ export function destroyNexus(
     fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
     // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが「その破壊されたネクサス」を参照するため）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
-    // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）
-    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed")
+    // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）。
+    // 「**相手の**効果で破壊されたとき」限定のエントリ（BS07の各色ネクサス6枚）のために、
+    // 効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか、を eventInfo で渡す
+    const byOpponentEffect =
+        context?.sourceType !== undefined &&
+        context.sourcePid !== undefined &&
+        context.sourcePid !== ownerPid
+    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
+        byOpponentEffect,
+    })
     return true
 }
 
@@ -3233,6 +3242,9 @@ export function fireFieldEventTriggers(
     eventInfo?: {
         vanilla?: boolean
         byBattle?: boolean
+        // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
+        // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
+        byOpponentEffect?: boolean
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
@@ -3272,6 +3284,9 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
+            // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
+            if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
             // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
             if (

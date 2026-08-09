@@ -140,7 +140,9 @@ console.log("=== BS07 紫：ネクサス破壊で相手のスピリットすべ�
     const a = put(s, "p2", FILLER.cardId, 3)
     const b = put(s, "p2", FILLER.cardId, 2)
     const trashBefore = s.players.p2.trashCores
-    destroyNexus(s, "p1", victimNexus.instanceId)
+    // 発生源つきで破壊する：この誘発は「**相手の**スピリット/ネクサス/マジックの効果で
+    // 破壊されたとき」限定（byOpponentEffectOnly）なので、相手(p2)の効果として渡す
+    destroyNexus(s, "p1", victimNexus.instanceId, { sourcePid: "p2", sourceType: "magic" })
     assert(a.cores === 2 && b.cores === 1, `相手のスピリット全員からコアが1個ずつ減る（${a.cores}/${b.cores}）`)
     assert(s.players.p2.trashCores === trashBefore + 2, "取り除いたコアは相手のトラッシュへ置かれる")
 }

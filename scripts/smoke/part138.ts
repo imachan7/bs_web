@@ -386,7 +386,9 @@ console.log("=== BS07 黄：自分のネクサスが破壊されるとボイド�
     putNexus(s, "p1", garden.cardId, 0)
     const victim = putNexus(s, "p1", byId("BS07-065").cardId, 0)
     const lifeBefore = s.players.p1.life
-    destroyNexus(s, "p1", victim.instanceId)
+    // 発生源つきで破壊する：この誘発は「**相手の**スピリット/ネクサス/マジックの効果で
+    // 破壊されたとき」限定（byOpponentEffectOnly）なので、相手(p2)の効果として渡す
+    destroyNexus(s, "p1", victim.instanceId, { sourcePid: "p2", sourceType: "magic" })
     assert(
         s.players.p1.life === lifeBefore + 1,
         `自分のネクサス破壊でライフ+1（${lifeBefore}→${s.players.p1.life}）`,
