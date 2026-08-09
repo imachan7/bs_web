@@ -30,7 +30,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）

@@ -235,6 +235,9 @@ export function clearBattle(state: GameState): void {
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer
+    // マジックミラーが参照する「直前に使用したマジック」はバトルごとにリセットする
+    // （「このフラッシュタイミングで」の限定を、バトル単位で近似する簡略化。BS08マジックミラー）
+    delete state.lastMagicCast
 }
 
 // デッキからドローする。引けない場合は相手の勝利（デッキアウト）

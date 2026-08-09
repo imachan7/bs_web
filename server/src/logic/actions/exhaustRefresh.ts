@@ -16,11 +16,12 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
+    returnSpiritToDeckTop,
     tryInteractiveTargetChoice,
     hasBofuChooserSelf,
     bofuCountFor,
 } from "../EffectModules"
-import { KEYWORDS, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -432,6 +433,35 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
         return
 }
 
+// BS08勇者フェニックスペンタンLv2-3：「〜することで」の任意コストは自動発動で簡略化（refreshSelfByDestroyFamilyの
+// 「破壊」を「デッキの一番上に戻す」に差し替えた版）。犠牲はnameIncludes一致・self以外から実効BP最小を自動選択する
+const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByReturnToDeckTopName"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        if (!self) {
+            log(state, `${sourceName}：回復対象がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter(
+            (s) => s.instanceId !== self.instanceId && cardNameContains(s, action.nameIncludes),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：デッキの上に戻せる対象がいなかったため発動しなかった。`)
+            return
+        }
+        const target = candidates.reduce((worst, s) =>
+            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+        )
+        const name = getCard(target.cardId).name
+        returnSpiritToDeckTop(state, owner, target)
+        if (!self.isRested) {
+            log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+            return
+        }
+        refreshSpirit(state, owner, self)
+        log(state, `${name}はデッキの上に戻り、${getCard(self.cardId).name}は回復した。`)
+        return
+}
+
 const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -703,6 +733,7 @@ const handlers = {
     refreshOne: refreshOneHandler,
     refreshAllByKeyword: refreshAllByKeywordHandler,
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
+    refreshSelfByReturnToDeckTopName: refreshSelfByReturnToDeckTopNameHandler,
     refreshAllOwn: refreshAllOwnHandler,
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,

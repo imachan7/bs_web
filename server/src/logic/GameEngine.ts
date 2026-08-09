@@ -442,15 +442,39 @@ function doCastMagic(
     state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
 
     // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
+    // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
+    // （clearBattleでバトルごとにクリアされる。BS08マジックミラー）。
+    // **resolveMagicの後で、かつ解決中に書き換わっていなければ**記録すること：
+    // この使用自体がマジックミラーだった場合、マジックミラー自身の解決（action:"magicMirrorRepeat"）が
+    // 「直前に使用されたマジック」を読んでからここと同じ場所を書き換える。先に（resolveMagicの前に）
+    // 記録すると自分自身を読んでしまい、後で（無条件に）書き換えるとマジックミラー側の記録を潰してしまう
+    const beforeLastMagicCast = state.lastMagicCast
     if (state.battle) {
         resolveMagic(state, pid, cardId, "flash", targetInstanceId)
+        if (state.lastMagicCast === beforeLastMagicCast) {
+            state.lastMagicCast = {
+                pid,
+                cardId,
+                timing: "flash",
+                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+            }
+        }
         // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
         passFlashPriority(state, pid)
     } else {
         const hasMain = card.effects.some(
             (e) => e.kind === "magic" && e.timing === "main",
         )
-        resolveMagic(state, pid, cardId, hasMain ? "main" : "flash", targetInstanceId)
+        const timing = hasMain ? "main" : "flash"
+        resolveMagic(state, pid, cardId, timing, targetInstanceId)
+        if (state.lastMagicCast === beforeLastMagicCast) {
+            state.lastMagicCast = {
+                pid,
+                cardId,
+                timing,
+                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+            }
+        }
     }
     if (state.winner) state.battle = null
     return null
@@ -1170,7 +1194,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColors, attackerLevel },
+            battle: { attackerColors, attackerLevel, attackerBp },
         })
         // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（ブロッカー敗北）。
         // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
@@ -1185,7 +1209,7 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
         })
         // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（アタッカー敗北）
         if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleLose")
@@ -1195,12 +1219,12 @@ function resolveBattle(state: GameState): void {
         destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
             sourcePid: attackerPid,
             sourceType: "spirit",
-            battle: { attackerColors, attackerLevel },
+            battle: { attackerColors, attackerLevel, attackerBp },
         })
         destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
             sourcePid: defenderPid,
             sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel },
+            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
         })
     }
 

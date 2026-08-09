@@ -87,6 +87,14 @@ export function canBlock(
             ) {
                 return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
             }
+            // keywordFilterAbsent（BS08光帝竜騎アルカナジョーカーLv3）：指定キーワードを持た**ない**
+            // スピリットにブロックされない（keywordFilterの否定版）
+            if (
+                c.keywordFilterAbsent !== undefined &&
+                !spiritHasKeyword(board, blockerPid, blockerInst, c.keywordFilterAbsent)
+            ) {
+                return `このスピリットは【${KEYWORDS[c.keywordFilterAbsent].label}】を持たないスピリットにブロックされません`
+            }
             if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) {
                 return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
             }

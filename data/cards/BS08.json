@@ -2386,6 +2386,619 @@
   ]
  },
  {
+  "cardId": "BS08-037",
+  "name": "キキーモラ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-038",
+  "name": "猫娘アニー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "『相手のアタックステップ』\n手札にあるこのスピリットカードは、自分のライフが減ったとき、コストを支払わずに召喚できる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS08-039",
+  "name": "ダークチュンポポ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、このスピリットを疲労させることで、【転召】させずに召喚できる。\nLv2『相手のアタックステップ』\n自分のスピリットの体数が相手のスピリットより少ない間、系統：「想獣」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS08-039-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "tenshoCoreSubstitute"
+    }
+   },
+   {
+    "id": "BS08-039-e2",
+    "kind": "levelAs",
+    "levels": [
+     2
+    ],
+    "target": "ownSpiritsByFamily",
+    "familyFilter": "想獣",
+    "treatAs": "max",
+    "phase": "attack",
+    "turn": "opponent",
+    "condition": {
+     "ownSpiritCountBelowOpponent": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-040",
+  "name": "天使オリフィア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\nこのスピリットが【転召】の対象になったとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS08-040-e1",
+    "kind": "triggered",
+    "trigger": "onTenshoTarget",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-041",
+  "name": "犬将クー・シー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv2･Lv3『自分のアタックステップ』\n【聖命】を持つ自分のスピリットすべては、Lv2/Lv3の相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS08-041-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS08-041-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-041-e3",
+    "kind": "constraintGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "keywordFilter": "seimei",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      2,
+      3
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-042",
+  "name": "天使サラティ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+  "effects": [
+   {
+    "id": "BS08-042-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS08-042-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-042-e3",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-043",
+  "name": "光帝竜騎アルカナジョーカー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "竜騎",
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\nターンに1回、自分の手札にある【転召】を持つスピリットカード1枚を【転召】させずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv3『自分のアタックステップ』\n系統：「龍帝」を持つ自分のスピリットすべては、【転召】を持たない相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS08-043-e1",
+    "kind": "step",
+    "step": "main",
+    "turn": "own",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "keywordFilter": "tensho",
+     "skipTensho": true
+    }
+   },
+   {
+    "id": "BS08-043-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "familyFilter": "龍帝",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilterAbsent": "tensho"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-044",
+  "name": "アルカナクィーン・パラス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【転召：コスト1以上/トラッシュ】\n召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるカード名に「アルカナ」と入っているスピリットカード3枚を手札に戻す。\nLv2\nカード名に「アルカナ」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS08-044-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2
+    ],
+    "minCost": 1,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-044-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 3,
+     "nameIncludes": "アルカナ"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-044-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amountPer": 1000,
+     "counter": {
+      "ownNameIncludes": "アルカナ"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-045",
+  "name": "勇者フェニックスペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "漂精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv2･Lv3『このスピリットのアタック時』\nカード名に「ペンタン」と入っている自分のスピリット1体をデッキの上に戻すことで、このスピリットは回復する。\nLv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS08-045-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "BS08-045-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshSelfByReturnToDeckTopName",
+     "nameIncludes": "ペンタン"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-045-e3",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     3
+    ]
+   },
+   {
+    "id": "BS08-045-e4",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS08-055",
   "name": "竜騎集う円卓",
   "type": "nexus",
@@ -2877,6 +3490,112 @@
   ]
  },
  {
+  "cardId": "BS08-063",
+  "name": "勝者のグリーンフィールド",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n系統：「四道」を持つ自分のスピリットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n系統：「四道」を持つ自分のスピリットすべては、BPを比べBP7000以下の相手のスピリットに破壊されたとき、回復状態で自分のフィールドに戻る。",
+  "effects": [
+   {
+    "id": "BS08-063-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "四道",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   },
+   {
+    "id": "BS08-063-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "familyFilter": "四道",
+    "when": {
+     "byBattle": true,
+     "byBattleKillerMaxBp": 7000
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": false
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-064",
+  "name": "鳳翼の聖剣",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのネクサスが配置されたターンの間、自分のデッキは破棄されない。\nこのネクサスカードは相手のスピリットの効果でデッキから破棄されたとき、コストを支払わずに配置される。\nLv2\n【粉砕】以外の相手のスピリットの効果で自分のデッキが破棄されるとき、自分のライフのコア1個を自分のリザーブに置くことで、その効果を無効にする。",
+  "effects": []
+ },
+ {
   "cardId": "BS08-067",
   "name": "ドラゴンスクランブル",
   "type": "magic",
@@ -3351,6 +4070,146 @@
   ]
  },
  {
+  "cardId": "BS08-079",
+  "name": "キャッツアイ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、相手のスピリット1体をLv1として扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS08-079-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "levelOverrideTarget",
+     "level": 1
+    }
+   },
+   {
+    "id": "BS08-079-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-080",
+  "name": "マジックミラー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nこのフラッシュタイミングで相手が直前に使用したマジックを、自分がそのマジックを使用したものとして、同じ効果をもう一度だけ発揮できる。\nただし、この効果は[マジックミラー]を対象にできない。",
+  "effects": [
+   {
+    "id": "BS08-080-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "magicMirrorRepeat"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-081",
+  "name": "ロイヤルストレートフラッシュ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 10,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n自分のフィールドに[アルカナプリンス・オベロ][アルカナプリンセス・アン][アルカナキング・カール][アルカナクィーン・パラス][光帝竜騎アルカナジョーカー]がいるとき、相手のスピリットとネクサスすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+  "effects": [
+   {
+    "id": "BS08-081-e1",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasAllNames": [
+      "アルカナプリンス・オベロ",
+      "アルカナプリンセス・アン",
+      "アルカナキング・カール",
+      "アルカナクィーン・パラス",
+      "光帝竜騎アルカナジョーカー"
+     ]
+    },
+    "action": {
+     "type": "destroyAll"
+    }
+   },
+   {
+    "id": "BS08-081-e2",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "ownFieldHasAllNames": [
+      "アルカナプリンス・オベロ",
+      "アルカナプリンセス・アン",
+      "アルカナキング・カール",
+      "アルカナクィーン・パラス",
+      "光帝竜騎アルカナジョーカー"
+     ]
+    },
+    "action": {
+     "type": "destroyNexus",
+     "count": 0,
+     "all": true
+    }
+   },
+   {
+    "id": "BS08-081-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS08-X29",
   "name": "魔帝龍騎ダーク・クリムゾン",
   "type": "spirit",
@@ -3729,6 +4588,104 @@
     "selfMode": "source",
     "action": {
      "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS08-X33",
+  "name": "堕天使ミカファール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札を好きなだけ破棄する。\nその破棄したカード1枚につき、自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\n自分のトラッシュにある黄のマジックカード1枚を、手札にあるときと同様に使用できる。\nLv3『お互いのアタックステップ』\nマジックの効果が使用されたとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS08-X33-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "drawPerHandDiscard"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-X33-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "castMagicFromTrashByColor",
+     "colorFilter": "yellow"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS08-X33-e3",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "phase": "attack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS08-X33-e4",
+    "kind": "fieldEvent",
+    "event": "opponentMagicUsed",
+    "phase": "attack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
     }
    }
   ]

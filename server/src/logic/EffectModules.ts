@@ -893,6 +893,10 @@ export function dumpAllCoresTensho(
     dest: "trash" | "void",
     skipSubstitute = false,
 ): void {
+    // 「このスピリットが【転召】の対象になったとき」（BS08天使オリフィア）：唯一の解決点であるここで、
+    // 対象になった本人（inst）自身の誘発を必ず発火する。tenshoCoreSubstituteで疲労を選んだ場合も
+    // コアを失う場合も、対象になった事実は変わらないため分岐より前で一度だけ呼ぶ
+    fireTrigger(state, ownerPid, inst, "onTenshoTarget")
     // constraint "tenshoCoreSubstitute"（BS05の竜使い6枚）：疲労していなければ、
     // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）。
     // 「疲労させることで」は任意なので、実対戦では疲労するかコアを置くかをプレイヤーに選ばせる
@@ -1327,6 +1331,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // 鼠人チューリヒ：発生源の持ち主のフィールドに指定系統を持つスピリットがいる間有効
                         const family = effect.condition.ownFieldHasFamily
                         if (!player.field.spirits.some((s) => spiritHasFamily(state, pid, s, family))) continue
+                    } else if ("ownSpiritCountBelowOpponent" in effect.condition) {
+                        // BS08ダークチュンポポLv2：自分のスピリットの体数が相手より少ない間だけ有効
+                        const oppCount = state.players[opponentOf(pid)].field.spirits.length
+                        if (player.field.spirits.length >= oppCount) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -1492,6 +1500,7 @@ function tryReviveOnDestroy(
         byBattleVsArmorColor?: boolean
         byBattle?: boolean
         byBattleKillerLevel?: number
+        byBattleKillerMaxBp?: number
     }): boolean => {
         if (when.byOpponentEffect) {
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
@@ -1504,6 +1513,13 @@ function tryReviveOnDestroy(
         if (
             when.byBattleKillerLevel !== undefined &&
             context?.battle?.attackerLevel !== when.byBattleKillerLevel
+        ) {
+            return false
+        }
+        // BS08勝者のグリーンフィールドLv2：破壊した側（勝者）の実効BPがこれ以下のときのみ復活する
+        if (
+            when.byBattleKillerMaxBp !== undefined &&
+            (context?.battle?.attackerBp === undefined || context.battle.attackerBp > when.byBattleKillerMaxBp)
         ) {
             return false
         }
@@ -3828,6 +3844,17 @@ function runMagicActions(
                         state,
                         `${card.name}：自分のスピリットが${minCount}体未満のため発動しなかった。`,
                     )
+                    continue
+                }
+            } else if ("ownFieldHasAllNames" in effect.condition) {
+                // BS08ロイヤルストレートフラッシュ：指定したカード名すべてが自分のフィールドに
+                // 1体ずつ揃っていないと使用できない（cardIdではなく名前の完全一致で判定）
+                const names = effect.condition.ownFieldHasAllNames
+                const ownNames = new Set(
+                    state.players[owner].field.spirits.map((s) => getCard(s.cardId).name),
+                )
+                if (!names.every((n) => ownNames.has(n))) {
+                    log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
                     continue
                 }
             } else {
