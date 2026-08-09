@@ -28,6 +28,7 @@ import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import {
     continuousKeywordGrantCount,
+    dumpAllCoresTensho,
     fireSummonTrigger,
     fireTrigger,
     resolveFunsai,
@@ -414,4 +415,37 @@ console.log("=== BS08キマイラアサルト：keywordGrant.count＋effectGrant
     inst.isRested = true
     fireTrigger(s, "p1", inst, "onAttack")
     assert(inst.isRested, `ターン中の回復回数は付与された${grantCount}回まで`)
+}
+
+console.log("=== BS08ブラックウガルルムLv1-2：constraint tenshoCoreSubstitute（疲労でコア支払いを代替する） ===")
+{
+    // 2026-08-09 の実行時カバレッジで「この制約は全カードで一度も適用されていない」と出た。
+    // 実装（EffectModules.dumpAllCoresTensho）は揃っていて、テストだけが無かった箇所
+    const uga = findByEffect(
+        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "tenshoCoreSubstitute",
+    )
+    const entry = entryOf(
+        uga,
+        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "tenshoCoreSubstitute",
+    )
+    const activeLevel = (entry["levels"] as number[])[0]!
+
+    // 回復状態なら、コアを失う代わりに疲労する（非対話モードはコアを維持する側を自動で選ぶ）
+    const s = base("tensho-core-substitute")
+    const inst = put(s, "p1", uga.cardId, coresFor(uga, activeLevel))
+    const coresBefore = inst.cores
+    const trashBefore = s.players.p1.trashCores
+    dumpAllCoresTensho(s, "p1", inst, "trash")
+    assert(inst.cores === coresBefore, "【転召】の対象になってもコアを失わない")
+    assert(inst.isRested, "代わりに疲労する")
+    assert(s.players.p1.trashCores === trashBefore, "トラッシュにコアは移らない")
+
+    // すでに疲労している個体は代替できないので、通常どおりコアがトラッシュへ移る
+    const s2 = base("tensho-core-substitute-already-rested")
+    const inst2 = put(s2, "p1", uga.cardId, coresFor(uga, activeLevel))
+    inst2.isRested = true
+    const cores2 = inst2.cores
+    const trash2 = s2.players.p1.trashCores
+    dumpAllCoresTensho(s2, "p1", inst2, "trash")
+    assert(s2.players.p1.trashCores === trash2 + cores2, "疲労済みなら通常どおりコアがトラッシュへ置かれる")
 }
