@@ -1081,6 +1081,19 @@ function setupFilterChips(): void {
             renderPool()
         })
     }
+    for (const btn of $("filter-notes").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const note = btn.dataset.note as NoteStatus
+            if (filterNotes.has(note)) {
+                filterNotes.delete(note)
+                btn.classList.remove("active")
+            } else {
+                filterNotes.add(note)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+    }
 
     const searchInput = $("search-input") as HTMLInputElement
     searchInput.addEventListener("input", () => {
@@ -1098,6 +1111,7 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
+        filterNotes.clear()
         
         filterSeries = ""
         ;(document.getElementById("filter-series") as HTMLSelectElement).value = ""
