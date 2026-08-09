@@ -265,6 +265,7 @@ function doBattleSwapSummon(
     pid: PlayerId,
     handIndex: number,
     substituteInstanceId: string,
+    paySources?: PaySource[],
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -277,17 +278,24 @@ function doBattleSwapSummon(
     const substitute = findSpirit(player, substituteInstanceId)
     if (!substitute) return "入れ替え元のスピリットが見つかりません"
     const substituteName = getCard(substitute.cardId).name
-    returnSpiritToHand(state, pid, substitute)
 
+    // 効果文に「コストを支払わずに」が無いので、召喚コストは通常どおり支払う
+    // （[カラカロッサム]を手札に戻すのは**追加コスト**）。
+    // **コストは入れ替え元を手札に戻す前に確定させる**：軽減シンボルは召喚を宣言した時点、
+    // つまり入れ替え元がまだ場にいる時点で数える。後で計算すると validateSummon が通した額より
+    // 高くなり、検証を通ったのに払えないという食い違いが起きる
+    const cost = effectiveCost(state, pid, card)
+    returnSpiritToHand(state, pid, substitute)
     const maintain = minLevelCores(card)
-    player.reserve -= maintain
+    const placedFromField = payCost(state, pid, cost, paySources, maintain)
+    player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
     const inst = createInstance(cardId, state.turn, maintain)
     inst.isRested = true
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${substituteName}を手札に戻し、代わりに${card.name}を疲労状態で召喚した。`,
+        `${player.name}は${substituteName}を手札に戻し、代わりに${card.name}を疲労状態で召喚した。（コスト${cost}）`,
     )
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
@@ -326,7 +334,7 @@ function doSummon(
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
     // 手札に戻し、その代わりに疲労状態で召喚してバトルを引き継ぐ。召喚コストは支払わない
     if (substituteInstanceId !== undefined) {
-        return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId)
+        return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId, paySources)
     }
 
     const cost = effectiveCost(state, pid, card)

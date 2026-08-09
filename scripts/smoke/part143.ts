@@ -13,6 +13,7 @@ import {
     currentLevel,
     declareBlock,
     effectiveBp,
+    effectiveCost,
     fireStepTriggers,
     refreshLevelAsOverrides,
     runTurnStart,
@@ -276,6 +277,10 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2 がアタック")
     assert(declareBlock(s, "p1", blocker.instanceId) === null, `${original.name}でブロック`)
+    const reserveBefore = s.players.p1.reserve
+    // コストは召喚宣言時（入れ替え元がまだ場にいる時点）の軽減シンボルで決まる
+    const swapCost = effectiveCost(s, "p1", byId(black.cardId) as never)
+    const substituteCores = blocker.cores
     // ブロック宣言後のフラッシュは防御側（p1）から優先権を持つ
     assert(
         act(s, "p1", { type: "summon", handIndex, substituteInstanceId: blocker.instanceId }) === null,
@@ -284,6 +289,14 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
     const summoned = s.players.p1.field.spirits.find((sp) => sp.cardId === black.cardId)
     assert(summoned !== undefined, `${black.name}がフィールドに出る`)
     assert(summoned?.isRested === true, "疲労状態で召喚される")
+    // 効果文に「コストを支払わずに」が無いので、召喚コスト＋置くコアを通常どおり支払う。
+    // 手札に戻した入れ替え元の上のコアはリザーブへ返るので、その分は差し引いて見る
+    const maintainCores = black.levels?.[0]?.cores ?? 1
+    const expectedReserve = reserveBefore - (swapCost + maintainCores) + substituteCores
+    assert(
+        s.players.p1.reserve === expectedReserve,
+        `召喚コスト${swapCost}＋置くコア${maintainCores}を支払う（リザーブ${reserveBefore}→${s.players.p1.reserve}／戻したコア${substituteCores}は返る）`,
+    )
     assert(
         s.players.p1.hand.includes(original.cardId),
         `入れ替え元の${original.name}は手札に戻る`,
@@ -334,6 +347,27 @@ console.log("=== BS07：バトル中の[カラカロッサム]と入れ替えて
             substituteInstanceId: wrong.instanceId,
         }) !== null,
         `対照実験：[${substituteName}]でなければ入れ替えられない`,
+    )
+
+    // 対照実験3：召喚コスト＋置くコアを払えなければ入れ替え召喚できない
+    const s4 = base("black-no-core")
+    const blocker4 = put(s4, "p1", original.cardId, 1)
+    const attacker4 = put(s4, "p2", FILLER.cardId, 1)
+    s4.players.p1.hand.push(black.cardId)
+    s4.turnPlayer = "p2"
+    s4.phase = "main"
+    assert(act(s4, "p2", { type: "nextPhase" }) === null, "p2 のアタックステップへ")
+    assert(act(s4, "p2", { type: "attack", instanceId: attacker4.instanceId }) === null, "p2 がアタック")
+    assert(declareBlock(s4, "p1", blocker4.instanceId) === null, `${original.name}でブロック`)
+    const need4 = effectiveCost(s4, "p1", byId(black.cardId) as never) + (black.levels?.[0]?.cores ?? 1)
+    s4.players.p1.reserve = need4 - 1
+    assert(
+        act(s4, "p1", {
+            type: "summon",
+            handIndex: s4.players.p1.hand.length - 1,
+            substituteInstanceId: blocker4.instanceId,
+        }) !== null,
+        "対照実験：コストを払えなければ入れ替え召喚できない",
     )
 }
 

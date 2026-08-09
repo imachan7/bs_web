@@ -1,5 +1,4 @@
 // サーバー起動、Socket.io初期化、接続イベントの入口
-import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as http from "node:http"
 import * as path from "node:path"
@@ -40,51 +39,68 @@ app.get("/data/cards.json", (_req, res) => {
     res.json(ALL_CARDS)
 })
 
-// ---- お知らせ（Gitのコミット履歴） ----
-// トップ画面の「お知らせ」欄が読む。**メッセージが [release] で始まるコミットだけ**を返す
-// （開発中の細かいコミットは対戦者に見せない）。カテゴリ付きの [release:fix] 形式も拾うため、
-// grep は閉じ括弧まで含めずに ^\[release で当てる。プレフィックスの解釈・除去はクライアント側で行う。
-// .git が無い環境（Azureのデプロイ成果物など）では空配列を返して、画面には「更新情報はありません」を出す
-const CHANGELOG_LIMIT = 50
-const CHANGELOG_CACHE_MS = 5 * 60 * 1000
-let changelogCache: { at: number; entries: { date: string; message: string; hash: string }[] } | null = null
+// ---- お知らせ ----
+// トップ画面の「お知らせ」欄が読む。実体は data/announcements.json。
+//
+// **かつては git log のコミットメッセージ（[release] 始まり）から作っていたが、JSONへ移した**（2026-08-09）。
+// 理由は3つ:
+//   1. 文面を直すのに履歴の書き換えが要る（実際に誤記を1件直せなかった）
+//   2. .git が無い環境（Azureのデプロイ成果物）では常に空になる＝本番で機能しない
+//   3. 開発者向けのコミット履歴と、対戦者が読む文面は目的が別
+//
+// クライアントとのレスポンス契約は据え置き（{date, message, hash}[]）。message は
+// "[release:fix] …" の形に組み立てて返し、プレフィックスの解釈・除去は従来どおり
+// クライアントの parseReleaseMessage が行う。hash はJSON由来では空文字。
+const ANNOUNCEMENTS_FILE = path.resolve(__dirname, "../../data/announcements.json")
+const ANNOUNCEMENT_LIMIT = 50
+const ANNOUNCEMENT_CACHE_MS = 60 * 1000
+const ANNOUNCEMENT_CATEGORIES = ["fix", "ui", "new", "info", "update"]
+let announcementCache: { at: number; mtimeMs: number; entries: { date: string; message: string; hash: string }[] } | null = null
 
-function readChangelog(): { date: string; message: string; hash: string }[] {
-    if (changelogCache && Date.now() - changelogCache.at < CHANGELOG_CACHE_MS) {
-        return changelogCache.entries
+function readAnnouncements(): { date: string; message: string; hash: string }[] {
+    let mtimeMs = 0
+    try {
+        mtimeMs = fs.statSync(ANNOUNCEMENTS_FILE).mtimeMs
+    } catch {
+        // ファイルが無い＝お知らせなし（画面には「更新情報はありません」が出る）
+        return []
+    }
+    // 更新時刻が変わっていれば即座に読み直す（編集がすぐ画面へ反映されるように）
+    if (
+        announcementCache &&
+        announcementCache.mtimeMs === mtimeMs &&
+        Date.now() - announcementCache.at < ANNOUNCEMENT_CACHE_MS
+    ) {
+        return announcementCache.entries
     }
     let entries: { date: string; message: string; hash: string }[] = []
     try {
-        // %x1f（Unit Separator）区切り。コミットメッセージに現れない制御文字なので分割が安全
-        const out = execFileSync(
-            "git",
-            [
-                "log",
-                "--extended-regexp",
-                "--grep=^\\[release",
-                `--max-count=${CHANGELOG_LIMIT}`,
-                "--date=short",
-                "--pretty=format:%h%x1f%ad%x1f%s",
-            ],
-            { cwd: path.resolve(__dirname, "../../"), encoding: "utf-8", timeout: 5000 },
-        )
-        entries = out
-            .split("\n")
-            .filter((line) => line !== "")
-            .map((line) => {
-                const [hash = "", date = "", message = ""] = line.split("\u001f")
-                return { date, message, hash }
+        const raw = JSON.parse(fs.readFileSync(ANNOUNCEMENTS_FILE, "utf-8")) as {
+            entries?: { date?: unknown; category?: unknown; text?: unknown }[]
+        }
+        entries = (raw.entries ?? [])
+            .filter((e) => typeof e.date === "string" && typeof e.text === "string" && e.text !== "")
+            .map((e) => {
+                const category = typeof e.category === "string" && ANNOUNCEMENT_CATEGORIES.includes(e.category)
+                    ? e.category
+                    : "update"
+                return { date: String(e.date), message: `[release:${category}] ${String(e.text)}`, hash: "" }
             })
-    } catch {
-        // gitが無い／リポジトリ外／タイムアウト：お知らせは出さない（画面は「更新情報はありません」）
+            // 新しい順。日付が同じものはファイルの並び順を保つ（安定ソート）
+            .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+            .slice(0, ANNOUNCEMENT_LIMIT)
+    } catch (e) {
+        // 壊れたJSONで画面を落とさない。サーバーログにだけ残す
+        console.error("data/announcements.json の読み込みに失敗しました:", e)
         entries = []
     }
-    changelogCache = { at: Date.now(), entries }
+    announcementCache = { at: Date.now(), mtimeMs, entries }
     return entries
 }
 
+// パスは歴史的に /api/changelog のまま（クライアントが参照しているため変えない）
 app.get("/api/changelog", (_req, res) => {
-    res.json(readChangelog())
+    res.json(readAnnouncements())
 })
 
 // ---- バグ報告フォーム ----

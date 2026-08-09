@@ -107,8 +107,9 @@ export function validateSummon(
     if (card.type !== "spirit") return "スピリットカードではありません"
 
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
-    // 手札に戻すことを代価に、フラッシュで疲労状態の召喚を行う。通常の召喚検証（タイミング・
-    // コスト・フィールド上限）はどれも通らないので、ここで完結させて早期 return する
+    // 手札に戻すことを**追加コスト**として、フラッシュで疲労状態の召喚を行う。
+    // 効果文に「コストを支払わずに」が無いので、**召喚コストは通常どおり支払う**。
+    // タイミングとフィールド上限の検証だけが通常経路と異なるため、ここで完結させて早期 return する
     if (substituteInstanceId !== undefined) {
         const swap = card.effects.find((e) => e.kind === "battleSwapSummon")
         if (!swap || swap.kind !== "battleSwapSummon") {
@@ -129,8 +130,16 @@ export function validateSummon(
         if (getCard(substitute.cardId).name !== swap.substituteName) {
             return `入れ替え元は[${swap.substituteName}]である必要があります`
         }
-        // 召喚コストは支払わないが、置く維持コアはリザーブから出す（通常の召喚と同じ）
-        if (player.reserve < minLevelCores(card)) return "コアが足りません"
+        // 召喚コスト＋置くコア（Lv1の維持コア）を通常どおり支払えるか。
+        // フィールドのコアも支払い元にできる（【神速】のリザーブ限定ルールはこのカードには掛からない）
+        const swapCost = effectiveCost(state, pid, card)
+        const swapMaintain = minLevelCores(card)
+        const swapPayError = validatePaySources(state, pid, swapCost + swapMaintain, paySources)
+        if (swapPayError) {
+            return swapPayError === "コアが足りません"
+                ? `コアが足りません（コスト+置くコアで${swapCost + swapMaintain}個必要）`
+                : swapPayError
+        }
         return null
     }
 
