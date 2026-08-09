@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -311,8 +311,12 @@ export function effectiveCost(
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
         // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される
         // （コスト9が3になる。正しくは6）。単色カードは軽減シンボルが1色なので結果は従来と同じ
+        // noReductionBySummonCost（BS08超時空重力炉）：コストがmaxCost以下のスピリットカードを
+        // 召喚するとき、軽減シンボルによる軽減が一切できなくなる（**カード静的なコスト**で判定）
+        const reductionBlockedBySummonCost =
+            cardData.type === "spirit" && noReductionBySummonCost(board, cardData.cost)
         let reduction = 0
-        if (!reductionBlocked) {
+        if (!reductionBlocked && !reductionBlockedBySummonCost) {
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
                 const have = countSymbols(board.players[pid], [color])

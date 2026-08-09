@@ -1003,6 +1003,8 @@ export function levelCantAct(board: Board, level: number): boolean {
 // お互いのライフが減らされない（BS07の「勇傑」各色に共通。天槍の勇者アーク等）。
 // costCantAct と同じ「しきい値を比較する専用判定」の形。道化師クランの付与コストも見る（instAllCosts）
 export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolean {
+    // keywordExclude の判定に持ち主が要る（spiritHasKeyword は付与キーワードを持ち主基準で見る）
+    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
         for (const inst of effectSources(board, pid)) {
@@ -1011,8 +1013,16 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost } = effect.constraint
-                if (instAllCosts(attacker).some((cost) => cost <= maxCost)) return true
+                const { maxCost, costs, keywordExclude } = effect.constraint
+                // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
+                if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
+                // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
+                const costsOfAttacker = instAllCosts(attacker)
+                if (costs) {
+                    if (costsOfAttacker.some((cost) => costs.includes(cost))) return true
+                    continue
+                }
+                if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
             }
         }
     }
@@ -1033,6 +1043,81 @@ export function lifeProtectedByCostThisTurn(
             c.pid === defenderPid &&
             instAllCosts(attacker).some((cost) => cost <= c.maxCost),
     )
+}
+
+// このターンだけの強制アタック（TurnConstraintDef "mustAttackByCost" / "mustAttackByInstance"。
+// action:"forceAttackThisTurn" が積む。BS08アンブッシュブロッカー／獣機合神セイ・ドリガン）：
+// pid の対象スピリットが、恒久的な constraint:"mustAttack" と同じ扱いで強制アタックの対象になるか
+export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.turnConstraints.some((c) => {
+        if (c.type === "mustAttackByCost") return c.pid === pid && instAllCosts(inst).some((cost) => cost <= c.maxCost)
+        if (c.type === "mustAttackByInstance") return c.pid === pid && c.instanceId === inst.instanceId
+        return false
+    })
+}
+
+// このターンだけの疲労状態ブロック許可（TurnConstraintDef "canBlockWhileRestedThisTurn"。
+// action:"grantCanBlockWhileRestedThisTurn" が積む。constraint:"canBlockWhileRested" のターン付与版。BS08インフィニティシールド）
+export function canBlockWhileRestedThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.turnConstraints.some((c) => {
+        if (c.type !== "canBlockWhileRestedThisTurn" || c.pid !== pid) return false
+        if (c.familyFilter === undefined) return true
+        return matchesFamilyFilter(board, pid, inst, c.familyFilter)
+    })
+}
+
+// constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
+// 実効BPが、defenderPid の場にいるこの制約持ちスピリット自身の実効BP以下のとき、そのアタックでは
+// defenderPid のライフが減らない（片側のみ）。ライフダメージ直前（resolveLifeDamage）から呼ぶ
+export function protectedByBpUpToSelf(
+    board: Board,
+    defenderPid: PlayerId,
+    attacker: CardInstance,
+): boolean {
+    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
+    const attackerBp = effectiveBp(board, attackerPid, attacker)
+    return board.players[defenderPid].field.spirits.some(
+        (inst) =>
+            attackerBp <= effectiveBp(board, defenderPid, inst) &&
+            activeConstraints(board, defenderPid, inst).some((c) => c.type === "protectOwnLifeByBpUpToSelf"),
+    )
+}
+
+// フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
+// 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
+export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {
+    const costs = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noSummonTriggerByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { maxCost } = effect.constraint
+                if (costs.some((cost) => cost <= maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
+// 召喚するとき、軽減シンボルによるコスト軽減ができなくなる（BS08超時空重力炉）。
+// **カード静的なコスト**（軽減前の値）で判定する。effectiveCost（shared/cost.ts）から呼ぶ
+export function noReductionBySummonCost(board: Board, staticCost: number): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noReductionBySummonCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (staticCost <= effect.constraint.maxCost) return true
+            }
+        }
+    }
+    return false
 }
 
 export function hasMagicImmunity(

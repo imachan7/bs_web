@@ -85,6 +85,7 @@ import {
     instMatchesCostFilter,
     matchesCostFilter,
     matchesFamilyFilter,
+    noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
 } from "../../../shared/rules"
@@ -821,9 +822,13 @@ export function resolveTensho(
     if (!effect || effect.kind !== "keyword") return
     const minCost = effect.minCost ?? 0
     const dest = effect.dest ?? "trash"
-    // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
+    // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る。
+    // tenshoSelfCostBonus（BS08冥機グングニル）：このコスト判定でだけ候補自身のコストに+amountする
     const candidates = state.players[ownerPid].field.spirits.filter(
-        (s) => s.instanceId !== spirit.instanceId && instMatchesCostFilter(s, { min: minCost }),
+        (s) =>
+            s.instanceId !== spirit.instanceId &&
+            (instMatchesCostFilter(s, { min: minCost }) ||
+                getCard(s.cardId).cost + tenshoSelfCostBonus(s) >= minCost),
     )
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
@@ -849,9 +854,24 @@ export function resolveTensho(
     // 自動選択（プレイヤー選択の決定的簡略化）：コスト最大の1体。
     // 複数コストを持つ状態では「最大」を定義できないため、カード本来のコストのまま比較する
     const chosen = candidates.reduce((best, s) =>
-        getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
+        getCard(s.cardId).cost + tenshoSelfCostBonus(s) > getCard(best.cardId).cost + tenshoSelfCostBonus(best)
+            ? s
+            : best,
     )
     dumpAllCoresTensho(state, ownerPid, chosen, dest)
+}
+
+// kind:"tenshoSelfCostBonus"（BS08冥機グングニル）：【転召】の生贄候補列挙でだけ自身のコストに+amountする。
+// 効くのはresolveTenshoの候補判定だけで、instAllCosts等の一般的なコスト計算には影響しない局所的な簡略化
+function tenshoSelfCostBonus(inst: CardInstance): number {
+    const level = currentLevel(inst).level
+    let bonus = 0
+    for (const effect of getCard(inst.cardId).effects) {
+        if (effect.kind !== "tenshoSelfCostBonus") continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        bonus += effect.amount
+    }
+    return bonus
 }
 
 // フィールドイベント誘発「自分の【転召】が解決したとき」（BS08関将龍皇ドラグロン）。
@@ -2686,6 +2706,12 @@ export function isTriggerSuppressed(
 // 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
 // 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
 export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstance: CardInstance): void {
+    // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
+    // 『このスピリットの召喚時』効果は発揮されない
+    if (noSummonTriggerByCost(state, selfInstance)) {
+        log(state, `${getCard(selfInstance.cardId).name}：コストが低いため、召喚時効果は発揮されなかった。`)
+        return
+    }
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon")
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
@@ -3295,10 +3321,16 @@ export function fireFieldEventTriggers(
                         matchesFamilyFilter(state, pid, s, family),
                     )
                     if (total < count) continue
-                } else {
+                } else if ("ownFieldHasColorNexus" in effect.condition) {
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
                     const color = effect.condition.ownFieldHasColorNexus
                     if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
+                } else {
+                    // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
+                    if (targetInstanceId === undefined) continue
+                    const found = findSpiritAny(state, targetInstanceId)
+                    if (!found) continue
+                    if (spiritHasKeyword(state, found.pid, found.inst, effect.condition.targetKeywordExclude)) continue
                 }
             }
             // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す。

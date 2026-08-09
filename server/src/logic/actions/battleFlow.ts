@@ -218,10 +218,12 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         const dealt = Math.min(count, player.life)
         player.life -= dealt
-        player.reserve += dealt
+        // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
+        if (action.dest === "trash") player.trashCores += dealt
+        else player.reserve += dealt
         log(
             state,
-            `${sourceName}：${player.name}のライフからコア${dealt}個をリザーブに置いた。（残りライフ${player.life}）`,
+            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {

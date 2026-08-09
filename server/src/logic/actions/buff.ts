@@ -116,6 +116,21 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
         }
+        // amountFromSelfBp（BS08機人フィアラル）：amountを無視し、発生源自身の実効BPを加算量として使う
+        if (action.amountFromSelfBp) {
+            if (!self) {
+                log(state, `${sourceName}のBP増加：発生源がいなかった。`)
+                return
+            }
+            const amount = effectiveBp(state, owner, self)
+            target.tempBpBuff += amount
+            log(
+                state,
+                `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+            )
+            applyMagicBuffBonus(state, target, srcType, srcColors)
+            return
+        }
         target.tempBpBuff += action.amount
         log(
             state,

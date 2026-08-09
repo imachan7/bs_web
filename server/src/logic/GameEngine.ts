@@ -14,7 +14,7 @@ import {
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
@@ -740,6 +740,17 @@ function resolveLifeDamage(state: GameState): void {
     }
     // BS07秘密の花園Lv2：このターンの間、コスト条件を満たすアタックでは**この防御側のライフだけ**が減らない
     if (lifeProtectedByCostThisTurn(state, defenderPid, attacker)) {
+        log(
+            state,
+            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
+        )
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+        return
+    }
+    // BS08空帝竜騎プラチナム：ブロックされなかったアタッカーの実効BPがこのスピリット自身の実効BP以下のとき、
+    // そのアタックでは自分のライフは減らない（片側のみ）
+    if (protectedByBpUpToSelf(state, defenderPid, attacker)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,

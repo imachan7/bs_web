@@ -11,7 +11,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
 import { battleSwapSummonCheck } from "../../../shared/summon"
 import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -451,9 +451,19 @@ export function validateActivateAbility(
     if (!effectActiveAtLevel(effect.levels, level)) {
         return "現在のレベルでは発動できません"
     }
-    // 発動可能タイミング（現状はフラッシュ中のバトルのみ）
+    // 発動可能タイミング
     if (effect.timing === "flashBattle") {
         if (!state.isFlashTiming || !state.battle) {
+            return "フラッシュタイミングではありません"
+        }
+    } else if (effect.timing === "flash") {
+        // flashBattleと異なり、バトル外（自分のメインステップ）でも発動できる（BS08機人フィアラル）。
+        // このエンジンにはバトル外の「フラッシュ優先権」窓が無いため、自分のメインステップを
+        // 唯一のバトル外発動タイミングとする決定的簡略化（castMagicのmainForbidden無し・main不在
+        // フラッシュ専用マジックの扱いと同じ考え方）
+        const inBattleFlash = state.isFlashTiming && state.battle !== null
+        const inOwnMain = !state.battle && state.turnPlayer === pid && state.phase === "main"
+        if (!inBattleFlash && !inOwnMain) {
             return "フラッシュタイミングではありません"
         }
     }
@@ -610,7 +620,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         const constraints = activeConstraints(state, pid, inst)
         // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
         if (constraints.some((c) => c.type === "cantAttack")) continue
-        if (constraints.some((c) => c.type === "mustAttack")) {
+        if (constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)) {
             return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
         }
     }

@@ -8,6 +8,7 @@ import {
     getAllFamilies,
     pickAnySideCandidates,
     pickEnemyByBp,
+    pickEnemyCandidates,
     exhaustSpirit,
     pickOwnKeywordTarget,
     requestCardChoice,
@@ -547,6 +548,89 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
         return
 }
 
+const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // maxCost指定時：コスト条件を満たす相手スピリットすべてに一括で課す（BS08アンブッシュブロッカー）
+        if (action.maxCost !== undefined) {
+            state.turnConstraints.push({ type: "mustAttackByCost", pid: opp, maxCost: action.maxCost })
+            log(
+                state,
+                `${sourceName}：このターンの間、${state.players[opp].name}のコスト${action.maxCost}以下のスピリットは可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        // 対象指定時：その1体に課す（targetInstanceId優先→interactiveTargets時はpendingChoice→自動時は実効BP最大。BS08獣機合神セイ・ドリガン）
+        if (targetInstanceId) {
+            const found = findSpiritAny(state, targetInstanceId)
+            if (!found || found.pid !== opp) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: found.inst.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(found.inst.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        const count = action.count ?? 1
+        const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：必ずアタックさせる相手のスピリットを選んでください`,
+                candidates,
+                action,
+                count > 1 ? { ...action, count: count - 1 } : null,
+            )
+        ) {
+            return
+        }
+        const chosenIds = new Set<string>()
+        let marked = 0
+        for (let i = 0; i < count; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => !chosenIds.has(s.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) break
+            chosenIds.add(target.instanceId)
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            marked++
+        }
+        if (marked === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+        }
+        return
+}
+
+const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        state.turnConstraints.push({
+            type: "canBlockWhileRestedThisTurn",
+            pid: owner,
+            ...(action.familyFilter !== undefined ? { familyFilter: action.familyFilter } : {}),
+        })
+        const familyLabel = action.familyFilter
+            ? `系統：「${(Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]).join("」/「")}」を持つ`
+            : ""
+        log(
+            state,
+            `${sourceName}：このターンの間、${state.players[owner].name}の${familyLabel}スピリットすべては疲労状態でもブロックできる。`,
+        )
+        return
+}
+
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
@@ -722,6 +806,8 @@ const handlers = {
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
+    forceAttackThisTurn: forceAttackThisTurnHandler,
+    grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

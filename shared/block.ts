@@ -10,6 +10,7 @@ import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
+    canBlockWhileRestedThisTurn,
     currentLevel,
     effectiveBp,
     instAllCosts,
@@ -35,11 +36,23 @@ export function canBlock(
     // 疲労状態でのブロック（BS06計画された場外乱闘Lv1-2）：canBlockWhileRestedを持ち、
     // targetMaxCost指定時はアタッカーのコストがこれ以下のときのみブロックできる
     if (blockerInst.isRested) {
-        const canBlockRested = blockerConstraints.some((c) => {
-            if (c.type !== "canBlockWhileRested") return false
-            if (c.targetMaxCost === undefined) return true
-            return attackerInst !== undefined && instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })
-        })
+        const canBlockRested =
+            blockerConstraints.some((c) => {
+                if (c.type !== "canBlockWhileRested") return false
+                if (c.targetMaxCost !== undefined) {
+                    if (attackerInst === undefined || !instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })) {
+                        return false
+                    }
+                }
+                // targetKeywordExclude（BS08一角魚モノケロック：【転召】を持たない相手のスピリット）：
+                // アタッカーがそのキーワードを持つときはこのエントリでは許可しない
+                if (c.targetKeywordExclude !== undefined) {
+                    if (attackerInst === undefined || spiritHasKeyword(board, attackerPid, attackerInst, c.targetKeywordExclude)) {
+                        return false
+                    }
+                }
+                return true
+            }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
