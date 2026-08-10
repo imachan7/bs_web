@@ -714,9 +714,11 @@ export function destroyNexus(
         context?.sourceType !== undefined &&
         context.sourcePid !== undefined &&
         context.sourcePid !== ownerPid
+    // 破壊されたネクサス自身も走査に含める（extraSources）。「自分のネクサスが破壊されたとき」を
+    // そのネクサス自身が持つ形（BS07の各色ネクサス6枚）は、ここで渡さないと自分の破壊では発火しない
     fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
         byOpponentEffect,
-    })
+    }, [inst])
     return true
 }
 

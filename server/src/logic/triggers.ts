@@ -707,12 +707,18 @@ export function fireFieldEventTriggers(
         // effect.countMode === "cores" のエントリのみ repeatPerCount の繰り返し回数として使う（BS06希望の大灯台Lv1）
         coresRemoved?: number
     },
+    // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
+    // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
+    // これが無いと自分自身の破壊では無言で発火しない。BS07の各色ネクサス6枚。2026-08-10 修正）
+    extraSources?: CardInstance[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
     // BS05ソウルクラッシュ）も含める。「誰が誘発効果を出しているか」を問うA分類の走査
     // （TURN_EFFECT_SOURCES.md §1）
-    const instances = effectSources(state, pid)
+    const instances = extraSources && extraSources.length > 0
+        ? [...effectSources(state, pid), ...extraSources]
+        : effectSources(state, pid)
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level

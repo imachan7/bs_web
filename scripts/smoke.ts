@@ -170,6 +170,7 @@ import "./smoke/part167"
 import "./smoke/part168"
 import "./smoke/part169"
 import "./smoke/part170"
+import "./smoke/part171"
 import { summary } from "./smoke/helpers"
 
 summary()

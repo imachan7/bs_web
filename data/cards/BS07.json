@@ -3992,7 +3992,8 @@
     "selfMode": "source",
     "action": {
      "type": "returnToDeckTop",
-     "count": 3
+     "count": 3,
+     "chooserIsTarget": true
     },
     "byOpponentEffectOnly": true
    },

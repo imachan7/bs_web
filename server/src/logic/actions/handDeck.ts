@@ -1507,14 +1507,21 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
                 ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
                 : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
             if (candidates.length >= 2) {
+                // chooserIsTarget（BS07ブリシンガメンの首飾り）：「**相手は**、相手のスピリット3体を〜戻す」。
+                // 選ぶのは戻される側だが、解決は発生源の持ち主の効果として行う（actorPid）
                 requestChoice(
                     state,
                     owner,
-                    `${sourceName}のデッキ戻し：対象を選んでください`,
+                    action.chooserIsTarget
+                        ? `${sourceName}：デッキの上に戻す自分のスピリットを選んでください`
+                        : `${sourceName}のデッキ戻し：対象を選んでください`,
                     candidates.map((s) => s.instanceId),
                     false,
                     action,
                     self,
+                    "target",
+                    undefined,
+                    action.chooserIsTarget ? opp : undefined,
                 )
                 return
             }

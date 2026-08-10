@@ -2324,6 +2324,9 @@ export function requestChoice(
     self: CardInstance | null,
     kind: "target" | "option" = "target",
     options?: string[],
+    // 選ぶのが効果の持ち主ではない場合の選択者（「**相手は**〜する」。BS07ブリシンガメンの首飾り）。
+    // 解決自体は発生源の持ち主の効果として行うため、actorPid に owner を残す（tryInteractiveTargetChoice と同じ形）
+    chooserPid?: PlayerId,
 ): void {
     if (kind === "option") {
         // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない
@@ -2350,13 +2353,14 @@ export function requestChoice(
         return
     }
     state.pendingChoice = {
-        pid,
+        pid: chooserPid ?? pid,
         kind: "target",
         prompt,
         candidates,
         optional,
         action,
         selfInstanceId: self ? self.instanceId : null,
+        ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
         queue: [],
     }
 }
