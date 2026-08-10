@@ -699,7 +699,7 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
 // 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
     // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
     if (action.target === "self") {
         if (!self) return
@@ -707,24 +707,50 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
         log(state, `${getCard(self.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`)
         return
     }
-    let best: CardInstance | undefined
-    let bestBp = -1
-    for (const inst of state.players[owner].field.spirits) {
-        const bp = effectiveBp(state, owner, inst)
-        if (bp < action.minBp) continue
-        if (bp > bestBp) {
-            best = inst
-            bestBp = bp
-        }
-    }
-    if (!best) {
+    // 「BP◯◯◯以上の自分のスピリット1体を指定する」（BS04強者統べる大地Lv2）。
+    // 候補が2体以上あればプレイヤーに選ばせる（非対話時＝smoke等は従来どおり実効BP最大を自動選択）
+    const candidates = state.players[owner].field.spirits.filter(
+        (inst) => effectiveBp(state, owner, inst) >= action.minBp,
+    )
+    if (candidates.length === 0) {
         log(state, `${sourceName}：BP${action.minBp}以上の自分のスピリットがいなかった。`)
         return
     }
-    best.unblockableOnceThisTurn = true
+    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ブロックされないスピリットを選んでください`,
+            candidates.map((s) => s.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    // 明示ターゲット（選択の再開もここに戻ってくる）。条件を満たさない個体が指定されたら不発
+    let chosen: CardInstance | undefined
+    if (targetInstanceId !== undefined) {
+        chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+        if (!chosen) {
+            log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
+            return
+        }
+    } else {
+        let bestBp = -1
+        for (const inst of candidates) {
+            const bp = effectiveBp(state, owner, inst)
+            if (bp > bestBp) {
+                chosen = inst
+                bestBp = bp
+            }
+        }
+    }
+    if (!chosen) return
+    chosen.unblockableOnceThisTurn = true
     log(
         state,
-        `${sourceName}：${getCard(best.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。（対象はBP最大＝簡略化）`,
+        `${sourceName}：${getCard(chosen.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`,
     )
 }
 
