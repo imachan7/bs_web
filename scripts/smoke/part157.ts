@@ -149,3 +149,59 @@ console.log("=== 置くコアは手札破棄では払えない ===")
     castVictim(s)
     assert(validateSummon(s, "p1", 0) !== null, "置くコアが用意できないので召喚できない")
 }
+
+console.log("=== 破棄する手札を自分で選べる（discardHandIndices） ===")
+{
+    const s = base("victim-choose")
+    // 手札を見分けられるようにする：0=召喚するカード / 1,2=別カード / 3=召喚するカード
+    const other = CARDS.find((c) => c.type === "spirit" && c.cardId !== TARGET.cardId)!
+    s.players.p1.hand = [TARGET.cardId, other.cardId, other.cardId, TARGET.cardId]
+    s.players.p1.reserve = COST + 1 // コアだけでも払えるが、あえて手札で払う
+    castVictim(s)
+
+    const handBefore = [...s.players.p1.hand]
+    const err = handleAction(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [1, 2] })
+    assert(err === null, `指定した2枚を破棄して召喚できた（${String(err)}）`)
+    assert(
+        s.players.p1.reserve === COST + 1 - (COST - 2) - 1,
+        `手札2枚ぶんコアの支払いが減った（残リザーブ${String(s.players.p1.reserve)}）`,
+    )
+    assert(
+        s.players.p1.trashCards.filter((id) => id === other.cardId).length === 2,
+        `指定した${getCard(other.cardId).name}2枚がトラッシュへ行った（末尾からの自動選択ではない）`,
+    )
+    assert(s.players.p1.hand.length === handBefore.length - 3, "手札は召喚1枚＋破棄2枚だけ減った")
+}
+
+console.log("=== 破棄の指定が不正なら弾く ===")
+{
+    const s = base("victim-invalid")
+    setHand(s, 3)
+    s.players.p1.reserve = 20
+    castVictim(s)
+
+    assert(
+        handleAction(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [0] }) !== null,
+        "召喚するカード自身は破棄に使えない",
+    )
+    assert(
+        handleAction(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [1, 1] }) !== null,
+        "同じ手札の重複指定は弾く",
+    )
+    assert(
+        handleAction(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [99] }) !== null,
+        "存在しない手札の指定は弾く",
+    )
+    assert(s.players.p1.field.spirits.length === 0, "弾かれた分は召喚されていない")
+}
+
+console.log("=== 効果が無いのに破棄を指定したら弾く ===")
+{
+    const s = base("victim-noeffect")
+    setHand(s, 3)
+    s.players.p1.reserve = 20
+    assert(
+        handleAction(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [1] }) !== null,
+        "ビクティムを使っていなければ手札破棄では払えない",
+    )
+}

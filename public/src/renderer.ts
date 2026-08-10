@@ -16,7 +16,7 @@ import type {
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
-import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
@@ -44,6 +44,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     effectActiveAtLevel,
+    handSizeOf,
     type DirectAttackFilter,
     boardResistanceAgainst,
 } from "../../shared/rules"
@@ -159,7 +160,9 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const lv = card.levels.find((l) => l.level === targetLevel)
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
-    const need = cost + maintain
+    // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
+    const alt = payingAltPay(view, paying)
+    const need = cost + maintain - Math.min(alt.used, cost)
     const reserve = view.players[view.you].reserve
     return Math.max(need - reserve - assignedTotal, 0)
 }
@@ -220,13 +223,44 @@ export function activatableAbility(
     return sharedActivatableAbility(view, you, inst)
 }
 
-// 支払いモード：不足コストをスピリット上のコアで賄うための一時状態
+// 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
+    // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
+    discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
+    millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）
+}
+
+// この支払いで使える代替コストの種類と上限。
+// kind が null なら代替コストは使えない（＝従来どおりコアだけで払う）
+export interface AltPayInfo {
+    kind: "handDiscard" | "mill" | null
+    used: number
+    max: number
+}
+
+// 支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
+// （RuleValidator.summonHandDiscardPayAmount / nexusMillPayAmount。ズレると
+//  「UIで選べるのにサーバーが弾く」形の食い違いになる）
+export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
+    const player = view.players[view.you]
+    const cardId = player.hand?.[paying.handIndex]
+    if (cardId === undefined) return { kind: null, used: 0, max: 0 }
+    const card = master(cardId)
+    const cost = effectiveCost(view, view.you, card)
+    if (card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)) {
+        // 召喚するカード自身は破棄に使えないので手札枚数から1枚引く
+        const max = Math.min(cost, Math.max(0, handSizeOf(player) - 1))
+        return { kind: "handDiscard", used: paying.discardHandIndices.length, max }
+    }
+    if (card.type === "nexus" && canPayNexusCostByMill(view, view.you)) {
+        return { kind: "mill", used: paying.millPay, max: Math.min(cost, player.deckCount) }
+    }
+    return { kind: null, used: 0, max: 0 }
 }
 
 export interface UiState {
@@ -398,6 +432,10 @@ export function render(view: GameView, ui: UiState): void {
     const anyMode =
         ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null
     show("btn-cancel-target", anyMode)
+    // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
+    // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
+    // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
+    show("btn-confirm-pay", ui.paying !== null && payingRemaining(view, ui.paying) === 0)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
@@ -466,8 +504,20 @@ export function render(view: GameView, ui: UiState): void {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
-        $("targeting-info").textContent =
-            `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
+        const alt = payingAltPay(view, ui.paying)
+        const base = `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
+        if (alt.kind === "handDiscard") {
+            // 破棄する手札は「どれを捨てるか」を選ぶので、手札そのものをクリックさせる
+            $("targeting-info").textContent =
+                `${base}／🗑 手札を破棄してコストに充てられます（${alt.used}/${alt.max}枚）。手札をクリックして選んでください`
+        } else if (alt.kind === "mill") {
+            // デッキ破棄は上から順なので「何枚払うか」だけを選ぶ
+            $("targeting-info").innerHTML =
+                `${base}／📚 デッキ破棄でコストに充てられます: ` +
+                `<button data-altpay="dec">−</button> <b>${alt.used}</b> / ${alt.max} 枚 <button data-altpay="inc">＋</button>`
+        } else {
+            $("targeting-info").textContent = base
+        }
     } else if (ui.awakenTarget !== null) {
         const fromReserve = canAwakenFromReserve(view, view.you)
         $("targeting-info").textContent = fromReserve
@@ -1069,6 +1119,24 @@ function renderHand(view: GameView, ui: UiState): void {
             ui.targeting?.handIndex ?? null
         if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
             el.classList.add("selected")
+        }
+
+        // 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム）。
+        // 手札は同名カードをまとめて表示しているので、この束から何枚選ばれているかを出す
+        if (ui.paying !== null) {
+            const picked = g.indices.filter((i) => ui.paying!.discardHandIndices.includes(i)).length
+            if (picked > 0) {
+                el.classList.add("pay-discard")
+                const badge = document.createElement("div")
+                badge.className = "pay-discard-badge"
+                badge.textContent = `🗑${picked}`
+                el.appendChild(badge)
+            }
+            // 破棄に選べる手札（＝召喚するカード自身以外）はクリックできると分かるようにする
+            if (payingAltPay(view, ui.paying).kind === "handDiscard" && !g.indices.includes(ui.paying.handIndex)) {
+                el.classList.add("clickable")
+                el.classList.remove("unusable")
+            }
         }
 
         const costBadge = document.createElement("div")

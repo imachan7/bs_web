@@ -726,6 +726,25 @@ button:active {
     filter: brightness(1.15);
 }
 
+/* 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム） */
+.card.pay-discard {
+    box-shadow: 0 0 0 2px var(--danger, #ef4444), 0 0 16px rgba(239, 68, 68, 0.6);
+    filter: brightness(0.85) saturate(0.7);
+}
+
+.pay-discard-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: var(--danger, #ef4444);
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 1px 4px;
+    z-index: 11;
+}
+
 .card.step-active {
     box-shadow: 0 0 0 2px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
     animation: step-active-pulse 2s infinite;

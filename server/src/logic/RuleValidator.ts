@@ -100,6 +100,7 @@ export function validateSummon(
     paySources?: PaySource[],
     level?: number,
     substituteInstanceId?: string,
+    discardHandIndices?: number[],
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -180,9 +181,11 @@ export function validateSummon(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
-    // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払える（置くコアは対象外）。
+    // BS08ビクティム：召喚コストの一部・全部を手札破棄で支払える（置くコアは対象外）。
     // doSummon と同じ関数で枚数を出すので、検証と実行がズレない
-    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources)
+    const discardError = validateSummonHandDiscard(state, pid, handIndex, cost, discardHandIndices)
+    if (discardError) return discardError
+    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources, discardHandIndices)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
     const payError = validatePaySources(state, pid, cost - discardPaid + maintain, paySources)
     if (payError) {
@@ -253,6 +256,7 @@ export function validateSetNexus(
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    millPay?: number,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -266,8 +270,13 @@ export function validateSetNexus(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
-    // 栄光の表彰台Lv1：コアで足りない分は「コスト1につきデッキ1枚破棄」で払える（配置コストのみ。置くコアは不可）
-    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources)
+    // 栄光の表彰台Lv1：配置コストの一部・全部を「コスト1につきデッキ1枚破棄」で払える（置くコアは不可）
+    if (millPay !== undefined && millPay > 0 && !canPayNexusCostByMill(state, pid)) {
+        return "デッキの破棄でコストを支払える効果がありません"
+    }
+    if (millPay !== undefined && millPay > cost) return "コストを超えてデッキを破棄することはできません"
+    if (millPay !== undefined && millPay > player.deck.length) return "デッキの残り枚数が足りません"
+    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
     const payError = validatePaySources(state, pid, cost + maintain - millPaid, paySources)
     if (payError) {
@@ -279,7 +288,8 @@ export function validateSetNexus(
 }
 
 // ネクサスの配置コストのうち、デッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
-// 「どこまでデッキ破棄で払うか」は選べず、**コアで足りない分だけ**自動的に回す簡略化。
+// **プレイヤーが枚数を選んだ場合（millPay）はそれを使い**、選ばれていなければ
+// 「コアで足りない分だけ」を自動で回す（非対話・旧クライアント互換のフォールバック）。
 // 上限は「配置コスト（置くコアは対象外）」と「デッキの残り枚数」の小さい方。
 // validateSetNexus と doSetNexus が同じ値を出すよう、必ずこの関数を通すこと
 export function nexusMillPayAmount(
@@ -288,13 +298,18 @@ export function nexusMillPayAmount(
     cost: number,
     maintain: number,
     paySources: PaySource[] | undefined,
+    // プレイヤーが選んだ枚数（GameAction.setNexus.millPay）。
+    // 渡っていればその枚数を採用し、渡っていなければ「コアで足りない分」を自動で回す
+    millPay?: number,
 ): number {
     if (!canPayNexusCostByMill(state, pid)) return 0
     const player = state.players[pid]
+    const cap = Math.min(cost, player.deck.length)
+    if (millPay !== undefined) return Math.min(Math.max(0, millPay), cap)
     const fromSources = (paySources ?? []).reduce((sum, s) => sum + Math.max(0, s.count), 0)
     const available = player.reserve + fromSources
     const shortfall = Math.max(0, cost + maintain - available)
-    return Math.min(shortfall, cost, player.deck.length)
+    return Math.min(shortfall, cap)
 }
 
 // スピリットの召喚コストのうち、手札破棄で支払う枚数を決める（BS08ビクティム）。
@@ -310,13 +325,45 @@ export function summonHandDiscardPayAmount(
     cost: number,
     maintain: number,
     paySources: PaySource[] | undefined,
+    // プレイヤーが選んだ破棄対象（GameAction.summon.discardHandIndices）。
+    // 渡っていればその枚数を採用し、渡っていなければ「コアで足りない分」を自動で回す
+    discardHandIndices?: number[],
 ): number {
     if (!canPaySummonCostByHandDiscard(state, pid)) return 0
     const player = state.players[pid]
+    // 上限は「コスト」と「召喚するカード自身を除いた手札枚数」
+    const cap = Math.min(cost, Math.max(0, player.hand.length - 1))
+    if (discardHandIndices !== undefined) return Math.min(discardHandIndices.length, cap)
     const fromSources = (paySources ?? []).reduce((sum, s) => sum + Math.max(0, s.count), 0)
     const available = player.reserve + fromSources
     const shortfall = Math.max(0, cost + maintain - available)
-    return Math.min(shortfall, cost, Math.max(0, player.hand.length - 1))
+    return Math.min(shortfall, cap)
+}
+
+// プレイヤーが選んだ破棄対象そのものの妥当性（枚数ではなく指定内容）を検証する。
+// 枚数の上限は summonHandDiscardPayAmount がクランプするので、ここでは
+// 「そもそも指定してよい状況か」「指すカードが実在し、重複せず、召喚するカード自身でないか」を見る
+function validateSummonHandDiscard(
+    state: GameState,
+    pid: PlayerId,
+    handIndex: number,
+    cost: number,
+    discardHandIndices: number[] | undefined,
+): string | null {
+    if (discardHandIndices === undefined || discardHandIndices.length === 0) return null
+    if (!canPaySummonCostByHandDiscard(state, pid)) {
+        return "手札の破棄でコストを支払える効果がありません"
+    }
+    const player = state.players[pid]
+    const seen = new Set<number>()
+    for (const i of discardHandIndices) {
+        if (!Number.isInteger(i) || i < 0 || i >= player.hand.length) return "破棄する手札の指定が不正です"
+        if (i === handIndex) return "召喚するカード自身は破棄できません"
+        if (seen.has(i)) return "同じ手札を重複して指定しています"
+        seen.add(i)
+    }
+    if (discardHandIndices.length > cost) return "コストを超えて手札を破棄することはできません"
+    return null
 }
 
 export function validateCastMagic(

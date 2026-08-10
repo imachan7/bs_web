@@ -200,9 +200,9 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -388,8 +388,9 @@ function doSummon(
     paySources?: PaySource[],
     level?: number,
     substituteInstanceId?: string,
+    discardHandIndices?: number[],
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices)
     if (error) return error
 
     const player = state.players[pid]
@@ -411,13 +412,23 @@ function doSummon(
 
     // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払う
     // （validateSummon と同じ関数で枚数を出すので、検証と実行がズレない）
-    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources)
+    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources, discardHandIndices)
+    // 破棄する手札を、**召喚するカードを抜く前に**確定させる（抜くとインデックスがずれるため）。
+    // プレイヤーが選んでいればその指定を、選んでいなければ手札の末尾から（自動払いのフォールバック）
+    const discardIds =
+        discardHandIndices !== undefined
+            ? discardHandIndices.slice(0, discardPaid).map((i) => player.hand[i]!)
+            : player.hand.filter((_, i) => i !== handIndex).slice(-discardPaid)
     // **召喚するカードを先に手札から抜く**：破棄の対象に自分自身が混ざらないようにする
     player.hand.splice(handIndex, 1)
     if (discardPaid > 0) {
-        const discarded = player.hand.splice(player.hand.length - discardPaid, discardPaid)
-        player.trashCards.push(...discarded)
-        log(state, `${player.name}は召喚コストのうち${discardPaid}を、手札${discardPaid}枚の破棄で支払った。`)
+        for (const id of discardIds) {
+            const at = player.hand.indexOf(id)
+            if (at !== -1) player.hand.splice(at, 1)
+            player.trashCards.push(id)
+        }
+        const names = discardIds.map((id) => getCard(id).name).join("、")
+        log(state, `${player.name}は召喚コストのうち${discardPaid}を、手札${discardPaid}枚（${names}）の破棄で支払った。`)
         // 「スピリットカード**1枚**の召喚に」＝実際に使った時点で貸与を使い切る
         consumeSummonHandDiscardPay(state, pid)
     }
@@ -470,8 +481,9 @@ function doSetNexus(
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    millPay?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources, level)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay)
     if (error) return error
 
     const player = state.players[pid]
@@ -484,7 +496,7 @@ function doSetNexus(
 
     // 栄光の表彰台Lv1：コアで足りない分の配置コストをデッキ破棄で支払う
     // （validateSetNexus と同じ関数で枚数を出すので、検証と実行がズレない）
-    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources)
+    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
     if (millPaid > 0) {
         millDeck(state, pid, millPaid)
         log(state, `${player.name}は配置コストのうち${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
