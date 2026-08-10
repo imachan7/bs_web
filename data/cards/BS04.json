@@ -325,7 +325,10 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
+     "type": "destroy",
+     "filter": {
+      "rested": true
+     },
      "count": 1
     },
     "optional": false
@@ -965,11 +968,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
+     "type": "destroy",
      "filter": {
       "cost": {
        "max": 6
-      }
+      },
+      "rested": true
      },
      "count": 1
     },
@@ -983,11 +987,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
+     "type": "destroy",
      "filter": {
       "cost": {
        "max": 1
-      }
+      },
+      "rested": true
      },
      "count": 1
     },

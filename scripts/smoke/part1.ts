@@ -403,11 +403,11 @@ console.log("=== 疲労付与・疲労破壊アクション ===")
     assert(low.isRested === false, "no-opの間に他の対象が疲労することはない")
 
     // destroyExhausted: 回復状態の対象を指定 → no-op（破壊されない）
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 }, low.instanceId)
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } }, low.instanceId)
     assert(s.players.p2.field.spirits.includes(low), "回復状態の対象へのdestroyExhaustedはno-op")
 
     // destroyExhausted: 対象未指定 → 疲労状態のスピリット（high）が自動選択され破壊される
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } })
     assert(!s.players.p2.field.spirits.includes(high), "疲労状態のスピリットが破壊される")
     assert(s.players.p2.field.spirits.includes(low), "回復状態のスピリットはdestroyExhaustedの自動選択で選ばれない")
     assert(s.players.p2.trashCards.includes("BS01-001"), "破壊されたスピリットがトラッシュへ送られる")

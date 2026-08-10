@@ -186,7 +186,6 @@ export function magicTargetSide(
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
         effect.action.type === "exhaust" ||
-        effect.action.type === "destroyExhausted" ||
         effect.action.type === "returnToHand" ||
         effect.action.type === "returnToDeckTop"
     ) {

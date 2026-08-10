@@ -5547,14 +5547,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
+     "type": "destroy",
      "anySide": true,
      "filter": {
       "cost": {
        "max": 4
-      }
-     }
+      },
+      "rested": true
+     },
+     "count": 1
     }
    }
   ]

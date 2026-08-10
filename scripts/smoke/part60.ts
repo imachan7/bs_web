@@ -167,7 +167,7 @@ console.log("=== destroyExhausted: 疲労2体で choice が立ち、選んだ側
     const [a, b] = twoEnemies(s, "BS01-002", 1)
     for (const x of s.players.p2.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } })
     assert(s.pendingChoice !== null, "疲労候補2体で pendingChoice が立つ")
     assert(s.players.p2.field.spirits.length === 2, "選択待ち中はまだ破壊されていない")
 

@@ -3359,7 +3359,10 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "destroyExhausted",
+      "type": "destroy",
+      "filter": {
+       "rested": true
+      },
       "count": 1
      }
     }
@@ -4144,10 +4147,11 @@
      "魔界七将"
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
+     "type": "destroyAll",
      "anySide": true,
-     "all": true
+     "filter": {
+      "rested": true
+     }
     }
    },
    {

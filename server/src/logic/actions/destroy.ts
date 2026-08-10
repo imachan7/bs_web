@@ -73,6 +73,13 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
             }
+            // 明示ターゲット（誘発が渡す対象・選択の再開）にも filter を適用する。
+            // ここを飛ばすと「BP3000以下を破壊」のような条件が、対象を渡された経路でだけ無視される
+            // （2026-08-10、destroyExhausted を filter.rested へ畳んだときに判明。あちらは見ていた）
+            if (!matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
+                return
+            }
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext)
             return
         }
@@ -486,148 +493,6 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
         return
 }
 
-const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 絞り込みは共通の TargetFilter に一本化（cost 軸）。対象指定パスからも使うため冒頭で解決する
-        const exhaustedFilter = normalizeFilter(ctx, action)
-        if (exhaustedFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}：BP参照元がいなかった。`)
-            return
-        }
-        // 対象指定時はその1体のみ処理（疲労状態でなければログを出して何もしない）
-        if (targetInstanceId) {
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found) {
-                log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
-                return
-            }
-            // 対象指定なので scope は "targeted"（「相手の効果の対象にならない」がここでは効く）
-            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "destroy", "targeted"))
-            if (resisted) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                return
-            }
-            if (!found.inst.isRested) {
-                log(
-                    state,
-                    `${getCard(found.inst.cardId).name}は疲労していないため破壊できない。`,
-                )
-                return
-            }
-            if (!matchesTarget(state, found.pid, found.inst, exhaustedFilter, self?.instanceId)) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
-                return
-            }
-            destroySpirit(state, found.pid, found.inst.instanceId)
-            return
-        }
-        // costFilter 指定時は対象スピリットのコストがmax以下/min以上のみ（BS04ヘルウィッチ）
-        const matchesExhaustedCandidate = (s: CardInstance) =>
-            s.isRested && matchesTarget(state, opp, s, exhaustedFilter, self?.instanceId)
-        // all：範囲効果として条件を満たす疲労スピリットをすべて破壊する（BS05ソウルクラッシュ）。
-        // 相手側にだけ装甲・範囲免疫・マジック効果耐性を適用する（既存の範囲破壊と同じ非対称ルール）。
-        // 破壊時誘発で配列が変化しうるのでスナップショットを取ってから回す
-        if (action.all) {
-            const sides: PlayerId[] = action.anySide ? ["p1", "p2"] : [opp]
-            let destroyed = 0
-            for (const pid of sides) {
-                for (const s of [...state.players[pid].field.spirits]) {
-                    if (!matchesExhaustedCandidate(s)) continue
-                    if (isResisted(state, pid, s, attemptOf(ctx, "destroy", "area"))) continue
-                    destroySpirit(state, pid, s.instanceId)
-                    destroyed++
-                    if (state.winner) return
-                }
-            }
-            log(state, `${sourceName}：疲労状態のスピリット${destroyed}体を破壊した。`)
-            return
-        }
-        if (action.anySide) {
-            // 「自分か相手の疲労スピリット1体」（BS02-024 ブラッディ・シーザー）。
-            // 実対戦ではプレイヤーが両陣営から選ぶ。相手側の候補には免疫・装甲チェックを適用し、
-            // 自分側には適用しない（pickEnemyByBp と同じ非対称ルール）
-            const anySideCandidates = pickAnySideCandidates(
-                state,
-                owner,
-                matchesExhaustedCandidate,
-                srcColors,
-                srcType,
-            )
-            if (
-                state.interactiveTargets &&
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の疲労破壊：対象を選んでください`,
-                    anySideCandidates,
-                    { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
-                )
-            ) {
-                return
-            }
-            // 自動選択（テスト・非対話時）は従来どおり実効BP最大の1体。同値の場合は相手側を優先する
-            const oppCandidate = pickEnemyByBp(state, opp, Infinity, matchesExhaustedCandidate, srcColors, srcType)
-            const ownCandidates = state.players[owner].field.spirits.filter(matchesExhaustedCandidate)
-            const ownCandidate =
-                ownCandidates.length > 0
-                    ? ownCandidates.reduce((best, s) =>
-                          effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-                      )
-                    : null
-            let target: { pid: PlayerId; inst: CardInstance } | null = null
-            if (oppCandidate && ownCandidate) {
-                target =
-                    effectiveBp(state, owner, ownCandidate) > effectiveBp(state, opp, oppCandidate)
-                        ? { pid: owner, inst: ownCandidate }
-                        : { pid: opp, inst: oppCandidate }
-            } else if (oppCandidate) {
-                target = { pid: opp, inst: oppCandidate }
-            } else if (ownCandidate) {
-                target = { pid: owner, inst: ownCandidate }
-            }
-            if (!target) {
-                log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
-                return
-            }
-            destroySpirit(state, target.pid, target.inst.instanceId)
-            return
-        }
-        if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesExhaustedCandidate, srcColors, srcType)
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の疲労破壊：対象を選んでください`,
-                    candidates,
-                    { ...action, count: 1 },
-                    action.count > 1 ? { ...action, count: action.count - 1 } : null,
-                )
-            ) {
-                return
-            }
-        }
-        // 未指定時は相手フィールドの疲労状態スピリットからBP最大をcount回自動選択
-        for (let i = 0; i < action.count; i++) {
-            const target = pickEnemyByBp(
-                state,
-                opp,
-                Infinity,
-                matchesExhaustedCandidate,
-                srcColors,
-                srcType,
-            )
-            if (!target) {
-                log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
-                break
-            }
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
-        }
-        return
-}
 
 // BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
 // destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
@@ -1199,7 +1064,6 @@ const handlers = {
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,
-    destroyExhausted: destroyExhaustedHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyPer: destroyPerHandler,
