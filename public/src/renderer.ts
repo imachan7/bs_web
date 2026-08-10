@@ -390,6 +390,12 @@ export function render(view: GameView, ui: UiState): void {
     const canDefend = isDefender && !view.isFlashTiming
 
     // ステータスバー
+    const hasRyukiEntaku = view.players[you].field.nexuses.some(n => n.cardId === "BS08-055")
+    show("lbl-pay-to-negate", hasRyukiEntaku)
+    if (hasRyukiEntaku) {
+        ($("chk-pay-to-negate") as HTMLInputElement).checked = view.players[you].payToNegate ?? true
+    }
+
     $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
     document.querySelectorAll(".phase-step").forEach(el => {
         el.classList.remove("active")
