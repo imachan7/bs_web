@@ -9,7 +9,8 @@
 // 新しい弾で同型のマジックが増えても自動的に検証対象に入る（カードIDの直書きもしない）。
 //
 // 検証手順は実プレイと同じ: p1がアタック → p2がパス（フラッシュ①の優先権がp1へ）→
-// p1が自分のアタッカーを対象にフラッシュでマジックを使用 → tempBpBuff が amount ぶん乗る。
+// p1が自分のアタッカーを対象にフラッシュでマジックを使用 → BP増減が amount ぶん乗る
+// （寿命はターン終了までの tempBpBuff とバトル終了までの battleBpBuff の2種類。ここでは合算で見る）。
 import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -164,8 +165,11 @@ for (const e of entries) {
         failedCards++
         continue
     }
-    if (attacker.tempBpBuff !== e.amount) {
-        assert(false, `${label}：BP+${e.amount}（実際は+${attacker.tempBpBuff}）`)
+    // 「このバトルの間」と書かれたカード（scope:"battle"。BS07ニードルショット）は
+    // battleBpBuff に積まれるので、寿命の違いを問わず合算で見る
+    const gained = attacker.tempBpBuff + (attacker.battleBpBuff ?? 0)
+    if (gained !== e.amount) {
+        assert(false, `${label}：BP+${e.amount}（実際は+${gained}）`)
         failedCards++
         continue
     }

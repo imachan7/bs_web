@@ -7601,6 +7601,26 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS03-147-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "treatOwnNexusesAsSpiritsThisTurn",
+     "minCores": 1,
+     "cost": 1,
+     "family": [
+      "造兵"
+     ],
+     "levels": [
+      {
+       "level": 1,
+       "cores": 1,
+       "bp": 2000
+      }
+     ]
+    }
    }
   ]
  },

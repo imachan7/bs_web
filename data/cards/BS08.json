@@ -1063,6 +1063,16 @@
   "effect": "Lv1･Lv2･Lv3『お互いのメインステップ』\nスピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手は手札1枚を破棄する。",
   "effects": [
    {
+    "id": "BS08-017-e2",
+    "kind": "exhaustOnManualCoreAdd",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "scope": "any"
+   },
+   {
     "id": "BS08-017-e1",
     "kind": "triggered",
     "trigger": "onLifeDealt",
@@ -3652,6 +3662,23 @@
   "effect": "Lv1･Lv2『相手のアタックステップ』\nBP5000以下の相手のスピリットのアタックによって自分のライフが減らされたとき、そのスピリットを破壊する。\nLv2『自分のアタックステップ』\n系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない。",
   "effects": [
    {
+    "id": "BS08-055-e2",
+    "kind": "targetNegateByHandDiscard",
+    "levels": [
+     2
+    ],
+    "familyFilter": [
+     "龍帝",
+     "竜騎"
+    ],
+    "bySourceType": "spirit",
+    "discardCount": 1,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
     "id": "BS08-055-e1",
     "kind": "fieldEvent",
     "event": "ownLifeDamaged",
@@ -3784,6 +3811,16 @@
     "constraint": {
      "type": "singleCoreCantAttack"
     }
+   },
+   {
+    "id": "BS08-057-e2",
+    "kind": "tenshoSelfCostBonus",
+    "levels": [
+     2
+    ],
+    "amount": 3,
+    "target": "ownAll",
+    "familyFilter": "冥主"
    }
   ]
  },
@@ -4232,6 +4269,16 @@
     "levels": null,
     "by": "opponentSpiritEffect",
     "then": "deployThisNexusFree"
+   },
+   {
+    "id": "BS08-064-e3",
+    "kind": "deckMillNegate",
+    "levels": [
+     2
+    ],
+    "by": "opponentSpiritEffect",
+    "exceptFunsai": true,
+    "costOwnLifeToReserve": 1
    }
   ]
  },
@@ -4564,6 +4611,19 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS08-071-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS08-071-e3",
+    "kind": "summonCostHandDiscardPay",
+    "levels": null
    }
   ]
  },

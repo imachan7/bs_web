@@ -189,6 +189,21 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
     return false
 }
 
+// BS08ビクティム（kind:"summonCostHandDiscardPay"）：スピリットの召喚コストを
+// 「コスト1につき手札1枚を破棄」で支払える発生源（＝このターン自分を貸したマジック）があるか。
+// **手札の残り枚数による上限は呼び出し側でかける**（canPayNexusCostByMill と同じ理由。
+// サーバーは player.hand.length、クライアントは view の handCount を使う。
+// どちらも「召喚するカード自身」は破棄に使えないので1枚引くこと）
+export function canPaySummonCostByHandDiscard(board: Board, pid: PlayerId): boolean {
+    for (const source of effectSources(board, pid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "summonCostHandDiscardPay") continue
+            return true
+        }
+    }
+    return false
+}
+
 // マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
 // レベル有効・色一致（またはscope一致）・phaseTurn一致の発生源があるかを調べる
 // （薔薇人バロッサ：自分のアタックステップに自分の黄マジックカードを無償化）。

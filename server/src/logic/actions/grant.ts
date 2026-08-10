@@ -734,11 +734,14 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
 }
 
 // 「このターンの間」継続効果を貸す共通処理：仮想発生源を1つ積んで返す（積めなければ null）。
-// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う
+// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う。
+// scope:"battle" のときだけ積む先が battleVirtualInstances に変わる（lendSelfThisBattle）。
+// 積んだあとの扱い（effectSources に混ざる／isVirtualSource が "virtual-" で判定する）は共通
 function pushVirtualSource(
     state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
     owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
     sourceCardId: string | undefined,
+    scope: "turn" | "battle" = "turn",
 ): CardInstance | null {
     if (sourceCardId === undefined) {
         log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
@@ -746,7 +749,9 @@ function pushVirtualSource(
     }
     const inst = createInstance(sourceCardId, state.turn, 0)
     inst.instanceId = `virtual-${inst.instanceId}`
-    state.players[owner].turnVirtualInstances.push(inst)
+    const player = state.players[owner]
+    if (scope === "battle") player.battleVirtualInstances.push(inst)
+    else player.turnVirtualInstances.push(inst)
     return inst
 }
 
@@ -759,6 +764,18 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     log(
         state,
         `${getCard(sourceCardId!).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+    )
+}
+
+// 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
+// バトル外（メインステップ等）で使われた場合、貸与は直後の clearBattle まで残るが、
+// これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
+const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (!pushVirtualSource(state, owner, sourceCardId, "battle")) return
+    log(
+        state,
+        `${getCard(sourceCardId!).name}：このバトルの間、自分の仮想発生源としてこの効果を貸し出した。`,
     )
 }
 
@@ -800,7 +817,46 @@ const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> =
         return
 }
 
+// BS03ゴーレムクラフト：自分のフィールドのコアが1個以上置かれているネクサスすべてを、
+// このターンの間「コスト:1／系統:「造兵」／Lv1コスト:1／Lv1BP:2000／効果の記述なし」のスピリットとして扱う。
+//
+// **ネクサスをバトルに参加させる仕組みは作らない**。field.nexuses から field.spirits へ
+// 同じインスタンスのまま移してしまえば、アタック・ブロック・BP比較・全体破壊・体数カウント・
+// 対象選択といったスピリットの器（エンジン内で field.spirits を列挙している数百箇所）がそのまま効く。
+// 別カードへの差し替えにしないのも同じ理由で、cardId が変わらないので
+// 破壊時は destroySpirit がネクサスのカードをそのままトラッシュへ送る（追加実装が要らない）。
+//
+// カード側がステータスを全部明記しているため、上書きの中身は effects データから受け取る。
+// 対象は解決時点のネクサスに固定される（このあと置かれたネクサスは変換されない）
+const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsSpiritsThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const minCores = action.minCores ?? 1
+    const targets = player.field.nexuses.filter((n) => n.cores >= minCores)
+    if (targets.length === 0) {
+        log(state, `${sourceName}：コアが${minCores}個以上置かれた自分のネクサスがなかった。`)
+        return
+    }
+    for (const nexus of targets) {
+        const index = player.field.nexuses.indexOf(nexus)
+        player.field.nexuses.splice(index, 1)
+        nexus.asSpiritThisTurn = {
+            cost: action.cost,
+            family: [...action.family],
+            levels: action.levels.map((l) => ({ ...l })),
+        }
+        player.field.spirits.push(nexus)
+    }
+    const familyLabel = action.family.length > 0 ? `系統：「${action.family.join("・")}」の` : ""
+    log(
+        state,
+        `${sourceName}：${player.name}のネクサス${targets.length}つ（${targets.map((n) => getCard(n.cardId).name).join("・")}）は、このターンの間${familyLabel}スピリットとして扱われる。`,
+    )
+    return
+}
+
 const handlers = {
+    treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeyword: grantKeywordHandler,
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
@@ -825,6 +881,7 @@ const handlers = {
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
+    lendSelfThisBattle: lendSelfThisBattleHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     alsoCostBuff: alsoCostBuffHandler,

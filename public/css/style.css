@@ -726,6 +726,25 @@ button:active {
     filter: brightness(1.15);
 }
 
+/* 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム） */
+.card.pay-discard {
+    box-shadow: 0 0 0 2px var(--danger, #ef4444), 0 0 16px rgba(239, 68, 68, 0.6);
+    filter: brightness(0.85) saturate(0.7);
+}
+
+.pay-discard-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: var(--danger, #ef4444);
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 1px 4px;
+    z-index: 11;
+}
+
 .card.step-active {
     box-shadow: 0 0 0 2px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
     animation: step-active-pulse 2s infinite;
@@ -740,7 +759,8 @@ button:active {
 .activate-badge,
 .pay-badge,
 .cant-attack-badge,
-.step-active-badge {
+.step-active-badge,
+.as-spirit-badge {
     position: absolute;
     min-width: 44px;
     padding: 4px 10px;
@@ -756,7 +776,8 @@ button:active {
 .activate-badge::after,
 .pay-badge::after,
 .cant-attack-badge::after,
-.step-active-badge::after {
+.step-active-badge::after,
+.as-spirit-badge::after {
     content: '';
     position: absolute;
     inset: -8px;
@@ -792,6 +813,13 @@ button:active {
 .step-active-badge {
     top: -6px; right: -6px;
     background: var(--success);
+    color: #000;
+    pointer-events: none;
+}
+
+.as-spirit-badge {
+    top: -22px; right: -6px;
+    background: var(--warning);
     color: #000;
     pointer-events: none;
 }
@@ -1349,6 +1377,8 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .announcement-item {
@@ -1366,6 +1396,16 @@ button:active {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.1);
     transform: translateX(4px);
+}
+
+.announcement-date-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .announcement-meta {
@@ -1407,9 +1447,10 @@ button:active {
 
 .announcement-entry {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
-    padding: 4px 0;
+    padding: 2px 0;
+    line-height: 1.4;
 }
 
 .announcement-entry .badge {

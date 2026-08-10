@@ -161,6 +161,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         tegamotoPlayable: [],
         field: { spirits: [], nexuses: [] },
         turnVirtualInstances: [],
+        battleVirtualInstances: [],
     }
 }
 
@@ -197,6 +198,7 @@ export function createGame(
         lastBattleDestroyedFamilies: [],
         lastBattleDestroyedBp: 0,
         lastBattleDestroyedCost: 0,
+        bofuExhaustedThisBattle: [],
         pendingChoice: null,
         turnStartResumeStep: null,
         interactiveTargets: false,
@@ -233,6 +235,20 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const lent = state.players[pid].battleVirtualInstances
+        if (lent.length > 0) {
+            for (const inst of lent) log(state, `${getCard(inst.cardId).name}の「このバトルの間」の効果が切れた。`)
+            state.players[pid].battleVirtualInstances = []
+        }
+        // 「このバトルの間」のBP増減（bpBuff の scope:"battle"）も同じ寿命（BS07ニードルショット）
+        for (const inst of state.players[pid].field.spirits) {
+            if (inst.battleBpBuff) inst.battleBpBuff = 0
+        }
+    }
+    // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
+    state.bofuExhaustedThisBattle = []
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer
@@ -299,7 +315,7 @@ export function rawLevel(inst: CardInstance): number {
 // 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
 // （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
 // サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
-export { minLevelCores } from "../../../shared/rules"
+export { instMinLevelCores, minLevelCores } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）
@@ -357,6 +373,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
+        battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),

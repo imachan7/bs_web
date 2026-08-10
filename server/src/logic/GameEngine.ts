@@ -10,14 +10,16 @@ import {
     findSpirit,
     getCard,
     log,
+    instMinLevelCores,
     minLevelCores,
     opponentOf,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
-import { AWAKEN_FROM_RESERVE, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
+    consumeSummonHandDiscardPay,
     destroySpirit,
     effectActiveAtLevel,
     effectiveBp,
@@ -27,7 +29,9 @@ import {
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
     applyHandFreeSummon,
+    applyDeckMillNegate,
     applyReviveConfirm,
+    declineDeckMillNegate,
     declineReviveConfirm,
     tryHandFreeSummonOnLifeDamaged,
     battleBp,
@@ -69,6 +73,7 @@ import {
     validateEndTurn,
     validateMoveCore,
     nexusMillPayAmount,
+    summonHandDiscardPayAmount,
     validatePass,
     validateSetNexus,
     validateSummon,
@@ -102,7 +107,41 @@ export function handleAction(
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
     requestPendingReviveConfirm(state)
+    // 「デッキの破棄を、コストを払って無効にできる」の確認も同じ理由でここで出す（BS08鳳翼の聖剣Lv2）
+    requestPendingDeckMillNegate(state)
     return result
+}
+
+// 保留していた「デッキ破棄の無効化」の確認を1件だけ pendingChoice として立てる。
+// 発生源が場から居なくなっていた項目は、無効化できないので**見送っていた破棄をその場で行う**
+// （復活の確認と違い、捨てると「破棄されないまま消える」ことになってしまうため）
+function requestPendingDeckMillNegate(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    const queue = state.pendingDeckMillNegates
+    if (!queue || queue.length === 0) return
+    while (queue.length > 0) {
+        const entry = queue.shift()!
+        const source = effectSources(state, entry.pid).find((s) => s.instanceId === entry.sourceInstanceId)
+        if (!source) {
+            declineDeckMillNegate(state, entry)
+            continue
+        }
+        state.pendingChoice = {
+            pid: entry.pid,
+            kind: "option",
+            prompt: `${getCard(source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
+            candidates: [],
+            options: ["無効にする"],
+            optional: true,
+            confirm: true,
+            deckMillNegate: entry,
+            action: { type: "noop" },
+            selfInstanceId: entry.sourceInstanceId,
+            queue: [],
+        }
+        return
+    }
+    if (queue.length === 0) delete state.pendingDeckMillNegates
 }
 
 // 保留していた復活の確認を1件だけ pendingChoice として立てる。
@@ -161,9 +200,9 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -253,7 +292,7 @@ function payCost(
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
-            if (inst && inst.cores < minLevelCores(getCard(inst.cardId))) {
+            if (inst && inst.cores < instMinLevelCores(inst)) {
                 destroySpirit(state, pid, inst.instanceId, "deplete")
             }
         }
@@ -349,8 +388,9 @@ function doSummon(
     paySources?: PaySource[],
     level?: number,
     substituteInstanceId?: string,
+    discardHandIndices?: number[],
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices)
     if (error) return error
 
     const player = state.players[pid]
@@ -370,10 +410,31 @@ function doSummon(
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
-    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
-    const placedFromField = payCost(state, pid, cost, paySources, maintain)
-    player.reserve -= maintain - placedFromField
+    // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払う
+    // （validateSummon と同じ関数で枚数を出すので、検証と実行がズレない）
+    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources, discardHandIndices)
+    // 破棄する手札を、**召喚するカードを抜く前に**確定させる（抜くとインデックスがずれるため）。
+    // プレイヤーが選んでいればその指定を、選んでいなければ手札の末尾から（自動払いのフォールバック）
+    const discardIds =
+        discardHandIndices !== undefined
+            ? discardHandIndices.slice(0, discardPaid).map((i) => player.hand[i]!)
+            : player.hand.filter((_, i) => i !== handIndex).slice(-discardPaid)
+    // **召喚するカードを先に手札から抜く**：破棄の対象に自分自身が混ざらないようにする
     player.hand.splice(handIndex, 1)
+    if (discardPaid > 0) {
+        for (const id of discardIds) {
+            const at = player.hand.indexOf(id)
+            if (at !== -1) player.hand.splice(at, 1)
+            player.trashCards.push(id)
+        }
+        const names = discardIds.map((id) => getCard(id).name).join("、")
+        log(state, `${player.name}は召喚コストのうち${discardPaid}を、手札${discardPaid}枚（${names}）の破棄で支払った。`)
+        // 「スピリットカード**1枚**の召喚に」＝実際に使った時点で貸与を使い切る
+        consumeSummonHandDiscardPay(state, pid)
+    }
+    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
+    const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain)
+    player.reserve -= maintain - placedFromField
 
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
@@ -420,8 +481,9 @@ function doSetNexus(
     handIndex: number,
     paySources?: PaySource[],
     level?: number,
+    millPay?: number,
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources, level)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay)
     if (error) return error
 
     const player = state.players[pid]
@@ -434,7 +496,7 @@ function doSetNexus(
 
     // 栄光の表彰台Lv1：コアで足りない分の配置コストをデッキ破棄で支払う
     // （validateSetNexus と同じ関数で枚数を出すので、検証と実行がズレない）
-    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources)
+    const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
     if (millPaid > 0) {
         millDeck(state, pid, millPaid)
         log(state, `${player.name}は配置コストのうち${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
@@ -590,7 +652,7 @@ function doAwaken(
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
     // 移動元が維持コア（Lv1）を下回ったら消滅
-    if (from.cores < minLevelCores(getCard(from.cardId))) {
+    if (from.cores < instMinLevelCores(from)) {
         destroySpirit(state, pid, from.instanceId, "deplete")
     }
     // バトル中のフラッシュで覚醒したら優先権を相手へ移す（フラッシュマジックと同じ扱い）
@@ -1008,6 +1070,23 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid, pending.queue)
     }
 
+    // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、
+    // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
+    if (pending.deckMillNegate) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.deckMillNegate
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyDeckMillNegate(state, entry)
+        } else {
+            declineDeckMillNegate(state, entry)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid, pending.queue)
+    }
+
     // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
     // 承認・拒否のどちらでも中断していたマジックの解決を続ける（絞り込むかだけが変わる）
     if (pending.magicRedirect) {
@@ -1208,7 +1287,7 @@ function resolveBattle(state: GameState): void {
     const attackerColors = instColors(attacker)
     const attackerCosts = instAllCosts(attacker)
     const blockerCosts = instAllCosts(blocker)
-    const skipRest = activeConstraints(state, defenderPid, blocker).some((c) => {
+    const matched = activeConstraints(state, defenderPid, blocker).filter((c) => {
         if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
         // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
         if (c.type === "noRestWhenBlockingWithoutKeyword") {
@@ -1219,6 +1298,17 @@ function resolveBattle(state: GameState): void {
         const max = c.maxCost
         return max !== undefined && attackerCosts.some((a) => a <= max)
     })
+    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：このターン既に使っていたら、
+    // その制約は数に入れない。回数制限の無い制約が同時にあるならそちらが働くので消費もしない
+    const isOnce = (c: (typeof matched)[number]): boolean =>
+        c.type === "noRestWhenBlockingWithoutKeyword" && c.oncePerTurn === true
+    const used = state.players[defenderPid].noRestWhenBlockingUsedThisTurn === true
+    const usable = matched.filter((c) => !(isOnce(c) && used))
+    const skipRest = usable.length > 0
+    if (skipRest && usable.every(isOnce)) {
+        state.players[defenderPid].noRestWhenBlockingUsedThisTurn = true
+        log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
+    }
     if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
     // **ブロック宣言時ではなくここで呼ぶ**：ブロッカーが疲労するのはこの直上なので、

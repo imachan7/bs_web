@@ -4009,7 +4009,8 @@
     },
     "constraint": {
      "type": "noRestWhenBlockingWithoutKeyword",
-     "keyword": "tensho"
+     "keyword": "tensho",
+     "oncePerTurn": true
     }
    }
   ]
@@ -4499,7 +4500,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {
@@ -4641,7 +4642,8 @@
      "amount": 2000,
      "filter": {
       "family": "剣獣"
-     }
+     },
+     "scope": "battle"
     }
    },
    {
@@ -4649,7 +4651,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {
@@ -4860,7 +4862,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {

@@ -1,6 +1,6 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { draw, log } from "./GameState"
+import { draw, getCard, log } from "./GameState"
 import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
@@ -142,8 +142,15 @@ export function endTurn(state: GameState): void {
         state.players[pid].tempHandKeywordGrants = []
         // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
         state.players[pid].turnVirtualInstances = []
+        // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
+        state.players[pid].noRestWhenBlockingUsedThisTurn = false
+        // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
+        // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
+        state.players[pid].battleVirtualInstances = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
+            // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
+            if (inst.battleBpBuff) inst.battleBpBuff = 0
             inst.cantAttackThisTurn = false
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
@@ -157,6 +164,21 @@ export function endTurn(state: GameState): void {
             delete inst.unblockableOnceThisTurn
             delete inst.countAsThisTurn
             delete inst.tempGrantedTriggers
+        }
+    }
+    // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。
+    // **フィールドに残っている個体だけが戻る**：破壊・手札戻しなどで場を離れたものは既に
+    // field.spirits から抜けているので、ここで復活することはない（破壊されたネクサスはトラッシュのまま）。
+    // 上の一時状態リセットより後に置くのは、戻す前に spirits として tempBpBuff 等を消しておくため。
+    // 疲労状態はそのまま引き継ぐ（アタックして疲労した個体は疲労したネクサスとして戻る）
+    for (const pid of ["p1", "p2"] as const) {
+        const field = state.players[pid].field
+        for (const inst of [...field.spirits]) {
+            if (inst.asSpiritThisTurn === undefined) continue
+            delete inst.asSpiritThisTurn
+            field.spirits.splice(field.spirits.indexOf(inst), 1)
+            field.nexuses.push(inst)
+            log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット

@@ -733,6 +733,13 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
   `CardInstance.lentChoiceFamily` に載せ、継続エントリ側は `familyGrant.familyFromChoice: true` で読む
 - 走査は `shared/rules.ts` の **`effectSources(board, pid)`** に集約する。
   「フィールドに実在する発生源＋実在しないが効果を出す発生源」を返す器で、将来ここに種類が増える
+- **「このバトルの間」は別の器**（2026-08-10 追加）。効果テキストがそう書いているものは
+  `{ type: "lendSelfThisBattle" }` を使い、`PlayerState.battleVirtualInstances` へ積む。
+  `effectSources` が両方を混ぜて返すので**継続エントリ側の書き方は同じ**（`levels: null` / `lentOnly: true`）で、
+  違いは寿命だけ（`clearBattle` で切れる＝同じターンの2回目のバトルには効かない）。
+  BS07 のフラッシュ3枚（ダーティフィスト／ニードルショット／ブルームフルート）が該当。
+  BP増減も同様に、テキストが「このバトルの間」のものは `bpBuff` の **`scope: "battle"`**
+  （`CardInstance.battleBpBuff`。無指定は従来どおりターン終了時まで）
 
 #### ⚠️ 3つの罠（いずれも「無言で壊れる」ため必ず守ること）
 
@@ -1086,6 +1093,130 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 > `bothSidesCoreToTrash`、`bothSidesCoreToVoid`、`draw side:"both"`、`discardBothHands`）。
 > 新しく「お互い」のアクションを足すときは `["p1","p2"]` を直書きせず、これを呼ぶこと。
 
+### カード種別を一時的に変える（2026-08-10）
+
+BS03-147 ゴーレムクラフト「自分のネクサスすべては、このターンの間、ネクサスとしての効果を失い
+"コスト:1/系統:「造兵」/Lv1コスト:1/Lv1BP:2000/効果の記述なし"のスピリットとして扱う」で追加した軸。
+
+**ネクサスをアタック・ブロック・バトルに参加させる仕組みは作っていない。**
+`field.nexuses` から `field.spirits` へ**同じインスタンスのまま移す**方式にしたので、
+スピリットの器（アタック・ブロック・BP比較・全体破壊・体数カウント・対象選択＝エンジン内で
+`field.spirits` を列挙している数百箇所）がそのまま効く。別カードへ差し替えないため
+`cardId` も変わらず、破壊時は `destroySpirit` がネクサスのカードをトラッシュへ送る（追加実装なし）。
+
+| 器 | 意味 | 判定を持つ場所 |
+| :-- | :-- | :-- |
+| `action:"treatOwnNexusesAsSpiritsThisTurn"` | 対象ネクサスを spirits へ移し、上書きを載せる | `actions/grant.ts` |
+| `CardInstance.asSpiritThisTurn`（`cost` / `family` / `levels`） | スピリットとしてのステータス上書き。ターン終了時に元へ戻す目印も兼ねる | `PhaseManager.endTurn` が戻す |
+| `instLevels` / `instMinLevelCores` | レベル表・維持コアを**インスタンスから**求める。**ネクサスのLv1コアは全107枚が0**なので、これが無いとコア0でも消滅しない | `shared/rules` |
+| `instBaseCost` / `instFamilies` | コスト・系統の上書き（`instHasCost` / `instAllCosts` / `spiritHasFamily` が経由する） | `shared/rules` |
+| `instEffectsSuppressed` | 「持つ効果すべてを発揮しない」の**共通述語**。`effectsDisabledContinuous`（BS07ルナースラッシュ）と `asSpiritThisTurn`（＝「ネクサスとしての効果を失い」）を1つにまとめた | `shared/rules` |
+
+> 発揮を止める箇所は必ず `instEffectsSuppressed` を通すこと（`effectSources` / `activeConstraints` /
+> `spiritHasKeyword` / `EffectModules.fireTrigger` の4か所）。
+> 片方の軸だけを直接見ると、もう一方が無言ですり抜ける。
+> 同じ理由で、**場のインスタンスの維持コアは `minLevelCores(getCard(...))` ではなく
+> `instMinLevelCores(inst)` を使う**（手札のカードから求める召喚・配置の経路は `minLevelCores` のままでよい）。
+
+### 保留確認（アクションの奥から任意コストを尋ねる）— 2026-08-10 に2例目
+
+「〜**することで**、〜する」は任意コストなので、実対戦では確認を出さなければならない。
+ところがその判定点は `destroySpirit` や `millDeck` のように**アクションハンドラの奥**にあり、
+その場では中断できない（`pendingChoice.queue` は `EffectAction` の列しか運べない）。
+
+対処は次の3段構えで統一する。**新しく「〜することで無効にする／〜のかわりに」を足すときはこの形に倣うこと。**
+
+1. 判定点では**結果を見送って** `GameState.pending◯◯s` の行列へ積む（本来の処理は行わない）
+2. `GameEngine.handleAction` の末尾＝アクションを解決しきった安全な地点で、行列から1件だけ
+   `pendingChoice` を立てる（`confirm: true` / `optional: true` / `action: {type:"noop"}`）
+3. `doResolveChoice` で、承認ならコストを払って確定、**拒否なら見送っていた処理をそこで行う**。
+   再入して無限に確認が出ないよう、やり直す呼び出しには打ち切りフラグを渡す
+
+| 例 | 行列 | 見送るもの | 打ち切りフラグ |
+| :-- | :-- | :-- | :-- |
+| `reviveOnDestroy.optional`（BS06暴かれた墓石Lv2） | `pendingReviveConfirms` | 破壊 | `destroySpirit(..., { skipRevive })` |
+| `kind:"deckMillNegate"`（BS08鳳翼の聖剣Lv2） | `pendingDeckMillNegates` | デッキ破棄 | `millDeck(..., { skipNegate })` |
+
+> 非対話（smoke の既定）では確認を出せないので、**その場で支払って発動する**簡略化にそろえる。
+> 復活の確認と1点だけ違うのは、**発生源が場を離れていた項目を捨てないこと**。
+> 復活は捨てれば「復活しなかった」で済むが、破棄を捨てると「破棄されないまま消える」ので、
+> そのときは見送っていた破棄を実行する。
+>
+### 効果耐性は1つの入口に集約する（2026-08-10）
+
+**新しく「相手のスピリットに何かをする」処理を書くときは、耐性の述語を並べずに
+`EffectModules.resistanceAgainst` を1回呼ぶこと。** 判定表は `shared/rules.boardResistanceAgainst` にある。
+
+```ts
+const resisted = resistanceAgainst(state, targetOwnerPid, target, attemptOf(ctx, "destroy", "targeted"))
+if (resisted) { log(state, `…は効果を受けなかった（${resisted.label}）。`); return }
+```
+
+集約前は6つの述語に分かれていて、**呼び出し側が「どれを見るべきか」を毎回自分で判断していた**（約70か所）。
+書き忘れても型は通り smoke も落ちないため、実際に穴が空いていた:
+範囲コア奪取が【装甲】を素通り／destroy の対象指定経路だけ完全耐性が抜け／
+exhaustAllByColor だけ完全耐性が抜け／クライアントの対象ハイライトにも同じ抜け。
+
+判定軸は2つ。**どちらも渡さないと無言で挙動が変わる**:
+
+| 軸 | 値 | 効くもの |
+| :-- | :-- | :-- |
+| `op` | `destroy` / `bounce` / `exhaust` / `coreRemove` / `other` | `bounce` と `exhaust` **だけ**が専用の耐性を持つ |
+| `scope` | `targeted` / `area` | 「相手の効果の対象にならない」は **`area` では効かない** |
+
+- 「相手限定の耐性は自分の効果には働かない」は入口が `actorPid` で自動的に扱う。
+  **anySide 系の非対称ルールを呼び出し側で書き分ける必要はない**
+- 発生源の色（`sourceColors`）を渡し忘れると装甲が判定できない。ハンドラでは `actions/filter.attemptOf(ctx, …)` を通す
+- 候補列挙（`pickEnemyCandidates` / `pickEnemyByBp` / `pickAnySide*`）も内部でこれを呼ぶ。
+  **戻す・疲労させる効果の候補列挙では第7引数に `op` を渡すこと**（渡さないとバウンス耐性・疲労耐性が効かない）
+- 返り値の `category` は**分岐用ではなくログ・UI表示用**。呼び出し側は「防がれたかどうか」だけ見る
+- `hasArmorAgainst` などの個別述語は入口の内部実装。**直接呼んでよいのはバトル文脈の装甲だけ**
+  （【呪撃】を装甲で防ぐ判定と `reviveOnDestroy.byBattleVsArmorColor`。どちらも「効果が届くか」ではなく装甲の色そのものを問う）
+
+判定表そのものは `scripts/smoke/part158.ts` が固定している。表を変えるとそこが落ちる。
+
+#### コストを払って受けない耐性（`EffectAttempt.probing`）
+
+`kind:"targetNegateByHandDiscard"`（BS08竜騎集う円卓Lv2「手札1枚を破棄することで、その効果を受けない」）だけは
+**判定に副作用がある**。素直に純粋述語へ足すと候補フィルタが1体ごとに呼ぶので手札が溶びる。2段に分けてある:
+
+| 段 | 呼ぶ側 | 挙動 |
+| :-- | :-- | :-- |
+| `probing: true` | 候補列挙（`pickEnemy*` / `pickAnySide*`）**だけ**が立てる | 防がない＝**対象にはなる**（コストも払わない） |
+| 未指定（既定） | 実際に適用する1点 | ここで初めてコストを払って防ぐ |
+
+実際のルールも「対象にはなる → そのあと受けない」なので、この順序が原作に合う。
+
+> **`probing` の向きは意図的に「既定＝適用する」にしてある。**
+> 立て忘れると *払いすぎる*＝テストで見える失敗になる。逆向き（既定が probing）だと、
+> 立て忘れが「耐性が無言で効かない」になり、このプロジェクトで繰り返してきた検出できない失敗に戻る。
+>
+> コスト付きの判定は**盤面だけで決まる耐性を全部見たあと**に置く（先に払うと、装甲などで
+> 元々防げていた対象化にまで手札を使う）。判定はサーバー側にしかない＝
+> **クライアントの対象ハイライトにこの耐性が出ないのは正しい**（対象にはなるため）。
+
+### コストを「コア以外」で支払う（2026-08-10 に2例目）
+
+「コスト1につき◯◯することで支払える」は、**どこまでその方法で払うかを選ばせない**。
+コアで足りない分だけを自動で回す簡略化にそろえる（選択UIを増やさないため。card-notes に明記する）。
+
+| 器 | 対象 | 支払い方 | 枚数を決める関数 |
+| :-- | :-- | :-- | :-- |
+| `kind:"nexusCostMillPay"` | ネクサスの配置コスト | デッキを上から1枚破棄 | `RuleValidator.nexusMillPayAmount` |
+| `kind:"summonCostHandDiscardPay"` | スピリットの召喚コスト | 手札1枚を破棄 | `RuleValidator.summonHandDiscardPayAmount` |
+
+> どちらも**置くコア（維持コア）は払えない**。上限は「コスト」「コアの不足分」「支払い元の残量」の最小値。
+> **検証（validate◯◯）と実行（do◯◯）が必ず同じ関数を通ること**。別々に計算すると
+> 「サーバーが受け付けるのにクライアントが支払いモードへ入る」ズレが出る。
+> クライアントの支払い可否判定も共有層の述語（`shared/cost.ts`）を通してそろえる。
+>
+> ビクティムは「スピリットカード**1枚**の召喚に」なので、`lendSelfThisTurn` で貸した仮想発生源を
+> 実際に使った時点で取り除く（`consumeSummonHandDiscardPay`）。使わなければターン終了で自然に消える。
+
+> `deckMillNegate` の限定軸は `by:"opponentSpiritEffect"` と `exceptFunsai`。
+> **`cause.funsai` を立てるのは `resolveFunsai` だけ**（`action:"mill"` は効果文で
+> 「デッキを破棄する」と書かれた通常の効果なので立てない）。
+
 ---
 
 ## 3. 効果・キーワードの追加方法（3層設計）
@@ -1250,16 +1381,33 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ## 5. 既知の簡略化・今後の課題
 
-### 残りの未対応カード（2026-08-07 時点。data/card-notes.json が唯一の実態）
+### 未着手の課題
+
+#### ~~範囲コア奪取が【装甲】等の耐性を素通りする~~ — **2026-08-10 解消**
+
+「1体ずつ選んで取る」効果（`coreRemove` 等）は候補選び（`pickEnemy*`）が装甲・免疫を弾いていたが、
+「範囲でまとめて奪う」効果は候補を自前で走査していたため、**【装甲】もバトル中のコア保護
+（BS05茨の決戦地Lv1）もコア下限（BS08聖なる柱状彫刻）も素通り**していた。根本原因は、
+それらのハンドラが共通ヘルパーを通さず `inst.cores -= n` を直接いじっていたこと。
+
+対応: `removeCores` / `removeCoresToTrash` / `removeCoresToVoid` が**実際に取り除けた数を返す**ように
+してから、範囲側のハンドラをそこへ寄せた。手前には共通の `canTakeCoresFrom`
+（判定軸は `returnAllToHand` と同じ）を置いている。回帰テストは `scripts/smoke/part154.ts`。
+
+**残っている穴**: ネクサス上のコアと、コアを入れ替える系（`swapOpponentCores` 等）はまだ
+共通ヘルパーを通っていない。ネクサスには装甲・維持コアの概念が無いため実害は小さいが、
+コア下限は本来効くはず（`data/card-notes.json` の BS08-059 に記載）。
+
+### 残りの未対応カード（**枚数は `data/card-notes.json` が唯一の実態**。下表は 2026-08-10 時点）
 
 **BS01〜BS03 に「表示のみ」のカードは1枚も残っていない**（かつてここにあった「BS02 の未対応20枚」の表は
 すべて解消済みのため削除した）。現在の残りは `data/card-notes.json` の状態で数えるのが正確:
 
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
-| `unimplemented`（効果が発揮されない） | 1 | BS05-079 スリーカード（DECISIONS.md 参照）。**それ以外のカードは全609枚が構造化済み** |
-| `partial`（一部のレベル・節だけ未実装） | 6 | BS02-063（支配権の一時移動）・BS02-083 Lv2（マジック効果の無効化）・BS03-147 メイン（ネクサスをスピリット扱い）・BS04-088 Lv1（配置コストの支払い方法の選択）・BS05-038 Lv2（2体分として数える）・BS05-060（コア保護のすり抜け）。**いずれも「器の作り替えになる」と判断して見送ったもの** |
-| `simplified`（原作と挙動が異なる簡略化） | 10 | 対戦は成立する。カード詳細に注記を表示している |
+| `unimplemented`（効果が発揮されない） | 0 | **0枚**。全906枚が何らかの形で構造化済み（2026-08-10 達成） |
+| `partial`（一部のレベル・節だけ未実装） | 1 | BS02-063 のみ。**禁止カードのため実装しない方針**なので、実質の残りは0枚（2026-08-10 達成） |
+| `simplified`（原作と挙動が異なる簡略化） | 28 | 対戦は成立する。カード詳細に注記を表示している |
 
 **`docs/design/EFFECT_GAPS_PLAYBOOK.md` が対象にしていた実装漏れは 2026-08-07 に解消済み**
 （`npm run validate:gaps` のベースラインは 17 件 → 5 件。残り5件はすべて上表の見送り分で、

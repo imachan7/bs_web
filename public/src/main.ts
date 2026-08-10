@@ -8,6 +8,7 @@ import {
     master,
     matchesDirectedAttackFilter,
     payableFieldCores,
+    payingAltPay,
     render,
     setCardDb,
     setupEffectTooltip,
@@ -16,7 +17,7 @@ import {
     type UiState,
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
-import { canPayNexusCostByMill } from "../../shared/cost"
+import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { canBattleSwapSummon } from "../../shared/summon"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -128,6 +129,8 @@ function sendPlay(
     paySources?: PaySource[],
     level?: number,
     substituteInstanceId?: string,
+    discardHandIndices?: number[],
+    millPay?: number,
 ): void {
     if (cardType === "spirit") {
         send({ 
@@ -135,10 +138,11 @@ function sendPlay(
             handIndex, 
             ...(paySources ? { paySources } : {}), 
             ...(level !== undefined ? { level } : {}),
-            ...(substituteInstanceId ? { substituteInstanceId } : {})
+            ...(substituteInstanceId ? { substituteInstanceId } : {}),
+            ...(discardHandIndices ? { discardHandIndices } : {})
         })
     } else if (cardType === "nexus") {
-        send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}) })
+        send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}), ...(millPay !== undefined ? { millPay } : {}) })
     } else {
         send({
             type: "castMagic",
@@ -194,11 +198,22 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
             ? Math.min(cost, view.players[view.you].deckCount)
             : 0
 
-    if (reserve + millPayable >= cost + maintain) {
+    // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
+    // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
+    const handDiscardPayable =
+        card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
+            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - 1))
+            : 0
+
+    // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
+    // 「すべて、または一部を」払えるカードなので、どこまで代替で払うかはプレイヤーが選ぶ
+    // （そのまま確定すれば従来どおり全額コア払いになる）
+    const altAvailable = millPayable > 0 || handDiscardPayable > 0
+    if (!altAvailable && reserve >= cost + maintain) {
         sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId)
         return
     }
-    // コアが足りない → 支払いモードを開始（他のモードは排他的に解除する）
+    // コアが足りない、または代替コストを選べる → 支払いモードを開始（他のモードは排他的に解除する）
     ui.targeting = null
     ui.awakenTarget = null
     ui.summonLevelSelect = null
@@ -207,8 +222,66 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
         handIndex, 
         ...(targetInstanceId ? { targetInstanceId } : {}), 
         assigned: {}, 
+        discardHandIndices: [],
+        millPay: 0,
         ...(level !== undefined ? { level } : {}),
         ...(substituteInstanceId ? { substituteInstanceId } : {})
+    }
+    rerender()
+}
+
+// 支払いモードの内容を確定して送信する。代替コスト（手札破棄／デッキ破棄）も一緒に送る
+function submitPaying(): void {
+    if (!view || !ui.paying) return
+    const pay = ui.paying
+    const cardId = view.players[view.you].hand?.[pay.handIndex]
+    if (cardId === undefined) {
+        ui.paying = null
+        rerender()
+        return
+    }
+    const card = master(cardId)
+    const paySources: PaySource[] = Object.entries(pay.assigned).map(
+        ([id, count]) => ({ instanceId: id, count }),
+    )
+    sendPlay(
+        card.type,
+        pay.handIndex,
+        pay.targetInstanceId,
+        paySources.length > 0 ? paySources : undefined,
+        pay.level,
+        pay.substituteInstanceId,
+        pay.discardHandIndices.length > 0 ? pay.discardHandIndices : undefined,
+        pay.millPay > 0 ? pay.millPay : undefined,
+    )
+    ui.paying = null
+}
+
+// 支払いモード中に、代替コストの支払い量を1つ増減する。
+// 手札破棄（ビクティム）は「どの手札か」を選ぶので、増やす操作は手札クリック側で行う
+function changeAltPay(delta: number): void {
+    if (!view || !ui.paying) return
+    const alt = payingAltPay(view, ui.paying)
+    if (alt.kind === "mill") {
+        ui.paying.millPay = Math.max(0, Math.min(alt.max, ui.paying.millPay + delta))
+    } else if (alt.kind === "handDiscard" && delta < 0) {
+        ui.paying.discardHandIndices.pop()
+    }
+    rerender()
+}
+
+// 支払いモード中に、手札1枚を「破棄して払う」対象として選ぶ／外す（BS08ビクティム）
+function toggleDiscardPay(handIndex: number): void {
+    if (!view || !ui.paying) return
+    const pay = ui.paying
+    if (handIndex === pay.handIndex) return // 召喚するカード自身は破棄に使えない
+    const alt = payingAltPay(view, pay)
+    if (alt.kind !== "handDiscard") return
+    const at = pay.discardHandIndices.indexOf(handIndex)
+    if (at !== -1) {
+        pay.discardHandIndices.splice(at, 1)
+    } else if (pay.discardHandIndices.length < alt.max) {
+        pay.discardHandIndices.push(handIndex)
     }
     rerender()
 }
@@ -261,7 +334,12 @@ function onHandClick(handIndex: number): void {
         return
     }
     if (ui.awakenTarget !== null) return // 覚醒モード中は手札操作を抑止
-    if (ui.paying !== null) return // 支払いモード中は新規手札操作を抑止
+    if (ui.paying !== null) {
+        // 支払いモード中は新規の手札操作を抑止するが、
+        // 代替コストで「破棄する手札を選ぶ」場合だけはクリックを受け付ける（BS08ビクティム）
+        toggleDiscardPay(handIndex)
+        return
+    }
     if (ui.directedAttack !== null) return // 指定アタックの対象選択モード中は手札操作を抑止
     const hand = view.players[view.you].hand
     const cardId = hand?.[handIndex]
@@ -451,19 +529,17 @@ function assignPayCore(instanceId: string): void {
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
-    // フィールドのコアはコストにも置くコアにも充当できるため、上限は cost + maintain
-    if (assignedTotal >= cost + maintain) return // 必要数に到達済み（過払い防止）
+    // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る
+    const alt = payingAltPay(view, pay)
+    const need = cost + maintain - Math.min(alt.used, cost)
+    // フィールドのコアはコストにも置くコアにも充当できるため、上限は need
+    if (assignedTotal >= need) return // 必要数に到達済み（過払い防止）
     if (already >= inst.cores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
     const newTotal = assignedTotal + 1
-    const need = cost + maintain
     if (player.reserve + newTotal >= need) {
-        // 必要数に達したので送信する
-        const paySources: PaySource[] = Object.entries(pay.assigned).map(
-            ([id, count]) => ({ instanceId: id, count }),
-        )
-        sendPlay(card.type, pay.handIndex, pay.targetInstanceId, paySources, pay.level, pay.substituteInstanceId)
-        ui.paying = null
+        // 必要数に達したので送信する（代替コストの選択も submitPaying が一緒に送る）
+        submitPaying()
         return
     }
     rerender()
@@ -842,6 +918,16 @@ async function init(): Promise<void> {
         if (!ui.directedAttack) return
         send({ type: "attack", instanceId: ui.directedAttack.attackerInstanceId })
         ui.directedAttack = null
+    })
+    byId("btn-confirm-pay").addEventListener("click", () => {
+        submitPaying()
+        rerender()
+    })
+    // デッキ破棄での支払い枚数の増減（栄光の表彰台）。ボタンは支払いバナー内に描画される
+    byId("targeting-info").addEventListener("click", (e) => {
+        const btn = closestData(e, "data-altpay")
+        if (!btn) return
+        changeAltPay(String(btn.dataset.altpay) === "inc" ? 1 : -1)
     })
     byId("btn-cancel-target").addEventListener("click", () => {
         ui.targeting = null

@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, currentLevel, draw, getCard, log, minLevelCores } from "../GameState"
+import { createInstance, currentLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
     countEffectCounter,
@@ -10,8 +10,8 @@ import {
     destroySpirit,
     fireTrigger,
     findSpiritAny,
-    isImmuneToArea,
-    isEffectBlocked,
+    isResisted,
+    resistanceAgainst,
     matchesFamilyFilter,
     notifyNexusDeployed,
     pickAnySideByBp,
@@ -25,8 +25,8 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 // 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
@@ -67,13 +67,10 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 return
             }
-            if (
-                isEffectBlocked(state, found.inst, srcType) ||
-                (found.pid !== owner &&
-                    (hasArmorAgainst(found.inst, srcColors) ||
-                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
-            ) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+            // 対象指定なので scope は "targeted"（「相手の効果の対象にならない」がここでは効く）
+            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "destroy", "targeted"))
+            if (resisted) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
             }
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext)
@@ -160,11 +157,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
             .filter(
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
-                    !isImmuneToArea(s) &&
-                    !isEffectBlocked(state, s, srcType) &&
-                    !hasArmorAgainst(s, srcColors) &&
-                    !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
-                    !hasFullEffectImmunity(s, srcType),
+                    !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
             )
             .map((s) => ({ pid: opp, inst: s }))
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
@@ -174,8 +167,7 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                   .filter(
                       (s) =>
                           matchesTarget(state, owner, s, areaFilter, self?.instanceId) &&
-                          !isImmuneToArea(s) &&
-                          !isEffectBlocked(state, s, srcType),
+                          !isResisted(state, owner, s, attemptOf(ctx, "destroy", "area")),
                   )
                   .map((s) => ({ pid: owner, inst: s }))
             : []
@@ -208,8 +200,7 @@ const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyT
         .filter(
             (s) =>
                 matchesFamilyFilter(state, owner, s, action.family) &&
-                !isImmuneToArea(s) &&
-                !isEffectBlocked(state, s, srcType),
+                !isResisted(state, owner, s, attemptOf(ctx, "destroy", "area")),
         )
         .map((s) => s.instanceId)
     for (const instanceId of ownTargets) {
@@ -218,11 +209,7 @@ const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyT
     const oppTargets = state.players[opp].field.spirits
         .filter(
             (s) =>
-                !isImmuneToArea(s) &&
-                !isEffectBlocked(state, s, srcType) &&
-                !hasArmorAgainst(s, srcColors) &&
-                !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
-                !hasFullEffectImmunity(s, srcType),
+                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
         )
         .map((s) => s.instanceId)
     if (ownTargets.length === 0 && oppTargets.length === 0) {
@@ -247,13 +234,7 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
             seen.add(name)
             continue // 各カード名の先頭1体は残す
         }
-        if (
-            isImmuneToArea(s) ||
-            isEffectBlocked(state, s, srcType) ||
-            hasArmorAgainst(s, srcColors) ||
-            (srcType === "magic" && hasMagicImmunity(state, opp, s)) ||
-            hasFullEffectImmunity(s, srcType)
-        ) {
+        if (isResisted(state, opp, s, attemptOf(ctx, "destroy", "area"))) {
             continue
         }
         doomed.push(s.instanceId)
@@ -291,7 +272,8 @@ const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOw
     for (let i = 0; i < destroyed; i++) {
         let weakest: CardInstance | undefined
         for (const s of state.players[opp].field.spirits) {
-            if (isEffectBlocked(state, s, srcType)) continue
+            // 破壊するのは**相手自身**なので、実行者を opp に差し替えて判定する
+            if (isResisted(state, opp, s, { ...attemptOf(ctx, "destroy", "area"), actorPid: opp })) continue
             if (!weakest || effectiveBp(state, opp, s) < effectiveBp(state, opp, weakest)) weakest = s
         }
         if (!weakest) break
@@ -393,15 +375,12 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
             `${sourceName}：指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
                 `いずれでもない色のスピリットを破壊する。`,
         )
-        // 相手フィールドは既存の免疫（isImmuneToArea）・装甲チェックを適用、自分フィールドは適用しない
-        // （destroyExhaustedのanySideと同じ非対称ルール＝自分の効果は自分のスピリットには免疫が働かない）
+        // 相手フィールドだけ耐性を判定する（自分の効果は自分のスピリットには効かないので、
+        // 自分フィールドは素通し。この非対称は resistanceAgainst が actorPid で自動的に扱う）
         const oppTargets = state.players[opp].field.spirits.filter(
             (s) =>
                 !instColors(s).some((c) => safeColors.has(c)) &&
-                !isImmuneToArea(s) &&
-                !isEffectBlocked(state, s, srcType) &&
-                !hasArmorAgainst(s, srcColors) &&
-                !hasFullEffectImmunity(s, srcType),
+                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
             (s) => !instColors(s).some((c) => safeColors.has(c)),
@@ -522,13 +501,10 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
                 log(state, `${sourceName}の疲労破壊：対象がいなかった。`)
                 return
             }
-            if (
-                isEffectBlocked(state, found.inst, srcType) ||
-                (found.pid !== owner &&
-                    (hasArmorAgainst(found.inst, srcColors) ||
-                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
-            ) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+            // 対象指定なので scope は "targeted"（「相手の効果の対象にならない」がここでは効く）
+            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "destroy", "targeted"))
+            if (resisted) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
             }
             if (!found.inst.isRested) {
@@ -557,15 +533,7 @@ const destroyExhaustedHandler: ActionHandler<"destroyExhausted"> = (ctx, action)
             for (const pid of sides) {
                 for (const s of [...state.players[pid].field.spirits]) {
                     if (!matchesExhaustedCandidate(s)) continue
-                    if (isImmuneToArea(s) || isEffectBlocked(state, s, srcType)) continue
-                    if (
-                        pid !== owner &&
-                        (hasArmorAgainst(s, srcColors) ||
-                            hasFullEffectImmunity(s, srcType) ||
-                            (srcType === "magic" && hasMagicImmunity(state, pid, s)))
-                    ) {
-                        continue
-                    }
+                    if (isResisted(state, pid, s, attemptOf(ctx, "destroy", "area"))) continue
                     destroySpirit(state, pid, s.instanceId)
                     destroyed++
                     if (state.winner) return
@@ -1146,7 +1114,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             `${sourceName}：コア${paid}個をトラッシュに置き、${getCard(last.cardId).name}をフィールドに戻した。`,
         )
         notifyNexusDeployed(state, owner)
-        if (self.cores < minLevelCores(getCard(self.cardId))) {
+        if (self.cores < instMinLevelCores(self)) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
         return
