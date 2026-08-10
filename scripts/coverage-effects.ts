@@ -497,9 +497,10 @@ process.on("exit", () => {
         //     BS07ブラックリチュアルの fireDestroyTriggerFirst で両経路に1行挟まったため、
         //     アンカーは applyRevived の行だけにした。**先頭の改行は必須**：これが無いと
         //     8スペース版のパターンが12スペース版の一部にも一致して「2箇所」になる
+        //     ※ 2026-08-10: tryReviveOnDestroy は EffectModules.ts から removal.ts へ移設された
         for (const indent of ["        ", "            "]) {
             patch(
-                path.join(tree, "server/src/logic/EffectModules.ts"),
+                path.join(tree, "server/src/logic/removal.ts"),
                 `\n${indent}applyRevived(effect.revived)`,
                 `\n${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
                     `${indent}applyRevived(effect.revived)`,
@@ -558,7 +559,8 @@ process.on("exit", () => {
         const em = path.join(tree, "server/src/logic/EffectModules.ts")
         // globalConstraint「ownNexusIndestructible」: hasOwnNexusIndestructible の true 判定
         patch(
-            em,
+            // ※ 2026-08-10: この処理は EffectModules.ts から removal.ts へ移設された
+            path.join(tree, "server/src/logic/removal.ts"),
             // ※ 2026-08-07 にバニラ判定が instIsVanilla(s) へ一本化された（isVanillaCard(getCard(...)) から変更）。
             //    差し込み先はエンジンの現在の形に追随させること
             `            if (effect.condition) {
@@ -581,7 +583,8 @@ process.on("exit", () => {
         // ※ 2026-08-08: 2つのインライン走査が hasActiveGlobalConstraint(state, type) へ一本化された。
         //    共通ループを1箇所差し込めば両方を記録できる（記録するのは実際に成立した効果エントリ）
         patch(
-            em,
+            // ※ 2026-08-10: この処理は EffectModules.ts から removal.ts へ移設された
+            path.join(tree, "server/src/logic/removal.ts"),
             `                if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
