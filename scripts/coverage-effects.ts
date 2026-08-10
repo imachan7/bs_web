@@ -837,8 +837,9 @@ process.on("exit", () => {
             return 2`,
         )
         // triggerSuppression: isTriggerSuppressed が true を返す時点
+        // ※ 2026-08-10: この関数は EffectModules.ts から triggers.ts へ移設された
         patch(
-            em,
+            path.join(tree, "server/src/logic/triggers.ts"),
             `                if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
                 return true`,
