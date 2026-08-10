@@ -4641,7 +4641,8 @@
      "amount": 2000,
      "filter": {
       "family": "剣獣"
-     }
+     },
+     "scope": "battle"
     }
    },
    {

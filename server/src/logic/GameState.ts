@@ -238,9 +238,14 @@ export function clearBattle(state: GameState): void {
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const lent = state.players[pid].battleVirtualInstances
-        if (lent.length === 0) continue
-        for (const inst of lent) log(state, `${getCard(inst.cardId).name}の「このバトルの間」の効果が切れた。`)
-        state.players[pid].battleVirtualInstances = []
+        if (lent.length > 0) {
+            for (const inst of lent) log(state, `${getCard(inst.cardId).name}の「このバトルの間」の効果が切れた。`)
+            state.players[pid].battleVirtualInstances = []
+        }
+        // 「このバトルの間」のBP増減（bpBuff の scope:"battle"）も同じ寿命（BS07ニードルショット）
+        for (const inst of state.players[pid].field.spirits) {
+            if (inst.battleBpBuff) inst.battleBpBuff = 0
+        }
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []

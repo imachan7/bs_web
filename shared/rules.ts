@@ -206,8 +206,10 @@ export function instColors(inst: CardInstance): Color[] {
 
 // 現在のレベルとBP。levelOverrideThisTurn（このターンの上書き）または levelAsContinuous（継続置換）が
 // あればそちらを優先し、無ければコア数（coresOverride があればそれ）から判定する。
-// BP には tempBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）
+// BP には tempBpBuff と battleBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）。
+// 両者の違いは寿命だけ：tempBpBuff はターン終了まで、battleBpBuff は clearBattle まで
 export function currentLevel(inst: CardInstance): { level: number; bp: number } {
+    const buff = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
     // asSpiritThisTurn（このターンだけスピリットとして扱われているネクサス。BS03ゴーレムクラフト）が
     // 載っていれば、カード静的な levels ではなく上書きされた levels で判定する。
     // ネクサスのLv1コア数は全カード0のため、これが無いとコア0でもLv1のまま消滅しない
@@ -216,7 +218,7 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
     if (override !== undefined) {
         const lv = levels.find((l) => l.level === override)
         if (lv) {
-            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
+            return { level: lv.level, bp: lv.bp + (lv.level > 0 ? buff : 0) }
         }
     }
     // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
@@ -227,7 +229,7 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
             result = { level: lv.level, bp: lv.bp }
         }
     }
-    return { level: result.level, bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0) }
+    return { level: result.level, bp: result.bp + (result.level > 0 ? buff : 0) }
 }
 
 // このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う

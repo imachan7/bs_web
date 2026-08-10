@@ -10,7 +10,7 @@
 //
 // 3枚とも「1回目のバトルでは効く」だけでなく「**2回目のバトルでは効かない**」ところまで見る。
 // 前者だけだと、貸与先を取り違えても（＝直す前の実装でも）通ってしまう。
-import { act, assert, createGame, createInstance, declareBlock, runTurnStart, takeLifeAndResolve } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, effectiveBp, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function putSpirit(s: GameState, pid: PlayerId, cardId: string, cores: number): string {
@@ -74,6 +74,10 @@ console.log("=== BS07-074 ニードルショット：BP比較勝利時の疲労�
     console.log("--- 1回目のバトル：BP+2000で勝ち、相手1体が疲労する ---")
     attackAndCast(s, attacker1, 0)
     assert(s.players.p1.battleVirtualInstances.length === 1, "このバトル限定の仮想発生源が1件立つ")
+    const attackerInst1 = s.players.p1.field.spirits.find((x) => x.instanceId === attacker1)!
+    assert(attackerInst1.battleBpBuff === 2000, "BP+2000はバトル寿命の側（battleBpBuff）に積まれる")
+    assert(attackerInst1.tempBpBuff === 0, "ターン寿命の側には積まれない")
+    assert(effectiveBp(s, "p1", attackerInst1) === 5000, "実効BPは3000+2000=5000")
     assert(declareBlock(s, "p2", blocker1) === null, "p2がブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
@@ -84,6 +88,18 @@ console.log("=== BS07-074 ニードルショット：BP比較勝利時の疲労�
     const watcherInst = () => s.players.p2.field.spirits.find((x) => x.instanceId === watcher)
     assert(watcherInst()?.isRested === true, "battleWonの効果で相手1体が疲労した")
     assert(s.players.p1.battleVirtualInstances.length === 0, "バトル終了で貸与が切れる")
+
+    console.log("--- BP+2000も同じ寿命（このバトルの間）---")
+    const attackerInst2 = () => s.players.p1.field.spirits.find((x) => x.instanceId === attacker2)!
+    assert(
+        (attackerInst2().battleBpBuff ?? 0) === 0 && attackerInst2().tempBpBuff === 0,
+        "強化されなかった側（2体目）にはBP増減が残っていない",
+    )
+    assert(
+        s.players.p1.field.spirits.every((x) => (x.battleBpBuff ?? 0) === 0),
+        "バトル終了で battleBpBuff が0に戻る（2回目のバトルへ持ち越さない）",
+    )
+    assert(effectiveBp(s, "p1", attackerInst1) === 3000, "強化された側の実効BPも3000へ戻っている")
 
     console.log("--- 2回目のバトル：勝っても疲労させない ---")
     watcherInst()!.isRested = false // 検証用に回復させておく（2回目で再び疲労するかを見る）

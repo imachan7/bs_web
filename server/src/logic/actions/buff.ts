@@ -116,6 +116,14 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
         }
+        // scope:"battle"（BS07ニードルショット「このバトルの間」）だけ積む先と寿命が変わる。
+        // 既定（無指定）は従来どおりターン終了時まで
+        const battleScope = action.scope === "battle"
+        const addBuff = (inst: typeof target, amount: number): void => {
+            if (battleScope) inst.battleBpBuff = (inst.battleBpBuff ?? 0) + amount
+            else inst.tempBpBuff += amount
+        }
+        const untilLabel = battleScope ? "このバトルの間" : "ターン終了時まで"
         // amountFromSelfBp（BS08機人フィアラル）：amountを無視し、発生源自身の実効BPを加算量として使う
         if (action.amountFromSelfBp) {
             if (!self) {
@@ -123,18 +131,18 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                 return
             }
             const amount = effectiveBp(state, owner, self)
-            target.tempBpBuff += amount
+            addBuff(target, amount)
             log(
                 state,
-                `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+                `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`,
             )
             applyMagicBuffBonus(state, target, srcType, srcColors)
             return
         }
-        target.tempBpBuff += action.amount
+        addBuff(target, action.amount)
         log(
             state,
-            `${getCard(target.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
+            `${getCard(target.cardId).name}はBP+${action.amount}（${untilLabel}）。`,
         )
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
