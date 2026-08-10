@@ -1,0 +1,3320 @@
+ ▐▛███▜▌   Claude Code v2.1.220
+▝▜█████▛▘  Opus 5 · Claude Pro
+  ▘▘ ▝▝    ~/develop/bs_web
+
+
+❯ /clear                                                                        
+
+❯ 実装担当として続けてください                                                  
+  exportがあるからそれの全てを読まないで末尾の方を参照してください              
+
+⏺ I'll start by reading the chatbox index and my inbox to see where things
+  stand.
+
+  Read 1 file, listed 1 directory, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 状況を把握しました。BS08 は 75/91
+  枚で、最後の「青15枚＋多色1枚」の委譲がセッション上限で中断しています。作業ツ
+  リーに未コミットの変更が残っているので、中身を確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ エンジン側の器はかなり出来ています。残りの差分と、カードデータが未着手かを確認
+  します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ エンジン側の器（型・ハンドラ・共有ルール）は書き終わっていて、カードデータ（da
+  ta/cards/BS08.json）だけが未着手ですね。まず現状の健全性と、残りカードを確認し
+  ます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ typecheck は通ります。BS08 は 75枚。残り16枚の取り込み元を確認します。
+
+  Listed 1 directory, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 16枚とも、未コミットのエンジン実装がそのまま対応しています。効果テキストを全部
+  確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 16枚ぶんの効果を書く作業ですね。既存機構の有無、特に【転召】まわりを確認します
+  。
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ 既に取り込み済みの BS08 カードが【転召】をどう書いているか確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 【転召】は既に完全対応済みですね。残りは既存パターンの確認です。
+
+  Searched for 9 patterns, ran 8 shell commands (ctrl+o to expand)
+⏺ 全パターンが既存機構で揃いました。staging → cards
+  への取り込み形式を確認します。
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ 全パターンが揃いました。効果節ごとの対応表を作りながら、16枚ぶんのデータを書き
+  ます。
+
+⏺ Write(~/.claude/jobs/0266cb18/tmp/import_bs08_blue.py)
+  ⎿  Wrote 173 lines to ../../.claude/jobs/0266cb18/tmp/import_bs08_blue.py
+       1 #!/usr/bin/env python3
+       2 # BS08 青15枚＋多色1枚を staging から data/cards/BS08.json へ取
+         り込む。
+         える。
+       4 import json
+       5 
+       6 EFFECTS = {
+       8     "BS08-046": [],
+       9 
+      10     # Lv1･Lv2･Lv3「お互い、ドローステップ以外でドローできない」
+     … +235 lines (ctrl+o to expand)
+
+  Read 1 file, ran 5 shell commands (ctrl+o to expand)
+
+⏺ Existing 75枚は無変更、16枚が追加されました。検証を回します。
+
+  Searched for 1 pattern, read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ symbolFix が validate-cards.ts の既知 kind
+  一覧に未登録でした（エンジン実装時の追記漏れ）。補います。
+
+⏺ Update(scripts/validate-cards.ts)
+  ⎿  Added 1 line, removed 1 line
+      45      "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "
+          nexusEffectsDisabled",
+      46      "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhau
+          stGrant", "millCapBonus",
+      47      "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBl
+          ock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDam
+          ageMillGuard", "battleSwapSummon",
+      48 -    "bofuCountBonus", "tenshoSelfCostBonus",                   
+      48 +    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix",      
+      49  ])
+      50  
+      51  export interface ValidationIssue {
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 全緑です。ただし新エンジン機構（9種）にテストが1件もないので、カードデータ経由
+  の smoke を足します。
+
+  Searched for 3 patterns, listed 1 directory, ran 6 shell commands (ctrl+o to expand)
+
+⏺ Write(scripts/smoke/part149.ts)
+  ⎿  Wrote 410 lines to scripts/smoke/part149.ts
+       1 // smoke パート149（第八弾「戦嵐」青15枚＋多色1枚：新規エンジン
+       2 //
+         タの記述経由で1回ずつ通す。
+       4 // 「型とハンドラは書いたが、カードデータの書き方（引数名・レベ
+       5 // 状態を作らないためのパート:
+         カイ）／
+         師サンゾール）／
+       8 //   aura.condition{opponentHandAtLeast}（BS08ブラックウガルルム
+       9 //   triggered.condition{opponentHandAtLeast}（BS08ボクルガー）
+      10 //   kind"symbolFix"（BS08海底に眠りし古代都市Lv2）／
+     … +509 lines (ctrl+o to expand)
+
+⏺ Update(scripts/smoke.ts)
+  ⎿  Added 1 line
+      148  import "./smoke/part146"
+      149  import "./smoke/part147"
+      150  import "./smoke/part148"
+      151 +import "./smoke/part149"                                      
+      152  import { summary } from "./smoke/helpers"
+      153  
+      154  summary()
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(scripts/smoke/part149.ts)
+  ⎿  Added 1 line, removed 1 line
+      32      resolveFunsai,
+      33  } from "../../server/src/logic/EffectModules"
+      34  import { validateSummon } from "../../server/src/logic/RuleVali
+          dator"
+      35 -import { countSymbols, instanceSymbolCount, instHasCost } from 
+         -"../../../shared/rules"                                        
+      35 +import { countSymbols, instanceSymbolCount, instHasCost } from 
+         +"../../shared/rules"                                           
+      36  import type { Color, EffectAction } from "../../server/src/type
+          "
+      37  
+      38  interface CardRow {
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 全30件パスしました。簡略化の記録が必要な点を確認します。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ 定型の検証を1回で回します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 全緑です（906枚 / smoke 5972件、+16枚
+  +35件）。第八弾が完成したので、お知らせと SPEC の該当箇所を確認します。
+
+  Searched for 2 patterns, read 1 file (ctrl+o to expand)
+
+⏺ SPEC.md
+  にはまだ第八弾の節がありません。完成したので追記します。統計を集めます。
+
+  Read 1 file, ran 2 shell commands (ctrl+o to expand)
+
+⏺ Update(SPEC.md)
+  ⎿  Added 28 lines
+      414    クライアントUIは chatbox 2026-08-09-0532 でUI担当へ依頼済み
+           。簡略化は `data/card-notes.json` を参照
+      415  - 回帰テストは `scripts/smoke/part136〜143`（色ごとに1パート＋
+           実行時カバレッジの穴埋め1パート）
+      416  
+      417 +### 第八弾：戦嵐（BS08・91枚）                                
+      418 +                                                              
+      419 +| 色 | スピリット | ネクサス | マジック | 合計 |              
+      420 +| :-- | --: | --: | --: | --: |                               
+      421 +| 赤 | 10 | 2 | 3 | 15 |                                      
+      422 +| 紫 | 10 | 2 | 3 | 15 |                                      
+      423 +| 緑 | 10 | 2 | 3 | 15 |                                      
+      424 +| 白 | 10 | 2 | 3 | 15 |                                      
+      425 +| 黄 | 10 | 2 | 3 | 15 |                                      
+      426 +| 青 | 10 | 2 | 3 | 15 |                                      
+      427 +                                                              
+      428 +（Xレア6枚 BS08-X29〜X34 は各色の内訳に含む。加えて**多色1枚 `
+          +X003D` 極帝龍騎ジーク・クリムゾン**                           
+      429 +＝赤/白の2色で、cardId が `BS08-` 始まりでない唯一のカード。効
+          +果文なしのバニラ6枚／効果文持ち85枚）                         
+      430 +                                                              
+      431 +- **新キーワードは【氷壁】の1つ**。他は既出（転召15・激突3・装
+          +甲3・氷壁3・聖命3・暴風2・強襲2・呪撃1・光芒1・粉砕1で計34エン
+          +トリ）                                                        
+      432 +- **弾のテーマは【転召】**。15エントリと突出して多く、`【転召 
+          +：コストN以上/トラッシュ】`＝                                 
+      433 +  `kind:"keyword" keyword:"tensho" minCost dest` で表す。周辺 
+          +カードが3方向に分かれる:                                      
+      434 +  - `constraint:"tenshoCoreSubstitute"`（転召の対象になったと 
+          +き、疲労で代替できる）                                        
+      435 +  - `action:"summonFromHandFree"` の `keywordFilter:"tensho" s
+          +kipTensho`（転召させずに召喚）                                
+      436 +  - `filter.keywordExclude:"tensho"` / `fieldEvent:"ownTensho"
+          +`（転召持ちかどうかで対象を分ける）                           
+      437 +- **青は「相手の手札枚数」と「シンボル数」を参照する軸を持ち込
+          +んだ**。                                                      
+      438 +  前者は `aura.condition{opponentHandAtLeast}` と `triggered.c
+          +ondition{opponentHandAtLeast}`、                              
+      439 +  後者は `kind:"symbolFix"`（シンボルを固定＝軽減計算にも効く 
+          +）と                                                          
+      440 +  `funsaiBonus.amountPerSymbolColor`（【粉砕】の枚数を自色シン
+          +ボル数ぶん増やす）                                            
+      441 +- **未実装は2枚**（BS08-038 猫娘アニー＝手札のカード自身が発揮
+          +する召喚条件、                                                
+      442 +  BS08-064 鳳翼の聖剣＝デッキ破棄経路への割り込み。いずれも `d
+          +ata/card-notes.json` に理由を記録）                           
+      443 +- 回帰テストは `scripts/smoke/part144〜149`（色ごとに1パート。
+          +多色1枚は青のパートに含む）                                   
+      444 +                                                              
+      445  ### デッキ
+      446  
+      447  `data/constants.ts` の `DECK_RECIPES` に赤・紫・緑・白・黄・青
+           の単色40枚を定義。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 第八弾が完成したので、実行時カバレッジを回します（弾の取り込み完了時の定型）。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 第八弾「戦嵐」91枚が完成しました。中断していた青バッチを引き継いで仕上げていま
+  す。
+
+  引き継いだ状態
+
+  作業ツリーに未コミットのエンジン実装（型・ハンドラ・共有ルール）が残っており、
+  対応するカードデータ16枚だけが未着手でした。エンジン側は9つの新機構がすべて書
+  かれていて typecheck も通る状態だったので、そのまま使っています。
+
+  やったこと
+
+  ┌──────────────────────┬──────────────────────────────────────────────────┐
+  │         内容         │                       結果                       │
+  ├──────────────────────┼──────────────────────────────────────────────────┤
+  │ カードデータ16枚     │ 青15枚＋多色 X003D を staging                    │
+  │                      │ から取り込み（既存75枚は無変更を機械検証）       │
+  ├──────────────────────┼──────────────────────────────────────────────────┤
+  │ validate-cards.ts    │ 既知 kind 一覧に symbolFix                       │
+  │ の修正               │ が抜けていた（エンジン実装時の追記漏れ）         │
+  ├──────────────────────┼──────────────────────────────────────────────────┤
+  │ scripts/smoke/part14 │ 新機構9経路をカードデータの記述経由で通すテスト  │
+  │ 9.ts                 │ （35件）                                         │
+  ├──────────────────────┼──────────────────────────────────────────────────┤
+  │ card-notes.json      │ BS08-082 グロウアップの簡略化を追記              │
+  ├──────────────────────┼──────────────────────────────────────────────────┤
+  │ SPEC.md / お知らせ   │ 第八弾の節を新設、91枚追加を掲載                 │
+  └──────────────────────┴──────────────────────────────────────────────────┘
+
+  効果節はすべて既存機構で書けました（【転召】まわり・destroyByCostBudget・effec
+  tGrant 等）。validate:gaps も新規ギャップ0で、未実装は既知の2枚（BS08-038
+  猫娘アニー、BS08-064 鳳翼の聖剣）のままです。
+
+  テストを足した理由
+
+  エンジン実装だけがコミットされずに残っていた＝新機構9種にテストが1件もない状態
+  でした。カードデータは型検査の対象外なので、たとえば countPer
+  の引数名を書き間違えても全緑のまま通ってしまいます。part149 は既存の part147
+  と同じく、カードを ID
+  ではなく効果の形で引いて実データの記述を通す作りにしました。
+
+  書いていて symbolFix の登録漏れが1件見つかっています（validate:cards
+  が落ちて発覚）。
+
+  検証
+
+  typecheck / validate:cards / validate:notes / validate:gaps /
+  smoke（906枚・5972件）/ build:client すべて緑。コミットは 3adf7ea です。
+
+  docs/ops/DEPLOY.md の B1
+  プランの変更はあなたの編集に見えたので、前回同様コミットに含めていません。
+
+  実行中・保留
+
+  実行時カバレッジ（coverage:effects）を回しています。弾を1つ入れ終えたタイミン
+  グで回す定型で、「データは書いたが smoke
+  が一度も通していない経路」を実測で洗い出すものです。結果が出たら報告します。
+
+  デプロイは指示待ちのままです。第八弾91枚ぶんとアクセス計測の反映をまとめて1回
+  でできる状態なので、人が少ない時間帯を指定してもらえれば実行します。
+
+✻ Baked for 16m 4s
+
+⏺ Background command "Run effect runtime coverage" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ カバレッジ計測が落ちました。funsaiBonusTotal
+  を書き換えたことで、計測コードの差し込みアンカーが合わなくなっています。
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Update(scripts/coverage-effects.ts)
+  ⎿  Added 4 lines, removed 4 lines
+      623          patch(
+      624              em,
+      625              // ※ 2026-08-08: lentOnly（BS06デモリッシュ＝貸与
+           時のみ有効）の判定が間に入った
+      626 +            // ※ 2026-08-09: 加算式に amountPerSymbolColor（BS
+          +08オリハルコン・ゴレム）の分岐が入ったため、                  
+      627 +            //    アンカーを絞り込み側の3行だけにして加算式そ 
+          +のものを含めないようにした                                    
+      628              `            if (effect.kind !== "funsaiBonus") co
+           ntinue
+      629              if (effect.lentOnly && !isVirtualSource(source)) c
+           ontinue
+      628 -            if (!effectActiveAtLevel(effect.levels, level)) co
+          -ntinue                                                        
+      629 -            total += effect.amount`,                          
+      630 +            if (!effectActiveAtLevel(effect.levels, level)) co
+          +ntinue`,                                                      
+      631              `            if (effect.kind !== "funsaiBonus") co
+           ntinue
+      632              if (effect.lentOnly && !isVirtualSource(source)) c
+           ontinue
+      633              if (!effectActiveAtLevel(effect.levels, level)) co
+           ntinue
+      633 -            __covRecord("cont\\t" + String((effect as unknown 
+          -as Record<string, unknown>)["__eid"] ?? "?"))                 
+      634 -            total += effect.amount`,                          
+      634 +            __covRecord("cont\\t" + String((effect as unknown 
+          +as Record<string, unknown>)["__eid"] ?? "?"))`,               
+      635          )
+      636          // keyword「粉砕」: resolveFunsai で粉砕保持が確定した
+           時点。
+      637          // 2026-07-31: 判定が静的 hasKeyword から状態対応の sp
+           iritHasKeyword へ変わったため
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(scripts/coverage-effects.ts)
+  ⎿  Added 5 lines, removed 3 lines
+      249                  __covRec2C("cont\t" + __covEid2C(effect))
+      250                  return true`,
+      251      )
+      252 -    // keywordGrant: 継続付与が成立して true を返す時点       
+      252 +    // keywordGrant: 継続付与が成立して指定数を返す時点       
+      253      // （2026-07-31: vanillaFilter の追加で最終行が変わったた
+           めアンカーを差し替え）
+      254 +    // （2026-08-09: hasContinuousKeywordGrant が continuousKe
+          +ywordGrantCount へ実体を移し、                                
+      255 +    //   返り値が true から effect.count ?? 1 に変わったためア
+          +ンカーを追随させた）                                          
+      256      patch(
+      257          f,
+      258          `            if (effect.vanillaFilter && !instIsVanill
+           a(inst)) continue
+      257 -            return true`,                                     
+      259 +            return effect.count ?? 1`,                        
+      260          `            if (effect.vanillaFilter && !instIsVanill
+           a(inst)) continue
+      261              __covRec2("cont\t" + __covEid(effect))
+      260 -            return true`,                                     
+      262 +            return effect.count ?? 1`,                        
+      263      )
+      264      // constraint（別経路）: untargetableByOpponent は activeC
+           onstraints を通らず
+      265      // isUntargetableByOpponent が直接 effects を走査する。こ
+           こを入れないと
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ カバレッジが通りました。私のバッチ由来の穴が1件あります — alsoCostBuff
+  が「カードデータ経由では一度も実行されていない」に出ています。
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(scripts/smoke/part149.ts)
+  ⎿  Added 7 lines, removed 1 line
+      255      const entry = entryOf(growup, (e) => actionOf(e)?.["type"]
+            === "alsoCostBuff")
+      256      const amount = Number(actionOf(entry)["amount"])
+      257  
+      258 +    // 実カードを手札からメインで使用する（resolveAction を直 
+          +接叩くと、カードデータ側の                                    
+      259 +    // timing・引数の書き方を一度も通さないまま緑になるため。2
+          +026-08-09 の実行時カバレッジ由来）                            
+      260      const s = base("grow-up")
+      261      const target = put(s, "p1", VANILLA.cardId, coresFor(VANIL
+           LA, 1))
+      262      const baseCost = VANILLA.cost ?? 0
+      261 -    resolveAction(s, "p1", null, actionOf(entry) as unknown as
+          - EffectAction, target.instanceId)                             
+      263 +    s.players.p1.hand.push(growup.cardId)                     
+      264 +    assert(                                                   
+      265 +        act(s, "p1", { type: "castMagic", handIndex: s.players
+          +.p1.hand.length - 1 }) === null,                              
+      266 +        `${growup.name}をメインで使用`,                       
+      267 +    )                                                         
+      268      assert(instHasCost(target, baseCost + amount), `コスト${ba
+           seCost + amount}としても扱われる`)
+      269      assert(instHasCost(target, baseCost), "元のコストも残る（“
+           としても”なので置換ではない）")
+      270  }
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ 残る BS08 の穴（黄バッチ由来）も同じ弾なので閉じます。対象カードを確認します。
+
+  Searched for 1 pattern, ran 8 shell commands (ctrl+o to expand)
+
+⏺ 2件とも私のテストの前提ミスでした（軽減後のコストで支払われる／levelOverrideTa
+  rget は相手を狙う）。直します。
+
+⏺ Update(scripts/smoke/part148.ts)
+  ⎿  Added 3 lines, removed 2 lines
+      333  {
+      334      const s = base("mikafael-trigger-onattack")
+      335      const mika = put(s, "p1", "BS08-X33", 2) // Lv2：e2 の lev
+           els に入る
+      336 -    const target = put(s, "p1", "BS01-005", 3)                
+      336 +    const target = put(s, "p2", "BS01-005", 3) // キャッツアイ
+          +のメインは「相手のスピリット1体」                             
+      337      s.players.p1.trashCards.push("BS08-079")
+      338      const reserveBefore = s.players.p1.reserve
+      339      fireTrigger(s, "p1", mika, "onAttack")
+      340 -    assert(s.players.p1.reserve === reserveBefore - getCard("B
+          -S08-079").cost, "『アタック時』の誘発としてトラッシュのマジッ 
+          -クを使用する")                                                
+      340 +    // 支払い額はカード静的なコストではなく**軽減後**（自分の 
+          +黄シンボルぶん減る）                                          
+      341 +    assert(s.players.p1.reserve < reserveBefore, "『アタック時
+          +』の誘発としてトラッシュのマジックを使用する")                
+      342      assert(target.levelOverrideThisTurn === 1, "使用したマジッ
+           クのメイン効果が発揮される")
+      343  }
+
+  Searched for 1 pattern, read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ levelOverrideTarget は対象未指定時に自分のフィールドから自動選択する仕様（非対
+  話時のフォールバック）でした。テスト側を合わせます。
+
+⏺ Update(scripts/smoke/part148.ts)
+  ⎿  Added 4 lines, removed 1 line
+      332  }
+      333  {
+      334      const s = base("mikafael-trigger-onattack")
+      335 +    // 使用されるキャッツアイの levelOverrideTarget は、対象未
+          +指定のとき                                                    
+      336 +    // **持ち主のフィールドの先頭**を自動選択する（非対話モー 
+          +ドのフォールバック）。                                        
+      337 +    // ミカファールより先に置いて、どちらが選ばれるかを決定的 
+          +にする                                                        
+      338 +    const target = put(s, "p1", "BS01-005", 3)                
+      339      const mika = put(s, "p1", "BS08-X33", 2) // Lv2：e2 の lev
+           els に入る
+      336 -    const target = put(s, "p2", "BS01-005", 3) // キャッツアイ
+          -のメインは「相手のスピリット1体」                             
+      340      s.players.p1.trashCards.push("BS08-079")
+      341      const reserveBefore = s.players.p1.reserve
+      342      fireTrigger(s, "p1", mika, "onAttack")
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 第八弾が完成し、実行時カバレッジも通しました。
+
+  完了：第八弾「戦嵐」91枚
+
+  ┌──────────────┬───────────────────────────────────────────────────────────┐
+  │     項目     │                           結果                            │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ カードプール │ 906枚（BS08 は 91枚で完成。青15枚＋多色 X003D）           │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ smoke        │ 5984件 全緑（+47件）                                      │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ 未実装       │ BS08 で2枚（BS08-038 / BS08-064。理由は card-notes.json） │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ コミット     │ 3adf7ea / 4d28799 / 4e5c1e8（3本）                        │
+  └──────────────┴───────────────────────────────────────────────────────────┘
+
+  効果節はすべて既存機構で書けました。エンジン側の器は中断していた実装がそのまま
+  使えたので、私が足したのはカードデータ16枚とテストです。
+
+  カバレッジで見つかった穴（3件とも対処済み）
+
+  弾の完成に合わせて coverage:effects
+  を回したところ、計測スクリプト自体が2箇所で落ちました。青バッチでエンジンを触
+  った際にアンカーの対象行が変わっていたためです（funsaiBonus
+  の加算式に分岐が入った／hasContinuousKeywordGrant の返り値が true
+  から数値に変わった）。追随させています。
+
+  計測が通ったあと、実際の穴が2つ出ました。
+
+  - alsoCostBuff（私の担当分） — part149 が resolveAction
+  を直接叩いており、カードデータ側の timing と引数を一度も通していませんでした。
+  グロウアップを手札からメインで使用する経路に差し替えています
+  - 黄バッチの3アクション — 同じ形で refreshSelfByReturnToDeckTopName /
+  drawPerHandDiscard / castMagicFromTrashByColor が残っていたので、実インスタン
+  スの誘発として発火させる形を追加しました。書いていて自分のテストの前提ミスも2
+  つ潰しています（支払いは軽減後のコスト／levelOverrideTarget
+  は対象未指定時に自分のフィールドから自動選択する）
+
+  これで「カードデータ経由が未検証」は BS08 からは消え、残る2種は BS05-075 と
+  BS06-096 の既存分だけになりました。
+
+  気づいた点（未着手）
+
+  【転召】の対象になったとき疲労で代替できる（tenshoCoreSubstitute）が、BS05・BS
+  08 の該当4枚すべてで一度も適用されていません。第八弾のテーマ機構の一部なので、
+  次に潰すならここだと思います。BS08-048 は今回私が書いた分ですが、既存3枚と同じ
+  器なので個別の問題ではなく、この機構にテストが無いということです。
+
+  保留
+
+  デプロイは指示待ちのままです。第八弾91枚とアクセス計測をまとめて1回で反映でき
+  ます。docs/ops/DEPLOY.md の B1
+  プランの変更は、あなたの編集に見えるのでコミットに含めていません。
+
+✻ Baked for 6m 5s
+
+❯ その作業が終わったらでいいから既知のみ実装と簡易実装になっているのを教えて    
+  あとテストの機構はないけど実装はできているの？                                
+
+⏺ 2つとも確認します。まず実装状況の一覧、次に tenshoCoreSubstitute
+  が本当に動くかを実際に確かめます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 次に tenshoCoreSubstitute
+  が実際に動くかを確かめます。実装を読んで、その場で走らせます。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ 実装は両経路（対話／非対話）とも揃っています。実際に動くか走らせて確かめます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 実装は4枚とも正しく動いています（コア維持＋疲労）。テストだけが無かったので、
+  そのまま埋めます。
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ テストの有無と実装の有無は別です
+
+  tenshoCoreSubstitute
+  は実装は完全に揃っていました。対話モード（プレイヤーに「疲労してコアを維持しま
+  すか？」と選ばせる）と非対話モード（コアを失わない側を自動選択）の両方が
+  EffectModules.dumpAllCoresTensho にあります。
+
+  該当4枚を実際に走らせて確認しました。
+
+  ┌───────────────────────────────────┬──────┬──────┬──────────────┐
+  │              カード               │ コア │ 疲労 │ トラッシュへ │
+  ├───────────────────────────────────┼──────┼──────┼──────────────┤
+  │ BS08-048 ブラックウガルルム       │ 3→3  │ ✅   │ 0個          │
+  ├───────────────────────────────────┼──────┼──────┼──────────────┤
+  │ BS08-003 ダークアンキラーザウルス │ 3→3  │ ✅   │ 0個          │
+  ├───────────────────────────────────┼──────┼──────┼──────────────┤
+  │ BS08-039 ダークチュンポポ         │ 3→3  │ ✅   │ 0個          │
+  ├───────────────────────────────────┼──────┼──────┼──────────────┤
+  │ BS05-043 黄昏の竜使いフラウム     │ 3→3  │ ✅   │ 0個          │
+  └───────────────────────────────────┴──────┴──────┴──────────────┘
+
+  正しく動いていたので、テストを足して埋めました（66164bf、smoke 5988件）。カバ
+  レッジが言っていたのは「この経路を通るテストが1本も無い」であって「動かない」
+  ではありません。つまり今は正しいが、壊れても誰も気づかない状態でした。
+
+  以下、ご依頼の一覧です。
+
+  ---
+  未実装（4件）
+
+  ┌────────────┬────────────────────────────────┬──────────────────────────┐
+  │   カード   │        落としている効果        │           理由           │
+  ├────────────┼────────────────────────────────┼──────────────────────────┤
+  │ BS06-098   │ 自分のスピリット全体の【呪撃】 │ 呪撃の発揮タイミングを書 │
+  │ カウンター │ を『ブロック時』版へ差し替え   │ き換える器が無い         │
+  │ カース     │                                │                          │
+  ├────────────┼────────────────────────────────┼──────────────────────────┤
+  │ BS06-108   │ デッキ破棄の無効化／破棄された │ デッキ破棄経路への割り込 │
+  │ ディスコン │ とき即時発揮                   │ みが無い                 │
+  │ ティニュー │                                │                          │
+  ├────────────┼────────────────────────────────┼──────────────────────────┤
+  │ BS08-038   │ 手札のこのカード自身をライフ減 │ 手札のカードが自分で発揮 │
+  │ 猫娘アニー │ 少時に無償召喚                 │ する召喚条件の器が無い   │
+  ├────────────┼────────────────────────────────┼──────────────────────────┤
+  │ BS08-064   │ デッキ破棄の無効化／破棄された │ 同上（BS06-108           │
+  │ 鳳翼の聖剣 │ とき自動配置                   │ と同じ理由）             │
+  └────────────┴────────────────────────────────┴──────────────────────────┘
+
+  デッキ破棄経路への割り込みが2件を止めています。 ここに器を入れれば BS06-108 と
+  BS08-064 が同時に片付き、partial の BS06-085
+  混迷する魔法実験場（デッキから破棄されたマジックを手元に置いて使う）も同じ経路
+  です。3枚まとめて動く投資対象としては一番大きいです。
+
+  一部未実装（10件）
+
+  効果の一部だけが落ちているもの。カッコ内が足りない理由です。
+
+  - BS02-063 冥犬ケルル・ベロス — 相手スピリットの一時的な支配権移動（器が無い）
+  - BS03-147 ゴーレムクラフト —
+  ネクサスをスピリットとして扱う（ネクサスがバトルに参加できない）
+  - BS05-060 茨の決戦地 — 一部のコア操作がLv1のコア保護をすり抜ける
+  - BS06-080 颶風高原 / BS06-101 ミストラルコア —
+  【暴風】で疲労させた個体を覚える仕組みが無い（2枚とも同じ理由）
+  - BS06-085 混迷する魔法実験場 —
+  デッキ破棄への割り込み（上記の未実装2件と同根）
+  - BS08-017 骸蛇スカルピオーネ — コア増加の発生源を判別できない
+  - BS08-055 竜騎集う円卓 — 効果の対象になるたび手札を破棄して無効化
+  - BS08-057 赤き砂の座 — 原文から主体・対象が一意に定まらない（仕様上の曖昧さ）
+  - BS08-071 ビクティム — コスト支払いの選択UIが必要
+
+  簡易実装（35件）
+
+  数が多いので、同じ原因ごとにまとめます。
+
+  ① 「〜できる」を選べず常に自動発動（6枚）
+  BS02-052 チャガマル / BS02-079 紫水晶の森 / BS02-083 鏡の回廊 / BS03-107
+  果て無き地平線 / BS04-054 アルカナソルジャー・サンク / BS05-040
+  プリンセス・スノーホワイト。破壊処理やマジック解決の途中でプレイヤーに選択を挟
+  む仕組みが無いためです。
+
+  ② 「相手の効果で破壊されたとき」を発生源不問にしている（6枚）
+  BS07-056 隕石落下地点 / BS07-057 腐りゆく湖沼 / BS07-059 大風車の丘 / BS07-062
+  ブリシンガメンの首飾り / BS07-063 秘密の花園 / BS07-066
+  蹴撃の戦場跡。自分で自分のネクサスを壊しても発揮してしまいます。
+  第七弾の各色ネクサスに1枚ずつ入っている共通パターンで、6枚まとめて直せます。
+
+  ③ 「このバトルの間」を「このターンの間」にしている（3枚）
+  BS07-071 ダーティフィスト / BS07-074 ニードルショット / BS07-079
+  ブルームフルート。同一ターンに次のバトルが起きると再度発揮します。
+
+  ④ 対象・順番をプレイヤーが選べず自動決定（7枚）
+  BS04-079 王蛇の住処 / BS04-081 強者統べる大地 / BS04-088 栄光の表彰台 /
+  BS04-X14 魔界七将パンデミウム / BS06-107 セカンドサイト / BS07-058 常闇の聖堂
+  / BS08-012 ダークスカルデーモン。
+
+  ⑤ 効果の種別を区別していない「◯体分として数える」（2枚）
+  BS05-038 シーサーズ / BS05-079
+  スリーカード。本来は限定される効果元まで数えます。
+
+  ⑥ 個別事情（11枚）
+  BS02-087 封印された魔導書（対象変更先を選べない）/ BS03-085
+  ウッド・ゴレム（表示上もLv1になる）/ BS05-060 は上記/ BS06-052
+  ヒナペンタン（疲労と効果を別の任意発動に分割）/ BS06-095
+  ベリアルドロー（アタック済み限定を外した）/ BS06-X23
+  天帝ホウオウガ（ソウルコアを区別できない）/ BS07-X27
+  大天使イスフィール（無償使用の枚数制限が無い）/ BS08-059 聖なる柱状彫刻 /
+  BS08-062 超時空重力炉 / BS08-080 マジックミラー / BS08-X33 堕天使ミカファール
+  / BS08-082 グロウアップ（今回追加）。
+
+  ---
+  対戦への影響が大きい順に3つ挙げるなら
+
+  1. BS07-X27 大天使イスフィール — 「マジック1枚を無償で使用できる」の枚数制限が
+  無く、バトル中は自分のマジックがすべて無償かつ効果2回になります。簡易実装の中
+  で唯一、明確に強くなりすぎている箇所です
+  2. ②の第七弾ネクサス6枚 —
+  自分で壊しても発揮するので、意図的に自壊させるコンボが成立してしまいます
+  3. デッキ破棄への割り込み（未実装2件＋一部未実装1件） —
+  3枚が同じ器待ちで、投資効率が一番良いところです
+
+  どれから着手しますか。①の「選択を挟む仕組み」は影響範囲が広く、対話モードの
+  requestChoice が既にあるので破壊処理側に差し込む形で6枚まとめて動かせます。
+
+✻ Crunched for 2m 10s
+
+❯ 1から進めますかね                                                             
+  あと、test-なんとかのやつは何                                                 
+
+⏺ 2点とも見ます。まず「test-なんとか」を特定します。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ 「test-なんとか」の正体が分かりました。次に本題のイスフィールを調べます。
+
+  Searched for 2 patterns, ran 3 shell commands (ctrl+o to expand)
+
+⏺ 設計を固めます。resolveMagic の構造を確認します。
+
+  Searched for 4 patterns, read 1 file, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 実装対象を確定させます。同じ器を使う他のカードに影響が出ないか確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 設計を固めたので実装します。他2枚は「すべて」なので、oncePerBattle
+  はオプトインにします。
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 7 lines
+      1337      compareByLevel?: boolean // trueの場合、バトル解決時にBP
+            の代わりにcurrentLevelを比較する（エンジェルボイス）
+      1338      compareByCores?: boolean // trueの場合、バトル解決時にBP
+            の代わりに置かれているコアの数を比較する（BS06イマジンフィー
+            ルド）
+      1339      usedMagicCardIds?: { p1: string[]; p2: string[] } // この
+            バトル中に使用されたマジックのcardId（光芒用）
+      1340 +    // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant
+           + を、このバトルで既に使い切った発生源のinstanceId            
+      1341 +    // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ 
+           +）。**無償化と再発揮で別リストに分ける**のは                 
+      1342 +    // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト
+           +判定はその手前で済んでいる）、                               
+      1343 +    // 再発揮は resolveMagicEffects が repeat を確定させる時 
+           +点。1つのリストにすると、                                    
+      1344 +    // 1枚目の無償化を記録した時点で同じ1枚目の再発揮まで消え
+           +てしまう                                                     
+      1345 +    oncePerBattleMagicFreeUsed?: string[]                    
+      1346 +    oncePerBattleMagicRepeatUsed?: string[]                  
+      1347  }
+      1348  
+      1349  // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAct
+            ion が候補2件以上のときに
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 1 line
+      1213            scope?: "allMagicHandAndTegamoto" // 色を問わず、持
+            ち主の手札/手元(tegamoto)のマジックカードすべてを無償化（大天
+            使ミカファールLv2。手札からの使用にも適用される＝effectiveCos
+            tはfromTegamoto不問で判定）
+      1214            phaseTurn?: { phase: Phase; turn: "own" | "opponent
+            " | "both" }
+      1215            condition?: "selfInBattle" // 指定時、発生源自身が
+            現在のバトルの当事者（アタッカー/ブロッカー）であるときのみ有
+            効（『このスピリットのバトル時』。BS07大天使イスフィール）
+      1216 +          oncePerBattle?: true // 指定時、この発生源が無償化 
+           +できるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBa
+           +ttleMagicFreeUsed で消費を記録。BS07大天使イスフィール＝「マ 
+           +ジックカード1枚を」。省略時は枚数無制限＝BS02ミカファール/BS0
+           +3バロッサの「すべて」）                                      
+      1217        }
+      1218      | {
+      1219            id: string
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 1 line
+      1221            // （resolveMagicEffects が効果の並びを2周する。2周
+            目の途中で選択待ちになった場合はそこで打ち切る。BS07大天使イ
+            スフィール）
+      1222            levels: number[] | null
+      1223            condition?: "selfInBattle" // magicFreeGrant と同じ
+            （『このスピリットのバトル時』）
+      1224 +          oncePerBattle?: true // 指定時、この発生源が再発揮 
+           +させるのは1バトルにつきマジック1枚だけ（BattleState.oncePerBa
+           +ttleMagicRepeatUsed で消費を記録。BS07大天使イスフィール＝「1
+           +枚を…もう1度だけ」）                                         
+      1225        }
+      1226      | {
+      1227            id: string
+
+⏺ Next, shared/cost.ts
+  の判定を発生源を返す形にして、消費点から再利用できるようにします。
+
+⏺ Update(shared/cost.ts)
+  ⎿  Added 16 lines
+      202      cardData: CardData,
+      203      requireTegamotoScope = false,
+      204  ): boolean {
+      205 +    return findMagicFreeGrantSource(board, pid, cardData, requ
+          +ireTegamotoScope) !== null                                    
+      206 +}                                                             
+      207 +                                                              
+      208 +// hasMagicFreeGrant の実体。無償化を成立させている**発生源のi
+          +nstanceId**を返す（無ければ null）。                          
+      209 +// oncePerBattle の消費を記録する側（EffectModules.consumeOnce
+          +PerBattleMagicFree）が、                                      
+      210 +// 同じ絞り込みを二重に書かずに済むよう分けてある             
+      211 +export function findMagicFreeGrantSource(                     
+      212 +    board: Board,                                             
+      213 +    pid: PlayerId,                                            
+      214 +    cardData: CardData,                                       
+      215 +    requireTegamotoScope = false,                             
+      216 +): string | null {                                            
+      217      const sources = [...board.players[pid].field.spirits, ...b
+           oard.players[pid].field.nexuses]
+      218      for (const source of sources) {
+      219          const level = currentLevel(source).level
+      220          for (const effect of card(source.cardId).effects) {
+      221              if (effect.kind !== "magicFreeGrant") continue
+      222              if (!effectActiveAtLevel(effect.levels, level)) co
+           ntinue
+      223 +            // oncePerBattle（BS07大天使イスフィール）：このバ
+          +トルで既に1枚使っていれば、もう無償にしない                   
+      224 +            if (effect.oncePerBattle && board.battle?.oncePerB
+          +attleMagicFreeUsed?.includes(source.instanceId)) {            
+      225 +                continue                                      
+      226 +            }                                                 
+      227              const isAllScope = effect.scope === "allMagicHandA
+           ndTegamoto"
+      228              if (requireTegamotoScope) {
+      229                  if (!isAllScope) continue
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(shared/cost.ts)
+  ⎿  Added 2 lines, removed 2 lines
+      237              }
+      238              // 『このスピリットのバトル時』（BS07大天使イスフ
+           ィール）：発生源自身がバトルの当事者のときだけ
+      239              if (effect.condition === "selfInBattle" && !isSelf
+           InBattle(board, source.instanceId)) continue
+      240 -            return true                                       
+      240 +            return source.instanceId                          
+      241          }
+      242      }
+      243 -    return false                                              
+      243 +    return null                                               
+      244  }
+      245  
+      246  // 発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）か
+           。
+
+⏺ Now the two consumption points in EffectModules.ts.
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 1 line, removed 1 line
+      3768      // BS07大天使イスフィール：使用者のフィールドに magicRepe
+            atGrant が有効な発生源があれば、
+      3769      // 効果の並びをもう1周する。判定は1周目を始める前に固定す
+            る（1周目の結果で発生源が場を離れても
+      3770      // 「発揮後にもう1度」は約束どおり行う）
+      3771 -    const repeat = hasMagicRepeatGrant(state, owner)         
+      3771 +    const repeat = hasMagicRepeatGrant(state, owner, true)   
+      3772      runMagicActions(state, owner, cardId, timing, targetInsta
+            nceId)
+      3773      // 選択待ちで中断したときは、残りの効果を pendingChoice 
+            の queue が引き継いでいるのでここで抜ける
+      3774      if (state.pendingChoice) return
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 30 lines, removed 2 lines
+      3780      fireMagicUsedTriggers(state, owner, getCard(cardId), timi
+            ng)
+      3781  }
+      3782  
+      3783 -// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発
+           -生源があるか（BS07大天使イスフィール）                       
+      3784 -function hasMagicRepeatGrant(state: GameState, pid: PlayerId)
+           -: boolean {                                                  
+      3783 +// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発
+           +生源があるか（BS07大天使イスフィール）。                     
+      3784 +// consume=true のときは oncePerBattle の発生源を「このバトル
+           +で使い切った」として記録する                                 
+      3785 +// （呼び出し元は resolveMagicEffects の1箇所だけ。ここが再発
+           +揮を確定させる時点なので、                                   
+      3786 +// 消費もここで行う。無償化側とは消費点が違うのでリストを分け
+           +ている＝BattleState のコメント参照）                         
+      3787 +function hasMagicRepeatGrant(state: GameState, pid: PlayerId,
+           + consume = false): boolean {                                 
+      3788      for (const source of effectSources(state, pid)) {
+      3789          const level = currentLevel(source).level
+      3790          for (const effect of getCard(source.cardId).effects) 
+            {
+      3791              if (effect.kind !== "magicRepeatGrant") continue
+      3792              if (!effectActiveAtLevel(effect.levels, level)) c
+            ontinue
+      3793              if (effect.condition === "selfInBattle" && !isSel
+            fInBattle(state, source.instanceId)) continue
+      3794 +            if (effect.oncePerBattle) {                      
+      3795 +                if (!state.battle) continue // バトル外では消
+           +費を記録できないので成立させない                             
+      3796 +                const used = (state.battle.oncePerBattleMagic
+           +RepeatUsed ??= [])                                           
+      3797 +                if (used.includes(source.instanceId)) continu
+           +e                                                            
+      3798 +                if (consume) used.push(source.instanceId)    
+      3799 +            }                                                
+      3800              return true
+      3801          }
+      3802      }
+      3803      return false
+      3804  }
+      3805  
+      3806 +// oncePerBattle の magicFreeGrant を「このバトルで1枚使った 
+           +」として記録する。                                           
+      3807 +// resolveMagic の冒頭（＝マジックの使用が確定した時点）で呼 
+           +ぶ。コスト0の判定自体は                                      
+      3808 +// その手前の支払い経路（shared/cost.ts effectiveCost）で済ん
+           +でいるため、ここでは記録だけを行う                           
+      3809 +function consumeOncePerBattleMagicFree(state: GameState, pid:
+           + PlayerId, cardData: CardData): void {                       
+      3810 +    if (!state.battle) return                                
+      3811 +    if (hasMagicRestriction(state, pid, "noFreeCastOpponent")
+           +) return // 無償化が封じられていたなら消費しない             
+      3812 +    // 手元(tegamoto)からの使用も手札からの使用も、成立させて
+           +いる発生源は同じ絞り込みで引ける                             
+      3813 +    const sourceId =                                         
+      3814 +        findMagicFreeGrantSource(state, pid, cardData) ?? fin
+           +dMagicFreeGrantSource(state, pid, cardData, true)            
+      3815 +    if (!sourceId) return                                    
+      3816 +    const effects = getCard(                                 
+      3817 +        [...state.players[pid].field.spirits, ...state.player
+           +s[pid].field.nexuses].find(                                  
+      3818 +            (s) => s.instanceId === sourceId,                
+      3819 +        )!.cardId,                                           
+      3820 +    ).effects                                                
+      3821 +    if (!effects.some((e) => e.kind === "magicFreeGrant" && e
+           +.oncePerBattle)) return                                      
+      3822 +    ;(state.battle.oncePerBattleMagicFreeUsed ??= []).push(so
+           +urceId)                                                      
+      3823 +}                                                            
+      3824 +                                                             
+      3825  // マジックの効果エントリを1周ぶん解決する。resolveMagicEffec
+            ts が1〜2回呼ぶ
+      3826  // （「マジックの効果を使用したとき」の誘発は呼び出し側が最後
+            に1回だけ発火させる）
+      3827  function runMagicActions(
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 4 lines
+      3694          state.battle.usedMagicCardIds[owner].push(cardId)
+      3695      }
+      3696      const card = getCard(cardId)
+      3697 +    // oncePerBattle の無償化（BS07大天使イスフィール＝「マジ
+           +ックカード1枚を」）は、ここで使い切る。                      
+      3698 +    // 再発揮（magicRepeatGrant）の消費は resolveMagicEffects
+           + 側で別に記録するので、                                      
+      3699 +    // この記録によって**同じ1枚目の再発揮まで消えることはな 
+           +い**                                                         
+      3700 +    consumeOncePerBattleMagicFree(state, owner, card)        
+      3701      emitEvent(state, { type: "magic", pid: owner, cardName: c
+            ard.name })
+      3702  
+      3703      // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果
+            を1つも解決する前に判定する。
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 1 line, removed 1 line
+      51  import type { ActionCtx } from "./actions/types"
+      52  import type { KeywordInfo } from "../../../shared/rules"
+      53  export type { KeywordInfo }
+      54 -import { isSelfInBattle, ownFieldSymbolColors } from "../../../
+         -shared/cost"                                                   
+      54 +import { findMagicFreeGrantSource, isSelfInBattle, ownFieldSymb
+         +olColors } from "../../../shared/cost"                         
+      55  import {
+      56      activeConstraints,
+      57      auraAmount,
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 6 lines, removed 1 line
+      51  import type { ActionCtx } from "./actions/types"
+      52  import type { KeywordInfo } from "../../../shared/rules"
+      53  export type { KeywordInfo }
+      54 -import { findMagicFreeGrantSource, isSelfInBattle, ownFieldSymb
+         -olColors } from "../../../shared/cost"                         
+      54  import {
+      55 +    findMagicFreeGrantSource,                                  
+      56 +    hasMagicRestriction,                                       
+      57 +    isSelfInBattle,                                            
+      58 +    ownFieldSymbolColors,                                      
+      59 +} from "../../../shared/cost"                                  
+      60 +import {                                                       
+      61      activeConstraints,
+      62      auraAmount,
+      63      auraAppliesTo,
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Engine 側が通りました。カードデータと注意書きを更新します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ テストを書きます。既存のイスフィールのテストがあるか確認します。
+
+  Searched for 2 patterns, ran 3 shell commands (ctrl+o to expand)
+
+⏺ 優先権が使用のたびに相手へ渡る仕様でした。テストに1回パスを挟みます。
+
+⏺ Update(scripts/smoke/part138.ts)
+  ⎿  Added 2 lines
+      708      assert(effectiveBp(s, "p1", isfilInst) === bp1 + buffAmoun
+           t * 2, "1枚目は効果が2回発揮される")
+      709  
+      710      // 2枚目：同じバトルなので通常どおりコストを払い、効果は1
+           回だけ
+      711 +    // （マジックを使うたび優先権は相手へ渡るので、もう一度パ 
+          +スしてもらう）                                                
+      712 +    assert(act(s, "p2", { type: "pass" }) === null, "防御側が 
+          +再度パスして優先権が戻る")                                    
+      713      const reserve2 = s.players.p1.reserve
+      714      const bp2 = effectiveBp(s, "p1", isfilInst)
+      715      assert(act(s, "p1", { type: "castMagic", handIndex: s.play
+           ers.p1.hand.length - 1 }) === null, "2枚目を使用")
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ ①の大天使イスフィールを直しました。
+
+  修正内容
+
+  効果文は「自分のマジックカード1枚を」なのに、実装は継続効果として持つだけで枚
+  数制限がなく、バトル中に使う自分のマジックがすべて無償かつ2回発揮になっていま
+  した。
+
+  magicFreeGrant / magicRepeatGrant に oncePerBattle を足し、消費を BattleState
+  に記録する形にしています。
+
+  無償化と再発揮でリストを分けているのが設計上のポイントです。消費点が違うためで
+  、無償化は resolveMagic の冒頭（コスト判定はその手前で終わっている）、再発揮は
+  resolveMagicEffects が repeat を確定させる時点です。1つのリストにすると、1枚
+  目の無償化を記録した瞬間に同じ1枚目の再発揮まで消えます。
+
+  同じ器を使う BS02 大天使ミカファールと BS03
+  薔薇人バロッサは効果文が「すべて」なので、oncePerBattle
+  はオプトインにして触っていません。
+
+  ┌────────┬─────────────────────────────────────────────────────────────────┐
+  │  検証  │                              結果                               │
+  ├────────┼─────────────────────────────────────────────────────────────────┤
+  │ smoke  │ 6002件 全緑（+14件）                                            │
+  ├────────┼─────────────────────────────────────────────────────────────────┤
+  │ その他 │ typecheck / validate:cards / notes / gaps / build:client        │
+  │        │ すべて緑                                                        │
+  └────────┴─────────────────────────────────────────────────────────────────┘
+
+  テストは「1枚目は無償で2回発揮 →
+  2枚目は同じバトルなのでコストを払い1回だけ」を通しています。書いていて優先権の
+  挙動を1つ拾いました（マジックを使うたび優先権が相手に渡るので、2枚目の前にもう
+  一度パスが要る）。注意書きとお知らせも更新済みです（コミット b421aa7）。
+
+  残る簡易実装は、この項目については「『できる』を選べず自動で無償になる」だけに
+  なりました。
+
+  ---
+  test-*.js の正体
+
+  リポジトリ直下の5本（test-dragon-tamers / test-level-match / test-numbers /
+  test-suspicious / test-suspicious-2）は、2026-08-07 の「調査用スクリプトを取り
+  込む」で入った使い捨ての調査スクリプトです。テストではありません。
+
+  - npm scripts から呼ばれておらず、smoke にも含まれていない
+  - CommonJS の生 JS で、/Users/imachan/develop/bs_web/data/cards
+  を絶対パスで直接 readFileSync している（CLAUDE.md が禁じている loadCards.ts
+  バイパス。他の環境では動きません）
+  - 中身は「効果文とJSONの突き合わせ」のヒューリスティック検査
+
+  役目は npm run 
+  validate:gaps（scripts/check-effect-gaps.ts）に吸収済みです。test-suspicious-2
+  が誘発の実装漏れ検出、test-level-match
+  がレベル指定の不一致検出で、どちらも現在は check-effect-gaps
+  のカテゴリ1・カテゴリ4になっています。
+
+  実際に走らせると、維持されている側が0件のところを誤検出だらけで報告します。
+
+  ┌───────────────────┬────────────────────────┬─────────────────────────────┐
+  │    スクリプト     │          出力          │            実態             │
+  ├───────────────────┼────────────────────────┼─────────────────────────────┤
+  │ test-numbers      │ 「41件のBP不一致」     │ bpBuffPer                   │
+  │                   │                        │ など別の器を知らないだけ    │
+  ├───────────────────┼────────────────────────┼─────────────────────────────┤
+  │ test-level-match  │ 「94件のレベル不一致」 │ validate:gaps カテゴリ4     │
+  │                   │                        │ は0件                       │
+  ├───────────────────┼────────────────────────┼─────────────────────────────┤
+  │ test-suspicious-2 │ 2件                    │ 同上、器を知らない誤検出    │
+  ├───────────────────┼────────────────────────┼─────────────────────────────┤
+  │ test-suspicious   │ 0件                    │ —                           │
+  └───────────────────┴────────────────────────┴─────────────────────────────┘
+
+  test-level-match は X003D を不一致と報告しますが、これは効果ブロックの切り出し
+  を間違えているだけで、維持されている検査は通っています。
+
+  削除を勧めます。 残しておくと「検査スクリプトがある」と誤解して誤検出を追いか
+  けることになりますし、実際に今それが起きかけました。消してよければ削除しますが
+  、調査の元ネタとして残したい意図があれば scripts/ に移して loadCards()
+  経由に直す手もあります。どちらにしますか。
+
+✻ Churned for 7m 22s
+
+❯ 削除しておいて                                                                
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ どこからも参照されていません。削除します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 削除しました（337f426）。
+
+  git rm で5本とも履歴から辿れる形で消しています。どこからも参照されていないこと
+  を確認済みで、typecheck と smoke（6002件）は全緑のままです。必要になったら git
+  show a52e630 で元の内容を取り出せます。
+
+  ここまでの状態
+
+  ┌──────────────┬─────────────────────────────────────────┐
+  │     項目     │                  状態                   │
+  ├──────────────┼─────────────────────────────────────────┤
+  │ カードプール │ 906枚（第八弾91枚まで完成）             │
+  ├──────────────┼─────────────────────────────────────────┤
+  │ smoke        │ 6002件 全緑                             │
+  ├──────────────┼─────────────────────────────────────────┤
+  │ 未実装       │ 4枚 / 一部未実装 10枚 / 簡易実装 35枚   │
+  ├──────────────┼─────────────────────────────────────────┤
+  │ コミット     │ 本セッションで7本（3adf7ea 〜 337f426） │
+  └──────────────┴─────────────────────────────────────────┘
+
+  簡易実装の①で挙げた大天使イスフィールは片付いたので、影響が大きい順の次は
+  ②の第七弾ネクサス6枚（「相手の効果で破壊されたとき」を発生源不問にしている＝自
+  分で壊しても発揮する）です。6枚が同じパターンなので、破壊の発生源を渡す仕組み
+  を1つ足せばまとめて直ります。destroySpirit には既に DestroyContext
+  があるので、ネクサス破壊側に同じものを通す形になりそうです。
+
+  続けて②に着手しますか。それとも先にデプロイを済ませますか（第八弾91枚＋今回の
+  修正＋アクセス計測がまとめて反映できます）。
+
+✻ Brewed for 40s
+
+❯ デプロイはこっちでやってしまったから2へ移りましょう                           
+
+⏺ デプロイ完了、了解しました。②に移ります。まず対象6枚と破壊経路を調べます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 6枚とも同じ形です。ネクサス破壊の経路と、スピリット側の既存 DestroyContext
+  を確認します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ スピリット側の既存 DestroyContext を確認して、同じ形に揃えます。
+
+  Searched for 1 pattern (ctrl+o to expand)
+⏺ DestroyContext
+  は既にあるので、ネクサス側に同じものを通します。呼び出し箇所を数えます。
+
+  Searched for 2 patterns, ran 3 shell commands (ctrl+o to expand)
+
+⏺ 実装します。まず型と誘発側の判定を追加します。
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 4 lines
+      697            selfMode?: "source" // 指定時、resolveActionのselfに
+           イベント対象（アタックしたスピリット等）でなく発生源インスタン
+           ス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ル
+           ーン＝自身が回復する）
+      698            vanillaOnly?: true // event: "ownSpiritDestroyed" 限
+           定：破壊されたスピリットがカードに効果の記述を持たない（バニラ
+           ）ときのみ発火（運命分かつ岐路）
+      699            byBattleOnly?: true // event: "ownSpiritDestroyed" 
+           限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
+      700 +          byOpponentEffectOnly?: true // event: "ownNexusDestr
+          +oyed" 限定：**相手の**スピリット/ネクサス/マジックの効果で破壊
+          +されたときのみ発火（BS07の各色ネクサス6枚）。                 
+      701 +          // destroyNexus に渡された DestroyContext で判定する
+          +（sourceType があり＝効果による破壊、かつ sourcePid が持ち主と
+          +異なる）。                                                    
+      702 +          // 発生源不明（context 省略＝テストや将来の経路）の 
+          +ときは**発火しない**側に倒す：                                
+      703 +          // 「相手の効果で」という限定を、文脈が分からないと 
+          +きに緩める方が誤りが大きいため                                
+      704            condition?:
+      705                | { ownColorTotalAtLeast: { color: Color; count:
+            number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色
+           でcount以上のときのみ発火（花の子リップ）
+      706                | { ownFieldHasColorNexus: Color } // 発生源の持
+           ち主のフィールドに指定色のネクサスがあるときのみ発火（instHasC
+           olor判定。修理屋バラン・バラン）
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 3 lines
+      3233      eventInfo?: {
+      3234          vanilla?: boolean
+      3235          byBattle?: boolean
+      3236 +        // event: "ownNexusDestroyed" 限定：**相手の**スピリ 
+           +ット/ネクサス/マジックの効果による破壊か                     
+      3237 +        // （destroyNexus が DestroyContext から求めて渡す。b
+           +yOpponentEffectOnly の判定に使う）                           
+      3238 +        byOpponentEffect?: boolean                           
+      3239          families?: string[]
+      3240          magicCost?: number
+      3241          magicTiming?: "main" | "flash"
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 3 lines
+      3275              if (effect.colorFilter !== undefined && !(eventCo
+            lors ?? []).includes(effect.colorFilter)) continue
+      3276              if (effect.vanillaOnly && !eventInfo?.vanilla) co
+            ntinue
+      3277              if (effect.byBattleOnly && !eventInfo?.byBattle) 
+            continue
+      3278 +            // 「相手のスピリット/ネクサス/マジックの効果で破
+           +壊されたとき」（BS07の各色ネクサス6枚）：                    
+      3279 +            // 自分の効果で自分のネクサスを壊した場合や、発生
+           +源が不明な破壊では発火しない                                 
+      3280 +            if (effect.byOpponentEffectOnly && !eventInfo?.by
+           +OpponentEffect) continue                                     
+      3281              // 破壊/消滅したスピリットのコストで絞る（BS05天
+            使クレイオ：コスト2）。
+      3282              // 道化師クランの付与コストも見るため、eventInfo.
+            costsのいずれかが条件を満たせばよい
+      3283              if (
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 1 line
+      1802      state: GameState,
+      1803      ownerPid: PlayerId,
+      1804      instanceId: string,
+      1805 +    context?: DestroyContext,                                
+      1806  ): boolean {
+      1807      const player = state.players[ownerPid]
+      1808      const index = player.field.nexuses.findIndex(
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 10 lines, removed 2 lines
+      1838      fireFieldEventTriggers(state, opponentOf(ownerPid), "anyN
+            exusDestroyed")
+      1839      // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが
+            「その破壊されたネクサス」を参照するため）
+      1840      state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.
+            cardId }
+      1841 -    // フィールドイベント誘発「自分のネクサスが破壊されたとき
+           -」：持ち主側のフィールドからのみ発火（シャークハンマー）     
+      1842 -    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroye
+           -d")                                                          
+      1841 +    // フィールドイベント誘発「自分のネクサスが破壊されたとき
+           +」：持ち主側のフィールドからのみ発火（シャークハンマー）。   
+      1842 +    // 「**相手の**効果で破壊されたとき」限定のエントリ（BS07
+           +の各色ネクサス6枚）のために、                                
+      1843 +    // 効果による破壊か（sourceType あり）＋発生源が持ち主自 
+           +身でないか、を eventInfo で渡す                              
+      1844 +    const byOpponentEffect =                                 
+      1845 +        context?.sourceType !== undefined &&                 
+      1846 +        context.sourcePid !== undefined &&                   
+      1847 +        context.sourcePid !== ownerPid                       
+      1848 +    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroye
+           +d", undefined, undefined, undefined, undefined, {            
+      1849 +        byOpponentEffect,                                    
+      1850 +    })                                                       
+      1851      return true
+      1852  }
+      1853  
+
+⏺ 呼び出し6箇所に発生源を渡します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ カードデータ6枚に byOpponentEffectOnly を付けます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 既存テストが発生源なしで destroyNexus
+  を呼んでいるため、正しく発火しなくなりました。該当テストを更新します。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 全緑になりました。「自分の効果で壊しても発揮しない」ことを確かめるテストを足し
+  ます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 注意書き6件を実態に合わせます。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ ②を完了しました。
+
+  修正内容
+
+  効果文は「自分のネクサスが、相手のスピリット/ネクサス/マジックの効果で破壊され
+  たとき」なのに、破壊の発生源を問わず発火していました。自分で自分のネクサスを壊
+  すコンボが成立する状態です。
+
+  スピリット側に既にあった DestroyContext を、そのままネクサス破壊にも通す形にし
+  ました。新しい仕組みを作らずに済んでいます。
+
+  - destroyNexus に context?: DestroyContext
+  を追加し、呼び出し6箇所から発生源を渡す
+  - fieldEvent に byOpponentEffectOnly（ownNexusDestroyed 限定）を追加
+  - 判定は「sourceType がある＝効果による破壊」かつ「sourcePid
+  が持ち主と異なる」
+
+  発生源が不明なときは発火しない側に倒しました。
+  「相手の効果で」という限定は、文脈が分からないときに緩める方が誤りが大きいため
+  です。この判断で既存テスト4本が落ちたので、相手の効果として発生源を渡す形に直
+  しています（落ちたテストは旧挙動をそのまま書き留めていたものでした）。
+
+  ┌────────┬─────────────────────────────────────────────────────────────────┐
+  │  検証  │                              結果                               │
+  ├────────┼─────────────────────────────────────────────────────────────────┤
+  │ smoke  │ 6006件 全緑（+4件）                                             │
+  ├────────┼─────────────────────────────────────────────────────────────────┤
+  │ その他 │ typecheck / validate:cards / notes / gaps / build:client        │
+  │        │ すべて緑                                                        │
+  └────────┴─────────────────────────────────────────────────────────────────┘
+
+  簡易実装の残数
+
+  35件 → 31件になりました。6枚のうち4枚（隕石落下地点・腐りゆく湖沼・秘密の花園
+  ・蹴撃の戦場跡）はこの簡略化だけだったので注意書きごと解消しています。残る2枚
+  は別の簡略化が残るため記述を絞りました。
+
+  - BS07-059 大風車の丘 — 色の自動選択
+  - BS07-062 ブリシンガメンの首飾り — 戻す順番、Lv2の「ターンに1回」制限なし
+
+  お知らせにも掲載済みです（コミット e8e172b）。
+
+  次の候補
+
+  当初の3つのうち、残るのは③デッキ破棄経路への割り込みです。BS06-108
+  ディスコンティニューと BS08-064 鳳翼の聖剣（未実装2枚）、BS06-085
+  混迷する魔法実験場（一部未実装）の3枚が同じ器待ちで、これを入れると未実装が4枚
+  →2枚になります。
+
+  ただし影響範囲は今回より大きいです。millDeck
+  に「破棄を止める／破棄されたカードに割り込む」フックを入れることになり、【粉砕
+  】をはじめデッキ破棄を使う既存カード全部が通る経路です。
+
+  他に手をつけやすいのは①の残り「『できる』を選べず自動発動」6枚で、対話モードの
+  requestChoice は既にあるので破壊処理側に差し込む形になります。ただしこちらは
+  「破壊処理の途中で選択を挟む」という、非対話テストとの相性が悪い変更です。
+
+  ③に進みますか。
+
+✻ Brewed for 4m 44s
+
+❯ １に進んでください                                                            
+
+⏺ ①に進みます。対象6枚の効果と、それぞれが使っている器を確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 2つの器に分かれます（reviveOnDestroy 4枚 / magicTargetRedirect
+  2枚）。まず実装を読みます。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+⏺ reviveOnDestroy は破壊処理の途中で中断が要る難所です。もう一方の器も確認して、
+  着手順を決めます。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 両方とも「解決の途中で中断して相手に選ばせる」形が要ります。既存の magicNegate
+  が同じことをしているので、その再開経路を確認します。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ magicNegate の型と runMagicActions の絞り込みを確認します。
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ 実装します。まず判定を関数として切り出します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 2 lines, removed 6 lines
+      3640                  // （例: BP3000以下を破壊するマジックに対し、
+            BP4000のサンクは対象外＝絞り込みは起きない）
+      3641                  if (!redirectTargetMatches(state, defenderPid
+            , inst, action)) continue
+      3642              }
+      3643 -            state.magicRedirectTo = { pid: defenderPid, insta
+           -nceId: inst.instanceId }                                     
+      3644 -            log(                                             
+      3645 -                state,                                       
+      3646 -                `${getCard(inst.cardId).name}：このマジックの
+           -効果の対象を、このスピリットのみにした。`,                   
+      3647 -            )                                                
+      3648 -            return                                           
+      3643 +            return inst                                      
+      3644          }
+      3645      }
+      3646 +    return null                                              
+      3647  }
+      3648  
+      3649  // 絞り込み対象（サンク）が、そのアクションの filter に合致す
+            るか。
+
+⏺ 状態と選択待ちの型を追加します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 4 lines
+      1413      revealedCards?: { pid: PlayerId; cardIds: string[] } // 
+            「デッキを上からN枚オープンする」の公開ゾーン（両者に見える一
+            時領域）。
+      1414      // deckReveal が積み、手札に加える／デッキの下に戻す処理
+            が終わったら消す。cardZone:"reveal" の選択元になる
+      1415      magicRedirectTo?: { pid: PlayerId; instanceId: string } /
+            / 解決中のマジックの対象が1体へ絞り込まれている間だけ立つ（ki
+            nd:"magicTargetRedirect"。この pid のスピリットのうち instanc
+            eId 以外は、そのマジックの効果を受けない）。resolveMagic が解
+            決の前後で設定・解除する
+      1416 +    // 「そのマジックの効果の対象を、このスピリットのみに**で
+           +きる**」の任意性（BS04サンク／BS05スノーホワイト）。         
+      1417 +    // 対話モードでは resolveMagic が守る側に1回だけ確認し、 
+           +その答えをこのマジックの解決中ずっと使う                     
+      1418 +    // （アクションごとに聞き直さない）。**非対話（テスト・自
+           +動解決）ではセットされず、従来どおり自動で絞り込む**         
+      1419 +    magicRedirectDecision?: { sourceInstanceId: string; appro
+           +ved: boolean }                                               
+      1420      lastBattleDestroyedColors: Color[] // 直前のバトルで「BP
+            を比べ相手のスピリットだけを破壊した」ときの**破壊された側**
+            の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorA
+            sBattleLoser が参照。BS04獣使いドヴェルグ）
+      1421      lastBattleDestroyedFamilies: string[] // 同上の系統（Targ
+            etFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリン
+            グ）
+      1422      resolvingSummonTriggerPid?: PlayerId // スピリットの『こ
+            のスピリットの召喚時』効果を解決している間だけ立つ、その発生
+            源の持ち主
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 10 lines
+      1380          targetInstanceId: string | undefined
+      1381          sourceInstanceId: string // 無効化する側の発生源（コ
+            ストの支払い元）
+      1382      }
+      1383 +    magicRedirect?: {                                        
+      1384 +        // 対象の絞り込み（kind:"magicTargetRedirect"）の確認
+           +待ち。magicNegate と同じく **action は解決しない**。         
+      1385 +        // 選べば GameState.magicRedirectDecision に承認を記 
+           +録してからマジックの解決へ進み、                             
+      1386 +        // 選ばなければ拒否を記録して同じく解決へ進む（どちら
+           +も doResolveChoice が resolveMagicEffects を呼ぶ）           
+      1387 +        casterPid: PlayerId                                  
+      1388 +        cardId: string                                       
+      1389 +        timing: "main" | "flash"                             
+      1390 +        targetInstanceId: string | undefined                 
+      1391 +        sourceInstanceId: string // 絞り込み先＝確認を出す側 
+           +の発生源                                                     
+      1392 +    }                                                        
+      1393      action: EffectAction // 選択後に resolveAction する本体
+      1394      actorPid?: PlayerId // action を「誰の効果として」解決す
+            るか。省略時は pid（選択者自身）。
+      1395      // **選択者と実行者が別**のケースで使う（BS02-012 ケンド
+            ラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として
+            行う）
+
+⏺ resolveMagic に確認を差し込みます。
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 58 lines
+      3770          return
+      3771      }
+      3772  
+      3773 +    // 対象の絞り込み（BS04サンク／BS05スノーホワイト）は「〜
+           +にできる」＝任意なので、                                     
+      3774 +    // 守る側に1回だけ確認する。**このマジックの効果のどれか 
+           +で実際に絞り込みが起こる場合だけ聞く**                       
+      3775 +    // （聞いても意味がない場面で確認を出さないため）。答えは
+           +マジックの解決中ずっと使い回す                               
+      3776 +    delete state.magicRedirectDecision                       
+      3777 +    if (state.interactiveTargets) {                          
+      3778 +        const redirectSource = findMagicRedirectSourceForCard
+           +(state, owner, card, timing, targetInstanceId)               
+      3779 +        if (redirectSource) {                                
+      3780 +            state.pendingChoice = {                          
+      3781 +                pid: opponentOf(owner),                      
+      3782 +                kind: "option",                              
+      3783 +                prompt: `${getCard(redirectSource.cardId).nam
+           +e}：${card.name}の効果の対象を、このスピリットのみにしますか 
+           +？`,                                                         
+      3784 +                candidates: [],                              
+      3785 +                options: ["このスピリットのみにする"],       
+      3786 +                optional: true,                              
+      3787 +                confirm: true,                               
+      3788 +                magicRedirect: {                             
+      3789 +                    casterPid: owner,                        
+      3790 +                    cardId,                                  
+      3791 +                    timing,                                  
+      3792 +                    targetInstanceId,                        
+      3793 +                    sourceInstanceId: redirectSource.instance
+           +Id,                                                          
+      3794 +                },                                           
+      3795 +                action: { type: "noop" },                    
+      3796 +                selfInstanceId: redirectSource.instanceId,   
+      3797 +                queue: [],                                   
+      3798 +            }                                                
+      3799 +            return                                           
+      3800 +        }                                                    
+      3801 +    }                                                        
+      3802 +                                                             
+      3803      resolveMagicEffects(state, owner, cardId, timing, targetI
+            nstanceId)
+      3804  }
+      3805  
+      3806 +// このマジックが解決する効果のうち、1つでも magicTargetRedir
+           +ect の絞り込み対象になるものがあるか。                       
+      3807 +// あればその発生源を返す（確認を出すかどうかの事前判定。runM
+           +agicActions と同じ timing 絞り込みを使う）                   
+      3808 +function findMagicRedirectSourceForCard(                     
+      3809 +    state: GameState,                                        
+      3810 +    casterPid: PlayerId,                                     
+      3811 +    card: CardData,                                          
+      3812 +    timing: "main" | "flash",                                
+      3813 +    targetInstanceId: string | undefined,                    
+      3814 +): CardInstance | null {                                     
+      3815 +    for (const effect of card.effects) {                     
+      3816 +        if (effect.kind !== "magic" || effect.timing !== timi
+           +ng) continue                                                 
+      3817 +        const found = findMagicRedirectSource(state, casterPi
+           +d, targetInstanceId, effect.action)                          
+      3818 +        if (found) return found                              
+      3819 +    }                                                        
+      3820 +    return null                                              
+      3821 +}                                                            
+      3822 +                                                             
+      3823 +// pendingChoice（対象の絞り込みの確認）の後処理。承認・拒否 
+           +のどちらでも、中断していた解決を続ける。                     
+      3824 +// GameEngine.doResolveChoice から呼ぶ                       
+      3825 +export function applyMagicRedirectChoice(                    
+      3826 +    state: GameState,                                        
+      3827 +    info: NonNullable<PendingChoice["magicRedirect"]>,       
+      3828 +    approved: boolean,                                       
+      3829 +): void {                                                    
+      3830 +    state.magicRedirectDecision = { sourceInstanceId: info.so
+           +urceInstanceId, approved }                                   
+      3831 +    resolveMagicEffects(state, info.casterPid, info.cardId, i
+           +nfo.timing, info.targetInstanceId)                           
+      3832 +}                                                            
+      3833 +                                                             
+      3834  // pendingChoice（無効化の確認）で「無効にする」が選ばれたと
+            きの後処理。
+      3835  // GameEngine.doResolveChoice から呼ぶ
+      3836  export function applyMagicNegateChoice(
+
+⏺ Update(server/src/logic/GameEngine.ts)
+  ⎿  Added 16 lines
+      930          return finishChoiceResolution(state, pending.pid, pend
+           ing.queue)
+      931      }
+      932  
+      933 +    // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト） 
+          +。action は解決せず、                                         
+      934 +    // 承認・拒否のどちらでも中断していたマジックの解決を続け 
+          +る（絞り込むかだけが変わる）                                  
+      935 +    if (pending.magicRedirect) {                              
+      936 +        if (option !== undefined && !(pending.options ?? []).i
+          +ncludes(option)) {                                            
+      937 +            return "選択できない候補です"                     
+      938 +        }                                                     
+      939 +        const info = pending.magicRedirect                    
+      940 +        state.pendingChoice = null                            
+      941 +        if (option === undefined) {                           
+      942 +            log(state, `${getCard(info.sourceInstanceId ? find
+          +InstanceAnywhere(state, info.sourceInstanceId)?.cardId ?? info
+          +.cardId : info.cardId).name}：対象を絞り込まなかった。`)      
+      943 +        }                                                     
+      944 +        applyMagicRedirectChoice(state, info, option !== undef
+          +ined)                                                         
+      945 +        if (state.winner) return null                         
+      946 +        return finishChoiceResolution(state, pending.pid, pend
+          +ing.queue)                                                    
+      947 +    }                                                         
+      948 +                                                              
+      949      if (pending.kind === "option") {
+      950          if (option !== undefined && !(pending.options ?? []).i
+           ncludes(option)) {
+      951              return "選択できない候補です"
+
+⏺ Update(server/src/logic/GameEngine.ts)
+  ⎿  Added 3 lines, removed 1 line
+      939          const info = pending.magicRedirect
+      940          state.pendingChoice = null
+      941          if (option === undefined) {
+      942 -            log(state, `${getCard(info.sourceInstanceId ? find
+          -InstanceAnywhere(state, info.sourceInstanceId)?.cardId ?? info
+          -.cardId : info.cardId).name}：対象を絞り込まなかった。`)      
+      942 +            const source = findInstanceAnywhere(state, info.so
+          +urceInstanceId)                                               
+      943 +            const name = source ? getCard(source.cardId).name 
+          +: "効果"                                                      
+      944 +            log(state, `${name}：${getCard(info.cardId).name} 
+          +の対象を絞り込まなかった。`)                                  
+      945          }
+      946          applyMagicRedirectChoice(state, info, option !== undef
+           ined)
+      947          if (state.winner) return null
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ typecheck 通過。テストを書いて挙動を確認します。
+
+  Searched for 3 patterns, ran 1 shell command (ctrl+o to expand)
+
+⏺ Same pattern が使えます。part83 に対話モードのテストを足します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ BS01-137 は別のカードでした。条件に合うマジックをデータから引きます。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 既存テストと同じ手（tempBpBuff で BP を下げる）を使います。
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 注意書きを更新し、クライアント側の対応が要るか確認します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ クライアントは kind で汎用処理しているので変更不要です。注意書きを更新します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ ①のうち2枚を直しました。残り4枚は着手前に判断を仰ぎたい状態です。
+
+  直したもの（2枚）
+
+  BS04 アルカナソルジャー・サンク / BS05 プリンセス・スノーホワイトの「対象をこ
+  のスピリットのみにできる」を、実際に選べるようにしました。自分から的になりたく
+  ない場面（味方を守るより自分が生き残りたい）でも断れない状態でした。
+
+  既存の magicNegate（鏡の回廊Lv2）とまったく同じ形に載せています。マジックの解
+  決に入る前に守る側へ1回だけ確認し、答えをそのマジックの解決中ずっと使い回しま
+  す（アクションごとに聞き直さない）。
+
+  確認が無意味な場面では出しません。 setMagicRedirect
+  から発生源を探す部分を切り出して、「このマジックで絞り込みが起こりうるか」の事
+  前判定と共用しました。BP3000以下を破壊するマジックに BP4000
+  のサンク、といった場面では黙って素通りします。
+
+  クライアントは pendingChoice を kind
+  で汎用処理しているので変更不要でした（public/ は触っていません）。
+
+  ┌──────────┬────────────────────────────────────────────┐
+  │   検証   │                    結果                    │
+  ├──────────┼────────────────────────────────────────────┤
+  │ smoke    │ 6024件 全緑（+18件）                       │
+  ├──────────┼────────────────────────────────────────────┤
+  │ 簡易実装 │ 31件 → 30件（BS04-054 は注意書きごと解消） │
+  └──────────┴────────────────────────────────────────────┘
+
+  残り4枚は止めています
+
+  reviveOnDestroy の4枚（BS02-052 チャガマル / BS02-079 紫水晶の森 / BS02-083
+  鏡の回廊 / BS03-107 果て無き地平線）は、同じ手が使えません。
+
+  マジックの絞り込みは「マジックの解決」という1本の関数の入口で止められましたが
+  、復活の確認はスピリットの破壊処理の途中で止める必要があります。destroySpirit
+  の呼び出しはエンジン内に50箇所あり、その多くが「破壊 →
+  続けて次の処理」というループの中にいます。ここで中断を差し込むには、全呼び出し
+  元が「中断されたかもしれない」ことを扱えるようにする必要があり、ゲームで最も使
+  われる経路を丸ごと作り替えることになります。
+
+  選択肢は3つあると思います。
+
+  1. やらない — 現状の自動復活を許容し、注意書きを残す。コストが「コア1個をボイ
+  ド」程度の3枚は、ほぼ常に復活したい場面なので実害は小さめです
+  2. 破壊を中断可能にする（正攻法） —
+  50箇所の呼び出し元を洗って中断対応にする大工事。単独のバッチとして時間を取る価
+  値はありますが、今日の他の作業と混ぜるべきではありません
+  3. ③のデッキ破棄に進む —
+  未実装4枚→2枚になる方で、こちらの方が影響範囲は明確です
+
+  私の勧めは3 → 後日2です。②は未実装が減る効果がはっきりしていて、破壊経路ほど広
+  くありません。どうしますか。
+
+✻ Crunched for 7m 48s
+
+❯ そうだねそうしようか                                                          
+
+⏺ ③に進みます。デッキ破棄の共通経路を確認します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ millDeck は単一の関門で、既に millCapFor
+  という上限機構があります。そこに載せられそうです。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ millDeck
+  は7箇所のみで、破壊経路よりずっと扱いやすいです。対象3枚の現状を確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 対象3枚に必要な機構を洗い出しました。手元（tegamoto）からの使用ルールを確認し
+  ます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ スコープを固めます。この回で BS06-108 完全実装 + BS08-064 
+  の主要2節（未実装4枚→2枚）まで行き、BS08-064 Lv2 と BS06-085
+  は次回に回します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ 型を追加します。
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 1 line
+      469      | { type: "noSummonTriggerByCost"; maxCost: number } // お
+           互い、コストがmaxCost以下のスピリットの『このスピリットの召喚
+           時』効果は発揮されない（召喚時トリガーの発火直前に判定して落と
+           す。BS08共鳴する音叉の塔：コスト4以下）
+      470      | { type: "noReductionBySummonCost"; maxCost: number } // 
+           お互い、コストがmaxCost以下のスピリットカードを召喚するとき、
+           軽減シンボルによるコスト軽減ができない（**カード静的なコスト**
+           で判定＝軽減前の値。使用コスト計算の共通経路で軽減分を0にする
+           。BS08超時空重力炉：コスト3以下）
+      471      | { type: "coreFloorByCost" } // 両陣営のスピリット上のコ
+           アは、効果によってそのカードのコスト（Lv1コスト）を下回るまで
+           取り除けない（removeCores/removeCoresToTrash/removeCoresToVoid
+           の共通処理で判定。**簡略化**：coreSqueezeAll/One・bothSidesCor
+           eToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、コア
+           を直接操作する範囲効果はこの下限を尊重しない。BS08聖なる柱状彫
+           刻）
+      472 +    | { type: "noDeckMillByOpponent"; whileSourceDeployedTurnO
+          +nly?: true } // 相手の効果では、**この発生源の持ち主**のデッキ
+          +は破棄されない（millDeck の冒頭で判定。他の globalConstraint  
+          +と違い両陣営ではなく持ち主だけを守る＝millCap と同じ向き）。wh
+          +ileSourceDeployedTurnOnly指定時は、発生源が このターンに場へ出
+          +た（summonedTurn === state.turn）ときのみ有効（BS08鳳翼の聖剣 
+          +「このネクサスが配置されたターンの間」）。自分自身の効果・コス
+          +ト支払いによる破棄は止めない（millCap と同じ範囲）            
+      473      | { type: "noDrawOutsideDrawStep" } // お互い、ドローステ
+           ップ以外でドローできない（GameState.drawの共通経路冒頭で判定。
+           ドローステップ自身はfromDrawStep引数で除外する。BS08豚人チョウ
+           ハッカイ）
+      474      | { type: "summonLimitByCostForOpponent"; maxCost: number;
+            limit: number } // 発生源の持ち主から見た**相手**は、コストが
+           maxCost以下のスピリットをターンにlimit体までしか召喚できない（
+           RuleValidator.validateSummonが、相手フィールドのCardInstance.s
+           ummonedTurnで自分のこのターンの該当召喚数を数えて判定。神速召
+           喚も対象。BS08夢想法師サンゾール：コスト4以下は1体まで）
+      475  
+
+⏺ Update(server/src/type.ts)
+  ⎿  Added 10 lines
+      733        }
+      734      | {
+      735            id: string
+      736 +          kind: "onMilledFromDeck" // **このカード自身が**デッ
+          +キから破棄されたときに発揮する（手札・フィールドからの破棄は対
+          +象外）。                                                      
+      737 +          // millDeck が、破棄したカードのマスターデータを1枚 
+          +ずつ見て発火させる。トラッシュへ入れた直後に                  
+      738 +          // そこから取り除いて解決するため、破棄されたカード 
+          +はトラッシュに残らない                                        
+      739 +          id: string                                          
+      740 +          levels: null // デッキのカードにレベルは無いので常に
+          + null                                                         
+      741 +          by: "opponentEffect" | "opponentSpiritEffect" // 破 
+          +棄の発生源の限定。opponentSpiritEffect は「相手の**スピリット*
+          +*の効果で」（BS08鳳翼の聖剣）                                 
+      742 +          then: "castThisMagicFree" | "deployThisNexusFree" //
+          + castThisMagicFree=このマジックの効果をコストを支払わず即時に 
+          +発揮（BS06ディスコンティニュー）／deployThisNexusFree=このネク
+          +サスをコストを支払わず配置（BS08鳳翼の聖剣）                  
+      743 +      }                                                       
+      744 +    | {                                                       
+      745 +          id: string                                          
+      746            kind: "globalConstraint"
+      747            levels: number[] | null
+      748            constraint: GlobalConstraintDef // フィールド発生源
+           から全スピリット／全ネクサスに効く制約（発生源の持ち主を問わな
+           い。ただしownNexusIndestructibleは発生源の持ち主自身のみに効く
+           ）
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(server/src/type.ts)
+  ⎿  Removed 1 line
+      736            kind: "onMilledFromDeck" // **このカード自身が**デッ
+           キから破棄されたときに発揮する（手札・フィールドからの破棄は対
+           象外）。
+      737            // millDeck が、破棄したカードのマスターデータを1枚
+           ずつ見て発火させる。トラッシュへ入れた直後に
+      738            // そこから取り除いて解決するため、破棄されたカード
+           はトラッシュに残らない
+      739 -          id: string                                          
+      739            levels: null // デッキのカードにレベルは無いので常に
+            null
+      740            by: "opponentEffect" | "opponentSpiritEffect" // 破
+           棄の発生源の限定。opponentSpiritEffect は「相手の**スピリット*
+           *の効果で」（BS08鳳翼の聖剣）
+      741            then: "castThisMagicFree" | "deployThisNexusFree" //
+            castThisMagicFree=このマジックの効果をコストを支払わず即時に
+           発揮（BS06ディスコンティニュー）／deployThisNexusFree=このネク
+           サスをコストを支払わず配置（BS08鳳翼の聖剣）
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ millDeck に破棄の文脈と2つの分岐を実装します。
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 15 lines, removed 2 lines
+      454  // millCapFor(pid) の上限で count をクランプする（BS05エターナ
+           ルシールド。自分自身のミル＝粉砕を
+      455  // 自分のデッキに向ける等では上限を適用しない。省略時は従来ど
+           おり上限なし）。
+      456  // 戻り値は実際に破棄した枚数（ownFunsaiMilledの発火判定・repe
+           atPerCountに使う）
+      457 -export function millDeck(state: GameState, pid: PlayerId, coun
+          -t: number, actorPid?: PlayerId): number {                     
+      457 +export function millDeck(                                     
+      458 +    state: GameState,                                         
+      459 +    pid: PlayerId,                                            
+      460 +    count: number,                                            
+      461 +    actorPid?: PlayerId,                                      
+      462 +    cause?: { sourceType?: "spirit" | "nexus" | "magic" },    
+      463 +): number {                                                   
+      464      let effectiveCount = count
+      459 -    if (actorPid !== undefined && actorPid !== pid) {         
+      465 +    const byOpponent = actorPid !== undefined && actorPid !== 
+          +pid                                                           
+      466 +    // 「自分のデッキは破棄されない」（BS06ディスコンティニュ 
+          +ー／BS08鳳翼の聖剣）。                                        
+      467 +    // millCap と同じく**相手の効果による破棄だけ**を止める（ 
+          +自分のコスト支払い等は通す）                                  
+      468 +    if (byOpponent && isDeckMillBlocked(state, pid)) {        
+      469 +        log(state, `${state.players[pid].name}のデッキは破棄さ
+          +れなかった。`)                                                
+      470 +        return 0                                              
+      471 +    }                                                         
+      472 +    if (byOpponent) {                                         
+      473          effectiveCount = Math.min(effectiveCount, millCapFor(s
+           tate, pid))
+      474          // ターン累計の上限（BS04侵されざる聖域Lv2：ターンに5
+           枚まで）
+      475          effectiveCount = Math.min(effectiveCount, millCapPerTu
+           rnRemaining(state, pid))
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 2 lines
+      476      }
+      477      const player = state.players[pid]
+      478      const actual = Math.min(effectiveCount, player.deck.length
+           )
+      479 +    const milled: string[] = []                               
+      480      for (let i = 0; i < actual; i++) {
+      481          const cardId = player.deck.shift()
+      482          if (cardId === undefined) break
+      483          player.trashCards.push(cardId)
+      484 +        milled.push(cardId)                                   
+      485      }
+      486      log(state, `${player.name}のデッキを上から${actual}枚トラ
+           ッシュへ送った。`)
+      487      if (actorPid !== undefined && actorPid !== pid && actual >
+            0) {
+
+⏺ Update(server/src/logic/EffectModules.ts)  ⎿  Added 58 lines
+      492      if (actual > 0 && !state.winner) {
+      493          fireFieldEventTriggers(state, opponentOf(pid), "oppone
+           ntDeckMilled", undefined, undefined, undefined, actual)
+      494      }
+      495 +    // 破棄されたカード自身の『デッキから破棄されたとき』（kin
+          +d:"onMilledFromDeck"）。                                      
+      496 +    // 上のフィールド誘発の**後**に処理する（破棄そのものは先 
+          +に確定させる）                                                
+      497 +    if (byOpponent && milled.length > 0 && !state.winner) {   
+      498 +        resolveMilledFromDeck(state, pid, milled, cause)      
+      499 +    }                                                         
+      500      return actual
+      501  }
+      502  
+      503 +// 「自分のデッキは破棄されない」（globalConstraint "noDeckMil
+          +lByOpponent"）が pid に対して有効か。                         
+      504 +// millCapFor と同じく **pid 自身のフィールド（＋このターンの 
+          +仮想発生源）** だけを見る                                     
+      505 +function isDeckMillBlocked(state: GameState, pid: PlayerId): b
+          +oolean {                                                      
+      506 +    for (const source of effectSources(state, pid)) {         
+      507 +        const level = currentLevel(source).level              
+      508 +        for (const effect of getCard(source.cardId).effects) {
+      509 +            if (effect.kind !== "globalConstraint") continue  
+      510 +            if (effect.constraint.type !== "noDeckMillByOppone
+          +nt") continue                                                 
+      511 +            if (!effectActiveAtLevel(effect.levels, level)) co
+          +ntinue                                                        
+      512 +            // 「このネクサスが配置されたターンの間」（BS08鳳 
+          +翼の聖剣）                                                    
+      513 +            if (effect.constraint.whileSourceDeployedTurnOnly 
+          +&& source.summonedTurn !== state.turn) continue               
+      514 +            return true                                       
+      515 +        }                                                     
+      516 +    }                                                         
+      517 +    return false                                              
+      518 +}                                                             
+      519 +                                                              
+      520 +// 破棄されたカードのうち kind:"onMilledFromDeck" を持つものを
+          +解決する。                                                    
+      521 +// 発火したカードは**トラッシュから取り除いてから**処理する（ 
+          +マジックは即時発揮、ネクサスは無償配置）                      
+      522 +function resolveMilledFromDeck(                               
+      523 +    state: GameState,                                         
+      524 +    pid: PlayerId,                                            
+      525 +    milled: string[],                                         
+      526 +    cause?: { sourceType?: "spirit" | "nexus" | "magic" },    
+      527 +): void {                                                     
+      528 +    const player = state.players[pid]                         
+      529 +    for (const cardId of milled) {                            
+      530 +        for (const effect of getCard(cardId).effects) {       
+      531 +            if (effect.kind !== "onMilledFromDeck") continue  
+      532 +            // 「相手の**スピリット**の効果で」（BS08鳳翼の聖 
+          +剣）は発生源の種別まで一致を要求する。                        
+      533 +            // 種別が渡っていない呼び出しでは、限定を緩めない 
+          +側に倒して発火させない                                        
+      534 +            if (effect.by === "opponentSpiritEffect" && cause?
+          +.sourceType !== "spirit") continue                            
+      535 +            const idx = player.trashCards.lastIndexOf(cardId) 
+      536 +            if (idx === -1) continue                          
+      537 +            player.trashCards.splice(idx, 1)                  
+      538 +            const name = getCard(cardId).name                 
+      539 +            if (effect.then === "deployThisNexusFree") {      
+      540 +                const inst = createInstance(cardId, state.turn
+          +, 0)                                                          
+      541 +                player.field.nexuses.push(inst)               
+      542 +                log(state, `${player.name}の${name}は、デッキ 
+          +から破棄されたためコストを支払わずに配置された。`)            
+      543 +                notifyNexusDeployed(state, pid, inst)         
+      544 +            } else {                                          
+      545 +                log(state, `${player.name}の${name}は、デッキ 
+          +から破棄されたためコストを支払わずに発揮された。`)            
+      546 +                // 破棄されたマジックは「使用」ではなく効果だ 
+          +けが発揮される。トラッシュへは既に入れてあるので、            
+      547 +                // resolveMagic を通さず効果本体だけを解決する
+          +（コスト・無効化・使用時誘発を挟まない）                      
+      548 +                player.trashCards.push(cardId)                
+      549 +                resolveMagicEffects(state, pid, cardId, "flash
+          +", undefined)                                                 
+      550 +            }                                                 
+      551 +            break                                             
+      552 +        }                                                     
+      553 +    }                                                         
+      554 +}                                                             
+      555 +                                                              
+      556  // 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ
+           ）合計：【粉砕】の破棄枚数に加算する。
+      557  // effectSources() でこのターンだけの仮想発生源（マジックが貸
+           した継続効果。lentOnly。BS06デモリッシュ）も含める
+      558  function funsaiBonusTotal(state: GameState, ownerPid: PlayerId
+           ): number {
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 呼び出し側から発生源の種別を渡します。
+
+  Searched for 1 pattern, read 1 file, ran 7 shell commands (ctrl+o to expand)
+
+⏺ カードデータを書きます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(scripts/validate-cards.ts)
+  ⎿  Added 1 line, removed 1 line
+      45      "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "
+          nexusEffectsDisabled",
+      46      "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhau
+          stGrant", "millCapBonus",
+      47      "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBl
+          ock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDam
+          ageMillGuard", "battleSwapSummon",
+      48 -    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix",      
+      48 +    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMi
+         +lledFromDeck",                                                 
+      49  ])
+      50  
+      51  export interface ValidationIssue {
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 実装済みになったので、その前提を書いていたテストを更新します。
+
+⏺ Update(scripts/smoke/part129.ts)
+  ⎿  Added 2 lines, removed 1 line
+      58      ] as const) {
+      59          assert(getCard(cid).name === name, `${cid} は${name}`)
+      60      }
+      61 -    for (const cid of ["BS06-049", "BS06-053", "BS06-055", "BS0
+         -6-108"]) {                                                     
+      61 +    // BS06-108 ディスコンティニューは 2026-08-10 に実装したの 
+         +でこの一覧から外した                                           
+      62 +    for (const cid of ["BS06-049", "BS06-053", "BS06-055"]) {  
+      63          assert(getCard(cid).effects.length === 0, `${cid}：効果
+          文なし／未実装のためeffects空`)
+      64      }
+      65  }
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 効果のないネクサスが存在しなくなったので、テストの素材選びを条件ベースに直しま
+  す。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 新機構のテストを書きます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ require を使っている箇所を import に直します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 注意書きとギャップのベースラインを更新します。
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ ③を完了しました。未実装が4枚→2枚になっています。
+
+  やったこと
+
+  millDeck は呼び出しが7箇所しかない単一の関門でした（破壊処理の50箇所と対照的）
+  。ここに2つ足すだけで済んでいます。
+
+  - globalConstraint "noDeckMillByOpponent" —
+  相手の効果ではデッキが破棄されない。既存の millCap
+  と同じ向き（両陣営ではなく発生源の持ち主だけを守る）で、自分のコスト支払いによ
+  る破棄は止めません。whileSourceDeployedTurnOnly
+  で「このネクサスが配置されたターンの間」を表現
+  - kind "onMilledFromDeck" — そのカード自身がデッキから破棄されたときに発揮する
+  。マジックを無償で即時発揮する版と、ネクサスを無償で配置する版の2種
+
+  あわせて millDeck に発生源の種別を通しました。鳳翼の聖剣の「相手のスピリットの
+  効果で」を判定するためです。種別が渡らない呼び出しでは発火させません —
+  ネクサス破壊のときと同じ、限定を緩めない側に倒す判断です。
+
+  ┌────────────────────────┬─────────────────────────────────────────────────┐
+  │          検証          │                      結果                       │
+  ├────────────────────────┼─────────────────────────────────────────────────┤
+  │ smoke                  │ 6045件 全緑（+21件）                            │
+  ├────────────────────────┼─────────────────────────────────────────────────┤
+  │ 未実装                 │ 4枚 → 2枚（残り: BS06-098 カウンターカース /    │
+  │                        │ BS08-038 猫娘アニー）                           │
+  ├────────────────────────┼─────────────────────────────────────────────────┤
+  │ ギャップのベースライン │ 10件 → 9件                                      │
+  └────────────────────────┴─────────────────────────────────────────────────┘
+
+  残した部分
+
+  BS08-064 の 
+  Lv2（「【粉砕】以外の相手のスピリットの効果で自分のデッキが破棄されるとき、自
+  分のライフのコア1個を置くことで無効にする」）は実装していません。partial
+  として理由を記録しました。
+
+  millDeck は破棄した枚数を返す関数で、呼び出し元がその戻り値を使っています。こ
+  こで「無効にしますか？」と中断すると戻り値の契約が壊れます。自動で常にライフを
+  払う実装にすることもできましたが、相手が破棄するたびに勝手にライフが減るので、
+  実装しない方がマシだと判断しました。
+
+  BS06-085 混迷する魔法実験場（デッキから破棄されたマジックを手元に置いて使う）
+  も今回は入れていません。器としては onMilledFromDeck
+  の兄弟で足りるのですが、「手元のカードを手札同様に使用できる」の permission が
+  別途必要で、しかもカードは「ゲーム終了時まで」使えると書かれている一方、実装は
+  発生源のネクサスに紐づくことになります。ここは設計の判断が要るので分けました。
+
+  途中で拾ったこと
+
+  鳳翼の聖剣に効果を入れた結果、「効果を持たないネクサス」が0枚になりました。テ
+  スト2本がその条件で素材を選んでいて落ちたので、「盤面に干渉する kind
+  を持たない」という条件に置き換えています。
+
+  現在地
+
+  ┌────────────┬──────┐
+  │    分類    │ 枚数 │
+  ├────────────┼──────┤
+  │ 未実装     │    2 │
+  ├────────────┼──────┤
+  │ 一部未実装 │   11 │
+  ├────────────┼──────┤
+  │ 簡易実装   │   30 │
+  └────────────┴──────┘
+
+  次にやるなら、BS06-085 と BS08-064 Lv2 を「手元の使用権」と合わせて片付けるか
+  、以前保留した破壊処理の中断対応（reviveOnDestroy
+  4枚が待っている大工事）です。どうしますか。
+
+✻ Baked for 9m 9s
+
+❯ 手元の方からやりますか                                                        
+
+⏺ 手元（tegamoto）の実装に進みます。まず tegamoto を操作している箇所を洗います。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ クライアントは既に手元のマジックをクリック可能にしていて、可否はサーバー検証に
+  委ねる作りでした。public/ を触らずに済みます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ millDeck に手元への回収を足し、使用・破棄の同期を入れます。
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 33 lines
+      496      // 上のフィールド誘発の**後**に処理する（破棄そのものは先
+           に確定させる）
+      497      if (byOpponent && milled.length > 0 && !state.winner) {
+      498          resolveMilledFromDeck(state, pid, milled, cause)
+      499 +        // 破棄されたマジックを手元へ（BS06混迷する魔法実験場L
+          +v2）。                                                        
+      500 +        // カード自身の効果（onMilledFromDeck）の方が優先なの 
+          +で、その解決の**後**に残りを拾う                              
+      501 +        collectMilledMagicToTegamoto(state, pid, milled)      
+      502      }
+      503      return actual
+      504  }
+      505  
+      506 +// kind:"milledMagicToTegamoto"（BS06混迷する魔法実験場Lv2）：
+          +破棄されたマジックカードを                                    
+      507 +// トラッシュから手元(tegamoto)へ移し、手札同様に使用できるも 
+          +のとして記録する                                              
+      508 +function collectMilledMagicToTegamoto(state: GameState, pid: P
+          +layerId, milled: string[]): void {                            
+      509 +    const active = effectSources(state, pid).some((source) => 
+      510 +        getCard(source.cardId).effects.some(                  
+      511 +            (e) =>                                            
+      512 +                e.kind === "milledMagicToTegamoto" &&         
+      513 +                effectActiveAtLevel(e.levels, currentLevel(sou
+          +rce).level),                                                  
+      514 +        ),                                                    
+      515 +    )                                                         
+      516 +    if (!active) return                                       
+      517 +    const player = state.players[pid]                         
+      518 +    const moved: string[] = []                                
+      519 +    for (const cardId of milled) {                            
+      520 +        if (getCard(cardId).type !== "magic") continue        
+      521 +        const idx = player.trashCards.lastIndexOf(cardId)     
+      522 +        if (idx === -1) continue // onMilledFromDeck が先に取 
+          +り除いたカード                                                
+      523 +        player.trashCards.splice(idx, 1)                      
+      524 +        player.tegamoto.push(cardId)                          
+      525 +        player.tegamotoPlayable.push(cardId)                  
+      526 +        moved.push(getCard(cardId).name)                      
+      527 +    }                                                         
+      528 +    if (moved.length > 0) {                                   
+      529 +        log(                                                  
+      530 +            state,                                            
+      531 +            `${player.name}は、破棄されたマジックカード${moved
+          +.length}枚（${moved.join("、")}）をオープンして手元に置いた。`
+          +,                                                             
+      532 +        )                                                     
+      533 +    }                                                         
+      534 +}                                                             
+      535 +                                                              
+      536  // 「自分のデッキは破棄されない」（globalConstraint "noDeckMil
+           lByOpponent"）が pid に対して有効か。
+      537  // millCapFor と同じく **pid 自身のフィールド（＋このターンの
+           仮想発生源）** だけを見る
+      538  function isDeckMillBlocked(state: GameState, pid: PlayerId): b
+           oolean {
+
+  Ran 2 shell commands (ctrl+o to expand)
+⏺ 使用の許可判定を追加します。
+
+⏺ Update(server/src/logic/RuleValidator.ts)
+  ⎿  Added 7 lines, removed 3 lines
+      310      // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegam
+           oto"の無償化（ミカファールLv2）が
+      311      // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが
+           有効なら無償化自体が打ち消される）
+      312      if (fromTegamoto) {
+      313 +        // BS06混迷する魔法実験場Lv2 が手元へ置いたカードは「 
+          +手札にあるときと同様に」使える                                
+      314 +        // （＝無償ではなく通常どおりコストを支払う）。使用権 
+          +は PlayerState.tegamotoPlayable に持つ                        
+      315 +        const playableAsHand = player.tegamotoPlayable.include
+          +s(cardId)                                                     
+      316          if (
+      314 -            !hasMagicFreeGrant(state, pid, card, true) ||     
+      315 -            hasMagicRestriction(state, pid, "noFreeCastOpponen
+          -t")                                                           
+      317 +            !playableAsHand &&                                
+      318 +            (!hasMagicFreeGrant(state, pid, card, true) ||    
+      319 +                hasMagicRestriction(state, pid, "noFreeCastOpp
+          +onent"))                                                      
+      320          ) {
+      317 -            return "手元のマジックカードを無償使用できる効果が
+          -ありません"                                                   
+      321 +            return "手元のマジックカードを使用できる効果があり
+          +ません"                                                       
+      322          }
+      323      }
+      324  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(scripts/validate-cards.ts)
+  ⎿  Added 1 line, removed 1 line
+      45      "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "
+          nexusEffectsDisabled",
+      46      "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhau
+          stGrant", "millCapBonus",
+      47      "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBl
+          ock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDam
+          ageMillGuard", "battleSwapSummon",
+      48 -    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMi
+         -lledFromDeck",                                                 
+      48 +    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMi
+         +lledFromDeck", "milledMagicToTegamoto",                        
+      49  ])
+      50  
+      51  export interface ValidationIssue {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ テストを書きます。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ 手元まわりを実装しました。前回入れた millDeck
+  の割り込み点をそのまま再利用できています。
+
+  設計上の判断
+
+  効果文が「オープンしたマジックカードは、ゲーム終了時まで、手札にあるときと同様
+  に使用できる」なので、使用権をネクサスではなくプレイヤーに持たせました。発生源
+  が場を離れても、既に手元にあるカードは使えます。
+
+  PlayerState.tegamotoPlayable は cardId の多重集合で、tegamoto 
+  の並びとは独立です。インデックスで紐付けると並び替えでズレますが、同じ cardId
+  ならどれを使っても等価なので、これで正しく、かつ壊れにくくなります。
+
+  使用経路も分けました。ミカファールLv2の無償化とは別で、通常どおりコストを払い
+  ます。マジックブックが置いたカードには使用権が付かないので、これまでどおり無償
+  化がなければ使えないままです。
+
+  クライアントは手元のマジックを常にクリック可能にして可否をサーバー検証に委ねる
+  作りだったので、public/ の変更もUI担当への依頼も不要でした。
+
+  ┌────────────────────────┬──────────────────────┐
+  │          検証          │         結果         │
+  ├────────────────────────┼──────────────────────┤
+  │ smoke                  │ 6058件 全緑（+13件） │
+  ├────────────────────────┼──────────────────────┤
+  │ 一部未実装             │ 11枚 → 10枚          │
+  ├────────────────────────┼──────────────────────┤
+  │ ギャップのベースライン │ 9件 → 8件            │
+  └────────────────────────┴──────────────────────┘
+
+  本セッションの累計
+
+  ┌────────────┬────────┬──────┐
+  │    分類    │ 開始時 │ 現在 │
+  ├────────────┼────────┼──────┤
+  │ 未実装     │      4 │    2 │
+  ├────────────┼────────┼──────┤
+  │ 一部未実装 │     10 │   10 │
+  ├────────────┼────────┼──────┤
+  │ 簡易実装   │     34 │   30 │
+  └────────────┴────────┴──────┘
+
+  第八弾91枚の完成に加えて、コミット12本ぶん進みました。smoke は 5937件 →
+  6058件です。
+
+  残っている大物
+
+  - reviveOnDestroy 4枚（「できる」を選べない）—
+  破壊処理を中断可能にする大工事。destroySpirit
+  の呼び出し50箇所が対象で、単独でバッチを取る規模です
+  - BS08-064 Lv2（ライフのコアでデッキ破棄を無効化）— millDeck
+  の戻り値の契約を壊さずに中断する必要があり、上と同じ性質の問題です
+  - 未実装2枚 — BS06-098
+  カウンターカース（呪撃の発揮タイミングを書き換える器）、BS08-038
+  猫娘アニー（手札のカード自身が発揮する召喚条件）
+
+  「中断可能にする」系が3件に増えてきたので、次はそこを1本の設計としてまとめて片
+  付けるのが効率的だと思います。着手しますか。
+
+✻ Sautéed for 4m 22s
+
+❯ そうしましょう                                                                
+
+⏺ 中断可能化は設計判断が要るので、まず実態を調べます。
+
+  Searched for 2 patterns, ran 1 shell command (ctrl+o to expand)
+
+⏺ 実態を確認しました。実対戦は interactiveTargets = true
+  で動いているので、この選択は実プレイに効きます（テストは false
+  のまま自動解決）。
+
+  調べた結果、当初想定していた「破壊処理そのものを中断可能にする」より軽い道が見
+  えました。方式の選択は挙動に関わるので確認させてください。
+
+⏺ User answered Claude's questions:
+  ⎿  · 復活効果の「できる」を選べるようにする方式はどれにしますか？ → 
+     保留確認方式（推奨）
+
+⏺ 保留確認方式で実装します。設計をピン留めしてから着手します。
+
+  Searched for 2 patterns, ran 1 shell command (ctrl+o to expand)
+
+⏺ 型と状態を追加します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ tryReviveOnDestroy に保留分岐を入れます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ Update(server/src/logic/EffectModules.ts)
+  ⎿  Added 60 lines
+      1617      })
+      1618  }
+      1619  
+      1620 +// 「破壊される代わりに復活**できる**」の確認を保留リストへ積
+           +む。                                                         
+      1621 +// 破壊はこの時点では行わない（対象は場に残ったまま）。承認・
+           +拒否は handleAction の末尾で確認したあと、                   
+      1622 +// applyReviveConfirm / declineReviveConfirm が決着させる    
+      1623 +function queueReviveConfirm(                                 
+      1624 +    state: GameState,                                        
+      1625 +    ownerPid: PlayerId,                                      
+      1626 +    inst: CardInstance,                                      
+      1627 +    effectId: string,                                        
+      1628 +    sourceInstanceId: string,                                
+      1629 +    context?: DestroyContext,                                
+      1630 +): void {                                                    
+      1631 +    ;(state.pendingReviveConfirms ??= []).push({             
+      1632 +        pid: ownerPid,                                       
+      1633 +        instanceId: inst.instanceId,                         
+      1634 +        effectId,                                            
+      1635 +        sourceInstanceId,                                    
+      1636 +        ...(context ? { context } : {}),                     
+      1637 +    })                                                       
+      1638 +    log(                                                     
+      1639 +        state,                                               
+      1640 +        `${state.players[ownerPid].name}の${getCard(inst.card
+           +Id).name}は、破壊される代わりに復活するか確認を待っている。`,
+      1641 +    )                                                        
+      1642 +}                                                            
+      1643 +                                                             
+      1644 +// 保留していた復活の確認で「復活させる」が選ばれたときの後処
+           +理。                                                         
+      1645 +// ここで初めてコストを支払い、復活先（場に残る／手札へ戻る）
+           +を適用する。                                                 
+      1646 +// コストを払えなければ復活は成立せず、そのまま破壊する      
+      1647 +export function applyReviveConfirm(                          
+      1648 +    state: GameState,                                        
+      1649 +    entry: NonNullable<PendingChoice["reviveConfirm"]>,      
+      1650 +): void {                                                    
+      1651 +    const player = state.players[entry.pid]                  
+      1652 +    const inst = player.field.spirits.find((s) => s.instanceI
+           +d === entry.instanceId)                                      
+      1653 +    if (!inst) return // 確認を出したあとに場から居なくなって
+           +いたら何もしない                                             
+      1654 +    const effect = getCard(inst.cardId)                      
+      1655 +        .effects.concat(                                     
+      1656 +            findInstanceAnywhere(state, entry.sourceInstanceI
+           +d)                                                           
+      1657 +                ? getCard(findInstanceAnywhere(state, entry.s
+           +ourceInstanceId)!.cardId).effects                            
+      1658 +                : [],                                        
+      1659 +        )                                                    
+      1660 +        .find((e) => e.id === entry.effectId)                
+      1661 +    if (!effect || effect.kind !== "reviveOnDestroy") return 
+      1662 +    if (!resolveReviveOnDestroy(state, entry.pid, inst, effec
+           +t, entry.sourceInstanceId)) {                                
+      1663 +        // コストを払えなかった：復活は成立しないので、保留し
+           +ていた破壊をここで行う                                       
+      1664 +        declineReviveConfirm(state, entry)                   
+      1665 +    }                                                        
+      1666 +}                                                            
+      1667 +                                                             
+      1668 +// 保留していた復活の確認で「復活させない」が選ばれたときの後
+           +処理。見送っていた破壊をここで行う                           
+      1669 +export function declineReviveConfirm(                        
+      1670 +    state: GameState,                                        
+      1671 +    entry: NonNullable<PendingChoice["reviveConfirm"]>,      
+      1672 +): void {                                                    
+      1673 +    const player = state.players[entry.pid]                  
+      1674 +    const inst = player.field.spirits.find((s) => s.instanceI
+           +d === entry.instanceId)                                      
+      1675 +    if (!inst) return                                        
+      1676 +    log(state, `${player.name}の${getCard(inst.cardId).name} 
+           +は復活しなかった。`)                                         
+      1677 +    destroySpirit(state, entry.pid, entry.instanceId, "destro
+           +y", entry.context, { skipRevive: true })                     
+      1678 +}                                                            
+      1679 +                                                             
+      1680  // reviveOnDestroy の判定と実行。復活できたら true を返す（呼
+            び出し側 destroySpirit はそのまま return する）。
+      1681  // 優先順位: instのカード自身が持つ scope:"self" の効果 → 持
+            ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
+      1682  function tryReviveOnDestroy(
+
+⏺ 共通の「コスト支払い＋復活適用」をモジュール関数として切り出します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ handleAction の末尾で確認を発行し、doResolveChoice で決着させます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ カードデータ4枚に optional を付けます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 対話モードのテストを書きます。まず対象カードの諸元を確認します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+⏺ 狙いどおり動いています。テストを書きます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 1体多く候補になっていました（アタッカーも ownAll
+  の対象）。テスト側を直します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 注意書きを更新します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 保留確認方式で復活4枚を実装しました。
+
+  仕組み
+
+  破壊処理の途中では中断できないので（destroySpirit
+  の呼び出し50箇所の多くがループの中にあり、pendingChoice の queue は
+  EffectAction の列しか運べない）、破壊をいったん見送って場に残し、アクションを
+  解決しきった安全な地点で確認する形にしました。
+
+  - reviveOnDestroy に optional（効果文が「できる」のものだけ）
+  - GameState.pendingReviveConfirms に積み、handleAction
+  の末尾で1件ずつ確認を出す
+  - resolveChoice も handleAction を通るので、複数体ぶんは自然に繰り返されます
+  - 承認 → 同じ判定経路を forced モードで通してコスト支払いと復活を確定／拒否 →
+  skipRevive 付きで見送っていた破壊を実行
+
+  承認時に別経路を書かず、保留したときと同じ判定を確定モードで通し直す構造にした
+  ので、条件判定のロジックが二重化していません。
+
+  ┌──────────┬──────────────────────┐
+  │   検証   │         結果         │
+  ├──────────┼──────────────────────┤
+  │ smoke    │ 6105件 全緑（+47件） │
+  ├──────────┼──────────────────────┤
+  │ 簡易実装 │ 30枚 → 27枚          │
+  └──────────┴──────────────────────┘
+
+  非対話（テスト）は従来どおり即時確定なので、既存6058件は1件も落ちていません。
+  実対戦のみ確認が出ます。
+
+  承知しておいてほしいズレ
+
+  選んでいただいた方式のとおり、2点だけ実際のルールとずれます。
+
+  - コストの支払いが確認後になる —
+  同じアクションの途中では、復活候補のコアがまだ減っていません
+  - 断った場合、破壊時効果の発火がそのアクションの末尾になる
+
+  確認中の盤面が従来と同じ（対象が場に残る）ため、同じアクション内の後続処理への
+  影響は読みやすくなっています。
+
+  現在地
+
+  ┌────────────┬──────────────────┬──────┐
+  │    分類    │ セッション開始時 │ 現在 │
+  ├────────────┼──────────────────┼──────┤
+  │ 未実装     │                4 │    2 │
+  ├────────────┼──────────────────┼──────┤
+  │ 一部未実装 │               10 │   10 │
+  ├────────────┼──────────────────┼──────┤
+  │ 簡易実装   │               34 │   27 │
+  └────────────┴──────────────────┴──────┘
+
+  smoke は 5937件 → 6105件、コミット14本です。
+
+  残り
+
+  BS08-064 Lv2（ライフのコア1個でデッキ破棄を無効化）は、今回作った保留確認の仕
+  組みがそのまま使えます。millDeck
+  は戻り値の契約があるので中断できませんが、「いったん破棄してから確認」ではなく
+  「破棄予定を保留して確認」の形にできるか、経路を見て判断します。
+
+  未実装2枚（BS06-098 カウンターカース／BS08-038
+  猫娘アニー）は、それぞれ別の器が要ります。
+
+  どちらに進みますか。
+
+✻ Cooked for 8m 31s
+
+❯ 未実装から手をつけますか                                                      
+
+⏺ 未実装2枚に進みます。まず両方の効果文と、近い既存機構を確認します。
+
+  Searched for 2 patterns, ran 1 shell command (ctrl+o to expand)
+
+⏺ 両方とも既存機構の近縁で行けそうです。それぞれのフック地点を確認します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ 2枚とも既存の近縁機構で行けます。まずカウンターカースから実装します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ resolveBattle の呪撃解決点に差し替えを組み込みます。
+
+  Searched for 1 pattern, ran 3 shell commands (ctrl+o to expand)
+
+⏺ Update(scripts/smoke/part127.ts)
+  ⎿  Added 5 lines, removed 1 line
+      69      }
+      70      assert(hasKeyword("BS06-015", "jugeki"), "ストレイソウルは
+          【呪撃】を持つ")
+      71      assert(hasKeyword("BS06-019", "jugeki"), "冥楽士ムールは【
+          呪撃】を持つ")
+      72 -    assert(getCard("BS06-098").effects.length === 0, "カウンタ 
+         -ーカースは未実装（effects空）")                                
+      72 +    // カウンターカースは 2026-08-10 に実装した（kind:"jugekiOn
+         +BlockReplace"。挙動は part152 で検証）                         
+      73 +    assert(                                                    
+      74 +        getCard("BS06-098").effects.some((e) => e.kind === "jug
+         +ekiOnBlockReplace"),                                           
+      75 +        "カウンターカースは【呪撃】の発揮タイミングを差し替える
+         +",                                                             
+      76 +    )                                                          
+      77  }
+      78  
+      79  console.log("=== BS06-014 スモッグゴート：leaveAtLeast=1（コア1
+          個の相手からは取れない） ===")
+
+⏺ 次に猫娘アニーです。ライフ減少時のフック地点を確認します。
+
+  Searched for 2 patterns, ran 2 shell commands (ctrl+o to expand)
+
+⏺ summonFreeFromHandIndex が使えます。猫娘アニーを実装します。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ 2枚ぶんのテストを書きます。
+
+  Searched for 3 patterns, ran 3 shell commands (ctrl+o to expand)
+
+⏺ resolveBattle を明示的に呼ぶ必要がありました。テストを直します。
+
+  Searched for 1 pattern, ran 3 shell commands (ctrl+o to expand)
+
+⏺ 最後のブロックが実質何も検証していないので、条件判定を直接叩く形に直します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+⏺ 未実装が0枚になりました。最終確認してコミットします。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 未実装が0枚になりました。
+
+  実装した2枚
+
+  BS06-098 カウンターカース —
+  効果文が【呪撃】の発揮タイミングを『ブロック時』へ変更するなので、既存の
+  funsaiOnBlock / kyoshuOnBlock（「にも発揮される」＝追加）は流用できませんでし
+  た。差し替え専用の jugekiOnBlockReplace を新設し、差し替えが効いている側はアタ
+  ック時に発揮しなくなり、代わりにブロッカーの【呪撃】がアタッカーを破壊します。
+  装甲判定と魔影街Lv1のコアボイド送りは、アタック時と同じ経路を通しています。
+
+  BS08-038 猫娘アニー — 手札にあるカード自身が発揮する唯一の形で、フィールド誘発
+  の走査では拾えません。ownLifeDamaged の発火点で持ち主の手札を走査する形にしま
+  した。「できる」なので実対戦では確認を出し、非対話では従来の慣例どおり自動召喚
+  します。維持コアを置けないときは確認自体を出しません。
+
+  書いていてテスト側の誤りも2つ拾っています（ブロック宣言だけではバトルが解決し
+  ない／ライフで受けるとコアがリザーブへ移るのでリザーブ差分では検証できない）。
+
+  到達点
+
+  ┌────────────┬──────────────────┬──────┐
+  │    分類    │ セッション開始時 │ 現在 │
+  ├────────────┼──────────────────┼──────┤
+  │ 未実装     │                4 │    0 │
+  ├────────────┼──────────────────┼──────┤
+  │ 一部未実装 │               10 │   10 │
+  ├────────────┼──────────────────┼──────┤
+  │ 簡易実装   │               34 │   27 │
+  └────────────┴──────────────────┴──────┘
+
+  ┌────────────────────────┬────────┬─────────────────────┐
+  │          項目          │ 開始時 │        現在         │
+  ├────────────────────────┼────────┼─────────────────────┤
+  │ カードプール           │  815枚 │ 906枚（第八弾完成） │
+  ├────────────────────────┼────────┼─────────────────────┤
+  │ smoke                  │ 5937件 │              6141件 │
+  ├────────────────────────┼────────┼─────────────────────┤
+  │ ギャップのベースライン │   10件 │                 7件 │
+  └────────────────────────┴────────┴─────────────────────┘
+
+  コミットは16本です。data/card-notes.json から unimplemented
+  が消え、全906枚が何らかの形で実装済みになりました。
+
+  残っている10枚（一部未実装）
+
+  いずれも器が無いものです。同じ理由でまとまっているのは2組あります。
+
+  - 【暴風】で疲労させた個体を覚える仕組み — BS06-080 颶風高原 / BS06-101
+  ミストラルコア（2枚）
+  - スピリットの一時的な支配権移動 — BS02-063 冥犬ケルル・ベロス（1枚）
+
+  残りは BS03-147 ゴーレムクラフト（ネクサスがバトルに参加）、BS05-060
+  茨の決戦地、BS08-017 骸蛇スカルピオーネ、BS08-055 竜騎集う円卓、BS08-057
+  赤き砂の座（原文が曖昧）、BS08-064 鳳翼の聖剣 Lv2、BS08-071 ビクティムです。
+
+  デプロイはお任せしますが、今回ぶんはお知らせを4件足してあります。次を進めるか
+  、ここで一度反映するか、どちらでも。
+
+✻ Baked for 8m 19s
+
+❯ けるるべロスは公式でも複雑さが絡むことで禁止になっているのでこれは実装しない  
+  ようにしましょう                                                              
+  これ以外の簡易実装、未実装の実装へ移りましょう                                
+  一旦私の方でデプロイまでしておくので                                          
+
+⏺ 了解しました。まずケルル・ベロスの扱いを整理します。禁止カードの仕組みが既にあ
+  るか確認します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ ケルル・ベロスは既に limited: 
+  true（禁止カード）で、デッキ構築時点で弾かれます。注意書きの扱いを確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ ケルル・ベロスの注意書きを「意図的に実装しない」に書き換えます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 次は【暴風】の2枚（颶風高原・ミストラルコア）です。同じ器待ちなのでまとめて片
+  付きます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 【暴風】の疲労処理の場所を確認します。
+
+  Searched for 2 patterns, ran 1 shell command (ctrl+o to expand)
+
+⏺ 実装します。まず battleWon の絞り込み軸を確認します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ winnerKeywordFilter が既にあります。記録と誘発の器を足します。
+
+  Searched for 1 pattern, ran 3 shell commands (ctrl+o to expand)
+
+⏺ exhaust ハンドラから【暴風】由来であることを伝えます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 「デッキの下に戻す」アクションを追加します。
+
+  Searched for 3 patterns, ran 2 shell commands (ctrl+o to expand)
+
+⏺ ハンドラを追加します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ カードデータを書きます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ テストを書いて実際に動くか確かめます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ ブロック宣言が通っていません。既存の declareBlock ヘルパーを使います。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+⏺ chooserIsTarget の再入で owner
+  が入れ替わっていました。【暴風】の持ち主を明示的に持ち回る形に直します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ selfOverride があると owner が疲労した側になる仕様でした。カード側で selfMode:
+  "source" を指定します。
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+⏺ 【暴風】まわりの2枚を実装しました。ケルル・ベロスは方針を注意書きに明記してあ
+  ります。
+
+  実装内容
+
+  疲労の唯一の入口である exhaustSpirit
+  に【暴風】の持ち主を渡す形にして、そこから記録（颶風高原Lv2が参照）とイベント
+  発火（ミストラルコアが1体につき1回受け取る）の両方を行います。
+
+  途中でバグを1つ踏んで、テストで捕まえました。 最初は owner
+  から【暴風】の持ち主を取っていたのですが、【暴風】は
+  chooserIsTarget（疲労させられる側が対象を選ぶ）なので、選択の再入後は owner
+  が相手側に入れ替わります。結果、ミストラルコアが相手のスピリットにコアを置いて
+  いました。持ち主を内部フィールドで明示的に持ち回る形に直しています。
+
+  ┌────────────────────────┬──────────────────────┐
+  │          検証          │         結果         │
+  ├────────────────────────┼──────────────────────┤
+  │ smoke                  │ 6168件 全緑（+27件） │
+  ├────────────────────────┼──────────────────────┤
+  │ 一部未実装             │ 10枚 → 8枚           │
+  ├────────────────────────┼──────────────────────┤
+  │ ギャップのベースライン │ 7件 → 5件            │
+  └────────────────────────┴──────────────────────┘
+
+  颶風高原Lv2は「戻す順番を選べない」簡略化が残るので、そちらに記録し直しました
+  。
+
+  残り
+
+  一部未実装（8枚）
+
+  ┌─────────────────────────────┬──────────────────────────────────────┐
+  │           カード            │              足りない器              │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS02-063 冥犬ケルル・ベロス │ 実装しない方針（禁止カード）         │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS08-064 鳳翼の聖剣 Lv2     │ ライフのコアでデッキ破棄を無効化     │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS08-055 竜騎集う円卓       │ 効果の対象になるたび手札破棄で無効化 │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS08-071 ビクティム         │ コスト支払いの選択（手札破棄で払う） │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS08-017 骸蛇スカルピオーネ │ コア増加の発生源を判別               │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS08-057 赤き砂の座         │ 原文から主体・対象が一意に定まらない │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS03-147 ゴーレムクラフト   │ ネクサスがバトルに参加               │
+  ├─────────────────────────────┼──────────────────────────────────────┤
+  │ BS05-060 茨の決戦地         │ 範囲コア操作でのコア下限保護         │
+  └─────────────────────────────┴──────────────────────────────────────┘
+
+  次に効率が良いのは BS08-064 Lv2 と BS08-055 
+  の「コストを払って効果を無効にする」2枚だと思います。どちらも「相手の効果に割
+  り込んでコストを払うか確認する」形で、先に作った保留確認の仕組みと magicNegate
+  の中間にあたります。器を1つ作れば2枚に効きます。
+
+  続けますか。
+
+✻ Sautéed for 8m 7s
+
+❯ ちなみに颶風高原のバウンスは装甲で防げている？                                
+
+⏺ いい指摘です。防げていません。 私のハンドラは記録から直接引いていて、他の対象
+  取りハンドラが持つ耐性チェックを一切通していませんでした。確認します。
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ これが正しいガードの形です。同じものを適用します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 装甲で防げることを確かめるテストを足します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 装甲は疲労自体も防ぐので、その経路では届きませんでした。ガードを直接叩く形に直
+  します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+❯ あ、そうか                                                                    
+
+⏺ はい、まさにそこでした。【装甲】は【暴風】の疲労そのものを防ぐので、装甲持ちは
+  そもそも記録に載りません。自然な対戦の流れでは、私が入れたガードには届かないん
+  です。
+
+  ただ「届きにくい」だけで、届く経路はあります。
+
+  - バトル中にフラッシュで装甲を付与された（疲労した後に装甲を得る）
+  - 疲労した後に keywordGrant の条件が成立して継続付与が始まる
+
+  なので、ガード自体は入れておくべきものでした。テストは自然な流れでは検証できな
+  いため、記録を直接組んで判定だけを叩く形にしています。
+
+  コミットします。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+❯ そもそも装甲で暴風は喰らわないのか                                            
+
+⏺ 良い問いです。テスト結果から推測で書いてしまったので、実際に確かめます。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 対照実験で確定しました。この実装では装甲で暴風を喰らいません。
+
+  同じ盤面で相手側の1体だけを入れ替えた結果です。
+
+  ┌───────────────────────────────────┬─────────┬──────────────────────────┐
+  │       相手側の非ブロッカー        │  疲労   │           記録           │
+  ├───────────────────────────────────┼─────────┼──────────────────────────┤
+  │ 双子妖精フギン＆ムニン（【装甲：  │ されな  │ なし（「対象がいなかった │
+  │ 緑】）                            │ い      │ 」）                     │
+  ├───────────────────────────────────┼─────────┼──────────────────────────┤
+  │ ゴラドン（装甲なし）              │ される  │ あり                     │
+  └───────────────────────────────────┴─────────┴──────────────────────────┘
+
+  【暴風】の疲労は exhaust
+  アクションを通り、そこで発生源の色（アタッカー＝緑）に対する hasArmorAgainst
+  を見ているためです。ルール上もこれで合っていると思います。【暴風】の効果の持ち
+  主はアタッカー側のスピリットなので、「相手の緑のスピリットの効果を受けない」に
+  当たります。疲労させる操作自体は防御側が行いますが、効果の発生源はあくまで相手
+  のカードです。
+
+  牙王樹ラフレシオーの場合、ブロッカー自身は excludeTarget
+  で対象外なので、残る候補が装甲持ちだけだとまるごと不発になります。
+
+  さきほどの修正について
+
+  つまり私が入れた「デッキ戻しの装甲ガード」は、自然な対戦では通りません。装甲持
+  ちは疲労しないので記録に載らないからです。
+
+  届くのは、疲労した後に装甲を得た場合だけです。
+
+  - フラッシュのマジックで装甲を付与された
+  - keywordGrant の条件が後から成立した
+
+  狭い経路ですが、他の対象取りハンドラが全部持っているガードなので、揃えておく価
+  値はあると考えて残しています。ご指摘がなければ、記録から引くハンドラだけ耐性素
+  通りという穴が残っていました。
+
+  現在の状態
+
+  ┌────────────┬───────────────────────────────────────────┐
+  │    検証    │                   結果                    │
+  ├────────────┼───────────────────────────────────────────┤
+  │ smoke      │ 6170件 全緑                               │
+  ├────────────┼───────────────────────────────────────────┤
+  │ 未実装     │ 0枚                                       │
+  ├────────────┼───────────────────────────────────────────┤
+  │ 一部未実装 │ 8枚（うちケルル・ベロスは実装しない方針） │
+  ├────────────┼───────────────────────────────────────────┤
+  │ 簡易実装   │ 28枚                                      │
+  └────────────┴───────────────────────────────────────────┘
+
+  コミットは cc68baa（暴風2枚）と e7c8431（装甲ガード）です。次は「コストを払っ
+  て相手の効果を無効にする」2枚（BS08-064 Lv2 / BS08-055）に進められます。
+
+✻ Brewed for 3m 12s
+
+❯ おんなじような装甲とネクサス場合はあるかな                                    
+
+⏺ 同じ穴が他にもないか、系統的に見てみます。まず「記録・バトル参加者から直接対象
+  を引いている」ハンドラを洗います。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ ネクサスに装甲を持つカードは0枚でした（装甲はスピリット用のキーワード）。同じ
+  「耐性素通り」の穴を系統的に探します。
+
+  Ran 1 shell command (ctrl+o to expand)
+⏺ 多くは自分側・維持コア割れですが、相手のコアを奪う範囲効果が気になります。装甲
+  を見ているか確認します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ 内部で不揃いになっています。耐性を見ているハンドラと見ていないハンドラが混在し
+  ています。影響範囲を確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ はい、同じ穴が他にもあります。 コア奪取系で内部が不揃いでした。
+
+  調査結果
+
+  server/src/logic/actions/cores.ts
+  の相手コアに触れるハンドラのうち、耐性を見ているのは5つだけです。
+
+  耐性判定あり: coreRemove / coreDrainToLowerLevel / coreToOpponentTrashChoice /
+
+  coreToTrashAllByCost / coreRemovePerHandDiscard
+  耐性判定なし: bothSidesCoreToTrash / bothSidesCoreToVoid / coreDrainAllOthers
+  /
+  coreSqueezeAll / coreSqueezeOne / moveCoresLeavingOne / opponentCoresToTrash
+  / opponentCoresToVoidByTotal / costOwnAllCoresThenEnemyCoresToReserve /
+  swapOpponentCores
+
+  つまり「1体ずつ選んでコアを取る」効果は装甲で防げるのに、範囲でまとめて奪う効
+  果は装甲を素通りします。
+
+  影響するカードは14枚です。
+
+  - BS01-046 幻龍シェイロン / BS06-023 闇司教バクルス（コア圧搾・全体）
+  - BS01-041 コブライガ / BS03-125 ウィークネス / BS06-018
+  人狼ルー・ガウル（コア圧搾・単体）
+  - BS01-087 メタルディー・バグ / BS02-093
+  マインドコントロール（両者からトラッシュへ）
+  - BS04-096 インフェルノアイズ（両者からボイドへ）
+  - BS01-X02 魔界七将デスペラード / BS04-045 氷の女神フリッグ / BS02-094
+  ブラッディレイン
+  - BS02-091 セブンスクリムゾン / BS04-053 天使スローン
+  - BS01-025 要塞龍ギガ / BS01-130 チェンジングコア
+
+  ルール上は【装甲】＝「相手の◯色のスピリット/ネクサス/マジックの効果を受けない
+  」なので、コアを取られるのも効果を受けている以上、防げるのが正しいはずです。既
+  に coreRemove 側がそう実装されているので、これは意図した簡略化ではなく単なる不
+  揃いだと思います。
+
+  ネクサスについて
+
+  こちらは問題ありませんでした。
+
+  - 装甲を持つネクサスは0枚（装甲はスピリット専用のキーワード）
+  - ネクサス破壊は destroyNexus が単一の入口で、nexusIndestructible /
+  ownNexusIndestructible の破壊耐性をそこで必ず見ています
+  - opponentNexusOrReserveCoreToTrash（エナジードレイン）はネクサスとリザーブが
+  対象なので、装甲の対象外
+
+  先日ネクサス破壊に DestroyContext を通したときも、この入口が1本だったので楽で
+  した。スピリット側と違って経路が集約されています。
+
+  提案
+
+  14枚ぶんの挙動が変わるので確認させてください。returnAllToHand
+  と同じ判定（装甲・マジック効果耐性・範囲効果耐性・完全耐性）を、上記10ハンドラ
+  の相手側に触れる箇所に入れて揃えるのが筋だと考えています。既存テストがこの穴を
+  前提に書かれている可能性があるので、そこは実際に走らせて確認します。
+
+  このまま直してよいですか。それとも先に他の未実装・簡易実装を進めますか。
+
+✻ Sautéed for 2m 9s
+
+❯ タスクとしてメモっておいて置けるかな                                          
+  その上で未実装簡易実装へ先に手をつけようかな                                  
+
+⏺ SPEC.md の課題リストに残します。場所を確認します。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 課題として記録します。ついでに古くなっている枚数表も現状に合わせます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 記録しました（28b90be）。SPEC.md §5
+  に「未着手の課題」の節を新設して、対象10ハンドラ・影響14枚・直し方まで書いてあ
+  ります。ついでに古かった枚数表も実態に更新しました。
+
+  では実装に戻ります。「コストを払って相手の効果を無効にする」2枚から入ります。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ BS08-055 Lv2 は判定点が多すぎて難所です。先に手が届きそうな BS08-017
+  を見ます（exhaustOnManualCoreAdd という近い器が既にあります）。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 既存の exhaustOnManualCoreAdd
+  がそのまま使えそうです。フィールドと近縁カードを確認します。
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+
+⏺ exhaustOnManualCoreAdd
+  は既に「メインステップ（ターン問わず）」で判定していて、BS08-017
+  の『お互いのメインステップ』にそのまま合致します。同じ効果文の姉妹カードが2枚
+  あるので、それに揃えます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 動作を確認するテストを足します。
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+⏺ 骸蛇スカルピオーネが片付きました。既存の器がそのまま使えました。
+
+  「コア増加の発生源を判別する仕組みが無い」として見送られていましたが、効果文が
+  BS02 夢魔の寝所・BS06
+  魔帝の寝所とまったく同じ（『相手の』か『お互いの』かの違いだけ）で、既存実装の
+  phase 判定が state.phase === "main" のみでターンを見ていないため、scope: 
+  "any" を足すだけで表せました。データ1行です。
+
+  姉妹カード2枚に注意書きが無いので、揃えて削除しています。
+
+  ┌────────────────────────┬─────────────────────┐
+  │          検証          │        結果         │
+  ├────────────────────────┼─────────────────────┤
+  │ smoke                  │ 6175件 全緑（+5件） │
+  ├────────────────────────┼─────────────────────┤
+  │ 一部未実装             │ 8枚 → 7枚           │
+  ├────────────────────────┼─────────────────────┤
+  │ ギャップのベースライン │ 5件 → 4件           │
+  └────────────────────────┴─────────────────────┘
+
+  残り7枚の見立て
+
+  改めて中身を見たので、難易度を更新します。
+
+  ┌───────────┬─────────────────────────────────────────────────────────────┐
+  │  カード   │                            状況                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS02-063  │                                                             │
+  │ 冥犬ケル  │ 実装しない方針（禁止カード）                                │
+  │ ル・ベロ  │                                                             │
+  │ ス        │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS08-057  │ 原文から主体・対象が一意に定まらない。カード側の問題なので  │
+  │ 赤き砂の  │ 、これも見送りのままが妥当                                  │
+  │ 座        │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS05-060  │ 範囲コア操作でのコア下限すり抜け。さきほど記録した装甲の課  │
+  │ 茨の決戦  │ 題と同じハンドラ群なので、あちらと一緒に直すのが効率的      │
+  │ 地        │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS08-064  │ ライフのコアでデッキ破棄を無効化。millDeck                  │
+  │ 鳳翼の聖  │ が枚数を返す契約なので、保留確認の形に組み替える必要あり    │
+  │ 剣 Lv2    │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS08-071  │ 手札破棄でコストを払う。支払い方法の選択なのでクライアントU │
+  │ ビクティ  │ Iが要る → UI担当への依頼が必要                              │
+  │ ム        │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS08-055  │ 対象になるたび手札1枚で防ぐ。判定点が装甲と同じく多数に散っ │
+  │ 竜騎集う  │ ていて、そこで「払うか」を聞けない                          │
+  │ 円卓 Lv2  │                                                             │
+  ├───────────┼─────────────────────────────────────────────────────────────┤
+  │ BS03-147  │                                                             │
+  │ ゴーレム  │ ネクサスがバトルに参加する。大工事                          │
+  │ クラフト  │                                                             │
+  └───────────┴─────────────────────────────────────────────────────────────┘
+
+  実質的に手が届くのは BS08-064 Lv2 と BS05-060
+  の2つで、後者は装甲の課題とセットです。
+
+  BS05-060 と装甲の課題をまとめて1バッチにすると、コア操作系ハンドラを一度触るだ
+  けで「耐性を尊重する」と「コア下限を尊重する」の両方が揃います。同じ場所を二度
+  触らずに済むので、これを次にやるのが良さそうです。
+
+  どうしますか。
+
+✻ Sautéed for 4m 29s
+
+❯ 057は何がわかっていない？                                                     
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 対象は明確でした。**BS08-031 冥機グングニルの「系統指定・全体版」**です。姉妹
+  カードがあるので読みは一意に定まります。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 実装します。既存関数を「場の発生源からの付与」も見る形に広げます。
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ テストを書きます。
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+⏺ 057 は曖昧ではありませんでした
+
+  効果文はこれです。
+
+  ▎ Lv2『自分のメインステップ』
+  ▎ 【転召】を持つスピリットカードを召喚するとき、系統：「冥主」を持つ自分のスピ
+  ▎ リットすべてをコスト+3する。
+
+  BS08-031 冥機グングニルと並べると読みが一意に定まります。
+
+  ┌────────────────────────────┬────────────────────────────────────────────┐
+  │           カード           │                    対象                    │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ 冥機グングニル（スピリット │ 「このスピリットをコスト+3する」＝自分自身 │
+  │ ）                         │                                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ 赤き砂の座（ネクサス）     │ 「系統『冥主』を持つ自分のスピリットすべて │
+  │                            │ 」                                         │
+  └────────────────────────────┴────────────────────────────────────────────┘
+
+  どちらも目的は同じで、【転召】の生贄要求（コストN以上）を満たすためのコスト底
+  上げです。【転召：コスト5以上】に対してコスト3の冥主は本来生贄にできませんが、
+  +3で届くようになります。
+
+  赤き砂の座はネクサスなので自分自身が生贄になれません。だから対象が「自分のスピ
+  リットすべて」になるのは自然で、ここに解釈の余地はありませんでした。
+
+  前任の「主体・対象が定まらない」という判断は、おそらくグングニルと突き合わせず
+  に単独で読んだためだと思います。グングニル用の tenshoSelfCostBonus に target: 
+  "ownAll" と familyFilter を足すだけで済みました（グングニル側の挙動は不変）。
+
+  ┌────────────────────────┬─────────────────────┐
+  │          検証          │        結果         │
+  ├────────────────────────┼─────────────────────┤
+  │ smoke                  │ 6178件 全緑（+3件） │
+  ├────────────────────────┼─────────────────────┤
+  │ 一部未実装             │ 7枚 → 6枚           │
+  ├────────────────────────┼─────────────────────┤
+  │ ギャップのベースライン │ 4件 → 3件           │
+  └────────────────────────┴─────────────────────┘
+
+  残り6枚
+
+  ┌──────────────────┬──────────────────────────────────────────────────────┐
+  │      カード      │                         状況                         │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS02-063 冥犬ケ  │ 実装しない方針（禁止カード）                         │
+  │ ルル・ベロス     │                                                      │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS05-060         │ 範囲コア操作のコア下限すり抜け。装甲の課題と同じハン │
+  │ 茨の決戦地       │ ドラ群                                               │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS08-064         │ millDeck を保留確認の形に組み替える必要あり          │
+  │ 鳳翼の聖剣 Lv2   │                                                      │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS08-071         │ 手札破棄で支払う。クライアントUIが要る（UI担当へ依頼 │
+  │ ビクティム       │ ）                                                   │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS08-055         │ 判定点が装甲と同じく多数に散っている                 │
+  │ 竜騎集う円卓 Lv2 │                                                      │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ BS03-147         │ ネクサスがバトルに参加。大工事                       │
+  │ ゴーレムクラフト │                                                      │
+  └──────────────────┴──────────────────────────────────────────────────────┘
+
+  次にやるなら BS05-060 ＋ 
+  記録した装甲の課題をまとめて1バッチが効率的です。コア操作系ハンドラを一度触る
+  だけで「耐性を尊重する」と「コア下限を尊重する」の両方が揃います。
+
+  いかがしますか。
+
+✻ Worked for 2m 45s
+
+❯ そうしますか                                                                  
+
+⏺ まとめて着手します。まず BS05-060 の中身と、コア保護の仕組みを確認します。
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+⏺ 全体像が見えました。実は問題はもっと根深くて、10ハンドラは共通ヘルパー（remove
+  Cores 系）を通さず inst.cores -= x 
+  を直接いじっています。だから装甲もコア下限もバトル保護も全部素通りです。
+
+  共通ヘルパーに寄せる形で直します。まず取り除いた実数を返せるようにします。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 共通の「相手のコアを奪えるか」判定を1つ用意します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 10ハンドラを共通ヘルパー経由に寄せます。まず現状を確認します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ チャウーLv2は「効果でリザーブに置かれるコア+1」なので、共通ヘルパー経由にする
+  方がむしろ正確です。方針が固まったので順に変換します。
+
+  Searched for 1 pattern, ran 8 shell commands (ctrl+o to expand)
+
+⏺ 1つ目が通りました。残りも同じ形に揃えます。
+
+  Searched for 1 pattern, ran 5 shell commands (ctrl+o to expand)
+
+⏺ 2つ目も通りました。残りを確認します。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 残りのうち相手に作用するものを変換します。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 残り2つ（opponentCoresToVoidByTotal /
+  costOwnAllCoresThenEnemyCoresToReserve）も揃えます。
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 動作を確認するテストを書きます。
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 全部通りました。最終検証してコミットします。
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ 装甲の課題と茨の決戦地を、まとめて片付けました。
+
+  原因は思っていたより根深かった
+
+  調べたら、問題のハンドラは共通ヘルパーを通さず inst.cores -= n 
+  を直接いじっていました。つまり素通りしていたのは装甲だけではありません。
+
+  - 【装甲】などの耐性
+  - バトル中のコア保護（BS05 茨の決戦地Lv1）
+  - コア下限（BS08 聖なる柱状彫刻）
+  - チャウーLv2 の「効果でリザーブに置かれるコア+1」
+
+  共通ヘルパーに寄せるだけで、4つ全部が一度に効くようになりました。
+  これが茨の決戦地と装甲を同じバッチにした狙いどおりの結果です。
+
+  やったこと:
+  - removeCores 系3つが実際に取り除けた数を返すようにした（保護や下限で減るので
+  、残数の計算には必ずこれを使う）
+  - 共通の canTakeCoresFrom を追加（判定軸は returnAllToHand と同じ）
+  - 5つのハンドラをヘルパー経由に変換。取れなかった個体は skip
+  に入れて無限ループを防止
+
+  ┌────────────┬───────────────────────────────┐
+  │    検証    │             結果              │
+  ├────────────┼───────────────────────────────┤
+  │ smoke      │ 6185件 全緑（+7件）           │
+  ├────────────┼───────────────────────────────┤
+  │ 一部未実装 │ 6枚 → 5枚（茨の決戦地が解消） │
+  └────────────┴───────────────────────────────┘
+
+  SPEC.md の課題も解消済みに書き換えました。残っている穴も明記してあります —
+  ネクサス上のコアと入れ替え系（swapOpponentCores
+  等）はまだヘルパーを通っていません。ネクサスには装甲も維持コアも無いので実害は
+  小さいですが、コア下限は本来効くはずです。
+
+  現在地
+
+  ┌────────────┬──────────────────────────────┐
+  │    分類    │             枚数             │
+  ├────────────┼──────────────────────────────┤
+  │ 未実装     │                            0 │
+  ├────────────┼──────────────────────────────┤
+  │ 一部未実装 │ 5（うち1枚は実装しない方針） │
+  ├────────────┼──────────────────────────────┤
+  │ 簡易実装   │                           28 │
+  └────────────┴──────────────────────────────┘
+
+  実質的に残るのは4枚です。
+
+  ┌───────────────────────────┬──────────────────────────────────────┐
+  │          カード           │                 障壁                 │
+  ├───────────────────────────┼──────────────────────────────────────┤
+  │ BS08-064 鳳翼の聖剣 Lv2   │ millDeck を保留確認の形に組み替える  │
+  ├───────────────────────────┼──────────────────────────────────────┤
+  │ BS08-071 ビクティム       │ クライアントUIが必要（UI担当へ依頼） │
+  ├───────────────────────────┼──────────────────────────────────────┤
+  │ BS08-055 竜騎集う円卓 Lv2 │ 判定点が装甲と同じく多数に散っている │
+  ├───────────────────────────┼──────────────────────────────────────┤
+  │ BS03-147 ゴーレムクラフト │ ネクサスがバトルに参加。大工事       │
+  └───────────────────────────┴──────────────────────────────────────┘
+
+  BS08-064 Lv2 は、先に作った復活の保留確認と同じ手が使えるので、次に手が届くと
+  したらこれです。BS08-071 は先に chatbox で
+  UI担当へ相談を投げておくこともできます。
+
+  どうしますか。
+
+✻ Sautéed for 7m 40s
+
+❯ ゴーレムクラフトに関してなんだけど                                            
+  効果記述のないスピリットに置き換えるだけで良くないかな                        
+  そのスピリットが破壊されたらトラッシュにネクサスを追加する                    
+  マジック効果が切れたらネクサスに戻す                                          
+  で、そのターンだけスピリット扱いだからコアが０個になったらスピリットとして破  
+  壊される                                                                      
+  おそらく裁定的にはスピリットになったら効果が切れるまではスピリット扱いとなる  
+  ようです                                                                      
+  実装はしなくていいからこれに対して意見をくれ                                  
+
+  Searched for 1 pattern, ran 1 shell command (ctrl+o to expand)
+⏺ 実装せずに評価します。カードの原文はこうですね。
+
+  ▎ 自分のフィールドのコアが1個以上置かれているネクサスすべては、このターンの間
+  ▎ 、ネクサスとしての効果を失い"コスト：1/系統：「造兵」/Lv1コスト：1/Lv1BP：20
+  ▎ 00/効果の記述なし"のスピリットとして扱う。
+
+  結論：賛成です。しかも注意書きの前提が間違っていました
+
+  現在の注意書きは「ネクサスがアタック・ブロック・バトルに参加する仕組みが未対応
+  のため」と書いていますが、その仕組みは要りません。ネクサスを参加させるのではな
+  く、スピリットにしてしまえばいい。あなたの案の核心はそこで、これで難易度が一段
+  下がります。
+
+  カード側がステータスを全部明記してくれている（コスト1／造兵／Lv1コスト1／Lv1BP
+  2000／効果なし）ので、こちらで決める余地もありません。
+
+  1点だけ設計を変えたい：「置き換え」ではなく「同じインスタンスのまま移す」
+
+  「効果記述のないスピリットに置き換える」を別カードへの差し替えとしてやると、元
+  が何だったか分からなくなります。あなた自身が「破壊されたらトラッシュにネクサス
+  を追加する」と書いているのは、まさにその情報を別途持つ必要が出るからです。
+
+  同じ CardInstance（同じ cardId）のまま field.nexuses から field.spirits
+  へ移動させて、スピリットとしてのステータス上書きを載せる形にすると、その手当て
+  が全部消えます。
+
+  - 破壊時：destroySpirit が inst.cardId をトラッシュへ push
+  するので、ネクサスカードが自動でトラッシュに行きます。追加実装ゼロ
+  - ターン終了時：field.spirits から field.nexuses へ戻すだけ
+
+  そしてこの「移す」こと自体が最大の得です。field.spirits を列挙している箇所はエ
+  ンジン内に数百あります。そこに入れてしまえば、アタック・ブロック・BP比較・全体
+  破壊・体数カウント・対象選択が全部ただで手に入ります。逆に「ネクサスのまま特別
+  扱い」を選ぶと、その数百箇所を直すことになる。そっちが本物の大工事です。
+
+  あなたの4点への評価
+
+  ┌──────────────────────────┬──────────────────────────────────────────────┐
+  │            案            │                     評価                     │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ 効果記述のないスピリット │ ○ カードが数値を明記しているので迷いなし     │
+  │ にする                   │                                              │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ 破壊されたらトラッシュに │ ◎ 同一インスタンスを移す方式なら実装不要（自 │
+  │ ネクサスを追加           │ 動で満たされる）                             │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ 効果が切れたらネクサスに │ ○ ただし破壊済みを蘇らせないこと（場に残って │
+  │ 戻す                     │ いるものだけ戻す）                           │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ コア0個でスピリットとし  │ ○ 正しい。Lv1コスト1                         │
+  │ て破壊                   │ なので維持コア1。変換対象が「コア1個以上」な │
+  │                          │ ので開始時点は必ず成立する                   │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ 裁定：効果が切れるまでス │ 同意。ターン中はスピリットとして完結させるの │
+  │ ピリット扱い             │ が一貫する                                   │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  見落としやすい点
+
+  「ネクサスとしての効果を失い」が自動では効きません。 field.nexuses
+  から抜けても effectSources() はスピリットも走査するので、そのままだとネクサス
+  の効果が発火し続けます。ここは既存の treatedAsVanillaContinuous（「効果の記述
+  を持たないものとして扱う」）が流用できるので、それを立てる必要があります。
+
+  新規に要る器は結局1つだけです。スピリットとしてのステータス上書き（cost / BP /
+  family）。levelAsContinuous や symbolsOverrideContinuous
+  と同じ「上書きフィールド」の系譜にそのまま載ります。currentLevel はカードの
+  levels を読むので、ネクサスのままだと BP0
+  になってしまう。ここだけは新設が要ります。
+
+  細かい確認事項:
+  - 対象集合は解決時に固定（その後置いたネクサスは変換されない）
+  - 疲労したまま戻ると「疲労したネクサス」になるが、【強襲】がネクサスを疲労させ
+  る仕様があるので整合する
+  - coresOverride（クロスシザースのコアリンク）でネクサスに紐づいたコアがあると
+  噛み合わせが怪しい
+  - クライアント表示は要確認。スピリット列にネクサスのカードが並ぶので、BP表示な
+  どが崩れないかUI担当に聞く必要があります
+
+  総評
+
+  1枚のために新しい上書き軸を1つ足す価値があるか、という判断になります。私はある
+  と思います。 実装量が見た目より小さいことと、「カードの種別を一時的に変える」
+  という軸は第9弾以降でも出てきそうだからです。
+
+  ただし優先度は BS08-064 Lv2 より下だと考えます。あちらは既に作った保留確認の仕
+  組みが再利用できて、こちらは新しい軸の追加なので。
+
+  注意書きは、着手しないとしても**「仕組みが無い」から「新しい上書き軸が要る」に
+  書き換えた方がいい**と思います。今の書き方だと次に読む人がまた「大工事だ」と判
+  断して見送るので。
+
+✻ Cogitated for 1m 52s

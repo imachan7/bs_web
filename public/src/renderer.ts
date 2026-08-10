@@ -720,6 +720,13 @@ function fieldCardEl(
         el.appendChild(badge)
     }
 
+    if (inst.asSpiritThisTurn) {
+        const badge = document.createElement("div")
+        badge.className = "as-spirit-badge"
+        badge.textContent = "スピリット化中"
+        el.appendChild(badge)
+    }
+
     const name = document.createElement("div")
     name.className = "name"
     name.textContent = m.name
@@ -796,7 +803,8 @@ function fieldCardEl(
             const slot = document.createElement("div")
             slot.className = "nexus-slot"
             slot.appendChild(el)
-            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
             return slot
         }
         return el
@@ -920,7 +928,8 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, m.levels))
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能

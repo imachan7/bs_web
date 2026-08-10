@@ -740,7 +740,8 @@ button:active {
 .activate-badge,
 .pay-badge,
 .cant-attack-badge,
-.step-active-badge {
+.step-active-badge,
+.as-spirit-badge {
     position: absolute;
     min-width: 44px;
     padding: 4px 10px;
@@ -756,7 +757,8 @@ button:active {
 .activate-badge::after,
 .pay-badge::after,
 .cant-attack-badge::after,
-.step-active-badge::after {
+.step-active-badge::after,
+.as-spirit-badge::after {
     content: '';
     position: absolute;
     inset: -8px;
@@ -792,6 +794,13 @@ button:active {
 .step-active-badge {
     top: -6px; right: -6px;
     background: var(--success);
+    color: #000;
+    pointer-events: none;
+}
+
+.as-spirit-badge {
+    top: -22px; right: -6px;
+    background: var(--warning);
     color: #000;
     pointer-events: none;
 }
