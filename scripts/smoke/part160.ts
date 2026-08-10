@@ -16,7 +16,12 @@ import { assert } from "./helpers"
 import { checkPatchTargets } from "../coverage-effects"
 
 console.log("=== 実行時カバレッジの差し込み先がすべて1箇所ずつ存在する ===")
-{
+// ⚠️ coverage:effects 自身が回す smoke（COV_OUT つき）では飛ばす。
+// あちらは計測コードを差し込み**済み**の worktree で走るので、差し込み先はもう元の形をしていない。
+// ここで検査すると「計測が成功しているときに限って落ちる」自己矛盾になる（実際に一度そうなった）
+if (process.env["COV_OUT"]) {
+    console.log("  （計測中の worktree では検査しない）")
+} else {
     const problems = checkPatchTargets()
     for (const p of problems) {
         // 1件ずつ失敗として出す（まとめて1件にすると、何箇所壊れたか分からない）
