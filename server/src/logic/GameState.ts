@@ -302,7 +302,7 @@ export function rawLevel(inst: CardInstance): number {
 // 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
 // （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
 // サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
-export { minLevelCores } from "../../../shared/rules"
+export { instMinLevelCores, minLevelCores } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）

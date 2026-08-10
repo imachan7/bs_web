@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
-import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
     destroySpirit,
@@ -566,7 +566,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         // 支払うとLv1コア数を下回るなら不発（selfCoreToOwnLifeと異なり、支払った上で回復させる効果のため
         // 維持コア割れを起こさない範囲でしか払えない、という決定的簡略化）
         if (action.costSelfCoresToVoid !== undefined) {
-            const minCores = minLevelCores(getCard(self.cardId))
+            const minCores = instMinLevelCores(self)
             if (self.cores - action.costSelfCoresToVoid < minCores) {
                 log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
                 return

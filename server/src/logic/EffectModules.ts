@@ -41,6 +41,7 @@ import {
     findInstanceAnywhere,
     getCard,
     log,
+    instMinLevelCores,
     minLevelCores,
     opponentOf,
     rawLevel,
@@ -81,6 +82,7 @@ import {
     instanceSymbolCount,
     instAllCosts,
     instColors,
+    instEffectsSuppressed,
     instHasColor,
     instHasCost,
     isUntargetableByOpponent,
@@ -1098,7 +1100,7 @@ export function dumpAllCoresTensho(
     } else {
         log(state, `【転召】${getCard(inst.cardId).name}のコア${count}個をボイドに置いた。`)
     }
-    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+    if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
 }
@@ -2261,7 +2263,7 @@ export function removeCores(
         `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
     )
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+    if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -2296,7 +2298,7 @@ export function removeCoresToTrash(
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をトラッシュに置いた。`,
     )
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+    if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -2329,7 +2331,7 @@ export function removeCoresToVoid(
         `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をボイドに置いた。`,
     )
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+    if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
@@ -3085,8 +3087,9 @@ export function fireTrigger(
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
-    // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ）は誘発も出さない
-    if (selfInstance.effectsDisabledContinuous === true) {
+    // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
+    // スピリット化されたネクサス）は誘発も出さない
+    if (instEffectsSuppressed(selfInstance)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }

@@ -1086,6 +1086,31 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 > `bothSidesCoreToTrash`、`bothSidesCoreToVoid`、`draw side:"both"`、`discardBothHands`）。
 > 新しく「お互い」のアクションを足すときは `["p1","p2"]` を直書きせず、これを呼ぶこと。
 
+### カード種別を一時的に変える（2026-08-10）
+
+BS03-147 ゴーレムクラフト「自分のネクサスすべては、このターンの間、ネクサスとしての効果を失い
+"コスト:1/系統:「造兵」/Lv1コスト:1/Lv1BP:2000/効果の記述なし"のスピリットとして扱う」で追加した軸。
+
+**ネクサスをアタック・ブロック・バトルに参加させる仕組みは作っていない。**
+`field.nexuses` から `field.spirits` へ**同じインスタンスのまま移す**方式にしたので、
+スピリットの器（アタック・ブロック・BP比較・全体破壊・体数カウント・対象選択＝エンジン内で
+`field.spirits` を列挙している数百箇所）がそのまま効く。別カードへ差し替えないため
+`cardId` も変わらず、破壊時は `destroySpirit` がネクサスのカードをトラッシュへ送る（追加実装なし）。
+
+| 器 | 意味 | 判定を持つ場所 |
+| :-- | :-- | :-- |
+| `action:"treatOwnNexusesAsSpiritsThisTurn"` | 対象ネクサスを spirits へ移し、上書きを載せる | `actions/grant.ts` |
+| `CardInstance.asSpiritThisTurn`（`cost` / `family` / `levels`） | スピリットとしてのステータス上書き。ターン終了時に元へ戻す目印も兼ねる | `PhaseManager.endTurn` が戻す |
+| `instLevels` / `instMinLevelCores` | レベル表・維持コアを**インスタンスから**求める。**ネクサスのLv1コアは全107枚が0**なので、これが無いとコア0でも消滅しない | `shared/rules` |
+| `instBaseCost` / `instFamilies` | コスト・系統の上書き（`instHasCost` / `instAllCosts` / `spiritHasFamily` が経由する） | `shared/rules` |
+| `instEffectsSuppressed` | 「持つ効果すべてを発揮しない」の**共通述語**。`effectsDisabledContinuous`（BS07ルナースラッシュ）と `asSpiritThisTurn`（＝「ネクサスとしての効果を失い」）を1つにまとめた | `shared/rules` |
+
+> 発揮を止める箇所は必ず `instEffectsSuppressed` を通すこと（`effectSources` / `activeConstraints` /
+> `spiritHasKeyword` / `EffectModules.fireTrigger` の4か所）。
+> 片方の軸だけを直接見ると、もう一方が無言ですり抜ける。
+> 同じ理由で、**場のインスタンスの維持コアは `minLevelCores(getCard(...))` ではなく
+> `instMinLevelCores(inst)` を使う**（手札のカードから求める召喚・配置の経路は `minLevelCores` のままでよい）。
+
 ---
 
 ## 3. 効果・キーワードの追加方法（3層設計）
@@ -1275,7 +1300,7 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 | 状態 | 枚数 | 内訳 |
 | :-- | --: | :-- |
 | `unimplemented`（効果が発揮されない） | 0 | **0枚**。全906枚が何らかの形で構造化済み（2026-08-10 達成） |
-| `partial`（一部のレベル・節だけ未実装） | 8 | BS02-063 / BS03-147 / BS05-060 / BS08-017 / BS08-055 / BS08-057 / BS08-064 / BS08-071。BS02-063 は**禁止カードのため実装しない方針** |
+| `partial`（一部のレベル・節だけ未実装） | 4 | BS02-063 / BS08-055 / BS08-064 / BS08-071。BS02-063 は**禁止カードのため実装しない方針**なので、実質の残りは3枚 |
 | `simplified`（原作と挙動が異なる簡略化） | 28 | 対戦は成立する。カード詳細に注記を表示している |
 
 **`docs/design/EFFECT_GAPS_PLAYBOOK.md` が対象にしていた実装漏れは 2026-08-07 に解消済み**

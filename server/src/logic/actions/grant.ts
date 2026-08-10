@@ -800,7 +800,46 @@ const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> =
         return
 }
 
+// BS03ゴーレムクラフト：自分のフィールドのコアが1個以上置かれているネクサスすべてを、
+// このターンの間「コスト:1／系統:「造兵」／Lv1コスト:1／Lv1BP:2000／効果の記述なし」のスピリットとして扱う。
+//
+// **ネクサスをバトルに参加させる仕組みは作らない**。field.nexuses から field.spirits へ
+// 同じインスタンスのまま移してしまえば、アタック・ブロック・BP比較・全体破壊・体数カウント・
+// 対象選択といったスピリットの器（エンジン内で field.spirits を列挙している数百箇所）がそのまま効く。
+// 別カードへの差し替えにしないのも同じ理由で、cardId が変わらないので
+// 破壊時は destroySpirit がネクサスのカードをそのままトラッシュへ送る（追加実装が要らない）。
+//
+// カード側がステータスを全部明記しているため、上書きの中身は effects データから受け取る。
+// 対象は解決時点のネクサスに固定される（このあと置かれたネクサスは変換されない）
+const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsSpiritsThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const minCores = action.minCores ?? 1
+    const targets = player.field.nexuses.filter((n) => n.cores >= minCores)
+    if (targets.length === 0) {
+        log(state, `${sourceName}：コアが${minCores}個以上置かれた自分のネクサスがなかった。`)
+        return
+    }
+    for (const nexus of targets) {
+        const index = player.field.nexuses.indexOf(nexus)
+        player.field.nexuses.splice(index, 1)
+        nexus.asSpiritThisTurn = {
+            cost: action.cost,
+            family: [...action.family],
+            levels: action.levels.map((l) => ({ ...l })),
+        }
+        player.field.spirits.push(nexus)
+    }
+    const familyLabel = action.family.length > 0 ? `系統：「${action.family.join("・")}」の` : ""
+    log(
+        state,
+        `${sourceName}：${player.name}のネクサス${targets.length}つ（${targets.map((n) => getCard(n.cardId).name).join("・")}）は、このターンの間${familyLabel}スピリットとして扱われる。`,
+    )
+    return
+}
+
 const handlers = {
+    treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeyword: grantKeywordHandler,
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,

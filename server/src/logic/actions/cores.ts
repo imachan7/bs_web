@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, getCard, log, minLevelCores } from "../GameState"
+import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
     checkExhaustOnCoreChange,
@@ -509,7 +509,7 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
             } else {
                 log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
             }
-            if (target.cores < minLevelCores(getCard(target.cardId))) {
+            if (target.cores < instMinLevelCores(target)) {
                 destroySpirit(state, pid, target.instanceId, "deplete")
             }
         }
@@ -595,7 +595,7 @@ const coreToVoidOwnHandler: ActionHandler<"coreToVoidOwn"> = (ctx, action) => {
             target.cores -= taken
             remaining -= taken
             log(state, `${getCard(target.cardId).name}のコア${taken}個をボイドに置いた。`)
-            if (target.cores < minLevelCores(getCard(target.cardId))) {
+            if (target.cores < instMinLevelCores(target)) {
                 destroySpirit(state, owner, target.instanceId, "deplete")
             }
         }
@@ -669,7 +669,7 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
         player.trashCores += take
         remaining -= take
         moved += take
-        if (richest.cores < minLevelCores(getCard(richest.cardId))) {
+        if (richest.cores < instMinLevelCores(richest)) {
             destroySpirit(state, pid, richest.instanceId, "deplete")
         }
     }
@@ -857,7 +857,7 @@ const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (
         const name = getCard(target.cardId).name
         target.cores = 0
         log(state, `${player.name}は${name}のコア${voided}個をボイドに置いた。`)
-        if (voided < minLevelCores(getCard(target.cardId))) {
+        if (voided < instMinLevelCores(target)) {
             destroySpirit(state, owner, target.instanceId, "deplete")
         }
         millDeck(state, opp, cost, owner, srcType ? { sourceType: srcType } : undefined)
@@ -1311,7 +1311,7 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
             state,
             `${getCard(self.cardId).name}の上のコア${moved}個を${state.players[owner].name}のライフに置いた。（現在ライフ${state.players[owner].life}）`,
         )
-        if (self.cores < minLevelCores(getCard(self.cardId))) {
+        if (self.cores < instMinLevelCores(self)) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
         return
@@ -1628,7 +1628,7 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx) => {
     ] as const) {
         if (inst.cores >= before) continue
         checkExhaustOnCoreChange(state, opp, inst, { viaEffect: true, isRemoval: true })
-        if (inst.cores < minLevelCores(getCard(inst.cardId))) {
+        if (inst.cores < instMinLevelCores(inst)) {
             destroySpirit(state, opp, inst.instanceId, "deplete")
         }
         notifySpiritCoresRemovedByOpponent(state, opp, 1)
@@ -1656,7 +1656,7 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
     const paid = payer.cores
     payer.cores = 0
     log(state, `${sourceName}：コストとして${getCard(payer.cardId).name}のコア${paid}個をボイドに置いた。`)
-    if (payer.cores < minLevelCores(getCard(payer.cardId))) {
+    if (payer.cores < instMinLevelCores(payer)) {
         destroySpirit(state, owner, payer.instanceId, "deplete")
     }
     let remaining = action.count
@@ -1672,7 +1672,7 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
         remaining -= take
         moved += take
         state.players[opp].reserve += take
-        if (richest.cores < minLevelCores(getCard(richest.cardId))) {
+        if (richest.cores < instMinLevelCores(richest)) {
             destroySpirit(state, opp, richest.instanceId, "deplete")
         }
     }

@@ -17,6 +17,7 @@ import type {
     Color,
     FamilyFilter,
     Keyword,
+    LevelDef,
     PlayerId,
     ResolvedTargetFilter,
     TriggerEvent,
@@ -80,7 +81,18 @@ export function isVanillaCard(cardData: CardData): boolean {
 // **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
 export function instIsVanilla(inst: CardInstance): boolean {
     if (inst.treatedAsVanillaContinuous === true) return true
+    // このターンだけスピリットとして扱われているネクサスは「効果の記述なし」（BS03ゴーレムクラフト）
+    if (inst.asSpiritThisTurn !== undefined) return true
     return isVanillaCard(card(inst.cardId))
+}
+
+// この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
+// ① 継続付与の kind:"spiritEffectsDisabledGrant"（BS07ルナースラッシュ）
+// ② このターンだけスピリットとして扱われているネクサス＝「ネクサスとしての効果を失い」（BS03ゴーレムクラフト）
+// **発揮を止める箇所は必ずこの述語を通すこと**（effectSources / activeConstraints / spiritHasKeyword /
+// EffectModules.fireTrigger の4か所。片方だけを直接見ると、もう一方の軸が無言ですり抜ける）
+export function instEffectsSuppressed(inst: CardInstance): boolean {
+    return inst.effectsDisabledContinuous === true || inst.asSpiritThisTurn !== undefined
 }
 
 // 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
@@ -100,7 +112,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     return [
         // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
         // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
-        ...player.field.spirits.filter((s) => s.effectsDisabledContinuous !== true),
+        ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
@@ -136,9 +148,22 @@ export function isVirtualSource(inst: CardInstance): boolean {
 // 状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 // 継続付与された「コストとしても扱う」値（alsoCostsContinuous＝kind:"alsoCostGrant"。道化師クラン）
 export function instHasCost(inst: CardInstance, cost: number): boolean {
-    if (card(inst.cardId).cost === cost) return true
+    if (instBaseCost(inst) === cost) return true
     if (inst.tempAlsoCosts.includes(cost)) return true
     return (inst.alsoCostsContinuous ?? []).includes(cost)
+}
+
+// このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
+// ネクサス。BS03ゴーレムクラフト）が載っていれば、カード静的なコストではなくそちらの値を使う
+// （上書きであって追加ではないので、元のネクサスのコストは残らない）
+export function instBaseCost(inst: CardInstance): number {
+    return inst.asSpiritThisTurn?.cost ?? card(inst.cardId).cost
+}
+
+// このインスタンスの「カード側の系統」。asSpiritThisTurn があればその系統で置き換わる
+// （付与効果による系統は含まない。それらは spiritHasFamily が別途見る）
+export function instFamilies(inst: CardInstance): string[] {
+    return inst.asSpiritThisTurn?.family ?? card(inst.cardId).family
 }
 
 // インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
@@ -146,7 +171,7 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 // それらで表現できない判定（costCantAct のように「どのコストか」を都度渡す関数へORで橋渡しする、
 // 2インスタンス間でコストを比較する、等）でのみ使うこと
 export function instAllCosts(inst: CardInstance): number[] {
-    return [card(inst.cardId).cost, ...inst.tempAlsoCosts, ...(inst.alsoCostsContinuous ?? [])]
+    return [instBaseCost(inst), ...inst.tempAlsoCosts, ...(inst.alsoCostsContinuous ?? [])]
 }
 
 // カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
@@ -177,10 +202,13 @@ export function instColors(inst: CardInstance): Color[] {
 // あればそちらを優先し、無ければコア数（coresOverride があればそれ）から判定する。
 // BP には tempBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）
 export function currentLevel(inst: CardInstance): { level: number; bp: number } {
-    const master = card(inst.cardId)
+    // asSpiritThisTurn（このターンだけスピリットとして扱われているネクサス。BS03ゴーレムクラフト）が
+    // 載っていれば、カード静的な levels ではなく上書きされた levels で判定する。
+    // ネクサスのLv1コア数は全カード0のため、これが無いとコア0でもLv1のまま消滅しない
+    const levels = instLevels(inst)
     const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
     if (override !== undefined) {
-        const lv = master.levels.find((l) => l.level === override)
+        const lv = levels.find((l) => l.level === override)
         if (lv) {
             return { level: lv.level, bp: lv.bp + (lv.level > 0 ? inst.tempBpBuff : 0) }
         }
@@ -188,12 +216,27 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
     // coresOverride（クロスシザースのネクサスコア数リンク）があれば、レベル判定はそちらを使う
     const coreCount = inst.coresOverride ?? inst.cores
     let result = { level: 0, bp: 0 }
-    for (const lv of master.levels) {
+    for (const lv of levels) {
         if (coreCount >= lv.cores && lv.level > result.level) {
             result = { level: lv.level, bp: lv.bp }
         }
     }
     return { level: result.level, bp: result.bp + (result.level > 0 ? inst.tempBpBuff : 0) }
+}
+
+// このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う
+// （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
+// **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
+export function instLevels(inst: CardInstance): LevelDef[] {
+    return inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+}
+
+// インスタンス単位の維持コア数（最小レベルに必要なコア数）。
+// **場のインスタンスを判定するときは必ずこちらを使う**（minLevelCores にカードを直接渡すと
+// asSpiritThisTurn の上書きが無視され、ネクサスのLv1コア0がそのまま効いて消滅しなくなる）。
+// 手札のカードから求める場面（召喚・配置の維持コア計算）は minLevelCores のままでよい
+export function instMinLevelCores(inst: CardInstance): number {
+    return minLevelCoresOf(instLevels(inst))
 }
 
 // ---- シンボル ----
@@ -255,7 +298,7 @@ export function spiritHasKeyword(
 ): boolean {
     // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
-    if (inst.effectsDisabledContinuous === true) return false
+    if (instEffectsSuppressed(inst)) return false
     if (hasKeyword(inst.cardId, keyword)) return true
     if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
@@ -389,7 +432,10 @@ export function spiritHasFamily(
 ): boolean {
     // 暗礁海域Lv1：系統をないものとして扱う（静的な系統も、familyGrant による付与も持たない）
     if (familiesSuppressed(board, inst)) return false
-    if (card(inst.cardId).family.includes(family)) return true
+    // asSpiritThisTurn（BS03ゴーレムクラフト＝系統「造兵」）は静的な系統の代わりに載る上書き。
+    // ネクサスは系統を持たないので実質は追加だが、上書きとして扱っておけば
+    // 「系統を持つネクサス」が将来出ても効果文どおりになる
+    if (instFamilies(inst).includes(family)) return true
     const player = board.players[ownerPid]
     const sources = effectSources(board, ownerPid)
     for (const source of sources) {
@@ -407,7 +453,7 @@ export function spiritHasFamily(
             // （BS06無限なる軌道母艦：機人/動器のいずれかを持つスピリットに武装を付与）
             if (effect.familyFilter) {
                 const wantedFamilies = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
-                if (!wantedFamilies.some((f) => card(inst.cardId).family.includes(f))) continue
+                if (!wantedFamilies.some((f) => instFamilies(inst).includes(f))) continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
@@ -829,7 +875,7 @@ export function activeConstraints(
     // 「持つ効果すべては発揮されない」を受けている個体は制約を1つも出さない
     // （自前の kind:"constraint" だけでなく、他の発生源からの継続付与 constraintGrant も含めて打ち切る。
     //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
-    if (inst.effectsDisabledContinuous === true) return []
+    if (instEffectsSuppressed(inst)) return []
     const level = currentLevel(inst).level
     const own = card(inst.cardId)
         .effects.filter(
@@ -1339,7 +1385,12 @@ export function directAttackFilter(
 // 旧名 lv1Cores（2026-07-26 改名。挙動は不変）。
 // サーバー側は server/src/logic/GameState.ts の re-export 経由で使う
 export function minLevelCores(cardData: CardData): number {
-    const min = cardData.levels.reduce<{ level: number; cores: number } | null>(
+    return minLevelCoresOf(cardData.levels)
+}
+
+// レベル表から最小レベルの必要コア数を求める素の計算（minLevelCores / instMinLevelCores の共通実体）
+function minLevelCoresOf(levels: LevelDef[]): number {
+    const min = levels.reduce<{ level: number; cores: number } | null>(
         (best, l) => (best === null || l.level < best.level ? l : best),
         null,
     )

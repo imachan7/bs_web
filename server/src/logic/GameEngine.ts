@@ -10,6 +10,7 @@ import {
     findSpirit,
     getCard,
     log,
+    instMinLevelCores,
     minLevelCores,
     opponentOf,
 } from "./GameState"
@@ -253,7 +254,7 @@ function payCost(
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
-            if (inst && inst.cores < minLevelCores(getCard(inst.cardId))) {
+            if (inst && inst.cores < instMinLevelCores(inst)) {
                 destroySpirit(state, pid, inst.instanceId, "deplete")
             }
         }
@@ -590,7 +591,7 @@ function doAwaken(
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
     // 移動元が維持コア（Lv1）を下回ったら消滅
-    if (from.cores < minLevelCores(getCard(from.cardId))) {
+    if (from.cores < instMinLevelCores(from)) {
         destroySpirit(state, pid, from.instanceId, "deplete")
     }
     // バトル中のフラッシュで覚醒したら優先権を相手へ移す（フラッシュマジックと同じ扱い）

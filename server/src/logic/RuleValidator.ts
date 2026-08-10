@@ -8,6 +8,7 @@ import {
     findNexus,
     findSpirit,
     getCard,
+    instMinLevelCores,
     minLevelCores,
     opponentOf,
 } from "./GameState"
@@ -423,7 +424,7 @@ export function validateMoveCore(
         if (player.reserve < 1) return "リザーブにコアがありません"
     } else {
         if (inst.cores < 1) return "コアが置かれていません"
-        const need = minLevelCores(getCard(inst.cardId))
+        const need = instMinLevelCores(inst)
         if (inst.cores - 1 < need) {
             return "維持コア（Lv1）を下回るためコアを取り除けません"
         }
