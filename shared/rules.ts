@@ -1101,14 +1101,9 @@ export function activeConstraints(
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function isUntargetableByOpponent(inst: CardInstance): boolean {
-    if (inst.immuneToOpponentThisTurn) return true
-    const level = currentLevel(inst).level
-    return card(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "untargetableByOpponent" &&
-            effectActiveAtLevel(e.levels, level),
-    )
+    // 判定本体は hasUntargetableConstraint に一本化してある（同じ走査を2つ持つと、
+    // 実行時カバレッジの計測点が二重になるうえ、片方だけ直す事故が起きる）
+    return inst.immuneToOpponentThisTurn === true || hasUntargetableConstraint(inst)
 }
 // untargetableByOpponentと異なり範囲効果（destroyAll/exhaustAll等）にも効く「効果を受けない」判定。
 // srcType が spirit/magic のときのみ判定する（ネクサスの効果・自分自身の効果は通す。BS04ワルキューレ・ヒルド）

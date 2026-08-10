@@ -213,6 +213,21 @@ const __covEid = (e: unknown): string =>
                 __covRec2("cont\\t" + __covEid(effect))
                 total += amount`,
     )
+    // exhaustImmunityGrant: isExhaustImmuneOnBoard が true を返す時点。
+    // ※ 2026-08-10 の耐性一本化で、判定本体が EffectModules.isExhaustImmune から
+    //    shared/rules.isExhaustImmuneOnBoard へ移った（差し込み先もこちらへ移設）
+    patch(
+        f,
+        `                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === board.turnPlayer) continue
+            }
+            return true`,
+        `                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === board.turnPlayer) continue
+            }
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
     // constraint: activeConstraints が自身の制約として採用する時点
     patch(
         f,
@@ -498,8 +513,8 @@ process.on("exit", () => {
         const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
         patch(
             coresFile,
-            `import { coresForLevel, getCard, log, minLevelCores } from "../GameState"`,
-            `import { coresForLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
+            `import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
+            `import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
         )
         patch(
             coresFile,
@@ -581,25 +596,18 @@ process.on("exit", () => {
         __covRecord("cont\\t" + String((e as unknown as Record<string, unknown>)["__eid"] ?? "?"))
         bonus += e.amount`,
         )
-        // coreStepBonus: coreStepBonusFor の集計点
+        // coreStepBonus: coreStepBonusFor の集計点。
+        // ※ `bonus += effect.amount` だけだと tenshoSelfCostBonus の同じ行と衝突する
+        //   （2026-08-09 の赤き砂の座Lv2 で2箇所になった）。直前の condition 判定まで含めて一意にする
         patch(
             em,
-            `            bonus += effect.amount`,
-            `            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            bonus += effect.amount`,
-        )
-        // exhaustImmunityGrant: isExhaustImmune が true を返す時点
-        patch(
-            em,
-            `                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
+            `                if (!ok) continue
             }
-            return true`,
-            `                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
+            bonus += effect.amount`,
+            `                if (!ok) continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            return true`,
+            bonus += effect.amount`,
         )
         // lifeDamageNegate: hasLifeDamageNegate が true を返す時点
         patch(
@@ -832,8 +840,8 @@ process.on("exit", () => {
         const rv = path.join(tree, "server/src/logic/RuleValidator.ts")
         patch(
             rv,
-            `    getCard,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
-            `    getCard,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
+            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
+            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
         )
         // globalConstraint「maxSpiritsOnField」: 値の集計点
         patch(
@@ -894,8 +902,8 @@ process.on("exit", () => {
         const ge = path.join(tree, "server/src/logic/GameEngine.ts")
         patch(
             ge,
-            `    getCard,\n    log,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
-            `    getCard,\n    log,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
         )
         // ※ 2026-08-08: リザーブからの【覚醒】（ディノゾールLv2）が分岐として増え、
         //    コア移動の実行点が2つになった。両方に同じ記録を入れる（記録関数を1つ差し込んで共有）
