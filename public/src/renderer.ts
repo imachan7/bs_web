@@ -340,10 +340,9 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
         case "returnToHand":
+            return `💨 ${ev.cardName} 手札へ戻る`
         case "returnToDeck":
-            // サーバー側でイベントの発行だけ先に入れた状態（chatbox 2026-08-10-1710）。
-            // 表示文言はUI担当が決めるので、それまではバナーを出さない
-            return null
+            return `🌪 ${ev.cardName} デッキ${ev.position === "top" ? "上" : "下"}へ戻る`
     }
 }
 

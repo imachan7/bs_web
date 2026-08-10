@@ -312,6 +312,11 @@ button:active {
     border-color: rgba(156, 163, 175, 0.6);
     color: var(--text-muted);
 }
+.event-banner.event-returnToHand,
+.event-banner.event-returnToDeck {
+    border-color: rgba(6, 182, 212, 0.6);
+    color: #67e8f9;
+}
 
 @keyframes event-banner-inout {
     0% { opacity: 0; transform: translateY(-8px); }
