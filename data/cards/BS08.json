@@ -4252,6 +4252,16 @@
     "levels": null,
     "by": "opponentSpiritEffect",
     "then": "deployThisNexusFree"
+   },
+   {
+    "id": "BS08-064-e3",
+    "kind": "deckMillNegate",
+    "levels": [
+     2
+    ],
+    "by": "opponentSpiritEffect",
+    "exceptFunsai": true,
+    "costOwnLifeToReserve": 1
    }
   ]
  },

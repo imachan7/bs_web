@@ -45,7 +45,7 @@ const VALID_KINDS = new Set([
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
-    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged",
+    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate",
 ])
 
 export interface ValidationIssue {

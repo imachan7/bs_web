@@ -754,6 +754,18 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "deckMillNegate" // 発生源が場にありレベル有効の間、持ち主のデッキが破棄されるとき、コストを払ってその破棄を無効にできる
+          // （BS08鳳翼の聖剣Lv2）。**任意コストなので確認を出す**：millDeck は破棄を見送って
+          // GameState.pendingDeckMillNegates へ積み、handleAction の末尾＝安全な地点で確認する
+          // （reviveOnDestroy.optional とまったく同じ「保留確認」の形。破棄処理の途中では中断できないため）。
+          // 断られたら、そのとき改めて破棄する。非対話（smoke）では確認を出さず自動で支払う
+          levels: number[] | null
+          by: "opponentSpiritEffect" // 破棄の発生源の限定（今は「相手のスピリットの効果で」のみ）
+          exceptFunsai?: true // 【粉砕】による破棄は対象外（BS08鳳翼の聖剣Lv2「【粉砕】以外の」）
+          costOwnLifeToReserve: number // 支払うコスト：持ち主のライフのコアをこの数だけ持ち主のリザーブへ置く（ライフが足りなければ確認自体を出さない）
+      }
+    | {
+          id: string
           kind: "onMilledFromDeck" // **このカード自身が**デッキから破棄されたときに発揮する（手札・フィールドからの破棄は対象外）。
           // millDeck が、破棄したカードのマスターデータを1枚ずつ見て発火させる。トラッシュへ入れた直後に
           // そこから取り除いて解決するため、破棄されたカードはトラッシュに残らない
@@ -1461,6 +1473,16 @@ export interface PendingChoice {
         sourceInstanceId: string
         context?: DestroyContext
     }
+    deckMillNegate?: {
+        // 「デッキの破棄を、コストを払って無効にできる」の確認待ち。reviveConfirm と同じく **action は解決しない**。
+        // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
+        pid: PlayerId
+        sourceInstanceId: string
+        effectId: string
+        count: number
+        actorPid: PlayerId
+        sourceType?: "spirit" | "nexus" | "magic"
+    }
     magicRedirect?: {
         // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
         // 選べば GameState.magicRedirectDecision に承認を記録してからマジックの解決へ進み、
@@ -1529,6 +1551,18 @@ export interface GameState {
         effectId: string // 適用する reviveOnDestroy エントリのid（承認時にコスト・復活先を再解決する）
         sourceInstanceId: string // 発生源（oncePerTurn の記録先。scope:"self" なら対象自身）
         context?: DestroyContext // 断ったときに破壊し直すための文脈
+    }[]
+    // 「デッキが破棄されるとき、コストを払って無効に**できる**」（kind:"deckMillNegate"）の確認待ち行列。
+    // pendingReviveConfirms とまったく同じ理由でここに積む：millDeck はアクションハンドラの奥から
+    // 呼ばれるので途中で中断できない。いったん破棄を見送って積み、handleAction の末尾で確認する。
+    // 断られたら declineDeckMillNegate が skipNegate 付きで millDeck を呼び直す（＝そのとき破棄される）
+    pendingDeckMillNegates?: {
+        pid: PlayerId // デッキを破棄される側＝発生源の持ち主＝コストを払う側
+        sourceInstanceId: string // 無効にする側の発生源（表示用。確認を出すまでに場を離れていたら破棄を実行する）
+        effectId: string // 適用する deckMillNegate エントリのid（承認時にコストを再解決する）
+        count: number // 見送った破棄の枚数（断られたらこの枚数で破棄し直す）
+        actorPid: PlayerId // 破棄を引き起こした側（millDeck の actorPid）
+        sourceType?: "spirit" | "nexus" | "magic" // 破棄の発生源の種別（millDeck の cause）
     }[]
     turnStartResumeStep: number | null // ターン開始処理（start→core→draw→refresh→main）がステップ誘発のpendingChoiceで中断したときの再開ステップ番号。null=中断なし。選択解決後に resumeTurnStart が続きから再開する（百識の谷Lv1のドローステップ破棄選択など）
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）

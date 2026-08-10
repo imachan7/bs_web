@@ -472,7 +472,10 @@ export function millDeck(
     pid: PlayerId,
     count: number,
     actorPid?: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic" },
+    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    // skipNegate: kind:"deckMillNegate" の確認で「無効にしない」が選ばれたあとの破棄。
+    // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
+    options?: { skipNegate?: true },
 ): number {
     let effectiveCount = count
     const byOpponent = actorPid !== undefined && actorPid !== pid
@@ -480,6 +483,11 @@ export function millDeck(
     // millCap と同じく**相手の効果による破棄だけ**を止める（自分のコスト支払い等は通す）
     if (byOpponent && isDeckMillBlocked(state, pid)) {
         log(state, `${state.players[pid].name}のデッキは破棄されなかった。`)
+        return 0
+    }
+    // 「コストを払って破棄を無効に**できる**」（BS08鳳翼の聖剣Lv2）。
+    // 任意コストなので、ここでは破棄を見送って確認待ちへ積むだけにする（実際の破棄は断られたときに行う）
+    if (byOpponent && !options?.skipNegate && tryQueueDeckMillNegate(state, pid, count, actorPid, cause)) {
         return 0
     }
     if (byOpponent) {
@@ -561,6 +569,109 @@ function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
         }
     }
     return false
+}
+
+// kind:"deckMillNegate"（BS08鳳翼の聖剣Lv2）：この破棄を無効にできる発生源を探す。
+// 見つかったら [発生源, エントリ] を返す。**支払えないなら候補にしない**（確認を出しても意味がないため）
+function findDeckMillNegate(
+    state: GameState,
+    pid: PlayerId,
+    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+): { source: CardInstance; effect: Extract<EffectDef, { kind: "deckMillNegate" }> } | null {
+    for (const source of effectSources(state, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "deckMillNegate") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // 「相手の**スピリット**の効果で」。種別が渡っていない呼び出しでは、
+            // onMilledFromDeck と同じく限定を緩めない側に倒して発火させない
+            if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
+            // 「【粉砕】以外の」（【粉砕】は resolveFunsai だけが cause.funsai を立てる）
+            if (effect.exceptFunsai && cause?.funsai === true) continue
+            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            return { source, effect }
+        }
+    }
+    return null
+}
+
+// 破棄を見送って確認待ちへ積む。積んだ（＝この破棄を保留した）なら true。
+// 非対話（smoke）では確認を出せないので、その場で支払って無効にする（「〜できる」を常に発動する簡略化）
+function tryQueueDeckMillNegate(
+    state: GameState,
+    pid: PlayerId,
+    count: number,
+    actorPid: PlayerId,
+    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+): boolean {
+    if (count <= 0 || state.winner) return false
+    const found = findDeckMillNegate(state, pid, cause)
+    if (!found) return false
+    if (!state.interactiveTargets) {
+        payDeckMillNegateCost(state, pid, found.source, found.effect)
+        return true
+    }
+    ;(state.pendingDeckMillNegates ??= []).push({
+        pid,
+        sourceInstanceId: found.source.instanceId,
+        effectId: found.effect.id,
+        count,
+        actorPid,
+        ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+    })
+    return true
+}
+
+// 無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す
+function payDeckMillNegateCost(
+    state: GameState,
+    pid: PlayerId,
+    source: CardInstance,
+    effect: Extract<EffectDef, { kind: "deckMillNegate" }>,
+): void {
+    const player = state.players[pid]
+    const paid = effect.costOwnLifeToReserve
+    player.life -= paid
+    player.reserve += paid
+    log(
+        state,
+        `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
+    )
+}
+
+// 保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
+// 発生源が場を離れている／ライフが足りなくなっているなら無効にできないので、見送っていた破棄を行う
+export function applyDeckMillNegate(
+    state: GameState,
+    entry: NonNullable<PendingChoice["deckMillNegate"]>,
+): void {
+    const source = effectSources(state, entry.pid).find((s) => s.instanceId === entry.sourceInstanceId)
+    const effect = source
+        ? getCard(source.cardId).effects.find(
+              (e): e is Extract<EffectDef, { kind: "deckMillNegate" }> =>
+                  e.kind === "deckMillNegate" && e.id === entry.effectId,
+          )
+        : undefined
+    if (!source || !effect || state.players[entry.pid].life < effect.costOwnLifeToReserve) {
+        declineDeckMillNegate(state, entry)
+        return
+    }
+    payDeckMillNegateCost(state, entry.pid, source, effect)
+}
+
+// 同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
+export function declineDeckMillNegate(
+    state: GameState,
+    entry: NonNullable<PendingChoice["deckMillNegate"]>,
+): void {
+    millDeck(
+        state,
+        entry.pid,
+        entry.count,
+        entry.actorPid,
+        entry.sourceType ? { sourceType: entry.sourceType } : undefined,
+        { skipNegate: true },
+    )
 }
 
 // 破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
@@ -896,8 +1007,10 @@ export function resolveFunsai(
     const opponentPid = opponentOf(ownerPid)
     const trashCards = state.players[opponentPid].trashCards
     const beforeLen = trashCards.length
-    // 【粉砕】の発生源は常にスピリット（onMilledFromDeck の by:"opponentSpiritEffect" 判定に使う）
-    const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit" })
+    // 【粉砕】の発生源は常にスピリット（onMilledFromDeck の by:"opponentSpiritEffect" 判定に使う）。
+    // funsai:true は **ここだけ**が立てる（BS08鳳翼の聖剣Lv2「【粉砕】以外の」の判定用。
+    // action:"mill" は効果文で「デッキを破棄する」と書かれた通常の効果なので立てない）
+    const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit", funsai: true })
     if (actual > 0) {
         const milledCardIds = trashCards.slice(beforeLen, beforeLen + actual)
         let spirits = 0
