@@ -8,11 +8,11 @@
 // その仮想発生源が kind:"summonCostHandDiscardPay" を持つ形。
 // 「スピリットカード**1枚**の召喚に」なので、実際に破棄で払った時点で貸与を使い切る。
 import {
+    act,
     assert,
     createGame,
     getCard,
     handleAction,
-    resolveAction,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -55,13 +55,18 @@ function base(seed: string): GameState {
 function setHand(s: GameState, fillers: number): void {
     s.players.p1.hand = [TARGET.cardId, ...Array<string>(fillers).fill(TARGET.cardId)]
 }
-// ビクティムのメイン効果（このターンの間、手札破棄で召喚コストを払える）を発動する
+// ビクティムを**マジックとして実際に使う**（このターンの間、手札破棄で召喚コストを払えるようになる）。
+// resolveAction に action を直接渡すと、カードデータ側（kind:"magic" / timing:"main"）が
+// 一度も検証されないまま通ってしまう（coverage:effects の「テストが手で組んだ action でしか
+// 実行されていない」に出る）。
+// 使用コストで検証意図が崩れないよう、支払い用のリザーブは一時的に増やして元に戻す
 function castVictim(s: GameState): void {
-    const lend = (VICTIM.effects ?? []).find(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "lendSelfThisTurn",
-    )!["action"] as Record<string, unknown>
-    // sourceCardId は第10引数（マジックは self=null なので、貸す発生源のIDをここで渡す）
-    resolveAction(s, "p1", null, lend as never, undefined, undefined, "magic", undefined, undefined, VICTIM.cardId)
+    const keepReserve = s.players.p1.reserve
+    s.players.p1.hand.unshift(VICTIM.cardId)
+    s.players.p1.reserve = 30
+    const err = act(s, "p1", { type: "castMagic", handIndex: 0 })
+    assert(err === null, `${VICTIM.name}をマジックとして使用できた（${String(err)}）`)
+    s.players.p1.reserve = keepReserve
 }
 
 console.log("=== 効果が無ければ、コアが足りない召喚は通らない ===")

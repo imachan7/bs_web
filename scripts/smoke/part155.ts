@@ -11,6 +11,7 @@
 //   ④ コア0で消滅し、ネクサスのカードがトラッシュへ行く
 //   ⑤ ターン終了で生き残りだけがネクサスへ戻る
 import {
+    act,
     assert,
     createGame,
     createInstance,
@@ -41,9 +42,10 @@ const CARDS = loadAllCards() as unknown as CardRow[]
 // 対象のマジックと、そのメイン側エントリの action をカードデータから取る
 // （ここを固定値で書くとデータ変更に気づけない）
 const GOLEM = CARDS.find((c) => c.name === "ゴーレムクラフト")!
-const CRAFT = (GOLEM.effects ?? []).find(
-    (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "treatOwnNexusesAsSpiritsThisTurn",
-)!["action"] as Record<string, unknown>
+// メイン側のエントリが存在することだけ確認しておく（実際の発動は castMagic 経由）
+if (!(GOLEM.effects ?? []).some((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "treatOwnNexusesAsSpiritsThisTurn")) {
+    throw new Error("ゴーレムクラフトのメイン効果エントリが見つかりません")
+}
 
 // 効果を持つネクサス2枚（③で「効果を失う」ことを見るため、効果なしのネクサスでは意味がない）
 const NEXUSES = CARDS.filter((c) => c.type === "nexus" && (c.effects ?? []).length > 0)
@@ -63,8 +65,17 @@ function putNexus(s: GameState, pid: PlayerId, cardId: string, cores: number): R
     refreshLevelAsOverrides(s)
     return inst
 }
+// **マジックとして実際に使う**。resolveAction に action を直接渡すと、カードデータ側
+// （kind:"magic" / timing:"main" / コスト・軽減）が一度も検証されないまま通ってしまう
+// （coverage:effects の「テストが手で組んだ action でしか実行されていない」に出る）
 function craft(s: GameState): void {
-    resolveAction(s, "p1", null, CRAFT as never, undefined, ["blue"] as never, "magic")
+    s.players.p1.hand = [GOLEM.cardId]
+    s.phase = "main"
+    s.turnPlayer = "p1"
+    s.priorityPlayer = "p1"
+    s.players.p1.reserve = 20
+    const err = act(s, "p1", { type: "castMagic", handIndex: 0 })
+    assert(err === null, `${GOLEM.name}をマジックとして使用できた（${String(err)}）`)
 }
 
 console.log("=== コアが1個以上置かれた自分のネクサスだけがスピリットになる ===")

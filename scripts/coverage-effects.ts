@@ -144,17 +144,43 @@ function loadEntries(): EffectEntry[] {
     return entries
 }
 
+// 検査モード（checkPatchTargets）: ファイルを書き換えず、差し込み先が1箇所に定まるかだけを見る。
+// 見つからない／複数あるときは投げずに DRY_ERRORS へ積む（全件をまとめて報告するため）
+let DRY_RUN = false
+const DRY_ERRORS: string[] = []
+
 function patch(file: string, needle: string, replacement: string): void {
     const body = fs.readFileSync(file, "utf-8")
     const hits = body.split(needle).length - 1
     if (hits !== 1) {
-        throw new Error(
+        const message =
             `計測コードの差し込み先が1箇所に定まりません（${hits}箇所）: ${path.basename(file)}\n` +
-                `対象: ${needle.slice(0, 100)}…\n` +
-                `エンジンの形が変わった可能性があります。scripts/coverage-effects.ts を追随させてください。`,
-        )
+            `対象: ${needle.slice(0, 100)}…\n` +
+            `エンジンの形が変わった可能性があります。scripts/coverage-effects.ts を追随させてください。`
+        if (DRY_RUN) {
+            DRY_ERRORS.push(message)
+            return
+        }
+        throw new Error(message)
     }
+    if (DRY_RUN) return
     fs.writeFileSync(file, body.replace(needle, replacement))
+}
+
+// 差し込み先が今も1箇所ずつ存在するかを、**worktree も smoke も使わずに**検査する。
+// 作業ツリーのファイルをそのまま読むだけで、書き換えは DRY_RUN がすべて止める。
+// 戻り値は問題のメッセージ一覧（空なら健全）。smoke から呼んで計測が腐るのを防ぐ
+export function checkPatchTargets(): string[] {
+    DRY_RUN = true
+    DRY_ERRORS.length = 0
+    try {
+        instrumentServer(REPO, path.join(os.tmpdir(), "bsweb-cov-check"))
+    } catch (e) {
+        DRY_ERRORS.push(e instanceof Error ? e.message : String(e))
+    } finally {
+        DRY_RUN = false
+    }
+    return [...DRY_ERRORS]
 }
 
 // server 側（GameState / EffectModules）とは別に、shared/ 用の記録器を用意する。
@@ -190,7 +216,7 @@ const __covEid = (e: unknown): string =>
 }
 
 `
-    fs.writeFileSync(f, header + keywordHelper + fs.readFileSync(f, "utf-8"))
+    if (!DRY_RUN) fs.writeFileSync(f, header + keywordHelper + fs.readFileSync(f, "utf-8"))
 
     // shared/cost.ts 側にも同じ記録器を注入する（別ファイルなので import せず自前で持つ）
     const fc = f.replace("rules.ts", "cost.ts")
@@ -199,7 +225,7 @@ const __covEid = (e: unknown): string =>
         .replace(/__covRec2/g, "__covRec2C")
         .replace(/__covEid/g, "__covEid2C")
         .replace(JSON.stringify(out + ".shared"), JSON.stringify(out + ".cost"))
-    fs.writeFileSync(fc, headerC + fs.readFileSync(fc, "utf-8"))
+    if (!DRY_RUN) fs.writeFileSync(fc, headerC + fs.readFileSync(fc, "utf-8"))
 
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
@@ -409,19 +435,14 @@ const __covEid = (e: unknown): string =>
     )
 }
 
-function main(): void {
-    const entries = loadEntries()
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), "bsweb-cov-"))
-    const tree = path.join(work, "tree")
-    const outFile = path.join(work, "records.txt")
-
-    try {
-        execFileSync("git", ["worktree", "add", "--detach", tree, "HEAD"], {
-            cwd: REPO,
-            stdio: "pipe",
-        })
-        fs.symlinkSync(path.join(REPO, "node_modules"), path.join(tree, "node_modules"))
-
+// 計測コードの差し込みをまとめて行う。**main() から切り出してあるのは、
+// checkPatchTargets（差し込み先が今も1箇所ずつ存在するかの検査）が同じ列を再利用するため**。
+// この検査を smoke に載せておかないと、エンジンの形が変わったときに coverage:effects が
+// 壊れたまま何日も放置される（2026-08-10 に実際に3件たまっていた）。
+//
+// ⚠️ 中身の字下げは main() にあった当時のまま（8スペース）。needle は複数行の
+//    テンプレートリテラルなので、**整形で1文字でもずらすと差し込み先に一致しなくなる**
+function instrumentServer(tree: string, outFile: string): void {
         // (1) カードマスタ読み込み直後に、各効果エントリと配下の action へ由来 id を刻む。
         //     継続効果はエントリ自身に、action を持つ効果は配下の action オブジェクトにも刻む
         patch(
@@ -968,13 +989,31 @@ process.on("exit", () => {
         if (ciIdx < 0) throw new Error("createInstance が見つかりません（計測コードを追随させてください）")
         const bodyStart = gs.indexOf("{", gs.indexOf("):", ciIdx))
         if (bodyStart < 0) throw new Error("createInstance の本体開始位置を特定できません")
-        fs.writeFileSync(
-            gsPath,
-            gs.slice(0, bodyStart + 1) + `\n    __covRecord("inst\\t" + cardId)` + gs.slice(bodyStart + 1),
-        )
+        if (!DRY_RUN) {
+            fs.writeFileSync(
+                gsPath,
+                gs.slice(0, bodyStart + 1) + `\n    __covRecord("inst\\t" + cardId)` + gs.slice(bodyStart + 1),
+            )
+        }
 
         // (7) 継続効果（aura / constraint / keyword）は shared/ 側に計測点を入れる
         instrumentShared(tree, outFile)
+}
+
+function main(): void {
+    const entries = loadEntries()
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "bsweb-cov-"))
+    const tree = path.join(work, "tree")
+    const outFile = path.join(work, "records.txt")
+
+    try {
+        execFileSync("git", ["worktree", "add", "--detach", tree, "HEAD"], {
+            cwd: REPO,
+            stdio: "pipe",
+        })
+        fs.symlinkSync(path.join(REPO, "node_modules"), path.join(tree, "node_modules"))
+
+        instrumentServer(tree, outFile)
 
         execFileSync("npx", ["tsx", "scripts/smoke.ts", "--quiet"], {
             cwd: tree,
@@ -1126,4 +1165,6 @@ function report(
     }
 }
 
-main()
+// 直接実行されたときだけ計測を走らせる
+// （checkPatchTargets を import する smoke 側で main() が動いてしまわないようにする）
+if (require.main === module) main()
