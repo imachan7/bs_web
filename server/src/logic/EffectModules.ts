@@ -2293,6 +2293,7 @@ export function returnNexusToHand(
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
+    emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name })
     notifyHandGained(state, ownerPid, 1)
 }
 
@@ -2302,6 +2303,8 @@ export function returnSpiritToHand(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
+    // 効果の発生源カード名。渡すとログとイベントに載せる（何の効果で戻ったのかを対戦者が追えるように）
+    sourceName?: string,
 ): void {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
@@ -2311,7 +2314,16 @@ export function returnSpiritToHand(
     player.field.spirits.splice(index, 1)
     player.reserve += inst.cores
     player.hand.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}は手札に戻った。`)
+    log(
+        state,
+        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}は手札に戻った。`,
+    )
+    emitEvent(state, {
+        type: "returnToHand",
+        pid: ownerPid,
+        cardName: getCard(inst.cardId).name,
+        ...(sourceName !== undefined ? { sourceName } : {}),
+    })
     notifyHandGained(state, ownerPid, 1)
     // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
     // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
@@ -2326,6 +2338,8 @@ export function returnSpiritToDeckTop(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
+    // 効果の発生源カード名。渡すとログの先頭に出す（何の効果で戻ったのかを対戦者が追えるように）
+    sourceName?: string,
 ): void {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
@@ -2335,7 +2349,17 @@ export function returnSpiritToDeckTop(
     player.field.spirits.splice(index, 1)
     player.reserve += inst.cores
     player.deck.unshift(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番上に戻った。`)
+    log(
+        state,
+        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}はデッキの一番上に戻った。`,
+    )
+    emitEvent(state, {
+        type: "returnToDeck",
+        pid: ownerPid,
+        cardName: getCard(inst.cardId).name,
+        position: "top",
+        ...(sourceName !== undefined ? { sourceName } : {}),
+    })
 }
 
 // スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
@@ -2344,6 +2368,8 @@ export function returnSpiritToDeckBottom(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
+    // 効果の発生源カード名。渡すとログの先頭に出す（颶風高原Lv2 で「何によって戻ったか」が分かるように）
+    sourceName?: string,
 ): void {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
@@ -2353,7 +2379,17 @@ export function returnSpiritToDeckBottom(
     player.field.spirits.splice(index, 1)
     player.reserve += inst.cores
     player.deck.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`)
+    log(
+        state,
+        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`,
+    )
+    emitEvent(state, {
+        type: "returnToDeck",
+        pid: ownerPid,
+        cardName: getCard(inst.cardId).name,
+        position: "bottom",
+        ...(sourceName !== undefined ? { sourceName } : {}),
+    })
 }
 
 // 相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。

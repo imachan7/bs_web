@@ -1273,7 +1273,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            returnSpiritToHand(state, found.pid, found.inst)
+            returnSpiritToHand(state, found.pid, found.inst, sourceName)
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -1320,7 +1320,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
                 }
-                returnSpiritToHand(state, target.pid, target.inst)
+                returnSpiritToHand(state, target.pid, target.inst, sourceName)
             }
             return
         }
@@ -1349,7 +1349,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
             }
-            returnSpiritToHand(state, opp, target)
+            returnSpiritToHand(state, opp, target, sourceName)
         }
         return
 }
@@ -1375,7 +1375,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 return true
             })
             for (const s of targets) {
-                returnSpiritToHand(state, pid, s)
+                returnSpiritToHand(state, pid, s, sourceName)
                 returned++
             }
         }
@@ -1395,13 +1395,13 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
     ownSpirits.sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)
     for (const inst of ownSpirits.slice(0, action.count)) {
-        returnSpiritToDeckBottom(state, owner, inst)
+        returnSpiritToDeckBottom(state, owner, inst, sourceName)
     }
     let returned = 0
     for (let i = 0; i < action.count; i++) {
         const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
         if (!target) break
-        returnSpiritToDeckBottom(state, opp, target)
+        returnSpiritToDeckBottom(state, opp, target, sourceName)
         returned++
     }
     if (returned === 0) {
@@ -1479,7 +1479,7 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
                 log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 continue
             }
-            returnSpiritToDeckBottom(state, rec.pid, inst)
+            returnSpiritToDeckBottom(state, rec.pid, inst, sourceName)
             returned += 1
         }
         if (returned === 0) {
@@ -1540,7 +1540,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckTopResisted.label}）。`)
             return
         }
-        returnSpiritToDeckTop(state, found.pid, found.inst)
+        returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
         return
 }
 

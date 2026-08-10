@@ -25,6 +25,12 @@ import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorA
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
+// 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
+// （2026-08-10 ユーザー要望。【暴風】由来のときはキーワード名まで出す＝颶風高原がどれを戻すのか追えるように）
+function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): string {
+    return `${sourceName}${byBofu ? "の【暴風】" : ""}：${targetName}は疲労した。`
+}
+
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
@@ -88,7 +94,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 return
             }
             exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid)
-            log(state, `${getCard(found.inst.cardId).name}は疲労した。`)
+            log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
             return
         }
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
@@ -142,7 +148,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
                 exhaustSpirit(state, targetPid, target, action.bofuSourcePid)
                 exhausted += 1
-                log(state, `${getCard(target.cardId).name}は疲労した。`)
+                log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             }
             if (exhausted === 0) {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -186,7 +192,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 break
             }
             exhaustSpirit(state, opp, target, action.bofuSourcePid)
-            log(state, `${getCard(target.cardId).name}は疲労した。`)
+            log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
         }
         return
 }
@@ -448,7 +454,7 @@ const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByRetur
             effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
         )
         const name = getCard(target.cardId).name
-        returnSpiritToDeckTop(state, owner, target)
+        returnSpiritToDeckTop(state, owner, target, sourceName)
         if (!self.isRested) {
             log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
