@@ -1145,6 +1145,10 @@ function doResolveChoice(
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
             resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
+        } else if (pending.resolveOnSkip) {
+            // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
+            // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
         } else {
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }

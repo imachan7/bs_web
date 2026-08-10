@@ -3174,6 +3174,9 @@ export function requestCardChoice(
     // 候補が1枚でも自動解決せず必ず選択を出す。「〜できる」（任意発動）の効果で、
     // 候補が1枚しかないときも「やらない」を選べるようにするために使う（BS05トランスマイグレーション）
     alwaysAsk = false,
+    // スキップされたときも action を（cardIndex なしで）解決する。選び終わってから
+    // 後処理がある効果で使う（PendingChoice.resolveOnSkip。BS08堕天使ミカファール）
+    resolveOnSkip = false,
 ): void {
     if (cardIndices.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
@@ -3193,6 +3196,7 @@ export function requestCardChoice(
         cardOwner: pid,
         cardIndices,
         optional,
+        ...(resolveOnSkip ? { resolveOnSkip: true as const } : {}),
         action,
         selfInstanceId: self ? self.instanceId : null,
         queue: [],

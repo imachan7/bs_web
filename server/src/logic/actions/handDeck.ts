@@ -1007,37 +1007,65 @@ const magicMirrorRepeatHandler: ActionHandler<"magicMirrorRepeat"> = (ctx, _acti
 
 // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき自分がデッキから1枚ドローする
 // （BS08堕天使ミカファール。coreRemovePerHandDiscardの「破棄1枚につき〜」をドローに差し替えた版）
+// BS08堕天使ミカファール：手札を好きなだけ破棄し、破棄した枚数ぶんドローする。
+// **破棄を全部済ませてからまとめてドローする**のが要点。1枚ごとにドローすると、
+// 引いたカードをそのまま次の破棄対象にできてデッキが尽きるまで回せてしまう。
+// 途中経過は action に持ち回る（discardedSoFar＝ここまでに破棄した枚数、
+// awaitingSkip＝「選択をスキップして戻ってきた＝破棄終了」の目印）
 const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
         const player = state.players[owner]
+        const discarded = action.discardedSoFar ?? 0
+        // まとめてドローして終える共通処理
+        const finish = (): void => {
+            if (discarded === 0) {
+                log(state, `${sourceName}：手札を破棄しなかった。`)
+                return
+            }
+            log(state, `${sourceName}：破棄した${discarded}枚ぶんドローする。`)
+            draw(state, owner, discarded)
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.hand[chosenCardIndex]
             if (cardId === undefined) {
                 log(state, `${sourceName}：破棄する手札がなかった。`)
+                finish()
                 return
             }
             player.hand.splice(chosenCardIndex, 1)
             player.trashCards.push(cardId)
             log(state, `${player.name}は手札の「${getCard(cardId).name}」を破棄した。`)
-            draw(state, owner, 1)
-            // 続けて破棄できるか再度尋ねる（optional=trueのためスキップで終了する）
-            ctx.resolve(action)
+            // ここではドローしない。続けて破棄するか再度尋ねる
+            // （awaitingSkip は落とす。付けたままだと「選択をスキップして戻ってきた」と誤読される）
+            const { awaitingSkip: _dropped, ...rest } = action
+            ctx.resolve({ ...rest, discardedSoFar: discarded + 1 })
+            return
+        }
+        // スキップされて戻ってきた＝これ以上破棄しない。ここで初めてドローする
+        if (action.awaitingSkip) {
+            finish()
             return
         }
         if (state.interactiveTargets) {
             if (player.hand.length === 0) {
-                log(state, `${sourceName}：手札がなかった。`)
+                // 手札を出し切った場合もここへ来る（破棄済みぶんはドローする）
+                if (discarded === 0) log(state, `${sourceName}：手札がなかった。`)
+                else finish()
                 return
             }
             requestCardChoice(
                 state,
                 owner,
-                `${sourceName}：破棄する手札を選んでください（選ばなければ終了）`,
+                `${sourceName}：破棄する手札を選んでください（選ばなければ終了してドローに移ります）`,
                 "hand",
                 player.hand.map((_, i) => i),
                 true,
-                action,
+                { ...action, discardedSoFar: discarded, awaitingSkip: true },
                 self,
+                // 手札が1枚でも「破棄しない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
+                true,
+                // スキップ＝破棄終了。まとめてドローするためにハンドラへ戻す
+                true,
             )
             return
         }
@@ -1534,24 +1562,37 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // マジックブック：自分の手札にあるマジックカードを好きなだけ手元(tegamoto)に置き、
-        // 置いた枚数ぶんデッキから引く。chosenCardIndexが渡された＝choiceで1枚選ばれた経路。
-        // 1枚移動+1ドロー後、手札にまだマジックカードが残っていれば同じactionで再度resolveActionし、
-        // choiceを繰り返す（optional=trueのためスキップで終了する）
+        // 置いた枚数ぶんデッキから引く。**置き終わってからまとめて引く**のが要点で、
+        // 1枚ごとに引くと引いたマジックカードをそのまま次に置けてしまう
+        // （drawPerHandDiscard と同じ不具合。2026-08-10 修正）
         const player = state.players[owner]
+        const placed = action.placedSoFar ?? 0
+        const finish = (): void => {
+            if (placed === 0) {
+                log(state, `${sourceName}：手元に置かなかった。`)
+                return
+            }
+            log(state, `${sourceName}：手元に置いた${placed}枚ぶんデッキから引く。`)
+            draw(state, owner, placed)
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.hand[chosenCardIndex]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
+                finish()
                 return
             }
             player.hand.splice(chosenCardIndex, 1)
             player.tegamoto.push(cardId)
-            draw(state, owner, 1)
-            log(
-                state,
-                `${player.name}は${getCard(cardId).name}を手元に置き、デッキから1枚引いた。`,
-            )
-            ctx.resolve(action)
+            log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
+            // ここでは引かない。続けて置くか再度尋ねる（awaitingSkip は落とす）
+            const { awaitingSkip: _dropped, ...rest } = action
+            ctx.resolve({ ...rest, placedSoFar: placed + 1 })
+            return
+        }
+        // スキップされて戻ってきた＝これ以上置かない。ここで初めて引く
+        if (action.awaitingSkip) {
+            finish()
             return
         }
         const indices: number[] = []
@@ -1559,19 +1600,25 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
             if (getCard(player.hand[i]!).type === "magic") indices.push(i)
         }
         if (indices.length === 0) {
-            log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            // 手札のマジックを出し切った場合もここへ来る（置いたぶんは引く）
+            if (placed === 0) log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            else finish()
             return
         }
         if (state.interactiveTargets) {
             requestCardChoice(
                 state,
                 owner,
-                `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了）`,
+                `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了してドローに移ります）`,
                 "hand",
                 indices,
                 true,
-                action,
+                { ...action, placedSoFar: placed, awaitingSkip: true },
                 self,
+                // 候補が1枚でも「置かない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
+                true,
+                // スキップ＝終了。まとめて引くためにハンドラへ戻す
+                true,
             )
             return
         }
