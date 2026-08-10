@@ -116,6 +116,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
+        ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
     ]
 }
 
@@ -126,7 +127,12 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
 function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
-    const sources = [...opp.field.spirits, ...opp.field.nexuses, ...opp.turnVirtualInstances]
+    const sources = [
+        ...opp.field.spirits,
+        ...opp.field.nexuses,
+        ...opp.turnVirtualInstances,
+        ...opp.battleVirtualInstances,
+    ]
     for (const source of sources) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "nexusEffectsDisabled") continue

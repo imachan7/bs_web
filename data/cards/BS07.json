@@ -4499,7 +4499,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {
@@ -4649,7 +4649,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {
@@ -4860,7 +4860,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "lendSelfThisBattle"
     }
    },
    {

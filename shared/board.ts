@@ -28,6 +28,7 @@ export interface BoardPlayer {
     tegamoto: string[]
     field: { spirits: CardInstance[]; nexuses: CardInstance[] }
     turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する
+    battleVirtualInstances: CardInstance[] // 上のバトル限定版（lendSelfThisBattle）。同じく effectSources() が参照し、clearBattle で消える
 }
 
 export interface Board {

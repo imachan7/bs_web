@@ -734,11 +734,14 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
 }
 
 // 「このターンの間」継続効果を貸す共通処理：仮想発生源を1つ積んで返す（積めなければ null）。
-// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う
+// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う。
+// scope:"battle" のときだけ積む先が battleVirtualInstances に変わる（lendSelfThisBattle）。
+// 積んだあとの扱い（effectSources に混ざる／isVirtualSource が "virtual-" で判定する）は共通
 function pushVirtualSource(
     state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
     owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
     sourceCardId: string | undefined,
+    scope: "turn" | "battle" = "turn",
 ): CardInstance | null {
     if (sourceCardId === undefined) {
         log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
@@ -746,7 +749,9 @@ function pushVirtualSource(
     }
     const inst = createInstance(sourceCardId, state.turn, 0)
     inst.instanceId = `virtual-${inst.instanceId}`
-    state.players[owner].turnVirtualInstances.push(inst)
+    const player = state.players[owner]
+    if (scope === "battle") player.battleVirtualInstances.push(inst)
+    else player.turnVirtualInstances.push(inst)
     return inst
 }
 
@@ -759,6 +764,18 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     log(
         state,
         `${getCard(sourceCardId!).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+    )
+}
+
+// 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
+// バトル外（メインステップ等）で使われた場合、貸与は直後の clearBattle まで残るが、
+// これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
+const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (!pushVirtualSource(state, owner, sourceCardId, "battle")) return
+    log(
+        state,
+        `${getCard(sourceCardId!).name}：このバトルの間、自分の仮想発生源としてこの効果を貸し出した。`,
     )
 }
 
@@ -864,6 +881,7 @@ const handlers = {
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
+    lendSelfThisBattle: lendSelfThisBattleHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     alsoCostBuff: alsoCostBuffHandler,

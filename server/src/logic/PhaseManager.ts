@@ -142,6 +142,9 @@ export function endTurn(state: GameState): void {
         state.players[pid].tempHandKeywordGrants = []
         // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
         state.players[pid].turnVirtualInstances = []
+        // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
+        // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
+        state.players[pid].battleVirtualInstances = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
             inst.cantAttackThisTurn = false

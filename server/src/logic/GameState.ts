@@ -161,6 +161,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         tegamotoPlayable: [],
         field: { spirits: [], nexuses: [] },
         turnVirtualInstances: [],
+        battleVirtualInstances: [],
     }
 }
 
@@ -234,6 +235,13 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const lent = state.players[pid].battleVirtualInstances
+        if (lent.length === 0) continue
+        for (const inst of lent) log(state, `${getCard(inst.cardId).name}の「このバトルの間」の効果が切れた。`)
+        state.players[pid].battleVirtualInstances = []
+    }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []
     state.isFlashTiming = false
@@ -360,6 +368,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             nexuses: player.field.nexuses.map((n) => ({ ...n })),
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
+        battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),
