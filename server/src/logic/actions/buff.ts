@@ -24,22 +24,6 @@ import {
 import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
-// BS05アイシクルアサルト用: このスピリットが持つ【装甲】の指定色数（静的keyword＋一時付与tempKeywordsを合算、重複除く）
-function armorColorCount(inst: CardInstance): number {
-    const level = currentLevel(inst).level
-    const colors = new Set<string>()
-    for (const e of getCard(inst.cardId).effects) {
-        if (e.kind === "keyword" && e.keyword === "armor" && effectActiveAtLevel(e.levels, level)) {
-            for (const c of e.colors ?? []) colors.add(c)
-        }
-    }
-    for (const k of inst.tempKeywords) {
-        if (k.keyword === "armor") {
-            for (const c of k.colors ?? []) colors.add(c)
-        }
-    }
-    return colors.size
-}
 
 // スリーカード：対象スピリット1体に「このターンの間、使用者の効果では count 体分として数える」印を付ける。
 // 対象未指定時は実効BP最大の1体（自動選択の簡略化。anySide 指定時は自分/相手どちらからも選ぶ）
@@ -176,26 +160,6 @@ const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
         return
 }
 
-const bpBuffAllByArmorColors: ActionHandler<"bpBuffAllByArmorColors"> = (ctx, action) => {
-    const { state, owner } = ctx
-        // 自分の【装甲】を持つスピリットすべてを、それぞれが持つ装甲の色数×amountPerだけBP+
-        let count = 0
-        for (const s of state.players[owner].field.spirits) {
-            const colors = armorColorCount(s)
-            if (colors === 0) continue
-            s.tempBpBuff += action.amountPer * colors
-            count++
-        }
-        if (count === 0) {
-            log(state, `${state.players[owner].name}：【装甲】を持つスピリットがいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${state.players[owner].name}の【装甲】を持つスピリット${count}体が、装甲の色数に応じてBP増加（ターン終了時まで）。`,
-        )
-        return
-}
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
@@ -490,7 +454,6 @@ const handlers = {
     selfBuffPer,
     bpBuff,
     bpBuffAll,
-    bpBuffAllByArmorColors,
     bpBuffAllByBofuCount,
     bpBuffAllPer,
     bpBuffPer,

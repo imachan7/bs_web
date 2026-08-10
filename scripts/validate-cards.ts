@@ -392,10 +392,52 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
     return issues
 }
 
+// 「実装はあるのに、どのカードのデータからも使われていない action」を洗い出す。
+//
+// validate:gaps が「データにあるのにコードが無い」を見るのに対し、こちらは**逆方向**。
+// 実装を別の器へ移し替えたときに旧実装が残りがちで、実際 bpBuffAllByArmorColors は
+// aura 方式へ移行した後も4か月ほど残っていた（2026-08-10 に削除）。
+//
+// ⚠️ 内部専用（他のハンドラが ctx.resolve で呼ぶだけで cards.json には書かない）ものは
+// 正当なので、ここに登録して除外する。**除外理由を必ず書くこと**
+const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
+    ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
+    ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
+    ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
+    ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
+])
+
+export function findUnusedActions(cards: CardData[]): string[] {
+    const used = new Set<string>()
+    const walk = (o: unknown): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x)
+            return
+        }
+        if (o !== null && typeof o === "object") {
+            const t = (o as { type?: unknown }).type
+            if (typeof t === "string" && VALID_ACTIONS.has(t)) used.add(t)
+            for (const v of Object.values(o)) walk(v)
+        }
+    }
+    for (const c of cards) walk(c.effects)
+    return [...VALID_ACTIONS]
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a))
+        .sort()
+}
+
 // 単体実行時のエントリポイント
 function main(): void {
     const cards = loadAllCards()
     const issues = validateCards(cards)
+
+    for (const a of findUnusedActions(cards)) {
+        issues.push({
+            cardId: "(全体)",
+            message: `action "${a}" はどのカードにも使われていない（実装だけ残っている可能性。内部専用なら INTERNAL_ONLY_ACTIONS に理由つきで登録する）`,
+        })
+    }
 
     console.log(`data/cards/*.json: ${cards.length}枚を検証`)
     console.log(`  照合対象: action ${VALID_ACTIONS.size}種 / keyword ${VALID_KEYWORDS.size}種 / kind ${VALID_KINDS.size}種`)
