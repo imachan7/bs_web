@@ -733,6 +733,13 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
   `CardInstance.lentChoiceFamily` に載せ、継続エントリ側は `familyGrant.familyFromChoice: true` で読む
 - 走査は `shared/rules.ts` の **`effectSources(board, pid)`** に集約する。
   「フィールドに実在する発生源＋実在しないが効果を出す発生源」を返す器で、将来ここに種類が増える
+- **「このバトルの間」は別の器**（2026-08-10 追加）。効果テキストがそう書いているものは
+  `{ type: "lendSelfThisBattle" }` を使い、`PlayerState.battleVirtualInstances` へ積む。
+  `effectSources` が両方を混ぜて返すので**継続エントリ側の書き方は同じ**（`levels: null` / `lentOnly: true`）で、
+  違いは寿命だけ（`clearBattle` で切れる＝同じターンの2回目のバトルには効かない）。
+  BS07 のフラッシュ3枚（ダーティフィスト／ニードルショット／ブルームフルート）が該当。
+  BP増減も同様に、テキストが「このバトルの間」のものは `bpBuff` の **`scope: "battle"`**
+  （`CardInstance.battleBpBuff`。無指定は従来どおりターン終了時まで）
 
 #### ⚠️ 3つの罠（いずれも「無言で壊れる」ため必ず守ること）
 
