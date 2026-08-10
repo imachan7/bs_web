@@ -50,7 +50,7 @@ import {
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
-import type { KeywordInfo } from "../../../shared/rules"
+import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
     findMagicFreeGrantSource,
@@ -61,6 +61,7 @@ import {
 import {
     activeConstraints,
     auraAmount,
+    boardResistanceAgainst,
     auraAppliesTo,
     checkAuraCondition,
     costCantAct,
@@ -292,6 +293,55 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
 //      お互いのスピリット/マジックの効果を受けない（ネクサスの効果は通る＝カードテキストどおり）
 //   ② アルカナソルジャー・サンクLv2（GameState.magicRedirectTo）：相手のマジックの対象が
 //      サンク1体へ絞り込まれている間、同じ持ち主の**他の**スピリットはそのマジックの効果を受けない
+// 【耐性を見る唯一の入口】この操作が、この対象に、この発生源から通るか。
+// 防がれるなら理由（ResistanceCategory とログ用ラベル）を、通るなら null を返す。
+//
+// **相手のスピリット／ネクサスに何かをするハンドラは、個別の耐性述語を並べずにこれを1回呼ぶこと。**
+// 「どの耐性を見るべきか」を呼び出し側に判断させるのをやめるための入口で、
+// 判定表そのものは shared/rules.boardResistanceAgainst にある（クライアントの対象ハイライトも同じ表を使う）。
+// ここが上乗せするのは、盤面ではなく**効果解決中の一時状態**で決まる2軸だけ:
+//   ① 対象の絞り込み（kind:"magicTargetRedirect"。state.magicRedirectTo）
+//   ② 相手のスピリットの『召喚時』効果を受けない（state.resolvingSummonTriggerPid）
+export function resistanceAgainst(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+): Resistance | null {
+    // ① 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
+    const redirect = state.magicRedirectTo
+    if (
+        redirect !== undefined &&
+        attempt.sourceType === "magic" &&
+        target.instanceId !== redirect.instanceId &&
+        state.players[redirect.pid].field.spirits.some((s) => s.instanceId === target.instanceId)
+    ) {
+        return { category: "magicRedirect", label: "効果の対象が絞り込まれている" }
+    }
+    // ② 相手のスピリットの『このスピリットの召喚時』効果を受けない（BS05リトルナイト・ランスロットLv3）。
+    // 発生源がスピリットで、いま召喚時効果を解決中であり、その持ち主が対象の持ち主と異なるときだけ効く
+    const summonPid = state.resolvingSummonTriggerPid
+    if (
+        summonPid !== undefined &&
+        attempt.sourceType === "spirit" &&
+        summonPid !== targetOwnerPid &&
+        activeConstraints(state, targetOwnerPid, target).some((c) => c.type === "immuneToOpponentSummonEffects")
+    ) {
+        return { category: "summonEffectImmune", label: "相手のスピリットの召喚時効果を受けない" }
+    }
+    return boardResistanceAgainst(state, targetOwnerPid, target, attempt)
+}
+
+// resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
+export function isResisted(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+): boolean {
+    return resistanceAgainst(state, targetOwnerPid, target, attempt) !== null
+}
+
 export function isEffectBlocked(
     state: GameState,
     inst: CardInstance,
@@ -2335,8 +2385,9 @@ export function returnSpiritToDeckBottom(
 // **なぜ必要か**: コアを1体ずつ選んで取る効果（coreRemove 等）は、対象選びの中で
 // pickEnemyByBp / pickEnemyCandidates が装甲・免疫を弾いてくれる。しかし「範囲でまとめて奪う」
 // 効果（幻龍シェイロン・氷の女神フリッグ等）は候補を自前で走査するため、その経路を通らず
-// **【装甲】を素通りしていた**（2026-08-10 修正）。判定軸は returnAllToHand と揃えてある。
-// 自分側のスピリットには適用しない（装甲は「相手の効果を受けない」ため）
+// **【装甲】を素通りしていた**（2026-08-10 修正）。
+// 現在は耐性の唯一の入口（resistanceAgainst）へ委譲している。この関数はコア除去用の別名にすぎず、
+// **新しく書くハンドラは resistanceAgainst を直接呼んでよい**
 export function canTakeCoresFrom(
     state: GameState,
     ownerPid: PlayerId,
@@ -2345,14 +2396,13 @@ export function canTakeCoresFrom(
     srcColors?: Color[],
     srcType?: "spirit" | "nexus" | "magic",
 ): boolean {
-    if (isEffectBlocked(state, inst, srcType, actorPid)) return false
-    if (ownerPid === actorPid) return true
-    return !(
-        hasArmorAgainst(inst, srcColors) ||
-        (srcType === "magic" && hasMagicImmunity(state, ownerPid, inst)) ||
-        isImmuneToArea(inst) ||
-        hasFullEffectImmunity(inst, srcType)
-    )
+    return !isResisted(state, ownerPid, inst, {
+        op: "coreRemove",
+        scope: "area",
+        actorPid,
+        ...(srcType !== undefined ? { sourceType: srcType } : {}),
+        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+    })
 }
 
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる

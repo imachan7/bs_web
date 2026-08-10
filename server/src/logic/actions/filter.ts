@@ -11,9 +11,31 @@
 // 旧フィールドの再発は scripts/validate-cards.ts が検査する（型に無いキーは JSON では
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
+import type { EffectAttempt } from "../../../../shared/rules"
 import { effectiveBp } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
+
+// 耐性判定（EffectModules.resistanceAgainst / isResisted）へ渡す「何をしようとしているか」を
+// ActionCtx から組み立てる。**発生源の色と種別を渡し忘れると装甲やマジック耐性が無言で効かなくなる**ため、
+// ハンドラ側で毎回オブジェクトリテラルを書かずにこれを通すこと。
+//
+// scope は呼び出し側が決める:
+//   "targeted" = 1体を選んで作用する（「相手の効果の対象にならない」が効く）
+//   "area"     = 条件に合うものすべてに作用する（同上は効かない）
+export function attemptOf(
+    ctx: ActionCtx,
+    op: EffectAttempt["op"],
+    scope: EffectAttempt["scope"],
+): EffectAttempt {
+    return {
+        op,
+        scope,
+        actorPid: ctx.owner,
+        ...(ctx.srcType !== undefined ? { sourceType: ctx.srcType } : {}),
+        ...(ctx.srcColors !== undefined ? { sourceColors: ctx.srcColors } : {}),
+    }
+}
 
 // normalizeFilter に渡せるアクションの形。filter を持つアクションはすべてこれを満たす
 export interface FilterCarrier {
