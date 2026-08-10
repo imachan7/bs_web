@@ -19,6 +19,7 @@ import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostTh
 import {
     activeConstraints,
     checkExhaustOnCoreChange,
+    consumeSummonHandDiscardPay,
     destroySpirit,
     effectActiveAtLevel,
     effectiveBp,
@@ -72,6 +73,7 @@ import {
     validateEndTurn,
     validateMoveCore,
     nexusMillPayAmount,
+    summonHandDiscardPayAmount,
     validatePass,
     validateSetNexus,
     validateSummon,
@@ -407,10 +409,21 @@ function doSummon(
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
-    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
-    const placedFromField = payCost(state, pid, cost, paySources, maintain)
-    player.reserve -= maintain - placedFromField
+    // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払う
+    // （validateSummon と同じ関数で枚数を出すので、検証と実行がズレない）
+    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources)
+    // **召喚するカードを先に手札から抜く**：破棄の対象に自分自身が混ざらないようにする
     player.hand.splice(handIndex, 1)
+    if (discardPaid > 0) {
+        const discarded = player.hand.splice(player.hand.length - discardPaid, discardPaid)
+        player.trashCards.push(...discarded)
+        log(state, `${player.name}は召喚コストのうち${discardPaid}を、手札${discardPaid}枚の破棄で支払った。`)
+        // 「スピリットカード**1枚**の召喚に」＝実際に使った時点で貸与を使い切る
+        consumeSummonHandDiscardPay(state, pid)
+    }
+    // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
+    const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain)
+    player.reserve -= maintain - placedFromField
 
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)

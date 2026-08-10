@@ -19,6 +19,7 @@ import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
     canPayNexusCostByMill,
+    canPaySummonCostByHandDiscard,
     effectiveCost,
     hasMagicFreeGrant,
     hasMagicCostLock,
@@ -180,8 +181,11 @@ export function validateSummon(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払える（置くコアは対象外）。
+    // doSummon と同じ関数で枚数を出すので、検証と実行がズレない
+    const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
-    const payError = validatePaySources(state, pid, cost + maintain, paySources)
+    const payError = validatePaySources(state, pid, cost - discardPaid + maintain, paySources)
     if (payError) {
         return payError === "コアが足りません"
             ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
@@ -292,6 +296,28 @@ export function nexusMillPayAmount(
     const available = player.reserve + fromSources
     const shortfall = Math.max(0, cost + maintain - available)
     return Math.min(shortfall, cost, player.deck.length)
+}
+
+// スピリットの召喚コストのうち、手札破棄で支払う枚数を決める（BS08ビクティム）。
+// nexusMillPayAmount とまったく同じ方針で、「どこまで手札破棄で払うか」は選べず
+// **コアで足りない分だけ**自動的に回す簡略化。上限は3つの小さい方:
+//   ① 召喚コスト（置くコアは手札破棄で払えない）
+//   ② コアで足りない分
+//   ③ 手札の残り枚数から**召喚するカード自身の1枚を除いた数**
+// validateSummon と doSummon が同じ値を出すよう、必ずこの関数を通すこと
+export function summonHandDiscardPayAmount(
+    state: GameState,
+    pid: PlayerId,
+    cost: number,
+    maintain: number,
+    paySources: PaySource[] | undefined,
+): number {
+    if (!canPaySummonCostByHandDiscard(state, pid)) return 0
+    const player = state.players[pid]
+    const fromSources = (paySources ?? []).reduce((sum, s) => sum + Math.max(0, s.count), 0)
+    const available = player.reserve + fromSources
+    const shortfall = Math.max(0, cost + maintain - available)
+    return Math.min(shortfall, cost, Math.max(0, player.hand.length - 1))
 }
 
 export function validateCastMagic(

@@ -754,6 +754,15 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "summonCostHandDiscardPay" // 発生源が場（＝このターンの仮想発生源）にある間、持ち主は**スピリットの召喚コスト**を
+          // 「コスト1につき自分の手札1枚を破棄」で支払える（置くコアはこの方法では払えない）。判定は shared/cost.canPaySummonCostByHandDiscard。
+          // どこまで手札破棄で払うかは選べず、**コアで足りない分だけ**自動的に回す簡略化
+          // （nexusCostMillPay とまったく同じ方針。BS08ビクティム）。
+          // 「スピリットカード**1枚**の召喚に」なので、実際に破棄で支払った時点で発生源を使い切る（consumeSummonHandDiscardPay）
+          levels: null // 貸与専用（マジックが lendSelfThisTurn で自分を貸す）。仮想発生源は Lv0 なので null 固定
+      }
+    | {
+          id: string
           kind: "deckMillNegate" // 発生源が場にありレベル有効の間、持ち主のデッキが破棄されるとき、コストを払ってその破棄を無効にできる
           // （BS08鳳翼の聖剣Lv2）。**任意コストなので確認を出す**：millDeck は破棄を見送って
           // GameState.pendingDeckMillNegates へ積み、handleAction の末尾＝安全な地点で確認する

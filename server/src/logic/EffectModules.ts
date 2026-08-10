@@ -571,6 +571,19 @@ function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
     return false
 }
 
+// BS08ビクティム（kind:"summonCostHandDiscardPay"）：「スピリットカード**1枚**の召喚に」なので、
+// 実際に手札破棄で支払った時点で貸与を使い切る（＝仮想発生源を1つ取り除く）。
+// 使わずにターンが終われば turnVirtualInstances のリセットで自然に消える
+export function consumeSummonHandDiscardPay(state: GameState, pid: PlayerId): void {
+    const list = state.players[pid].turnVirtualInstances
+    const index = list.findIndex((inst) =>
+        getCard(inst.cardId).effects.some((e) => e.kind === "summonCostHandDiscardPay"),
+    )
+    if (index === -1) return
+    log(state, `${getCard(list[index]!.cardId).name}の効果は使い切られた。`)
+    list.splice(index, 1)
+}
+
 // kind:"deckMillNegate"（BS08鳳翼の聖剣Lv2）：この破棄を無効にできる発生源を探す。
 // 見つかったら [発生源, エントリ] を返す。**支払えないなら候補にしない**（確認を出しても意味がないため）
 function findDeckMillNegate(

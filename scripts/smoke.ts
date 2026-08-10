@@ -156,6 +156,7 @@ import "./smoke/part153"
 import "./smoke/part154"
 import "./smoke/part155"
 import "./smoke/part156"
+import "./smoke/part157"
 import { summary } from "./smoke/helpers"
 
 summary()

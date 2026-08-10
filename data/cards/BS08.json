@@ -4594,6 +4594,19 @@
      "type": "bpBuff",
      "amount": 2000
     }
+   },
+   {
+    "id": "BS08-071-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS08-071-e3",
+    "kind": "summonCostHandDiscardPay",
+    "levels": null
    }
   ]
  },
