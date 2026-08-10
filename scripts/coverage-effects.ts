@@ -396,14 +396,16 @@ const __covEid = (e: unknown): string =>
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
     )
-    // magicFreeGrant: hasMagicFreeGrant が true を返す時点（shared/cost.ts）
+    // magicFreeGrant: 発生源を確定させる時点（shared/cost.ts）。
+    // ※ 無償化は「true を返す」形から「発生源の instanceId を返す」形（findMagicFreeGrantSource）へ
+    //   変わっている。差し込み先はエンジンの現在の形に追随させること
     patch(
         fc,
         `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
-            return true`,
+            return source.instanceId`,
         `            if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
             __covRec2C("cont\\t" + __covEid2C(effect))
-            return true`,
+            return source.instanceId`,
     )
 }
 
