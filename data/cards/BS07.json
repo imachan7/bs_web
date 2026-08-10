@@ -4009,7 +4009,8 @@
     },
     "constraint": {
      "type": "noRestWhenBlockingWithoutKeyword",
-     "keyword": "tensho"
+     "keyword": "tensho",
+     "oncePerTurn": true
     }
    }
   ]

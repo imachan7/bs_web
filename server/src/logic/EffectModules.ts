@@ -1807,6 +1807,9 @@ export function destroySpirit(
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         vanilla: instIsVanilla(inst),
         byBattle: context?.battle !== undefined,
+        // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
+        // （clearBattle 後には判定できない。attackerOnly の判定に使う）
+        wasAttacker: state.battle?.attackerInstanceId === inst.instanceId,
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
@@ -3709,6 +3712,8 @@ export function fireFieldEventTriggers(
     eventInfo?: {
         vanilla?: boolean
         byBattle?: boolean
+        // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったか（attackerOnly の判定に使う）
+        wasAttacker?: boolean
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
         byOpponentEffect?: boolean
@@ -3751,6 +3756,9 @@ export function fireFieldEventTriggers(
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
+            // ブロッカーとして破壊された場合は発火させない
+            if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue

@@ -5490,7 +5490,8 @@
     "action": {
      "type": "draw",
      "count": 2
-    }
+    },
+    "attackerOnly": true
    },
    {
     "id": "BS06-095-e3",

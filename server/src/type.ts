@@ -444,7 +444,8 @@ export type ConstraintDef =
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
     | { type: "noRestWhenBlockingCost"; maxCost?: number; sameCost?: true } // このスピリットが、コストmaxCost以下（sameCost指定時は自身と同じコスト）の相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor の兄弟。BS07シルバー・ゴレム／造兵工房）
-    | { type: "noRestWhenBlockingWithoutKeyword"; keyword: Keyword } // このスピリットが、指定キーワードを**持たない**相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor/Cost の兄弟。BS07ブリシンガメンの首飾りLv2＝【転召】を持たない相手）
+    | { type: "noRestWhenBlockingWithoutKeyword"; keyword: Keyword; oncePerTurn?: true } // このスピリットが、指定キーワードを**持たない**相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor/Cost の兄弟。BS07ブリシンガメンの首飾りLv2＝【転召】を持たない相手）。
+    // oncePerTurn 指定時は「ターンに1回」に制限する（消費したかは PlayerState.noRestWhenBlockingUsedThisTurn で持ち主ごとに記録。同名ネクサスを複数置いても合計1回になる簡略化）
     | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
     | { type: "tenshoCoreSubstitute" } // このスピリットが【転召】の対象になったとき、疲労していなければ、疲労することでコアすべてを指定場所に置いたものとして扱う（実際にはコアを失わない代替。dumpAllCoresTenshoが判定する。BS05の竜使い6枚）。「疲労させることで」は**任意**なので、interactiveTargets時は「疲労する／コアを置く」の選択を出す（自動時は疲労を選ぶ決定的簡略化）
     | { type: "canBlockWhileRested"; targetMaxCost?: number; targetKeywordExclude?: Keyword } // このスピリットは疲労状態でもブロックできる（shared/block.canBlockが判定）。targetMaxCost指定時はアタッカーのコストがこれ以下のときのみ（BS06計画された場外乱闘Lv1-2：コスト1以下）。targetKeywordExclude指定時はアタッカーがそのキーワードを持たないときのみ（spiritHasKeyword判定＝一時付与も見る。BS08一角魚モノケロック：【転召】を持たない相手のスピリット）
@@ -713,6 +714,8 @@ export type EffectDef =
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
           vanillaOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
+          attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
+          // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
           byOpponentEffectOnly?: true // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果で破壊されたときのみ発火（BS07の各色ネクサス6枚）。
           // destroyNexus に渡された DestroyContext で判定する（sourceType があり＝効果による破壊、かつ sourcePid が持ち主と異なる）。
           // 発生源不明（context 省略＝テストや将来の経路）のときは**発火しない**側に倒す：
@@ -1438,6 +1441,7 @@ export interface PlayerState {
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 手札のカードに一時付与されたキーワード（grantKeywordToHandCard。ターン終了でリセット。ビートプリースト）
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。
     // ターン終了でリセット（PhaseManager.endTurn）。フィールドには実在しないため、シンボル集計（countSymbols / ownFieldSymbolColors）の対象にはならない（TURN_EFFECT_SOURCES.md §1・§2.1）
+    noRestWhenBlockingUsedThisTurn?: boolean // 「ターンに1回、ブロックしても疲労しない」（constraint の oncePerTurn）を、このターン既に使ったか。ターン終了でリセット（BS07ブリシンガメンの首飾りLv2）
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
 }

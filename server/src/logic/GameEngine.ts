@@ -1287,7 +1287,7 @@ function resolveBattle(state: GameState): void {
     const attackerColors = instColors(attacker)
     const attackerCosts = instAllCosts(attacker)
     const blockerCosts = instAllCosts(blocker)
-    const skipRest = activeConstraints(state, defenderPid, blocker).some((c) => {
+    const matched = activeConstraints(state, defenderPid, blocker).filter((c) => {
         if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
         // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
         if (c.type === "noRestWhenBlockingWithoutKeyword") {
@@ -1298,6 +1298,17 @@ function resolveBattle(state: GameState): void {
         const max = c.maxCost
         return max !== undefined && attackerCosts.some((a) => a <= max)
     })
+    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：このターン既に使っていたら、
+    // その制約は数に入れない。回数制限の無い制約が同時にあるならそちらが働くので消費もしない
+    const isOnce = (c: (typeof matched)[number]): boolean =>
+        c.type === "noRestWhenBlockingWithoutKeyword" && c.oncePerTurn === true
+    const used = state.players[defenderPid].noRestWhenBlockingUsedThisTurn === true
+    const usable = matched.filter((c) => !(isOnce(c) && used))
+    const skipRest = usable.length > 0
+    if (skipRest && usable.every(isOnce)) {
+        state.players[defenderPid].noRestWhenBlockingUsedThisTurn = true
+        log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
+    }
     if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
     // **ブロック宣言時ではなくここで呼ぶ**：ブロッカーが疲労するのはこの直上なので、
