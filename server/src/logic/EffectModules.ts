@@ -356,6 +356,10 @@ function tryPayableTargetNegate(
     if (attempt.actorPid === targetOwnerPid) return null
     if (attempt.sourceType !== "spirit") return null
     const player = state.players[targetOwnerPid]
+    // 「〜することで」は任意コスト。払うかどうかはプレイヤーの方針（GameAction "setPayToNegate"）を読む。
+    // ここは装甲と同じ同期の述語なので、その場で選択を挟めない代わりに**あらかじめ盤面の状態にしておく**。
+    // 未設定は true（従来どおり払って防ぐ）
+    if (player.payToNegate === false) return null
     for (const source of effectSources(state, targetOwnerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {

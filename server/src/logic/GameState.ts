@@ -377,6 +377,8 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),
+        // 「手札を破棄して効果を受けない」の方針は自分にだけ返す（UIのトグルの現在値）
+        ...(isSelf && player.payToNegate !== undefined ? { payToNegate: player.payToNegate } : {}),
     }
 }
 

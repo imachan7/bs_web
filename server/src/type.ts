@@ -1455,6 +1455,10 @@ export interface PlayerState {
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。
     // ターン終了でリセット（PhaseManager.endTurn）。フィールドには実在しないため、シンボル集計（countSymbols / ownFieldSymbolColors）の対象にはならない（TURN_EFFECT_SOURCES.md §1・§2.1）
     noRestWhenBlockingUsedThisTurn?: boolean // 「ターンに1回、ブロックしても疲労しない」（constraint の oncePerTurn）を、このターン既に使ったか。ターン終了でリセット（BS07ブリシンガメンの首飾りLv2）
+    payToNegate?: boolean // 「自分の手札1枚を破棄することで、その効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針。
+    // **未指定は true（払う）＝従来どおり**。耐性の判定は装甲と同じ同期の述語なので、その場で選択を挟めない。
+    // 代わりにこの方針をプレイヤーがあらかじめ切り替えておき（GameAction "setPayToNegate"）、判定はそれを読むだけにする
+
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
 }
@@ -1650,6 +1654,7 @@ export interface PlayerView {
         nexuses: CardInstance[]
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 自分のみ。相手は常に省略（手札内容に紐づくため）
+    payToNegate?: boolean // 自分のみ。「手札を破棄して効果を受けない」を払う方針か（UIのトグル表示用。未指定は true 扱い）
     turnVirtualInstances: CardInstance[] // 公開情報のため自分/相手とも常に配信する（TURN_EFFECT_SOURCES.md §2.1）
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
 }
@@ -1691,6 +1696,9 @@ export type GameAction =
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
     | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）
+    | { type: "setPayToNegate"; enabled: boolean } // 「手札を破棄して効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針を切り替える。
+    // 効果の判定自体は装甲と同じ同期の述語なので、**その場で聞くのではなく、あらかじめ盤面の状態にしておく**（PlayerState.payToNegate）。
+    // 手順の外側の操作なので、自分のターンでなくても選択待ち中でも受け付ける。既定は true（従来どおり払って防ぐ）
     | { type: "takeLife" }
     | { type: "pass" } // フラッシュの優先権を相手に渡す
     | { type: "nextPhase" } // main → attack
