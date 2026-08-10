@@ -767,6 +767,23 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     )
 }
 
+// BS06ヒナペンタン：「このスピリットを疲労させることで、このターンの間〜」。
+// 疲労（任意コスト）と貸与（効果）を1つのアクションで行う。**分けてはいけない**：
+// optional エントリを2つに割ると確認が2回になり、実際に「疲労だけして効果が出ない」状態になっていた
+const exhaustSelfThenLendThisTurnHandler: ActionHandler<"exhaustSelfThenLendThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) return
+    if (self.isRested) {
+        log(state, `${sourceName}：すでに疲労しているため発動できなかった。`)
+        return
+    }
+    exhaustSpirit(state, owner, self)
+    log(state, `${sourceName}：疲労することで効果を発動した。`)
+    // 貸与は lendSelfThisTurn と同じ器（スピリット発生源なので self.cardId から引く）
+    if (!pushVirtualSource(state, owner, self.cardId)) return
+    log(state, `${sourceName}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`)
+}
+
 // 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
 // バトル外（メインステップ等）で使われた場合、貸与は直後の clearBattle まで残るが、
 // これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
@@ -882,6 +899,7 @@ const handlers = {
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
     lendSelfThisBattle: lendSelfThisBattleHandler,
+    exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     alsoCostBuff: alsoCostBuffHandler,

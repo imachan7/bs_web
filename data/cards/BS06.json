@@ -2957,21 +2957,7 @@
      2
     ],
     "action": {
-     "type": "exhaustSelf"
-    },
-    "optional": true
-   },
-   {
-    "id": "BS06-052-e2",
-    "kind": "step",
-    "step": "start",
-    "turn": "opponent",
-    "levels": [
-     1,
-     2
-    ],
-    "action": {
-     "type": "lendSelfThisTurn"
+     "type": "exhaustSelfThenLendThisTurn"
     },
     "optional": true
    },
