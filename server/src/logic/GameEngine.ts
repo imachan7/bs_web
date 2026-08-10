@@ -1241,6 +1241,10 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         // 両者が連続でパスした → フラッシュ終了
         state.isFlashTiming = false
         log(state, "フラッシュ終了")
+        // マジックミラーが写せるのは「**このフラッシュタイミングで**相手が直前に使用したマジック」なので、
+        // タイミングが閉じた時点で記録も切る。1つのバトルにはフラッシュ①（アタック宣言後）と
+        // ②（ブロック後）があり、これが無いと①で相手が使ったマジックを②で写せてしまう（BS08マジックミラー）
+        delete state.lastMagicCast
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
