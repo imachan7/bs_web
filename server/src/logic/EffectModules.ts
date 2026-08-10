@@ -342,52 +342,6 @@ export function isResisted(
     return resistanceAgainst(state, targetOwnerPid, target, attempt) !== null
 }
 
-export function isEffectBlocked(
-    state: GameState,
-    inst: CardInstance,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
-    sourcePid?: PlayerId, // ④ バウンス免疫用：この効果の発生源の持ち主。指定した呼び出し元（returnToHand/returnAllToHandのガード）のみ判定される
-): boolean {
-    // ④ 相手の効果によるバウンスを受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
-    // sourcePid を渡す呼び出し元（バウンス系アクション）でのみ判定し、自分自身の効果は対象外
-    if (sourcePid !== undefined) {
-        const targetOwner = ownerPidOfInstance(state, inst)
-        if (
-            targetOwner !== undefined &&
-            targetOwner !== sourcePid &&
-            hasBounceImmunity(state, targetOwner, inst)
-        ) {
-            return true
-        }
-    }
-    // ② 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
-    const redirect = state.magicRedirectTo
-    if (
-        redirect !== undefined &&
-        sourceType === "magic" &&
-        inst.instanceId !== redirect.instanceId &&
-        state.players[redirect.pid].field.spirits.some((s) => s.instanceId === inst.instanceId)
-    ) {
-        return true
-    }
-    // ③ 相手のスピリットの『このスピリットの召喚時』効果を受けない（BS05リトルナイト・ランスロットLv3）。
-    // 発生源がスピリットで、いま召喚時効果を解決中であり、その持ち主が対象の持ち主と異なるときだけ効く
-    const summonPid = state.resolvingSummonTriggerPid
-    if (summonPid !== undefined && sourceType === "spirit") {
-        const owner = ownerPidOfInstance(state, inst)
-        if (
-            owner !== undefined &&
-            owner !== summonPid &&
-            activeConstraints(state, owner, inst).some((c) => c.type === "immuneToOpponentSummonEffects")
-        ) {
-            return true
-        }
-    }
-    // ① バトル中の効果免疫
-    if (sourceType !== "spirit" && sourceType !== "magic") return false
-    if (!isInCurrentBattle(state, inst)) return false
-    return hasActiveGlobalConstraint(state, "battlingEffectImmune")
-}
 
 // 指定インスタンスがどちらのプレイヤーのフィールドにあるか（スピリット／ネクサス。無ければ undefined）
 function ownerPidOfInstance(state: GameState, inst: CardInstance): PlayerId | undefined {
@@ -1306,11 +1260,6 @@ export function dumpAllCoresTensho(
 // 相手の「対象を取る」効果の対象にならないか（クイーン・ワルキューレの常時、
 // またはフェザーバリアの一時免疫）。対象自動選択・明示ターゲットの両方で参照する。
 
-// 相手のカード効果を一切受けないか（フェザーバリア）。範囲効果（destroyAll 等）にも免疫。
-// ワルキューレの untargetable は範囲には無力なので、こちらは immuneToOpponentThisTurn のみ。
-export function isImmuneToArea(inst: CardInstance): boolean {
-    return inst.immuneToOpponentThisTurn
-}
 
 // 【装甲：色】：inst が sourceColors の相手効果を受けないか（対象・範囲の両方から参照する）。
 // sourceColors が不明（undefined）な場合は装甲を判定できないため false（＝防がない）とする。
@@ -1330,32 +1279,6 @@ export function isImmuneToArea(inst: CardInstance): boolean {
 // 呼び出し側は「効果の発生源が実際にマジックか（sourceType === "magic"）」を先に判定してから呼ぶこと
 // （装甲の hasArmorAgainst が sourceColors を受け取るのと同じ考え方で、対象側にだけ知識を閉じる）。
 
-// 【疲労しない】（kind: "exhaustImmunityGrant"）：inst（targetOwnerPidの持ち主）が、相手の効果による
-// 疲労を受けないか。呼び出し側は「疲労させようとしている側がtargetOwnerPidと異なる場合のみ」呼ぶこと
-// （自分の効果による疲労は防がない。トランプの王国）
-export function isExhaustImmune(
-    state: GameState,
-    targetOwnerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
-    const player = state.players[targetOwnerPid]
-    const sources = [...player.field.spirits, ...player.field.nexuses]
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "exhaustImmunityGrant") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (!spiritHasFamily(state, targetOwnerPid, inst, effect.familyFilter)) continue
-            if (effect.phaseTurn) {
-                if (state.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
-            }
-            return true
-        }
-    }
-    return false
-}
 
 // 硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
 // 実効BP以下のとき、ライフダメージそのものを打ち消すか（kind: "lifeDamageNegate"）。
@@ -2523,9 +2446,11 @@ export function removeCoresToVoid(
 
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
-// （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）
-// sourceColors: 効果発生源の色（装甲判定用。不明なら undefined＝装甲を貫通しない）
-// sourceType: 効果発生源の種別（マジック効果耐性判定用。"magic" のときのみ hasMagicImmunity を追加チェック）
+// （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）。
+// 耐性は resistanceAgainst に一本化してある（**個別の述語をここに書き足さないこと**）。
+// targetPid はアクターの相手フィールドなので、実行者は opponentOf(targetPid) で確定する。
+// scope は常に "targeted"（対象を1体選ぶ経路なので「相手の効果の対象にならない」が効く）。
+// op: バウンス耐性・疲労耐性はこれを渡さないと効かない。**戻す／疲労させる効果の候補列挙では必ず渡すこと**
 export function pickEnemyCandidates(
     state: GameState,
     targetPid: PlayerId,
@@ -2533,16 +2458,19 @@ export function pickEnemyCandidates(
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
+    op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
+    const attempt: EffectAttempt = {
+        op,
+        scope: "targeted",
+        actorPid: opponentOf(targetPid),
+        ...(sourceType !== undefined ? { sourceType } : {}),
+        ...(sourceColors !== undefined ? { sourceColors } : {}),
+    }
     return state.players[targetPid].field.spirits.filter(
-        // targetPid はアクターの相手フィールド。免疫スピリット・装甲該当・マジック効果耐性該当は対象選択から除外する
         (s) =>
             effectiveBp(state, targetPid, s) <= maxBp &&
-            !isUntargetableByOpponent(s) &&
-            !isEffectBlocked(state, s, sourceType) &&
-            !hasArmorAgainst(s, sourceColors) &&
-            !(sourceType === "magic" && hasMagicImmunity(state, targetPid, s)) &&
-            !hasFullEffectImmunity(s, sourceType) &&
+            !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
     )
 }
@@ -2557,10 +2485,11 @@ export function pickAnySideCandidates(
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
+    op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const opp = opponentOf(owner)
     return [
-        ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType),
+        ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
         ...state.players[owner].field.spirits.filter(matches),
     ]
 }
@@ -2575,9 +2504,10 @@ export function pickAnySideByBp(
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
+    op: EffectAttempt["op"] = "other",
 ): { pid: PlayerId; inst: CardInstance } | null {
     const opp = opponentOf(owner)
-    const oppCandidate = pickEnemyByBp(state, opp, maxBp, matches, sourceColors, sourceType)
+    const oppCandidate = pickEnemyByBp(state, opp, maxBp, matches, sourceColors, sourceType, op)
     const ownCandidates = state.players[owner].field.spirits.filter(
         (s) => effectiveBp(state, owner, s) <= maxBp && matches(s),
     )
@@ -2606,8 +2536,9 @@ export function pickEnemyByBp(
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
     sourceType?: "spirit" | "nexus" | "magic",
+    op: EffectAttempt["op"] = "other",
 ): CardInstance | null {
-    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType)
+    const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
     if (candidates.length === 0) return null
     return candidates.reduce((best, s) =>
         effectiveBp(state, targetPid, s) > effectiveBp(state, targetPid, best) ? s : best,

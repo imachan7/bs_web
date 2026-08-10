@@ -35,9 +35,8 @@ import {
     hasGlobalConstraint,
     hasKeyword,
     hasMagicImmunity,
-    isEffectBlocked,
     instHasColor,
-    isUntargetableByOpponent,
+    isResisted,
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasKeyword,
@@ -384,11 +383,17 @@ export function validateCastMagic(
             state.players[opponentOf(pid)],
             targetInstanceId,
         )
+        // 耐性の判定は resistanceAgainst に一本化してある（マジックの対象指定なので magic / targeted）。
+        // ここを個別述語で書くと、装甲・完全耐性のように**この経路にだけ無い軸**が生まれる
         if (
             enemyTarget &&
-            (isUntargetableByOpponent(enemyTarget) ||
-                isEffectBlocked(state, enemyTarget, "magic") ||
-                hasMagicImmunity(state, opponentOf(pid), enemyTarget))
+            isResisted(state, opponentOf(pid), enemyTarget, {
+                op: "other",
+                scope: "targeted",
+                actorPid: pid,
+                sourceType: "magic",
+                sourceColors: card.colors,
+            })
         ) {
             return "このスピリットは効果の対象にできません"
         }

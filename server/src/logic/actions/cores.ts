@@ -5,6 +5,8 @@ import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../
 import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     bothSidesPids,
+    isResisted,
+    resistanceAgainst,
     checkExhaustOnCoreChange,
     countEffectCounter,
     destroySpirit,
@@ -12,8 +14,6 @@ import {
     exhaustSpirit,
     findSpiritAny,
     fireTenshoEvent,
-    isImmuneToArea,
-    isEffectBlocked,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
     pickAnySideByBp,
@@ -32,8 +32,8 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, isUntargetableByOpponent, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -85,13 +85,9 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             return
         }
         // 明示ターゲットが相手側かつ装甲該当・マジック効果耐性該当なら効果を受けない
-        if (
-            isEffectBlocked(state, found.inst, srcType) ||
-            (found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColors) ||
-                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
-        ) {
-            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+        const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "coreRemove", "targeted"))
+        if (resisted) {
+            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
             return
         }
         // leaveAtLeast指定時は、対象のコアがこの数を下回らないところまでに抑える
@@ -147,13 +143,9 @@ const coreDrainToLowerLevelHandler: ActionHandler<"coreDrainToLowerLevel"> = (ct
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    if (
-        isEffectBlocked(state, found.inst, srcType) ||
-        (found.pid !== owner &&
-            (hasArmorAgainst(found.inst, srcColors) ||
-                (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
-    ) {
-        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+    const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "coreRemove", "targeted"))
+    if (resisted) {
+        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
         return
     }
     const card = getCard(found.inst.cardId)
@@ -183,12 +175,16 @@ function applyCoreRemoveMultiTarget(
     owner: PlayerId,
     sourceName: string,
 ): void {
-    if (
-        isEffectBlocked(state, found, srcType) ||
-        hasArmorAgainst(found, srcColors) ||
-        (srcType === "magic" && hasMagicImmunity(state, opp, found))
-    ) {
-        log(state, `${getCard(found.cardId).name}は${sourceName}の効果を受けなかった。`)
+    // ctx を受け取らないヘルパーなので、耐性判定の引数はここで組み立てる（attemptOf と同じ形）
+    const resisted = resistanceAgainst(state, opp, found, {
+        op: "coreRemove",
+        scope: "targeted",
+        actorPid: owner,
+        ...(srcType !== undefined ? { sourceType: srcType } : {}),
+        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+    })
+    if (resisted) {
+        log(state, `${getCard(found.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
         return
     }
     if (action.dest === "void") removeCoresToVoid(state, opp, found, action.count, owner)
@@ -523,11 +519,9 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
                     log(state, `${sourceName}のコア圧縮：対象がいなかった。`)
                     return
                 }
-                if (
-                    found.pid !== owner &&
-                    (isEffectBlocked(state, found.inst, srcType) || hasArmorAgainst(found.inst, srcColors))
-                ) {
-                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+                const squeezeResisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "coreRemove", "targeted"))
+                if (squeezeResisted) {
+                    log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${squeezeResisted.label}）。`)
                     return
                 }
                 applySqueeze(found.pid, found.inst)
@@ -916,10 +910,7 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
         const oppPlayer = state.players[opp]
         const spiritCandidates = oppPlayer.field.spirits.filter(
             (s) =>
-                s.cores >= 1 &&
-                !isUntargetableByOpponent(s) &&
-                !isEffectBlocked(state, s, srcType) &&
-                !hasArmorAgainst(s, srcColors),
+                s.cores >= 1 && !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "targeted")),
         )
         const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
         const candidates = [...spiritCandidates, ...nexusCandidates].map((i) => i.instanceId)
@@ -1117,11 +1108,7 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
         const targets = state.players[opp].field.spirits.filter(
             (s) =>
                 instMatchesCostFilter(s, { max: action.maxCost }) &&
-                !isImmuneToArea(s) &&
-                !isEffectBlocked(state, s, srcType) &&
-                !hasArmorAgainst(s, srcColors) &&
-                !(srcType === "magic" && hasMagicImmunity(state, opp, s)) &&
-                !hasFullEffectImmunity(s, srcType),
+                !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "area")),
         )
         if (targets.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
@@ -1597,9 +1584,7 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx) => {
     // 装甲・マジック効果耐性で効果を受けない個体は対象から外す（他のコア操作アクションと同じ扱い）
     const candidates = state.players[opp].field.spirits.filter(
         (s) =>
-            !isEffectBlocked(state, s, srcType) &&
-            !hasArmorAgainst(s, srcColors) &&
-            !(srcType === "magic" && hasMagicImmunity(state, opp, s)),
+            !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "area")),
     )
     if (candidates.length < 2) {
         log(state, `${sourceName}：相手のスピリットが2体未満で入れ替えられなかった。`)

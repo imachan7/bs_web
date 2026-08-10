@@ -9,9 +9,8 @@ import {
     exhaustSpirit,
     refreshSpirit,
     findSpiritAny,
-    isExhaustImmune,
-    isImmuneToArea,
-    isEffectBlocked,
+    isResisted,
+    resistanceAgainst,
     pickAnySideCandidates,
     pickEnemyByBp,
     pickEnemyCandidates,
@@ -23,7 +22,7 @@ import {
     continuousKeywordGrantCount,
 } from "../EffectModules"
 import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
@@ -72,14 +71,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 return
             }
-            if (
-                found.pid !== owner &&
-                (hasArmorAgainst(found.inst, srcColors) ||
-                    isEffectBlocked(state, found.inst, srcType) ||
-                    (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)) ||
-                    isExhaustImmune(state, found.pid, found.inst))
-            ) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "exhaust", "targeted"))
+            if (resisted) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
             }
             if (!matchesLevel(found.inst)) {
@@ -98,8 +92,8 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             return
         }
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
-        const matchesCandidate = (s: CardInstance) =>
-            !s.isRested && matchesLevel(s) && !isExhaustImmune(state, opp, s)
+        // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
+        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
         // interactive の選択後に再入するときは excludeTarget を落とす。
         // 残したままだと、プレイヤーが選んだ instanceId を「除外する対象」と誤読して自動選択に落ちてしまう
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
@@ -112,7 +106,8 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 (sp) => !sp.isRested && matchesLevel(sp),
                 srcColors,
                 srcType,
-            ).filter((sp) => state.players[owner].field.spirits.includes(sp) || !isExhaustImmune(state, opp, sp))
+                "exhaust",
+            )
             if (
                 state.interactiveTargets &&
                 tryInteractiveTargetChoice(
@@ -155,7 +150,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             return
         }
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType)
+            const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
             // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
             // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
             if (
@@ -184,6 +179,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 matchesCandidate,
                 srcColors,
                 srcType,
+                "exhaust",
             )
             if (!target) {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -209,8 +205,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
-                if (isEffectBlocked(state, s, srcType)) continue
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) continue
+                if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
                 exhaustSpirit(state, pid, s)
                 exhausted++
             }
@@ -235,8 +230,7 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
                 if (currentLevel(s).level !== level) continue
                 if (s.isRested) continue
                 // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
-                if (isEffectBlocked(state, s, srcType)) continue
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) continue
+                if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
                 exhaustSpirit(state, pid, s)
                 count++
             }
@@ -311,8 +305,7 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
         for (const s of [...state.players[pid].field.spirits]) {
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
-            if (isEffectBlocked(state, s, srcType)) continue
-            if (pid !== owner && (hasArmorAgainst(s, srcColors) || isExhaustImmune(state, pid, s) || isImmuneToArea(s))) continue
+            if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
             exhaustSpirit(state, pid, s)
             exhausted++
         }
@@ -499,7 +492,7 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         // ここで pendingChoice を立てない決定的簡略化）
         if (!self) return
         const candidates = state.players[opp].field.spirits.filter(
-            (s) => s.isRested && !isEffectBlocked(state, s, ctx.srcType) && !isImmuneToArea(s),
+            (s) => s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}：相手に疲労状態のスピリットがいなかった。`)

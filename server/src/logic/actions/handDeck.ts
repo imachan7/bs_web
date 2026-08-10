@@ -5,13 +5,13 @@ import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from "../GameState"
 import {
     bothSidesPids,
+    resistanceAgainst,
     countEffectCounter,
     destroySpirit,
     drawDoubleMultiplier,
     findSpiritAny,
     fireSummonTrigger,
-    isImmuneToArea,
-    isEffectBlocked,
+    isResisted,
     millCapBonusFor,
     millDeck,
     notifyHandGained,
@@ -28,9 +28,9 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, hasArmorAgainst, hasBounceImmunity, hasFullEffectImmunity, hasMagicImmunity, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 const noopHandler: ActionHandler<"noop"> = () => {
@@ -1236,13 +1236,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 return
             }
-            if (
-                isEffectBlocked(state, found.inst, srcType, owner) ||
-                (found.pid !== owner &&
-                    (hasArmorAgainst(found.inst, srcColors) ||
-                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst))))
-            ) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"))
+            if (resisted) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
             }
             if (!matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) {
@@ -1273,7 +1269,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         if (action.anySide) {
             const matchesBp = (s: CardInstance) =>
                 effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, opp, s, filter, self?.instanceId)
-            const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType)
+            const anySideCandidates = pickAnySideCandidates(state, owner, matchesBp, srcColors, srcType, "bounce")
             if (
                 state.interactiveTargets &&
                 tryInteractiveTargetChoice(
@@ -1291,7 +1287,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType)
+                const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType, "bounce")
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
@@ -1300,12 +1296,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             return
         }
-        // このブランチは常に相手（opp）側が対象なので、バウンス免疫（against:"bounce"。BS06恐竜姫ジュラ）を
-        // matchesFilter に直接組み込める（pickEnemyCandidates/pickEnemyByBp は他アクションとも共有するため触らない）
-        const matchesFilter = (s: CardInstance) =>
-            matchesTarget(state, opp, s, filter, self?.instanceId) && !hasBounceImmunity(state, opp, s)
+        // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
+        const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
             if (
                 tryInteractiveTargetChoice(
                     state,
@@ -1322,7 +1316,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
         for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
             if (!target) {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
@@ -1349,8 +1343,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instMatchesCostFilter(s, action.costFilter)) return false
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) return false
-                if (isEffectBlocked(state, s, srcType, owner)) return false
-                if (pid !== owner && (hasArmorAgainst(s, srcColors) || (srcType === "magic" && hasMagicImmunity(state, pid, s)) || isImmuneToArea(s) || hasFullEffectImmunity(s, srcType))) return false
+                if (isResisted(state, pid, s, attemptOf(ctx, "bounce", "area"))) return false
                 return true
             })
             for (const s of targets) {
@@ -1378,7 +1371,7 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
     let returned = 0
     for (let i = 0; i < action.count; i++) {
-        const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+        const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
         if (!target) break
         returnSpiritToDeckBottom(state, opp, target)
         returned++
@@ -1453,17 +1446,9 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
             if (!inst) continue // 既に場から居ない個体は飛ばす
             // **対象を記録から引いているので、他のハンドラのように候補選びの中で耐性を弾けない**。
             // 相手側スピリットへの範囲効果として、returnAllToHand と同じ耐性判定をここで行う
-            if (isEffectBlocked(state, inst, srcType, owner)) {
-                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった。`)
-                continue
-            }
-            if (
-                hasArmorAgainst(inst, srcColors) ||
-                (srcType === "magic" && hasMagicImmunity(state, rec.pid, inst)) ||
-                isImmuneToArea(inst) ||
-                hasFullEffectImmunity(inst, srcType)
-            ) {
-                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+            const resisted = resistanceAgainst(state, rec.pid, inst, attemptOf(ctx, "bounce", "area"))
+            if (resisted) {
+                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 continue
             }
             returnSpiritToDeckBottom(state, rec.pid, inst)
@@ -1491,8 +1476,8 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
             const candidates = action.anySide
-                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
-                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
+                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
             if (candidates.length >= 2) {
                 requestChoice(
                     state,
@@ -1509,23 +1494,22 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : action.anySide
-              ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
+              ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType, "bounce")
               : (() => {
-                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
                     return t ? { pid: opp, inst: t } : null
                 })()
         if (!found) {
             log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
             return
         }
-        if (
-            targetInstanceId &&
-            (isEffectBlocked(state, found.inst, srcType) ||
-                (found.pid !== owner &&
-                    (hasArmorAgainst(found.inst, srcColors) ||
-                        (srcType === "magic" && hasMagicImmunity(state, found.pid, found.inst)))))
-        ) {
-            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった。`)
+        // targetInstanceId 指定（＝明示的に選ばれた対象）のときだけ改めて耐性を見る。
+        // 自動選択の経路は候補選びの中で既に弾かれている
+        const deckTopResisted = targetInstanceId
+            ? resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"))
+            : null
+        if (deckTopResisted) {
+            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckTopResisted.label}）。`)
             return
         }
         returnSpiritToDeckTop(state, found.pid, found.inst)

@@ -1135,6 +1135,39 @@ BS03-147 ゴーレムクラフト「自分のネクサスすべては、この�
 > 復活は捨てれば「復活しなかった」で済むが、破棄を捨てると「破棄されないまま消える」ので、
 > そのときは見送っていた破棄を実行する。
 >
+### 効果耐性は1つの入口に集約する（2026-08-10）
+
+**新しく「相手のスピリットに何かをする」処理を書くときは、耐性の述語を並べずに
+`EffectModules.resistanceAgainst` を1回呼ぶこと。** 判定表は `shared/rules.boardResistanceAgainst` にある。
+
+```ts
+const resisted = resistanceAgainst(state, targetOwnerPid, target, attemptOf(ctx, "destroy", "targeted"))
+if (resisted) { log(state, `…は効果を受けなかった（${resisted.label}）。`); return }
+```
+
+集約前は6つの述語に分かれていて、**呼び出し側が「どれを見るべきか」を毎回自分で判断していた**（約70か所）。
+書き忘れても型は通り smoke も落ちないため、実際に穴が空いていた:
+範囲コア奪取が【装甲】を素通り／destroy の対象指定経路だけ完全耐性が抜け／
+exhaustAllByColor だけ完全耐性が抜け／クライアントの対象ハイライトにも同じ抜け。
+
+判定軸は2つ。**どちらも渡さないと無言で挙動が変わる**:
+
+| 軸 | 値 | 効くもの |
+| :-- | :-- | :-- |
+| `op` | `destroy` / `bounce` / `exhaust` / `coreRemove` / `other` | `bounce` と `exhaust` **だけ**が専用の耐性を持つ |
+| `scope` | `targeted` / `area` | 「相手の効果の対象にならない」は **`area` では効かない** |
+
+- 「相手限定の耐性は自分の効果には働かない」は入口が `actorPid` で自動的に扱う。
+  **anySide 系の非対称ルールを呼び出し側で書き分ける必要はない**
+- 発生源の色（`sourceColors`）を渡し忘れると装甲が判定できない。ハンドラでは `actions/filter.attemptOf(ctx, …)` を通す
+- 候補列挙（`pickEnemyCandidates` / `pickEnemyByBp` / `pickAnySide*`）も内部でこれを呼ぶ。
+  **戻す・疲労させる効果の候補列挙では第7引数に `op` を渡すこと**（渡さないとバウンス耐性・疲労耐性が効かない）
+- 返り値の `category` は**分岐用ではなくログ・UI表示用**。呼び出し側は「防がれたかどうか」だけ見る
+- `hasArmorAgainst` などの個別述語は入口の内部実装。**直接呼んでよいのはバトル文脈の装甲だけ**
+  （【呪撃】を装甲で防ぐ判定と `reviveOnDestroy.byBattleVsArmorColor`。どちらも「効果が届くか」ではなく装甲の色そのものを問う）
+
+判定表そのものは `scripts/smoke/part158.ts` が固定している。表を変えるとそこが落ちる。
+
 ### コストを「コア以外」で支払う（2026-08-10 に2例目）
 
 「コスト1につき◯◯することで支払える」は、**どこまでその方法で払うかを選ばせない**。

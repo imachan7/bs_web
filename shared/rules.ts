@@ -1086,6 +1086,8 @@ export function activeConstraints(
     if (suppressed.size === 0) return all
     return all.filter((c) => !suppressed.has(c.type))
 }
+// ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
+// 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function isUntargetableByOpponent(inst: CardInstance): boolean {
     if (inst.immuneToOpponentThisTurn) return true
     const level = currentLevel(inst).level
@@ -1098,6 +1100,8 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 }
 // untargetableByOpponentと異なり範囲効果（destroyAll/exhaustAll等）にも効く「効果を受けない」判定。
 // srcType が spirit/magic のときのみ判定する（ネクサスの効果・自分自身の効果は通す。BS04ワルキューレ・ヒルド）
+// ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
+// 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasFullEffectImmunity(
     inst: CardInstance,
     srcType: "spirit" | "nexus" | "magic" | undefined,
@@ -1111,6 +1115,9 @@ export function hasFullEffectImmunity(
             effectActiveAtLevel(e.levels, level),
     )
 }
+// ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
+// （【呪撃】を装甲で防ぐ判定と、reviveOnDestroy の byBattleVsArmorColor＝「装甲の色の相手に
+// バトルで破壊されたとき」。どちらも『効果が届くか』ではなく装甲の色そのものを問う判定）
 export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
     if (sourceColors === undefined || sourceColors.length === 0) return false
     const level = currentLevel(inst).level
@@ -1324,6 +1331,8 @@ export function noReductionBySummonCost(board: Board, staticCost: number): boole
     return false
 }
 
+// ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
+// 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasMagicImmunity(
     board: Board,
     ownerPid: PlayerId,
@@ -1335,6 +1344,8 @@ export function hasMagicImmunity(
 // 発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
 // （returnToHand/returnAllToHand）を受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
 // 呼び出し側（handDeck.tsのbounceガード）は自分自身の効果には適用しない（対象の持ち主==効果の持ち主なら呼ばない）
+// ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
+// 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasBounceImmunity(
     board: Board,
     ownerPid: PlayerId,
