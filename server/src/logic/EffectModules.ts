@@ -2875,8 +2875,8 @@ export function pickOwnKeywordTarget(
 }
 
 // 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
-function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId): number {
-    return countSpiritsWeighted(state, owner, opp, (s) => s.isRested)
+function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId, sourceType?: CardType): number {
+    return countSpiritsWeighted(state, owner, opp, (s) => s.isRested, sourceType)
 }
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ集計（BS03バッチで統一）。
@@ -2890,15 +2890,18 @@ export function countEffectCounter(
     owner: PlayerId,
     self: CardInstance | null,
     counter: EffectCounter,
+    // 数えている効果の発生源の種別（ActionHandler の ctx.srcType をそのまま渡す）。
+    // 「自分のスピリット/マジックの効果で数えるとき」のような限定（シーサーズ／スリーカード）の判定に使う
+    sourceType?: CardType,
 ): number {
     const opp = opponentOf(owner)
     if (counter === "readyEnemies") {
-        return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested)
+        return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested, sourceType)
     }
-    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp)
+    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp, sourceType)
     if (counter === "opponentHand") return state.players[opp].hand.length
     if (counter === "ownOtherSpirits") {
-        return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId)
+        return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId, sourceType)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
@@ -2908,13 +2911,13 @@ export function countEffectCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return countSpiritsWeighted(state, owner, owner, (s) => s.isRested)
+        return countSpiritsWeighted(state, owner, owner, (s) => s.isRested, sourceType)
     }
     if (counter === "allExhausted") {
         // 両陣営の疲労スピリット数の合計（BS05大甲帝デスタウロス：疲労状態のスピリット1体につき）
         return (
-            countSpiritsWeighted(state, owner, owner, (s) => s.isRested) +
-            countExhaustedEnemies(state, owner, opp)
+            countSpiritsWeighted(state, owner, owner, (s) => s.isRested, sourceType) +
+            countExhaustedEnemies(state, owner, opp, sourceType)
         )
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
@@ -2934,33 +2937,45 @@ export function countEffectCounter(
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) =>
-            spiritHasKeyword(state, owner, s, counter.ownKeyword),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            owner,
+            (s) => spiritHasKeyword(state, owner, s, counter.ownKeyword),
+            sourceType,
         )
     }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) =>
-            cardNameContains(s, counter.ownNameIncludes),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            owner,
+            (s) => cardNameContains(s, counter.ownNameIncludes),
+            sourceType,
         )
     }
     // { anyNameIncludes: string }：両陣営のフィールドで、カード名に指定文字列を含むスピリット数
     // （ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット1体につき」）
     if ("anyNameIncludes" in counter) {
         return (
-            countSpiritsWeighted(state, owner, "p1", (s) => cardNameContains(s, counter.anyNameIncludes)) +
-            countSpiritsWeighted(state, owner, "p2", (s) => cardNameContains(s, counter.anyNameIncludes))
+            countSpiritsWeighted(state, owner, "p1", (s) => cardNameContains(s, counter.anyNameIncludes), sourceType) +
+            countSpiritsWeighted(state, owner, "p2", (s) => cardNameContains(s, counter.anyNameIncludes), sourceType)
         )
     }
     // { ownColor: Color }：自分フィールドの指定色スピリット数
     if ("ownColor" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor))
+        return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor), sourceType)
     }
     // { enemyCost: {max,min} }：相手フィールドのコスト条件を満たすスピリット数（BS07バジリザード）。
     // 道化師クランの付与コストも見る（instMatchesCostFilter）
     if ("enemyCost" in counter) {
-        return countSpiritsWeighted(state, owner, opp, (s) =>
-            instMatchesCostFilter(s, counter.enemyCost),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            opp,
+            (s) => instMatchesCostFilter(s, counter.enemyCost),
+            sourceType,
         )
     }
     // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー）
@@ -3638,8 +3653,12 @@ export function fireStepTriggers(
                 if (effect.condition && typeof effect.condition === "object" && "ownFamilyCountAtLeast" in effect.condition) {
                     // 王蛇の住処：自分のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるときのみ発火
                     const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        matchesFamilyFilter(state, pid, s, family),
+                    const total = countSpiritsWeighted(
+                        state,
+                        pid,
+                        pid,
+                        (s) => matchesFamilyFilter(state, pid, s, family),
+                        getCard(inst.cardId).type,
                     )
                     if (total < count) continue
                 }
@@ -3649,14 +3668,18 @@ export function fireStepTriggers(
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownRefreshedSpiritsAtLeast" in effect.condition) {
                     // 紫水晶の森Lv2：自分のフィールドに回復状態のスピリットが指定体数以上いるときのみ発火
-                    const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested)
+                    const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested, getCard(inst.cardId).type)
                     if (refreshed < effect.condition.ownRefreshedSpiritsAtLeast) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        names.some((n) => cardNameContains(s, n)),
+                    const total = countSpiritsWeighted(
+                        state,
+                        pid,
+                        pid,
+                        (s) => names.some((n) => cardNameContains(s, n)),
+                        getCard(inst.cardId).type,
                     )
                     if (total < count) continue
                 }
@@ -3853,8 +3876,12 @@ export function fireFieldEventTriggers(
                 } else if ("ownFamilyCountAtLeast" in effect.condition) {
                     // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上
                     const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        matchesFamilyFilter(state, pid, s, family),
+                    const total = countSpiritsWeighted(
+                        state,
+                        pid,
+                        pid,
+                        (s) => matchesFamilyFilter(state, pid, s, family),
+                        getCard(inst.cardId).type,
                     )
                     if (total < count) continue
                 } else if ("ownFieldHasColorNexus" in effect.condition) {
@@ -4417,8 +4444,12 @@ function runMagicActions(
             if ("ownFamilyCountAtLeast" in effect.condition) {
                 // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
                 const { family, count } = effect.condition.ownFamilyCountAtLeast
-                const total = countSpiritsWeighted(state, owner, owner, (s) =>
-                    spiritHasFamily(state, owner, s, family),
+                const total = countSpiritsWeighted(
+                    state,
+                    owner,
+                    owner,
+                    (s) => spiritHasFamily(state, owner, s, family),
+                    "magic", // ここはマジックの使用条件なので発生源は常にマジック
                 )
                 if (total < count) {
                     log(

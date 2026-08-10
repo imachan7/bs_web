@@ -14,6 +14,7 @@ import type {
     AuraDef,
     CardData,
     CardInstance,
+    CardType,
     Color,
     FamilyFilter,
     Keyword,
@@ -656,25 +657,36 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
 //
 // countingPid ＝ 数えている効果の持ち主。カードの効果文は「**自分の**スピリット/マジック/ネクサスの効果で
 // 数えるとき」と限定しているため、数える側が重みの持ち主でなければ 1 のまま。
-// なお「スピリットの効果か・ネクサスの効果か・マジックの効果か」の区別（シーサーズはネクサス除外、
-// スリーカードはマジック除外）は簡略化して見ていない（card-notes に記載）。
+//
+// countingSourceType ＝ 数えている効果の**発生源の種別**。シーサーズは「スピリット/マジックの効果」
+// （＝ネクサス除外）、スリーカードは「スピリット/ネクサスの効果」（＝マジック除外）と限定しているため、
+// 一致しなければ重みを載せない。**渡されなかったときは限定しない**（従来どおり効く側に倒す）：
+// 数える経路は多く、渡し漏れが「効かない」に倒れると発見しづらいため
 export function spiritCountWeight(
     board: Board,
     countingPid: PlayerId,
     ownerPid: PlayerId,
     inst: CardInstance,
+    countingSourceType?: CardType,
 ): number {
+    const typeAllowed = (allowed?: readonly CardType[]): boolean =>
+        allowed === undefined || countingSourceType === undefined || allowed.includes(countingSourceType)
     let weight = 1
     // シーサーズLv2：持ち主自身の効果で数えるときだけ N 体分
     if (countingPid === ownerPid) {
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "countAsMultiple") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            if (!typeAllowed(effect.sourceTypes)) continue
             weight = Math.max(weight, effect.count)
         }
     }
     // スリーカード：このターンの間、印を付けた側の効果でだけ N 体分（相手のスピリットにも付けられる）
-    if (inst.countAsThisTurn && inst.countAsThisTurn.pid === countingPid) {
+    if (
+        inst.countAsThisTurn &&
+        inst.countAsThisTurn.pid === countingPid &&
+        typeAllowed(inst.countAsThisTurn.sourceTypes)
+    ) {
         weight = Math.max(weight, inst.countAsThisTurn.count)
     }
     return weight
@@ -688,11 +700,12 @@ export function countSpiritsWeighted(
     countingPid: PlayerId,
     ownerPid: PlayerId,
     predicate: (inst: CardInstance) => boolean = () => true,
+    countingSourceType?: CardType,
 ): number {
     let total = 0
     for (const s of board.players[ownerPid].field.spirits) {
         if (!predicate(s)) continue
-        total += spiritCountWeight(board, countingPid, ownerPid, s)
+        total += spiritCountWeight(board, countingPid, ownerPid, s, countingSourceType)
     }
     return total
 }
@@ -702,6 +715,7 @@ export function countAuraCounter(
     sourcePid: PlayerId,
     counter: AuraCounter,
     targetInst?: CardInstance,
+    countingSourceType?: CardType, // 数えている効果の発生源の種別（spiritCountWeight の限定に使う）
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
@@ -712,24 +726,38 @@ export function countAuraCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested)
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested, countingSourceType)
     }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
-            cardNameContains(s, counter.ownNameIncludes),
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => cardNameContains(s, counter.ownNameIncludes),
+            countingSourceType,
         )
     }
     // { ownCost: number }：発生源自身を含む自分フィールドの指定コストのスピリット数（BS06細剣の猫騎士ケット・シー）
     if ("ownCost" in counter) {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => instHasCost(s, counter.ownCost))
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => instHasCost(s, counter.ownCost),
+            countingSourceType,
+        )
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
-    return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
-        matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
+    return countSpiritsWeighted(
+        board,
+        sourcePid,
+        sourcePid,
+        (s) => matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
+        countingSourceType,
     )
 }
 // オーラの発動条件を、発生源の持ち主（sourcePid）基準で判定する
@@ -860,10 +888,11 @@ export function auraAmount(
     sourcePid: PlayerId,
     aura: AuraDef,
     targetInst?: CardInstance,
+    sourceType?: CardType, // オーラの発生源の種別（数え上げの限定に使う。呼び出し元が発生源インスタンスから求めて渡す）
 ): number {
     let amount = 0
     if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst)
+        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst, sourceType)
     }
     if (aura.amount !== undefined) {
         if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition)) {
@@ -918,7 +947,7 @@ export function effectiveBp(
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                const amount = auraAmount(board, pid, effect.aura, inst)
+                const amount = auraAmount(board, pid, effect.aura, inst, card(source.cardId).type)
                 if (bpBuffSuppressed && amount > 0) continue
                 total += amount
             }
@@ -1051,7 +1080,8 @@ export function activeConstraints(
         .filter((c) => {
             if (c.type !== "unblockableBy" || c.requireOwnCostCountAtLeast === undefined) return true
             const { cost, count } = c.requireOwnCostCountAtLeast
-            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost)) >= count
+            // この制約は判定対象のスピリット自身が持つ kind:"constraint" なので、数える側の発生源はスピリット
+            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost), "spirit") >= count
         })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
@@ -1395,7 +1425,13 @@ function hasImmunityAgainst(
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
-                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
+                const matchCount = countSpiritsWeighted(
+                    board,
+                    ownerPid,
+                    ownerPid,
+                    (s) => instHasCost(s, cost),
+                    card(source.cardId).type,
+                )
                 if (matchCount < count) continue
             }
             return true

@@ -55,7 +55,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
 
 const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
             return
@@ -1182,7 +1182,7 @@ const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ct
 
 const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const raw = countEffectCounter(state, owner, self, action.counter)
+        const raw = countEffectCounter(state, owner, self, action.counter, srcType)
         let count = raw * (action.multiplier ?? 1)
         // マキシマムブレイク（kind:"millCapBonus"）：持ち主のスピリットの効果によるデッキ破棄枚数の
         // 上限（cap）に+amountする

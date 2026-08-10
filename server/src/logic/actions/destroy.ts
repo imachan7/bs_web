@@ -670,7 +670,7 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
 // BS08魔帝龍騎ダーク・クリムゾン：カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する
 const destroyPerHandler: ActionHandler<"destroyPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count <= 0) {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return

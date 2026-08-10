@@ -39,7 +39,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
-        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter) : action.count
+        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
         if (count === 0) {
             log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
             return
@@ -345,7 +345,7 @@ const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
 
 const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
             return
@@ -381,7 +381,7 @@ const voidCoreToSelfPerHandler: ActionHandler<"voidCoreToSelfPer"> = (ctx, actio
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
         }
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}：カウントが0のためコアを置かなかった。`)
             return

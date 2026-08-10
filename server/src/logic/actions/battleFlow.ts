@@ -211,7 +211,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
         // countCounter指定時はcountを無視しEffectCounterの値を個数として使う（BS08メテオストーム）
-        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter) : action.count
+        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
         if (count <= 0) {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return

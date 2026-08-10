@@ -412,12 +412,11 @@ const __covEid = (e: unknown): string =>
     patch(
         f,
         // ※ 2026-08-08: 集計が countSpiritsWeighted + instHasCost（道化師クランの付与コスト対応）へ変わった
-        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
-                if (matchCount < count) continue
+        // ※ 2026-08-10: 数える側の発生源種別（card(source.cardId).type）を渡すようになり複数行に整形された
+        `                if (matchCount < count) continue
             }
             return true`,
-        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
-                if (matchCount < count) continue
+        `                if (matchCount < count) continue
             }
             __covRec2("cont\\t" + __covEid(effect))
             return true`,

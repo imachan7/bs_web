@@ -57,7 +57,12 @@ const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> =
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    found.inst.countAsThisTurn = { pid: owner, count: action.count }
+    // sourceTypes（数える側の発生源種別の限定。スリーカード＝スピリット/ネクサスの効果のみ）は印へそのまま写す
+    found.inst.countAsThisTurn = {
+        pid: owner,
+        count: action.count,
+        ...(action.sourceTypes ? { sourceTypes: action.sourceTypes } : {}),
+    }
     log(
         state,
         `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${action.count}体分として数えられる。`,
@@ -82,7 +87,7 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
             log(state, `${sourceName}：バフ対象がいなかった。`)
             return
         }
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}：カウントが0のため増加しなかった。`)
             return
@@ -217,8 +222,8 @@ const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action
 // BS08ダークパワー：カウント値×amountPerを、filter一致の自分のスピリットすべてにBP+
 // （bpBuffPerの単体対象を「全体」に広げた版）
 const bpBuffAllPer: ActionHandler<"bpBuffAllPer"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter)
+    const { state, owner, self, sourceName, srcType } = ctx
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
             return
@@ -268,7 +273,7 @@ const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
             applyMagicBuffBonus(state, target, srcType, srcColors)
             return
         }
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
             return
