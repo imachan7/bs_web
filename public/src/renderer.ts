@@ -45,6 +45,7 @@ import {
     spiritHasKeyword,
     effectActiveAtLevel,
     type DirectAttackFilter,
+    boardResistanceAgainst,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -939,15 +940,18 @@ function fieldCardEl(
             }
             return el
         }
-        // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
-        // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
-        // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
-        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
+        // 対象選択中（相手側）。耐性の判定は共有層に一本化されている（サーバーとまったく同じ表を通る）
+        if (ui.targeting?.side === "opponent") {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColors = usingCardId ? master(usingCardId).colors : undefined
-            if (!hasArmorAgainst(inst, usingColors) && !hasMagicImmunityView(view, ownerPid, inst)) {
-                el.classList.add("targetable", "clickable")
-            }
+            const resisted = boardResistanceAgainst(view, ownerPid, inst, {
+                op: "other",
+                scope: "targeted",
+                actorPid: view.you,
+                sourceType: "magic",
+                ...(usingColors ? { sourceColors: usingColors } : {}),
+            })
+            if (!resisted) el.classList.add("targetable", "clickable")
         }
     }
 

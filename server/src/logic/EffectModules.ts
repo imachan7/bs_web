@@ -329,7 +329,57 @@ export function resistanceAgainst(
     ) {
         return { category: "summonEffectImmune", label: "相手のスピリットの召喚時効果を受けない" }
     }
-    return boardResistanceAgainst(state, targetOwnerPid, target, attempt)
+    const boardResisted = boardResistanceAgainst(state, targetOwnerPid, target, attempt)
+    if (boardResisted) return boardResisted
+    // ③ コストを払って受けない耐性（BS08竜騎集う円卓Lv2）。**盤面だけで決まる耐性を全部見たあと**に判定する
+    // （先に払うと、装甲などで元々防げていた対象化にまで手札を使ってしまう）
+    return tryPayableTargetNegate(state, targetOwnerPid, target, attempt)
+}
+
+// kind:"targetNegateByHandDiscard"（BS08竜騎集う円卓Lv2）：
+// 「相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない」。
+//
+// **ここだけが耐性の中でコストを払う＝副作用がある**。そのため2点に注意:
+//   - attempt.probing（候補を数えているだけ）のときは判定しない。対象にはなってよく、
+//     防ぐのは実際に適用する1点だけ（そこでしか呼ばれないので、1回の対象化につき1回だけ払う）
+//   - shared/rules には置けない（あちらは純粋な述語の層で、クライアントも同じ実装を呼ぶ）。
+//     クライアントの対象ハイライトにこの耐性が出ないのは**正しい**：対象にはなるため
+function tryPayableTargetNegate(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+): Resistance | null {
+    if (attempt.probing) return null
+    // 「効果の**対象**になるたび」なので範囲効果は対象外。相手のスピリットの効果限定
+    if (attempt.scope !== "targeted") return null
+    if (attempt.actorPid === targetOwnerPid) return null
+    if (attempt.sourceType !== "spirit") return null
+    const player = state.players[targetOwnerPid]
+    for (const source of effectSources(state, targetOwnerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "targetNegateByHandDiscard") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.bySourceType !== attempt.sourceType) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
+            }
+            if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            // 支払えないなら受ける（手札が足りないときは耐性が成立しない）
+            if (player.hand.length < effect.discardCount) continue
+            const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
+            player.trashCards.push(...discarded)
+            log(
+                state,
+                `${getCard(source.cardId).name}：${player.name}は手札${effect.discardCount}枚を破棄し、${getCard(target.cardId).name}は効果を受けなかった。`,
+            )
+            return { category: "paidNegate", label: "手札を破棄して効果を受けなかった" }
+        }
+    }
+    return null
 }
 
 // resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
@@ -2464,6 +2514,9 @@ export function pickEnemyCandidates(
         op,
         scope: "targeted",
         actorPid: opponentOf(targetPid),
+        // **候補を数えているだけ**なので probing。コストを払って防ぐ耐性（竜騎集う円卓Lv2）は
+        // ここでは成立させない（対象にはなってよく、払うのは実際に適用する1点だけ）
+        probing: true,
         ...(sourceType !== undefined ? { sourceType } : {}),
         ...(sourceColors !== undefined ? { sourceColors } : {}),
     }

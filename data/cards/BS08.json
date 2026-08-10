@@ -3662,6 +3662,23 @@
   "effect": "Lv1･Lv2『相手のアタックステップ』\nBP5000以下の相手のスピリットのアタックによって自分のライフが減らされたとき、そのスピリットを破壊する。\nLv2『自分のアタックステップ』\n系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない。",
   "effects": [
    {
+    "id": "BS08-055-e2",
+    "kind": "targetNegateByHandDiscard",
+    "levels": [
+     2
+    ],
+    "familyFilter": [
+     "龍帝",
+     "竜騎"
+    ],
+    "bySourceType": "spirit",
+    "discardCount": 1,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
     "id": "BS08-055-e1",
     "kind": "fieldEvent",
     "event": "ownLifeDamaged",

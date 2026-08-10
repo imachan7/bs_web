@@ -754,6 +754,21 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "targetNegateByHandDiscard" // 発生源が場にありレベル有効の間、持ち主の familyFilter 一致スピリットは、
+          // **相手のスピリットの効果の対象になるたび**、持ち主の手札を discardCount 枚破棄することでその効果を受けない
+          // （BS08竜騎集う円卓Lv2）。
+          // 判定は EffectModules.resistanceAgainst に乗っており、**コストを払うのは実際に適用する1点だけ**
+          // （候補列挙は EffectAttempt.probing を立てて問い合わせるので、そこでは払わない＝対象にはなる）。
+          // 「〜することで」は任意コストだが、対象化のたびに確認を出すと解決が止まるため**常に支払う簡略化**にした
+          // （手札が0枚なら支払えないので受ける）。破棄するカードは手札の末尾から（プレイヤー選択の決定的簡略化）
+          levels: number[] | null
+          familyFilter: FamilyFilter // 守られる側の系統（配列＝いずれかでOR）
+          bySourceType: "spirit" // 効果の発生源の限定（いまは「相手の**スピリット**の効果」のみ）
+          discardCount: number // 1回の対象化につき破棄する手札の枚数
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" } // 『自分のアタックステップ』などの限定（own＝発生源の持ち主がturnPlayer）
+      }
+    | {
+          id: string
           kind: "summonCostHandDiscardPay" // 発生源が場（＝このターンの仮想発生源）にある間、持ち主は**スピリットの召喚コスト**を
           // 「コスト1につき自分の手札1枚を破棄」で支払える（置くコアはこの方法では払えない）。判定は shared/cost.canPaySummonCostByHandDiscard。
           // どこまで手札破棄で払うかは選べず、**コアで足りない分だけ**自動的に回す簡略化

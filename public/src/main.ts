@@ -16,7 +16,7 @@ import {
     type UiState,
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
-import { canPayNexusCostByMill } from "../../shared/cost"
+import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { canBattleSwapSummon } from "../../shared/summon"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
@@ -194,7 +194,14 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
             ? Math.min(cost, view.players[view.you].deckCount)
             : 0
 
-    if (reserve + millPayable >= cost + maintain) {
+    // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
+    // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
+    const handDiscardPayable =
+        card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
+            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - 1))
+            : 0
+
+    if (reserve + millPayable + handDiscardPayable >= cost + maintain) {
         sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId)
         return
     }

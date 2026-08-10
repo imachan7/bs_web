@@ -517,6 +517,7 @@ export type ResistanceCategory =
     | "exhaustImmune" // 相手の効果で疲労しない（exhaustImmunityGrant）
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
+    | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
     | "summonEffectImmune" // 相手のスピリットの『召喚時』効果を受けない（サーバー側で判定）
     | "magicRedirect" // 対象の絞り込みで、この個体が対象から外れた（耐性ではないが同じ入口で弾く。サーバー側で判定）
 
@@ -536,6 +537,17 @@ export interface EffectAttempt {
     actorPid: PlayerId // この効果を行っている側。targetOwnerPid と同じなら「自分の効果」＝相手限定の耐性は効かない
     sourceType?: "spirit" | "nexus" | "magic"
     sourceColors?: Color[] // 装甲の判定に必要。**渡さないと装甲を判定できない**（不明時は防がない側に倒す）
+    // 「候補を数えているだけで、まだ適用しない」問い合わせ。**候補列挙（pickEnemy* / pickAnySide*）だけが立てる。**
+    //
+    // コストを払って防ぐ耐性（kind:"targetNegateByHandDiscard"。BS08竜騎集う円卓Lv2）のためにある。
+    // ああいう耐性は「対象にはなる → そのあと受けない」が正しい順序なので、候補列挙の段階では
+    // **防がない**と答えて候補に残し、実際に適用する1点でだけコストを払って防ぐ。
+    // 候補列挙で払ってしまうと、候補を数えただけで手札が溶ける。
+    //
+    // **既定（未指定）が「適用する」側**なのは意図的:
+    // 立て忘れると「払いすぎる」＝テストで見える失敗になる。
+    // 逆向き（既定が probing）だと、立て忘れが「耐性が無言で効かない」になり検出できない
+    probing?: true
 }
 
 // 盤面だけで決まる耐性を判定する。防がれるなら理由を、通るなら null を返す。
