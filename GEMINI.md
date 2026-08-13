@@ -56,17 +56,14 @@ npm run typecheck && npm run build:client
 git add -A && git commit -m "コミットメッセージ"
 ```
 
-ユーザー向けお知らせに載せたい変更は `[release]` プレフィックスを付ける。
-カテゴリは `:fix` / `:ui` / `:new` / `:info` を使い分ける。
+ユーザー向けお知らせに載せたい変更は `data/announcements.json` に1件追加する。
+カテゴリは `fix` / `ui` / `new` / `info` / `update` を使い分ける。
 
-```
-git commit -m "[release:fix] ○○のバグを修正"
-git commit -m "[release:ui] ○○の表示を改善"
-git commit -m "[release:new] ○○を追加"
-git commit -m "[release:info] 第五弾を準備中です"
+```json
+{ "date": "2026-08-13", "category": "fix", "text": "○○のバグを修正" }
 ```
 
-お知らせに載せる必要のない内部的な変更は `[release]` なしで普通にコミットする。
+お知らせに載せる必要のない内部的な変更はコミットだけでよい。
 
 ## 注意
 
