@@ -330,6 +330,14 @@ io.on("connection", (socket: Socket) => {
                 socket.emit("errorMessage", result.error)
                 return
             }
+            // 2回目の「対戦ルームに入る」は参加の取り消し（同じ人が両方の席に座るのを防ぐ）。
+            // クライアントは joinCancelled を受けたら待機表示を消してロビーに戻す
+            if ("cancelled" in result) {
+                socket.leave(roomId)
+                socket.emit("joinCancelled", { roomId })
+                socket.emit("errorMessage", "ルームへの参加を取り消しました")
+                return
+            }
 
             const { room, playerId } = result
             socket.join(roomId)

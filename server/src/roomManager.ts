@@ -22,17 +22,33 @@ export class RoomManager {
         return this.rooms.size
     }
 
-    // ルームに参加する。空いている席（p1 → p2）に割り当てる
+    // ルームに参加する。空いている席（p1 → p2）に割り当てる。
+    //
+    // **同じ socket が同じルームで2回目の join を送ってきたら「参加の取り消し」として席を空ける**
+    // （2026-08-13 利用者報告）。ロビーの「対戦ルームに入る」は待機中も押せるため、
+    // 2回押すと同じ人が p1 と p2 の両方に座り、自分対自分で何も操作できない状態になっていた。
+    // 対戦が始まった後は取り消せない（席を空けると進行中のゲームが壊れるため）
     join(
         roomId: string,
         socketId: string,
         name: string,
         deck: DeckSpec,
-    ): { room: Room; playerId: PlayerId } | { error: string } {
+    ): { room: Room; playerId: PlayerId } | { cancelled: PlayerId } | { error: string } {
         let room = this.rooms.get(roomId)
         if (!room) {
             room = { roomId, players: {}, game: null }
             this.rooms.set(roomId, room)
+        }
+
+        const alreadySeated = (["p1", "p2"] as const).find(
+            (pid) => room.players[pid]?.socketId === socketId,
+        )
+        if (alreadySeated) {
+            if (room.game) return { error: "対戦がすでに始まっているため、参加を取り消せません" }
+            delete room.players[alreadySeated]
+            // 誰もいなくなったルームは残さない（次の join で作り直される）
+            if (!room.players.p1 && !room.players.p2) this.rooms.delete(roomId)
+            return { cancelled: alreadySeated }
         }
 
         const seat: PlayerId | null = !room.players.p1
