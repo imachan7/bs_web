@@ -1560,13 +1560,18 @@ export interface PendingChoice {
 // 中断した処理の再開情報（GameState.resumeStack の要素）。
 // **pendingChoice から独立している**のが要点：選択待ちの内側に継続を持つと、
 // 選択待ちを立てられない深い場所では継続も保存できない。docs/design/RESUME_STACK.md §2
-export type ResumeFrame = {
-    kind: "action" // 効果アクションを1つ解決し直す（今のところ唯一の種別。
-    // turnStart / destroyBatch を段階的に追加していく予定）
-    selfInstanceId: string | null // 発生源（self の復元用）
-    action: EffectAction
-    actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
-}
+export type ResumeFrame =
+    | {
+          kind: "action" // 効果アクションを1つ解決し直す
+          selfInstanceId: string | null // 発生源（self の復元用）
+          action: EffectAction
+          actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
+      }
+    | {
+          kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
+          // ステップ誘発が選択待ちを立てたときに、次のステップ番号を積む
+          step: number
+      }
 
 // ゲーム全体の状態（サーバーで一元管理）
 export interface GameState {
@@ -1637,7 +1642,6 @@ export interface GameState {
         sourceType?: "spirit" | "nexus" | "magic" // 破棄の発生源の種別（millDeck の cause）
     }[]
     drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeDraw の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
-    turnStartResumeStep: number | null // ターン開始処理（start→core→draw前→ドロー→refresh→main）がステップ誘発のpendingChoiceで中断したときの再開ステップ番号。null=中断なし。選択解決後に resumeTurnStart が続きから再開する（百識の谷Lv1のドローステップ破棄選択など）
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）
     eventSeq: number // GameEvent.seq の通し番号（クリアしてもリセットしない）

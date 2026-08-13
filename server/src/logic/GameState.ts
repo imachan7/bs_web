@@ -205,7 +205,6 @@ export function createGame(
         resumeStack: [],
         resumeInsertAt: 0,
         drawStepSkipped: false,
-        turnStartResumeStep: null,
         interactiveTargets: false,
         events: [],
         eventSeq: 0,
