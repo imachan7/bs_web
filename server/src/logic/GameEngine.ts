@@ -13,6 +13,7 @@ import {
     instMinLevelCores,
     minLevelCores,
     opponentOf,
+    checkNoMutationAfterSuspend,
     pushResumeFrames,
     suspend,
 } from "./GameState"
@@ -112,6 +113,8 @@ export function handleAction(
     requestPendingReviveConfirm(state)
     // 「デッキの破棄を、コストを払って無効にできる」の確認も同じ理由でここで出す（BS08鳳翼の聖剣Lv2）
     requestPendingDeckMillNegate(state)
+    // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
+    checkNoMutationAfterSuspend(state)
     return result
 }
 

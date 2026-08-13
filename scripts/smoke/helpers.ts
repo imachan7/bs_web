@@ -7,6 +7,7 @@ import {
     draw,
     getCard,
     minLevelCores,
+    takeMutationAfterSuspend,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
@@ -202,6 +203,11 @@ function checkCoreSanity(state: GameState): string | null {
 let invariantViolations = 0
 
 function checkInvariants(state: GameState, before: number, label: string): void {
+    // 中断中の盤面変更ガード（エンジン側 GameState.checkNoMutationAfterSuspend が記録したもの）
+    for (const problem of takeMutationAfterSuspend()) {
+        invariantViolations++
+        console.error(`  ❌ [中断ガード] ${problem}（${label}）`)
+    }
     const after = countCards(state)
     if (after !== before) {
         invariantViolations++

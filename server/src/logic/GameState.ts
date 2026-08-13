@@ -235,6 +235,52 @@ export function suspend(state: GameState, choice: PendingChoice): void {
     state.pendingChoice = choice
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
+    if (DEBUG_CHECKS) suspendFingerprint = boardFingerprint(state)
+}
+
+// ── 中断中の盤面変更ガード（検査用。RESUME_STACK.md §5）──────────────────
+// 「中断したのに処理を続けた」書き忘れを、静かな二重適用ではなく**赤にする**ための検査。
+// 中断した時点の盤面を覚えておき、handleAction を抜ける時点でまだ中断中なら、
+// その間に盤面が変わっていないことを確かめる（中断後は何も起きないのが契約）。
+//
+// 環境変数 BS_DEBUG_CHECKS=1 のときだけ働く（本番の対戦では計算しない）
+const DEBUG_CHECKS = process.env.BS_DEBUG_CHECKS === "1"
+let suspendFingerprint: string | null = null
+let mutationAfterSuspend: string[] = []
+
+// 盤面の要約。ゾーンの枚数とコア数だけを見る（並び順・インスタンスの中身までは追わない）
+function boardFingerprint(state: GameState): string {
+    const parts: string[] = []
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = state.players[pid]
+        parts.push(
+            `${p.deck.length},${p.hand.length},${p.trashCards.length},${p.tegamoto.length}`,
+            `${p.field.spirits.length},${p.field.nexuses.length}`,
+            `${p.life},${p.reserve},${p.trashCores}`,
+            [...p.field.spirits, ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
+        )
+    }
+    parts.push(String(state.revealedCards?.cardIds.length ?? 0))
+    return parts.join("/")
+}
+
+// handleAction の出口から呼ぶ。中断中に盤面が変わっていたら記録する
+export function checkNoMutationAfterSuspend(state: GameState): void {
+    if (!DEBUG_CHECKS) return
+    if (state.pendingChoice && suspendFingerprint !== null) {
+        const now = boardFingerprint(state)
+        if (now !== suspendFingerprint) {
+            mutationAfterSuspend.push(`中断後に盤面が変化した（${suspendFingerprint} → ${now}）`)
+        }
+    }
+    if (!state.pendingChoice) suspendFingerprint = null
+}
+
+// 検査結果の取り出し（smoke のハーネスが集計に使う）
+export function takeMutationAfterSuspend(): string[] {
+    const found = mutationAfterSuspend
+    mutationAfterSuspend = []
+    return found
 }
 
 // 中断した残りの処理を再開スタックへ積む。
