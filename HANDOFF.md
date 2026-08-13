@@ -65,14 +65,14 @@
 
 ## 6. 未決（ユーザー確認待ち）
 
-**選択待ちの間に、ターン終了やレベル再計算による消滅を進めてよいか。**
+中断ガードの検出3件の内訳（原因特定済み。詳細は RESUME_STACK.md §5）:
 
-中断ガードが3件検出した（part1付近の `endTurn` 1件、part81 の `summon` 2件）。
-`handleAction` は `dispatchAction` の後に事後フックを並べているが、そのうち
-`forceEndTurnIfFlagged`（`endTurn` を呼ぶ）と `refreshLevelAsOverrides`
-（レベル置換の再計算 → 維持コア割れの消滅）に `state.pendingChoice` のガードが無い。
-
-進めてよくないなら、事後フックにガードを足すか、フックごと再開フレームにする。
+- **(a) エンジンの実バグ 2件**（part144 / part145）。`dumpAllCoresTensho` が
+  `fireTenshoEvent`（『転召したとき』の誘発）で中断しうるのに、その後もコアを捨てて
+  維持コア割れの破壊まで進む。`doSummon` 側は中断を見ているのに内側が見ていない。
+  **修正方針は「残りを再開フレームに積んで return」で、解決順は現状のまま**
+- **(b) テストの都合 1件**（part1）。`handleAction` を通さず `resolveAction` を直接呼ぶ書き方のため。
+  実対戦では起きない（選択待ち中は `resolveChoice` 以外を拒否する）
 
 ## 7. 検証の定型（変わらず）
 

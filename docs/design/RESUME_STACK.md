@@ -105,21 +105,40 @@ state.resumeStack.splice(state.resumeInsertAt++, 0, frame)
 **バッチ完了時の定型には入れない。** 中断ガードが実際に3件を検出しており、
 それを直すまで exit 1 になる。定型（`smoke:quiet`）は全緑のまま。
 
-検出内容（2026-08-13 時点。いずれも「選択待ちが立っているのに盤面が変わった」）:
+検出内容（2026-08-13。スタックトレースまで特定済み）:
 
-| 場所 | 症状 |
-| :-- | :-- |
-| part1 付近 / `endTurn` | 中断後にスピリット1体が場から消えた |
-| part81 / `summon` ×2 | 中断後にスピリット1体が破壊された（トラッシュ+1・トラッシュのコア+1） |
+**(a) エンジンの実バグ：`dumpAllCoresTensho`（part144 / part145 の `summon` 2件）**
 
-**原因の候補**：`handleAction` は `dispatchAction` の後に事後フックを並べており、
-そのうち `forceEndTurnIfFlagged`（`endTurn` を呼ぶ）と `refreshLevelAsOverrides` に
-`state.pendingChoice` のガードが無い。選択待ちのまま turn が終わったり、
-レベル置換の再計算で維持コア割れの消滅が走ったりしうる。
+```
+destroySpirit ← dumpAllCoresTensho(EffectModules.ts:1304) ← resolveTensho ← doSummon
+```
 
-**これはルールの解釈が絡むので、直す前に確認を取ること**：
-選択待ちの間に「ターン終了」「レベル再計算による消滅」を進めてよいのか。
-進めてよくないなら、事後フックにガードを足すか、フックごと再開フレームにする。
+`dumpAllCoresTensho` は **`fireTenshoEvent`（＝『転召したとき』の誘発）を呼んだ直後、
+中断したかを見ずにコアを捨てて維持コア割れの破壊まで進む**:
+
+```ts
+fireTenshoEvent(state, ownerPid, inst)   // ← ここで中断しうる（相手の手札を破棄させる等）
+const count = inst.cores
+inst.cores = 0
+…
+if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+```
+
+`doSummon` 側は `resolveTensho` の後にきちんと `if (state.pendingChoice)` を見ているのに、
+**その内側の `dumpAllCoresTensho` が見ていない**。まさに「割り込まれる側が対応していない」形。
+危険なのは、選択待ちのまま走る `destroySpirit` が『破壊されたとき』の誘発を回すこと
+（その誘発が中断しようとしても、すでに中断中なので居場所がない）。
+
+修正方針：`fireTenshoEvent` の後で中断していたら、残り（コアを捨てる＋維持コア割れの破壊）を
+再開フレームに積んで return する。**解決順は現状のまま**（誘発 → コア処理）で変わらない。
+
+**(b) テストの都合（part1 の `endTurn` 1件）＝エンジンのバグではない**
+
+`part1.ts:410` 付近は `handleAction` を通さず `resolveAction` を直接呼んでいる。
+対話モードでは途中の呼び出しが選択待ちを立て、それを解消しないまま次の `resolveAction` を
+呼ぶため「中断中に盤面が変わった」ことになる。
+**`handleAction` は選択待ち中に `resolveChoice` 以外を拒否する**（GameEngine.ts:228）ので、
+実対戦ではこの経路は起きない。ハーネス側の扱いを決めるべき件。
 
 ## 6. 決着済みの判断（2026-08-13 ユーザー確認）
 
