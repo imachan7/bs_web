@@ -928,8 +928,8 @@ process.on("exit", () => {
         const ge = path.join(tree, "server/src/logic/GameEngine.ts")
         patch(
             ge,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    pushResumeFrames,\n    suspend,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    pushResumeFrames,\n    suspend,\n    __covRecord,\n} from "./GameState"`,
         )
         // ※ 2026-08-08: リザーブからの【覚醒】（ディノゾールLv2）が分岐として増え、
         //    コア移動の実行点が2つになった。両方に同じ記録を入れる（記録関数を1つ差し込んで共有）

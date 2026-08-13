@@ -45,6 +45,8 @@ import {
     minLevelCores,
     opponentOf,
     rawLevel,
+    pushResumeFrames,
+    suspend,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -1889,11 +1891,12 @@ export function tryInteractiveTargetChoice(
     )
     if (state.pendingChoice && chooser !== owner) state.pendingChoice.actorPid = owner
     if (remainingAction && state.pendingChoice) {
-        state.pendingChoice.queue.unshift({
+        pushResumeFrames(state, [{
+            kind: "action",
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
             ...(chooser !== owner ? { actorPid: owner } : {}),
-        })
+        }])
     }
     return true
 }
@@ -1917,10 +1920,11 @@ export function tryInteractiveCardChoice(
     if (cardIndices.length < 2) return false
     requestCardChoice(state, pid, prompt, cardZone, cardIndices, false, firstAction, self)
     if (remainingAction && state.pendingChoice) {
-        state.pendingChoice.queue.unshift({
+        pushResumeFrames(state, [{
+            kind: "action",
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
-        })
+        }])
     }
     return true
 }
@@ -2347,7 +2351,7 @@ export function requestActivationConfirm(
     action: EffectAction,
     self: CardInstance | null,
 ): void {
-    state.pendingChoice = {
+    suspend(state, {
         pid,
         kind: "option",
         prompt,
@@ -2357,8 +2361,7 @@ export function requestActivationConfirm(
         confirm: true,
         action,
         selfInstanceId: self ? self.instanceId : null,
-        queue: [],
-    }
+    })
 }
 
 // 選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
@@ -2379,7 +2382,7 @@ export function requestChoice(
 ): void {
     if (kind === "option") {
         // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない
-        state.pendingChoice = {
+        suspend(state, {
             pid,
             kind: "option",
             prompt,
@@ -2388,8 +2391,7 @@ export function requestChoice(
             optional,
             action,
             selfInstanceId: self ? self.instanceId : null,
-            queue: [],
-        }
+        })
         return
     }
     if (candidates.length === 0) {
@@ -2401,7 +2403,7 @@ export function requestChoice(
         resolveAction(state, pid, self, action, only)
         return
     }
-    state.pendingChoice = {
+    suspend(state, {
         pid: chooserPid ?? pid,
         kind: "target",
         prompt,
@@ -2410,8 +2412,7 @@ export function requestChoice(
         action,
         selfInstanceId: self ? self.instanceId : null,
         ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
-        queue: [],
-    }
+    })
 }
 
 // requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
@@ -2446,7 +2447,7 @@ export function requestCardChoice(
         resolveAction(state, pid, self, action, undefined, undefined, undefined, undefined, only)
         return
     }
-    state.pendingChoice = {
+    suspend(state, {
         pid,
         kind: "card",
         prompt,
@@ -2458,8 +2459,7 @@ export function requestCardChoice(
         ...(resolveOnSkip ? { resolveOnSkip: true as const } : {}),
         action,
         selfInstanceId: self ? self.instanceId : null,
-        queue: [],
-    }
+    })
 }
 
 // ---- イベント発火（server/src/logic/triggers.ts へ分割。2026-08-10）----

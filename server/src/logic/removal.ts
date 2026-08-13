@@ -47,6 +47,7 @@ import {
     minLevelCores,
     opponentOf,
     rawLevel,
+    suspend,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -279,7 +280,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
         if (player.reserve < minLevelCores(getCard(cardId))) continue
         if (state.interactiveTargets) {
-            state.pendingChoice = {
+            suspend(state, {
                 pid,
                 kind: "option",
                 prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
@@ -290,8 +291,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
                 handFreeSummon: { pid, cardId },
                 action: { type: "noop" },
                 selfInstanceId: null,
-                queue: [],
-            }
+            })
             return
         }
         summonFreeFromHandIndex(state, pid, getCard(cardId).name, i)

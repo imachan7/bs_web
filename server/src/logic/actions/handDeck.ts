@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from "../GameState"
+import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
     bothSidesPids,
     resistanceAgainst,
@@ -626,7 +626,7 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
             // 後始末（revealDiscardRest）を積んでおく（積まないと flushRevealedCardsIfIdle が
             // デッキの下へ戻してしまい、効果文と食い違う）
             if (state.pendingChoice) {
-                state.pendingChoice.queue.push({ selfInstanceId: null, action: { type: "revealDiscardRest" } })
+                pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
             } else {
                 discardRevealedZone(state, owner, sourceName)
             }

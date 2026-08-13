@@ -13,6 +13,8 @@ import {
     instMinLevelCores,
     minLevelCores,
     opponentOf,
+    pushResumeFrames,
+    suspend,
 } from "./GameState"
 import { endTurn, resumeTurnStart, toAttackPhase } from "./PhaseManager"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
@@ -127,7 +129,7 @@ function requestPendingDeckMillNegate(state: GameState): void {
             declineDeckMillNegate(state, entry)
             continue
         }
-        state.pendingChoice = {
+        suspend(state, {
             pid: entry.pid,
             kind: "option",
             prompt: `${getCard(source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
@@ -138,8 +140,7 @@ function requestPendingDeckMillNegate(state: GameState): void {
             deckMillNegate: entry,
             action: { type: "noop" },
             selfInstanceId: entry.sourceInstanceId,
-            queue: [],
-        }
+        })
         return
     }
     if (queue.length === 0) delete state.pendingDeckMillNegates
@@ -155,7 +156,7 @@ function requestPendingReviveConfirm(state: GameState): void {
         const entry = queue.shift()!
         const inst = state.players[entry.pid].field.spirits.find((s) => s.instanceId === entry.instanceId)
         if (!inst) continue
-        state.pendingChoice = {
+        suspend(state, {
             pid: entry.pid,
             kind: "option",
             prompt: `${getCard(inst.cardId).name}：破壊される代わりに復活させますか？`,
@@ -166,8 +167,7 @@ function requestPendingReviveConfirm(state: GameState): void {
             reviveConfirm: entry,
             action: { type: "noop" },
             selfInstanceId: entry.instanceId,
-            queue: [],
-        }
+        })
         return
     }
     if (queue.length === 0) delete state.pendingReviveConfirms
@@ -388,7 +388,7 @@ function doBattleSwapSummon(
     // doSummon と同じ順序：【転召】→ 召喚時効果（中断したら queue で合流する）
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
-        state.pendingChoice.queue.push({ selfInstanceId: inst.instanceId, action: { type: "summonSequence" } })
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
         fireSummonSequence(state, pid, inst)
     }
@@ -464,7 +464,7 @@ function doSummon(
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択の解決後に続きへ合流させる（queue は同一解決内の残り処理を積む場所）
-        state.pendingChoice.queue.push({ selfInstanceId: inst.instanceId, action: { type: "summonSequence" } })
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
         fireSummonSequence(state, pid, inst)
     }
@@ -1033,7 +1033,7 @@ function doResolveChoice(
             declineMagicNegateChoice(state, info)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     // 手札からの無償召喚の確認（BS08猫娘アニー）。action は解決しない
@@ -1049,7 +1049,7 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}：手札から召喚しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     // 「破壊される代わりに復活できる」の確認。action は解決せず、
@@ -1066,7 +1066,7 @@ function doResolveChoice(
             declineReviveConfirm(state, entry)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、
@@ -1083,7 +1083,7 @@ function doResolveChoice(
             declineDeckMillNegate(state, entry)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
@@ -1101,7 +1101,7 @@ function doResolveChoice(
         }
         applyMagicRedirectChoice(state, info, option !== undefined)
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     if (pending.kind === "option") {
@@ -1130,7 +1130,7 @@ function doResolveChoice(
             log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     if (pending.kind === "card") {
@@ -1152,7 +1152,7 @@ function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid, pending.queue)
+        return finishChoiceResolution(state, pending.pid)
     }
 
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
@@ -1171,49 +1171,38 @@ function doResolveChoice(
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
-    return finishChoiceResolution(state, pending.pid, pending.queue)
+    return finishChoiceResolution(state, pending.pid)
 }
 
 // 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
 // ステップ誘発の pendingChoice で中断していたターン開始処理を続きのステップから再開する
 // （百識の谷Lv1のドローステップ破棄選択など。中断していなければ resumeTurnStart は no-op）。
-function finishChoiceResolution(
-    state: GameState,
-    pid: PlayerId,
-    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
-): string | null {
-    drainChoiceQueue(state, pid, queue)
+function finishChoiceResolution(state: GameState, pid: PlayerId): string | null {
+    drainResumeStack(state, pid)
     if (!state.pendingChoice && !state.winner) {
         resumeTurnStart(state)
     }
     return null
 }
 
-// 退避したqueue（同一トリガー内の残りの誘発）を先頭から順に消化する。
-// 途中で新しいpendingChoiceが立ったら残りをそちらのqueueに積んで中断する（同じ中断パターンの繰り返し）。
-function drainChoiceQueue(
-    state: GameState,
-    pid: PlayerId,
-    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[],
-): string | null {
-    // 直前のアクションが新しい選択待ちを立てていたら、消化せずそちらへ引き継ぐ
+// 再開スタック（中断された残りの処理）を先頭から1つずつ消化する。
+//
+// **中断が起きたら、その場で止めるだけでよい**（残りはスタックに載ったまま）。
+// 新しい中断で積まれたフレームは pushResumeFrames が「今回の領域の末尾」＝古いフレームより前へ
+// 入れるので、配列は常に「内側 → 外側 → 古いもの」の正しい実行順に並ぶ。
+// 移行前は queue を引数で持ち回り、中断のたびに新しい pendingChoice へ積み直していた
+// （docs/design/RESUME_STACK.md §2・§3）
+function drainResumeStack(state: GameState, pid: PlayerId): string | null {
+    // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
     // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
     // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    if (state.pendingChoice) {
-        state.pendingChoice.queue.push(...queue)
-        return null
-    }
-    for (let i = 0; i < queue.length; i++) {
-        const item = queue[i]
-        if (!item) continue
-        const itemSelf = item.selfInstanceId ? findInstanceAnywhere(state, item.selfInstanceId) ?? null : null
-        resolveAction(state, item.actorPid ?? pid, itemSelf, item.action)
-        if (state.winner) return null
-        const newPending = state.pendingChoice as GameState["pendingChoice"]
-        if (newPending) {
-            newPending.queue.push(...queue.slice(i + 1))
-            return null
-        }
+    while (!state.pendingChoice && !state.winner && state.resumeStack.length > 0) {
+        const frame = state.resumeStack.shift()
+        if (!frame) continue
+        const frameSelf = frame.selfInstanceId
+            ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
+            : null
+        resolveAction(state, frame.actorPid ?? pid, frameSelf, frame.action)
     }
     return null
 }

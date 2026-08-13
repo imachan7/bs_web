@@ -6,9 +6,11 @@ import type {
     DeckSpec,
     GameState,
     GameView,
+    PendingChoice,
     PlayerId,
     PlayerState,
     PlayerView,
+    ResumeFrame,
 } from "../type"
 import {
     DECK_RECIPES,
@@ -200,6 +202,8 @@ export function createGame(
         lastBattleDestroyedCost: 0,
         bofuExhaustedThisBattle: [],
         pendingChoice: null,
+        resumeStack: [],
+        resumeInsertAt: 0,
         drawStepSkipped: false,
         turnStartResumeStep: null,
         interactiveTargets: false,
@@ -221,6 +225,26 @@ export function opponentOf(pid: PlayerId): PlayerId {
 
 export function log(state: GameState, message: string): void {
     state.log.push(message)
+}
+
+// ── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
+// 中断を開始する。**pendingChoice を立てる箇所はすべてここを通す**。
+// ここが唯一の入口であることで、再開スタックの挿入境界（resumeInsertAt）のリセットを
+// 1箇所に集約できる（各所で書き忘れると解決順が壊れる）
+export function suspend(state: GameState, choice: PendingChoice): void {
+    state.pendingChoice = choice
+    // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
+    state.resumeInsertAt = 0
+}
+
+// 中断した残りの処理を再開スタックへ積む。
+// **push でも unshift でもなく「今回の中断で積まれた領域の末尾」へ入れる**。
+// 1回の中断では内側の層から外側の層へ順に積まれ、正しい実行順は
+// 「内側 → 外側 → それ以前の中断の古いフレーム」であるため。RESUME_STACK.md §3
+export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void {
+    for (const frame of frames) {
+        state.resumeStack.splice(state.resumeInsertAt++, 0, frame)
+    }
 }
 
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）

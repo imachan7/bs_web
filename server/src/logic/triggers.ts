@@ -48,6 +48,8 @@ import {
     minLevelCores,
     opponentOf,
     rawLevel,
+    pushResumeFrames,
+    suspend,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -390,10 +392,10 @@ export function fireTrigger(
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
-            state.pendingChoice.queue.push(
-                ...remaining.map((e) => ({ selfInstanceId: selfInstance.instanceId, action: e.action })),
-                ...grantedActions.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
-            )
+            pushResumeFrames(state, [
+                ...remaining.map((e) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: e.action })),
+                ...grantedActions.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
+            ])
             return
         }
     }
@@ -403,8 +405,9 @@ export function fireTrigger(
         resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
         if (state.pendingChoice) {
             const remaining = grantedActions.slice(i + 1)
-            state.pendingChoice.queue.push(
-                ...remaining.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
+            pushResumeFrames(
+                state,
+                remaining.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
             )
             return
         }
@@ -1212,7 +1215,7 @@ export function resolveMagic(
     const negate = findMagicNegateSource(state, owner, card)
     if (negate) {
         if (state.interactiveTargets) {
-            state.pendingChoice = {
+            suspend(state, {
                 pid: negate.pid,
                 kind: "option",
                 prompt: `${getCard(negate.inst.cardId).name}：${card.name}の効果を無効にしますか？`,
@@ -1229,8 +1232,7 @@ export function resolveMagic(
                 },
                 action: { type: "noop" },
                 selfInstanceId: negate.inst.instanceId,
-                queue: [],
-            }
+            })
             return
         }
         payMagicNegate(state, negate, card)
@@ -1245,7 +1247,7 @@ export function resolveMagic(
     if (state.interactiveTargets) {
         const redirectSource = findMagicRedirectSourceForCard(state, owner, card, timing, targetInstanceId)
         if (redirectSource) {
-            state.pendingChoice = {
+            suspend(state, {
                 pid: opponentOf(owner),
                 kind: "option",
                 prompt: `${getCard(redirectSource.cardId).name}：${card.name}の効果の対象を、このスピリットのみにしますか？`,
@@ -1262,8 +1264,7 @@ export function resolveMagic(
                 },
                 action: { type: "noop" },
                 selfInstanceId: redirectSource.instanceId,
-                queue: [],
-            }
+            })
             return
         }
     }
@@ -1520,8 +1521,9 @@ function runMagicActions(
         )
         if (state.pendingChoice) {
             const remaining = effects.slice(i + 1).filter(matches)
-            state.pendingChoice.queue.push(
-                ...remaining.map((e) => ({ selfInstanceId: null, action: e.action })),
+            pushResumeFrames(
+                state,
+                remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: e.action })),
             )
             // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
             delete state.magicRedirectTo

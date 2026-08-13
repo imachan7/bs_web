@@ -1551,8 +1551,20 @@ export interface PendingChoice {
     actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
     // **選択者と実行者が別**のケースで使う（BS02-012 ケンドラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として行う）
     selfInstanceId: string | null // 発生源スピリット（self の復元用）
-    queue: { selfInstanceId: string | null; action: EffectAction; actorPid?: PlayerId }[] // 中断された残りアクション
-    // （actorPid 省略時は選択者 pid として解決する）
+    // 中断された残りの処理は **GameState.resumeStack** が持つ（pendingChoice からは独立）。
+    // かつてここに queue: EffectAction[] を持っていたが、EffectAction の列しか運べず、
+    // 破壊ループの奥などからは中断できなかった。docs/design/RESUME_STACK.md §1
+}
+
+// 中断した処理の再開情報（GameState.resumeStack の要素）。
+// **pendingChoice から独立している**のが要点：選択待ちの内側に継続を持つと、
+// 選択待ちを立てられない深い場所では継続も保存できない。docs/design/RESUME_STACK.md §2
+export type ResumeFrame = {
+    kind: "action" // 効果アクションを1つ解決し直す（今のところ唯一の種別。
+    // turnStart / destroyBatch を段階的に追加していく予定）
+    selfInstanceId: string | null // 発生源（self の復元用）
+    action: EffectAction
+    actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
 }
 
 // ゲーム全体の状態（サーバーで一元管理）
@@ -1595,6 +1607,11 @@ export interface GameState {
     bofuExhaustedThisBattle: { pid: PlayerId; instanceId: string }[]
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
+    resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
+    // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。
+    // **単純な push / unshift ではどちらも解決順が壊れる**：1回の中断では内側の層から外側の層へ順に
+    // フレームが積まれ、正しい順は「内側 → 外側 → それ以前の中断の古いフレーム」。RESUME_STACK.md §3
     // 「破壊される代わりに復活**できる**」（reviveOnDestroy.optional）の確認待ち行列。
     // 破壊処理の途中では中断できない（destroySpirit の呼び出しはループの中にあり、
     // pendingChoice の queue は EffectAction の列しか運べない）ため、いったん破壊を見送って
