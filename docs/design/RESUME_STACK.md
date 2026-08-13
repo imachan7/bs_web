@@ -262,17 +262,35 @@ batch 化すると、誤った数え方を固定してしまう）。
   `pendingReviveConfirms` に積む。**これは移行途中の状態なので、残りを移し終えたら
   `allowSuspend` と `pendingReviveConfirms` の両方を消すこと**
 
-### 残りの移行（未着手）
-
-`destroyAll`（`destroy.ts`）だけがバッチ経由。残る `cause: "destroy"` の呼び出し元は約30箇所:
-
-| 場所 | 形 |
-| :-- | :-- |
-| `destroy.ts` の他ハンドラ | ループ・`destroyedCount`・後続処理つきが多い |
-| `GameEngine.ts:1352〜1439` | バトル解決（アタッカー／ブロッカーの相互破壊）。後処理が複雑 |
-| `battleFlow.ts` / `handDeck.ts` / `exhaustRefresh.ts` | 各2件・1件。後続処理あり |
+### 移行の進捗（2026-08-13）
 
 `cause: "deplete"`（維持コア割れ）の呼び出しは**復活判定に入らない**ので対象外。
+残る `cause: "destroy"` は約30箇所で、**大半が移行済み**。
+
+**移行に使った3つの型**:
+
+| 型 | 使いどころ | 書き方 |
+| :-- | :-- | :-- |
+| **A. 事前確定リスト** | 対象が先に確定するもの（`destroyAll` / 全体破壊系） | `destroyTargetsBatch(state, owner, targets, ctx)` を呼ぶだけ |
+| **B. 先に選び切る** | 予算・カウントで貪欲に選ぶもの（`destroyByBpBudget` / `destroyByCostBudget` / `destroyPer` / `destroyDownToOwnCount`） | **選択だけ先に回して ID を集め**、まとめて A に渡す。貪欲な選び方は破壊そのものに依存しないので事前確定してよい |
+| **C. 体数で再入** | 毎回その時点の盤面から選び直すもの（`destroy` の count ループ） | 1体ごとに処理し、中断したら `{...action, count: 残り}` を `kind:"action"` フレームで積む |
+
+**移行しないもの（ルール②に基づく。＝これが正しい挙動）**:
+
+`handDeck.ts` ×2 / `battleFlow.ts` ×2 / `exhaustRefresh.ts` ×1 / `destroy.ts` の
+`destroyOwnByCost`・`destroyThenMillByCost` は、いずれも
+**「自分の〜を破壊する“ことで”」型＝②の同時発揮**。
+派生効果（フィールドに残る）の解決は恩恵の**後**なので、
+**ここで中断してはいけない**（恩恵は復活の有無にかかわらず発揮される）。
+
+**未移行（残り）**:
+
+| 場所 | 形 | なぜ残っているか |
+| :-- | :-- | :-- |
+| `GameEngine.ts` のバトル解決 6箇所 | アタッカー／ブロッカーの相互破壊 | バトルの後処理（【呪撃】・【光芒】・`clearBattle`）が続き、形が他と違う。**別途着手する** |
+
+バトル解決は①（別効果の「破壊したとき」）が効く場所なので、**残すと確認のタイミングがズレたままになる**。
+移行を終えたら `allowSuspend` と `pendingReviveConfirms` の両方を消すこと。
 
 ## 8. 決着済みの判断（2026-08-13 ユーザー確認）
 

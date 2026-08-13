@@ -9,6 +9,7 @@ import {
     destroyNexus,
     destroySpirit,
     destroySpiritsFrom,
+    destroyTargetsBatch,
     applyDestroyBatchAfter,
     fireTrigger,
     findSpiritAny,
@@ -82,7 +83,7 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext)
+            destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
             return
         }
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
@@ -120,7 +121,22 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
                 }
-                destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext)
+                destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
+                // 復活の確認で中断した。**残りの体数ぶん**を再開フレームに積んで抜ける
+                // （対象は毎回その時点の盤面から選び直すので、体数だけ持ち回れば足りる）
+                if (state.pendingChoice) {
+                    const rest = resolvedCount - i - 1
+                    if (rest > 0) {
+                        pushResumeFrames(state, [{
+                            kind: "action",
+                            selfInstanceId: self ? self.instanceId : null,
+                            actorPid: owner,
+                            action: { ...action, count: rest, countPerOpponentTrashMagicColors: false },
+                        }])
+                    }
+                    return
+                }
+                if (state.winner) return
             }
             return
         }
@@ -146,7 +162,21 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
             }
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
+            // 復活の確認で中断した。残りの体数ぶんを再開フレームに積んで抜ける
+            if (state.pendingChoice) {
+                const rest = resolvedCount - i - 1
+                if (rest > 0) {
+                    pushResumeFrames(state, [{
+                        kind: "action",
+                        selfInstanceId: self ? self.instanceId : null,
+                        actorPid: owner,
+                        action: { ...action, count: rest, countPerOpponentTrashMagicColors: false },
+                    }])
+                }
+                return
+            }
+            if (state.winner) return
         }
         return
 }
@@ -233,9 +263,8 @@ const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyT
                 !isResisted(state, owner, s, attemptOf(ctx, "destroy", "area")),
         )
         .map((s) => s.instanceId)
-    for (const instanceId of ownTargets) {
-        destroySpirit(state, owner, instanceId, "destroy", destroyContext)
-    }
+    // **対象は解決の開始時に確定させる**（自分側→相手側の順に1つのバッチで処理する）。
+    // 復活の確認で中断しても、再開フレームが残りを同じ順で処理できるようにするため
     const oppTargets = state.players[opp].field.spirits
         .filter(
             (s) =>
@@ -246,9 +275,15 @@ const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyT
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const instanceId of oppTargets) {
-        destroySpirit(state, opp, instanceId, "destroy", destroyContext)
-    }
+    destroyTargetsBatch(
+        state,
+        owner,
+        [
+            ...ownTargets.map((instanceId) => ({ pid: owner, instanceId })),
+            ...oppTargets.map((instanceId) => ({ pid: opp, instanceId })),
+        ],
+        destroyContext,
+    )
     void self
 }
 
@@ -273,9 +308,7 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
         log(state, `${sourceName}：同じカード名のスピリットが2体以上いなかった。`)
         return
     }
-    for (const instanceId of doomed) {
-        destroySpirit(state, opp, instanceId, "destroy", destroyContext)
-    }
+    destroyTargetsBatch(state, opp, doomed.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
     void self
 }
 
@@ -323,8 +356,21 @@ const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOw
             }
             if (!weakest) break
             log(state, `${sourceName}：${state.players[opp].name}は${getCard(weakest.cardId).name}を破壊した。`)
-            destroySpirit(state, opp, weakest.instanceId, "destroy", destroyContext)
+            destroySpirit(state, opp, weakest.instanceId, "destroy", destroyContext, { allowSuspend: true })
             if (state.winner) return
+            // 復活の確認で中断した。残りの体数を action.remaining に載せて再入する
+            if (state.pendingChoice) {
+                const rest = remaining - i - 1
+                if (rest > 0) {
+                    pushResumeFrames(state, [{
+                        kind: "action",
+                        selfInstanceId: self ? self.instanceId : null,
+                        actorPid: owner,
+                        action: { ...action, remaining: rest + 1 },
+                    }])
+                }
+                return
+            }
         }
     }
     // 選択の再開：相手が選んだ1体を破壊して、残りを続ける
@@ -333,8 +379,21 @@ const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOw
             const chosen = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
             if (chosen) {
                 log(state, `${sourceName}：${state.players[opp].name}は${getCard(chosen.cardId).name}を破壊した。`)
-                destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+                destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext, { allowSuspend: true })
             }
+        }
+        if (state.pendingChoice) {
+            // 復活の確認で中断した。残りは再入して続ける
+            const rest = action.remaining - 1
+            if (rest > 0) {
+                pushResumeFrames(state, [{
+                    kind: "action",
+                    selfInstanceId: self ? self.instanceId : null,
+                    actorPid: owner,
+                    action: { ...action, remaining: rest },
+                }])
+            }
+            return
         }
         enemyDestroys(action.remaining - 1)
         return
@@ -459,8 +518,15 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
         const ownTargets = state.players[owner].field.spirits.filter(
             (s) => !instColors(s).some((c) => safeColors.has(c)),
         )
-        for (const t of oppTargets) destroySpirit(state, opp, t.instanceId, "destroy", destroyContext)
-        for (const t of ownTargets) destroySpirit(state, owner, t.instanceId)
+        destroyTargetsBatch(
+            state,
+            owner,
+            [
+                ...oppTargets.map((t) => ({ pid: opp, instanceId: t.instanceId })),
+                ...ownTargets.map((t) => ({ pid: owner, instanceId: t.instanceId })),
+            ],
+            destroyContext,
+        )
         return
 }
 
@@ -570,12 +636,16 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
         const budgetForLog = remaining
         let destroyedCount = 0
         const destroyedNames: string[] = []
+        // **先に選び切ってから、まとめて破壊する**。貪欲な選び方（残り予算内でBP最大から）は
+        // 破壊そのものに依存しないので事前に確定でき、こうしておくと
+        // 復活の確認で中断してもバッチ（destroyBatch フレーム）が続きを回せる
+        const chosenIds: string[] = []
         while (remaining > 0) {
             const candidates = pickEnemyCandidates(
                 state,
                 opp,
                 Infinity,
-                (s) => effectiveBp(state, opp, s) <= remaining,
+                (s) => effectiveBp(state, opp, s) <= remaining && !chosenIds.includes(s.instanceId),
                 srcColors,
                 srcType,
             )
@@ -585,8 +655,11 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
             )
             remaining -= effectiveBp(state, opp, target)
             destroyedNames.push(getCard(target.cardId).name)
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            chosenIds.push(target.instanceId)
             destroyedCount++
+        }
+        if (destroyedCount > 0) {
+            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
         }
         if (destroyedCount === 0) {
             log(state, `${sourceName}：破壊できる対象がいなかった。`)
@@ -612,19 +685,25 @@ const destroyPerHandler: ActionHandler<"destroyPer"> = (ctx, action) => {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
             return
         }
-        let destroyedCount = 0
+        // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
+        const chosenIds: string[] = []
         for (let i = 0; i < count; i++) {
             const target = pickEnemyByBp(
                 state,
                 opp,
                 Infinity,
-                (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
+                (s) =>
+                    matchesTarget(state, opp, s, filter, self?.instanceId) &&
+                    !chosenIds.includes(s.instanceId),
                 srcColors,
                 srcType,
             )
             if (!target) break
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
-            destroyedCount++
+            chosenIds.push(target.instanceId)
+        }
+        const destroyedCount = chosenIds.length
+        if (destroyedCount > 0) {
+            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
         }
         if (destroyedCount === 0) {
             log(state, `${sourceName}：破壊できる対象がいなかった。`)
@@ -641,8 +720,19 @@ const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ct
         // 選択の再開：相手が選んだ1体を破壊してから、残りを数え直す
         if (targetInstanceId !== undefined) {
             const chosen = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (chosen) destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+            if (chosen) destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext, { allowSuspend: true })
             if (state.winner) return
+            // 復活の確認で中断した。残り体数は「相手の体数−自分の体数」で数え直すので、
+            // 同じアクションをもう一度積むだけでよい（内部フィールドは不要）
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [{
+                    kind: "action",
+                    selfInstanceId: self ? self.instanceId : null,
+                    actorPid: owner,
+                    action: { ...action },
+                }])
+                return
+            }
         }
         const need = state.players[opp].field.spirits.length - state.players[owner].field.spirits.length
         if (need <= 0) {
@@ -674,32 +764,37 @@ const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ct
             return
         }
         // 非対話：相手が選ぶなら差し出すであろう実効BP**最小**から破壊する（CHOOSER_RULES.md §2）
+        // 先に選び切ってからまとめて破壊する（実効BP最小から順に）
+        const chosenIds: string[] = []
         for (let i = 0; i < need; i++) {
             const remaining = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
             let weakest: CardInstance | undefined
             for (const s of remaining) {
+                if (chosenIds.includes(s.instanceId)) continue
                 if (!weakest || effectiveBp(state, opp, s) < effectiveBp(state, opp, weakest)) weakest = s
             }
             if (!weakest) break
-            destroySpirit(state, opp, weakest.instanceId, "destroy", destroyContext)
-            if (state.winner) return
+            chosenIds.push(weakest.instanceId)
         }
+        destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
         return
 }
 
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
-    const { state, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+    const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
         // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する
         // （プレイヤー選択の決定的簡略化：残り予算内でコスト最大のものから貪欲に選ぶ。同コストは実効BP最大を優先）
         let remaining = action.budget
         let destroyedCount = 0
         const destroyedNames: string[] = []
+        // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
+        const chosenIds: string[] = []
         while (remaining > 0) {
             const candidates = pickEnemyCandidates(
                 state,
                 opp,
                 Infinity,
-                (s) => getCard(s.cardId).cost <= remaining,
+                (s) => getCard(s.cardId).cost <= remaining && !chosenIds.includes(s.instanceId),
                 srcColors,
                 srcType,
             )
@@ -712,8 +807,11 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
             })
             remaining -= getCard(target.cardId).cost
             destroyedNames.push(getCard(target.cardId).name)
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
+            chosenIds.push(target.instanceId)
             destroyedCount++
+        }
+        if (destroyedCount > 0) {
+            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
         }
         if (destroyedCount === 0) {
             log(state, `${sourceName}：破壊できる対象がいなかった。`)
@@ -870,7 +968,7 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
             log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
             return
         }
-        destroySpirit(state, owner, self.instanceId)
+        destroySpirit(state, owner, self.instanceId, "destroy", undefined, { allowSuspend: true })
         return
 }
 
@@ -1090,7 +1188,7 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
 // 二段階目の選択はrequestChoiceのpidに相手を渡すが、実行者（resolveActionのowner引数）は
 // 発生源の持ち主のまま解決する（destroyAllExceptChosenColorsと同じ「相手に選ばせて自分の効果として解決する」形）
 const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
     const allSpiritIds = (): string[] =>
         [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].map((s) => s.instanceId)
 
@@ -1142,13 +1240,15 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
     }
 
     const destroyedIds = new Set<string>()
+    const batch: { pid: PlayerId; instanceId: string }[] = []
     for (const id of [chosenOwn, chosenOpp]) {
         if (id === undefined || destroyedIds.has(id)) continue
         const found = findSpiritAny(state, id)
         if (!found) continue
         destroyedIds.add(id)
-        destroySpirit(state, found.pid, found.inst.instanceId, "destroy")
+        batch.push({ pid: found.pid, instanceId: found.inst.instanceId })
     }
+    if (batch.length > 0) destroyTargetsBatch(state, owner, batch, destroyContext)
     if (destroyedIds.size === 0) log(state, `${sourceName}：対象がいなかった。`)
     return
 }

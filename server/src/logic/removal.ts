@@ -401,6 +401,35 @@ export function destroySpiritsFrom(
     return { destroyed, stoppedAt: targets.length }
 }
 
+// 事前に確定した対象リストをまとめて破壊する（呼び出し元の定型）。
+// 復活の確認で中断したら destroyBatch フレームを積んで止まるので、
+// **呼び出し元は「戻ってきたら state.pendingChoice を見て return する」だけでよい**。
+// 戻り値は（中断していなければ）実際に破壊できた数
+export function destroyTargetsBatch(
+    state: GameState,
+    ownerPid: PlayerId,
+    targets: { pid: PlayerId; instanceId: string }[],
+    context?: DestroyContext,
+    after?: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
+): number {
+    const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
+    if (stoppedAt < targets.length) {
+        pushResumeFrames(state, [{
+            kind: "destroyBatch",
+            ownerPid,
+            targets,
+            index: stoppedAt,
+            destroyed,
+            ...(context ? { context } : {}),
+            ...(after ? { after } : {}),
+        }])
+        return destroyed
+    }
+    if (state.winner) return destroyed
+    if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
+    return destroyed
+}
+
 // 破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
 // 途中で止まったらフレームを積み直して抜ける（destroyed は中断をまたいで持ち回る）。
 // 全部終わったら after（破壊できた数を使う処理）を適用する

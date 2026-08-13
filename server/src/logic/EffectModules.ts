@@ -2558,6 +2558,7 @@ export {
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
     destroySpiritsFrom,
+    destroyTargetsBatch,
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,
