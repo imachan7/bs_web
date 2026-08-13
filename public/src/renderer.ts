@@ -1298,6 +1298,22 @@ function renderBattle(view: GameView): void {
 // ロビー側の表示制御
 export function showWaiting(): void {
     show("waiting-message", true)
+    // 待機中はボタンの文言を「参加を取り消す」に変えて残す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "参加を取り消す"
+        joinBtn.classList.add("cancel-mode")
+    }
+}
+
+export function hideWaiting(): void {
+    show("waiting-message", false)
+    // ボタンの文言を元に戻す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "対戦ルームに入る"
+        joinBtn.classList.remove("cancel-mode")
+    }
 }
 
 export function showToast(message: string): void {

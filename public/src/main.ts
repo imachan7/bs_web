@@ -14,6 +14,7 @@ import {
     setupEffectTooltip,
     showToast,
     showWaiting,
+    hideWaiting,
     type UiState,
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
@@ -290,6 +291,10 @@ function toggleDiscardPay(handIndex: number): void {
 
 socket.on("joined", () => {
     showWaiting()
+})
+
+socket.on("joinCancelled", () => {
+    hideWaiting()
 })
 
 socket.on("state", (v: GameView) => {
