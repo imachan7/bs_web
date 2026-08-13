@@ -44,19 +44,21 @@
 「**割り込み点を予測しない**」＝後から割り込みを持つカードが見つかっても、
 **割り込む側だけ書けば済む**ようにする。
 
-済み（コミット `c66f347` / `647c1a7` / `5799782`）:
+**ブランチは `resume-stack`**（`gamestate` から分岐。未 push）。
+
+済み:
 
 1. **対話モードの再実行**（`npm run smoke:interactive`）。既存178パートを
    `interactiveTargets = true` で走らせ、選択を候補の先頭で自動応答する
 2. **保存則の検査**。`act()` のたびにカード総数の差分を見る（故意のリークで発火を確認済み）
 3. **再開スタック**。`PendingChoice.queue` を廃止し `GameState.resumeStack` へ。
    継続が選択待ちから独立したので、深い場所からでも中断できる下地ができた
-4. **中断中の盤面変更ガード**（`BS_DEBUG_CHECKS=1`）
+4. **中断中の盤面変更ガード**（`BS_DEBUG_CHECKS=1`）。導入初日に3件検出し、**すべて解消済み**
+   （うち1件は【転召】の実バグ。回帰テスト part179）
 
 **未着手（次にやる順）**:
 
-1. **⚠️ ガードが検出した3件の扱いを決める**（下記「6. 未決」）
-2. `turnStartResumeStep` を `ResumeFrame` に吸収する
+1. `turnStartResumeStep` を `ResumeFrame` に吸収する
 3. `pendingReviveConfirms` / `pendingDeckMillNegates` を廃し、**本来のタイミングで確認を出す**
    （ユーザー確認済み。今は `handleAction` の末尾まで遅延している）
 4. 既存5つの割り込み（`magicNegate` / `magicRedirect` / `deckMillNegate` / `reviveConfirm` /
@@ -77,7 +79,9 @@
 npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
 ```
 
-**`npm run smoke:interactive` は定型に入れない**（診断用。上記3件の検出で現在 exit 1）。
+**`npm run smoke:interactive` は定型に入れない**（診断用）。
+アサーション失敗が常時300件超あり合否の意味が違うほか、`createGame` のシャッフルで
+**実行ごとに件数が数件ぶれる**。比較は件数でなく失敗ラベルの集合で見ること。
 
 E2E は `PORT=3100 npx tsx server/src/index.ts` を起動してから `PORT=3100 npx tsx scripts/e2e.ts`。
-現在 smoke 6750件・E2E 全緑。
+現在 smoke 6759件・E2E 全緑。
