@@ -912,23 +912,35 @@ const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice
             (s) =>
                 s.cores >= 1 && !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "targeted")),
         )
-        const nexusCandidates = oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
+        // spiritsOnly：「相手のスピリット**上の**コア1個」＝ネクサスは含まない（BS08ダークスカルデーモンLv2）
+        const nexusCandidates = action.spiritsOnly
+            ? []
+            : oppPlayer.field.nexuses.filter((n) => n.cores >= 1)
         const candidates = [...spiritCandidates, ...nexusCandidates].map((i) => i.instanceId)
         // includeReserve 指定時のみ、相手のリザーブも取得元として選べる
         // （BS03-075 犬人マードック＝「相手のフィールド/リザーブから」。
         //  BS02-022 コキュートスは「スピリット1体かネクサス1つ」なのでリザーブを含めない）
         const withReserve = action.includeReserve && oppPlayer.reserve >= 1
         if (withReserve) candidates.push(OPPONENT_RESERVE_TARGET)
+        // chooserIsTarget（BS08ダークスカルデーモンLv2）：「**相手は**、相手のスピリット上のコア1個を〜置く」。
+        // 選ぶのはコアを取られる側だが、解決は発生源の持ち主の効果として行う（actorPid）
         requestChoice(
             state,
             owner,
-            withReserve
-                ? "コアを取り除く相手のスピリット/ネクサス、または相手のリザーブを選択"
-                : "コアを取り除く相手のスピリット/ネクサスを選択",
+            action.chooserIsTarget
+                ? `${sourceName}：コアをトラッシュに置く自分のスピリットを選んでください`
+                : withReserve
+                  ? "コアを取り除く相手のスピリット/ネクサス、または相手のリザーブを選択"
+                  : action.spiritsOnly
+                    ? "コアを取り除く相手のスピリットを選択"
+                    : "コアを取り除く相手のスピリット/ネクサスを選択",
             candidates,
             false,
             action,
             self,
+            "target",
+            undefined,
+            action.chooserIsTarget ? opp : undefined,
         )
         return
 }

@@ -740,9 +740,12 @@
     "turn": "opponent",
     "maxBp": 6000,
     "action": {
-     "type": "coreToTrashSelf",
-     "count": 1
-    }
+     "type": "coreToOpponentTrashChoice",
+     "count": 1,
+     "spiritsOnly": true,
+     "chooserIsTarget": true
+    },
+    "selfMode": "source"
    }
   ]
  },

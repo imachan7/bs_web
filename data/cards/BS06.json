@@ -5948,7 +5948,10 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "noop"
+     "type": "deckReveal",
+     "count": 3,
+     "pickNone": true,
+     "returnToTop": true
     }
    },
    {

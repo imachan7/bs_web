@@ -406,6 +406,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
     ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
     ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
+    ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {
