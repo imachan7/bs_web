@@ -182,9 +182,18 @@ console.log("=== 複数体が候補になったときは1体ずつ確認する�
         `防御側が${WIPE.name}を使用`,
     )
 
-    assert(s.pendingChoice !== null, "1体目の確認が立つ")
+    // 復活の確認が2体ぶん出る＝同時発揮なので、まずターンプレイヤーが
+    // 「どちらから破壊処理をするか」を決める（docs/design/TIMING_CHART.md §0-3）
+    assert(s.pendingChoice?.destroyOrder !== undefined, "同時破壊の解決順の選択が先に立つ")
+    assert(s.pendingChoice?.pid === s.turnPlayer, "順番を決めるのはターンプレイヤー")
+    assert((s.pendingChoice?.options ?? []).length === 2, "候補は2体")
+    const firstPick = (s.pendingChoice?.options ?? [])[0]!
+    assert(act(s, "p1", { type: "resolveChoice", option: firstPick }) === null, "先に解決する1体を指名する")
+    assert(s.pendingChoice?.reviveConfirm !== undefined, "1体目の確認が立つ")
     assert(ALIVE(s, "p1", a.instanceId) && ALIVE(s, "p1", b.instanceId), "2体とも場に残ったまま")
     assert(act(s, "p1", { type: "resolveChoice", option: "復活させる" }) === null, "1体目は復活させる")
+    // 残る候補は1体だけなので、順番の選択はもう出ない
+    assert(s.pendingChoice?.destroyOrder === undefined, "候補が1体になれば順番は聞かない")
     assert(s.pendingChoice !== null, "続けて2体目の確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "2体目はスキップ")
     assert(s.pendingChoice === null, "すべて解決すると選択待ちが無くなる")

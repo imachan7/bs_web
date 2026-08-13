@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId, ResumeFrame } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -19,7 +19,7 @@ import {
     suspend,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { resumeDestroyBatch } from "./removal"
+import { destroyTargetsBatch, resumeDestroyBatch } from "./removal"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -1043,6 +1043,19 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
+    // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
+    if (pending.destroyOrder) {
+        const options = pending.options ?? []
+        if (option === undefined) return "どのスピリットから破壊処理をするか選んでください"
+        const index = options.indexOf(option)
+        const picked = pending.destroyOrder.instanceIds[index]
+        if (index < 0 || picked === undefined) return "選択できない候補です"
+        state.pendingChoice = null
+        state.destroyOrderPick = picked
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、
     // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
     if (pending.deckMillNegate) {
@@ -1178,6 +1191,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (frame.kind === "destroyBatch") {
             resumeDestroyBatch(state, frame)
+            continue
+        }
+        if (frame.kind === "battleResolve") {
+            // 中断していたバトル解決（＞６破壊処理〜＞７バトル終了）を続きのステップから再開する
+            resumeBattleResolution(state, frame)
             continue
         }
         const frameSelf = frame.selfInstanceId
@@ -1344,7 +1362,17 @@ function resolveBattle(state: GameState): void {
     const attackerValue = compareByLevel ? currentLevel(attacker).level : compareByCores ? attacker.cores : attackerBp
     const blockerValue = compareByLevel ? currentLevel(blocker).level : compareByCores ? blocker.cores : blockerBp
 
-    if (attackerValue > blockerValue) {
+    // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
+    // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
+    // （docs/design/TIMING_CHART.md §2。『BPを比べ相手のスピリットだけを破壊したとき』は
+    // 敗者が生き残っても発揮する）
+    const outcome: BattleOutcome =
+        attackerValue > blockerValue
+            ? "attackerWins"
+            : attackerValue < blockerValue
+              ? "blockerWins"
+              : "mutual"
+    if (outcome === "attackerWins") {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
         state.lastBattleDestroyedLevel = blockerLevel
@@ -1354,116 +1382,234 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedBp = blockerBp
         // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
         state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
-        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
-            sourcePid: attackerPid,
-            sourceType: "spirit",
-            battle: { attackerColors, attackerLevel, attackerBp },
-        })
-        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（ブロッカー敗北）。
-        // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
-        if (!state.winner) fireTrigger(state, defenderPid, blocker, "onBattleLose")
-        if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker") // アタッカー勝利
-        if (!state.winner) fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
-    } else if (attackerValue < blockerValue) {
+    } else if (outcome === "blockerWins") {
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp
         state.lastBattleDestroyedCost = getCard(attacker.cardId).cost
-        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
-            sourcePid: defenderPid,
-            sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
-        })
-        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（アタッカー敗北）
-        if (!state.winner) fireTrigger(state, attackerPid, attacker, "onBattleLose")
-        if (!state.winner) fireTrigger(state, defenderPid, blocker, "onBattleWin", "blocker") // ブロッカー勝利
-        if (!state.winner) fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
-    } else {
-        destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
-            sourcePid: attackerPid,
-            sourceType: "spirit",
-            battle: { attackerColors, attackerLevel, attackerBp },
-        })
-        destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
-            sourcePid: defenderPid,
-            sourceType: "spirit",
-            battle: { attackerColors: instColors(blocker), attackerLevel: blockerLevel, attackerBp: blockerBp },
-        })
     }
 
-    // 【呪撃】：アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
-    // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
-    // アタッカー自身がBP比較で破壊されていても発動する（attacker/blocker はローカル参照のため
-    // destroySpirit 後も cardId・cores は読み取れる）。
-    const staticJugeki = (cardId: string, level: number): boolean =>
-        getCard(cardId).effects.some(
-            (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
-        )
-    // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
-    // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
-    const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
-    const hasJugeki = staticJugeki(attacker.cardId, attackerLevel) && !attackerJugekiReplaced
-    if (hasJugeki) {
-        const stillOnField = findSpirit(state.players[defenderPid], blocker.instanceId)
-        if (stillOnField) {
-            if (hasArmorAgainst(stillOnField, attackerColors)) {
-                log(
-                    state,
-                    `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`,
-                )
-            } else {
-                log(
-                    state,
-                    `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
-                )
-                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {
-                    sourcePid: attackerPid,
-                    sourceType: "spirit",
-                    battle: { attackerColors, attackerLevel },
-                })
-            }
+    driveBattleResolution(state, {
+        kind: "battleResolve",
+        step: 1,
+        attackerPid,
+        attackerInstanceId: attacker.instanceId,
+        blockerInstanceId: blocker.instanceId,
+        outcome,
+        attackerColors,
+        blockerColors: instColors(blocker),
+        attackerLevel,
+        blockerLevel,
+        attackerBp,
+        blockerBp,
+        // ＞６に入る直前の写し。破壊されると場から消えるが、『相手のスピリットに破壊されたとき』や
+        // ログのカード名は破壊後にも参照する（destroySpirit と同じく、コア数は破壊直前の値）
+        attackerSnapshot: { ...attacker, coresAtDestruction: attacker.cores },
+        blockerSnapshot: { ...blocker, coresAtDestruction: blocker.cores },
+    })
+}
+
+type BattleOutcome = "attackerWins" | "blockerWins" | "mutual"
+type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
+
+// バトル解決の最終ステップ番号（runBattleStep の switch と対応）
+const BATTLE_LAST_STEP = 11
+
+// ＞６（破壊処理）〜＞７（バトル終了宣言）を1ステップずつ進める。
+// **1ステップ＝中断しうる呼び出し1つ**にしてあるので、選択待ちが立ったら
+// 次のステップ番号を battleResolve フレームに載せて抜ければよい
+// （続きは drainResumeStack が resumeBattleResolution 経由で回す）。
+// docs/design/TIMING_CHART.md ／ docs/design/RESUME_STACK.md §7
+function driveBattleResolution(state: GameState, frame: BattleResolveFrame): void {
+    for (let step = frame.step; step <= BATTLE_LAST_STEP; step++) {
+        runBattleStep(state, frame, step)
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ ...frame, step: step + 1 }])
+            return
         }
     }
+}
 
-    // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
-    // バトルした相手（＝アタッカー）をバトル終了時に破壊する
-    if (hasJugekiOnBlockReplace(state, defenderPid) && staticJugeki(blocker.cardId, blockerLevel)) {
-        const attackerStill = findSpirit(state.players[attackerPid], attacker.instanceId)
-        if (attackerStill) {
-            const blockerColors = instColors(blocker)
-            if (hasArmorAgainst(attackerStill, blockerColors)) {
+// 中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
+export function resumeBattleResolution(state: GameState, frame: BattleResolveFrame): void {
+    driveBattleResolution(state, frame)
+}
+
+// 【呪撃】をそのレベルで静的に持つか（一時付与は見ない）
+function staticJugeki(cardId: string, level: number): boolean {
+    return getCard(cardId).effects.some(
+        (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
+    )
+}
+
+// バトル解決の1ステップ。**中断（pendingChoice）は呼び出し元 driveBattleResolution が見る**ので、
+// ここでは元の解決順にある `!state.winner` ガードだけを保つ
+function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): void {
+    const attackerPid = f.attackerPid
+    const defenderPid = opponentOf(attackerPid)
+    // 破壊された個体は場から消えるので、生存していれば実体を、していなければ写しを使う
+    const attacker =
+        findSpirit(state.players[attackerPid], f.attackerInstanceId) ?? f.attackerSnapshot
+    const blocker = findSpirit(state.players[defenderPid], f.blockerInstanceId) ?? f.blockerSnapshot
+    const attackerContext: DestroyContext = {
+        sourcePid: attackerPid,
+        sourceType: "spirit",
+        battle: {
+            attackerColors: f.attackerColors,
+            attackerLevel: f.attackerLevel,
+            attackerBp: f.attackerBp,
+        },
+    }
+    const blockerContext: DestroyContext = {
+        sourcePid: defenderPid,
+        sourceType: "spirit",
+        battle: {
+            attackerColors: f.blockerColors,
+            attackerLevel: f.blockerLevel,
+            attackerBp: f.blockerBp,
+        },
+    }
+
+    switch (step) {
+        // ＞６：破壊処理。相打ちは**同時破壊**なので1つのバッチにまとめる
+        // （復活の確認が2体に出るなら、バッチがターンプレイヤーに順番を聞く。TIMING_CHART.md §0-3）。
+        // 破壊元は対象ごとに違う（ブロッカーを破壊したのはアタッカー、その逆も同様）ため context も対象ごとに渡す
+        case 1: {
+            if (f.outcome === "attackerWins") {
+                destroyTargetsBatch(state, attackerPid, [
+                    { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
+                ])
+            } else if (f.outcome === "blockerWins") {
+                destroyTargetsBatch(state, defenderPid, [
+                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
+                ])
+            } else {
+                destroyTargetsBatch(state, attackerPid, [
+                    { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
+                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
+                ])
+            }
+            return
+        }
+        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（敗北側）。
+        // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
+        case 2: {
+            if (state.winner) return
+            if (f.outcome === "attackerWins") fireTrigger(state, defenderPid, blocker, "onBattleLose")
+            else if (f.outcome === "blockerWins") fireTrigger(state, attackerPid, attacker, "onBattleLose")
+            return
+        }
+        // 勝利側の『このスピリットのバトル時』（相打ちでは発火しない）
+        case 3: {
+            if (state.winner) return
+            if (f.outcome === "attackerWins") {
+                fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker")
+            } else if (f.outcome === "blockerWins") {
+                fireTrigger(state, defenderPid, blocker, "onBattleWin", "blocker")
+            }
+            return
+        }
+        // 勝利側フィールドのネクサス等による『BPを比べ相手のスピリットだけを破壊したとき』
+        case 4: {
+            if (state.winner) return
+            if (f.outcome === "attackerWins") {
+                fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
+            } else if (f.outcome === "blockerWins") {
+                fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
+            }
+            return
+        }
+        // ＞７：【呪撃】。アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
+        // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
+        // アタッカー自身がBP比較で破壊されていても発動する。
+        // ＞６で「フィールドに残る」を使って生き残った個体もここでは対象になる（TIMING_CHART.md §2）
+        case 5: {
+            // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
+            // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
+            const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
+            if (!staticJugeki(attacker.cardId, f.attackerLevel) || attackerJugekiReplaced) return
+            const stillOnField = findSpirit(state.players[defenderPid], f.blockerInstanceId)
+            if (!stillOnField) return
+            if (hasArmorAgainst(stillOnField, f.attackerColors)) {
+                log(state, `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`)
+                return
+            }
+            log(
+                state,
+                `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
+            )
+            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
+            destroyTargetsBatch(state, attackerPid, [
+                {
+                    pid: defenderPid,
+                    instanceId: f.blockerInstanceId,
+                    context: {
+                        sourcePid: attackerPid,
+                        sourceType: "spirit",
+                        battle: { attackerColors: f.attackerColors, attackerLevel: f.attackerLevel },
+                    },
+                },
+            ])
+            return
+        }
+        // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
+        // バトルした相手（＝アタッカー）をバトル終了時に破壊する
+        case 6: {
+            if (!hasJugekiOnBlockReplace(state, defenderPid)) return
+            if (!staticJugeki(blocker.cardId, f.blockerLevel)) return
+            const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
+            if (!attackerStill) return
+            if (hasArmorAgainst(attackerStill, f.blockerColors)) {
                 log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
-            } else {
-                log(
-                    state,
-                    `${getCard(blocker.cardId).name}の【呪撃】（ブロック時）：${getCard(attacker.cardId).name}を破壊した。`,
-                )
-                applyJugekiCoreToVoid(state, defenderPid, attackerPid, attackerStill)
-                destroySpirit(state, attackerPid, attacker.instanceId, "destroy", {
-                    sourcePid: defenderPid,
-                    sourceType: "spirit",
-                    battle: { attackerColors: blockerColors, attackerLevel: blockerLevel },
-                })
+                return
             }
+            log(
+                state,
+                `${getCard(blocker.cardId).name}の【呪撃】（ブロック時）：${getCard(attacker.cardId).name}を破壊した。`,
+            )
+            applyJugekiCoreToVoid(state, defenderPid, attackerPid, attackerStill)
+            destroyTargetsBatch(state, defenderPid, [
+                {
+                    pid: attackerPid,
+                    instanceId: f.attackerInstanceId,
+                    context: {
+                        sourcePid: defenderPid,
+                        sourceType: "spirit",
+                        battle: { attackerColors: f.blockerColors, attackerLevel: f.blockerLevel },
+                    },
+                },
+            ])
+            return
+        }
+        // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
+        // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
+        case 7: {
+            const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
+            if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+            return
+        }
+        case 8: {
+            if (state.winner) return
+            const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
+            if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+            return
+        }
+        case 9: {
+            resolveKoboOnBattleEnd(state, attackerPid, attacker)
+            return
+        }
+        // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
+        // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
+        case 10: {
+            if (hasKoboOnBlock(state, defenderPid)) {
+                resolveKoboOnBattleEnd(state, defenderPid, blocker)
+            }
+            return
+        }
+        case 11: {
+            clearBattle(state)
+            return
         }
     }
-
-    // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
-    // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
-    const survivingAttacker = findSpirit(state.players[attackerPid], attacker.instanceId)
-    if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
-    if (!state.winner) {
-        const survivingBlocker = findSpirit(state.players[defenderPid], blocker.instanceId)
-        if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
-    }
-
-    resolveKoboOnBattleEnd(state, attackerPid, attacker)
-    // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
-    // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
-    if (hasKoboOnBlock(state, defenderPid)) {
-        resolveKoboOnBattleEnd(state, defenderPid, blocker)
-    }
-    clearBattle(state)
 }

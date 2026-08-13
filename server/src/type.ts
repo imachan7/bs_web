@@ -1528,6 +1528,13 @@ export interface PendingChoice {
         sourceInstanceId: string
         context?: DestroyContext
     }
+    destroyOrder?: {
+        // 同時に破壊される複数体のうち「**どの体から破壊処理をするか**」の選択待ち。
+        // reviveConfirm と同じく **action は解決しない**。選ぶのは常にターンプレイヤーで、
+        // 選ばれた個体は GameState.destroyOrderPick に記録され、破壊バッチが残りの先頭へ入れ替える。
+        // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
+        instanceIds: string[] // 候補の instanceId（PendingChoice.options と同順）
+    }
     deckMillNegate?: {
         // 「デッキの破棄を、コストを払って無効にできる」の確認待ち。reviveConfirm と同じく **action は解決しない**。
         // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
@@ -1579,7 +1586,10 @@ export type ResumeFrame =
           // （docs/design/RESUME_STACK.md §7 ①）
           kind: "destroyBatch"
           ownerPid: PlayerId // after を解決する側（効果の持ち主）
-          targets: { pid: PlayerId; instanceId: string }[]
+          // context を対象ごとに変えられる（省略時はバッチ共通の context）。
+          // バトルの相打ちは「ブロッカーを破壊したのはアタッカー／アタッカーを破壊したのはブロッカー」と
+          // 破壊元が対象ごとに違うため、1つの同時破壊の中で使い分ける必要がある
+          targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[]
           index: number
           destroyed: number
           context?: DestroyContext
@@ -1589,6 +1599,29 @@ export type ResumeFrame =
               voidCoreToSelfPerDestroyed?: true
               selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
           }
+      }
+    | {
+          // バトル解決（＞５のBP比較が終わった後 〜 ＞７のバトル終了宣言）の続き。
+          // 破壊処理・各誘発・【呪撃】・【光芒】のどこでも選択待ちが立ちうるので、
+          // **1ステップ＝中断しうる呼び出し1つ**に割って step で再入する。
+          // docs/design/TIMING_CHART.md（＞５〜＞７）／RESUME_STACK.md §7
+          kind: "battleResolve"
+          step: number // 次に実行するステップ番号（BATTLE_STEPS の並び）
+          attackerPid: PlayerId
+          attackerInstanceId: string
+          blockerInstanceId: string
+          outcome: "attackerWins" | "blockerWins" | "mutual" // ＞５のBP比較の結果（＞６以降で覆らない）
+          attackerColors: Color[]
+          blockerColors: Color[]
+          attackerLevel: number
+          blockerLevel: number
+          attackerBp: number
+          blockerBp: number
+          // 破壊された個体は場から消えるが、『相手のスピリットに破壊されたとき』（onBattleLose）や
+          // ログのカード名は破壊後にも参照する。中断をまたぐと元の参照が失われるので、
+          // ＞６に入る直前の写しを持ち回る（coresAtDestruction は destroySpirit と同じく破壊直前のコア数）
+          attackerSnapshot: CardInstance
+          blockerSnapshot: CardInstance
       }
 
 // ゲーム全体の状態（サーバーで一元管理）
@@ -1636,6 +1669,10 @@ export interface GameState {
     // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。
     // 承認して場に残った／手札へ戻った場合は false。読み取ったら消す
     lastReviveDestroyed?: boolean
+    // 直前の「どの体から破壊処理をするか」（PendingChoice.destroyOrder）でターンプレイヤーが選んだ instanceId。
+    // 破壊バッチ（destroySpiritsFrom）が再開時に読み取り、その個体を残りの先頭へ入れ替えて消す。
+    // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）
+    destroyOrderPick?: string
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

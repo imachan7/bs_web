@@ -178,7 +178,7 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 実装（`doSummon`）は**先に**インスタンスを作って維持コアを置き、場に出してから `resolveTensho` を呼ぶ。
 転召の解決中に「自分のスピリットの数」を数える効果があると差が出うる。要確認。
 
-## 7. 残作業：確認を本来のタイミングへ戻す（未着手・規模の実測あり）
+## 7. 確認を本来のタイミングへ戻す（2026-08-14 完了）
 
 `pendingReviveConfirms` / `pendingDeckMillNegates` の2本を廃し、
 確認をそれが起きる瞬間に出す（ユーザー承認済み）。**ただし規模が段違いなので分けて進める。**
@@ -186,7 +186,7 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 | 対象 | 中断させたい関数 | 呼び出し箇所 | 状態 |
 | :-- | :-- | --: | :-- |
 | デッキ破棄の無効化 | `millDeck` | **8** | **完了**（2026-08-13） |
-| 破壊の代わりに復活 | `destroySpirit` | **48**（8ファイル） | **着手中**（`destroyAll` のみ移行済み） |
+| 破壊の代わりに復活 | `destroySpirit` | **48**（8ファイル） | **完了**（2026-08-14。①に当たる経路をすべてバッチ化。②は下記のとおり移行しないのが正しい） |
 
 `millDeck` 側が安く済んだ理由：**8箇所すべてが「millDeck の後ろに処理が無い」か
 「返り値0でスキップされる」**だった（【粉砕】の集計は `if (actual > 0)` の中にあり、
@@ -237,6 +237,11 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 （「破壊されたときフィールドに残る」など）の解決は**その後**になる。
 したがって〇〇は復活の有無にかかわらず発揮される。
 
+**⚠️ ①②はどちらも「効果による破壊」の話で、バトルのBP比較とは別**（2026-08-14 ユーザー確認）。
+『BPを比べ相手のスピリットだけを破壊したとき』（`kind:"battleWon"` 35枚・`onBattleLose` 1枚）は、
+**敗者が「フィールドに残る」で生き残っても発揮する**。BP比較（＞５）は破壊処理（＞６）より先に
+決着しているため（[TIMING_CHART.md](./TIMING_CHART.md) §2）。
+
 #### 実装への当てはめ
 
 現状 `drawPerDestroyed`（BS08ドラゴンスクランブル）と `voidCoreToSelfPerDestroyed`
@@ -257,10 +262,11 @@ batch 化すると、誤った数え方を固定してしまう）。
   `voidCoreToSelfPerDestroyed`）を**実際に破壊できた数**で適用する
 - **⚠️ 中断の原因になった1体はループの外（`declineReviveConfirm`）で破壊される**ため、
   素朴に数えると取りこぼす。`GameState.lastReviveDestroyed` で結果を持ち回って算入している
-- 移行は**呼び出し元ごとに切り替えられる**：`destroySpirit(..., { allowSuspend: true })` を
-  渡した経路だけがその場で確認を出し、渡していない経路は従来どおり
-  `pendingReviveConfirms` に積む。**これは移行途中の状態なので、残りを移し終えたら
-  `allowSuspend` と `pendingReviveConfirms` の両方を消すこと**
+- `destroySpirit(..., { allowSuspend: true })` を渡した経路は**その場で**確認を出し、
+  渡していない経路は `pendingReviveConfirms` に積んで**アクションの末尾まで遅らせる**。
+  当初これは「移行途中の目印」だったが、**①と②の使い分けそのもの**であることが分かったので残す
+  （2026-08-14 追記。①＝その場で聞く／②＝恩恵の後に聞く。下の「移行しないもの」を参照）。
+  **どちらも消さないこと**
 
 ### 移行の進捗（2026-08-13）
 
@@ -283,14 +289,37 @@ batch 化すると、誤った数え方を固定してしまう）。
 派生効果（フィールドに残る）の解決は恩恵の**後**なので、
 **ここで中断してはいけない**（恩恵は復活の有無にかかわらず発揮される）。
 
-**未移行（残り）**:
+### バトル解決の移行（2026-08-14 完了）
 
-| 場所 | 形 | なぜ残っているか |
-| :-- | :-- | :-- |
-| `GameEngine.ts` のバトル解決 6箇所 | アタッカー／ブロッカーの相互破壊 | バトルの後処理（【呪撃】・【光芒】・`clearBattle`）が続き、形が他と違う。**別途着手する** |
+`GameEngine.ts` のバトル解決6箇所は形が他と違う。**破壊のあとに後処理が長く続く**
+（勝敗誘発 →【呪撃】→ `onBattleEnd` →【光芒】→ `clearBattle`）ため、
+「破壊だけ再開できればよい」他の呼び出し元と違い、**解決全体を再入可能にする必要があった**。
 
-バトル解決は①（別効果の「破壊したとき」）が効く場所なので、**残すと確認のタイミングがズレたままになる**。
-移行を終えたら `allowSuspend` と `pendingReviveConfirms` の両方を消すこと。
+- `ResumeFrame` に `kind: "battleResolve"` を追加。**1ステップ＝中断しうる呼び出し1つ**として
+  `runBattleStep()` の `switch`（1〜11）に割り、`driveBattleResolution()` が順に回す。
+  途中で `pendingChoice` が立ったら `{...frame, step: step + 1}` を積んで抜ける
+- **＞５（BP比較）の結果は `outcome` としてフレームに載せる**。＞６以降で盤面が変わっても
+  勝敗は覆らない（[TIMING_CHART.md](./TIMING_CHART.md) §2）
+- **破壊された個体は場から消えるので、＞６に入る直前の写しをフレームに持つ**
+  （`attackerSnapshot` / `blockerSnapshot`）。`onBattleLose` の発火とログのカード名が
+  破壊後にも発生源を要求するため。生存していれば実体を、していなければ写しを使う
+- 相打ちは**1つの `destroyTargetsBatch` にまとめる**（＝＞６の同時破壊）。
+  破壊元が対象ごとに違うので、`targets[]` の要素ごとに `context` を持てるようにした
+
+### 同時破壊の解決順（2026-08-14 ユーザー確認）
+
+**同時に発揮する効果はターンプレイヤーが順番を決める**（[TIMING_CHART.md](./TIMING_CHART.md) §0）。
+これを「フィールドに残る」の確認に当てはめ、`destroySpiritsFrom()` が1体を処理する前に:
+
+1. 残りの対象のうち**確認が出る候補**を `wouldAskReviveConfirm()`（副作用なしの下見）で数える
+2. **2体以上なら**ターンプレイヤーに `PendingChoice.destroyOrder` で聞いて中断する
+   （1体以下なら順番に意味が無いので聞かない）
+3. 答えは `GameState.destroyOrderPick` に載り、再開時にその個体を残りの先頭へ入れ替える
+
+粒度は**体ごと**（選んだ側の「残る」→「破壊されたとき」を最後まで解決してから、もう片方へ）。
+バトルの相打ちに限らず `destroyAll` のような同時破壊にも同じく効く。
+
+**未移行はゼロ**。残る非バッチ経路はすべて下の「移行しないもの」＝ルール②である。
 
 ## 8. 決着済みの判断（2026-08-13 ユーザー確認）
 
@@ -308,3 +337,4 @@ batch 化すると、誤った数え方を固定してしまう）。
 - どの層で聞けるか・3つのパターン: [INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md)
 - コストの一般則: [COST_MODEL.md](./COST_MODEL.md)
 - 「相手は」の選択者: [CHOOSER_RULES.md](./CHOOSER_RULES.md)
+- バトル中の解決順・同時発揮の一般則: [TIMING_CHART.md](./TIMING_CHART.md)

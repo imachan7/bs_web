@@ -207,6 +207,13 @@ export function destroySpirit(
     context?: DestroyContext,
     // skipRevive: 復活の確認で「復活させない」が選ばれたあとの破壊。
     // 再び復活判定に入って無限に確認を出すのを防ぐ
+    //
+    // allowSuspend: 「フィールドに残る」の確認を**その場で**出してよい呼び出し元の印。
+    // これは移行の途中経過ではなく、**①と②の使い分けそのもの**（RESUME_STACK.md §7）:
+    //   ① 「破壊する」＋別効果の「破壊したとき」  → その場で聞く（＝allowSuspend を渡す）
+    //   ② 「破壊する"ことで"〜する」＝同時発揮     → 恩恵の後に聞く（＝渡さずに
+    //      pendingReviveConfirms へ積み、アクションの末尾で確認する）
+    // どちらも必要なので、片方を消してはいけない
     options?: { skipRevive?: true; allowSuspend?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
@@ -376,21 +383,96 @@ function suspendReviveConfirm(
     })
 }
 
+// 直前の「どの体から破壊処理をするか」で指名された個体を、残りの先頭（index）へ入れ替える。
+// 指名が無ければ false（＝これから聞く必要があるかもしれない）
+function applyDestroyOrderPick(
+    state: GameState,
+    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
+    index: number,
+): boolean {
+    const pick = state.destroyOrderPick
+    if (pick === undefined) return false
+    delete state.destroyOrderPick
+    const j = targets.findIndex((t, k) => k >= index && t.instanceId === pick)
+    const head = targets[index]
+    const picked = j >= 0 ? targets[j] : undefined
+    if (j > index && head && picked) {
+        targets[index] = picked
+        targets[j] = head
+    }
+    return true
+}
+
+// 残りの対象のうち「フィールドに残る」の確認が出る候補が2体以上なら、
+// ターンプレイヤーに解決順を聞いて中断する（聞いたら true）。
+// 候補が1体以下なら順番に意味が無いので聞かない（TIMING_CHART.md §0-3）
+function askDestroyOrder(
+    state: GameState,
+    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
+    index: number,
+    context?: DestroyContext,
+): boolean {
+    if (!state.interactiveTargets) return false
+    const candidates = targets
+        .slice(index)
+        .filter((t) => wouldAskReviveConfirm(state, t.pid, t.instanceId, t.context ?? context))
+    if (candidates.length < 2) return false
+    // 同名カードが並ぶと選択肢が重複して区別できないため、先頭に番号を振る
+    const options = candidates.map(
+        (t, k) =>
+            `${k + 1}. ${state.players[t.pid].name}の${getCard(
+                state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)?.cardId ?? "",
+            ).name}`,
+    )
+    suspend(state, {
+        pid: state.turnPlayer,
+        kind: "option",
+        prompt: "同時に破壊されるスピリットのうち、どれから破壊処理をしますか？",
+        candidates: [],
+        options,
+        optional: false,
+        destroyOrder: { instanceIds: candidates.map((t) => t.instanceId) },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+    return true
+}
+
+// この個体を今このコンテキストで破壊しようとしたとき、
+// 「破壊される代わりに復活させますか？」の確認が出るか（**副作用なし**）。
+// 同時破壊で解決順をターンプレイヤーに聞くかどうかの判定にだけ使う
+export function wouldAskReviveConfirm(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+    context?: DestroyContext,
+): boolean {
+    const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
+    if (!inst) return false
+    return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, true)
+}
+
 // 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
 // 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 // 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
 export function destroySpiritsFrom(
     state: GameState,
-    targets: { pid: PlayerId; instanceId: string }[],
+    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
     startIndex: number,
     destroyedSoFar: number,
     context?: DestroyContext,
 ): { destroyed: number; stoppedAt: number } {
     let destroyed = destroyedSoFar
     for (let i = startIndex; i < targets.length; i++) {
+        // 同時破壊で「フィールドに残る」の確認が2体以上に出るなら、
+        // どの体から破壊処理をするかをターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3）。
+        // 直前の選択で指名された個体があればそれを先頭へ入れ替え、無ければ必要に応じて聞く
+        if (!applyDestroyOrderPick(state, targets, i) && askDestroyOrder(state, targets, i, context)) {
+            return { destroyed, stoppedAt: i }
+        }
         const t = targets[i]
         if (!t) continue
-        if (destroySpirit(state, t.pid, t.instanceId, "destroy", context, { allowSuspend: true })) {
+        if (destroySpirit(state, t.pid, t.instanceId, "destroy", t.context ?? context, { allowSuspend: true })) {
             destroyed++
         }
         if (state.winner) return { destroyed, stoppedAt: targets.length }
@@ -408,7 +490,7 @@ export function destroySpiritsFrom(
 export function destroyTargetsBatch(
     state: GameState,
     ownerPid: PlayerId,
-    targets: { pid: PlayerId; instanceId: string }[],
+    targets: { pid: PlayerId; instanceId: string; context?: DestroyContext }[],
     context?: DestroyContext,
     after?: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
 ): number {
@@ -530,8 +612,11 @@ function tryReviveOnDestroy(
     // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
     forced?: { effectId: string },
     // true なら「破壊される代わりに復活できる」の確認を**その場で**出す（保留リストに積まない）。
-    // destroySpirits のバッチ経由の呼び出しだけが立てる
+    // ①の破壊（destroySpirits のバッチ経由）だけが立てる。②は渡さず保留へ（destroySpirit の注記）
     allowSuspend?: boolean,
+    // true なら**判定だけ**して結果を返す（確認も復活も実行しない）。
+    // 「確認が2件以上出るか」を数えるための下見に使う（wouldAskReviveConfirm）
+    probe?: boolean,
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -728,6 +813,7 @@ function tryReviveOnDestroy(
         // それ以外の呼び出し元はまだ中断を受け止められないので、従来どおり保留へ積む
         // （移行の途中。残りの呼び出し元は docs/design/RESUME_STACK.md §7）
         if (effect.optional && state.interactiveTargets && !forced) {
+            if (probe) return true // 下見：ここで確認が出る
             if (allowSuspend) {
                 suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
             } else {
@@ -735,6 +821,8 @@ function tryReviveOnDestroy(
             }
             return true
         }
+        // 下見は確認の有無だけを見る。任意でない復活（＝確認を出さずに確定する）はここで打ち切る
+        if (probe) return false
         if (!applyCost(effect)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
@@ -782,11 +870,19 @@ function tryReviveOnDestroy(
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (oncePerTurnBlocked(effect, source)) continue
-            // optional は self 由来と同じく保留する（発生源は source 側＝oncePerTurn の記録先）
+            // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
+            // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
             if (effect.optional && state.interactiveTargets && !forced) {
-                queueReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
+                if (probe) return true // 下見：ここで確認が出る
+                if (allowSuspend) {
+                    suspendReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
+                } else {
+                    queueReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
+                }
                 return true
             }
+            // 下見は確認の有無だけを見る。任意でない復活は確認を出さないので、次の発生源を見に行く
+            if (probe) continue
             if (!applyCost(effect)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name

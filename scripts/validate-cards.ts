@@ -408,6 +408,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
+    ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

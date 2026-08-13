@@ -960,28 +960,18 @@ process.on("exit", () => {
     __recAwaken()
     from.cores -= count`,
         )
+        // ※ 2026-08-14: バトル解決を再開可能なステップ列（runBattleStep）に割ったため、
+        //    【呪撃】の破壊は case 5 の中へ移動した。差し込み先もその形に合わせる
         patch(
             ge,
-            `            } else {
-                log(
-                    state,
-                    \`\${getCard(attacker.cardId).name}の【呪撃】：\${getCard(blocker.cardId).name}を破壊した。\`,
-                )
-                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
-            `            } else {
-                log(
-                    state,
-                    \`\${getCard(attacker.cardId).name}の【呪撃】：\${getCard(blocker.cardId).name}を破壊した。\`,
-                )
-                const __jugekiEntry = getCard(attacker.cardId).effects.find(
-                    (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, attackerLevel),
-                )
-                if (__jugekiEntry) __covRecord("cont\\t" + String((__jugekiEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
+            `            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)`,
+            `            const __jugekiEntry = getCard(attacker.cardId).effects.find(
+                (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, f.attackerLevel),
+            )
+            if (__jugekiEntry) __covRecord("cont\\t" + String((__jugekiEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)`,
         )
 
         // (6) createInstance 本体の先頭に「場に出たカード」の記録を挿す
