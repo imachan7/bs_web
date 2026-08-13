@@ -75,6 +75,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **枚数ベースで完了を数えない**（「135枚中123枚」のような数え方）。1枚に効果が複数あるため、
 枚数で数えると落ちが見えない。数えるなら**効果節の単位**で数える。
 
+**セッションを引き継いだときは [HANDOFF.md](./HANDOFF.md) を最初に読む**（未決事項・決着済みの論点・次の候補）。
+
 ## 検証コマンド
 
 - `npm run typecheck` — tsc --noEmit
