@@ -39,6 +39,7 @@ import {
     declineMagicNegateChoice,
     fireBattleWonTriggers,
     fireExhaustedTriggers,
+    fireSummonSequence,
     fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
@@ -384,8 +385,13 @@ function doBattleSwapSummon(
         }
     }
 
-    fireSummonTrigger(state, pid, inst)
+    // doSummon と同じ順序：【転召】→ 召喚時効果（中断したら queue で合流する）
     if (!state.winner) resolveTensho(state, pid, inst)
+    if (state.pendingChoice) {
+        state.pendingChoice.queue.push({ selfInstanceId: inst.instanceId, action: { type: "summonSequence" } })
+    } else {
+        fireSummonSequence(state, pid, inst)
+    }
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
     return null
@@ -453,31 +459,14 @@ function doSummon(
     log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
     emitEvent(state, { type: "summon", pid, cardName: card.name })
 
-    fireSummonTrigger(state, pid, inst)
-    // 【転召】：召喚コスト支払い後、対象がいれば上のコアすべてをdestへ（勝敗決定後や消滅後の重複解決を避けるためwinner未確定時のみ）
+    // 【転召】を先に解決する：対象を選び、その上のコアすべてをdestへ置く（多くの場合そこで消滅する）。
+    // **召喚時効果はこの後**（2026-08-13 修正。以前は逆順で、犠牲が消える前に召喚時効果が出ていた）
     if (!state.winner) resolveTensho(state, pid, inst)
-    // フィールドからの「自分のスピリットが召喚されたとき」誘発（七龍帝の玉座Lv2／鋼葉の樹林Lv2）。
-    // self には召喚されたスピリットを渡す（maxBpFromSelf が「召喚されたスピリットのBP以下」を参照するため）。
-    // 転召でコアが尽きて消滅した場合は発火させない
-    const stillOnField = player.field.spirits.some((s) => s.instanceId === inst.instanceId)
-    if (!state.winner && stillOnField) {
-        fireFieldEventTriggers(
-            state,
-            pid,
-            "ownSpiritSummoned",
-            { pid, inst },
-            undefined,
-            undefined,
-            undefined,
-            { families: card.family },
-        )
-    }
-    // 天使長ファニム：召喚した側（pid）から見た相手がsummonedExhaustGrantを持つ間、
-    // 召喚されたこのスピリットは疲労する（kind:"summonedExhaustGrant"）
-    if (!state.winner && player.field.spirits.some((s) => s.instanceId === inst.instanceId)) {
-        if (hasSummonedExhaustGrant(state, opponentOf(pid))) {
-            exhaustSpirit(state, pid, inst)
-        }
+    if (state.pendingChoice) {
+        // 転召の対象選択で中断した。選択の解決後に続きへ合流させる（queue は同一解決内の残り処理を積む場所）
+        state.pendingChoice.queue.push({ selfInstanceId: inst.instanceId, action: { type: "summonSequence" } })
+    } else {
+        fireSummonSequence(state, pid, inst)
     }
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)

@@ -700,11 +700,11 @@ process.on("exit", () => {
         // keyword「転召」: resolveTensho の解決時点（effect が既に対象の keyword エントリそのもの）
         patch(
             em,
-            `    if (!effect || effect.kind !== "keyword") return
-    const minCost = effect.minCost ?? 0`,
-            `    if (!effect || effect.kind !== "keyword") return
-    __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-    const minCost = effect.minCost ?? 0`,
+            `    if (!spec) return
+    const { minCost, dest } = spec`,
+            `    if (!spec) return
+    __covRecord("cont\\t" + String((spec.entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+    const { minCost, dest } = spec`,
         )
         // colorAs: refreshLevelAsOverrides の colorsAsContinuous 代入点
         patch(

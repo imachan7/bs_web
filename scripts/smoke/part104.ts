@@ -134,6 +134,7 @@ console.log("=== BS05-X19 聖皇ジークフリーデン Lv1-3：召喚時、コ
     const c = put(s, "p2", "BS03-065", 1) // 天使キュリオ：コスト6（予算を超えるため対象外）
     s.players.p1.hand[0] = "BS05-X19"
     s.players.p1.reserve = 15
+    put(s, "p1", "BS02-023", 1) // 【転召:コスト6以上】の犠牲（効果を持たないコスト6のスピリット）
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ジークフリーデンを召喚")
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === a.instanceId), "コスト3のスピリットは破壊される（合計3）")

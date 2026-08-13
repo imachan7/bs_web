@@ -12,6 +12,7 @@ import {
     findSpiritAny,
     matchesFamilyFilter,
     fireFieldEventTriggers,
+    fireSummonSequence,
     fireSummonTrigger,
     fireTrigger,
     notifyNexusDeployed,
@@ -679,6 +680,14 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
         return
 }
 
+// 【転召】の対象選択で中断した召喚の続き（cards.jsonには書かない内部専用）。
+// GameEngine が pendingChoice.queue へ積み、選択の解決後にここで召喚時効果以降へ合流する
+const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx) => {
+    const { state, owner, self } = ctx
+    if (!self) return
+    fireSummonSequence(state, owner, self)
+}
+
 const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）の
@@ -794,6 +803,7 @@ const handlers = {
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,
     refireSummonEffect: refireSummonEffectHandler,
+    summonSequence: summonSequenceHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

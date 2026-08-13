@@ -407,6 +407,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
     ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
+    ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

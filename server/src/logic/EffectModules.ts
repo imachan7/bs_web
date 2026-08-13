@@ -54,6 +54,7 @@ import {
 import { destroySpirit } from "./removal"
 import {
     fireFieldEventTriggers,
+    fireSummonTrigger,
     fireTrigger,
     notifyHandGained,
     notifyNexusDeployed,
@@ -926,6 +927,32 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
     return false
 }
 
+// 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
+// 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
+//
+// **【転召】より後に呼ぶこと**（2026-08-13 修正）。以前は召喚時効果が転召より先に発揮されていた。
+// 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
+// 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
+// pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
+export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance): void {
+    if (state.winner) return
+    const player = state.players[pid]
+    // 転召でコアが尽きて消滅していれば、もう何もしない
+    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
+    fireSummonTrigger(state, pid, inst)
+    const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
+    if (!state.winner && stillOnField()) {
+        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, undefined, undefined, undefined, {
+            families: getCard(inst.cardId).family,
+        })
+    }
+    // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
+    // 召喚されたこのスピリットは疲労する
+    if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
+        exhaustSpirit(state, pid, inst)
+    }
+}
+
 // kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 // 「相手のスピリットは召喚されたとき疲労する」を持つ発生源が有効か（condition.selfRestedは発生源自身が
 // 疲労状態のときのみ）。GameEngine.doSummonが召喚した側から見た相手（=このgrantの持ち主）に対して呼ぶ
@@ -1107,26 +1134,48 @@ export const TENSHO_SUBSTITUTE_DUMP = "疲労せずコアを置く"
 // 【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 // 自分の他スピリットからコストがminCost以上の候補を集め、上のコアすべてをdestへ置く
 // （0体=不発、1体=自動選択、2体以上はinteractiveTargets時のみpendingChoice、それ以外はコスト最大を決定的選択）。
+// そのカードが指定レベルで持つ【転召】（無ければ null）。
+// 召喚の可否判定（RuleValidator.validateSummon）と解決（resolveTensho）で同じ実装を通す
+// entry は【転召】の keyword エントリそのもの（実行時カバレッジ計測が __eid を読む）
+export function tenshoSpecOf(
+    card: CardData,
+    level: number,
+): { entry: EffectDef; minCost: number; dest: "trash" | "void" } | null {
+    const effect = card.effects.find(
+        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
+    )
+    if (!effect || effect.kind !== "keyword") return null
+    return { entry: effect, minCost: effect.minCost ?? 0, dest: effect.dest ?? "trash" }
+}
+
+// 【転召】でコアを置く対象になれる自分のスピリット。
+// 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る。
+// tenshoSelfCostBonus（BS08冥機グングニル）：このコスト判定でだけ候補自身のコストに+amountする。
+// excludeInstanceId には召喚された本人を渡す（召喚前の可否判定では省略する＝場にまだいないため）
+export function tenshoCandidates(
+    state: GameState,
+    ownerPid: PlayerId,
+    minCost: number,
+    excludeInstanceId?: string,
+): CardInstance[] {
+    return state.players[ownerPid].field.spirits.filter(
+        (s) =>
+            s.instanceId !== excludeInstanceId &&
+            (instMatchesCostFilter(s, { min: minCost }) ||
+                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
+    )
+}
+
 export function resolveTensho(
     state: GameState,
     ownerPid: PlayerId,
     spirit: CardInstance,
 ): void {
     const level = currentLevel(spirit).level
-    const effect = getCard(spirit.cardId).effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
-    )
-    if (!effect || effect.kind !== "keyword") return
-    const minCost = effect.minCost ?? 0
-    const dest = effect.dest ?? "trash"
-    // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る。
-    // tenshoSelfCostBonus（BS08冥機グングニル）：このコスト判定でだけ候補自身のコストに+amountする
-    const candidates = state.players[ownerPid].field.spirits.filter(
-        (s) =>
-            s.instanceId !== spirit.instanceId &&
-            (instMatchesCostFilter(s, { min: minCost }) ||
-                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
-    )
+    const spec = tenshoSpecOf(getCard(spirit.cardId), level)
+    if (!spec) return
+    const { minCost, dest } = spec
+    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId)
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
         return
