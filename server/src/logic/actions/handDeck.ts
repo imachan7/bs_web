@@ -750,6 +750,10 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // BS07ドラグロン占術師：手札に戻したカードが指定系統のときだけ、続けて相手1体を破壊する。
         // トラッシュのカードが対象なのでカード静的な family で判定する（回収条件の familyOk と同じ扱い）
         const followUp = (recoveredIds: string[]): void => {
+            // 「ドローしないことで」（BS07常闇の聖堂Lv2）：ドロー自体が支払い。
+            // **実際に手札へ戻せたときだけ**支払う（対象がいなくて不発なら、ドローはそのまま行う）。
+            // ドローより前に発火する区間（step.beforeDraw）から呼ばれるので、この後の区間が引かずに進む
+            if (action.costSkipDraw && recoveredIds.length > 0) state.drawStepSkipped = true
             const spec = action.thenDestroyIfFamily
             if (spec === undefined) return
             const wanted = Array.isArray(spec.family) ? spec.family : [spec.family]

@@ -35,12 +35,24 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             fireStepTriggers(state, "core")
         },
-        // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
+        // ドローステップ①：ドローより前に発火する効果（「ドローしないことで〜する」）。
+        // ここで選択待ちになると、再開は**次の区間＝ドロー**からになるので、
+        // 「発動を確認してからドローする／しない」が成立する（区間を分けているのはこのため）
         () => {
             state.phase = "draw"
-            draw(state, pid, 1, true)
+            state.drawStepSkipped = false
+            fireStepTriggers(state, "draw", undefined, "enter", "beforeDraw")
+        },
+        // ドローステップ②：ドロー本体（先攻1ターン目も通常通りドローする。公式ルール）と、
+        // ドローの後に発火する効果（引いたカードを破棄の対象にできる百識の谷Lv1など）
+        () => {
+            if (state.drawStepSkipped) {
+                log(state, `${player.name}は効果のコストとしてドローしなかった。`)
+            } else {
+                draw(state, pid, 1, true)
+            }
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
-            fireStepTriggers(state, "draw")
+            fireStepTriggers(state, "draw", undefined, "enter", "afterDraw")
         },
         // リフレッシュステップ：トラッシュのコアをリザーブに戻し、全回復
         () => {

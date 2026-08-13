@@ -3734,8 +3734,10 @@
     "action": {
      "type": "recoverSpiritFromTrash",
      "count": 1,
-     "familyFilter": "夜族"
-    }
+     "familyFilter": "夜族",
+     "costSkipDraw": true
+    },
+    "beforeDraw": true
    }
   ]
  },

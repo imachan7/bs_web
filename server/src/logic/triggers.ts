@@ -567,6 +567,10 @@ export function fireStepTriggers(
     step: Phase,
     refreshedInstanceIds?: Set<string>,
     timing: "enter" | "end" = "enter",
+    // ドローステップだけ、ドローの前後で2回に分けて呼ぶ（PhaseManager が区間を分けている）。
+    // "beforeDraw"＝ドロー自体を支払いに使う効果（step.beforeDraw）だけ、"afterDraw"＝それ以外。
+    // 省略時（他のステップ）は全部発火する
+    drawPhase: "beforeDraw" | "afterDraw" | "all" = "all",
 ): void {
     const order: PlayerId[] = [
         state.turnPlayer,
@@ -582,6 +586,8 @@ export function fireStepTriggers(
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue
                 if ((effect.timing ?? "enter") !== timing) continue
+                if (drawPhase === "beforeDraw" && effect.beforeDraw !== true) continue
+                if (drawPhase === "afterDraw" && effect.beforeDraw === true) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue

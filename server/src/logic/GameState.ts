@@ -200,6 +200,7 @@ export function createGame(
         lastBattleDestroyedCost: 0,
         bofuExhaustedThisBattle: [],
         pendingChoice: null,
+        drawStepSkipped: false,
         turnStartResumeStep: null,
         interactiveTargets: false,
         events: [],
