@@ -186,7 +186,7 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 | 対象 | 中断させたい関数 | 呼び出し箇所 | 状態 |
 | :-- | :-- | --: | :-- |
 | デッキ破棄の無効化 | `millDeck` | **8** | **完了**（2026-08-13） |
-| 破壊の代わりに復活 | `destroySpirit` | **48**（8ファイル） | 未着手 |
+| 破壊の代わりに復活 | `destroySpirit` | **48**（8ファイル） | **着手中**（`destroyAll` のみ移行済み） |
 
 `millDeck` 側が安く済んだ理由：**8箇所すべてが「millDeck の後ろに処理が無い」か
 「返り値0でスキップされる」**だった（【粉砕】の集計は `if (actual > 0)` の中にあり、
@@ -248,13 +248,31 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 **戻り値を用意するのが、batch 化の前にやるべき前提作業**（数え方が確定しないまま
 batch 化すると、誤った数え方を固定してしまう）。
 
-### 進め方（推奨）
+### 骨格（導入済み・2026-08-13）
 
-1. 上のルール（数え方）を確定させる
-2. **複数体をまとめて破壊しているループ**を `{ kind: "destroyBatch"; ids; index }` の1フレームに寄せる。
-   ループを1箇所に集約できれば、残りの単発呼び出しは「後ろに処理があるか」だけの確認で済む
-3. **中断ガードが効いている**（`BS_DEBUG_CHECKS=1`）ので、直し漏れは対話モードで赤くなる。
-   直しながら検出できる
+- `ResumeFrame` に `{ kind: "destroyBatch"; ownerPid; targets; index; destroyed; context?; after? }` を追加
+- `destroySpiritsFrom()`（removal.ts）が targets を1体ずつ破壊し、
+  **復活の確認で中断したら停止位置を返す**。呼び出し元はフレームを積んで return する
+- `resumeDestroyBatch()` が続きを回し、全部終わったら `after`（`drawPerDestroyed` /
+  `voidCoreToSelfPerDestroyed`）を**実際に破壊できた数**で適用する
+- **⚠️ 中断の原因になった1体はループの外（`declineReviveConfirm`）で破壊される**ため、
+  素朴に数えると取りこぼす。`GameState.lastReviveDestroyed` で結果を持ち回って算入している
+- 移行は**呼び出し元ごとに切り替えられる**：`destroySpirit(..., { allowSuspend: true })` を
+  渡した経路だけがその場で確認を出し、渡していない経路は従来どおり
+  `pendingReviveConfirms` に積む。**これは移行途中の状態なので、残りを移し終えたら
+  `allowSuspend` と `pendingReviveConfirms` の両方を消すこと**
+
+### 残りの移行（未着手）
+
+`destroyAll`（`destroy.ts`）だけがバッチ経由。残る `cause: "destroy"` の呼び出し元は約30箇所:
+
+| 場所 | 形 |
+| :-- | :-- |
+| `destroy.ts` の他ハンドラ | ループ・`destroyedCount`・後続処理つきが多い |
+| `GameEngine.ts:1352〜1439` | バトル解決（アタッカー／ブロッカーの相互破壊）。後処理が複雑 |
+| `battleFlow.ts` / `handDeck.ts` / `exhaustRefresh.ts` | 各2件・1件。後続処理あり |
+
+`cause: "deplete"`（維持コア割れ）の呼び出しは**復活判定に入らない**ので対象外。
 
 ## 8. 決着済みの判断（2026-08-13 ユーザー確認）
 

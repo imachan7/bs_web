@@ -2557,6 +2557,9 @@ export {
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
+    destroySpiritsFrom,
+    applyDestroyBatchAfter,
+    resumeDestroyBatch,
     destroySpirit,
     tryHandFreeSummonOnLifeDamaged,
     applyHandFreeSummon,

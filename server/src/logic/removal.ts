@@ -30,6 +30,7 @@ import type {
     Phase,
     PlayerId,
     ResolvedTargetFilter,
+    ResumeFrame,
     TargetFilter,
     TriggerEvent,
 } from "../type"
@@ -46,6 +47,7 @@ import {
     instMinLevelCores,
     minLevelCores,
     opponentOf,
+    pushResumeFrames,
     rawLevel,
     suspend,
 } from "./GameState"
@@ -156,6 +158,7 @@ checkExhaustOnCoreChange,
     isResisted,
     pickEnemyByBp,
     pickEnemyCandidates,
+    placeCoresOnSpirit,
     resistanceAgainst,
     summonFreeFromHandIndex,
 } from "./EffectModules"
@@ -204,7 +207,7 @@ export function destroySpirit(
     context?: DestroyContext,
     // skipRevive: 復活の確認で「復活させない」が選ばれたあとの破壊。
     // 再び復活判定に入って無限に確認を出すのを防ぐ
-    options?: { skipRevive?: true },
+    options?: { skipRevive?: true; allowSuspend?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -221,7 +224,11 @@ export function destroySpirit(
     // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
     // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
     // 「〜できる」の任意発動は常に発動する簡略化とする。
-    if (cause === "destroy" && !options?.skipRevive && tryReviveOnDestroy(state, ownerPid, inst, context)) {
+    if (
+        cause === "destroy" &&
+        !options?.skipRevive &&
+        tryReviveOnDestroy(state, ownerPid, inst, context, undefined, options?.allowSuspend === true)
+    ) {
         return false
     }
 
@@ -338,6 +345,111 @@ function queueReviveConfirm(
     )
 }
 
+// 「破壊される代わりに復活**できる**」の確認を**その場で**出す（保留リストに積まない）。
+// 破壊はこの時点では行わない（対象は場に残ったまま）。答えが返ったら
+// applyReviveConfirm / declineReviveConfirm が決着させる。docs/design/RESUME_STACK.md §7
+function suspendReviveConfirm(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effectId: string,
+    sourceInstanceId: string,
+    context?: DestroyContext,
+): void {
+    suspend(state, {
+        pid: ownerPid,
+        kind: "option",
+        prompt: `${getCard(inst.cardId).name}：破壊される代わりに復活させますか？`,
+        candidates: [],
+        options: ["復活させる"],
+        optional: true,
+        confirm: true,
+        reviveConfirm: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            effectId,
+            sourceInstanceId,
+            ...(context ? { context } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: inst.instanceId,
+    })
+}
+
+// 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
+// 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
+// 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
+export function destroySpiritsFrom(
+    state: GameState,
+    targets: { pid: PlayerId; instanceId: string }[],
+    startIndex: number,
+    destroyedSoFar: number,
+    context?: DestroyContext,
+): { destroyed: number; stoppedAt: number } {
+    let destroyed = destroyedSoFar
+    for (let i = startIndex; i < targets.length; i++) {
+        const t = targets[i]
+        if (!t) continue
+        if (destroySpirit(state, t.pid, t.instanceId, "destroy", context, { allowSuspend: true })) {
+            destroyed++
+        }
+        if (state.winner) return { destroyed, stoppedAt: targets.length }
+        // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する
+        // （確認の答えは applyReviveConfirm / declineReviveConfirm が決着させる）
+        if (state.pendingChoice) return { destroyed, stoppedAt: i + 1 }
+    }
+    return { destroyed, stoppedAt: targets.length }
+}
+
+// 破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
+// 途中で止まったらフレームを積み直して抜ける（destroyed は中断をまたいで持ち回る）。
+// 全部終わったら after（破壊できた数を使う処理）を適用する
+export function resumeDestroyBatch(
+    state: GameState,
+    frame: Extract<ResumeFrame, { kind: "destroyBatch" }>,
+): void {
+    // 中断の原因になった1体（frame.index の1つ前）の決着を取り込む。
+    // 「復活させない」を選んで破壊された場合は「破壊できた数」に算入する（RESUME_STACK.md §7 ①）
+    let carried = frame.destroyed
+    if (state.lastReviveDestroyed === true) carried++
+    delete state.lastReviveDestroyed
+    const { destroyed, stoppedAt } = destroySpiritsFrom(
+        state,
+        frame.targets,
+        frame.index,
+        carried,
+        frame.context,
+    )
+    if (stoppedAt < frame.targets.length) {
+        pushResumeFrames(state, [{ ...frame, index: stoppedAt, destroyed }])
+        return
+    }
+    if (state.winner) return
+    applyDestroyBatchAfter(state, frame.ownerPid, destroyed, frame.after)
+}
+
+// 「この効果で破壊したスピリット1体につき」の後処理。
+// **実際に破壊できた数**で数える（復活して場に残った個体は入らない。RESUME_STACK.md §7 ①）
+export function applyDestroyBatchAfter(
+    state: GameState,
+    ownerPid: PlayerId,
+    destroyed: number,
+    after: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
+): void {
+    if (!after || destroyed <= 0) return
+    if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
+    if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
+        const self = findInstanceAnywhere(state, after.selfInstanceId)
+        if (self) {
+            placeCoresOnSpirit(state, self, destroyed, ownerPid)
+            log(
+                state,
+                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${destroyed}個を自身の上に置いた。`,
+            )
+        }
+    }
+}
+
 // 保留していた復活の確認で「復活させる」が選ばれたときの後処理。
 // ここで初めてコストを支払い、復活先（場に残る／手札へ戻る）を適用する。
 // コストを払えなければ復活は成立せず、そのまま破壊する
@@ -352,7 +464,10 @@ export function applyReviveConfirm(
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
     if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId })) {
         declineReviveConfirm(state, entry)
+        return
     }
+    // 復活が成立した＝破壊されていない（場に残る／手札へ戻るのどちらでも）
+    state.lastReviveDestroyed = false
 }
 
 // 保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
@@ -364,7 +479,15 @@ export function declineReviveConfirm(
     const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
     if (!inst) return
     log(state, `${player.name}の${getCard(inst.cardId).name}は復活しなかった。`)
-    destroySpirit(state, entry.pid, entry.instanceId, "destroy", entry.context, { skipRevive: true })
+    // 破壊バッチが中断から再開したときに「破壊できた数」へ算入できるよう結果を残す
+    state.lastReviveDestroyed = destroySpirit(
+        state,
+        entry.pid,
+        entry.instanceId,
+        "destroy",
+        entry.context,
+        { skipRevive: true },
+    )
 }
 
 // reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
@@ -377,6 +500,9 @@ function tryReviveOnDestroy(
     // 指定時は「このエントリだけを、確認済みとして確定させる」モード。
     // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
     forced?: { effectId: string },
+    // true なら「破壊される代わりに復活できる」の確認を**その場で**出す（保留リストに積まない）。
+    // destroySpirits のバッチ経由の呼び出しだけが立てる
+    allowSuspend?: boolean,
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -569,9 +695,15 @@ function tryReviveOnDestroy(
         if (!matchesPhaseTurn(effect.phaseTurn)) return false
         if (oncePerTurnBlocked(effect, inst)) return false
         // 「〜できる」＝任意（optional）は、実対戦では持ち主に確認してから確定させる。
-        // 破壊処理の途中では中断できないので、いったん破壊を見送って（＝場に残して）保留へ積む
+        // allowSuspend（destroySpirits のバッチ経由）なら**その場で**確認を出す。
+        // それ以外の呼び出し元はまだ中断を受け止められないので、従来どおり保留へ積む
+        // （移行の途中。残りの呼び出し元は docs/design/RESUME_STACK.md §7）
         if (effect.optional && state.interactiveTargets && !forced) {
-            queueReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
+            if (allowSuspend) {
+                suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
+            } else {
+                queueReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
+            }
             return true
         }
         if (!applyCost(effect)) return false

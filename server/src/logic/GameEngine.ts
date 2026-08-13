@@ -19,6 +19,7 @@ import {
     suspend,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
+import { resumeDestroyBatch } from "./removal"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -1173,6 +1174,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             // 中断していたターン開始処理を続きのステップから再開する
             // （百識の谷Lv1のドローステップ破棄選択など）
             driveTurnStart(state, frame.step)
+            continue
+        }
+        if (frame.kind === "destroyBatch") {
+            resumeDestroyBatch(state, frame)
             continue
         }
         const frameSelf = frame.selfInstanceId

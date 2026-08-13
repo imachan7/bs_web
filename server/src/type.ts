@@ -1572,6 +1572,24 @@ export type ResumeFrame =
           // ステップ誘発が選択待ちを立てたときに、次のステップ番号を積む
           step: number
       }
+    | {
+          // 複数体をまとめて破壊する処理の続き。1体ごとに「破壊される代わりに復活**できる**」の
+          // 確認で中断しうるので、**どこまで進んだか（index）と実際に破壊できた数（destroyed）**を持ち回る。
+          // 数を持ち回るのは「この効果で破壊したスピリット1体につき」を中断をまたいで正しく数えるため
+          // （docs/design/RESUME_STACK.md §7 ①）
+          kind: "destroyBatch"
+          ownerPid: PlayerId // after を解決する側（効果の持ち主）
+          targets: { pid: PlayerId; instanceId: string }[]
+          index: number
+          destroyed: number
+          context?: DestroyContext
+          after?: {
+              // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）
+              drawPerDestroyed?: true
+              voidCoreToSelfPerDestroyed?: true
+              selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
+          }
+      }
 
 // ゲーム全体の状態（サーバーで一元管理）
 export interface GameState {
@@ -1613,6 +1631,11 @@ export interface GameState {
     bofuExhaustedThisBattle: { pid: PlayerId; instanceId: string }[]
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    // 直前の「破壊される代わりに復活できる」の確認で、**結局その個体が破壊されたか**。
+    // 破壊バッチ（destroyBatch フレーム）が中断から再開したときに、中断の原因になった1体を
+    // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。
+    // 承認して場に残った／手札へ戻った場合は false。読み取ったら消す
+    lastReviveDestroyed?: boolean
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。
