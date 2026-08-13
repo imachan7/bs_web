@@ -14,6 +14,8 @@ import {
     exhaustSpirit,
     findSpiritAny,
     fireTenshoEvent,
+    tenshoAfterTargetTrigger,
+    tenshoDumpAndDestroy,
     millDeck,
     notifySpiritCoresRemovedByOpponent,
     pickAnySideByBp,
@@ -295,6 +297,20 @@ const tenshoCoreDumpHandler: ActionHandler<"tenshoCoreDump"> = (ctx, action) => 
             return
         }
         dumpAllCoresTensho(state, owner, target, action.dest)
+        return
+}
+
+const tenshoResumeHandler: ActionHandler<"tenshoResume"> = (ctx, action) => {
+    const { state, owner, self } = ctx
+        // 【転召】の途中で誘発が選択待ちを立てたときの再開専用（cards.jsonには書かない）。
+        // self には転召の対象になった自分のスピリットが渡る。
+        // 対象が既に場を離れていたら（誘発の解決中に除去された等）残りの処理は行わない
+        if (!self) return
+        if (action.stage === "afterTargetTrigger") {
+            tenshoAfterTargetTrigger(state, owner, self, action.dest, action.skipSubstitute === true)
+            return
+        }
+        tenshoDumpAndDestroy(state, owner, self, action.dest)
         return
 }
 
@@ -1746,6 +1762,7 @@ const handlers = {
     coreRemoveSelf: coreRemoveSelfHandler,
     coreToTrashSelf: coreToTrashSelfHandler,
     tenshoCoreDump: tenshoCoreDumpHandler,
+    tenshoResume: tenshoResumeHandler,
     tenshoSubstituteChoice: tenshoSubstituteChoiceHandler,
     coreCharge: coreChargeHandler,
     coreGain: coreGainHandler,

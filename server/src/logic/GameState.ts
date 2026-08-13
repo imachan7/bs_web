@@ -264,6 +264,15 @@ function boardFingerprint(state: GameState): string {
     return parts.join("/")
 }
 
+// handleAction の**入口**から呼ぶ。すでに中断中なら、そこを新しい基準にし直す。
+// これで「handleAction を経由しない変更」（smoke が resolveAction を直接呼ぶ書き方）が
+// 対象外になる。実対戦では選択待ち中に resolveChoice 以外は拒否されるので、
+// エンジンの責任範囲は「1回の handleAction の中で中断後に動かないこと」に限られる
+export function noteHandleActionEntry(state: GameState): void {
+    if (!DEBUG_CHECKS) return
+    suspendFingerprint = state.pendingChoice ? boardFingerprint(state) : null
+}
+
 // handleAction の出口から呼ぶ。中断中に盤面が変わっていたら記録する
 export function checkNoMutationAfterSuspend(state: GameState): void {
     if (!DEBUG_CHECKS) return

@@ -14,6 +14,7 @@ import {
     minLevelCores,
     opponentOf,
     checkNoMutationAfterSuspend,
+    noteHandleActionEntry,
     pushResumeFrames,
     suspend,
 } from "./GameState"
@@ -94,6 +95,8 @@ export function handleAction(
 
     // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
     state.events = []
+    // 中断ガードの基準取り直し（BS_DEBUG_CHECKS=1 のときだけ働く）
+    noteHandleActionEntry(state)
     const result = dispatchAction(state, pid, action)
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する

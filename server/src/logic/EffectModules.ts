@@ -1261,6 +1261,30 @@ export function dumpAllCoresTensho(
     // 対象になった本人（inst）自身の誘発を必ず発火する。tenshoCoreSubstituteで疲労を選んだ場合も
     // コアを失う場合も、対象になった事実は変わらないため分岐より前で一度だけ呼ぶ
     fireTrigger(state, ownerPid, inst, "onTenshoTarget")
+    // 誘発が選択で中断したら、残り（置換の判断以降）を再開フレームに積んでここで止める。
+    // 【転召】の手順は「コアを外す＋対象スピリットの効果発揮 → 対象の消滅 → 召喚時効果」の順で、
+    // **消滅は効果の発揮が解決しきってから**でなければならない（2026-08-13 ユーザー確認）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{
+            kind: "action",
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
+            action: { type: "tenshoResume", dest, stage: "afterTargetTrigger", ...(skipSubstitute ? { skipSubstitute: true } as const : {}) },
+        }])
+        return
+    }
+    tenshoAfterTargetTrigger(state, ownerPid, inst, dest, skipSubstitute)
+}
+
+// dumpAllCoresTensho の後半：置換（疲労で代替）の判断 → 『転召が解決したとき』の誘発 → コア処理。
+// onTenshoTarget の誘発で中断したときは、再開フレーム（tenshoResume "afterTargetTrigger"）から呼ばれる
+export function tenshoAfterTargetTrigger(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    dest: "trash" | "void",
+    skipSubstitute: boolean,
+): void {
     // constraint "tenshoCoreSubstitute"（BS05の竜使い6枚）：疲労していなければ、
     // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）。
     // 「疲労させることで」は任意なので、実対戦では疲労するかコアを置くかをプレイヤーに選ばせる
@@ -1291,6 +1315,30 @@ export function dumpAllCoresTensho(
         return
     }
     fireTenshoEvent(state, ownerPid, inst)
+    // 『転召が解決したとき』の誘発が中断したら、コア処理と消滅は選択が終わってから。
+    // ここを見ていなかったため、選択待ちのまま destroySpirit が走り、
+    // その先の『破壊されたとき』の誘発が中断できない状態になっていた（2026-08-13 修正）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{
+            kind: "action",
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
+            action: { type: "tenshoResume", dest, stage: "afterEvent" },
+        }])
+        return
+    }
+    tenshoDumpAndDestroy(state, ownerPid, inst, dest)
+}
+
+// 【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
+// 手順上「対象スピリットの消滅」は転召の効果発揮がすべて解決した後に来るので、
+// 中断をまたぐときはここだけを再開フレームで呼び直す
+export function tenshoDumpAndDestroy(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    dest: "trash" | "void",
+): void {
     const player = state.players[ownerPid]
     const count = inst.cores
     inst.cores = 0
