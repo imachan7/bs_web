@@ -341,6 +341,12 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
                 log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
                 return
             }
+            // B（レベルを変える相手のネクサス）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は払ってから相手のネクサスを見ていたため、いないときも払い損になっていた
+            if (state.players[opp].field.nexuses.length === 0) {
+                log(state, `${sourceName}：相手のネクサスがないため発動しなかった。`)
+                return
+            }
             player.reserve -= action.costReserveToVoid
             log(
                 state,

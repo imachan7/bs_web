@@ -761,6 +761,25 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             if (!hit) return
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
         }
+        // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
+        // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
+        const familyOk = (cardId: string): boolean => {
+            if (action.familyFilter === undefined) return true
+            const wanted = Array.isArray(action.familyFilter)
+                ? action.familyFilter
+                : [action.familyFilter]
+            return wanted.some((f) => getCard(cardId).family.includes(f))
+        }
+        // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
+        // カード静的なキーワード保有（hasKeyword）で判定する
+        const keywordOk = (cardId: string): boolean =>
+            action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)
+        // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
+        // カード静的な名前（cardId基準）で判定する
+        const nameOk = (cardId: string): boolean =>
+            action.nameIncludes === undefined || getCard(cardId).name.includes(action.nameIncludes)
+        const isRecoverable = (cardId: string): boolean =>
+            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -770,6 +789,12 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
             if (candidates.length === 0) {
                 log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
+                return
+            }
+            // B（トラッシュから戻せるカード）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は先に自分のスピリットを破壊してからトラッシュを見ていたため、払い損になっていた
+            if (!player.trashCards.some(isRecoverable)) {
+                log(state, `${sourceName}：トラッシュに戻せるスピリットカードがないため発動しなかった。`)
                 return
             }
             const { costDestroyOwnKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
@@ -815,25 +840,6 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             followUp([cardId])
             return
         }
-        // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
-        // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
-        const familyOk = (cardId: string): boolean => {
-            if (action.familyFilter === undefined) return true
-            const wanted = Array.isArray(action.familyFilter)
-                ? action.familyFilter
-                : [action.familyFilter]
-            return wanted.some((f) => getCard(cardId).family.includes(f))
-        }
-        // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
-        // カード静的なキーワード保有（hasKeyword）で判定する
-        const keywordOk = (cardId: string): boolean =>
-            action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)
-        // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
-        // カード静的な名前（cardId基準）で判定する
-        const nameOk = (cardId: string): boolean =>
-            action.nameIncludes === undefined || getCard(cardId).name.includes(action.nameIncludes)
-        const isRecoverable = (cardId: string): boolean =>
-            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId)
         // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
         if (action.all) {
             const indices: number[] = []
@@ -1313,11 +1319,34 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             return
         }
         // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
-        // 払えなければ何も起きない。カード側で optional:true を立てて発動確認を出す
+        // **A（コスト）と B（効果）の両方が成立するときだけ払う**（COST_MODEL.md §1）。
+        // 以前はここで払ってから対象を探していたため、戻せる相手がいなくてもコアを失っていた。
+        // 体数のしきい値は「候補が1体以上」。B を体数ぶん満たせるかまで求めるかは保留中（COST_MODEL.md §1）
         if (action.costReserveToTrash !== undefined) {
             const player = state.players[owner]
             if (player.reserve < action.costReserveToTrash) {
                 log(state, `${sourceName}：リザーブのコアが足りず発動しなかった。`)
+                return
+            }
+            const costLimitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
+            const costMatches = (s: CardInstance): boolean =>
+                matchesTarget(state, opp, s, filter, self?.instanceId)
+            const hasTarget =
+                targetInstanceId !== undefined
+                    ? findSpiritAny(state, targetInstanceId) !== undefined
+                    : (action.anySide
+                          ? pickAnySideCandidates(
+                                state,
+                                owner,
+                                (s) => effectiveBp(state, owner, s) <= costLimitBp && costMatches(s),
+                                srcColors,
+                                srcType,
+                                "bounce",
+                            )
+                          : pickEnemyCandidates(state, opp, costLimitBp, costMatches, srcColors, srcType, "bounce")
+                      ).length >= 1
+            if (!hasTarget) {
+                log(state, `${sourceName}：手札に戻せる対象がいないため発動しなかった。`)
                 return
             }
             player.reserve -= action.costReserveToTrash

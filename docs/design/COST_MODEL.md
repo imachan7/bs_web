@@ -31,11 +31,21 @@ if (!canPayCost(...) || !hasResolvableTarget(...)) {
 `optional: true`（発動確認）は**①②を満たしたときだけ**出す。満たさないのに確認を出すと、
 プレイヤーが「発動する」を選んだのに何も起きない。
 
-### まだ決めていないこと（実装時に確認する）
+### 保留：数が足りないとき（2026-08-13 判断保留）
 
-- **数が足りないとき。** 「コア2個を置くことで、相手のスピリット**2体**を破壊する」で相手が1体のとき、
-  「完全に解決できない」から発揮不可なのか、1体だけ破壊できるのか。
-  現状の実装は「あるだけ処理する」なので、ここを変えるなら影響範囲を測ってから
+**「Aすることで、B を2つする」で B が1つしか満たせないとき**に発揮できるのか。該当は実カード2枚:
+
+| カード | A | B | 足りない状況 |
+| :-- | :-- | :-- | :-- |
+| BS07-X26 剣王獣ビャク・ガロウLv2 | リザーブのコア1個をトラッシュへ | 【転召】を持たない相手のスピリット**2体**を手札に戻す | 候補が1体のとき |
+| BS04-X15 カイザーアトラス皇帝Lv2 | リザーブのコア1個をボイドへ | 相手のライフのコア**2個**をリザーブへ | 相手のライフが1のとき（減らせば勝ちが決まるので実戦では問題になりにくい） |
+
+**現状の実装は「あるだけ処理してコストは払う」（＝体数は不足してよい）で、これを当面維持する。**
+有力な対案は「2体いなければ発揮できない」（§1 の『完全に解決できる』を体数にも適用する読み）。
+**正解が判明したらこちらへ切り替える。**
+
+切り替えを1か所で済ませられるよう、成立判定のしきい値は
+「候補 ≥ 1」で書き、`count` と比べる形にはしない（切り替えるときは `>= 1` を `>= count` にする）。
 
 ## 2. 何を犠牲にするかは選ばせる（2026-08-13 ユーザー確定）
 
@@ -70,18 +80,28 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 | `targetNegateByHandDiscard` | 手札破棄 | ✅ `probing` で「元々防げていた対象化」には払わない |
 | `recoverSpiritFromTrash` | `costSkipDraw` | ✅ 実際に戻せたときだけ支払う |
 | `protectLifeByCostThisTurn` | `costExhaustFamily` | ✅ 疲労させる候補を先に確かめる |
-| `returnToHand` | `costReserveToTrash` | ❌ 払ってから対象を探す |
-| `recoverSpiritFromTrash` | `costDestroyOwnKeyword` | ❌ 自分のスピリットを破壊してからトラッシュを見る |
-| `lifeCrush` | `costReserveToVoid` | ❌ 払ってからカウントを見る |
-| `levelOverrideOpponentNexuses` | `costReserveToVoid` | ❌ 払ってから相手ネクサスを見る |
-| `summonFromHandFree` | `costDestroyOwnFamily` / `costDestroyOwnNexus` | ❌ 破壊してから召喚可能か見る |
+| `returnToHand` | `costReserveToTrash` | ✅ 戻せる相手がいなければ払わない |
+| `recoverSpiritFromTrash` | `costDestroyOwnKeyword` | ✅ トラッシュに戻せるカードが無ければ払わない |
+| `lifeCrush` | `costReserveToVoid` | ✅ 減らせるライフが無ければ払わない |
+| `levelOverrideOpponentNexuses` | `costReserveToVoid` | ✅ 相手のネクサスが無ければ払わない |
+| `summonFromHandFree` | `costDestroyOwnFamily` / `costDestroyOwnNexus` | ✅ 召喚できる手札が無ければ払わない |
 
-❌ の5件は §1 に合わせて直す（実カードは6枚。ビャク・ガロウ／ブリュナグオン／キャストオフ／
-リクラメーション／カイザーアトラス皇帝／皇帝アンプルール）。
+**全7アクションが §1 に適合した**（2026-08-13。smoke part178。実カード6枚：ビャク・ガロウ／
+ブリュナグオン／キャストオフ／リクラメーション／カイザーアトラス皇帝／皇帝アンプルール）。
 
-「発揮できない＝発動確認も出さない」まで守るには、**そのアクションが今 A と B を満たせるかを
-副作用なしで答える述語**が要る（発動確認を出すのは `fireStepTriggers` / `fireTrigger` で、
-アクションを実行する前の層のため）。`resistanceAgainst` の `probing` と同じ形。
+`summonFromHandFree` だけは**維持コアが足りるかまでは見ない**：コストで破壊したスピリットのコアが
+リザーブに戻り、支払い後に払えるようになる場合があるため（誤って発揮不可にしないための保守的な判定）。
+
+### 残り：発動確認を出さないところまで
+
+いまは「発揮できないなら払わない」までで、**発動確認（`optional`）は出る**。押しても
+「〜がないため発動しなかった」とログが出るだけで損はしないが、§1 の「発揮できない＝確認も出さない」
+には届いていない。ここまでやるには**そのアクションが今 A と B を満たせるかを副作用なしで答える述語**が要る
+（確認を出すのは `fireStepTriggers` / `fireTrigger` というアクション実行**前**の層のため）。
+`resistanceAgainst` の `probing` と同じ形になる。
+
+述語はハンドラと**同じ候補列挙を共有できる場所**に置くこと。別実装にすると、判定と本体が食い違って
+「片方だけ正しい」状態が生まれる（`destroyExhausted` と `destroy` で実際に起きた）。
 
 ## 4. コストの代替支払い（別概念なので混ぜない）
 

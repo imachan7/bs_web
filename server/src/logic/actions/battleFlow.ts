@@ -203,6 +203,16 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
                 log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
                 return
             }
+            // B（減らせるライフ）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は払ってからカウントを見ていたため、減らせないときも払い損になっていた
+            const costCount =
+                action.countCounter !== undefined
+                    ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+                    : action.count
+            if (costCount <= 0 || state.players[opp].life <= 0) {
+                log(state, `${sourceName}：減らせるライフがないため発動しなかった。`)
+                return
+            }
             ownerPlayer.reserve -= action.costReserveToVoid
             log(
                 state,
@@ -416,6 +426,20 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         }
         // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
         // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
+        // 「〜することで召喚する」の任意コストは、**B（召喚できる手札）が無ければ発揮できない**
+        // （COST_MODEL.md §1）。以前は先に自分のスピリット／ネクサスを破壊してから手札を見ていたため、
+        // 召喚できないときも払い損になっていた。
+        // なお維持コアの足りるかまではここで見ない：コストで破壊したスピリットのコアがリザーブに戻り、
+        // 支払い後に払えるようになる場合があるため（誤って発揮不可にしないための保守的な判定）
+        if (
+            (action.costDestroyOwnFamily !== undefined || action.costDestroyOwnNexus) &&
+            chosenCardIndex === undefined &&
+            !action.costSacrificeChosen &&
+            !player.hand.some(matchesCardId)
+        ) {
+            log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
+            return
+        }
         // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnFamily を落とした action で入り直し、二重に払わないようにする
         if (action.costDestroyOwnFamily !== undefined && chosenCardIndex === undefined) {
