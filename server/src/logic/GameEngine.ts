@@ -114,42 +114,9 @@ export function handleAction(
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
     requestPendingReviveConfirm(state)
-    // 「デッキの破棄を、コストを払って無効にできる」の確認も同じ理由でここで出す（BS08鳳翼の聖剣Lv2）
-    requestPendingDeckMillNegate(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
     checkNoMutationAfterSuspend(state)
     return result
-}
-
-// 保留していた「デッキ破棄の無効化」の確認を1件だけ pendingChoice として立てる。
-// 発生源が場から居なくなっていた項目は、無効化できないので**見送っていた破棄をその場で行う**
-// （復活の確認と違い、捨てると「破棄されないまま消える」ことになってしまうため）
-function requestPendingDeckMillNegate(state: GameState): void {
-    if (state.pendingChoice || state.winner) return
-    const queue = state.pendingDeckMillNegates
-    if (!queue || queue.length === 0) return
-    while (queue.length > 0) {
-        const entry = queue.shift()!
-        const source = effectSources(state, entry.pid).find((s) => s.instanceId === entry.sourceInstanceId)
-        if (!source) {
-            declineDeckMillNegate(state, entry)
-            continue
-        }
-        suspend(state, {
-            pid: entry.pid,
-            kind: "option",
-            prompt: `${getCard(source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
-            candidates: [],
-            options: ["無効にする"],
-            optional: true,
-            confirm: true,
-            deckMillNegate: entry,
-            action: { type: "noop" },
-            selfInstanceId: entry.sourceInstanceId,
-        })
-        return
-    }
-    if (queue.length === 0) delete state.pendingDeckMillNegates
 }
 
 // 保留していた復活の確認を1件だけ pendingChoice として立てる。

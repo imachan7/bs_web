@@ -1629,18 +1629,6 @@ export interface GameState {
         sourceInstanceId: string // 発生源（oncePerTurn の記録先。scope:"self" なら対象自身）
         context?: DestroyContext // 断ったときに破壊し直すための文脈
     }[]
-    // 「デッキが破棄されるとき、コストを払って無効に**できる**」（kind:"deckMillNegate"）の確認待ち行列。
-    // pendingReviveConfirms とまったく同じ理由でここに積む：millDeck はアクションハンドラの奥から
-    // 呼ばれるので途中で中断できない。いったん破棄を見送って積み、handleAction の末尾で確認する。
-    // 断られたら declineDeckMillNegate が skipNegate 付きで millDeck を呼び直す（＝そのとき破棄される）
-    pendingDeckMillNegates?: {
-        pid: PlayerId // デッキを破棄される側＝発生源の持ち主＝コストを払う側
-        sourceInstanceId: string // 無効にする側の発生源（表示用。確認を出すまでに場を離れていたら破棄を実行する）
-        effectId: string // 適用する deckMillNegate エントリのid（承認時にコストを再解決する）
-        count: number // 見送った破棄の枚数（断られたらこの枚数で破棄し直す）
-        actorPid: PlayerId // 破棄を引き起こした側（millDeck の actorPid）
-        sourceType?: "spirit" | "nexus" | "magic" // 破棄の発生源の種別（millDeck の cause）
-    }[]
     drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeDraw の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）

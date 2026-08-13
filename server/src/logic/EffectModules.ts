@@ -513,7 +513,7 @@ export function millDeck(
     }
     // 「コストを払って破棄を無効に**できる**」（BS08鳳翼の聖剣Lv2）。
     // 任意コストなので、ここでは破棄を見送って確認待ちへ積むだけにする（実際の破棄は断られたときに行う）
-    if (byOpponent && !options?.skipNegate && tryQueueDeckMillNegate(state, pid, count, actorPid, cause)) {
+    if (byOpponent && !options?.skipNegate && trySuspendDeckMillNegate(state, pid, count, actorPid, cause)) {
         return 0
     }
     if (byOpponent) {
@@ -634,9 +634,14 @@ function findDeckMillNegate(
     return null
 }
 
-// 破棄を見送って確認待ちへ積む。積んだ（＝この破棄を保留した）なら true。
-// 非対話（smoke）では確認を出せないので、その場で支払って無効にする（「〜できる」を常に発動する簡略化）
-function tryQueueDeckMillNegate(
+// 破棄を見送って**その場で**確認を出す。出した（＝この破棄を保留した）なら true。
+// 非対話（smoke）では確認を出せないので、その場で支払って無効にする（「〜できる」を常に発動する簡略化）。
+//
+// 以前は GameState.pendingDeckMillNegates へ積み、handleAction の末尾＝「安全な地点」で確認していた。
+// 破棄の途中では中断できなかったためだが、再開スタックの導入でここから直接中断できるようになった
+// （docs/design/RESUME_STACK.md §7）。millDeck の呼び出し8箇所はいずれも
+// 「millDeck の後ろに処理が無い」か「返り値0でスキップされる」ので、呼び出し元の改修は要らない
+function trySuspendDeckMillNegate(
     state: GameState,
     pid: PlayerId,
     count: number,
@@ -644,19 +649,33 @@ function tryQueueDeckMillNegate(
     cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
 ): boolean {
     if (count <= 0 || state.winner) return false
+    // すでに別の選択待ちがあるならここでは中断できない。破棄を止めてしまうと
+    // 「無効にできたのに聞かれないまま破棄されない」ことになるので、通常どおり破棄させる
+    if (state.pendingChoice) return false
     const found = findDeckMillNegate(state, pid, cause)
     if (!found) return false
     if (!state.interactiveTargets) {
         payDeckMillNegateCost(state, pid, found.source, found.effect)
         return true
     }
-    ;(state.pendingDeckMillNegates ??= []).push({
+    suspend(state, {
         pid,
-        sourceInstanceId: found.source.instanceId,
-        effectId: found.effect.id,
-        count,
-        actorPid,
-        ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+        kind: "option",
+        prompt: `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
+        candidates: [],
+        options: ["無効にする"],
+        optional: true,
+        confirm: true,
+        deckMillNegate: {
+            pid,
+            sourceInstanceId: found.source.instanceId,
+            effectId: found.effect.id,
+            count,
+            actorPid,
+            ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: found.source.instanceId,
     })
     return true
 }
