@@ -18,7 +18,9 @@ import {
     assert,
     createGame,
     createInstance,
+    destroySpirit,
     refreshLevelAsOverrides,
+    resolveAction,
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
@@ -108,4 +110,51 @@ console.log("=== パート179：【転召】中に誘発が中断したら、対
         s.players.p1.field.spirits.some((sp) => sp.cardId === dragron.cardId),
         "召喚した本体は場に残っている",
     )
+}
+
+console.log("=== destroySpirit は「実際に破壊できたか」を返す ===")
+{
+    // ルール（CONJUNCTION.md／RESUME_STACK.md §7 ①）：
+    // 別の効果として「破壊したとき〜する」がある場合、先に「フィールドに残る」を解決することで
+    // それを阻止できる。＝**復活して場に残った個体は「破壊された」ことにならない**。
+    // BS08ドラゴンスクランブル／X003D極帝龍騎ジーク・クリムゾンの
+    // 「この効果で破壊したスピリット1体につき」も同じで、場に残った個体は数に入らない。
+    // 以前は targets.length（＝破壊しようとした数）で数えており、数える手段そのものが無かった。
+    const plain = CARDS.find(
+        (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.levels?.[0]?.cores ?? 99) === 1,
+    )!
+    const s = createGame("destroy-returns", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })
+    runTurnStart(s)
+    const victim = put(s, "p2", plain.cardId, coresFor(plain, 1))
+
+    assert(
+        destroySpirit(s, "p2", victim.instanceId, "destroy") === true,
+        "実際に破壊できたら true を返す",
+    )
+    assert(
+        destroySpirit(s, "p2", victim.instanceId, "destroy") === false,
+        "すでに場にいない個体は false を返す（破壊していないので数に入らない）",
+    )
+}
+
+console.log("=== 「この効果で破壊した1体につき」の枚数は、破壊できた数と一致する ===")
+{
+    const plain = CARDS.find(
+        (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.levels?.[0]?.cores ?? 99) === 1,
+    )!
+    const s = createGame("destroyed-count", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })
+    runTurnStart(s)
+    s.players.p1.reserve = 40
+    s.players.p2.reserve = 40
+    put(s, "p2", plain.cardId, coresFor(plain, 1))
+    put(s, "p2", plain.cardId, coresFor(plain, 1))
+    const handBefore = s.players.p1.hand.length
+    const oppBefore = s.players.p2.field.spirits.length
+
+    resolveAction(s, "p1", null, { type: "destroyAll", anySide: false, drawPerDestroyed: true })
+
+    const actuallyDestroyed = oppBefore - s.players.p2.field.spirits.length
+    const drawn = s.players.p1.hand.length - handBefore
+    assert(actuallyDestroyed === 2, "対象2体が破壊された")
+    assert(drawn === actuallyDestroyed, `ドロー枚数（${drawn}）が破壊できた体数（${actuallyDestroyed}）と一致する`)
 }

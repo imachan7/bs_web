@@ -205,21 +205,24 @@ export function destroySpirit(
     // skipRevive: 復活の確認で「復活させない」が選ばれたあとの破壊。
     // 再び復活判定に入って無限に確認を出すのを防ぐ
     options?: { skipRevive?: true },
-): void {
+    // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
+    // 「破壊されるかわりにフィールドに残った（復活）」。
+    // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
+): boolean {
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex(
         (s) => s.instanceId === instanceId,
     )
-    if (index === -1) return
+    if (index === -1) return false
     const inst = player.field.spirits[index]
-    if (!inst) return
+    if (!inst) return false
     const master = getCard(inst.cardId)
 
     // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
     // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
     // 「〜できる」の任意発動は常に発動する簡略化とする。
     if (cause === "destroy" && !options?.skipRevive && tryReviveOnDestroy(state, ownerPid, inst, context)) {
-        return
+        return false
     }
 
     // 破壊直前のコア数を記録（リザーブへ移す前。漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
@@ -260,6 +263,7 @@ export function destroySpirit(
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
     })
+    return true
 }
 
 // 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。

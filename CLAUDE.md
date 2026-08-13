@@ -159,7 +159,9 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
 | `docs/design/EFFECT_GAPS_PLAYBOOK.md` | **残りの効果実装漏れ（36枚）を進めるための手引き**。着手順・1枚ごとの方針・器の早見表。効果の実装を始めるときに読む |
 | `docs/design/INTERRUPTION_POINTS.md` | **「ここでプレイヤーに選ばせたい」となったときに読む**。どの層なら中断できるか・3つの実装パターンと使い分け・新設の手順 |
+| `docs/design/CONJUNCTION.md` | **効果文の接続詞を読むときの一次資料**。「その後」「さらに」「そうしたとき」「ことで」「この効果発揮後」「このとき」がそれぞれ前後関係か同時かを定める。**効果を2つ以上持つカードの解決順で迷ったらまずここ**（2026-08-13 ユーザー提供） |
 | `docs/design/COST_MODEL.md` | **「〜することで〜する」を実装するときに読む**。コストの一般則（AとBの両方が完全に解決できるときだけ発揮できる）・現状の適合表 |
+| `docs/design/RESUME_STACK.md` | **中断された側をどう書くか**（再開スタック・挿入順の規則・召喚と【転召】の手順）。エンジンの解決順に触るときに読む |
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
 | `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |

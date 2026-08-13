@@ -183,16 +183,22 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        for (const t of targets) destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)
+        // **実際に破壊できた数**を数える（「この効果で破壊したスピリット1体につき」）。
+        // 「破壊されるかわりにフィールドに残る」で残った個体は破壊されていないので数に入らない
+        // （docs/design/RESUME_STACK.md §7 ①。別の効果としての「破壊したとき」は阻止できる）
+        let destroyed = 0
+        for (const t of targets) {
+            if (destroySpirit(state, t.pid, t.inst.instanceId, "destroy", destroyContext)) destroyed++
+        }
         // drawPerDestroyed（BS08ドラゴンスクランブル）：実際に破壊できた数ぶん自分がドロー
-        if (action.drawPerDestroyed) draw(state, owner, targets.length)
+        if (action.drawPerDestroyed && destroyed > 0) draw(state, owner, destroyed)
         // voidCoreToSelfPerDestroyed（X003D極帝龍騎ジーク・クリムゾン）：実際に破壊できた数ぶん、
         // ボイドからコアをself上に置く
-        if (action.voidCoreToSelfPerDestroyed && self && targets.length > 0) {
-            placeCoresOnSpirit(state, self, targets.length, owner)
+        if (action.voidCoreToSelfPerDestroyed && self && destroyed > 0) {
+            placeCoresOnSpirit(state, self, destroyed, owner)
             log(
                 state,
-                `${getCard(self.cardId).name}は、破壊した${targets.length}体につきボイドからコア${targets.length}個を自身の上に置いた。`,
+                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${destroyed}個を自身の上に置いた。`,
             )
         }
         return
