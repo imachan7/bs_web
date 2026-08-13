@@ -38,23 +38,49 @@
 - **発動確認の抑止はやらない。** 成立しない任意コスト効果でも確認は出る。押しても損はせず、
   理由がログに出るぶん確認が出ないより親切、というユーザー判断（COST_MODEL.md に記載済み）
 
-## 5. 次にやると効くこと（未着手）
+## 5. 割り込み（中断・再開）の土台整備 ← 2026-08-13 着手・進行中
 
-今日見つけた不具合は2種類あり、**手順書で防げるのは片方だけ**。もう片方の層が手つかず。
+設計は **[docs/design/RESUME_STACK.md](./docs/design/RESUME_STACK.md)**。方針は
+「**割り込み点を予測しない**」＝後から割り込みを持つカードが見つかっても、
+**割り込む側だけ書けば済む**ようにする。
 
-1. **保存則の invariant**（推奨）。デッキ＋手札＋トラッシュ＋場＋公開ゾーンの総数と、コアの総数を
-   `act()` のたびに検査する共通ヘルパー。**今日いちばん大きかった `deckReveal` のデッキ流出
-   （実対戦で選ぶたびにデッキの上から count 枚が消えていた）は、手順書では防げずこれで一撃**。
-   いま総数を数えているテストは 178 パート中5本だけ
-2. **`interactiveTargets = true` での全パート再実行**。実サーバーは常に true なのに、
-   その設定を使うテストは 178 パート中30本ほど。`pendingChoice` を候補の先頭で自動応答する
-   薄いドライバを噛ませれば、既存パートがそのまま選択経路のテストになる
+済み（コミット `c66f347` / `647c1a7` / `5799782`）:
 
-## 6. 検証の定型（変わらず）
+1. **対話モードの再実行**（`npm run smoke:interactive`）。既存178パートを
+   `interactiveTargets = true` で走らせ、選択を候補の先頭で自動応答する
+2. **保存則の検査**。`act()` のたびにカード総数の差分を見る（故意のリークで発火を確認済み）
+3. **再開スタック**。`PendingChoice.queue` を廃止し `GameState.resumeStack` へ。
+   継続が選択待ちから独立したので、深い場所からでも中断できる下地ができた
+4. **中断中の盤面変更ガード**（`BS_DEBUG_CHECKS=1`）
+
+**未着手（次にやる順）**:
+
+1. **⚠️ ガードが検出した3件の扱いを決める**（下記「6. 未決」）
+2. `turnStartResumeStep` を `ResumeFrame` に吸収する
+3. `pendingReviveConfirms` / `pendingDeckMillNegates` を廃し、**本来のタイミングで確認を出す**
+   （ユーザー確認済み。今は `handleAction` の末尾まで遅延している）
+4. 既存5つの割り込み（`magicNegate` / `magicRedirect` / `deckMillNegate` / `reviveConfirm` /
+   `handFreeSummon`）をチェックポイント方式へ移行する
+5. その上で **BS09（超星91枚）の設計調査**（`data/staging/BS09.json` に取り込み済み・未投入）
+
+## 6. 未決（ユーザー確認待ち）
+
+**選択待ちの間に、ターン終了やレベル再計算による消滅を進めてよいか。**
+
+中断ガードが3件検出した（part1付近の `endTurn` 1件、part81 の `summon` 2件）。
+`handleAction` は `dispatchAction` の後に事後フックを並べているが、そのうち
+`forceEndTurnIfFlagged`（`endTurn` を呼ぶ）と `refreshLevelAsOverrides`
+（レベル置換の再計算 → 維持コア割れの消滅）に `state.pendingChoice` のガードが無い。
+
+進めてよくないなら、事後フックにガードを足すか、フックごと再開フレームにする。
+
+## 7. 検証の定型（変わらず）
 
 ```
 npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
 ```
+
+**`npm run smoke:interactive` は定型に入れない**（診断用。上記3件の検出で現在 exit 1）。
 
 E2E は `PORT=3100 npx tsx server/src/index.ts` を起動してから `PORT=3100 npx tsx scripts/e2e.ts`。
 現在 smoke 6750件・E2E 全緑。
