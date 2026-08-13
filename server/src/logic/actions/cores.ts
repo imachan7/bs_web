@@ -670,29 +670,84 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
     return moved
 }
 
-// BS08マインドブレイク：自分のスピリット上のコア合計がcount未満なら不発（「〜することで」の任意コストは、
-// 選択を挟む仕組みが未対応のため、払えるなら自動で払う決定的簡略化）。足りれば自分のスピリットから
-// コアの多い個体順に合計count個を自分のトラッシュへ置き、続けて相手のスピリットにも同じ処理を行う（相手は必ず支払う）
+// BS08マインドブレイク：「自分のスピリット上のコアcount個を自分のトラッシュに置くことで、
+// **相手は**、相手のスピリット上のコアcount個を相手のトラッシュに置く」。
+//
+// 選択者が前半と後半で入れ替わる:
+//   - 前半（phase:"own"）＝コストの支払い。**支払う本人が**どのスピリットから出すかを選ぶ（COST_MODEL.md §2）
+//   - 後半（phase:"opp"）＝効果。効果文の主語が「相手は」なので**相手が**選ぶ（CHOOSER_RULES.md §1）
+// どちらも1個ずつ選ばせ、残数を action.remaining に持ち回る。非対話は従来どおりコアの多い個体から。
+// 自分のスピリット上のコア合計が count 未満なら発揮できない（COST_MODEL.md §1）
 const costOwnSpiritCoresToTrashThenOpponentHandler: ActionHandler<"costOwnSpiritCoresToTrashThenOpponent"> = (
     ctx,
     action,
 ) => {
-    const { state, owner, opp, sourceName } = ctx
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    // side のスピリットから1個ずつ置かせる。remaining が尽きたら次の段階へ
+    const step = (phase: "own" | "opp", remaining: number): void => {
+        if (state.winner) return
+        const side = phase === "own" ? owner : opp
+        if (remaining <= 0) {
+            if (phase === "own") step("opp", action.count)
+            return
+        }
+        const candidates = state.players[side].field.spirits.filter((s) => s.cores > 0)
+        if (candidates.length === 0) {
+            if (phase === "opp") {
+                log(state, `${sourceName}：${state.players[opp].name}のスピリットにコアがなかった。`)
+                return
+            }
+            step("opp", action.count)
+            return
+        }
+        if (state.interactiveTargets) {
+            requestChoice(
+                state,
+                owner,
+                phase === "own"
+                    ? `${sourceName}：コストとしてコアを置く自分のスピリットを選んでください（あと${remaining}個）`
+                    : `${sourceName}：コアをトラッシュに置く自分のスピリットを選んでください（あと${remaining}個）`,
+                candidates.map((s) => s.instanceId),
+                false,
+                { ...action, phase, remaining },
+                self,
+                "target",
+                undefined,
+                // 後半は「相手は」なので選択者を相手に差し替える（解決は発生源の持ち主の効果のまま）
+                phase === "opp" ? opp : undefined,
+            )
+            return
+        }
+        // 非対話：コアの多い個体から自動で置く（従来どおりの決定的簡略化）
+        const moved = moveRichestSpiritCoresToTrash(state, side, remaining)
+        log(state, `${sourceName}：${state.players[side].name}のスピリットからコア${moved}個をトラッシュに置いた。`)
+        if (phase === "own") step("opp", action.count)
+    }
+    // 選択の再開：選ばれたスピリットからコアを1個置いて、残りを続ける
+    if (action.phase !== undefined && action.remaining !== undefined) {
+        const side = action.phase === "own" ? owner : opp
+        const chosen = state.players[side].field.spirits.find((s) => s.instanceId === targetInstanceId)
+        if (chosen && chosen.cores > 0) {
+            chosen.cores -= 1
+            state.players[side].trashCores += 1
+            log(
+                state,
+                `${sourceName}：${state.players[side].name}は${getCard(chosen.cardId).name}のコア1個をトラッシュに置いた。`,
+            )
+            // 維持コア割れは既存の消滅処理に委ねる
+            if (chosen.cores < instMinLevelCores(chosen)) {
+                destroySpirit(state, side, chosen.instanceId, "deplete")
+            }
+        }
+        step(action.phase, action.remaining - 1)
+        return
+    }
     const ownTotal = state.players[owner].field.spirits.reduce((sum, s) => sum + s.cores, 0)
     if (ownTotal < action.count) {
         log(state, `${sourceName}：自分のスピリット上のコアが足りず発動しなかった。`)
         return
     }
-    const movedOwn = moveRichestSpiritCoresToTrash(state, owner, action.count)
-    log(state, `${sourceName}：${state.players[owner].name}のスピリットからコア${movedOwn}個をトラッシュに置いた。`)
-    if (state.winner) return
-    const movedOpp = moveRichestSpiritCoresToTrash(state, opp, action.count)
-    if (movedOpp > 0) {
-        log(state, `${sourceName}：${state.players[opp].name}のスピリットからコア${movedOpp}個をトラッシュに置いた。`)
-    } else {
-        log(state, `${sourceName}：${state.players[opp].name}のスピリットにコアがなかった。`)
-    }
-    return
+    step("own", action.count)
 }
 
 const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, action) => {
