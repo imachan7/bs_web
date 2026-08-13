@@ -416,6 +416,8 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         }
         // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
         // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
+        // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
+        // 選ばせたあとは costDestroyOwnFamily を落とした action で入り直し、二重に払わないようにする
         if (action.costDestroyOwnFamily !== undefined && chosenCardIndex === undefined) {
             const sacrifices = player.field.spirits.filter((s) =>
                 matchesFamilyFilter(state, owner, s, action.costDestroyOwnFamily!),
@@ -424,6 +426,31 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
                 return
             }
+            const { costDestroyOwnFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && sacrifices.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    sacrifices.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
             let victim = sacrifices[0]!
             for (const s of sacrifices) {
                 if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
@@ -439,6 +466,34 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：破壊できるネクサスがないため発動しなかった。`)
                 return
             }
+            const { costDestroyOwnNexus: _paidNx, costSacrificeChosen: _flagNx, ...restNx } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = nexuses.find((n) => n.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたネクサスはコストにできなかった。`)
+                    return
+                }
+                if (!destroyNexus(state, owner, chosen.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                    log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
+                    return
+                }
+                ctx.resolve(restNx)
+                return
+            }
+            // **どのネクサスを壊すかは候補2つ以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
+            if (state.interactiveTargets && nexuses.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のネクサスを選んでください`,
+                    nexuses.map((n) => n.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1つ：コア最少を自動選択（同数はフィールド先頭）
             let victim = nexuses[0]!
             for (const n of nexuses) {
                 if (n.cores < victim.cores) victim = n

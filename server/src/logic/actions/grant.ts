@@ -538,9 +538,10 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
 }
 
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
-        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない
+        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない。
+        // **誰を疲労させるかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
         if (action.costExhaustFamily !== undefined) {
             const candidates = state.players[owner].field.spirits.filter(
                 (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
@@ -549,7 +550,30 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
                 log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
                 return
             }
-            // 犠牲を最小化する簡略化（実効BP最小を自動選択）
+            const { costExhaustFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const picked = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!picked) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                exhaustSpirit(state, owner, picked)
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
             const chosen = candidates.reduce((min, s) =>
                 effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
             )

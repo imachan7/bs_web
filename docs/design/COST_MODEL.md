@@ -40,10 +40,27 @@ if (!canPayCost(...) || !hasResolvableTarget(...)) {
 ## 2. 何を犠牲にするかは選ばせる（2026-08-13 ユーザー確定）
 
 コストの対象（破壊する自分のスピリット、疲労させるスピリット等）が**2つ以上あるときはプレイヤーに選ばせる**。
-現状は「実効BP最小」「コスト最小」などの決定的な自動選択になっている箇所が多い。
 
 `requestChoice` の既定パターン（`INTERRUPTION_POINTS.md` パターンA）に載せる。
 候補1つなら即確定、0なら §1 により発揮不可。非対話（smoke）は従来どおり自動選択を残す。
+
+**実装の形**：選ばせたら、**そのコスト軸を落とした action で入り直す**（`ctx.resolve`）。
+二重に払うのを構造的に防ぐため。`exhaust` の `chooserIsTarget` と同じ「解決済みの軸を落として再入する」書き方。
+再入時に渡る `targetInstanceId` が犠牲であることは、内部専用フィールド `costSacrificeChosen` で示す。
+
+```ts
+const { costDestroyOwnFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+    /* targetInstanceId を犠牲として支払う */
+    ctx.resolve(rest)   // ← コスト軸が消えているので本体だけが走る
+    return
+}
+```
+
+2026-08-13 に4枚へ適用済み（smoke part177）:
+ブリュナグオン（`costDestroyOwnKeyword`）／キャストオフ（`costDestroyOwnFamily`）／
+リクラメーション（`costDestroyOwnNexus`）／秘密の花園（`costExhaustFamily`）。
+リザーブや自身の上のコアを払うもの（`costReserveToVoid` 等）は、どのコアを払っても同じなので選択の対象外。
 
 ## 3. 現状の適合状況（2026-08-13 時点）
 
@@ -59,7 +76,12 @@ if (!canPayCost(...) || !hasResolvableTarget(...)) {
 | `levelOverrideOpponentNexuses` | `costReserveToVoid` | ❌ 払ってから相手ネクサスを見る |
 | `summonFromHandFree` | `costDestroyOwnFamily` / `costDestroyOwnNexus` | ❌ 破壊してから召喚可能か見る |
 
-❌ の5件は §1 に合わせて直す（数え方は効果節ではなくアクション単位。実カードは十数枚）。
+❌ の5件は §1 に合わせて直す（実カードは6枚。ビャク・ガロウ／ブリュナグオン／キャストオフ／
+リクラメーション／カイザーアトラス皇帝／皇帝アンプルール）。
+
+「発揮できない＝発動確認も出さない」まで守るには、**そのアクションが今 A と B を満たせるかを
+副作用なしで答える述語**が要る（発動確認を出すのは `fireStepTriggers` / `fireTrigger` で、
+アクションを実行する前の層のため）。`resistanceAgainst` の `probing` と同じ形。
 
 ## 4. コストの代替支払い（別概念なので混ぜない）
 

@@ -762,7 +762,9 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
         }
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
-        // 払えなければ何も起きない（実効BP最小を自動選択＝犠牲を最小化する簡略化）
+        // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
+        // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
+        // （exhaust の chooserIsTarget と同じ「解決済みの軸を落として再入する」書き方）
         if (action.costDestroyOwnKeyword !== undefined && chosenCardIndex === undefined) {
             const kw = action.costDestroyOwnKeyword
             const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
@@ -770,6 +772,31 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
                 log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
                 return
             }
+            const { costDestroyOwnKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = candidates.find((sp) => sp.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", { sourcePid: owner })
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((sp) => sp.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
             const victim = candidates.reduce((min, sp) =>
                 effectiveBp(state, owner, sp) < effectiveBp(state, owner, min) ? sp : min,
             )
