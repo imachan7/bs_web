@@ -34,6 +34,7 @@ import {
     applyJugekiCoreToVoid,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
+    applyMagicSideChoice,
     applyHandFreeSummon,
     applyDeckMillNegate,
     applyReviveConfirm,
@@ -1121,6 +1122,24 @@ function doResolveChoice(
         } else {
             declineDeckMillNegate(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 対象の変更の確認（BS02封印された魔導書Lv1）。action は解決せず、
+    // どちらを対象として残すかを記録してから、中断していたマジックの解決を続ける。
+    // options の並びは BOTH_SIDES_REDIRECT_OPTIONS（0=変更しない / 1=相手のみ / 2=自分のみ）で、
+    // 「相手」「自分」はどちらも**魔導書の持ち主から見た**呼び方
+    if (pending.magicSideChoice) {
+        const options = pending.options ?? []
+        if (option === undefined) return "対象をどちらに変更するか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0) return "選択できない候補です"
+        const info = pending.magicSideChoice
+        state.pendingChoice = null
+        const keepPid =
+            index === 0 ? null : index === 1 ? opponentOf(info.ownerPid) : info.ownerPid
+        applyMagicSideChoice(state, info, keepPid)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

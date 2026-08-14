@@ -55,6 +55,8 @@ import {
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
 import { destroySpirit } from "./removal"
 import {
+    applyBothSidesRedirectToCandidates,
+    bothSidesRedirectKeepPid,
     fireFieldEventTriggers,
     fireSummonTrigger,
     fireTrigger,
@@ -1950,10 +1952,11 @@ export function pickAnySideCandidates(
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const opp = opponentOf(owner)
-    return [
+    // 封印された魔導書Lv1：マジックの効果なら、片側だけに変更する選択が済んでいる場合がある
+    return applyBothSidesRedirectToCandidates(state, sourceType, [
         ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
         ...state.players[owner].field.spirits.filter(matches),
-    ]
+    ])
 }
 
 // 「自分か相手のスピリット1体」を対象にする効果（action.anySide）の自動選択（非対話時）で使う共通ロジック。
@@ -1969,10 +1972,18 @@ export function pickAnySideByBp(
     op: EffectAttempt["op"] = "other",
 ): { pid: PlayerId; inst: CardInstance } | null {
     const opp = opponentOf(owner)
-    const oppCandidate = pickEnemyByBp(state, opp, maxBp, matches, sourceColors, sourceType, op)
-    const ownCandidates = state.players[owner].field.spirits.filter(
-        (s) => effectiveBp(state, owner, s) <= maxBp && matches(s),
-    )
+    // 封印された魔導書Lv1：片側だけに変更する選択が済んでいれば、その側からしか選ばない
+    const keepPid = bothSidesRedirectKeepPid(state, sourceType)
+    const oppCandidate =
+        keepPid !== null && keepPid !== opp
+            ? null
+            : pickEnemyByBp(state, opp, maxBp, matches, sourceColors, sourceType, op)
+    const ownCandidates =
+        keepPid !== null && keepPid !== owner
+            ? []
+            : state.players[owner].field.spirits.filter(
+                  (s) => effectiveBp(state, owner, s) <= maxBp && matches(s),
+              )
     const ownCandidate =
         ownCandidates.length > 0
             ? ownCandidates.reduce((best, s) =>
@@ -2631,13 +2642,16 @@ export {
     fireFieldEventTriggers,
     notifyHandGained,
     notifyNexusDeployed,
+    applyBothSidesRedirectToCandidates,
     bothSidesPids,
+    bothSidesRedirectKeepPid,
     battleBp,
     applyJugekiCoreToVoid,
     notifySpiritCoresRemovedByOpponent,
     findMagicNegateSource,
     resolveMagic,
     applyMagicRedirectChoice,
+    applyMagicSideChoice,
     applyMagicNegateChoice,
     declineMagicNegateChoice,
 } from "./triggers"

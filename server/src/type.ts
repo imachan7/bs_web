@@ -1665,6 +1665,17 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 絞り込み先＝確認を出す側の発生源
     }
+    magicSideChoice?: {
+        // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の対象変更の確認待ち。
+        // magicRedirect と同じく **action は解決しない**（答えを GameState.magicSideDecision に
+        // 記録してからマジックの解決へ進む）。選ぶのは**魔導書の持ち主**で、マジックの使用者とは限らない
+        casterPid: PlayerId
+        cardId: string
+        timing: "main" | "flash"
+        targetInstanceId: string | undefined
+        sourceInstanceId: string // 魔導書＝確認を出す側の発生源
+        ownerPid: PlayerId // 魔導書の持ち主（＝選ぶ人）
+    }
     action: EffectAction // 選択後に resolveAction する本体
     actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
     // **選択者と実行者が別**のケースで使う（BS02-012 ケンドラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として行う）
@@ -1802,6 +1813,13 @@ export interface GameState {
     // 対話モードでは resolveMagic が守る側に1回だけ確認し、その答えをこのマジックの解決中ずっと使う
     // （アクションごとに聞き直さない）。**非対話（テスト・自動解決）ではセットされず、従来どおり自動で絞り込む**
     magicRedirectDecision?: { sourceInstanceId: string; approved: boolean }
+    // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の答え。
+    // **keepPid が対象として残る側**（null＝変更しない＝両陣営のまま）。魔導書の持ち主とマジックの使用者は
+    // 別人でありうる（『自分のターン』中に相手がフラッシュで使った場合）ので、
+    // 「持ち主から見た自分／相手」ではなく残す側の PlayerId をそのまま持つ。
+    // 対話モードでは resolveMagic が魔導書の持ち主に1回だけ確認し、そのマジックの解決中ずっと使う。
+    // **非対話（テスト・自動解決）ではセットされず、従来どおり持ち主に有利な側へ自動で固定する**
+    magicSideDecision?: { sourceInstanceId: string; keepPid: PlayerId | null }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
