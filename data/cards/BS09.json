@@ -5007,7 +5007,19 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "treatOwnNexusesAsSpiritsThisTurn"
+          "type": "treatOwnNexusesAsSpiritsThisTurn",
+          "minCores": 1,
+          "cost": 5,
+          "family": [
+            "造兵"
+          ],
+          "levels": [
+            {
+              "level": 1,
+              "cores": 1,
+              "bp": 6000
+            }
+          ]
         }
       }
     ]
