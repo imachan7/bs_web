@@ -8,6 +8,7 @@ import {
     act,
     createGame,
     createInstance,
+    currentLevel,
     destroySpirit,
     getCard,
     refreshLevelAsOverrides,
@@ -15,8 +16,9 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireTrigger } from "../../server/src/logic/EffectModules"
+import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/EffectModules"
 import { fireBattleWonTriggers } from "../../server/src/logic/triggers"
+import { instHasColor } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)
@@ -147,4 +149,30 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     const err = castFromHand(s, "p1", "BS09-084", "attack")
     assert(err === null, `ドラゴニックハウルを使用できる（${err ?? "ok"}）`)
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === same.instanceId), "同じコストの相手が破壊される")
+}
+
+console.log("=== BS09-045 光輝の勇者皇リュート：自分をブロックした相手はLv1として扱う ===")
+{
+    const s: GameState = createGame("cov-045", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
+    runTurnStart(s)
+    s.turnPlayer = "p1"
+    s.phase = "attack"
+    const lute = put(s, "p1", "BS09-045", 1)
+    const blocker = put(s, "p2", PLAIN, 3) // 本来 Lv2
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(blocker).level === 2, "前提：ブロッカーはLv2")
+    fireFieldEventTriggers(s, "p1", "ownSpiritBlocked", { pid: "p1", inst: lute }, undefined, blocker.instanceId)
+    assert(currentLevel(blocker).level === 1, "ブロックした相手はLv1として扱われる")
+}
+
+console.log("=== BS09-005 銀河竜アンドロメテオス Lv2：青のスピリットとしても扱う ===")
+{
+    const s: GameState = createGame("cov-005", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
+    runTurnStart(s)
+    const andro = put(s, "p1", "BS09-005", 2) // Lv2
+    refreshLevelAsOverrides(s)
+    assert(instHasColor(andro, "blue"), "Lv2では青としても扱う")
+    const lv1 = put(s, "p1", "BS09-005", 1)
+    refreshLevelAsOverrides(s)
+    assert(!instHasColor(lv1, "blue"), "Lv1では青にならない")
 }
