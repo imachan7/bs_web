@@ -339,7 +339,7 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
 }
 
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName , srcType } = ctx
         // 絞り込みは共通の TargetFilter に一本化（keyword/color/vanilla/family/excludeSelf の5軸。
         // 旧フィールドは normalizeFilter が畳み込むためデータは無変更）
         const filter = normalizeFilter(ctx, action)
@@ -356,7 +356,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         }
         // all指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）
         if (action.all) {
-            for (const c of candidates) refreshSpirit(state, owner, c)
+            for (const c of candidates) refreshSpirit(state, owner, c, srcType)
             log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
@@ -365,14 +365,14 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         if (action.count !== undefined) {
             const ordered = [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
             const picked = ordered.slice(0, action.count)
-            for (const c of picked) refreshSpirit(state, owner, c)
+            for (const c of picked) refreshSpirit(state, owner, c, srcType)
             log(state, `${sourceName}：スピリット${String(picked.length)}体を回復させた。`)
             return
         }
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
-        refreshSpirit(state, owner, target)
+        refreshSpirit(state, owner, target, srcType)
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
 }
@@ -390,7 +390,7 @@ function staticKeywordCount(inst: CardInstance, keyword: Keyword): number | unde
 }
 
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, sourceName , srcType } = ctx
         // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
         // refreshAllByCostと同型でcantAttackThisTurnは付与しない。
         // side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
@@ -404,7 +404,7 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
                 if (action.keywordCount !== undefined && staticKeywordCount(s, action.keyword) !== action.keywordCount) {
                     continue
                 }
-                refreshSpirit(state, pid, s)
+                refreshSpirit(state, pid, s, srcType)
                 count++
             }
         }
@@ -417,7 +417,7 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
 }
 
 const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName, destroyContext } = ctx
+    const { state, owner, self, sourceName, destroyContext , srcType } = ctx
         // 巨神機トールLv3：「〜することで」の任意コストは自動発動で簡略化。
         // 犠牲はfamilyFilter一致・self以外から実効BP最小を自動選択する（犠牲を最小化する簡略化）
         if (!self) {
@@ -440,7 +440,7 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
             log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
-        refreshSpirit(state, owner, self)
+        refreshSpirit(state, owner, self, srcType)
         log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
         return
 }
@@ -448,7 +448,7 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
 // BS08勇者フェニックスペンタンLv2-3：「〜することで」の任意コストは自動発動で簡略化（refreshSelfByDestroyFamilyの
 // 「破壊」を「デッキの一番上に戻す」に差し替えた版）。犠牲はnameIncludes一致・self以外から実効BP最小を自動選択する
 const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByReturnToDeckTopName"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName , srcType } = ctx
         if (!self) {
             log(state, `${sourceName}：回復対象がいなかった。`)
             return
@@ -469,7 +469,7 @@ const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByRetur
             log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
-        refreshSpirit(state, owner, self)
+        refreshSpirit(state, owner, self, srcType)
         log(state, `${name}はデッキの上に戻り、${getCard(self.cardId).name}は回復した。`)
         return
 }
@@ -480,7 +480,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
         let count = 0
         for (const s of player.field.spirits) {
             if (!s.isRested) continue
-            refreshSpirit(state, owner, s)
+            refreshSpirit(state, owner, s, srcType)
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
             // exemptKeyword（BS09-076エマージェンシー＝【転召】持ちはアタックできる）は exemptFamily と OR
@@ -504,7 +504,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
 }
 
 const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName } = ctx
+    const { state, owner, opp, self, sourceName , srcType } = ctx
         // スクルディア：このスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。
         // 指定は発生源（self）に記録し、self が疲労状態で持ち主のフィールドにいる間だけ効く
         // （判定は EffectModules.isRefreshBlockedByMark。リフレッシュステップのみが見る）。
@@ -538,7 +538,7 @@ const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action)
                 if (!s.isRested) continue
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
                 if (!instHasCost(s, action.cost)) continue
-                refreshSpirit(state, pid, s)
+                refreshSpirit(state, pid, s, srcType)
                 count++
             }
         }
@@ -590,7 +590,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
             )
         }
-        refreshSpirit(state, owner, self)
+        refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return
 }
@@ -601,7 +601,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
 // 疲労させるネクサスの選択は決定的簡略化：コア数が最少のもの（同数はフィールドの先頭側）。
 // ネクサスはリフレッシュステップで回復する（PhaseManager が spirits と nexuses の両方を回復させる）
 const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus"> = (ctx) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName , srcType } = ctx
     if (!self) {
         log(state, `${sourceName}：回復対象がいなかった。`)
         return
@@ -641,7 +641,7 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
     const nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
     if (!nexus) return
     nexus.isRested = true
-    refreshSpirit(state, owner, self)
+    refreshSpirit(state, owner, self, srcType)
     self.kyoshuUsed = { turn: state.turn, count: used + 1 }
     log(
         state,
@@ -651,7 +651,7 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
 }
 
 const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName , srcType } = ctx
         // このスピリット自身を疲労させる（唯一の入口exhaustSpirit経由。BS06雪ん子イエティ／天使長ファニム）
         if (!self) {
             log(state, `${sourceName}：疲労対象がいなかった。`)
@@ -677,7 +677,7 @@ const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) =
             log(state, `${sourceName}の回復：対象がいなかった。`)
             return
         }
-        for (const s of candidates) refreshSpirit(state, owner, s)
+        for (const s of candidates) refreshSpirit(state, owner, s, srcType)
         log(state, `${sourceName}：${candidates.length}体を回復させた。`)
         return
 }
@@ -737,12 +737,12 @@ const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, a
 // 指定系統の疲労スピリットを最大count体回復させる（refreshByFamilyAuto の共通部分）。
 // 回復させる個体の選択は実効BP降順の簡略化のまま（「3体」の内訳までは選ばせない）
 function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): void {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, sourceName , srcType } = ctx
     const candidates = state.players[owner].field.spirits
         .filter((s) => s.isRested && spiritHasFamily(state, owner, s, family))
         .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
         .slice(0, count)
-    for (const s of candidates) refreshSpirit(state, owner, s)
+    for (const s of candidates) refreshSpirit(state, owner, s, srcType)
     log(
         state,
         `${sourceName}：系統「${family}」を選び、${candidates.length}体を回復させた。`,

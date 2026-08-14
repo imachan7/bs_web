@@ -994,18 +994,24 @@ export function bothSidesPids(
 export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): number {
     const base = effectiveBp(state, pid, inst)
     const level = currentLevel(inst).level
-    for (const source of effectSources(state, pid)) {
+    // side:"both"（BS09-073オンザエッジ＝「スピリットすべては」）は相手の発生源からも効くので、
+    // 対象の持ち主だけでなく両陣営の発生源を走査する
+    const sourcePids: PlayerId[] = [pid, opponentOf(pid)]
+    for (const sourcePid of sourcePids)
+    for (const source of effectSources(state, sourcePid)) {
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "battleBpAsLevel") continue
+            // 相手側の発生源は side:"both" のエントリだけが効く
+            if (sourcePid !== pid && effect.side !== "both") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.fromLevel !== level) continue
             // keywordFilter（BS06神葉樹の森Lv2）：指定キーワードを持つスピリットのみ対象
             if (effect.keywordFilter && !spiritHasKeyword(state, pid, inst, effect.keywordFilter)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "own" && sourcePid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) continue
             }
             const levels = getCard(inst.cardId).levels
             const from = levels.find((l) => l.level === effect.fromLevel)

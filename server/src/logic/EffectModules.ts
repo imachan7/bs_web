@@ -460,9 +460,22 @@ export function exhaustSpirit(
 // 実際に回復したときだけ「このスピリットが回復したとき」（onRefreshed）を発火する。
 // リフレッシュステップ・効果による回復・【強襲】のいずれもここを通す
 // （疲労を exhaustSpirit に一元化したのと同じ理由で、2026-08-09 に11箇所から集約した。BS07）
-export function refreshSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+export function refreshSpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    sourceType?: "spirit" | "nexus" | "magic",
+): void {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
+    // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
+    // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
+    if (
+        (sourceType === "nexus" || sourceType === "magic") &&
+        hasGlobalConstraint(state, "noRefreshByNexusOrMagic")
+    ) {
+        return
+    }
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
@@ -2637,6 +2650,7 @@ export {
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,
+    tryFreeSummonOnHandDiscard,
     tryHandFreeSummonOnLifeDamaged,
     applyHandFreeSummon,
     applyReviveConfirm,

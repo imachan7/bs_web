@@ -43,6 +43,20 @@ function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): numb
     return colors.size
 }
 
+// BS09-052フォレスト・ゴレム：「相手のコスト3/4のスピリット1体ずつを破壊する」＝
+// コスト3から1体・コスト4から1体（計2体）。片方しかいなければその1体だけ（2026-08-14 ユーザー確認）
+const destroyCostsEachOneHandler: ActionHandler<"destroyCostsEachOne"> = (ctx, action) => {
+    const { state, sourceName, srcColors, srcType } = ctx
+    for (const cost of action.costs) {
+        if (state.pendingChoice || state.winner) return
+        ctx.resolve({ type: "destroy", count: 1, filter: { cost: { min: cost, max: cost } } }, {
+            sourceColors: srcColors,
+            sourceType: srcType,
+        })
+    }
+    void sourceName
+}
+
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
@@ -1271,6 +1285,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
 }
 
 const handlers = {
+    destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     destroyAll: destroyAllHandler,

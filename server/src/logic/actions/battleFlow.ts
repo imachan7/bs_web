@@ -24,7 +24,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, instMinLevelCores, matchesCostFilter } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -246,6 +246,77 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             fireFieldEventTriggers(state, opp, "ownLifeDamaged")
         }
         return
+}
+
+// BS09-065名工集いし大工房Lv2：自分のトラッシュにある指定色のネクサスカード1枚を、
+// **自分のフィールドのコアだけ**を使ってコストを支払って配置する（リザーブは使わない。2026-08-14 ユーザー確認）。
+// 取るのはネクサス上→コアの多いスピリットの順で、**維持コアを割る個体からは取らない**（決定的簡略化）
+const deployNexusFromTrashByFieldCoresHandler: ActionHandler<"deployNexusFromTrashByFieldCores"> = (ctx, action) => {
+    const { state, owner, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    const isMatch = (cardId: string): boolean => {
+        const c = getCard(cardId)
+        return c.type === "nexus" && action.colors.some((col) => cardHasColor(c, col))
+    }
+    // フィールドから取り出せるコアの総量（維持コアぶんは残す）
+    const spendable = (): { inst: CardInstance; max: number }[] => [
+        ...player.field.nexuses.map((n) => ({ inst: n, max: n.cores })),
+        ...player.field.spirits.map((sp) => ({ inst: sp, max: Math.max(0, sp.cores - instMinLevelCores(sp)) })),
+    ].filter((x) => x.max > 0)
+    const indices = player.trashCards.map((_, i) => i).filter((i) => isMatch(player.trashCards[i]!))
+    if (indices.length === 0) {
+        log(state, `${sourceName}：トラッシュに対象のネクサスがなかった。`)
+        return
+    }
+    const deploy = (idx: number): void => {
+        const cardId = player.trashCards[idx]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        const cost = effectiveCost(state, owner, getCard(cardId))
+        const pool = spendable()
+        const total = pool.reduce((sum, x) => sum + x.max, 0)
+        if (total < cost) {
+            log(state, `${sourceName}：フィールドのコアが足りないため配置できなかった。`)
+            return
+        }
+        // コアの多い順に取る（決定的簡略化）
+        let remaining = cost
+        for (const x of [...pool].sort((a, b) => b.max - a.max)) {
+            if (remaining <= 0) break
+            const take = Math.min(remaining, x.max)
+            x.inst.cores -= take
+            player.trashCores += take
+            remaining -= take
+        }
+        player.trashCards.splice(idx, 1)
+        const maintain = minLevelCores(getCard(cardId))
+        player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
+        log(
+            state,
+            `${player.name}はフィールドのコア${String(cost)}個を支払い、トラッシュから${getCard(cardId).name}を配置した。`,
+        )
+        notifyNexusDeployed(state, owner)
+    }
+    if (chosenCardIndex !== undefined) {
+        deploy(chosenCardIndex)
+        return
+    }
+    if (state.interactiveTargets && indices.length >= 2) {
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：配置するネクサスを選んでください`,
+            "trash",
+            indices,
+            false,
+            action,
+            null,
+        )
+        return
+    }
+    deploy(indices[0]!)
 }
 
 const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
@@ -931,6 +1002,7 @@ const handlers = {
     battleCompareByCores: battleCompareByCoresHandler,
     lockFlash: lockFlashHandler,
     lifeCrush: lifeCrushHandler,
+    deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,

@@ -1031,6 +1031,14 @@ export function matchesTarget(
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
+    // 継続的な制約（unblockableBy）とターン限定の印（unblockableOnceThisTurn）の両方を見る
+    if (filter.unblockableOnly) {
+        const hasUnblockable =
+            inst.unblockableOnceThisTurn === true ||
+            activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
+        if (!hasUnblockable) return false
+    }
     // keywords（BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）：いずれか1つでも持てばよい
     if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false

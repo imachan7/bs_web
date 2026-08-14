@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
+    tryFreeSummonOnHandDiscard,
     bothSidesPids,
     resistanceAgainst,
     countEffectCounter,
@@ -129,6 +130,8 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             target.hand.splice(chosenCardIndex, 1)
             target.trashCards.push(cardId)
             log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
+            // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             return
         }
         if (target.hand.length === 0) {
@@ -182,6 +185,8 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             if (cardId === undefined) break
             target.trashCards.push(cardId)
             discarded.push(getCard(cardId).name)
+            // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
         }
         if (discarded.length === 0) {
             log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
@@ -1250,6 +1255,29 @@ const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMag
         return
 }
 
+// BS09-084ドラゴニックハウル：自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の
+// 相手のスピリットすべてを破壊する。デッキが0枚なら破棄できないので不発
+const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
+    const { state, owner, sourceName, srcColors, srcType } = ctx
+    const player = state.players[owner]
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：自分のデッキが0枚のため発動しなかった。`)
+        return
+    }
+    const milled = millDeck(state, owner, 1, owner)
+    if (milled === 0) {
+        log(state, `${sourceName}：デッキを破棄できなかった。`)
+        return
+    }
+    const cost = getCard(top).cost
+    log(state, `${sourceName}：破棄したのは${getCard(top).name}（コスト${String(cost)}）。`)
+    ctx.resolve({ type: "destroyAll", filter: { cost: { min: cost, max: cost } } }, {
+        sourceColors: srcColors,
+        sourceType: srcType,
+    })
+}
+
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
@@ -1546,9 +1574,11 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
 const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
-    // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有で判定する
+    // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有・種別で判定する。
+    // cardType 省略時はスピリットカード（従来どおり）
     const eligible = (cardId: string): boolean =>
-        getCard(cardId).type === "spirit" && hasKeyword(cardId, action.keyword)
+        getCard(cardId).type === (action.cardType ?? "spirit") &&
+        (action.keyword === undefined || hasKeyword(cardId, action.keyword))
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
         if (cardId === undefined || !eligible(cardId)) {
@@ -1563,7 +1593,11 @@ const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywo
     }
     const indices = player.hand.map((_, i) => i).filter((i) => eligible(player.hand[i]!))
     if (indices.length === 0) {
-        log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットカードが手札になく、発動しなかった。`)
+        const what =
+            action.keyword !== undefined
+                ? `【${KEYWORDS[action.keyword].label}】を持つ${action.cardType ?? "スピリット"}カード`
+                : `${action.cardType === "nexus" ? "ネクサス" : action.cardType === "magic" ? "マジック" : "スピリット"}カード`
+        log(state, `${sourceName}：${what}が手札になく、発動しなかった。`)
         return
     }
     if (tryInteractiveCardChoice(state, owner, self, `${sourceName}：コストとして破棄するカードを選んでください`, "hand", indices, action, null)) {
@@ -1987,6 +2021,7 @@ const handlers = {
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     drawPerHandDiscard: drawPerHandDiscardHandler,
+    millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millPer: millPerHandler,

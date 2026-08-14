@@ -455,26 +455,28 @@ const voidCoreToOtherHandler: ActionHandler<"voidCoreToOther"> = (ctx, action) =
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
         }
+        // colorFilter（BS09-020ヤミヤンマ＝白のスピリット）：指定色を持つ自分のスピリットのみ対象
         const candidates = state.players[owner].field.spirits.filter(
-            (s) => s.instanceId !== self.instanceId,
+            (s) =>
+                s.instanceId !== self.instanceId &&
+                (action.colorFilter === undefined || instHasColor(s, action.colorFilter)),
         )
         if (candidates.length === 0) {
             log(
                 state,
-                `${sourceName}：このスピリット以外に自分のスピリットがいなかった。`,
+                `${sourceName}：このスピリット以外に対象の自分のスピリットがいなかった。`,
             )
             return
         }
-        const target = candidates.reduce((best, s) =>
-            effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                ? s
-                : best,
-        )
-        log(
-            state,
-            `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
-        )
-        placeCoresOnSpirit(state, target, action.count, owner)
+        // targets（BS09-023要塞蟲ラルバ＝白2体）：実効BP上位から重複なくその体数へ置く
+        const ordered = [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+        for (const target of ordered.slice(0, action.targets ?? 1)) {
+            log(
+                state,
+                `${sourceName}：ボイドからコア${action.count}個を${getCard(target.cardId).name}の上に置いた。`,
+            )
+            placeCoresOnSpirit(state, target, action.count, owner)
+        }
         return
 }
 

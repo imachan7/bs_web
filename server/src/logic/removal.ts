@@ -152,6 +152,7 @@ export {
 
 
 import {
+    summonFreeFromTrashIndex,
 checkExhaustOnCoreChange,
     destroyedCoresGoToTrash,
     emitEvent,
@@ -384,6 +385,45 @@ export function commitPendingDestruction(
         player.reserve += inst.cores
     }
     delete inst.pendingDestruction
+}
+
+// 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
+// 召喚できる」（BS09-025忍者サルトベ）。**破棄されてトラッシュに置かれた直後**に呼ぶ。
+// 召喚できたら true を返し、呼び出し側はトラッシュからそのカードを取り除いてある前提で進む
+export function tryFreeSummonOnHandDiscard(
+    state: GameState,
+    targetPid: PlayerId,
+    cardId: string,
+    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourcePid: PlayerId,
+): boolean {
+    // 「相手の**スピリット**の効果で」＝発生源がスピリットで、かつ破棄された側とは別のプレイヤー
+    if (sourceType !== "spirit" || sourcePid === targetPid) return false
+    if (state.pendingChoice || state.winner) return false
+    const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnDiscardedByOpponent")
+    if (!effect) return false
+    const player = state.players[targetPid]
+    // 維持コアを置けないなら召喚できない
+    if (player.reserve < minLevelCores(getCard(cardId))) return false
+    const index = player.trashCards.lastIndexOf(cardId)
+    if (index === -1) return false
+    if (state.interactiveTargets) {
+        suspend(state, {
+            pid: targetPid,
+            kind: "option",
+            prompt: `${getCard(cardId).name}：破棄されたこのカードを、コストを支払わずに召喚しますか？`,
+            candidates: [],
+            options: ["召喚する"],
+            optional: true,
+            confirm: true,
+            trashFreeSummon: { pid: targetPid, cardId, trashIndex: index },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return true
+    }
+    summonFreeFromTrashIndex(state, targetPid, getCard(cardId).name, index)
+    return true
 }
 
 // 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
@@ -1597,7 +1637,7 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const floor = coreFloorFor(state, inst)
+    const floor = coreFloorFor(state, inst, ownerPid)
     const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
     player.reserve += removed
@@ -1633,7 +1673,7 @@ export function removeCoresToTrash(
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -1667,7 +1707,7 @@ export function removeCoresToVoid(
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
     inst.cores -= removed
     log(
         state,
@@ -1689,11 +1729,29 @@ export function removeCoresToVoid(
 // **簡略化**：removeCores/removeCoresToTrash/removeCoresToVoid（単体除去の共通処理）だけが尊重する。
 // coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、
 // .coresを直接書き換える範囲効果はこの下限を見ない（data/card-notes.jsonに明記）
-function coreFloorFor(state: GameState, inst: CardInstance): number {
-    const card = getCard(inst.cardId)
-    if (card.type !== "spirit") return 0
-    if (!hasActiveGlobalConstraint(state, "coreFloorByCost")) return 0
-    return card.cost
+function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId): number {
+    if (getCard(inst.cardId).type !== "spirit") return 0
+    // ownOnly（BS09-059翡翠の社Lv2）は発生源の持ち主のスピリットだけを守るので、
+    // 「どちらの発生源から来た制約か」を見る必要がある
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
+        for (const source of sources) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "coreFloorByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
+                // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。
+                // 以前はカードの召喚コストとして実装していた（BS08-059聖なる柱状彫刻の挙動もここで変わる）
+                return instMinLevelCores(inst)
+            }
+        }
+    }
+    return 0
 }
 
 // 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。

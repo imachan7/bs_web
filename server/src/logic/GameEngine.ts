@@ -22,6 +22,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
+    summonFreeFromTrashIndex,
     activeConstraints,
     checkExhaustOnCoreChange,
     consumeSummonHandDiscardPay,
@@ -1024,6 +1025,25 @@ function doResolveChoice(
             applyHandFreeSummon(state, info)
         } else {
             log(state, `${getCard(info.cardId).name}：手札から召喚しなかった。`)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 手札から破棄されたカード自身の無償召喚の確認（BS09-025忍者サルトベ）。action は解決しない
+    if (pending.trashFreeSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.trashFreeSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばIDで取り直す
+            const trash = state.players[info.pid].trashCards
+            const index = trash[info.trashIndex] === info.cardId ? info.trashIndex : trash.lastIndexOf(info.cardId)
+            if (index !== -1) summonFreeFromTrashIndex(state, info.pid, getCard(info.cardId).name, index)
+        } else {
+            log(state, `${getCard(info.cardId).name}：トラッシュから召喚しなかった。`)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)

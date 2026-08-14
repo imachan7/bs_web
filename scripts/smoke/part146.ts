@@ -383,7 +383,9 @@ console.log("=== BS08聖なる柱状彫刻：fieldEvent.optional（ownLifeDamage
     )
 }
 
-console.log("=== BS08聖なる柱状彫刻：globalConstraint coreFloorByCost（アタックステップ限定でコストを下回らない） ===")
+// 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」の表記。2026-08-14 ユーザー確認）。
+// 以前はカードの召喚コストとして実装していたため、テストもコスト基準で書かれていた
+console.log("=== BS08聖なる柱状彫刻：globalConstraint coreFloorByCost（アタックステップ限定でLv1コアを下回らない） ===")
 {
     const pillar = findByEffect(
         (e) =>
@@ -392,20 +394,24 @@ console.log("=== BS08聖なる柱状彫刻：globalConstraint coreFloorByCost（
     )
     const entry = entryOf(pillar, (e) => e["kind"] === "globalConstraint")
     const level = (entry["levels"] as number[])[0]!
-    const target = CARDS.find((c) => c.type === "spirit" && (c.cost ?? 0) >= 3)!
-    const cost = target.cost ?? 0
+    // Lv1に必要なコア数が2個以上のカードを使うと、下限が効いているかを観測できる
+    const target = CARDS.find(
+        (c) => c.type === "spirit" && ((c.levels ?? [])[0]?.cores ?? 0) >= 2,
+    )!
+    const floor = (target.levels ?? [])[0]?.cores ?? 1
 
     const s = base("floor-attack")
     s.phase = "attack"
     putNexus(s, "p1", pillar.cardId, coresFor(pillar, level))
-    const spirit = put(s, "p2", target.cardId, cost + 5)
+    const spirit = put(s, "p2", target.cardId, floor + 5)
     resolveAction(s, "p2", spirit, { type: "coreRemoveSelf", count: 99 })
-    assert(spirit.cores === cost, `アタックステップ中はコスト${cost}を下回らない`)
+    assert(spirit.cores === floor, `アタックステップ中はLv1コスト${floor}を下回らない`)
 
     const s2 = base("floor-main")
     s2.phase = "main"
     putNexus(s2, "p1", pillar.cardId, coresFor(pillar, level))
-    const spirit2 = put(s2, "p2", target.cardId, cost + 5)
+    const spirit2 = put(s2, "p2", target.cardId, floor + 5)
     resolveAction(s2, "p2", spirit2, { type: "coreRemoveSelf", count: 99 })
-    assert(spirit2.cores < cost, "対照実験：アタックステップでなければ下限は効かず、維持コアまで減る")
+    // 制約が無ければ「維持コア（＝Lv1コスト）を割る」ところまで取り除ける
+    assert(spirit2.cores < floor, "対照実験：アタックステップでなければ下限は効かない")
 }
