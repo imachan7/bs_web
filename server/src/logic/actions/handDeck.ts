@@ -1686,12 +1686,19 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             }
             return
         }
+        // filter（BS09-X38要塞騎神オーディーンType-X＝【転召】を持たない相手3体）：候補の絞り込み。
+        // 自動選択・明示ターゲットの両方に効かせる
+        const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+        const filterOk = (pid: PlayerId, s: CardInstance): boolean =>
+            resolvedFilter === undefined ||
+            (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId))
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = action.anySide
+            const candidates = (action.anySide
                 ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
-                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
+                : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
+            ).filter((s) => action.anySide === undefined || filterOk(opp, s))
             if (candidates.length >= 2) {
                 // chooserIsTarget（BS07ブリシンガメンの首飾り）：「**相手は**、相手のスピリット3体を〜戻す」。
                 // 選ぶのは戻される側だが、解決は発生源の持ち主の効果として行う（actorPid）
@@ -1717,7 +1724,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             : action.anySide
               ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType, "bounce")
               : (() => {
-                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
+                    const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
                     return t ? { pid: opp, inst: t } : null
                 })()
         if (!found) {

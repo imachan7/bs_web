@@ -1301,7 +1301,7 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp } = effect.constraint
                 // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
                 if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
                 // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
@@ -1310,6 +1310,8 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                     if (costsOfAttacker.some((cost) => costs.includes(cost))) return true
                     continue
                 }
+                // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
+                if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
                 if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
             }
         }

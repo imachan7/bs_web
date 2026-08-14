@@ -1243,6 +1243,703 @@
     ]
   },
   {
+    "cardId": "BS09-027",
+    "name": "密林の勇者皇ヴォルザ",
+    "type": "spirit",
+    "colors": [
+      "green",
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "green",
+      "green",
+      "white",
+      "white"
+    ],
+    "family": [
+      "剣獣",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "green",
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "【転召：コスト3以上/ボイド】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットをブロックしているスピリット上に置いてあるコアは取り除くことができない。",
+    "effects": [
+      {
+        "id": "BS09-027-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 3,
+        "dest": "void"
+      },
+      {
+        "id": "BS09-027-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "refreshSelf"
+        }
+      },
+      {
+        "id": "BS09-027-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "protectBlockerCoresThisBattle"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-028",
+    "name": "機人ガラール",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [],
+    "family": [
+      "機人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 2000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nこのスピリットは黄のスピリットとしても扱う。",
+    "effects": [
+      {
+        "id": "BS09-028-e1",
+        "kind": "colorAs",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "yellow"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-029",
+    "name": "鎧装獣オオヅチ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 2,
+    "reduction": [
+      "white",
+      "yellow"
+    ],
+    "family": [
+      "巨獣",
+      "戯狩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のスピリットによって自分のライフが減らされたとき、自分の黄のスピリット1体を回復させる。",
+    "effects": [
+      {
+        "id": "BS09-029-e1",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "action": {
+          "type": "refreshOne",
+          "filter": {
+            "color": "yellow"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-030",
+    "name": "白銀の守護者リン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "氷姫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2【装甲：紫/青】\nこのスピリットは、相手の紫/青のスピリット/ネクサス/マジックの効果を受けない。\nLv2\n系統：「氷姫」を持つ自分のスピリットすべてに【装甲：紫/青】を与える。",
+    "effects": [
+      {
+        "id": "BS09-030-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "purple",
+          "blue"
+        ]
+      },
+      {
+        "id": "BS09-030-e2",
+        "kind": "keywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "armor",
+        "target": "ownAll",
+        "familyFilter": "氷姫",
+        "colors": [
+          "purple",
+          "blue"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-031",
+    "name": "守護巨獣ガラパーゾ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "yellow"
+    ],
+    "family": [
+      "巨獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nBP3000以下のスピリットのアタックでは、お互いのライフは減らされない。\nLv2【氷壁：緑】『相手のターン』\n相手が緑のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。",
+    "effects": [
+      {
+        "id": "BS09-031-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noLifeDamageByCost",
+          "maxBp": 3000
+        }
+      },
+      {
+        "id": "BS09-031-e2",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          2
+        ]
+      },
+      {
+        "id": "BS09-031-e3",
+        "kind": "magicNegate",
+        "levels": [
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "green"
+        ],
+        "turn": "opponent"
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-032",
+    "name": "飛鋼獣ゲイル・フォッカー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "green",
+      "green"
+    ],
+    "family": [
+      "機獣",
+      "剣獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のコアステップ』\n自分のフィールドにコスト7以上のスピリットがいるとき、ボイドからコア1個をこのスピリットに置く。\nLv2『相手のアタックステップ』\n軽減シンボルを2色以上持つ自分のスピリットすべてをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS09-032-e1",
+        "kind": "step",
+        "step": "core",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "condition": {
+          "ownSpiritMinCost": 7
+        },
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS09-032-e2",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 2000,
+          "reductionColorsAtLeast": 2,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-033",
+    "name": "槍戦騎ガウト",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "武装",
+      "戦騎"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のスピリットによって自分のライフが減らされたとき、自分の黄のスピリット3体を回復させる。",
+    "effects": [
+      {
+        "id": "BS09-033-e1",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "action": {
+          "type": "refreshOne",
+          "filter": {
+            "color": "yellow"
+          },
+          "count": 3
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-034",
+    "name": "風花の戦乙女グナ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "氷姫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【氷壁：緑/青】『相手のターン』\n相手が緑/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2\n系統：「氷姫」を持つ自分のスピリット1体につき、このスピリットをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS09-034-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS09-034-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "green",
+          "blue"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "BS09-034-e3",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amountPer": 2000,
+          "counter": {
+            "ownFamily": "氷姫"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-035",
+    "name": "巨獣皇スミドロード",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 7,
+    "reduction": [
+      "white",
+      "white",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "巨獣",
+      "戯狩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 7,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "手札にあるこのスピリットカードは、相手のスピリットによって自分のライフが減らされたとき、自分のライフが3以下なら、コストを支払わずに召喚できる。\nLv2･Lv3『相手のアタックステップ』\n系統：「巨獣」/「戯狩」を持つ自分のスピリットすべてをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS09-035-e1",
+        "kind": "freeSummonFromHandOnLifeDamaged",
+        "levels": null,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        },
+        "condition": {
+          "ownLifeAtMost": 3
+        }
+      },
+      {
+        "id": "BS09-035-e2",
+        "kind": "aura",
+        "levels": [
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "巨獣",
+            "戯狩"
+          ],
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-036",
+    "name": "氷雪の勇者皇ウル",
+    "type": "spirit",
+    "colors": [
+      "white",
+      "yellow"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "武装",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "white",
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "【転召：コスト3以上/ボイド】\n召喚コスト支払い後、コスト3以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3\nコスト4以下のスピリットのアタックでは、お互いのライフは減らない。\nLv2･Lv3【装甲：赤/紫/白/青】\nこのスピリットは、相手の赤/紫/白/青のスピリット/ネクサス/マジックの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS09-036-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 3,
+        "dest": "void"
+      },
+      {
+        "id": "BS09-036-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noLifeDamageByCost",
+          "maxCost": 4
+        }
+      },
+      {
+        "id": "BS09-036-e3",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          2,
+          3
+        ],
+        "colors": [
+          "red",
+          "purple",
+          "white",
+          "blue"
+        ]
+      }
+    ]
+  },
+  {
     "cardId": "BS09-045",
     "name": "光輝の勇者皇リュート",
     "type": "spirit",
@@ -1563,6 +2260,135 @@
     ]
   },
   {
+    "cardId": "BS09-061",
+    "name": "巨獣守りし神域",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「巨獣」/「戯狩」を持つスピリットが相手のスピリットをブロックしたとき、ボイドからコア1個をそのスピリット上に置く。\nLv2『自分のエンドステップ』\n系統：「巨獣」/「戯狩」を持つ自分のスピリットすべてを回復させる。",
+    "effects": [
+      {
+        "id": "BS09-061-e1",
+        "kind": "effectGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "familyFilter": [
+          "巨獣",
+          "戯狩"
+        ],
+        "granted": {
+          "trigger": "onBlock",
+          "action": {
+            "type": "voidCoreToSelf",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "BS09-061-e2",
+        "kind": "step",
+        "step": "end",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "refreshByFamily",
+          "familyFilter": [
+            "巨獣",
+            "戯狩"
+          ],
+          "count": 99
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-062",
+    "name": "ノルンの泉",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のターン』\n自分のスピリットの【氷壁】の効果を、自分のネクサス1つを代わりに疲労させることで使用できる。\nLv2\n自分の白/黄のネクサスすべては相手のスピリット/ネクサス/マジックの効果では破壊されない。",
+    "effects": [
+      {
+        "id": "BS09-062-e1",
+        "kind": "magicNegatePayByNexusGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "BS09-062-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": {
+          "type": "ownNexusIndestructible",
+          "colors": [
+            "white",
+            "yellow"
+          ]
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS09-067",
     "name": "ビッグバンエナジー",
     "type": "magic",
@@ -1823,6 +2649,126 @@
     ]
   },
   {
+    "cardId": "BS09-076",
+    "name": "エマージェンシー",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n疲労状態の自分のスピリットすべてを回復させる。\nこのターンの間、この効果で回復した、【転召】を持たないスピリットはアタックできない。",
+    "effects": [
+      {
+        "id": "BS09-076-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "refreshAllOwn",
+          "exemptKeyword": "tensho"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-077",
+    "name": "アイスバーグ",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\nこのターンの間、自分のスピリットすべての【氷壁】の効果は、『自分のターン』に発揮される。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+    "effects": [
+      {
+        "id": "BS09-077-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS09-077-e2",
+        "kind": "magicNegateTurnOverrideGrant",
+        "levels": null,
+        "turn": "own",
+        "lentOnly": true
+      },
+      {
+        "id": "BS09-077-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 2000
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-078",
+    "name": "ヒーリングサークル",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\nボイドからコア1個を自分のライフに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+    "effects": [
+      {
+        "id": "BS09-078-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        }
+      },
+      {
+        "id": "BS09-078-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 2000
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS09-X35",
     "name": "超神星龍ジークヴルム・ノヴァ",
     "type": "spirit",
@@ -1983,6 +2929,199 @@
             }
           }
         }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-X37",
+    "name": "終焉の騎神ラグナ・ロック",
+    "type": "spirit",
+    "colors": [
+      "green",
+      "white"
+    ],
+    "cost": 9,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "戦騎",
+      "殻人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 9000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 15000
+      }
+    ],
+    "symbol": [
+      "green",
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "【転召：コスト6以上/ボイド】\n召喚コスト支払い後、コスト6以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリットすべてを疲労させる。\n[鉄騎皇イグドラシル]で【転召】したとき、さらにボイドからコア6個をこのスピリットに置く。\nLv3『このスピリットのバトル時』\nコスト8以下の自分のスピリット3体を回復させる。",
+    "effects": [
+      {
+        "id": "BS09-X37-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 6,
+        "dest": "void"
+      },
+      {
+        "id": "BS09-X37-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaustAll",
+          "side": "opponent"
+        }
+      },
+      {
+        "id": "BS09-X37-e3",
+        "kind": "fieldEvent",
+        "event": "ownTensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "nameIncludes": [
+          "鉄騎皇イグドラシル"
+        ],
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 6
+        }
+      },
+      {
+        "id": "BS09-X37-e4",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "refreshOne",
+          "filter": {
+            "cost": {
+              "max": 8
+            }
+          },
+          "count": 3
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS09-X38",
+    "name": "要塞騎神オーディーンType-X",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "動器",
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手の手札が6枚以上のとき、【転召】を持たない相手のスピリット3体を好きな順番でデッキの上に戻す。\nLv3【装甲：赤/紫/緑/白/黄/青】\nこのスピリットは、相手の赤/紫/緑/白/黄/青のスピリット/ネクサス/マジックの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS09-X38-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "condition": {
+          "opponentHandAtLeast": 6
+        },
+        "action": {
+          "type": "returnToDeckTop",
+          "count": 3,
+          "filter": {
+            "keywordExclude": "tensho"
+          }
+        }
+      },
+      {
+        "id": "BS09-X38-e2",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          3
+        ],
+        "colors": [
+          "red",
+          "purple",
+          "green",
+          "white",
+          "yellow",
+          "blue"
+        ]
       }
     ]
   }

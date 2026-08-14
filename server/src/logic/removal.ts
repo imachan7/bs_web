@@ -401,6 +401,9 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
             if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
         }
+        // condition（BS09-035巨獣皇スミドロード＝自分のライフが3以下なら）。
+        // この関数はライフが減った**後**に呼ばれるので、減った後のライフで判定される
+        if (effect.condition && player.life > effect.condition.ownLifeAtMost) continue
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
         if (player.reserve < minLevelCores(getCard(cardId))) continue
         if (state.interactiveTargets) {
@@ -1251,7 +1254,7 @@ function tryReviveOnDestroy(
 // globalConstraint "ownNexusIndestructible" があるか判定する。
 // hasGlobalConstraint は両陣営を走査する汎用判定だが、こちらは破壊対象の持ち主側のみに効く
 // 制約（サファイアの城壁）専用の判定のため別関数にしている。
-function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId): boolean {
+function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId, target?: CardInstance): boolean {
     const player = state.players[ownerPid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of instances) {
@@ -1260,6 +1263,11 @@ function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId): boolea
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "ownNexusIndestructible") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // colors（BS09-062ノルンの泉Lv2＝白/黄のネクサスだけ）：対象が分からないときは守らない側に倒す
+            if (effect.constraint.colors !== undefined) {
+                if (!target) continue
+                if (!effect.constraint.colors.some((c) => instHasColor(target, c))) continue
+            }
             if (effect.condition) {
                 const vanillaCount = player.field.spirits.filter((s) =>
                     instIsVanilla(s),
@@ -1297,7 +1305,7 @@ export function destroyNexus(
     }
     // 破壊耐性（サファイアの城壁Lv2）：破壊対象ネクサスの持ち主自身のフィールドに、
     // condition（バニラスピリット数）を満たす ownNexusIndestructible 発生源があれば破壊されない
-    if (hasOwnNexusIndestructible(state, ownerPid)) {
+    if (hasOwnNexusIndestructible(state, ownerPid, inst)) {
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
@@ -1697,6 +1705,11 @@ function coreReturnBonusFor(state: GameState): number {
 // 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
 // phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
 function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
+    // ブロッカー限定の保護（BS09-027密林の勇者皇ヴォルザ：「このスピリットをブロックしている
+    // スピリット上に置いてあるコアは取り除くことができない」）。バトル終了で state.battle ごと消える
+    if (state.battle?.blockerCoresProtected && state.battle.blockerInstanceId === inst.instanceId) {
+        return true
+    }
     if (!isInCurrentBattle(state, inst)) return false
     return hasActiveGlobalConstraint(state, "battlingCoresProtected")
 }

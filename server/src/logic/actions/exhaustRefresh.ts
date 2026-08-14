@@ -359,6 +359,15 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
+        // count指定時はその体数まで回復する（実効BP最大から順に。cantAttackThisTurn は付与しない。
+        // BS09-033槍戦騎ガウト＝黄3体／BS09-X37終焉の騎神ラグナ・ロック＝コスト8以下3体）
+        if (action.count !== undefined) {
+            const ordered = [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+            const picked = ordered.slice(0, action.count)
+            for (const c of picked) refreshSpirit(state, owner, c)
+            log(state, `${sourceName}：スピリット${String(picked.length)}体を回復させた。`)
+            return
+        }
         const target = candidates.reduce((best, s) =>
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
@@ -473,7 +482,11 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
             refreshSpirit(state, owner, s)
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
-            if (!action.exemptFamily || !matchesFamilyFilter(state, owner, s, action.exemptFamily)) {
+            // exemptKeyword（BS09-076エマージェンシー＝【転召】持ちはアタックできる）は exemptFamily と OR
+            const exempt =
+                (action.exemptFamily !== undefined && matchesFamilyFilter(state, owner, s, action.exemptFamily)) ||
+                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword))
+            if (!exempt) {
                 s.cantAttackThisTurn = true
             }
             count++

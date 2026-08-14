@@ -633,6 +633,11 @@ export function fireStepTriggers(
                     // BS09-058魔本収められし書架Lv2：相手のデッキが0枚のときは発揮しない
                     if (state.players[opponentOf(pid)].deck.length === 0) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "ownSpiritMinCost" in effect.condition) {
+                    // BS09-032飛鋼獣ゲイル・フォッカー：コストが指定値以上の自分のスピリットが1体でもいるときのみ
+                    const min = effect.condition.ownSpiritMinCost
+                    if (!state.players[pid].field.spirits.some((s) => instMatchesCostFilter(s, { min }))) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownSpiritMinBp" in effect.condition) {
                     // BS09-015獄獣ガシャベルス：実効BPが指定値以上の自分のスピリットが1体でもいるときのみ発火
                     const min = effect.condition.ownSpiritMinBp
@@ -1150,30 +1155,76 @@ function redirectTargetMatches(
 // マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
 // 見つからない条件（レベル・色・ステップ・ターン・ターン1回・コストが払えない）はすべてここで弾くので、
 // 呼び出し側は「見つかったら必ず無効化できる」前提で書ける
+// 【氷壁】の支払いを肩代わりできる、持ち主の回復状態のネクサス（BS09-062ノルンの泉）。
+// 無ければ null。ノルンの泉自身も対象に含む（除外の記述が無いため）
+function magicNegateNexusPayer(state: GameState, ownerPid: PlayerId): CardInstance | null {
+    let granted = false
+    for (const source of effectSources(state, ownerPid)) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicNegatePayByNexusGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            granted = true
+        }
+    }
+    if (!granted) return null
+    return state.players[ownerPid].field.nexuses.find((n) => !n.isRested) ?? null
+}
+
+// 【氷壁】の発揮タイミングの置き換え（BS09-077アイスバーグ）。無ければ undefined
+function magicNegateTurnOverride(state: GameState, ownerPid: PlayerId): "own" | "opponent" | undefined {
+    for (const source of effectSources(state, ownerPid)) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "magicNegateTurnOverrideGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return effect.turn
+        }
+    }
+    return undefined
+}
+
 export function findMagicNegateSource(
     state: GameState,
     casterPid: PlayerId,
     card: CardData,
-): { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> } | null {
+): {
+    pid: PlayerId
+    inst: CardInstance
+    effect: Extract<EffectDef, { kind: "magicNegate" }>
+    nexusPayer?: CardInstance
+} | null {
     const defenderPid = opponentOf(casterPid)
+    // 【氷壁】限定の支払い代替・タイミング置換（BS09-062ノルンの泉／BS09-077アイスバーグ）
+    const nexusPayer = magicNegateNexusPayer(state, defenderPid)
+    const turnOverride = magicNegateTurnOverride(state, defenderPid)
     for (const inst of effectSources(state, defenderPid)) {
         const level = currentLevel(inst).level
+        const isHyoheki = hasKeyword(inst.cardId, "hyoheki")
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "magicNegate") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
-            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
-            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
+            // 【氷壁】を持つスピリットだけ、発揮タイミングを置き換えられる
+            const turn = isHyoheki && turnOverride !== undefined ? turnOverride : effect.turn
+            if (turn === "own" && defenderPid !== state.turnPlayer) continue
+            if (turn === "opponent" && defenderPid === state.turnPlayer) continue
             // 【氷壁：赤】＝赤のマジックのみ無効にできる
             if (effect.colors !== undefined && !effect.colors.some((c) => card.colors.includes(c))) continue
             if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
-            // コストを払えないなら発動できない
+            // コストを払えないなら発動できない。
+            // 【氷壁】はネクサスの疲労で肩代わりできる（ノルンの泉）。**代替できるときはそちらを優先**して
+            // スピリットを回復状態のまま残す（プレイヤー選択の決定的簡略化）
+            const payer = isHyoheki && nexusPayer ? nexusPayer : null
             if ("exhaustSelf" in effect.cost) {
-                if (inst.isRested) continue
+                if (!payer && inst.isRested) continue
             } else if (inst.cores < effect.cost.selfCoresToVoid) {
                 continue
             }
-            return { pid: defenderPid, inst, effect }
+            return payer && "exhaustSelf" in effect.cost
+                ? { pid: defenderPid, inst, effect, nexusPayer: payer }
+                : { pid: defenderPid, inst, effect }
         }
     }
     return null
@@ -1182,12 +1233,23 @@ export function findMagicNegateSource(
 // 無効化のコストを支払い、ログを残す。呼び出し側はこのあとマジックの効果を解決しない
 function payMagicNegate(
     state: GameState,
-    found: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> },
+    found: {
+        pid: PlayerId
+        inst: CardInstance
+        effect: Extract<EffectDef, { kind: "magicNegate" }>
+        nexusPayer?: CardInstance
+    },
     card: CardData,
 ): void {
     const { pid, inst, effect } = found
     if ("exhaustSelf" in effect.cost) {
-        exhaustSpirit(state, pid, inst)
+        if (found.nexusPayer) {
+            // ノルンの泉：スピリットの代わりにネクサス1つを疲労させる
+            found.nexusPayer.isRested = true
+            log(state, `${getCard(found.nexusPayer.cardId).name}（ネクサス）を代わりに疲労させた。`)
+        } else {
+            exhaustSpirit(state, pid, inst)
+        }
     } else {
         // ボイド行きなので、リザーブにもトラッシュにも戻らない
         inst.cores -= effect.cost.selfCoresToVoid

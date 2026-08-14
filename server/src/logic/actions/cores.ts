@@ -261,6 +261,18 @@ const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) =
         return
 }
 
+// BS09-027密林の勇者皇ヴォルザLv2-3：このバトルの間、ブロッカー上のコアを効果で取り除けなくする。
+// アタック宣言の時点ではまだブロッカーが決まっていないので、印はバトル側に立てる
+const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresThisBattle"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
+        return
+    }
+    state.battle.blockerCoresProtected = true
+    log(state, `${sourceName}：このバトルの間、ブロックしたスピリット上のコアは取り除けない。`)
+}
+
 const coreRemoveSelfHandler: ActionHandler<"coreRemoveSelf"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット（self）自身のコアを持ち主のリザーブへ（維持コア割れの消滅処理は removeCores が担う）
@@ -1801,6 +1813,7 @@ const handlers = {
     coreRemove: coreRemoveHandler,
     coreDrainToLowerLevel: coreDrainToLowerLevelHandler,
     coreRemoveMulti: coreRemoveMultiHandler,
+    protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
     coreRemoveSelf: coreRemoveSelfHandler,
     coreToTrashSelf: coreToTrashSelfHandler,
     tenshoCoreDump: tenshoCoreDumpHandler,
