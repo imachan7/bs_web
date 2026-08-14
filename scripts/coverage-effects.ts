@@ -507,6 +507,24 @@ process.on("exit", () => {
             )
         }
 
+        // (4.0) triggers.ts 側で __covRecord を使うための import 追記。
+        //     triggerSuppression 等の計測点がここにあるので、無いと ReferenceError で落ちる
+        //     （2026-08-14: 移設時に入れ忘れていたぶんを補った）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `    rawLevel,\n    pushResumeFrames,`,
+            `    rawLevel,\n    pushResumeFrames,\n    __covRecord,`,
+        )
+
+        // (4.1) removal.ts 側で __covRecord を使うための import 追記。
+        //     (4) の applyRevived 計測はここが無いと ReferenceError で落ちる
+        //     （2026-08-14: tryReviveOnDestroy の移設時に入れ忘れていたぶんを補った）
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `    rawLevel,`,
+            `    rawLevel,\n    __covRecord,`,
+        )
+
         // (4.5) keywordGrant（装甲）は shared/ の hasContinuousKeywordGrant を通らない。
         //     refreshLevelAsOverrides が CardInstance.armorColorsGranted へ毎回再計算して
         //     materialize する別経路なので、そこにも計測点を入れる（片方だけだと
