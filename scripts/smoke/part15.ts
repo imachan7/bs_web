@@ -175,6 +175,9 @@ console.log("=== [interactiveTargets] step誘発の「できる」も発動確�
     // ボイドへ置くことで、相手のネクサスすべてをLv1として扱える（＝任意コスト）
     const emperor = createInstance("BS02-073", s.turn, 6)
     s.players.p1.field.spirits.push(emperor)
+    // 効果の対象（相手のネクサス）が無いとコストを払えない＝発揮できない（COST_MODEL.md §1。2026-08-13）。
+    // ここで見たいのは発動確認の流れなので、対象を置いて成立する盤面にしておく
+    s.players.p2.field.nexuses.push(createInstance("BS06-080", s.turn, 0))
     s.players.p1.reserve = 5
     const reserveBefore = s.players.p1.reserve
 

@@ -342,6 +342,10 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
         const s = base(`bofu-count-${card.cardId}`)
         const nexus = createInstance(bofuNexus.cardId, s.turn, 0)
         s.players.p1.field.nexuses.push(nexus)
+        // 【転召】持ちが混ざっていても召喚できるよう、犠牲になれるスピリットを1体置く
+        // （効果を持たないコスト6のスピリット。転召はコアをトラッシュ/ボイドへ置くだけなので
+        //  召喚したスピリットのコア数には影響しない）
+        s.players.p1.field.spirits.push(createInstance("BS02-023", s.turn, 1))
         s.players.p1.hand = [card.cardId]
         if (act(s, "p1", { type: "summon", handIndex: 0, level }) !== null) {
             assert(false, `${card.cardId} ${card.name}：Lv${level}で召喚できる`)

@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsBlocker, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsBlocker, sameCostAsSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -85,6 +85,14 @@ export function normalizeFilter(
         const blocker = ctx.targetInstanceId ? findInstanceAnywhere(ctx.state, ctx.targetInstanceId) : undefined
         if (!blocker) return SELF_REQUIRED
         const cost = getCard(blocker.cardId).cost
+        resolved.cost = { min: cost, max: cost }
+    }
+
+    // self と同じコスト（BS09-060緑翼の大樹：召喚された【暴風】持ちと同じコストの相手）。
+    // fieldEvent では self にイベント対象（召喚されたスピリット）が入る
+    if (sameCostAsSelf) {
+        if (!ctx.self) return SELF_REQUIRED
+        const cost = getCard(ctx.self.cardId).cost
         resolved.cost = { min: cost, max: cost }
     }
 

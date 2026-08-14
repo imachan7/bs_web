@@ -2957,21 +2957,7 @@
      2
     ],
     "action": {
-     "type": "exhaustSelf"
-    },
-    "optional": true
-   },
-   {
-    "id": "BS06-052-e2",
-    "kind": "step",
-    "step": "start",
-    "turn": "opponent",
-    "levels": [
-     1,
-     2
-    ],
-    "action": {
-     "type": "lendSelfThisTurn"
+     "type": "exhaustSelfThenLendThisTurn"
     },
     "optional": true
    },
@@ -5561,14 +5547,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
+     "type": "destroy",
      "anySide": true,
      "filter": {
       "cost": {
        "max": 4
-      }
-     }
+      },
+      "rested": true
+     },
+     "count": 1
     }
    }
   ]
@@ -5961,7 +5948,10 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "noop"
+     "type": "deckReveal",
+     "count": 3,
+     "pickNone": true,
+     "returnToTop": true
     }
    },
    {

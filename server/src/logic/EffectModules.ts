@@ -45,9 +45,24 @@ import {
     minLevelCores,
     opponentOf,
     rawLevel,
+    pushResumeFrames,
+    suspend,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
+// 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
+// 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
+// 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
+import { destroySpirit } from "./removal"
+import {
+    fireFieldEventTriggers,
+    fireSummonTrigger,
+    fireTrigger,
+    notifyHandGained,
+    notifyNexusDeployed,
+    notifySpiritCoresRemovedByOpponent,
+    resolveMagicEffects,
+} from "./triggers"
 import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
@@ -234,56 +249,9 @@ function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number {
     return Math.max(remaining, 0)
 }
 
-// バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
-// 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
-// phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
-function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
-    if (!isInCurrentBattle(state, inst)) return false
-    return hasActiveGlobalConstraint(state, "battlingCoresProtected")
-}
 
-// globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
-// そのカードのコスト（Lv1コスト）を下回るまで取り除けない。ネクサスは対象外（カードに「コスト」はあるが
-// 効果文は「スピリットすべて」なのでtype==="spirit"のみに適用）。
-// **簡略化**：removeCores/removeCoresToTrash/removeCoresToVoid（単体除去の共通処理）だけが尊重する。
-// coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、
-// .coresを直接書き換える範囲効果はこの下限を見ない（data/card-notes.jsonに明記）
-function coreFloorFor(state: GameState, inst: CardInstance): number {
-    const card = getCard(inst.cardId)
-    if (card.type !== "spirit") return 0
-    if (!hasActiveGlobalConstraint(state, "coreFloorByCost")) return 0
-    return card.cost
-}
 
-// 指定インスタンスが今まさにバトルの当事者（アタッカーかブロッカー）か
-function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
-    if (!state.battle) return false
-    return (
-        inst.instanceId === state.battle.attackerInstanceId ||
-        inst.instanceId === state.battle.blockerInstanceId
-    )
-}
 
-// 両陣営のフィールドに、指定タイプの globalConstraint が有効な発生源があるか。
-// phase/turn は EffectDef 側（globalConstraint エントリ自身）が持つ（発生源の持ち主基準の turn 判定）
-function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-        for (const source of sources) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.phase !== undefined && state.phase !== effect.phase) continue
-                if (effect.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
 
 // このインスタンスが、いま解決中の効果を「受けない」状態か。
 // 破壊・コア除去・疲労・バウンス等の各ガード（装甲／マジック効果耐性と同じ箇所＝5ファイル18箇所）から呼ぶ。
@@ -308,11 +276,13 @@ export function resistanceAgainst(
     target: CardInstance,
     attempt: EffectAttempt,
 ): Resistance | null {
-    // ① 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
+    // ① 対象の絞り込み（**スピリット/マジックの効果**が対象。ネクサスの効果は通る。
+    // 絞り込み先の持ち主のスピリットだけが影響を受ける。2026-08-14 ユーザー確認で
+    // マジック限定からスピリットの効果へ拡張した。BS09-038ティンカ／BS05-040スノーホワイト）
     const redirect = state.magicRedirectTo
     if (
         redirect !== undefined &&
-        attempt.sourceType === "magic" &&
+        (attempt.sourceType === "magic" || attempt.sourceType === "spirit") &&
         target.instanceId !== redirect.instanceId &&
         state.players[redirect.pid].field.spirits.some((s) => s.instanceId === target.instanceId)
     ) {
@@ -356,6 +326,10 @@ function tryPayableTargetNegate(
     if (attempt.actorPid === targetOwnerPid) return null
     if (attempt.sourceType !== "spirit") return null
     const player = state.players[targetOwnerPid]
+    // 「〜することで」は任意コスト。払うかどうかはプレイヤーの方針（GameAction "setPayToNegate"）を読む。
+    // ここは装甲と同じ同期の述語なので、その場で選択を挟めない代わりに**あらかじめ盤面の状態にしておく**。
+    // 未設定は true（従来どおり払って防ぐ）
+    if (player.payToNegate === false) return null
     for (const source of effectSources(state, targetOwnerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -471,6 +445,8 @@ export function exhaustSpirit(
     // 記録（BS06颶風高原Lv2）と "ownBofuExhausted" の発火（BS06ミストラルコア）に使う
     bofuSourcePid?: PlayerId,
 ): void {
+    // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
+    if (inst.pendingDestruction) return
     if (inst.isRested) return
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
@@ -484,7 +460,22 @@ export function exhaustSpirit(
 // 実際に回復したときだけ「このスピリットが回復したとき」（onRefreshed）を発火する。
 // リフレッシュステップ・効果による回復・【強襲】のいずれもここを通す
 // （疲労を exhaustSpirit に一元化したのと同じ理由で、2026-08-09 に11箇所から集約した。BS07）
-export function refreshSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+export function refreshSpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    sourceType?: "spirit" | "nexus" | "magic",
+): void {
+    // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
+    if (inst.pendingDestruction) return
+    // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
+    // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
+    if (
+        (sourceType === "nexus" || sourceType === "magic") &&
+        hasGlobalConstraint(state, "noRefreshByNexusOrMagic")
+    ) {
+        return
+    }
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
@@ -541,7 +532,7 @@ export function millDeck(
     }
     // 「コストを払って破棄を無効に**できる**」（BS08鳳翼の聖剣Lv2）。
     // 任意コストなので、ここでは破棄を見送って確認待ちへ積むだけにする（実際の破棄は断られたときに行う）
-    if (byOpponent && !options?.skipNegate && tryQueueDeckMillNegate(state, pid, count, actorPid, cause)) {
+    if (byOpponent && !options?.skipNegate && trySuspendDeckMillNegate(state, pid, count, actorPid, cause)) {
         return 0
     }
     if (byOpponent) {
@@ -662,9 +653,14 @@ function findDeckMillNegate(
     return null
 }
 
-// 破棄を見送って確認待ちへ積む。積んだ（＝この破棄を保留した）なら true。
-// 非対話（smoke）では確認を出せないので、その場で支払って無効にする（「〜できる」を常に発動する簡略化）
-function tryQueueDeckMillNegate(
+// 破棄を見送って**その場で**確認を出す。出した（＝この破棄を保留した）なら true。
+// 非対話（smoke）では確認を出せないので、その場で支払って無効にする（「〜できる」を常に発動する簡略化）。
+//
+// 以前は GameState.pendingDeckMillNegates へ積み、handleAction の末尾＝「安全な地点」で確認していた。
+// 破棄の途中では中断できなかったためだが、再開スタックの導入でここから直接中断できるようになった
+// （docs/design/RESUME_STACK.md §7）。millDeck の呼び出し8箇所はいずれも
+// 「millDeck の後ろに処理が無い」か「返り値0でスキップされる」ので、呼び出し元の改修は要らない
+function trySuspendDeckMillNegate(
     state: GameState,
     pid: PlayerId,
     count: number,
@@ -672,19 +668,33 @@ function tryQueueDeckMillNegate(
     cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
 ): boolean {
     if (count <= 0 || state.winner) return false
+    // すでに別の選択待ちがあるならここでは中断できない。破棄を止めてしまうと
+    // 「無効にできたのに聞かれないまま破棄されない」ことになるので、通常どおり破棄させる
+    if (state.pendingChoice) return false
     const found = findDeckMillNegate(state, pid, cause)
     if (!found) return false
     if (!state.interactiveTargets) {
         payDeckMillNegateCost(state, pid, found.source, found.effect)
         return true
     }
-    ;(state.pendingDeckMillNegates ??= []).push({
+    suspend(state, {
         pid,
-        sourceInstanceId: found.source.instanceId,
-        effectId: found.effect.id,
-        count,
-        actorPid,
-        ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+        kind: "option",
+        prompt: `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
+        candidates: [],
+        options: ["無効にする"],
+        optional: true,
+        confirm: true,
+        deckMillNegate: {
+            pid,
+            sourceInstanceId: found.source.instanceId,
+            effectId: found.effect.id,
+            count,
+            actorPid,
+            ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: found.source.instanceId,
     })
     return true
 }
@@ -957,6 +967,37 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
     return false
 }
 
+// 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
+// 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
+//
+// **【転召】より後に呼ぶこと**（2026-08-13 修正）。以前は召喚時効果が転召より先に発揮されていた。
+// 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
+// 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
+// pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
+export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
+    if (state.winner) return
+    const player = state.players[pid]
+    // 転召でコアが尽きて消滅していれば、もう何もしない
+    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
+    fireSummonTrigger(state, pid, inst)
+    const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
+    if (!state.winner && stillOnField()) {
+        // 【不死】による召喚も「召喚」なのでこのイベントを起こす。byFushi は
+        // 「【不死】の効果で召喚されたとき」（BS09-013ミミズクロ）を絞り込むためだけに渡す
+        // eventColors に召喚されたスピリットの色を渡す（fieldEvent.colorFilter が
+        // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
+        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
+            families: getCard(inst.cardId).family,
+            byFushi,
+        })
+    }
+    // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
+    // 召喚されたこのスピリットは疲労する
+    if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
+        exhaustSpirit(state, pid, inst)
+    }
+}
+
 // kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 // 「相手のスピリットは召喚されたとき疲労する」を持つ発生源が有効か（condition.selfRestedは発生源自身が
 // 疲労状態のときのみ）。GameEngine.doSummonが召喚した側から見た相手（=このgrantの持ち主）に対して呼ぶ
@@ -1138,26 +1179,48 @@ export const TENSHO_SUBSTITUTE_DUMP = "疲労せずコアを置く"
 // 【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 // 自分の他スピリットからコストがminCost以上の候補を集め、上のコアすべてをdestへ置く
 // （0体=不発、1体=自動選択、2体以上はinteractiveTargets時のみpendingChoice、それ以外はコスト最大を決定的選択）。
+// そのカードが指定レベルで持つ【転召】（無ければ null）。
+// 召喚の可否判定（RuleValidator.validateSummon）と解決（resolveTensho）で同じ実装を通す
+// entry は【転召】の keyword エントリそのもの（実行時カバレッジ計測が __eid を読む）
+export function tenshoSpecOf(
+    card: CardData,
+    level: number,
+): { entry: EffectDef; minCost: number; dest: "trash" | "void" } | null {
+    const effect = card.effects.find(
+        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
+    )
+    if (!effect || effect.kind !== "keyword") return null
+    return { entry: effect, minCost: effect.minCost ?? 0, dest: effect.dest ?? "trash" }
+}
+
+// 【転召】でコアを置く対象になれる自分のスピリット。
+// 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る。
+// tenshoSelfCostBonus（BS08冥機グングニル）：このコスト判定でだけ候補自身のコストに+amountする。
+// excludeInstanceId には召喚された本人を渡す（召喚前の可否判定では省略する＝場にまだいないため）
+export function tenshoCandidates(
+    state: GameState,
+    ownerPid: PlayerId,
+    minCost: number,
+    excludeInstanceId?: string,
+): CardInstance[] {
+    return state.players[ownerPid].field.spirits.filter(
+        (s) =>
+            s.instanceId !== excludeInstanceId &&
+            (instMatchesCostFilter(s, { min: minCost }) ||
+                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
+    )
+}
+
 export function resolveTensho(
     state: GameState,
     ownerPid: PlayerId,
     spirit: CardInstance,
 ): void {
     const level = currentLevel(spirit).level
-    const effect = getCard(spirit.cardId).effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
-    )
-    if (!effect || effect.kind !== "keyword") return
-    const minCost = effect.minCost ?? 0
-    const dest = effect.dest ?? "trash"
-    // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る。
-    // tenshoSelfCostBonus（BS08冥機グングニル）：このコスト判定でだけ候補自身のコストに+amountする
-    const candidates = state.players[ownerPid].field.spirits.filter(
-        (s) =>
-            s.instanceId !== spirit.instanceId &&
-            (instMatchesCostFilter(s, { min: minCost }) ||
-                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
-    )
+    const spec = tenshoSpecOf(getCard(spirit.cardId), level)
+    if (!spec) return
+    const { minCost, dest } = spec
+    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId)
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
         return
@@ -1241,6 +1304,30 @@ export function dumpAllCoresTensho(
     // 対象になった本人（inst）自身の誘発を必ず発火する。tenshoCoreSubstituteで疲労を選んだ場合も
     // コアを失う場合も、対象になった事実は変わらないため分岐より前で一度だけ呼ぶ
     fireTrigger(state, ownerPid, inst, "onTenshoTarget")
+    // 誘発が選択で中断したら、残り（置換の判断以降）を再開フレームに積んでここで止める。
+    // 【転召】の手順は「コアを外す＋対象スピリットの効果発揮 → 対象の消滅 → 召喚時効果」の順で、
+    // **消滅は効果の発揮が解決しきってから**でなければならない（2026-08-13 ユーザー確認）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{
+            kind: "action",
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
+            action: { type: "tenshoResume", dest, stage: "afterTargetTrigger", ...(skipSubstitute ? { skipSubstitute: true } as const : {}) },
+        }])
+        return
+    }
+    tenshoAfterTargetTrigger(state, ownerPid, inst, dest, skipSubstitute)
+}
+
+// dumpAllCoresTensho の後半：置換（疲労で代替）の判断 → 『転召が解決したとき』の誘発 → コア処理。
+// onTenshoTarget の誘発で中断したときは、再開フレーム（tenshoResume "afterTargetTrigger"）から呼ばれる
+export function tenshoAfterTargetTrigger(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    dest: "trash" | "void",
+    skipSubstitute: boolean,
+): void {
     // constraint "tenshoCoreSubstitute"（BS05の竜使い6枚）：疲労していなければ、
     // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）。
     // 「疲労させることで」は任意なので、実対戦では疲労するかコアを置くかをプレイヤーに選ばせる
@@ -1271,6 +1358,30 @@ export function dumpAllCoresTensho(
         return
     }
     fireTenshoEvent(state, ownerPid, inst)
+    // 『転召が解決したとき』の誘発が中断したら、コア処理と消滅は選択が終わってから。
+    // ここを見ていなかったため、選択待ちのまま destroySpirit が走り、
+    // その先の『破壊されたとき』の誘発が中断できない状態になっていた（2026-08-13 修正）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{
+            kind: "action",
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
+            action: { type: "tenshoResume", dest, stage: "afterEvent" },
+        }])
+        return
+    }
+    tenshoDumpAndDestroy(state, ownerPid, inst, dest)
+}
+
+// 【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
+// 手順上「対象スピリットの消滅」は転召の効果発揮がすべて解決した後に来るので、
+// 中断をまたぐときはここだけを再開フレームで呼び直す
+export function tenshoDumpAndDestroy(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    dest: "trash" | "void",
+): void {
     const player = state.players[ownerPid]
     const count = inst.cores
     inst.cores = 0
@@ -1372,23 +1483,6 @@ function coreBonusFor(inst: CardInstance): number {
     return bonus
 }
 
-// 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。
-// 効果文が「お互いのスピリット上に置かれたコアが」と陣営を限定していないため、**両陣営の発生源**を見る。
-// 走査は effectSources 経由＝このターンだけの仮想発生源（マジックが貸した継続効果）も含む
-function coreReturnBonusFor(state: GameState): number {
-    let bonus = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const source of effectSources(state, pid)) {
-            const level = currentLevel(source).level
-            for (const e of getCard(source.cardId).effects) {
-                if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
-                bonus += e.amount
-            }
-        }
-    }
-    return bonus
-}
 
 // 持ち主のコアステップで得られるコアの追加数（kind: "coreStepBonus"）を集計する。
 // フィールド（スピリット＋ネクサス）から発動条件を満たす発生源をすべて合算する
@@ -1456,6 +1550,45 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
 // 発生源自身のレベル判定（sourceMinLevel）は rawLevel（コア数基準・上書き無視）で行い、
 // currentLevel の再帰・自己参照を避ける。
 // 呼び出し箇所: GameEngine.handleAction の事後フック／ターン開始処理の最後／ゲーム生成直後
+// 継続効果で「Lvコスト」が上がった結果、維持コア（Lv1）を下回った個体を消滅させる。
+// コアが減ったのではなく**必要なコア数が増えた**ことで起きるので、コアを動かす各所の
+// 判定では拾えない。プレイヤーに手番が戻る地点（GameEngine.handleAction の事後フック）で
+// まとめて掃除する（BS09-017蛇凰神バァラル。2026-08-14 ユーザー確認）。
+// levelCostBonusContinuous が乗っている個体だけを見るので、既存の挙動は変わらない
+export function sweepLevelCostDepletion(state: GameState): void {
+    for (let guard = 0; guard < 20; guard++) {
+        if (state.winner || state.pendingChoice) return
+        let destroyed = false
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const inst of [...state.players[pid].field.spirits]) {
+                if ((inst.levelCostBonusContinuous ?? 0) === 0) continue
+                if (inst.cores >= instMinLevelCores(inst)) continue
+                destroySpirit(state, pid, inst.instanceId, "deplete")
+                destroyed = true
+                if (state.winner || state.pendingChoice) return
+            }
+        }
+        if (!destroyed) return
+        // 消滅で発生源やフィールドの数が変われば、継続効果を組み直してもう一巡する
+        refreshLevelAsOverrides(state)
+    }
+}
+
+// BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
+// ownerPid のネクサスを疲労させてよいかを返す（【強襲】の疲労元・氷壁のネクサス支払いが見る）
+export function canExhaustNexus(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, opponentOf(ownerPid))) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "opponentNexusesUnexhaustable") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.constraint.phase !== undefined && state.phase !== effect.constraint.phase) continue
+            return false
+        }
+    }
+    return true
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
@@ -1463,6 +1596,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.symbolsOverrideContinuous
@@ -1544,6 +1678,18 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "levelCostMod") {
+                    // 「相手のスピリットすべてのLvコストを+1する」（BS09-017蛇凰神バァラルLv2-3）。
+                    // 加算は重ねられる（同名を2体並べたら+2）。維持コア割れの掃除は
+                    // GameEngine.handleAction の事後フック（sweepLevelCostDepletion）が行う
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
+                    for (const spirit of state.players[targetPid].field.spirits) {
+                        spirit.levelCostBonusContinuous =
+                            (spirit.levelCostBonusContinuous ?? 0) + effect.amount
+                    }
+                    continue
+                }
                 if (effect.kind === "spiritEffectsDisabledGrant") {
                     // 「自分のスピリットをブロックした【転召】を持たない相手のスピリットが持つ効果すべては
                     // 発揮されない」（BS07ルナースラッシュ）。treatedAsVanillaContinuous（＝対象判定用の述語）とは別物で、
@@ -1611,6 +1757,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 持ち主の対象スピリット（familyFilter一致）のシンボルを、そのスピリット元々の
                     // シンボル1色目でcount個に固定する（継続。BS08海底に眠りし古代都市Lv2）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // phaseTurn（BS09-008炎皇帝アグニフォンLv2-3＝『自分のアタックステップ』）
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
                     for (const spirit of player.field.spirits) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         const baseColor = getCard(spirit.cardId).symbol[0]
@@ -1744,752 +1896,6 @@ export function refreshLevelAsOverrides(state: GameState): void {
             nexus.coresOverride = source.cores
         }
     }
-}
-
-// ---- スピリット／ネクサスの除去 ----
-
-// スピリットを破壊（または消滅）：コアをリザーブへ戻し、カードをトラッシュへ。
-// cause が "destroy" のときのみ破壊時効果（onDestroy）が誘発する。
-export function destroySpirit(
-    state: GameState,
-    ownerPid: PlayerId,
-    instanceId: string,
-    cause: "destroy" | "deplete" = "destroy",
-    context?: DestroyContext,
-    // skipRevive: 復活の確認で「復活させない」が選ばれたあとの破壊。
-    // 再び復活判定に入って無限に確認を出すのを防ぐ
-    options?: { skipRevive?: true },
-): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === instanceId,
-    )
-    if (index === -1) return
-    const inst = player.field.spirits[index]
-    if (!inst) return
-    const master = getCard(inst.cardId)
-
-    // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
-    // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
-    // 「〜できる」の任意発動は常に発動する簡略化とする。
-    if (cause === "destroy" && !options?.skipRevive && tryReviveOnDestroy(state, ownerPid, inst, context)) {
-        return
-    }
-
-    // 破壊直前のコア数を記録（リザーブへ移す前。漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
-    inst.coresAtDestruction = inst.cores
-
-    player.field.spirits.splice(index, 1)
-    // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
-    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間はトラッシュへ置かれる
-    if (destroyedCoresGoToTrash(state)) {
-        player.trashCores += inst.cores
-    } else {
-        player.reserve += inst.cores
-    }
-    player.trashCards.push(inst.cardId)
-    log(
-        state,
-        `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
-    )
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
-
-    if (cause === "destroy") {
-        fireTrigger(state, ownerPid, inst, "onDestroy")
-    }
-    // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
-    // （侵食されゆく銀世界Lv2）。fireFieldEventTriggers の action がさらに destroySpirit を
-    // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
-    // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
-    // バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す
-    // selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで「破壊されたスピリットのBP以下」を
-    // 参照できるようにする。既存カードはselfを参照しないアクションのみのため挙動は変わらない）
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
-        vanilla: instIsVanilla(inst),
-        byBattle: context?.battle !== undefined,
-        // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
-        // （clearBattle 後には判定できない。attackerOnly の判定に使う）
-        wasAttacker: state.battle?.attackerInstanceId === inst.instanceId,
-        families: master.family,
-        // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
-        costs: instAllCosts(inst),
-    })
-}
-
-// 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
-// ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
-export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId): void {
-    if (state.pendingChoice || state.winner) return
-    const player = state.players[pid]
-    for (let i = 0; i < player.hand.length; i++) {
-        const cardId = player.hand[i]
-        if (cardId === undefined) continue
-        const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnLifeDamaged")
-        if (!effect || effect.kind !== "freeSummonFromHandOnLifeDamaged") continue
-        if (effect.phaseTurn) {
-            if (state.phase !== effect.phaseTurn.phase) continue
-            if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-            if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-        }
-        // 維持コアを置けないなら召喚できないので、確認自体を出さない
-        if (player.reserve < minLevelCores(getCard(cardId))) continue
-        if (state.interactiveTargets) {
-            state.pendingChoice = {
-                pid,
-                kind: "option",
-                prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
-                candidates: [],
-                options: ["召喚する"],
-                optional: true,
-                confirm: true,
-                handFreeSummon: { pid, cardId },
-                action: { type: "noop" },
-                selfInstanceId: null,
-                queue: [],
-            }
-            return
-        }
-        summonFreeFromHandIndex(state, pid, getCard(cardId).name, i)
-        return
-    }
-}
-
-// pendingChoice（手札からの無償召喚の確認）で「召喚する」が選ばれたときの後処理。
-// 確認を出したあとに手札から失われていた場合は何もしない
-export function applyHandFreeSummon(
-    state: GameState,
-    info: NonNullable<PendingChoice["handFreeSummon"]>,
-): void {
-    const index = state.players[info.pid].hand.indexOf(info.cardId)
-    if (index === -1) return
-    summonFreeFromHandIndex(state, info.pid, getCard(info.cardId).name, index)
-}
-
-// 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。
-// 破壊はこの時点では行わない（対象は場に残ったまま）。承認・拒否は handleAction の末尾で確認したあと、
-// applyReviveConfirm / declineReviveConfirm が決着させる
-function queueReviveConfirm(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    effectId: string,
-    sourceInstanceId: string,
-    context?: DestroyContext,
-): void {
-    ;(state.pendingReviveConfirms ??= []).push({
-        pid: ownerPid,
-        instanceId: inst.instanceId,
-        effectId,
-        sourceInstanceId,
-        ...(context ? { context } : {}),
-    })
-    log(
-        state,
-        `${state.players[ownerPid].name}の${getCard(inst.cardId).name}は、破壊される代わりに復活するか確認を待っている。`,
-    )
-}
-
-// 保留していた復活の確認で「復活させる」が選ばれたときの後処理。
-// ここで初めてコストを支払い、復活先（場に残る／手札へ戻る）を適用する。
-// コストを払えなければ復活は成立せず、そのまま破壊する
-export function applyReviveConfirm(
-    state: GameState,
-    entry: NonNullable<PendingChoice["reviveConfirm"]>,
-): void {
-    const player = state.players[entry.pid]
-    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
-    if (!inst) return // 確認を出したあとに場から居なくなっていたら何もしない
-    // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
-    // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
-    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId })) {
-        declineReviveConfirm(state, entry)
-    }
-}
-
-// 保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
-export function declineReviveConfirm(
-    state: GameState,
-    entry: NonNullable<PendingChoice["reviveConfirm"]>,
-): void {
-    const player = state.players[entry.pid]
-    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
-    if (!inst) return
-    log(state, `${player.name}の${getCard(inst.cardId).name}は復活しなかった。`)
-    destroySpirit(state, entry.pid, entry.instanceId, "destroy", entry.context, { skipRevive: true })
-}
-
-// reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
-// 優先順位: instのカード自身が持つ scope:"self" の効果 → 持ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
-function tryReviveOnDestroy(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    context?: DestroyContext,
-    // 指定時は「このエントリだけを、確認済みとして確定させる」モード。
-    // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
-    forced?: { effectId: string },
-): boolean {
-    const player = state.players[ownerPid]
-    const level = currentLevel(inst).level
-
-    const matchesWhen = (when: {
-        byOpponentEffect?: boolean
-        byBattleVsArmorColor?: boolean
-        byBattle?: boolean
-        byBattleKillerLevel?: number
-        byBattleKillerMaxBp?: number
-    }): boolean => {
-        if (when.byOpponentEffect) {
-            if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
-        }
-        if (when.byBattleVsArmorColor) {
-            const attackerColors = context?.battle?.attackerColors
-            if (attackerColors === undefined || !hasArmorAgainst(inst, attackerColors)) return false
-        }
-        if (when.byBattle && context?.battle === undefined) return false
-        if (
-            when.byBattleKillerLevel !== undefined &&
-            context?.battle?.attackerLevel !== when.byBattleKillerLevel
-        ) {
-            return false
-        }
-        // BS08勝者のグリーンフィールドLv2：破壊した側（勝者）の実効BPがこれ以下のときのみ復活する
-        if (
-            when.byBattleKillerMaxBp !== undefined &&
-            (context?.battle?.attackerBp === undefined || context.battle.attackerBp > when.byBattleKillerMaxBp)
-        ) {
-            return false
-        }
-        return true
-    }
-
-    const matchesPhaseTurn = (phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }): boolean => {
-        if (!phaseTurn) return true
-        if (state.phase !== phaseTurn.phase) return false
-        if (phaseTurn.turn === "own" && ownerPid !== state.turnPlayer) return false
-        if (phaseTurn.turn === "opponent" && ownerPid === state.turnPlayer) return false
-        return true
-    }
-
-    const applyCost = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>): boolean => {
-        if (effect.cost?.keepOneCoreRestToTrash) {
-            const excess = inst.cores - 1
-            if (excess > 0) {
-                inst.cores = 1
-                player.trashCores += excess
-            }
-            return true
-        }
-        if (effect.cost?.oneCoreToVoid) {
-            // コア1個の個体は支払うと維持コア割れになるため不発
-            if (inst.cores <= 1) return false
-            inst.cores -= 1
-            return true
-        }
-        if (effect.cost?.reserveOneToTrash) {
-            // 持ち主のリザーブのコア1個を持ち主のトラッシュへ（リザーブ0なら不発）
-            if (player.reserve <= 0) return false
-            player.reserve -= 1
-            player.trashCores += 1
-            return true
-        }
-        if (effect.cost?.fieldOrReserveOneToTrash) {
-            // 持ち主のリザーブのコア1個（無ければ自分のフィールド＝スピリット/ネクサス、
-            // 発生源自身を除く、からコア1個）を持ち主のトラッシュへ（BS04宝石虫スカラベール）
-            if (player.reserve > 0) {
-                player.reserve -= 1
-                player.trashCores += 1
-                return true
-            }
-            const source = [...player.field.spirits, ...player.field.nexuses].find(
-                (i) => i.instanceId !== inst.instanceId && i.cores > 0,
-            )
-            if (source) {
-                source.cores -= 1
-                player.trashCores += 1
-                return true
-            }
-            return false
-        }
-        if (effect.cost?.handDiscardOne) {
-            // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
-            if (player.hand.length === 0) return false
-            const cardId = player.hand.pop()!
-            player.trashCards.push(cardId)
-            return true
-        }
-        if (effect.cost?.millSelfOneMatching) {
-            // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
-            // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
-            const { color, cardType } = effect.cost.millSelfOneMatching
-            const cardId = player.deck.shift()
-            if (cardId === undefined) {
-                log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
-                return false
-            }
-            const milled = getCard(cardId)
-            player.trashCards.push(cardId)
-            log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
-            const ok = milled.type === cardType && milled.colors.includes(color)
-            if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
-            return ok
-        }
-        if (effect.cost?.exhaustOwnFamilyOne) {
-            // BS07パオ・ペイール：持ち主の「想獣」の回復状態スピリット1体を疲労させる。
-            // 破壊されようとしている個体自身は除く。候補は実効BP最小を選ぶ（犠牲を最小化する簡略化）
-            const family = effect.cost.exhaustOwnFamilyOne
-            const candidates = player.field.spirits.filter(
-                (s) =>
-                    s.instanceId !== inst.instanceId &&
-                    !s.isRested &&
-                    matchesFamilyFilter(state, ownerPid, s, family),
-            )
-            if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
-            )
-            exhaustSpirit(state, ownerPid, chosen)
-            return true
-        }
-        if (effect.cost?.ownLifeOneToVoid) {
-            // BS08太陽石の神殿：持ち主のライフのコア1個をボイドへ（リザーブには戻らない）。
-            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる
-            if (player.life <= 0) return false
-            player.life -= 1
-            log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
-            if (player.life <= 0 && !state.winner) {
-                state.winner = opponentOf(ownerPid)
-                log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
-            }
-            return true
-        }
-        return true
-    }
-
-    // oncePerTurn（BS06暴かれた墓石Lv2）：発生源（sourceInst）が同一ターンに既に復活を成立させていたら不発
-    const oncePerTurnBlocked = (
-        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
-        sourceInst: CardInstance,
-    ): boolean => effect.oncePerTurn === true && sourceInst.reviveOnDestroyUsedTurn === state.turn
-    const markOncePerTurn = (
-        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
-        sourceInst: CardInstance,
-    ): void => {
-        if (effect.oncePerTurn) sourceInst.reviveOnDestroyUsedTurn = state.turn
-    }
-
-    // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
-    // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
-    const applyRevived = (revived: { rested: boolean } | { toHand: true }): void => {
-        if ("toHand" in revived) {
-            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
-            if (idx !== -1) player.field.spirits.splice(idx, 1)
-            player.reserve += inst.cores
-            player.hand.push(inst.cardId)
-            notifyHandGained(state, ownerPid, 1)
-        } else {
-            inst.isRested = revived.rested
-        }
-    }
-
-    const revivedLabel = (revived: { rested: boolean } | { toHand: true }): string =>
-        "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
-
-    // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
-    // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
-    const matchesRequireOwnFieldHasName = (name?: string): boolean => {
-        if (name === undefined) return true
-        return player.field.spirits.some((s) => getCard(s.cardId).name === name)
-    }
-
-    // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
-    // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
-    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number }): boolean => {
-        if (!condition) return true
-        const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
-        return oppColors.size <= condition.opponentFieldSymbolColorsAtMost
-    }
-
-    const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
-        if (forced && effect.id !== forced.effectId) return false
-        if (!effectActiveAtLevel(effect.levels, level)) return false
-        if (effect.vanillaFilter && !instIsVanilla(inst)) return false
-        if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
-        if (!matchesReviveCondition(effect.condition)) return false
-        if (!matchesWhen(effect.when)) return false
-        if (!matchesPhaseTurn(effect.phaseTurn)) return false
-        if (oncePerTurnBlocked(effect, inst)) return false
-        // 「〜できる」＝任意（optional）は、実対戦では持ち主に確認してから確定させる。
-        // 破壊処理の途中では中断できないので、いったん破壊を見送って（＝場に残して）保留へ積む
-        if (effect.optional && state.interactiveTargets && !forced) {
-            queueReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
-            return true
-        }
-        if (!applyCost(effect)) return false
-        markOncePerTurn(effect, inst)
-        const name = getCard(inst.cardId).name
-        // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
-        // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
-        if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
-        applyRevived(effect.revived)
-        log(
-            state,
-            `${player.name}の${name}は、${sourceName}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
-        )
-        return true
-    }
-
-    // self由来（inst自身が持つ reviveOnDestroy）
-    for (const effect of getCard(inst.cardId).effects) {
-        if (effect.kind !== "reviveOnDestroy") continue
-        if (effect.scope !== "self") continue
-        if (tryEffect(effect, getCard(inst.cardId).name)) return true
-    }
-
-    // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
-    // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
-    // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
-    const sources = effectSources(state, ownerPid)
-    for (const source of sources) {
-        if (source.instanceId === inst.instanceId) continue
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "reviveOnDestroy") continue
-            if (forced && effect.id !== forced.effectId) continue
-            if (effect.scope !== "ownAll") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
-            // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
-            // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
-            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
-            // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
-            if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
-            // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
-            if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
-            if (!matchesReviveCondition(effect.condition)) continue
-            if (!matchesWhen(effect.when)) continue
-            if (!matchesPhaseTurn(effect.phaseTurn)) continue
-            if (oncePerTurnBlocked(effect, source)) continue
-            // optional は self 由来と同じく保留する（発生源は source 側＝oncePerTurn の記録先）
-            if (effect.optional && state.interactiveTargets && !forced) {
-                queueReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
-                return true
-            }
-            if (!applyCost(effect)) continue
-            markOncePerTurn(effect, source)
-            const name = getCard(inst.cardId).name
-            // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
-            if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
-            applyRevived(effect.revived)
-            log(
-                state,
-                `${player.name}の${name}は、${getCard(source.cardId).name}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
-            )
-            return true
-        }
-    }
-
-    return false
-}
-
-// 破壊対象ネクサスの持ち主（ownerPid）自身のフィールド（スピリット＋ネクサス）のみを走査し、
-// レベル有効かつ condition（ownVanillaSpiritsAtLeast＝持ち主のバニラスピリット数）を満たす
-// globalConstraint "ownNexusIndestructible" があるか判定する。
-// hasGlobalConstraint は両陣営を走査する汎用判定だが、こちらは破壊対象の持ち主側のみに効く
-// 制約（サファイアの城壁）専用の判定のため別関数にしている。
-function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId): boolean {
-    const player = state.players[ownerPid]
-    const instances = [...player.field.spirits, ...player.field.nexuses]
-    for (const inst of instances) {
-        const level = currentLevel(inst).level
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "ownNexusIndestructible") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.condition) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
-            }
-            return true
-        }
-    }
-    return false
-}
-
-// ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
-// （呼び出し側は戻り値でカウント・ドロー処理の可否を判定する。バスタースピア等）。
-export function destroyNexus(
-    state: GameState,
-    ownerPid: PlayerId,
-    instanceId: string,
-    context?: DestroyContext,
-): boolean {
-    const player = state.players[ownerPid]
-    const index = player.field.nexuses.findIndex(
-        (n) => n.instanceId === instanceId,
-    )
-    if (index === -1) return false
-    const inst = player.field.nexuses[index]
-    if (!inst) return false
-    // 破壊耐性（要塞皇オーディーンLv2-3等）：すべてのネクサスは破壊されない
-    if (hasGlobalConstraint(state, "nexusIndestructible")) {
-        log(
-            state,
-            `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
-        )
-        return false
-    }
-    // 破壊耐性（サファイアの城壁Lv2）：破壊対象ネクサスの持ち主自身のフィールドに、
-    // condition（バニラスピリット数）を満たす ownNexusIndestructible 発生源があれば破壊されない
-    if (hasOwnNexusIndestructible(state, ownerPid)) {
-        log(
-            state,
-            `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
-        )
-        return false
-    }
-    player.field.nexuses.splice(index, 1)
-    player.reserve += inst.cores
-    player.trashCards.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
-    // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火
-    // （竜狩りのアーケオルニ）。バウンス（returnNexusToHand）はここを通らないため対象外
-    fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
-    fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
-    // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが「その破壊されたネクサス」を参照するため）
-    state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
-    // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）。
-    // 「**相手の**効果で破壊されたとき」限定のエントリ（BS07の各色ネクサス6枚）のために、
-    // 効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか、を eventInfo で渡す
-    const byOpponentEffect =
-        context?.sourceType !== undefined &&
-        context.sourcePid !== undefined &&
-        context.sourcePid !== ownerPid
-    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
-        byOpponentEffect,
-    })
-    return true
-}
-
-// ネクサスを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
-// 破壊ではないため destroyNexus とは別処理（ネクサスに onDestroy はまだないが将来のため命名を揃える）。
-export function returnNexusToHand(
-    state: GameState,
-    ownerPid: PlayerId,
-    instanceId: string,
-): void {
-    const player = state.players[ownerPid]
-    const index = player.field.nexuses.findIndex(
-        (n) => n.instanceId === instanceId,
-    )
-    if (index === -1) return
-    const inst = player.field.nexuses[index]
-    if (!inst) return
-    player.field.nexuses.splice(index, 1)
-    player.reserve += inst.cores
-    player.hand.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
-    notifyHandGained(state, ownerPid, 1)
-}
-
-// スピリットを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
-// 破壊ではないため onDestroy は誘発しない（destroySpirit とは別処理）。
-export function returnSpiritToHand(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.hand.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}は手札に戻った。`)
-    notifyHandGained(state, ownerPid, 1)
-    // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
-    // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
-    if (!state.winner) {
-        fireFieldEventTriggers(state, ownerPid, "ownSpiritReturnedToHand", { pid: ownerPid, inst }, instColors(inst))
-    }
-}
-
-// スピリットを持ち主のデッキの一番上へ戻す：コアはリザーブへ、カードはデッキトップへ。
-// 破壊ではないため onDestroy は誘発しない。
-export function returnSpiritToDeckTop(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.deck.unshift(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番上に戻った。`)
-}
-
-// スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
-// 上に置くか下に置くかだけの違いなので、コアの戻し先など他の扱いは揃えてある
-export function returnSpiritToDeckBottom(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.deck.push(inst.cardId)
-    log(state, `${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`)
-}
-
-// 相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。
-//
-// **なぜ必要か**: コアを1体ずつ選んで取る効果（coreRemove 等）は、対象選びの中で
-// pickEnemyByBp / pickEnemyCandidates が装甲・免疫を弾いてくれる。しかし「範囲でまとめて奪う」
-// 効果（幻龍シェイロン・氷の女神フリッグ等）は候補を自前で走査するため、その経路を通らず
-// **【装甲】を素通りしていた**（2026-08-10 修正）。
-// 現在は耐性の唯一の入口（resistanceAgainst）へ委譲している。この関数はコア除去用の別名にすぎず、
-// **新しく書くハンドラは resistanceAgainst を直接呼んでよい**
-export function canTakeCoresFrom(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    actorPid: PlayerId,
-    srcColors?: Color[],
-    srcType?: "spirit" | "nexus" | "magic",
-): boolean {
-    return !isResisted(state, ownerPid, inst, {
-        op: "coreRemove",
-        scope: "area",
-        actorPid,
-        ...(srcType !== undefined ? { sourceType: srcType } : {}),
-        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
-    })
-}
-
-// コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
-// actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
-// actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
-// フィールドイベント「ownSpiritCoresRemovedByOpponent」を発火する（極光の大地）
-export function removeCores(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    count: number,
-    actorPid?: PlayerId,
-): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
-    const player = state.players[ownerPid]
-    // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
-    // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
-    const bonus = coreReturnBonusFor(state)
-    if (bonus > 0 && inst.cores > count) {
-        log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
-    }
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const floor = coreFloorFor(state, inst)
-    const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
-    inst.cores -= removed
-    player.reserve += removed
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
-    )
-    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < instMinLevelCores(inst)) {
-        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
-    }
-    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
-    }
-    return removed
-}
-
-// コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
-// （魔帝の墓標Lv2「そのスピリット上のコア1個をトラッシュに置かなければならない」）
-// actorPidの扱いはremoveCoresと同じ
-export function removeCoresToTrash(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    count: number,
-    actorPid?: PlayerId,
-): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
-    const player = state.players[ownerPid]
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
-    inst.cores -= removed
-    player.trashCores += removed
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をトラッシュに置いた。`,
-    )
-    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < instMinLevelCores(inst)) {
-        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
-    }
-    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
-    }
-    return removed
-}
-
-// コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
-// 維持コア（Lv1）を下回ったら消滅させる（BS04ヴェノムショット）。actorPidの扱いはremoveCoresと同じ
-export function removeCoresToVoid(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-    count: number,
-    actorPid?: PlayerId,
-): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
-    const player = state.players[ownerPid]
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst)))
-    inst.cores -= removed
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}のコア${removed}個をボイドに置いた。`,
-    )
-    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
-    if (inst.cores < instMinLevelCores(inst)) {
-        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
-    }
-    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
-        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
-    }
-    return removed
 }
 
 // ---- アクションの実行 ----
@@ -2634,11 +2040,12 @@ export function tryInteractiveTargetChoice(
     )
     if (state.pendingChoice && chooser !== owner) state.pendingChoice.actorPid = owner
     if (remainingAction && state.pendingChoice) {
-        state.pendingChoice.queue.unshift({
+        pushResumeFrames(state, [{
+            kind: "action",
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
             ...(chooser !== owner ? { actorPid: owner } : {}),
-        })
+        }])
     }
     return true
 }
@@ -2662,10 +2069,11 @@ export function tryInteractiveCardChoice(
     if (cardIndices.length < 2) return false
     requestCardChoice(state, pid, prompt, cardZone, cardIndices, false, firstAction, self)
     if (remainingAction && state.pendingChoice) {
-        state.pendingChoice.queue.unshift({
+        pushResumeFrames(state, [{
+            kind: "action",
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
-        })
+        }])
     }
     return true
 }
@@ -2875,8 +2283,8 @@ export function pickOwnKeywordTarget(
 }
 
 // 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
-function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId): number {
-    return countSpiritsWeighted(state, owner, opp, (s) => s.isRested)
+function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId, sourceType?: CardType): number {
+    return countSpiritsWeighted(state, owner, opp, (s) => s.isRested, sourceType)
 }
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ集計（BS03バッチで統一）。
@@ -2890,15 +2298,18 @@ export function countEffectCounter(
     owner: PlayerId,
     self: CardInstance | null,
     counter: EffectCounter,
+    // 数えている効果の発生源の種別（ActionHandler の ctx.srcType をそのまま渡す）。
+    // 「自分のスピリット/マジックの効果で数えるとき」のような限定（シーサーズ／スリーカード）の判定に使う
+    sourceType?: CardType,
 ): number {
     const opp = opponentOf(owner)
     if (counter === "readyEnemies") {
-        return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested)
+        return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested, sourceType)
     }
-    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp)
+    if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp, sourceType)
     if (counter === "opponentHand") return state.players[opp].hand.length
     if (counter === "ownOtherSpirits") {
-        return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId)
+        return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId, sourceType)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
@@ -2908,13 +2319,13 @@ export function countEffectCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return countSpiritsWeighted(state, owner, owner, (s) => s.isRested)
+        return countSpiritsWeighted(state, owner, owner, (s) => s.isRested, sourceType)
     }
     if (counter === "allExhausted") {
         // 両陣営の疲労スピリット数の合計（BS05大甲帝デスタウロス：疲労状態のスピリット1体につき）
         return (
-            countSpiritsWeighted(state, owner, owner, (s) => s.isRested) +
-            countExhaustedEnemies(state, owner, opp)
+            countSpiritsWeighted(state, owner, owner, (s) => s.isRested, sourceType) +
+            countExhaustedEnemies(state, owner, opp, sourceType)
         )
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
@@ -2922,9 +2333,15 @@ export function countEffectCounter(
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
     if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
+    if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
+    // restedEnemyNexuses：相手の疲労状態のネクサス数（BS09-080エグゾーストネクサス）
+    if (counter === "restedEnemyNexuses") {
+        return state.players[opp].field.nexuses.filter((n) => n.isRested).length
+    }
     // ownRestedNexuses：自分の疲労状態のネクサス数（【強襲】がネクサスを疲労させる。BS07ネクサスアタック）
     if (counter === "ownRestedNexuses") {
         return state.players[owner].field.nexuses.filter((n) => n.isRested).length
@@ -2934,33 +2351,45 @@ export function countEffectCounter(
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) =>
-            spiritHasKeyword(state, owner, s, counter.ownKeyword),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            owner,
+            (s) => spiritHasKeyword(state, owner, s, counter.ownKeyword),
+            sourceType,
         )
     }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) =>
-            cardNameContains(s, counter.ownNameIncludes),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            owner,
+            (s) => cardNameContains(s, counter.ownNameIncludes),
+            sourceType,
         )
     }
     // { anyNameIncludes: string }：両陣営のフィールドで、カード名に指定文字列を含むスピリット数
     // （ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット1体につき」）
     if ("anyNameIncludes" in counter) {
         return (
-            countSpiritsWeighted(state, owner, "p1", (s) => cardNameContains(s, counter.anyNameIncludes)) +
-            countSpiritsWeighted(state, owner, "p2", (s) => cardNameContains(s, counter.anyNameIncludes))
+            countSpiritsWeighted(state, owner, "p1", (s) => cardNameContains(s, counter.anyNameIncludes), sourceType) +
+            countSpiritsWeighted(state, owner, "p2", (s) => cardNameContains(s, counter.anyNameIncludes), sourceType)
         )
     }
     // { ownColor: Color }：自分フィールドの指定色スピリット数
     if ("ownColor" in counter) {
-        return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor))
+        return countSpiritsWeighted(state, owner, owner, (s) => instHasColor(s, counter.ownColor), sourceType)
     }
     // { enemyCost: {max,min} }：相手フィールドのコスト条件を満たすスピリット数（BS07バジリザード）。
     // 道化師クランの付与コストも見る（instMatchesCostFilter）
     if ("enemyCost" in counter) {
-        return countSpiritsWeighted(state, owner, opp, (s) =>
-            instMatchesCostFilter(s, counter.enemyCost),
+        return countSpiritsWeighted(
+            state,
+            owner,
+            opp,
+            (s) => instMatchesCostFilter(s, counter.enemyCost),
+            sourceType,
         )
     }
     // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー）
@@ -3077,7 +2506,7 @@ export function requestActivationConfirm(
     action: EffectAction,
     self: CardInstance | null,
 ): void {
-    state.pendingChoice = {
+    suspend(state, {
         pid,
         kind: "option",
         prompt,
@@ -3087,8 +2516,7 @@ export function requestActivationConfirm(
         confirm: true,
         action,
         selfInstanceId: self ? self.instanceId : null,
-        queue: [],
-    }
+    })
 }
 
 // 選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
@@ -3103,10 +2531,13 @@ export function requestChoice(
     self: CardInstance | null,
     kind: "target" | "option" = "target",
     options?: string[],
+    // 選ぶのが効果の持ち主ではない場合の選択者（「**相手は**〜する」。BS07ブリシンガメンの首飾り）。
+    // 解決自体は発生源の持ち主の効果として行うため、actorPid に owner を残す（tryInteractiveTargetChoice と同じ形）
+    chooserPid?: PlayerId,
 ): void {
     if (kind === "option") {
         // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない
-        state.pendingChoice = {
+        suspend(state, {
             pid,
             kind: "option",
             prompt,
@@ -3115,8 +2546,7 @@ export function requestChoice(
             optional,
             action,
             selfInstanceId: self ? self.instanceId : null,
-            queue: [],
-        }
+        })
         return
     }
     if (candidates.length === 0) {
@@ -3128,16 +2558,16 @@ export function requestChoice(
         resolveAction(state, pid, self, action, only)
         return
     }
-    state.pendingChoice = {
-        pid,
+    suspend(state, {
+        pid: chooserPid ?? pid,
         kind: "target",
         prompt,
         candidates,
         optional,
         action,
         selfInstanceId: self ? self.instanceId : null,
-        queue: [],
-    }
+        ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
+    })
 }
 
 // requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
@@ -3159,6 +2589,9 @@ export function requestCardChoice(
     // 候補が1枚でも自動解決せず必ず選択を出す。「〜できる」（任意発動）の効果で、
     // 候補が1枚しかないときも「やらない」を選べるようにするために使う（BS05トランスマイグレーション）
     alwaysAsk = false,
+    // スキップされたときも action を（cardIndex なしで）解決する。選び終わってから
+    // 後処理がある効果で使う（PendingChoice.resolveOnSkip。BS08堕天使ミカファール）
+    resolveOnSkip = false,
 ): void {
     if (cardIndices.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
@@ -3169,7 +2602,7 @@ export function requestCardChoice(
         resolveAction(state, pid, self, action, undefined, undefined, undefined, undefined, only)
         return
     }
-    state.pendingChoice = {
+    suspend(state, {
         pid,
         kind: "card",
         prompt,
@@ -3178,1388 +2611,57 @@ export function requestCardChoice(
         cardOwner: pid,
         cardIndices,
         optional,
+        ...(resolveOnSkip ? { resolveOnSkip: true as const } : {}),
         action,
         selfInstanceId: self ? self.instanceId : null,
-        queue: [],
-    }
+    })
 }
 
-// ---- イベント発火 ----
+// ---- イベント発火（server/src/logic/triggers.ts へ分割。2026-08-10）----
+//
+// 4640行まで肥大化したため「イベント発火」セクションを triggers.ts へ移した。
+// **呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。**
+// 相互 import になるが、GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環requireで安全に動く
+export {
+    isTriggerSuppressed,
+    fireSummonTrigger,
+    fireTrigger,
+    fireBattleWonTriggers,
+    fireStepTriggers,
+    fireFieldEventTriggers,
+    notifyHandGained,
+    notifyNexusDeployed,
+    bothSidesPids,
+    battleBp,
+    applyJugekiCoreToVoid,
+    notifySpiritCoresRemovedByOpponent,
+    findMagicNegateSource,
+    resolveMagic,
+    applyMagicRedirectChoice,
+    applyMagicNegateChoice,
+    declineMagicNegateChoice,
+} from "./triggers"
 
-// selfInstance が持つ、指定イベントの誘発効果を実行する。
-// レベル条件を満たすものだけ発動する。
-// battleRole は onBattleWin 専用の追加引数：勝利した側の役割（attacker/blocker）を渡す。
-// 効果側に battleRole の指定があれば、渡された役割と一致する場合のみ発火する
-// （指定なしの効果は従来通り常に発火＝相打ちを含まない「勝った側」全体で発火）。
-// 指定プレイヤーのスピリットの指定トリガーが「発揮されない」状態か判定する。
-// ①このターン限りの抑止（ユーサネイジア＝suppressTriggerThisTurn）
-// ②フィールドの発生源による継続抑止（kind:"triggerSuppression"。古代闘技場Lv2）
-// ②は「発生源の持ち主から見た相手」のスピリットに効くため、ownerPid が発生源の持ち主の相手であるものを探す
-export function isTriggerSuppressed(
-    state: GameState,
-    ownerPid: PlayerId,
-    event: TriggerEvent,
-): boolean {
-    if (state.triggerSuppressionThisTurn.some((e) => e.pid === ownerPid && e.trigger === event)) {
-        return true
-    }
-    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
-        if (opponentOf(sourcePid) !== ownerPid) continue
-        const player = state.players[sourcePid]
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-            const level = currentLevel(inst).level
-            for (const effect of getCard(inst.cardId).effects) {
-                if (effect.kind !== "triggerSuppression") continue
-                if (effect.trigger !== event) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.phase !== undefined && state.phase !== effect.phase) continue
-                if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
-// 『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
-// 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
-// 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
-export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstance: CardInstance): void {
-    // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
-    // 『このスピリットの召喚時』効果は発揮されない
-    if (noSummonTriggerByCost(state, selfInstance)) {
-        log(state, `${getCard(selfInstance.cardId).name}：コストが低いため、召喚時効果は発揮されなかった。`)
-        return
-    }
-    state.resolvingSummonTriggerPid = owner
-    fireTrigger(state, owner, selfInstance, "onSummon")
-    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
-}
-
-export function fireTrigger(
-    state: GameState,
-    owner: PlayerId,
-    selfInstance: CardInstance,
-    event: TriggerEvent,
-    battleRole?: "attacker" | "blocker",
-    targetInstanceId?: string,
-): void {
-    // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
-    if (isTriggerSuppressed(state, owner, event)) {
-        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
-        return
-    }
-    // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
-    // スピリット化されたネクサス）は誘発も出さない
-    if (instEffectsSuppressed(selfInstance)) {
-        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
-        return
-    }
-    const card = getCard(selfInstance.cardId)
-    const level = currentLevel(selfInstance).level
-    // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
-    // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
-    // ターン限定（ブレイブチャージ）に加え、継続付与（ドラグノ近衛兵）でも移し替えが起きる
-    const movedToBlock =
-        selfInstance.attackTriggersAsBlockThisTurn === true ||
-        hasAttackTriggersAsBlock(state, owner, selfInstance)
-    // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
-    // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
-    // アタックシフト（全体・このターン）に加えて、個体単位の移し替え（BS07マクラーンスラッシュ）と
-    // 継続付与（BS07大械獣ギガ・テリウム）も見る
-    const movedToAttack =
-        state.blockTriggersAsAttackThisTurn === true ||
-        selfInstance.blockTriggersAsAttackThisTurn === true ||
-        hasBlockTriggersAsAttack(state, owner, selfInstance)
-    if (movedToBlock && event === "onAttack") {
-        return
-    }
-    if (movedToAttack && event === "onBlock") {
-        return
-    }
-    const firedEvents: TriggerEvent[] =
-        movedToBlock && event === "onBlock"
-            ? ["onBlock", "onAttack"]
-            : movedToAttack && event === "onAttack"
-              ? ["onAttack", "onBlock"]
-              : [event]
-    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
-        if (effect.kind !== "triggered") return false
-        if (!firedEvents.includes(effect.trigger)) return false
-        if (!effectActiveAtLevel(effect.levels, level)) return false
-        if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
-        if (effect.condition) {
-            if ("opponentNexusColorsAtLeast" in effect.condition) {
-                // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
-                // opponentNexusColorsAtLeast 以上のときのみ発火
-                const oppNexuses = state.players[opponentOf(owner)].field.nexuses
-                const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
-                if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
-            } else if ("ownFieldHasColorSpirit" in effect.condition) {
-                // オチョゴ／ジェルフィ：発生源の持ち主のフィールドに指定色のスピリットがいるときのみ発火
-                const color = effect.condition.ownFieldHasColorSpirit
-                if (
-                    !state.players[owner].field.spirits.some((s) => instHasColor(s, color))
-                ) {
-                    return false
-                }
-            } else if ("ownFieldHasColorNexus" in effect.condition) {
-                // 天使キュリオ：発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火
-                const color = effect.condition.ownFieldHasColorNexus
-                if (
-                    !state.players[owner].field.nexuses.some((n) => instHasColor(n, color))
-                ) {
-                    return false
-                }
-            } else if ("targetSameLevelAsSelf" in effect.condition) {
-                // 剣竜ステゴラーサウルス：ブロックしてきたスピリット（targetInstanceId）のLvが
-                // selfのLvと同じときのみ発火（未指定/不在なら発火しない）
-                if (targetInstanceId === undefined) return false
-                const target = findInstanceAnywhere(state, targetInstanceId)
-                if (!target) return false
-                if (currentLevel(target).level !== level) return false
-            } else if ("firstAttackOfTurn" in effect.condition) {
-                // ダックル：そのターンの最初のアタックのときのみ発火（doAttackが宣言時に加算する）
-                if (state.attacksThisTurn !== 1) return false
-            } else if ("lastFunsaiHasNexus" in effect.condition) {
-                // 伝説巨人ジュード：直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火
-                if ((state.lastFunsai?.nexuses ?? 0) === 0) return false
-            } else if ("lastFunsaiHasSpirit" in effect.condition) {
-                // 爆砕巨人ダグラスLv2-3：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火
-                if ((state.lastFunsai?.spirits ?? 0) === 0) return false
-            } else if ("ownFieldHasKeyword" in effect.condition) {
-                // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
-                const kw = effect.condition.ownFieldHasKeyword
-                if (
-                    !state.players[owner].field.spirits.some((s) =>
-                        spiritHasKeyword(state, owner, s, kw),
-                    )
-                ) {
-                    return false
-                }
-            } else if ("targetMinBp" in effect.condition) {
-                // 鍵鎚のヴァルグリンドLv2：ブロックしたスピリット（targetInstanceId）の実効BPがこれ以上のときのみ発火
-                if (targetInstanceId === undefined) return false
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) return false
-                if (effectiveBp(state, found.pid, found.inst) < effect.condition.targetMinBp) return false
-            } else if ("targetHasColor" in effect.condition) {
-                // 鉄蠍竜スコルド・ゴランLv3：ブロックしたスピリット（targetInstanceId）がこの色を持つときのみ発火
-                if (targetInstanceId === undefined) return false
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) return false
-                if (!instHasColor(found.inst, effect.condition.targetHasColor)) return false
-            } else if ("targetMaxCost" in effect.condition) {
-                // 激神皇カタストロフドラゴンLv3：ブロックしたスピリット（targetInstanceId）のコストがこれ以下のときのみ発火
-                if (targetInstanceId === undefined) return false
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) return false
-                if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCost })) return false
-            } else if ("targetNotMaxLevel" in effect.condition) {
-                // BS07神帝獣スフィン・クロスLv3：ブロックしたスピリット（targetInstanceId）が
-                // そのカードの最高Lvに達していないときのみ発火
-                if (targetInstanceId === undefined) return false
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) return false
-                const maxLevel = getCard(found.inst.cardId).levels.reduce(
-                    (max, lv) => Math.max(max, lv.level),
-                    0,
-                )
-                if (currentLevel(found.inst).level >= maxLevel) return false
-            } else if ("battleLoserMaxCost" in effect.condition) {
-                // BS07天刃の勇者ヴォルザLv2：直前のバトルで破壊した相手のコストがこれ以下のときのみ。
-                // resolveBattle が onBattleWin を発火させるのは「BP比較で相手だけを破壊した」枝で、
-                // その直前に lastBattleDestroyedCost を必ず記録している。よって値は常に有効で、
-                // **0 を「未記録」と読み替えてはいけない**（コスト0のスピリットが実在する）
-                if (state.lastBattleDestroyedCost > effect.condition.battleLoserMaxCost) return false
-            } else if ("opponentHandAtLeast" in effect.condition) {
-                // BS08ボクルガー：発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火。
-                // サーバー内部のstate.players[opp].handは常に実配列（隠匿マスクはviewFor変換時のみ）
-                if (state.players[opponentOf(owner)].hand.length < effect.condition.opponentHandAtLeast) return false
-            } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
-                // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
-                const { names, count } = effect.condition.ownNameIncludesCountAtLeast
-                const total = state.players[owner].field.spirits.filter((s) =>
-                    names.some((n) => cardNameContains(s, n)),
-                ).length
-                if (total < count) return false
-            }
-        }
-        return true
-    }
-    // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
-    // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
-    // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
-    // 加えて、action:"grantEffectToTargetThisTurn" でこの個体1体に直接付与された、このターン限りの
-    // 誘発効果（tempGrantedTriggers）も同様に合成する（BS08メテオストーム）
-    const tempGranted = (selfInstance.tempGrantedTriggers ?? [])
-        .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
-        .map((g) => g.action)
-    const grantedActions = [
-        ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
-        ...tempGranted,
-    ]
-
-    const effects = card.effects
-    for (let i = 0; i < effects.length; i++) {
-        const effect = effects[i]
-        if (!effect || !matches(effect)) continue
-        // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
-        // interactiveTargets=false（テスト）では従来どおり常に発動する
-        if (effect.optional && state.interactiveTargets) {
-            requestActivationConfirm(
-                state,
-                owner,
-                `${card.name}の効果を発動しますか？`,
-                effect.action,
-                selfInstance,
-            )
-        } else {
-            resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
-        }
-        // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
-        if (state.pendingChoice) {
-            const remaining = effects.slice(i + 1).filter(matches)
-            state.pendingChoice.queue.push(
-                ...remaining.map((e) => ({ selfInstanceId: selfInstance.instanceId, action: e.action })),
-                ...grantedActions.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
-            )
-            return
-        }
-    }
-    for (let i = 0; i < grantedActions.length; i++) {
-        const grantedAction = grantedActions[i]
-        if (!grantedAction) continue
-        resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
-        if (state.pendingChoice) {
-            const remaining = grantedActions.slice(i + 1)
-            state.pendingChoice.queue.push(
-                ...remaining.map((a) => ({ selfInstanceId: selfInstance.instanceId, action: a })),
-            )
-            return
-        }
-    }
-}
-
-// fireTrigger 用: 持ち主(owner)フィールドの kind:"effectGrant" 発生源から、selfInstance に
-// 継続付与された誘発効果（trigger一致）のアクション一覧を集める（アルカナビースト・ケン）
-function collectGrantedTriggerActions(
-    state: GameState,
-    owner: PlayerId,
-    selfInstance: CardInstance,
-    event: TriggerEvent,
-    targetInstanceId?: string,
-): EffectAction[] {
-    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める
-    const sources = effectSources(state, owner)
-    const actions: EffectAction[] = []
-    for (const source of sources) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "effectGrant") continue
-            if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.granted.trigger !== event) continue
-            if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
-                continue
-            }
-            if (effect.colorFilter && !instHasColor(selfInstance, effect.colorFilter)) continue
-            if (
-                effect.familyFilter &&
-                !matchesFamilyFilter(state, owner, selfInstance, effect.familyFilter)
-            ) {
-                continue
-            }
-            if (effect.keywordFilter && !hasKeyword(selfInstance.cardId, effect.keywordFilter)) continue
-            // 付与された誘発の発火条件（BS07ライフセービング＝コスト3以下をブロックしたとき）。
-            // fireTrigger が渡す targetInstanceId（onBlock ならアタッカー）を見る
-            if (effect.granted.condition !== undefined) {
-                if (targetInstanceId === undefined) continue
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) continue
-                if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
-            }
-            actions.push(effect.granted.action)
-        }
-    }
-    return actions
-}
-
-// バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
-// kind: "battleWon" かつ role 一致（role:"any"はどちらの役割でも一致）かつレベル条件を満たす効果を実行する
-// （ネクサスのバトル結果誘発）。
-// resolveAction には self として発生源（ネクサス／スピリット）ではなく、
-// 「勝利したスピリット（winnerInst）」を渡す。refreshSelf 等が「勝ったスピリット」を回復させる
-// ような効果文（例: 無限蟲の蟻塚「自分のブロックしたスピリットは回復する」）を、
-// 発生源に関係なく素直に表現するための意図的な選択。selfMode:"source" 指定時は逆に
-// 発生源インスタンス（ネクサス自身）を self に渡す（深緑の樹海：ネクサス自身にコアを置く）。
-// turn:"own" 指定時は winnerPid が turnPlayer のときのみ、vanillaWinnerOnly 指定時は
-// 勝利したスピリットがバニラのときのみ発火する。
-// 勝敗が決着したら（state.winner が立ったら）残りは打ち切る。
-export function fireBattleWonTriggers(
-    state: GameState,
-    winnerPid: PlayerId,
-    winnerInst: CardInstance,
-    role: "attacker" | "blocker",
-): void {
-    // effectSources：このターンだけの仮想発生源（マジックが貸した継続効果。BS04ニーベルングリング）も含める
-    const instances = effectSources(state, winnerPid)
-    for (const inst of instances) {
-        const card = getCard(inst.cardId)
-        const level = currentLevel(inst).level
-        for (const effect of card.effects) {
-            if (effect.kind !== "battleWon") continue
-            if (effect.role !== "any" && effect.role !== role) continue
-            // 『このスピリットのバトル時』：発生源自身が勝利したときだけ発火する（BS01要塞龍ギガLv2）。
-            // 同名の別個体が場にいても、勝っていない側では発火させない
-            if (effect.selfOnly && inst.instanceId !== winnerInst.instanceId) continue
-            // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
-            if (effect.lentOnly && !isVirtualSource(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
-            // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
-            if (effect.firstAttackOfTurn && state.attacksThisTurn !== 1) continue
-            if (effect.vanillaWinnerOnly && !instIsVanilla(winnerInst)) continue
-            // 勝利したスピリットのカード名で絞る（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
-            if (
-                effect.winnerNameContains !== undefined &&
-                !cardNameContains(winnerInst, effect.winnerNameContains)
-            ) {
-                continue
-            }
-            // BS04ドラゴンズラッシュ：勝利したスピリットが指定系統を持つときのみ発火（配列＝OR）
-            if (
-                effect.winnerFamilyFilter !== undefined &&
-                !matchesFamilyFilter(state, winnerPid, winnerInst, effect.winnerFamilyFilter)
-            ) {
-                continue
-            }
-            // BS02エメラルドに輝く鍾乳洞Lv2：勝利したスピリットのコアが指定数以上のときのみ発火
-            if (effect.winnerMinCores !== undefined && winnerInst.cores < effect.winnerMinCores) {
-                continue
-            }
-            // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
-            if (
-                effect.winnerKeywordFilter !== undefined &&
-                !spiritHasKeyword(state, winnerPid, winnerInst, effect.winnerKeywordFilter)
-            ) {
-                continue
-            }
-            const actionSelf = effect.selfMode === "source" ? inst : winnerInst
-            // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
-            if (effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(
-                    state,
-                    winnerPid,
-                    `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                    effect.action,
-                    actionSelf,
-                )
-                return
-            }
-            resolveAction(state, winnerPid, actionSelf, effect.action)
-            if (state.winner) return
-            if (state.pendingChoice) return
-        }
-    }
-}
-
-// ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
-function checkStepCondition(
-    state: GameState,
-    pid: PlayerId,
-    condition: "handNotGreaterThanOpponent",
-): boolean {
-    // 主無き古城Lv2：お互いの手札の枚数が同じか、相手の方が多いとき
-    return state.players[pid].hand.length <= state.players[opponentOf(pid)].hand.length
-}
-
-// ステップ誘発のログに出すステップ名。「どのステップの効果として発動したか」を示す
-const STEP_LABELS: Record<Phase, string> = {
-    start: "スタートステップ",
-    core: "コアステップ",
-    draw: "ドローステップ",
-    refresh: "リフレッシュステップ",
-    main: "メインステップ",
-    attack: "アタックステップ",
-    end: "エンドステップ",
-}
-
-// 指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
-// ターンプレイヤー側 → 相手側の順に、各プレイヤー内ではスピリット→ネクサスの順で発火する。
-// 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
-// refreshedInstanceIds はリフレッシュステップで実際に回復（isRested: true → false）した
-// インスタンスの集合（PhaseManagerが渡す）。selfWasRefreshedThisStep 条件の判定に使う（省略可）
-// timing は「ステップ開始時（省略時＝"enter"）」と「ステップ終了時（"end"）」の呼び分け。
-// データ側の effect.timing が未指定なら "enter" 扱いなので、既存の呼び出しは影響を受けない
-export function fireStepTriggers(
-    state: GameState,
-    step: Phase,
-    refreshedInstanceIds?: Set<string>,
-    timing: "enter" | "end" = "enter",
-): void {
-    const order: PlayerId[] = [
-        state.turnPlayer,
-        opponentOf(state.turnPlayer),
-    ]
-    for (const pid of order) {
-        const player = state.players[pid]
-        const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
-            const card = getCard(inst.cardId)
-            const level = currentLevel(inst).level
-            for (const effect of card.effects) {
-                if (effect.kind !== "step") continue
-                if (effect.step !== step) continue
-                if ((effect.timing ?? "enter") !== timing) continue
-                if (effect.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
-                if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
-                if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
-                    // ハートレス・ティンLv2：自分のフィールドの指定色シンボルが count 個以上、かつ
-                    // noAttacksThisTurn 指定時はこのターンまだ1度もアタックが行われていないときのみ発火
-                    const { color, count } = effect.condition.ownSymbolColorAtLeast
-                    const symbols = instances.reduce(
-                        (sum, i) => sum + getCard(i.cardId).symbol.filter((c) => c === color).length,
-                        0,
-                    )
-                    if (symbols < count) continue
-                    if (effect.condition.noAttacksThisTurn && state.attacksThisTurn > 0) continue
-                }
-                if (effect.condition && typeof effect.condition === "object" && "ownColorTotalAtLeast" in effect.condition) {
-                    // 道化師クラン：自分のフィールドに指定色のスピリット+ネクサスが合計count以上あるときのみ発火
-                    const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const total = instances.filter((s) => instHasColor(s, color)).length
-                    if (total < count) continue
-                }
-                if (effect.condition && typeof effect.condition === "object" && "ownFamilyCountAtLeast" in effect.condition) {
-                    // 王蛇の住処：自分のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるときのみ発火
-                    const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        matchesFamilyFilter(state, pid, s, family),
-                    )
-                    if (total < count) continue
-                }
-                if (effect.condition && typeof effect.condition === "object" && "ownHandAtLeast" in effect.condition) {
-                    // 水蛇シーサーペンタ：持ち主の手札が指定枚数以上のときのみ発火（Lvごとに閾値が変わる）
-                    if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
-                }
-                if (effect.condition && typeof effect.condition === "object" && "ownRefreshedSpiritsAtLeast" in effect.condition) {
-                    // 紫水晶の森Lv2：自分のフィールドに回復状態のスピリットが指定体数以上いるときのみ発火
-                    const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested)
-                    if (refreshed < effect.condition.ownRefreshedSpiritsAtLeast) continue
-                }
-                if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
-                    // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
-                    const { names, count } = effect.condition.ownNameIncludesCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        names.some((n) => cardNameContains(s, n)),
-                    )
-                    if (total < count) continue
-                }
-                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
-                if (effect.optional && state.interactiveTargets) {
-                    requestActivationConfirm(
-                        state,
-                        pid,
-                        `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                        effect.action,
-                        inst,
-                    )
-                } else {
-                    // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
-                    // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
-                    // カード名を含めることでUI側のホバー表示も効く
-                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
-                    resolveAction(state, pid, inst, effect.action)
-                }
-                if (state.winner) return
-                if (state.pendingChoice) return
-            }
-        }
-    }
-}
-
-// フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
-//   ownLifeDamaged: pid のライフが（相手によって）減らされたとき
-//   ownSpiritDestroyed: pid のスピリットが破壊（または消滅）されたとき
-//   anySpiritAttacked: どちらかのスピリットがアタックを宣言したとき（発生源の持ち主を問わず両フィールドから呼ぶ）
-// pid のフィールド（スピリット→ネクサスの順、既存の走査順に合わせる）から
-// kind:"fieldEvent" かつ event 一致かつレベル・phase・turn 条件を満たす効果を実行する。
-// self には発生源インスタンス（効果を持つネクサス／スピリット自身）を渡す。
-// selfOverride を指定すると、resolveAction に渡す self とその持ち主を差し替える
-// （anySpiritAttacked では「アタックしたスピリット」に効果を作用させるため。
-// fireBattleWonTriggers が勝利スピリットを self に渡すのと同じ考え方）。既存呼び出しには影響しない。
-// eventColor を指定すると、colorFilter 付きの効果（event: "ownSpiritDestroyed" 限定）は
-// この色と一致する場合のみ発火する（祝福されし大聖堂）。他イベントでは colorFilter を持つ
-// データが無いため未指定のままでよい。
-// 1件実行するたびに勝敗をチェックし、決着していれば残りは発火させない。
-// 注意（再入）: ここで実行される action が destroySpirit を呼ぶと、本関数を呼び出した
-// destroySpirit 自身への再入となる。現対象カードの action は draw / coreGain のみで
-// destroySpirit を呼ばないため安全だが、将来 destroy 系アクションを組み合わせる場合は
-// 無限ループ（破壊→誘発→破壊→…）が起きないよう設計時に確認すること。
-export function fireFieldEventTriggers(
-    state: GameState,
-    pid: PlayerId,
-    event: FieldEvent,
-    selfOverride?: { pid: PlayerId; inst: CardInstance },
-    eventColors?: Color[],
-    targetInstanceId?: string,
-    eventCount?: number,
-    eventInfo?: {
-        vanilla?: boolean
-        byBattle?: boolean
-        // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったか（attackerOnly の判定に使う）
-        wasAttacker?: boolean
-        // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
-        // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
-        byOpponentEffect?: boolean
-        families?: string[]
-        magicCost?: number
-        magicTiming?: "main" | "flash"
-        // event: "ownTensho" 限定：【転召】の犠牲になったスピリットのカード名（nameIncludesの判定に使う。BS08魔界七将アスモディオス）
-        names?: string[]
-        // 対象スピリットが「扱われている」コストの一覧（instAllCosts）。本来のコストに加え、
-        // 道化師クランの付与コストも含めた複数値になりうるため、配列で受け取りいずれかが
-        // costFilter を満たせばよい（instMatchesCostFilterと同じOR意味論）
-        costs?: number[]
-        // event: "ownSpiritCoresRemovedByOpponent" 限定：実際に取り除かれたコア数。
-        // effect.countMode === "cores" のエントリのみ repeatPerCount の繰り返し回数として使う（BS06希望の大灯台Lv1）
-        coresRemoved?: number
-    },
-): void {
-    const player = state.players[pid]
-    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
-    // BS05ソウルクラッシュ）も含める。「誰が誘発効果を出しているか」を問うA分類の走査
-    // （TURN_EFFECT_SOURCES.md §1）
-    const instances = effectSources(state, pid)
-    for (const inst of instances) {
-        const card = getCard(inst.cardId)
-        const level = currentLevel(inst).level
-        for (const effect of card.effects) {
-            if (effect.kind !== "fieldEvent") continue
-            if (effect.event !== event) continue
-            // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
-            if (effect.lentOnly && !isVirtualSource(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.phase !== undefined && state.phase !== effect.phase) continue
-            // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
-            if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue
-            if (effect.turn === "own" && pid !== state.turnPlayer) continue
-            if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-            // ownOnly（BS06冥騎士アンドラー／冥府の深淵）：発生源の持ち主（pid）のスピリットがアタックしたときのみ
-            // （selfOverride.pidが発生源の持ち主と一致するときだけ通す。「自分のスピリットが」の限定）
-            if (effect.ownOnly && selfOverride?.pid !== pid) continue
-            if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
-            if (effect.vanillaOnly && !eventInfo?.vanilla) continue
-            if (effect.byBattleOnly && !eventInfo?.byBattle) continue
-            // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
-            // ブロッカーとして破壊された場合は発火させない
-            if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
-            // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
-            // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
-            if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
-            // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
-            // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
-            if (
-                effect.costFilter !== undefined &&
-                !(eventInfo?.costs ?? []).some((c) => matchesCostFilter(c, effect.costFilter))
-            ) {
-                continue
-            }
-            // アタックしたスピリット（selfOverride）の実効BPで絞る（BS08ダークスカルデーモン：BP6000以下）
-            if (
-                effect.maxBp !== undefined &&
-                (selfOverride === undefined ||
-                    effectiveBp(state, selfOverride.pid, selfOverride.inst) > effect.maxBp)
-            ) {
-                continue
-            }
-            // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
-            if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
-            // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
-            if (effect.magicCostEquals !== undefined && eventInfo?.magicCost !== effect.magicCostEquals) continue
-            if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
-            // 「このスピリットが疲労したとき」（スクルディア）：イベント対象が発生源自身のときだけ
-            if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
-            // 「[カード名]以外の」の除外（BS06鉄拳のカクタスガルー）：イベント対象が発生源自身のときは発火しない
-            if (effect.excludeSelfAsEventTarget && selfOverride?.inst.instanceId === inst.instanceId) continue
-            // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）。
-            // event: "ownTensho" はselfOverrideを渡さないため、eventInfo.names（【転召】の犠牲になった
-            // スピリットのカード名）があればそちらで判定する（BS08魔界七将アスモディオス）
-            if (effect.nameIncludes !== undefined) {
-                const nameOk =
-                    eventInfo?.names !== undefined
-                        ? effect.nameIncludes.some((n) => eventInfo.names?.some((name) => name.includes(n)))
-                        : selfOverride !== undefined &&
-                          effect.nameIncludes.some((n) => cardNameContains(selfOverride.inst, n))
-                if (!nameOk) continue
-            }
-            // targetInstanceId のスピリットのLvがイベント対象と同じときだけ
-            // （BS05ペンタン帝国Lv2：同じLvの相手のスピリットにブロックされたとき）
-            if (effect.targetSameLevelAsSelf) {
-                const target = targetInstanceId ? findInstanceAnywhere(state, targetInstanceId) : null
-                if (!target || !selfOverride) continue
-                if (currentLevel(target).level !== currentLevel(selfOverride.inst).level) continue
-            }
-            if (effect.familyFilter !== undefined) {
-                // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
-                const wanted = Array.isArray(effect.familyFilter)
-                    ? effect.familyFilter
-                    : [effect.familyFilter]
-                const ok =
-                    eventInfo?.families !== undefined
-                        ? // 破壊/召喚イベント：呼び出し側が渡した**カード静的な系統**で判定する（従来どおり）
-                          wanted.some((f) => eventInfo.families?.includes(f))
-                        : // families を渡さないイベント（疲労）：継続付与された系統も含めて判定する
-                          // （BS02生み出される尖兵：自身のLv1が与える「武装」を Lv2 が見る）
-                          selfOverride !== undefined &&
-                          matchesFamilyFilter(state, selfOverride.pid, selfOverride.inst, effect.familyFilter)
-                if (!ok) continue
-            }
-            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
-            // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
-            // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
-            if (effect.keywordFilter !== undefined) {
-                const hasKw =
-                    (event === "anySpiritAttacked" || event === "ownSpiritDealtLife") && selfOverride !== undefined
-                        ? spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
-                        : hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
-                if (!hasKw) continue
-            }
-            if (effect.condition) {
-                if (effect.condition === "selfIsAttacking") {
-                    // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
-                    if (!state.battle || state.battle.attackerInstanceId !== inst.instanceId) continue
-                } else if ("firstAttackOfTurn" in effect.condition) {
-                    // 神鳴る霊峰Lv2：そのターンの最初のアタックのときのみ（triggered.conditionの同名軸と同じ判定）
-                    if (state.attacksThisTurn !== 1) continue
-                } else if ("targetMaxBp" in effect.condition) {
-                    // BS08竜騎集う円卓：ライフを減らしたスピリット（targetInstanceId＝アタッカー）の
-                    // 実効BPがこれ以下のときのみ（見つからなければ発火しない）
-                    if (targetInstanceId === undefined) continue
-                    const found = findSpiritAny(state, targetInstanceId)
-                    if (!found) continue
-                    if (effectiveBp(state, found.pid, found.inst) > effect.condition.targetMaxBp) continue
-                } else if ("ownColorTotalAtLeast" in effect.condition) {
-                    // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
-                    const { color, count } = effect.condition.ownColorTotalAtLeast
-                    const sources = [...player.field.spirits, ...player.field.nexuses]
-                    const total = sources.filter((s) => instHasColor(s, color)).length
-                    if (total < count) continue
-                } else if ("ownFamilyCountAtLeast" in effect.condition) {
-                    // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上
-                    const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const total = countSpiritsWeighted(state, pid, pid, (s) =>
-                        matchesFamilyFilter(state, pid, s, family),
-                    )
-                    if (total < count) continue
-                } else if ("ownFieldHasColorNexus" in effect.condition) {
-                    // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
-                    const color = effect.condition.ownFieldHasColorNexus
-                    if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
-                } else {
-                    // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
-                    if (targetInstanceId === undefined) continue
-                    const found = findSpiritAny(state, targetInstanceId)
-                    if (!found) continue
-                    if (spiritHasKeyword(state, found.pid, found.inst, effect.condition.targetKeywordExclude)) continue
-                }
-            }
-            // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す。
-            // countMode:"cores"（希望の大灯台Lv1）指定時は、影響を受けたスピリット数(eventCount)ではなく
-            // 取り除かれたコア数(eventInfo.coresRemoved)を繰り返し回数にする（省略時は従来どおりeventCount）
-            const repeatTimes = effect.repeatPerCount
-                ? effect.countMode === "cores" && eventInfo?.coresRemoved !== undefined
-                    ? eventInfo.coresRemoved
-                    : eventCount
-                      ? eventCount
-                      : 1
-                : 1
-            for (let i = 0; i < repeatTimes; i++) {
-                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
-                // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
-                if (effect.optional && state.interactiveTargets) {
-                    const actionPid = effect.selfMode === "source" ? pid : (selfOverride?.pid ?? pid)
-                    const actionSelf = effect.selfMode === "source" ? inst : (selfOverride?.inst ?? inst)
-                    requestActivationConfirm(state, actionPid, `${card.name}の効果を発動しますか？`, effect.action, actionSelf)
-                    if (state.pendingChoice) return
-                    continue
-                }
-                // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
-                // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
-                if (effect.selfMode === "source") {
-                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
-                } else if (selfOverride) {
-                    // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、
-                    // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
-                    // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
-                    // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
-                    resolveAction(
-                        state,
-                        selfOverride.pid,
-                        selfOverride.inst,
-                        effect.action,
-                        targetInstanceId,
-                        instColors(inst),
-                        getCard(inst.cardId).type,
-                    )
-                } else {
-                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
-                }
-                if (state.winner) return
-                if (state.pendingChoice) return
-            }
-        }
-    }
-}
-
-// フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
-// 手札を得たプレイヤー(gainerPid)の相手側フィールドから発火する（犬人マードック／英雄の喪失）。
-// ドロー・トラッシュ回収・deckReveal・バウンス（ネクサス／スピリット）・reviveOnDestroy の
-// toHand など、初期手札配布を除く手札加入箇所すべてから呼ぶ。count省略時/0以下・勝敗確定後は何もしない
-export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: number): void {
-    if (count < 1 || state.winner) return
-    fireFieldEventTriggers(state, opponentOf(gainerPid), "opponentHandAdded", undefined, undefined, undefined, count)
-}
-
-// フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
-// 通常の配置（GameEngine.doSetNexus）・効果による配置（deployNexus）・破壊されたネクサスの復活の
-// いずれからも呼ぶ。ネクサスを1つ置くたびに1回発火する（「配置されるたび」）
-export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void {
-    if (state.winner) return
-    fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
-}
-
-// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
-// 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
-// bothSidesCoreToVoid / exhaustAll side:"both" / returnAllToHand side:"both" / nexusCoresToTrash side:"both" /
-// draw side:"both" / discardBothHands）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
-// beneficial=true は「受ける側にとって得な効果」（ドロー）で、そのときだけ相手を外す。
-// マジック以外の発生源（スピリット・ネクサスの効果）は対象外なので、そのまま両陣営を返す
-export function bothSidesPids(
-    state: GameState,
-    srcType: CardType | undefined,
-    beneficial = false,
-): PlayerId[] {
-    const all: PlayerId[] = ["p1", "p2"]
-    if (srcType !== "magic") return all
-    for (const ownerPid of all) {
-        for (const source of effectSources(state, ownerPid)) {
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "bothSidesTargetRedirect") continue
-                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
-                const excluded = beneficial ? opponentOf(ownerPid) : ownerPid
-                log(
-                    state,
-                    `${getCard(source.cardId).name}：このマジックの効果の対象を${state.players[opponentOf(excluded)].name}のみに変更した。（どちらに変更するかは簡略化）`,
-                )
-                return all.filter((p) => p !== excluded)
-            }
-        }
-    }
-    return all
-}
-
-// 果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
-// 別のレベルのBPを使う。effectiveBp（バフ・オーラ込み）に「使うレベルのBP − 本来のレベルのBP」の差を足す形で
-// 実装するので、BP増減の効果とは独立して働く。GameEngine.resolveBattle からのみ呼ぶ
-// （効果の対象条件やオーラのBP判定には影響させない ＝「バトルでBPを比べるとき」の限定を守る）
-export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): number {
-    const base = effectiveBp(state, pid, inst)
-    const level = currentLevel(inst).level
-    for (const source of effectSources(state, pid)) {
-        const sourceLevel = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "battleBpAsLevel") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.fromLevel !== level) continue
-            // keywordFilter（BS06神葉樹の森Lv2）：指定キーワードを持つスピリットのみ対象
-            if (effect.keywordFilter && !spiritHasKeyword(state, pid, inst, effect.keywordFilter)) continue
-            if (effect.phaseTurn) {
-                if (state.phase !== effect.phaseTurn.phase) continue
-                if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
-            }
-            const levels = getCard(inst.cardId).levels
-            const from = levels.find((l) => l.level === effect.fromLevel)
-            const use = levels.find((l) => l.level === effect.useLevel)
-            if (!from || !use) continue
-            return base + (use.bp - from.bp)
-        }
-    }
-    return base
-}
-
-// 魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
-// 【呪撃】で破壊される相手スピリット上のコアを指定個数ボイドへ置く。
-// GameEngine の呪撃解決が destroySpirit の**直前**に呼ぶ（破壊後だとコアは持ち主のリザーブへ
-// 移っており「そのスピリット上のコア」を取れないため）。ボイド行きなのでリザーブには戻らない
-export function applyJugekiCoreToVoid(
-    state: GameState,
-    attackerPid: PlayerId,
-    victimPid: PlayerId,
-    victim: CardInstance,
-): void {
-    for (const source of effectSources(state, attackerPid)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "jugekiCoreToVoid") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            const removed = Math.min(effect.count, victim.cores)
-            if (removed === 0) continue
-            victim.cores -= removed
-            log(
-                state,
-                `${getCard(source.cardId).name}：【呪撃】で破壊される${getCard(victim.cardId).name}のコア${removed}個をボイドに置いた。`,
-            )
-            notifySpiritCoresRemovedByOpponent(state, victimPid, 1, removed)
-        }
-    }
-}
-
-// フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
-// （極光の大地）。spiritOwnerPid視点で発火し、affectedCount=影響を受けたスピリット数（従来どおりのeventCount）。
-// removedCoreCount指定時は「取り除かれたコア数」も渡す（countMode:"cores"のエントリのみ使う。BS06希望の大灯台Lv1）。
-// removeCores / removeCoresToTrash / removeCoresToVoid（actorPid !== ownerPidのとき）から呼ばれる
-export function notifySpiritCoresRemovedByOpponent(
-    state: GameState,
-    spiritOwnerPid: PlayerId,
-    affectedCount: number,
-    removedCoreCount?: number,
-): void {
-    if (affectedCount < 1 || state.winner) return
-    fireFieldEventTriggers(
-        state,
-        spiritOwnerPid,
-        "ownSpiritCoresRemovedByOpponent",
-        undefined,
-        undefined,
-        undefined,
-        affectedCount,
-        removedCoreCount !== undefined ? { coresRemoved: removedCoreCount } : undefined,
-    )
-}
-
-// マジックカードの効果を実行する（timing に一致するすべての効果を配列順に実行）。
-// 「ドロー＋バフ」のような複合テキストは effects に複数エントリを並べて表現する。
-// アルカナソルジャー・サンクLv2（kind:"magicTargetRedirect"）の判定。
-// 「相手がこのスピリットを対象に含むマジックの効果を使用したとき、その対象をこのスピリットのみにできる」。
-// 「できる」は自動適用の簡略化（magicFreeGrant と同じ扱い）。
-// 対象に含むかの判定:
-//   - 明示ターゲットあり → それがサンク自身のときだけ絞り込む（他の1体を選んだならサンクは対象外）
-//   - 明示ターゲットなし（全体効果・自動選択） → 対象に含むものとして絞り込む
-//     （利用者確認：マジックの「対象」には全体を含む効果も含まれる。DECISIONS.md）
-function setMagicRedirect(
-    state: GameState,
-    casterPid: PlayerId,
-    targetInstanceId: string | undefined,
-    action: EffectAction,
-): void {
-    delete state.magicRedirectTo
-    const found = findMagicRedirectSource(state, casterPid, targetInstanceId, action)
-    if (!found) return
-    // 対話モードでは、絞り込むかどうかを発生源の持ち主（＝守る側）に確認済み。
-    // 「しない」を選んでいたら絞り込まない（『〜にできる』の任意性。BS04サンク／BS05スノーホワイト）。
-    // 決定が無い＝非対話（テスト・自動解決）なので、従来どおり自動で絞り込む
-    const decision = state.magicRedirectDecision
-    if (decision && decision.sourceInstanceId === found.instanceId && !decision.approved) return
-    state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }
-    log(
-        state,
-        `${getCard(found.cardId).name}：このマジックの効果の対象を、このスピリットのみにした。`,
-    )
-}
-
-// magicTargetRedirect の発生源を探す（実際に絞り込むかは呼び出し側が決める）。
-// resolveMagic の事前確認（このマジックで絞り込みが起こりうるか）と setMagicRedirect が共用する
-function findMagicRedirectSource(
-    state: GameState,
-    casterPid: PlayerId,
-    targetInstanceId: string | undefined,
-    action: EffectAction,
-): CardInstance | null {
-    const defenderPid = opponentOf(casterPid)
-    for (const inst of state.players[defenderPid].field.spirits) {
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "magicTargetRedirect") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
-            // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき／『自分のターン』＝turnPlayerのとき
-            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
-            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
-            if (effect.protectFamily !== undefined || effect.protectCost !== undefined) {
-                // スノーホワイト：守る対象は「持ち主の指定系統（＋指定色）のスピリット」で、
-                // 絞り込み先は発生源自身。守る対象が1体も対象に含まれていなければ発動しない
-                // （BS06細剣の猫騎士ケット・シー：protectCostで「持ち主の指定コストのスピリット」を守る同型版）
-                const guarded = state.players[defenderPid].field.spirits.filter(
-                    (s) =>
-                        (effect.protectFamily === undefined ||
-                            matchesFamilyFilter(state, defenderPid, s, effect.protectFamily)) &&
-                        (effect.protectColor === undefined || instHasColor(s, effect.protectColor)) &&
-                        (effect.protectCost === undefined || instHasCost(s, effect.protectCost)),
-                )
-                if (guarded.length === 0) continue
-                const included =
-                    targetInstanceId !== undefined
-                        ? guarded.some((s) => s.instanceId === targetInstanceId)
-                        : guarded.some((s) => redirectTargetMatches(state, defenderPid, s, action))
-                if (!included) continue
-            } else {
-                if (targetInstanceId !== undefined && targetInstanceId !== inst.instanceId) continue
-                // そもそもこのアクションの絞り込みに合致しなければ「対象に含む」ではない
-                // （例: BP3000以下を破壊するマジックに対し、BP4000のサンクは対象外＝絞り込みは起きない）
-                if (!redirectTargetMatches(state, defenderPid, inst, action)) continue
-            }
-            return inst
-        }
-    }
-    return null
-}
-
-// 絞り込み対象（サンク）が、そのアクションの filter に合致するか。
-// self 相対BP・バトル敗者参照など「マジック単体では解決できない軸」を含む場合は
-// 判定できないため false（＝絞り込まない＝従来どおりの挙動）にする
-function redirectTargetMatches(
-    state: GameState,
-    defenderPid: PlayerId,
-    inst: CardInstance,
-    action: EffectAction,
-): boolean {
-    const spec = (action as { filter?: TargetFilter }).filter
-    if (!spec) return true
-    if (spec.maxBp === "selfBp" || spec.minBp === "selfBp" || spec.exactBp === "selfBp") return false
-    if (spec.sameColorAsBattleLoser || spec.sameFamilyAsBattleLoser) return false
-    // ここまでで "selfBp" 系は除外済みなので、数値のみの ResolvedTargetFilter として扱える
-    return matchesTarget(state, defenderPid, inst, spec as unknown as ResolvedTargetFilter)
-}
-
-// マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
-// 見つからない条件（レベル・色・ステップ・ターン・ターン1回・コストが払えない）はすべてここで弾くので、
-// 呼び出し側は「見つかったら必ず無効化できる」前提で書ける
-export function findMagicNegateSource(
-    state: GameState,
-    casterPid: PlayerId,
-    card: CardData,
-): { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> } | null {
-    const defenderPid = opponentOf(casterPid)
-    for (const inst of effectSources(state, defenderPid)) {
-        const level = currentLevel(inst).level
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "magicNegate") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.phase !== undefined && state.phase !== effect.phase) continue
-            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
-            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
-            // 【氷壁：赤】＝赤のマジックのみ無効にできる
-            if (effect.colors !== undefined && !effect.colors.some((c) => card.colors.includes(c))) continue
-            if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
-            // コストを払えないなら発動できない
-            if ("exhaustSelf" in effect.cost) {
-                if (inst.isRested) continue
-            } else if (inst.cores < effect.cost.selfCoresToVoid) {
-                continue
-            }
-            return { pid: defenderPid, inst, effect }
-        }
-    }
-    return null
-}
-
-// 無効化のコストを支払い、ログを残す。呼び出し側はこのあとマジックの効果を解決しない
-function payMagicNegate(
-    state: GameState,
-    found: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "magicNegate" }> },
-    card: CardData,
-): void {
-    const { pid, inst, effect } = found
-    if ("exhaustSelf" in effect.cost) {
-        exhaustSpirit(state, pid, inst)
-    } else {
-        // ボイド行きなので、リザーブにもトラッシュにも戻らない
-        inst.cores -= effect.cost.selfCoresToVoid
-        log(
-            state,
-            `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToVoid}個をボイドに置いた。`,
-        )
-    }
-    if (effect.oncePerTurn) inst.magicNegateUsedTurn = state.turn
-    log(state, `${getCard(inst.cardId).name}の効果で、${card.name}の効果は無効になった。`)
-}
-
-export function resolveMagic(
-    state: GameState,
-    owner: PlayerId,
-    cardId: string,
-    timing: "main" | "flash",
-    targetInstanceId?: string,
-): void {
-    // 【光芒】用: バトル中の使用ならアタッカー側の usedMagicCardIds に記録する
-    // （バトル終了時にこの中からトラッシュ→手札へ戻す）
-    if (state.battle) {
-        if (!state.battle.usedMagicCardIds) {
-            state.battle.usedMagicCardIds = { p1: [], p2: [] }
-        }
-        state.battle.usedMagicCardIds[owner].push(cardId)
-    }
-    const card = getCard(cardId)
-    // oncePerBattle の無償化（BS07大天使イスフィール＝「マジックカード1枚を」）は、ここで使い切る。
-    // 再発揮（magicRepeatGrant）の消費は resolveMagicEffects 側で別に記録するので、
-    // この記録によって**同じ1枚目の再発揮まで消えることはない**
-    consumeOncePerBattleMagicFree(state, owner, card)
-    emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
-
-    // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
-    // 実対戦（interactiveTargets）では防御側に「無効にするか」を確認し、
-    // 自動解決（テスト・非interactive）ではコストを払える限り無効にする
-    const negate = findMagicNegateSource(state, owner, card)
-    if (negate) {
-        if (state.interactiveTargets) {
-            state.pendingChoice = {
-                pid: negate.pid,
-                kind: "option",
-                prompt: `${getCard(negate.inst.cardId).name}：${card.name}の効果を無効にしますか？`,
-                candidates: [],
-                options: ["無効にする"],
-                optional: true,
-                confirm: true,
-                magicNegate: {
-                    casterPid: owner,
-                    cardId,
-                    timing,
-                    targetInstanceId,
-                    sourceInstanceId: negate.inst.instanceId,
-                },
-                action: { type: "noop" },
-                selfInstanceId: negate.inst.instanceId,
-                queue: [],
-            }
-            return
-        }
-        payMagicNegate(state, negate, card)
-        fireMagicUsedTriggers(state, owner, card, timing)
-        return
-    }
-
-    // 対象の絞り込み（BS04サンク／BS05スノーホワイト）は「〜にできる」＝任意なので、
-    // 守る側に1回だけ確認する。**このマジックの効果のどれかで実際に絞り込みが起こる場合だけ聞く**
-    // （聞いても意味がない場面で確認を出さないため）。答えはマジックの解決中ずっと使い回す
-    delete state.magicRedirectDecision
-    if (state.interactiveTargets) {
-        const redirectSource = findMagicRedirectSourceForCard(state, owner, card, timing, targetInstanceId)
-        if (redirectSource) {
-            state.pendingChoice = {
-                pid: opponentOf(owner),
-                kind: "option",
-                prompt: `${getCard(redirectSource.cardId).name}：${card.name}の効果の対象を、このスピリットのみにしますか？`,
-                candidates: [],
-                options: ["このスピリットのみにする"],
-                optional: true,
-                confirm: true,
-                magicRedirect: {
-                    casterPid: owner,
-                    cardId,
-                    timing,
-                    targetInstanceId,
-                    sourceInstanceId: redirectSource.instanceId,
-                },
-                action: { type: "noop" },
-                selfInstanceId: redirectSource.instanceId,
-                queue: [],
-            }
-            return
-        }
-    }
-
-    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId)
-}
-
-// このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
-// あればその発生源を返す（確認を出すかどうかの事前判定。runMagicActions と同じ timing 絞り込みを使う）
-function findMagicRedirectSourceForCard(
-    state: GameState,
-    casterPid: PlayerId,
-    card: CardData,
-    timing: "main" | "flash",
-    targetInstanceId: string | undefined,
-): CardInstance | null {
-    for (const effect of card.effects) {
-        if (effect.kind !== "magic" || effect.timing !== timing) continue
-        const found = findMagicRedirectSource(state, casterPid, targetInstanceId, effect.action)
-        if (found) return found
-    }
-    return null
-}
-
-// pendingChoice（対象の絞り込みの確認）の後処理。承認・拒否のどちらでも、中断していた解決を続ける。
-// GameEngine.doResolveChoice から呼ぶ
-export function applyMagicRedirectChoice(
-    state: GameState,
-    info: NonNullable<PendingChoice["magicRedirect"]>,
-    approved: boolean,
-): void {
-    state.magicRedirectDecision = { sourceInstanceId: info.sourceInstanceId, approved }
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
-}
-
-// pendingChoice（無効化の確認）で「無効にする」が選ばれたときの後処理。
-// GameEngine.doResolveChoice から呼ぶ
-export function applyMagicNegateChoice(
-    state: GameState,
-    info: NonNullable<PendingChoice["magicNegate"]>,
-): void {
-    const card = getCard(info.cardId)
-    const found = findMagicNegateSource(state, info.casterPid, card)
-    // 確認を出したあとに盤面が変わってコストを払えなくなった場合は、無効化せず通常どおり解決する
-    if (!found || found.inst.instanceId !== info.sourceInstanceId) {
-        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
-        return
-    }
-    payMagicNegate(state, found, card)
-    fireMagicUsedTriggers(state, info.casterPid, card, info.timing)
-}
-
-// pendingChoice（無効化の確認）で「無効にしない」が選ばれたときの後処理。中断していた解決を続ける
-export function declineMagicNegateChoice(
-    state: GameState,
-    info: NonNullable<PendingChoice["magicNegate"]>,
-): void {
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
-}
-
-// マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
-// usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
-function resolveMagicEffects(
-    state: GameState,
-    owner: PlayerId,
-    cardId: string,
-    timing: "main" | "flash",
-    targetInstanceId?: string,
-): void {
-    // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
-    // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
-    // 「発揮後にもう1度」は約束どおり行う）
-    const repeat = hasMagicRepeatGrant(state, owner, true)
-    runMagicActions(state, owner, cardId, timing, targetInstanceId)
-    // 選択待ちで中断したときは、残りの効果を pendingChoice の queue が引き継いでいるのでここで抜ける
-    if (state.pendingChoice) return
-    if (repeat && !state.winner) {
-        log(state, `${getCard(cardId).name}の効果をもう1度発揮する。`)
-        runMagicActions(state, owner, cardId, timing, targetInstanceId)
-        if (state.pendingChoice) return
-    }
-    fireMagicUsedTriggers(state, owner, getCard(cardId), timing)
-}
-
-// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発生源があるか（BS07大天使イスフィール）。
-// consume=true のときは oncePerBattle の発生源を「このバトルで使い切った」として記録する
-// （呼び出し元は resolveMagicEffects の1箇所だけ。ここが再発揮を確定させる時点なので、
-// 消費もここで行う。無償化側とは消費点が違うのでリストを分けている＝BattleState のコメント参照）
-function hasMagicRepeatGrant(state: GameState, pid: PlayerId, consume = false): boolean {
-    for (const source of effectSources(state, pid)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "magicRepeatGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (effect.condition === "selfInBattle" && !isSelfInBattle(state, source.instanceId)) continue
-            if (effect.oncePerBattle) {
-                if (!state.battle) continue // バトル外では消費を記録できないので成立させない
-                const used = (state.battle.oncePerBattleMagicRepeatUsed ??= [])
-                if (used.includes(source.instanceId)) continue
-                if (consume) used.push(source.instanceId)
-            }
-            return true
-        }
-    }
-    return false
-}
-
-// oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
-// resolveMagic の冒頭（＝マジックの使用が確定した時点）で呼ぶ。コスト0の判定自体は
-// その手前の支払い経路（shared/cost.ts effectiveCost）で済んでいるため、ここでは記録だけを行う
-function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, cardData: CardData): void {
-    if (!state.battle) return
-    if (hasMagicRestriction(state, pid, "noFreeCastOpponent")) return // 無償化が封じられていたなら消費しない
-    // 手元(tegamoto)からの使用も手札からの使用も、成立させている発生源は同じ絞り込みで引ける
-    const sourceId =
-        findMagicFreeGrantSource(state, pid, cardData) ?? findMagicFreeGrantSource(state, pid, cardData, true)
-    if (!sourceId) return
-    const effects = getCard(
-        [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses].find(
-            (s) => s.instanceId === sourceId,
-        )!.cardId,
-    ).effects
-    if (!effects.some((e) => e.kind === "magicFreeGrant" && e.oncePerBattle)) return
-    ;(state.battle.oncePerBattleMagicFreeUsed ??= []).push(sourceId)
-}
-
-// マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
-// （「マジックの効果を使用したとき」の誘発は呼び出し側が最後に1回だけ発火させる）
-function runMagicActions(
-    state: GameState,
-    owner: PlayerId,
-    cardId: string,
-    timing: "main" | "flash",
-    targetInstanceId?: string,
-): void {
-    const card = getCard(cardId)
-    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "magic" }> =>
-        effect.kind === "magic" && effect.timing === timing
-    const effects = card.effects
-    for (let i = 0; i < effects.length; i++) {
-        const effect = effects[i]
-        if (!effect || !matches(effect)) continue
-        if (effect.condition) {
-            if ("ownFamilyCountAtLeast" in effect.condition) {
-                // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
-                const { family, count } = effect.condition.ownFamilyCountAtLeast
-                const total = countSpiritsWeighted(state, owner, owner, (s) =>
-                    spiritHasFamily(state, owner, s, family),
-                )
-                if (total < count) {
-                    log(
-                        state,
-                        `${card.name}：系統「${family}」を持つスピリットが${count}体未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownFieldHasMinSymbolSpirit" in effect.condition) {
-                // ライトニングバリスタ等：自分のフィールドにシンボル数がこれ以上のスピリットが
-                // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
-                const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
-                const has = state.players[owner].field.spirits.some(
-                    (s) => instanceSymbolCount(s) >= minSymbols,
-                )
-                if (!has) {
-                    log(
-                        state,
-                        `${card.name}：シンボル${minSymbols}個以上を持つスピリットがいないため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownSpiritIsBlocking" in effect.condition) {
-                // BS07アームズインパクト：自分のスピリットが現在のバトルでブロッカーのときだけ使える
-                const blockerId = state.battle?.blockerInstanceId
-                const blocking =
-                    blockerId !== undefined &&
-                    blockerId !== null &&
-                    state.players[owner].field.spirits.some((s) => s.instanceId === blockerId)
-                if (!blocking) {
-                    log(state, `${card.name}：自分のスピリットがブロックしていないため発動しなかった。`)
-                    continue
-                }
-            } else if ("bothFieldsHaveNexus" in effect.condition) {
-                // クロスファイア：どちらのフィールドにもネクサスが1つ以上ないと使用できない
-                const bothHave =
-                    state.players.p1.field.nexuses.length > 0 &&
-                    state.players.p2.field.nexuses.length > 0
-                if (!bothHave) {
-                    log(
-                        state,
-                        `${card.name}：どちらかのフィールドにネクサスがないため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownSpiritCountAtLeast" in effect.condition) {
-                // BS08ジャッジメントフレア：自分のフィールドのスピリット数がこれ以上ないと使用できない
-                const minCount = effect.condition.ownSpiritCountAtLeast
-                if (state.players[owner].field.spirits.length < minCount) {
-                    log(
-                        state,
-                        `${card.name}：自分のスピリットが${minCount}体未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownFieldHasAllNames" in effect.condition) {
-                // BS08ロイヤルストレートフラッシュ：指定したカード名すべてが自分のフィールドに
-                // 1体ずつ揃っていないと使用できない（cardIdではなく名前の完全一致で判定）
-                const names = effect.condition.ownFieldHasAllNames
-                const ownNames = new Set(
-                    state.players[owner].field.spirits.map((s) => getCard(s.cardId).name),
-                )
-                if (!names.every((n) => ownNames.has(n))) {
-                    log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
-                    continue
-                }
-            } else {
-                // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
-                const minColors = effect.condition.ownFieldSymbolColorsAtLeast
-                const colors = new Set<Color>()
-                for (const s of [
-                    ...state.players[owner].field.spirits,
-                    ...state.players[owner].field.nexuses,
-                ]) {
-                    for (const c of getCard(s.cardId).symbol) colors.add(c)
-                }
-                if (colors.size < minColors) {
-                    log(
-                        state,
-                        `${card.name}：シンボルの色が${minColors}色未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            }
-        }
-        // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
-        // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
-        setMagicRedirect(state, owner, targetInstanceId, effect.action)
-        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
-        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
-        resolveAction(
-            state,
-            owner,
-            null,
-            effect.action,
-            targetInstanceId,
-            card.colors,
-            "magic",
-            undefined,
-            undefined,
-            card.cardId,
-        )
-        if (state.pendingChoice) {
-            const remaining = effects.slice(i + 1).filter(matches)
-            state.pendingChoice.queue.push(
-                ...remaining.map((e) => ({ selfInstanceId: null, action: e.action })),
-            )
-            // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
-            delete state.magicRedirectTo
-            return
-        }
-    }
-    // 対象の絞り込みはこのマジックの解決中だけ有効（誘発効果には及ぼさない）
-    delete state.magicRedirectTo
-}
-
-// 「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
-// **効果が無効にされた場合もここは通す**（使用宣言とコストの支払いは済んでいるため）
-function fireMagicUsedTriggers(
-    state: GameState,
-    owner: PlayerId,
-    card: CardData,
-    timing: "main" | "flash",
-): void {
-    // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
-    // （opponentDrewの実装を踏襲。緑芽吹く原野）
-    if (!state.winner) {
-        fireFieldEventTriggers(state, owner, "ownMagicUsed")
-    }
-    // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
-    // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む
-    if (!state.winner) {
-        fireFieldEventTriggers(
-            state,
-            opponentOf(owner),
-            "opponentMagicUsed",
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            { magicCost: card.cost, magicTiming: timing },
-        )
-    }
-}
+// ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
+// 呼び出し側を変えずに済むよう、ここから再エクスポートする
+export {
+    destroySpiritsFrom,
+    destroyTargetsBatch,
+    applyDestroyBatchAfter,
+    resumeDestroyBatch,
+    destroySpirit,
+    tryFreeSummonOnHandDiscard,
+    tryHandFreeSummonOnLifeDamaged,
+    applyHandFreeSummon,
+    applyReviveConfirm,
+    declineReviveConfirm,
+    destroyNexus,
+    returnNexusToHand,
+    returnSpiritToHand,
+    returnSpiritToDeckTop,
+    returnSpiritToDeckBottom,
+    canTakeCoresFrom,
+    removeCores,
+    removeCoresToTrash,
+    removeCoresToVoid,
+} from "./removal"

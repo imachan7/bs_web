@@ -6,9 +6,11 @@ import type {
     DeckSpec,
     GameState,
     GameView,
+    PendingChoice,
     PlayerId,
     PlayerState,
     PlayerView,
+    ResumeFrame,
 } from "../type"
 import {
     DECK_RECIPES,
@@ -200,7 +202,9 @@ export function createGame(
         lastBattleDestroyedCost: 0,
         bofuExhaustedThisBattle: [],
         pendingChoice: null,
-        turnStartResumeStep: null,
+        resumeStack: [],
+        resumeInsertAt: 0,
+        drawStepSkipped: false,
         interactiveTargets: false,
         events: [],
         eventSeq: 0,
@@ -222,6 +226,81 @@ export function log(state: GameState, message: string): void {
     state.log.push(message)
 }
 
+// ── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
+// 中断を開始する。**pendingChoice を立てる箇所はすべてここを通す**。
+// ここが唯一の入口であることで、再開スタックの挿入境界（resumeInsertAt）のリセットを
+// 1箇所に集約できる（各所で書き忘れると解決順が壊れる）
+export function suspend(state: GameState, choice: PendingChoice): void {
+    state.pendingChoice = choice
+    // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
+    state.resumeInsertAt = 0
+    if (DEBUG_CHECKS) suspendFingerprint = boardFingerprint(state)
+}
+
+// ── 中断中の盤面変更ガード（検査用。RESUME_STACK.md §5）──────────────────
+// 「中断したのに処理を続けた」書き忘れを、静かな二重適用ではなく**赤にする**ための検査。
+// 中断した時点の盤面を覚えておき、handleAction を抜ける時点でまだ中断中なら、
+// その間に盤面が変わっていないことを確かめる（中断後は何も起きないのが契約）。
+//
+// 環境変数 BS_DEBUG_CHECKS=1 のときだけ働く（本番の対戦では計算しない）
+const DEBUG_CHECKS = process.env.BS_DEBUG_CHECKS === "1"
+let suspendFingerprint: string | null = null
+let mutationAfterSuspend: string[] = []
+
+// 盤面の要約。ゾーンの枚数とコア数だけを見る（並び順・インスタンスの中身までは追わない）
+function boardFingerprint(state: GameState): string {
+    const parts: string[] = []
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = state.players[pid]
+        parts.push(
+            `${p.deck.length},${p.hand.length},${p.trashCards.length},${p.tegamoto.length}`,
+            `${p.field.spirits.length},${p.field.nexuses.length}`,
+            `${p.life},${p.reserve},${p.trashCores}`,
+            [...p.field.spirits, ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
+        )
+    }
+    parts.push(String(state.revealedCards?.cardIds.length ?? 0))
+    return parts.join("/")
+}
+
+// handleAction の**入口**から呼ぶ。すでに中断中なら、そこを新しい基準にし直す。
+// これで「handleAction を経由しない変更」（smoke が resolveAction を直接呼ぶ書き方）が
+// 対象外になる。実対戦では選択待ち中に resolveChoice 以外は拒否されるので、
+// エンジンの責任範囲は「1回の handleAction の中で中断後に動かないこと」に限られる
+export function noteHandleActionEntry(state: GameState): void {
+    if (!DEBUG_CHECKS) return
+    suspendFingerprint = state.pendingChoice ? boardFingerprint(state) : null
+}
+
+// handleAction の出口から呼ぶ。中断中に盤面が変わっていたら記録する
+export function checkNoMutationAfterSuspend(state: GameState): void {
+    if (!DEBUG_CHECKS) return
+    if (state.pendingChoice && suspendFingerprint !== null) {
+        const now = boardFingerprint(state)
+        if (now !== suspendFingerprint) {
+            mutationAfterSuspend.push(`中断後に盤面が変化した（${suspendFingerprint} → ${now}）`)
+        }
+    }
+    if (!state.pendingChoice) suspendFingerprint = null
+}
+
+// 検査結果の取り出し（smoke のハーネスが集計に使う）
+export function takeMutationAfterSuspend(): string[] {
+    const found = mutationAfterSuspend
+    mutationAfterSuspend = []
+    return found
+}
+
+// 中断した残りの処理を再開スタックへ積む。
+// **push でも unshift でもなく「今回の中断で積まれた領域の末尾」へ入れる**。
+// 1回の中断では内側の層から外側の層へ順に積まれ、正しい実行順は
+// 「内側 → 外側 → それ以前の中断の古いフレーム」であるため。RESUME_STACK.md §3
+export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void {
+    for (const frame of frames) {
+        state.resumeStack.splice(state.resumeInsertAt++, 0, frame)
+    }
+}
+
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）
 export function clearBattle(state: GameState): void {
     // 「ターンに1回だけブロックされない」印は、そのアタックの解決（＝このバトルの終了）で使い切る
@@ -235,6 +314,10 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    // 「このバトルの間ブロックできない」の印もここで切れる（BS09-042妖精騎士ピーター）
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) delete inst.cantBlockThisBattle
+    }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const lent = state.players[pid].battleVirtualInstances
@@ -376,6 +459,12 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
+            : {}),
+        // 「手札を破棄して効果を受けない」の方針は自分にだけ返す（UIのトグルの現在値）
+        ...(isSelf && player.payToNegate !== undefined ? { payToNegate: player.payToNegate } : {}),
+        // 「相手の手札の内容を見た」記録は持ち主にだけ返す（BS09-039探偵ペンタン）
+        ...(isSelf && player.peekedOpponentCardIds !== undefined
+            ? { peekedOpponentCardIds: player.peekedOpponentCardIds }
             : {}),
     }
 }

@@ -2205,7 +2205,11 @@
     "levels": [
      2
     ],
-    "count": 2
+    "count": 2,
+    "sourceTypes": [
+     "spirit",
+     "magic"
+    ]
    }
   ]
  },
@@ -3355,7 +3359,10 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "destroyExhausted",
+      "type": "destroy",
+      "filter": {
+       "rested": true
+      },
       "count": 1
      }
     }
@@ -4140,10 +4147,11 @@
      "魔界七将"
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
+     "type": "destroyAll",
      "anySide": true,
-     "all": true
+     "filter": {
+      "rested": true
+     }
     }
    },
    {
@@ -4511,7 +4519,11 @@
     "action": {
      "type": "countAsMultipleThisTurn",
      "count": 3,
-     "anySide": true
+     "anySide": true,
+     "sourceTypes": [
+      "spirit",
+      "nexus"
+     ]
     }
    }
   ]

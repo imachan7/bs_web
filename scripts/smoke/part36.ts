@@ -45,7 +45,9 @@ console.log("=== 【転召】(trash): 候補1体、コアがすべてトラッ�
     assert(s.players.p1.trashCards.includes("BS01-016"), "維持コア割れでスケルトン・ジョウがトラッシュへ")
 }
 
-console.log("=== 【転召】: 候補0体は不発（召喚自体は成立） ===")
+// 2026-08-13：候補0体のときは**召喚そのものができない**（【転召】は召喚のコスト）。
+// 以前は「召喚は成立し、転召だけ不発」だったため、犠牲なしで出せてしまっていた
+console.log("=== 【転召】: 候補0体では召喚できない ===")
 {
     const s = createGame(
         "tensho-notarget-test",
@@ -57,8 +59,9 @@ console.log("=== 【転召】: 候補0体は不発（召喚自体は成立） ==
     s.phase = "main"
     s.players.p1.reserve = 30
     s.players.p1.hand[0] = "BS04-010"
-    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "対象がいなくても召喚は成立する")
-    assert(s.players.p1.field.spirits.length === 1, "召喚したスピリットのみ場にいる（何も起きない）")
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) !== null, "対象がいないので召喚できない")
+    assert(s.players.p1.field.spirits.length === 0, "場には何も出ていない")
+    assert(s.players.p1.hand[0] === "BS04-010", "カードは手札に残る")
 }
 
 console.log("=== 【転召】(void): 候補1体、コアが消滅（トラッシュにもリザーブにも移らない） ===")

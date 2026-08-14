@@ -8,7 +8,8 @@
 // ② reviveOnDestroy の familyFilter — BS05-036 氷の魔女ヘル
 // ③ destroySpirit の fieldEvent selfOverride（ownSpiritDestroyed で self=破壊されたスピリット） — BS05-062 永久氷殿
 // ④ magic condition ownFieldSymbolColorsAtLeast — BS05-074 ブランチロック
-// ⑤ bpBuffAllByArmorColors（装甲の色数に応じたBP増加） — BS05-078 アイシクルアサルト
+// ⑤（削除済み）bpBuffAllByArmorColors は 2026-07-31 に aura 方式へ移行し、
+//    2026-08-10 に旧アクションを削除した。実カードでの検証は part68 にある
 import { assert, act, createGame, createInstance, destroySpirit, getCard, resolveAction, runTurnStart } from "./helpers"
 
 console.log("=== ① exhaustAll filter: cores一致・excludeSelf ===")
@@ -115,15 +116,3 @@ console.log("=== ④ magic condition ownFieldSymbolColorsAtLeast ===")
     assert(enemy1.isRested === true && enemy2.isRested === true, "シンボル2色以上のときは相手2体が疲労する")
 }
 
-console.log("=== ⑤ bpBuffAllByArmorColors ===")
-{
-    const s = createGame("bs05-078-armorcolors", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "white" })
-    const twoColor = createInstance("BS05-032", s.turn, 1) // 珊瑚蟹シオマネキッド【装甲：赤/白】＝2色
-    const oneColor = createInstance("BS05-028", s.turn, 1) // アーメットクラブ【装甲：黄】＝1色
-    const noArmor = createInstance("BS01-001", s.turn, 1) // 装甲なし
-    s.players.p1.field.spirits.push(twoColor, oneColor, noArmor)
-    resolveAction(s, "p1", null, { type: "bpBuffAllByArmorColors", amountPer: 1000 })
-    assert(twoColor.tempBpBuff === 2000, `装甲2色はBP+2000（実際 ${twoColor.tempBpBuff}）`)
-    assert(oneColor.tempBpBuff === 1000, `装甲1色はBP+1000（実際 ${oneColor.tempBpBuff}）`)
-    assert(noArmor.tempBpBuff === 0, "装甲なしは増加しない")
-}

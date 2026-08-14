@@ -106,7 +106,7 @@ console.log("=== BS02-024 ブラッディ・シーザー Lv2：疲労破壊も�
         s,
         "p1",
         null,
-        { type: "destroyExhausted", count: 1, anySide: true },
+        { type: "destroy", count: 1, anySide: true, filter: { rested: true } },
         undefined,
         undefined,
         "spirit",

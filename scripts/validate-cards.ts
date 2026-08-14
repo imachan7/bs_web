@@ -40,7 +40,7 @@ const VALID_KINDS = new Set([
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
-    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
+    "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
@@ -203,7 +203,7 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
-    "sameCostAsBlocker", "attackingOnly", "keywordExclude", "hasTrigger",
+    "sameCostAsBlocker", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
@@ -289,10 +289,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         for (const col of c.symbol ?? []) {
             if (!VALID_COLORS.has(col)) add(id, `symbol に未知の色: ${String(col)}`)
         }
-        // 軽減シンボルは自分の色の範囲に収まるはず（多色カードは混色。BS05-X19＝赤3白3）
-        for (const col of c.reduction ?? []) {
-            if (Array.isArray(c.colors) && !c.colors.includes(col)) {
-                add(id, `reduction に自色以外の色が含まれる: ${col}（colors=${c.colors.join("/")}）`)
+        // 軽減シンボルには**自色が少なくとも1つ**含まれるはず。
+        // ⚠️ かつては「自色の範囲に収まるはず」という検査だったが、
+        //    **第九弾「超星」（BS09）が異色軽減を導入した**ため成り立たなくなった
+        //    （91枚中37枚が自色＋他色1色の軽減を持つ。BS09-014 闇騎士ボールス＝紫で赤2紫2）。
+        //    軽減の計算（shared/cost.ts）は色ごとに数えるので engine 側の変更は要らない。
+        //    自色が1つも無いものだけを取り込みミスとして拾う形に弱めてある
+        if (Array.isArray(c.colors) && (c.reduction ?? []).length > 0) {
+            if (!(c.reduction ?? []).some((col) => c.colors.includes(col))) {
+                add(id, `reduction に自色が1つも含まれない（colors=${c.colors.join("/")} / reduction=${(c.reduction ?? []).join("/")}）`)
             }
         }
 
@@ -392,10 +397,55 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
     return issues
 }
 
+// 「実装はあるのに、どのカードのデータからも使われていない action」を洗い出す。
+//
+// validate:gaps が「データにあるのにコードが無い」を見るのに対し、こちらは**逆方向**。
+// 実装を別の器へ移し替えたときに旧実装が残りがちで、実際 bpBuffAllByArmorColors は
+// aura 方式へ移行した後も4か月ほど残っていた（2026-08-10 に削除）。
+//
+// ⚠️ 内部専用（他のハンドラが ctx.resolve で呼ぶだけで cards.json には書かない）ものは
+// 正当なので、ここに登録して除外する。**除外理由を必ず書くこと**
+const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
+    ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
+    ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
+    ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
+    ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
+    ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
+    ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
+    ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+])
+
+export function findUnusedActions(cards: CardData[]): string[] {
+    const used = new Set<string>()
+    const walk = (o: unknown): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x)
+            return
+        }
+        if (o !== null && typeof o === "object") {
+            const t = (o as { type?: unknown }).type
+            if (typeof t === "string" && VALID_ACTIONS.has(t)) used.add(t)
+            for (const v of Object.values(o)) walk(v)
+        }
+    }
+    for (const c of cards) walk(c.effects)
+    return [...VALID_ACTIONS]
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a))
+        .sort()
+}
+
 // 単体実行時のエントリポイント
 function main(): void {
     const cards = loadAllCards()
     const issues = validateCards(cards)
+
+    for (const a of findUnusedActions(cards)) {
+        issues.push({
+            cardId: "(全体)",
+            message: `action "${a}" はどのカードにも使われていない（実装だけ残っている可能性。内部専用なら INTERNAL_ONLY_ACTIONS に理由つきで登録する）`,
+        })
+    }
 
     console.log(`data/cards/*.json: ${cards.length}枚を検証`)
     console.log(`  照合対象: action ${VALID_ACTIONS.size}種 / keyword ${VALID_KEYWORDS.size}種 / kind ${VALID_KINDS.size}種`)

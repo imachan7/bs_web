@@ -40,6 +40,8 @@ import {
     KEYWORDS,
     matchesFamilyFilter,
     spiritHasKeyword,
+    tenshoCandidates,
+    tenshoSpecOf,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 
@@ -180,6 +182,15 @@ export function validateSummon(
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
+    // 【転召】：コアを置く対象になる自分のスピリットがいなければ召喚できない（2026-08-13 修正）。
+    // 以前は召喚を通したうえで「対象がいなかった」とログするだけで、犠牲なしに出せてしまっていた。
+    // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
+    const tensho = tenshoSpecOf(card, level ?? 1)
+    if (tensho && tenshoCandidates(state, pid, tensho.minCost).length === 0) {
+        return tensho.minCost > 0
+            ? `【転召】でコアを置く、コスト${tensho.minCost}以上の自分のスピリットがいません`
+            : "【転召】でコアを置く自分のスピリットがいません"
+    }
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
     // BS08ビクティム：召喚コストの一部・全部を手札破棄で支払える（置くコアは対象外）。
     // doSummon と同じ関数で枚数を出すので、検証と実行がズレない
@@ -313,8 +324,8 @@ export function nexusMillPayAmount(
 }
 
 // スピリットの召喚コストのうち、手札破棄で支払う枚数を決める（BS08ビクティム）。
-// nexusMillPayAmount とまったく同じ方針で、「どこまで手札破棄で払うか」は選べず
-// **コアで足りない分だけ**自動的に回す簡略化。上限は3つの小さい方:
+// nexusMillPayAmount とまったく同じ方針で、「どこまで手札破棄で払うか」は**プレイヤーが選ぶ**
+// （渡っていなければコアで足りない分だけを自動で回す）。上限は3つの小さい方:
 //   ① 召喚コスト（置くコアは手札破棄で払えない）
 //   ② コアで足りない分
 //   ③ 手札の残り枚数から**召喚するカード自身の1枚を除いた数**

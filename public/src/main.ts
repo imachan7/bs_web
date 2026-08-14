@@ -14,6 +14,7 @@ import {
     setupEffectTooltip,
     showToast,
     showWaiting,
+    hideWaiting,
     type UiState,
 } from "./renderer"
 import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
@@ -290,6 +291,10 @@ function toggleDiscardPay(handIndex: number): void {
 
 socket.on("joined", () => {
     showWaiting()
+})
+
+socket.on("joinCancelled", () => {
+    hideWaiting()
 })
 
 socket.on("state", (v: GameView) => {
@@ -913,6 +918,10 @@ async function init(): Promise<void> {
     byId("btn-surrender").addEventListener("click", () => {
         if (!window.confirm("本当に降参しますか？\n相手の勝利になります。")) return
         send({ type: "surrender" })
+    })
+    byId("chk-pay-to-negate").addEventListener("change", (e) => {
+        const checked = (e.target as HTMLInputElement).checked
+        send({ type: "setPayToNegate", enabled: checked })
     })
     byId("btn-attack-player").addEventListener("click", () => {
         if (!ui.directedAttack) return

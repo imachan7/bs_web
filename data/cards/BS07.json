@@ -3734,8 +3734,10 @@
     "action": {
      "type": "recoverSpiritFromTrash",
      "count": 1,
-     "familyFilter": "夜族"
-    }
+     "familyFilter": "夜族",
+     "costSkipDraw": true
+    },
+    "beforeDraw": true
    }
   ]
  },
@@ -3992,7 +3994,8 @@
     "selfMode": "source",
     "action": {
      "type": "returnToDeckTop",
-     "count": 3
+     "count": 3,
+     "chooserIsTarget": true
     },
     "byOpponentEffectOnly": true
    },

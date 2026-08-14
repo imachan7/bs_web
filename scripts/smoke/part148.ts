@@ -252,6 +252,36 @@ console.log("=== BS08マジックミラー：action magicMirrorRepeat・GameStat
     assert(s.battle === null, "バトルが解決される")
     assert(s.lastMagicCast === undefined, "バトル終了でlastMagicCastはクリアされる")
 }
+console.log("--- 写せるのは「このフラッシュタイミング」で使われたマジックだけ ---")
+{
+    // 1つのバトルにはフラッシュ①（アタック宣言後）と②（ブロック後）がある。
+    // ①で相手が使ったマジックを②で写せてしまってはいけない（効果文の「このフラッシュタイミングで」）
+    const s = base("magicmirror-flash-timing-scope")
+    const attacker = put(s, "p1", "BS01-005", 3)
+    const blocker = put(s, "p2", "BS01-001", 3)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック宣言")
+
+    // フラッシュ①：防御側がキラーテレスコープを使う
+    s.players.p2.hand[0] = "BS01-127"
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "フラッシュ①でp2がキラーテレスコープを使用")
+    assert(s.lastMagicCast?.cardId === "BS01-127", "フラッシュ①中は記録が残っている")
+
+    // フラッシュ①を閉じる（両者パス）→ ブロック宣言でフラッシュ②が開く
+    assert(act(s, "p1", { type: "pass" }) === null, "p1パス")
+    assert(act(s, "p2", { type: "pass" }) === null, "p2パス→フラッシュ①終了")
+    assert(s.lastMagicCast === undefined, "フラッシュタイミングが閉じた時点で記録も切れる")
+
+    assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック（フラッシュ②が開く）")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（優先権が攻撃側へ）")
+    const bpBefore = attacker.tempBpBuff
+    s.players.p1.hand[0] = "BS08-080"
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "フラッシュ②でp1がマジックミラーを使用")
+    assert(
+        attacker.tempBpBuff === bpBefore,
+        "前のフラッシュタイミングで使われたマジックは写せない（BP+2000は起きない）",
+    )
+}
 {
     const s = base("magicmirror-cannot-mirror-itself")
     s.lastMagicCast = { pid: "p2", cardId: "BS08-080", timing: "flash" }

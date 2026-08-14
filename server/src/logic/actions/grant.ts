@@ -341,6 +341,12 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
                 log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
                 return
             }
+            // B（レベルを変える相手のネクサス）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は払ってから相手のネクサスを見ていたため、いないときも払い損になっていた
+            if (state.players[opp].field.nexuses.length === 0) {
+                log(state, `${sourceName}：相手のネクサスがないため発動しなかった。`)
+                return
+            }
             player.reserve -= action.costReserveToVoid
             log(
                 state,
@@ -538,9 +544,10 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
 }
 
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
-        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない
+        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない。
+        // **誰を疲労させるかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
         if (action.costExhaustFamily !== undefined) {
             const candidates = state.players[owner].field.spirits.filter(
                 (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
@@ -549,7 +556,30 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
                 log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
                 return
             }
-            // 犠牲を最小化する簡略化（実効BP最小を自動選択）
+            const { costExhaustFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const picked = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!picked) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                exhaustSpirit(state, owner, picked)
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
             const chosen = candidates.reduce((min, s) =>
                 effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
             )
@@ -767,6 +797,23 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     )
 }
 
+// BS06ヒナペンタン：「このスピリットを疲労させることで、このターンの間〜」。
+// 疲労（任意コスト）と貸与（効果）を1つのアクションで行う。**分けてはいけない**：
+// optional エントリを2つに割ると確認が2回になり、実際に「疲労だけして効果が出ない」状態になっていた
+const exhaustSelfThenLendThisTurnHandler: ActionHandler<"exhaustSelfThenLendThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) return
+    if (self.isRested) {
+        log(state, `${sourceName}：すでに疲労しているため発動できなかった。`)
+        return
+    }
+    exhaustSpirit(state, owner, self)
+    log(state, `${sourceName}：疲労することで効果を発動した。`)
+    // 貸与は lendSelfThisTurn と同じ器（スピリット発生源なので self.cardId から引く）
+    if (!pushVirtualSource(state, owner, self.cardId)) return
+    log(state, `${sourceName}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`)
+}
+
 // 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
 // バトル外（メインステップ等）で使われた場合、貸与は直後の clearBattle まで残るが、
 // これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
@@ -882,6 +929,7 @@ const handlers = {
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
     lendSelfThisBattle: lendSelfThisBattleHandler,
+    exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     alsoCostBuff: alsoCostBuffHandler,

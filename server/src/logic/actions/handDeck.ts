@@ -2,8 +2,9 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, draw, getCard, log, minLevelCores, opponentOf } from "../GameState"
+import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
+    tryFreeSummonOnHandDiscard,
     bothSidesPids,
     resistanceAgainst,
     countEffectCounter,
@@ -55,7 +56,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
 
 const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter)
+        const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
             return
@@ -129,6 +130,8 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             target.hand.splice(chosenCardIndex, 1)
             target.trashCards.push(cardId)
             log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
+            // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             return
         }
         if (target.hand.length === 0) {
@@ -182,6 +185,8 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             if (cardId === undefined) break
             target.trashCards.push(cardId)
             discarded.push(getCard(cardId).name)
+            // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
         }
         if (discarded.length === 0) {
             log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
@@ -367,26 +372,40 @@ const drawThenDiscardHandler: ActionHandler<"drawThenDiscard"> = (ctx, action) =
 
 // 公開ゾーンの残りをデッキの下へ戻す。実対戦では戻す順番を1枚ずつ選ばせる
 // （スキップすると残りを現在の順のまま戻す）。カードは「デッキの下」へ行くため、
-// 順番が結果に効く場面はごく限られるが、カードテキストどおり選べるようにしてある
-const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx) => {
+// 順番が結果に効く場面はごく限られるが、カードテキストどおり選べるようにしてある。
+// toTop 指定時は「デッキの**上**に戻す」（BS06-107 セカンドサイト）。こちらは次に引く順そのものなので
+// 順番の選択が結果に直結する。**先に選んだカードが上**になるよう、すでに戻した枚数（placed）の
+// 位置へ順に差し込む（placed は選択の再入をまたいで action に持ち回る内部専用フィールド）
+const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const zone = state.revealedCards
     if (!zone || zone.pid !== owner) return
     const player = state.players[owner]
+    const toTop = action.toTop === true
+    const placed = action.placed ?? 0
+    const where = toTop ? "上" : "下"
     const pushAllRemaining = (): void => {
-        for (const id of zone.cardIds) player.deck.push(id)
-        if (zone.cardIds.length > 0) {
-            log(state, `${player.name}は残り${zone.cardIds.length}枚をデッキの下に戻した。`)
+        const remaining = zone.cardIds.length
+        if (toTop) player.deck.splice(placed, 0, ...zone.cardIds)
+        else for (const id of zone.cardIds) player.deck.push(id)
+        if (remaining > 0) {
+            log(state, `${player.name}は残り${remaining}枚をデッキの${where}に戻した。`)
         }
         delete state.revealedCards
     }
     // 選択された1枚を先に戻し、残りがあれば続けて選ばせる
+    let nextPlaced = placed
     if (chosenCardIndex !== undefined) {
         const id = zone.cardIds[chosenCardIndex]
         if (id !== undefined) {
             zone.cardIds.splice(chosenCardIndex, 1)
-            player.deck.push(id)
-            log(state, `${player.name}は${getCard(id).name}をデッキの下に戻した。`)
+            if (toTop) {
+                player.deck.splice(placed, 0, id)
+                nextPlaced = placed + 1
+            } else {
+                player.deck.push(id)
+            }
+            log(state, `${player.name}は${getCard(id).name}をデッキの${where}に戻した。`)
         }
     }
     if (zone.cardIds.length === 0) {
@@ -397,13 +416,26 @@ const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx) => 
         requestCardChoice(
             state,
             owner,
-            `${sourceName}：デッキの下に戻す順番（残り${zone.cardIds.length}枚。スキップで現在の順のまま戻す）`,
+            toTop
+                ? `${sourceName}：デッキの上に戻す順番（残り${zone.cardIds.length}枚。先に選んだカードが上）`
+                : `${sourceName}：デッキの下に戻す順番（残り${zone.cardIds.length}枚。スキップで現在の順のまま戻す）`,
             "reveal",
             zone.cardIds.map((_, i) => i),
-            true,
-            { type: "revealReturnToDeck" },
+            // 上に戻す側はスキップを許さない：スキップの後始末（flushRevealedCardsIfIdle）は
+            // デッキの**下**へ戻すため、途中で抜けると残りが下に沈んでしまう。
+            // 「好きな順番で戻す」は任意効果ではないので、最後まで選ばせるのが効果文どおりでもある
+            !toTop,
+            toTop ? { type: "revealReturnToDeck", toTop: true, placed: nextPlaced } : { type: "revealReturnToDeck" },
             self,
         )
+        return
+    }
+    // 残り1枚（またはsmoke等の非対話）はそのまま戻す。nextPlaced を使うため pushAllRemaining の外で位置を合わせる
+    if (toTop && nextPlaced !== placed) {
+        const remaining = zone.cardIds.length
+        player.deck.splice(nextPlaced, 0, ...zone.cardIds)
+        log(state, `${player.name}は残り${remaining}枚をデッキの上に戻した。`)
+        delete state.revealedCards
         return
     }
     pushAllRemaining()
@@ -417,6 +449,22 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         // pickAllOfType指定時は一致するカードすべてを手札に加える。
         // 簡略化: 本来はプレイヤーが選ぶ／戻す順を選ぶ処理を、決定的な自動選択で代替する。
         const player = state.players[owner]
+        // 公開ゾーン経由の再入（手札に加える1枚が選ばれて戻ってきた）は、**デッキに触る前に**処理して抜ける。
+        // ここより下の splice(0, count) まで進むと、公開済みのカードとは別にデッキの上から
+        // もう count 枚が抜かれ、そのまま捨てられる（実対戦でのみ通る経路のため長らく気付かれなかった。2026-08-11）
+        if (chosenCardIndex !== undefined && state.revealedCards && state.revealedCards.pid === owner) {
+            const zone = state.revealedCards.cardIds
+            const pickedId = zone[chosenCardIndex]
+            if (pickedId !== undefined) {
+                zone.splice(chosenCardIndex, 1)
+                player.hand.push(pickedId)
+                log(state, `${player.name}は${getCard(pickedId).name}を手札に加えた。`)
+                notifyHandGained(state, owner, 1)
+            }
+            // 公開ゾーンから取り出した残りは、この時点でデッキへは戻っていないので公開ゾーンを使って戻す
+            ctx.resolve({ type: "revealReturnToDeck", ...(action.returnToTop ? { toTop: true as const } : {}) })
+            return
+        }
         const countPer = action.countPer
         const count = countPer
             ? "ownColorTotal" in countPer
@@ -432,6 +480,14 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         }
         const revealedCount = revealed.length
         const revealedNames = revealed.map((id) => getCard(id).name).join("、")
+        // pickNone：手札に加えるカードを選ばず、公開してそのまま戻すだけ（BS06-107 セカンドサイト）。
+        // returnToTop と併用すると「好きな順番でデッキの上に戻す」になる
+        if (action.pickNone) {
+            state.revealedCards = { pid: owner, cardIds: [...revealed] }
+            log(state, `${player.name}はデッキ上${revealedCount}枚（${revealedNames}）を公開した。`)
+            ctx.resolve({ type: "revealReturnToDeck", ...(action.returnToTop ? { toTop: true as const } : {}) })
+            return
+        }
         if (action.pickAllOfType) {
             const picked = revealed.filter((id) => getCard(id).type === action.pickAllOfType)
             const remaining = revealed.filter((id) => getCard(id).type !== action.pickAllOfType)
@@ -482,21 +538,6 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
                 )
                 return
             }
-        }
-        // 公開ゾーン経由の再入：選ばれたカードを手札へ加え、残りはデッキの下へ戻す段階へ進む
-        if (chosenCardIndex !== undefined && state.revealedCards) {
-            const zone = state.revealedCards.cardIds
-            const pickedId = zone[chosenCardIndex]
-            if (pickedId !== undefined) {
-                zone.splice(chosenCardIndex, 1)
-                player.hand.push(pickedId)
-                log(state, `${player.name}は${getCard(pickedId).name}を手札に加えた。`)
-                notifyHandGained(state, owner, 1)
-            }
-            // 公開ゾーンから取り出した残りは、この時点でデッキへは戻っていないので
-            // revealed（この呼び出しで splice した配列）ではなく公開ゾーンを使って戻す
-            ctx.resolve({ type: "revealReturnToDeck" })
-            return
         }
         const pickIndex = revealed.findIndex(matchesPick)
         if (pickIndex === -1) {
@@ -590,7 +631,7 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
             // 後始末（revealDiscardRest）を積んでおく（積まないと flushRevealedCardsIfIdle が
             // デッキの下へ戻してしまい、効果文と食い違う）
             if (state.pendingChoice) {
-                state.pendingChoice.queue.push({ selfInstanceId: null, action: { type: "revealDiscardRest" } })
+                pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
             } else {
                 discardRevealedZone(state, owner, sourceName)
             }
@@ -714,39 +755,16 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // BS07ドラグロン占術師：手札に戻したカードが指定系統のときだけ、続けて相手1体を破壊する。
         // トラッシュのカードが対象なのでカード静的な family で判定する（回収条件の familyOk と同じ扱い）
         const followUp = (recoveredIds: string[]): void => {
+            // 「ドローしないことで」（BS07常闇の聖堂Lv2）：ドロー自体が支払い。
+            // **実際に手札へ戻せたときだけ**支払う（対象がいなくて不発なら、ドローはそのまま行う）。
+            // ドローより前に発火する区間（step.beforeDraw）から呼ばれるので、この後の区間が引かずに進む
+            if (action.costSkipDraw && recoveredIds.length > 0) state.drawStepSkipped = true
             const spec = action.thenDestroyIfFamily
             if (spec === undefined) return
             const wanted = Array.isArray(spec.family) ? spec.family : [spec.family]
             const hit = recoveredIds.some((id) => wanted.some((f) => getCard(id).family.includes(f)))
             if (!hit) return
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
-        }
-        // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
-        // 払えなければ何も起きない（実効BP最小を自動選択＝犠牲を最小化する簡略化）
-        if (action.costDestroyOwnKeyword !== undefined && chosenCardIndex === undefined) {
-            const kw = action.costDestroyOwnKeyword
-            const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
-                return
-            }
-            const victim = candidates.reduce((min, sp) =>
-                effectiveBp(state, owner, sp) < effectiveBp(state, owner, min) ? sp : min,
-            )
-            destroySpirit(state, owner, victim.instanceId, "destroy", { sourcePid: owner })
-        }
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.trashCards[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}のスピリット回収：対象がいなかった。`)
-                return
-            }
-            player.trashCards.splice(chosenCardIndex, 1)
-            player.hand.push(cardId)
-            log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
-            notifyHandGained(state, owner, 1)
-            followUp([cardId])
-            return
         }
         // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
         // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
@@ -765,8 +783,72 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // カード静的な名前（cardId基準）で判定する
         const nameOk = (cardId: string): boolean =>
             action.nameIncludes === undefined || getCard(cardId).name.includes(action.nameIncludes)
+        // colorFilter（BS09-015獄獣ガシャベルスLv3＝黄）：トラッシュのカードが対象なので
+        // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
+        const colorOk = (cardId: string): boolean =>
+            action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
         const isRecoverable = (cardId: string): boolean =>
-            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId)
+            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId)
+        // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
+        // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
+        // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
+        // （exhaust の chooserIsTarget と同じ「解決済みの軸を落として再入する」書き方）
+        if (action.costDestroyOwnKeyword !== undefined && chosenCardIndex === undefined) {
+            const kw = action.costDestroyOwnKeyword
+            const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
+                return
+            }
+            // B（トラッシュから戻せるカード）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は先に自分のスピリットを破壊してからトラッシュを見ていたため、払い損になっていた
+            if (!player.trashCards.some(isRecoverable)) {
+                log(state, `${sourceName}：トラッシュに戻せるスピリットカードがないため発動しなかった。`)
+                return
+            }
+            const { costDestroyOwnKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = candidates.find((sp) => sp.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", { sourcePid: owner })
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((sp) => sp.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
+            const victim = candidates.reduce((min, sp) =>
+                effectiveBp(state, owner, sp) < effectiveBp(state, owner, min) ? sp : min,
+            )
+            destroySpirit(state, owner, victim.instanceId, "destroy", { sourcePid: owner })
+        }
+        if (chosenCardIndex !== undefined) {
+            const cardId = player.trashCards[chosenCardIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}のスピリット回収：対象がいなかった。`)
+                return
+            }
+            player.trashCards.splice(chosenCardIndex, 1)
+            player.hand.push(cardId)
+            log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+            notifyHandGained(state, owner, 1)
+            followUp([cardId])
+            return
+        }
         // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
         if (action.all) {
             const indices: number[] = []
@@ -848,6 +930,11 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
+        // colors（BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）：
+        // トラッシュのカードが対象なのでカード静的な colors で判定する（配列＝いずれかでOR）
+        const magicOk = (cardId: string): boolean =>
+            getCard(cardId).type === "magic" &&
+            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c)))
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -863,7 +950,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         if (state.interactiveTargets) {
             const indices = player.trashCards
                 .map((id, i) => ({ id, i }))
-                .filter(({ id }) => getCard(id).type === "magic")
+                .filter(({ id }) => magicOk(id))
                 .map(({ i }) => i)
             if (indices.length >= 2) {
                 requestCardChoice(
@@ -884,7 +971,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // 決定的な自動選択で簡略化）
         let idx = -1
         for (let j = player.trashCards.length - 1; j >= 0; j--) {
-            if (getCard(player.trashCards[j]!).type === "magic") {
+            if (magicOk(player.trashCards[j]!)) {
                 idx = j
                 break
             }
@@ -1007,37 +1094,65 @@ const magicMirrorRepeatHandler: ActionHandler<"magicMirrorRepeat"> = (ctx, _acti
 
 // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき自分がデッキから1枚ドローする
 // （BS08堕天使ミカファール。coreRemovePerHandDiscardの「破棄1枚につき〜」をドローに差し替えた版）
+// BS08堕天使ミカファール：手札を好きなだけ破棄し、破棄した枚数ぶんドローする。
+// **破棄を全部済ませてからまとめてドローする**のが要点。1枚ごとにドローすると、
+// 引いたカードをそのまま次の破棄対象にできてデッキが尽きるまで回せてしまう。
+// 途中経過は action に持ち回る（discardedSoFar＝ここまでに破棄した枚数、
+// awaitingSkip＝「選択をスキップして戻ってきた＝破棄終了」の目印）
 const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
         const player = state.players[owner]
+        const discarded = action.discardedSoFar ?? 0
+        // まとめてドローして終える共通処理
+        const finish = (): void => {
+            if (discarded === 0) {
+                log(state, `${sourceName}：手札を破棄しなかった。`)
+                return
+            }
+            log(state, `${sourceName}：破棄した${discarded}枚ぶんドローする。`)
+            draw(state, owner, discarded)
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.hand[chosenCardIndex]
             if (cardId === undefined) {
                 log(state, `${sourceName}：破棄する手札がなかった。`)
+                finish()
                 return
             }
             player.hand.splice(chosenCardIndex, 1)
             player.trashCards.push(cardId)
             log(state, `${player.name}は手札の「${getCard(cardId).name}」を破棄した。`)
-            draw(state, owner, 1)
-            // 続けて破棄できるか再度尋ねる（optional=trueのためスキップで終了する）
-            ctx.resolve(action)
+            // ここではドローしない。続けて破棄するか再度尋ねる
+            // （awaitingSkip は落とす。付けたままだと「選択をスキップして戻ってきた」と誤読される）
+            const { awaitingSkip: _dropped, ...rest } = action
+            ctx.resolve({ ...rest, discardedSoFar: discarded + 1 })
+            return
+        }
+        // スキップされて戻ってきた＝これ以上破棄しない。ここで初めてドローする
+        if (action.awaitingSkip) {
+            finish()
             return
         }
         if (state.interactiveTargets) {
             if (player.hand.length === 0) {
-                log(state, `${sourceName}：手札がなかった。`)
+                // 手札を出し切った場合もここへ来る（破棄済みぶんはドローする）
+                if (discarded === 0) log(state, `${sourceName}：手札がなかった。`)
+                else finish()
                 return
             }
             requestCardChoice(
                 state,
                 owner,
-                `${sourceName}：破棄する手札を選んでください（選ばなければ終了）`,
+                `${sourceName}：破棄する手札を選んでください（選ばなければ終了してドローに移ります）`,
                 "hand",
                 player.hand.map((_, i) => i),
                 true,
-                action,
+                { ...action, discardedSoFar: discarded, awaitingSkip: true },
                 self,
+                // 手札が1枚でも「破棄しない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
+                true,
+                // スキップ＝破棄終了。まとめてドローするためにハンドラへ戻す
+                true,
             )
             return
         }
@@ -1140,6 +1255,29 @@ const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMag
         return
 }
 
+// BS09-084ドラゴニックハウル：自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の
+// 相手のスピリットすべてを破壊する。デッキが0枚なら破棄できないので不発
+const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
+    const { state, owner, sourceName, srcColors, srcType } = ctx
+    const player = state.players[owner]
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：自分のデッキが0枚のため発動しなかった。`)
+        return
+    }
+    const milled = millDeck(state, owner, 1, owner)
+    if (milled === 0) {
+        log(state, `${sourceName}：デッキを破棄できなかった。`)
+        return
+    }
+    const cost = getCard(top).cost
+    log(state, `${sourceName}：破棄したのは${getCard(top).name}（コスト${String(cost)}）。`)
+    ctx.resolve({ type: "destroyAll", filter: { cost: { min: cost, max: cost } } }, {
+        sourceColors: srcColors,
+        sourceType: srcType,
+    })
+}
+
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
@@ -1182,7 +1320,7 @@ const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ct
 
 const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const raw = countEffectCounter(state, owner, self, action.counter)
+        const raw = countEffectCounter(state, owner, self, action.counter, srcType)
         let count = raw * (action.multiplier ?? 1)
         // マキシマムブレイク（kind:"millCapBonus"）：持ち主のスピリットの効果によるデッキ破棄枚数の
         // 上限（cap）に+amountする
@@ -1218,11 +1356,34 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             return
         }
         // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
-        // 払えなければ何も起きない。カード側で optional:true を立てて発動確認を出す
+        // **A（コスト）と B（効果）の両方が成立するときだけ払う**（COST_MODEL.md §1）。
+        // 以前はここで払ってから対象を探していたため、戻せる相手がいなくてもコアを失っていた。
+        // 体数のしきい値は「候補が1体以上」。B を体数ぶん満たせるかまで求めるかは保留中（COST_MODEL.md §1）
         if (action.costReserveToTrash !== undefined) {
             const player = state.players[owner]
             if (player.reserve < action.costReserveToTrash) {
                 log(state, `${sourceName}：リザーブのコアが足りず発動しなかった。`)
+                return
+            }
+            const costLimitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
+            const costMatches = (s: CardInstance): boolean =>
+                matchesTarget(state, opp, s, filter, self?.instanceId)
+            const hasTarget =
+                targetInstanceId !== undefined
+                    ? findSpiritAny(state, targetInstanceId) !== undefined
+                    : (action.anySide
+                          ? pickAnySideCandidates(
+                                state,
+                                owner,
+                                (s) => effectiveBp(state, owner, s) <= costLimitBp && costMatches(s),
+                                srcColors,
+                                srcType,
+                                "bounce",
+                            )
+                          : pickEnemyCandidates(state, opp, costLimitBp, costMatches, srcColors, srcType, "bounce")
+                      ).length >= 1
+            if (!hasTarget) {
+                log(state, `${sourceName}：手札に戻せる対象がいないため発動しなかった。`)
                 return
             }
             player.reserve -= action.costReserveToTrash
@@ -1245,7 +1406,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            returnSpiritToHand(state, found.pid, found.inst)
+            returnSpiritToHand(state, found.pid, found.inst, sourceName)
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -1292,7 +1453,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
                 }
-                returnSpiritToHand(state, target.pid, target.inst)
+                returnSpiritToHand(state, target.pid, target.inst, sourceName)
             }
             return
         }
@@ -1321,7 +1482,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
             }
-            returnSpiritToHand(state, opp, target)
+            returnSpiritToHand(state, opp, target, sourceName)
         }
         return
 }
@@ -1347,7 +1508,7 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 return true
             })
             for (const s of targets) {
-                returnSpiritToHand(state, pid, s)
+                returnSpiritToHand(state, pid, s, sourceName)
                 returned++
             }
         }
@@ -1367,18 +1528,137 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
     ownSpirits.sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)
     for (const inst of ownSpirits.slice(0, action.count)) {
-        returnSpiritToDeckBottom(state, owner, inst)
+        returnSpiritToDeckBottom(state, owner, inst, sourceName)
     }
     let returned = 0
     for (let i = 0; i < action.count; i++) {
         const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
         if (!target) break
-        returnSpiritToDeckBottom(state, opp, target)
+        returnSpiritToDeckBottom(state, opp, target, sourceName)
         returned++
     }
     if (returned === 0) {
         log(state, `${sourceName}：相手のスピリットがいなかった。`)
     }
+}
+
+// BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
+// 「内容を見ないで選び」その内容だけを見る。盤面は動かない。
+// **どの1枚を選ぶかは今のところ先頭で固定**（裏向きの相手手札を選ぶUIが未実装のため。
+// 選び方が情報を持たない＝どれを選んでも公平なので、決定的にしても不利益はない）
+const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    const player = state.players[owner]
+    const index = player.hand.findIndex((id) => getCard(id).name === action.cardName)
+    if (index === -1) {
+        log(state, `${sourceName}：手札に[${action.cardName}]がなく、発動しなかった。`)
+        return
+    }
+    const target = state.players[opp]
+    if (target.hand.length === 0) {
+        log(state, `${sourceName}：${target.name}の手札がなく、発動しなかった。`)
+        return
+    }
+    const paid = player.hand.splice(index, 1)[0]!
+    player.trashCards.push(paid)
+    log(state, `${player.name}はコストとして${getCard(paid).name}を破棄した。`)
+    const peeked = target.hand[0]!
+    if (!player.peekedOpponentCardIds) player.peekedOpponentCardIds = []
+    player.peekedOpponentCardIds.push(peeked)
+    // ログには**カード名を出さない**（両者が読むため。見た本人は PlayerView から知る）
+    log(state, `${player.name}は${target.name}の手札1枚の内容を見た。`)
+}
+
+// BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
+// ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
+const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有・種別で判定する。
+    // cardType 省略時はスピリットカード（従来どおり）
+    const eligible = (cardId: string): boolean =>
+        getCard(cardId).type === (action.cardType ?? "spirit") &&
+        (action.keyword === undefined || hasKeyword(cardId, action.keyword))
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || !eligible(cardId)) {
+            log(state, `${sourceName}：破棄するカードがなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
+        draw(state, owner, action.count)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => eligible(player.hand[i]!))
+    if (indices.length === 0) {
+        const what =
+            action.keyword !== undefined
+                ? `【${KEYWORDS[action.keyword].label}】を持つ${action.cardType ?? "スピリット"}カード`
+                : `${action.cardType === "nexus" ? "ネクサス" : action.cardType === "magic" ? "マジック" : "スピリット"}カード`
+        log(state, `${sourceName}：${what}が手札になく、発動しなかった。`)
+        return
+    }
+    if (tryInteractiveCardChoice(state, owner, self, `${sourceName}：コストとして破棄するカードを選んでください`, "hand", indices, action, null)) {
+        return
+    }
+    // 自動時は先頭（決定的簡略化）
+    const index = indices[0]!
+    const cardId = player.hand[index]!
+    player.hand.splice(index, 1)
+    player.trashCards.push(cardId)
+    log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
+    draw(state, owner, action.count)
+}
+
+// BS09-058魔本収められし書架Lv2：持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す。
+// opponentHandToDeckTop の自分版（選ぶのは戻す本人なので owner に選択を出す）
+const handToOwnDeckTopHandler: ActionHandler<"handToOwnDeckTop"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象の手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.deck.unshift(cardId)
+        log(state, `${player.name}は手札1枚をデッキの上に戻した。`)
+        return
+    }
+    if (player.hand.length === 0) {
+        log(state, `${sourceName}：${player.name}の手札がなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        const indices = player.hand.map((_, i) => i)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：デッキの上に戻すカードを選んでください`,
+                "hand",
+                indices,
+                { type: "handToOwnDeckTop", count: 1 },
+                action.count > 1 ? { type: "handToOwnDeckTop", count: action.count - 1 } : null,
+            )
+        ) {
+            return
+        }
+    }
+    // 自動時は手札末尾から（本来は本人が選ぶ。決定的簡略化）
+    let moved = 0
+    for (let i = 0; i < action.count; i++) {
+        const cardId = player.hand.pop()
+        if (cardId === undefined) break
+        player.deck.unshift(cardId)
+        moved++
+    }
+    log(state, `${player.name}は手札${String(moved)}枚をデッキの上に戻した。`)
+    return
 }
 
 // BS07魔札の占い師ディーシャLv2：相手は手札からcount枚を選んで自分のデッキの一番上に戻す。
@@ -1451,7 +1731,7 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
                 log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 continue
             }
-            returnSpiritToDeckBottom(state, rec.pid, inst)
+            returnSpiritToDeckBottom(state, rec.pid, inst, sourceName)
             returned += 1
         }
         if (returned === 0) {
@@ -1472,21 +1752,35 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             }
             return
         }
+        // filter（BS09-X38要塞騎神オーディーンType-X＝【転召】を持たない相手3体）：候補の絞り込み。
+        // 自動選択・明示ターゲットの両方に効かせる
+        const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+        const filterOk = (pid: PlayerId, s: CardInstance): boolean =>
+            resolvedFilter === undefined ||
+            (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId))
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = action.anySide
+            const candidates = (action.anySide
                 ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
-                : pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
+                : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
+            ).filter((s) => action.anySide === undefined || filterOk(opp, s))
             if (candidates.length >= 2) {
+                // chooserIsTarget（BS07ブリシンガメンの首飾り）：「**相手は**、相手のスピリット3体を〜戻す」。
+                // 選ぶのは戻される側だが、解決は発生源の持ち主の効果として行う（actorPid）
                 requestChoice(
                     state,
                     owner,
-                    `${sourceName}のデッキ戻し：対象を選んでください`,
+                    action.chooserIsTarget
+                        ? `${sourceName}：デッキの上に戻す自分のスピリットを選んでください`
+                        : `${sourceName}のデッキ戻し：対象を選んでください`,
                     candidates.map((s) => s.instanceId),
                     false,
                     action,
                     self,
+                    "target",
+                    undefined,
+                    action.chooserIsTarget ? opp : undefined,
                 )
                 return
             }
@@ -1496,7 +1790,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             : action.anySide
               ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType, "bounce")
               : (() => {
-                    const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
+                    const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
                     return t ? { pid: opp, inst: t } : null
                 })()
         if (!found) {
@@ -1512,7 +1806,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckTopResisted.label}）。`)
             return
         }
-        returnSpiritToDeckTop(state, found.pid, found.inst)
+        returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
         return
 }
 
@@ -1520,7 +1814,22 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
         const player = state.players[owner]
-        // 破壊時に呼ばれるため、直前にトラッシュへ送られた自分のカードを手札へ戻す
+        // 破壊時に呼ばれる。このとき自分のカードは**破壊待機状態でまだフィールドにいる**ので、
+        // そこから手札へ移す（TIMING_CHART.md §1.5。乗っていたコアはリザーブへ）。
+        // 破壊待機状態を解いてから抜けるので、あとで commitPendingDestruction がトラッシュへ送ることはない
+        if (self.pendingDestruction) {
+            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
+            if (fieldIdx >= 0) {
+                player.field.spirits.splice(fieldIdx, 1)
+                player.reserve += self.cores
+            }
+            delete self.pendingDestruction
+            player.hand.push(self.cardId)
+            log(state, `${getCard(self.cardId).name}は手札に戻った。`)
+            notifyHandGained(state, owner, 1)
+            return
+        }
+        // 破壊以外の経路（既にトラッシュへ送られている場合）への保険
         const idx = player.trashCards.lastIndexOf(self.cardId)
         if (idx >= 0) {
             player.trashCards.splice(idx, 1)
@@ -1534,24 +1843,37 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // マジックブック：自分の手札にあるマジックカードを好きなだけ手元(tegamoto)に置き、
-        // 置いた枚数ぶんデッキから引く。chosenCardIndexが渡された＝choiceで1枚選ばれた経路。
-        // 1枚移動+1ドロー後、手札にまだマジックカードが残っていれば同じactionで再度resolveActionし、
-        // choiceを繰り返す（optional=trueのためスキップで終了する）
+        // 置いた枚数ぶんデッキから引く。**置き終わってからまとめて引く**のが要点で、
+        // 1枚ごとに引くと引いたマジックカードをそのまま次に置けてしまう
+        // （drawPerHandDiscard と同じ不具合。2026-08-10 修正）
         const player = state.players[owner]
+        const placed = action.placedSoFar ?? 0
+        const finish = (): void => {
+            if (placed === 0) {
+                log(state, `${sourceName}：手元に置かなかった。`)
+                return
+            }
+            log(state, `${sourceName}：手元に置いた${placed}枚ぶんデッキから引く。`)
+            draw(state, owner, placed)
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.hand[chosenCardIndex]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
+                finish()
                 return
             }
             player.hand.splice(chosenCardIndex, 1)
             player.tegamoto.push(cardId)
-            draw(state, owner, 1)
-            log(
-                state,
-                `${player.name}は${getCard(cardId).name}を手元に置き、デッキから1枚引いた。`,
-            )
-            ctx.resolve(action)
+            log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
+            // ここでは引かない。続けて置くか再度尋ねる（awaitingSkip は落とす）
+            const { awaitingSkip: _dropped, ...rest } = action
+            ctx.resolve({ ...rest, placedSoFar: placed + 1 })
+            return
+        }
+        // スキップされて戻ってきた＝これ以上置かない。ここで初めて引く
+        if (action.awaitingSkip) {
+            finish()
             return
         }
         const indices: number[] = []
@@ -1559,19 +1881,25 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
             if (getCard(player.hand[i]!).type === "magic") indices.push(i)
         }
         if (indices.length === 0) {
-            log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            // 手札のマジックを出し切った場合もここへ来る（置いたぶんは引く）
+            if (placed === 0) log(state, `${sourceName}：手札にマジックカードがなかった。`)
+            else finish()
             return
         }
         if (state.interactiveTargets) {
             requestCardChoice(
                 state,
                 owner,
-                `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了）`,
+                `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了してドローに移ります）`,
                 "hand",
                 indices,
                 true,
-                action,
+                { ...action, placedSoFar: placed, awaitingSkip: true },
                 self,
+                // 候補が1枚でも「置かない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
+                true,
+                // スキップ＝終了。まとめて引くためにハンドラへ戻す
+                true,
             )
             return
         }
@@ -1693,6 +2021,7 @@ const handlers = {
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     drawPerHandDiscard: drawPerHandDiscardHandler,
+    millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millPer: millPerHandler,
@@ -1701,6 +2030,9 @@ const handlers = {
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
+    costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
+    costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
+    handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,

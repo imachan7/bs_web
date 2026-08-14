@@ -182,9 +182,18 @@ console.log("=== 複数体が候補になったときは1体ずつ確認する�
         `防御側が${WIPE.name}を使用`,
     )
 
-    assert(s.pendingChoice !== null, "1体目の確認が立つ")
+    // 復活の確認が2体ぶん出る＝同時発揮なので、まずターンプレイヤーが
+    // 「どちらから破壊処理をするか」を決める（docs/design/TIMING_CHART.md §0-3）
+    assert(s.pendingChoice?.destroyOrder !== undefined, "同時破壊の解決順の選択が先に立つ")
+    assert(s.pendingChoice?.pid === s.turnPlayer, "順番を決めるのはターンプレイヤー")
+    assert((s.pendingChoice?.options ?? []).length === 2, "候補は2体")
+    const firstPick = (s.pendingChoice?.options ?? [])[0]!
+    assert(act(s, "p1", { type: "resolveChoice", option: firstPick }) === null, "先に解決する1体を指名する")
+    assert(s.pendingChoice?.reviveConfirm !== undefined, "1体目の確認が立つ")
     assert(ALIVE(s, "p1", a.instanceId) && ALIVE(s, "p1", b.instanceId), "2体とも場に残ったまま")
     assert(act(s, "p1", { type: "resolveChoice", option: "復活させる" }) === null, "1体目は復活させる")
+    // 残る候補は1体だけなので、順番の選択はもう出ない
+    assert(s.pendingChoice?.destroyOrder === undefined, "候補が1体になれば順番は聞かない")
     assert(s.pendingChoice !== null, "続けて2体目の確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "2体目はスキップ")
     assert(s.pendingChoice === null, "すべて解決すると選択待ちが無くなる")
@@ -201,4 +210,61 @@ console.log("=== 非対話（テスト・自動解決）では従来どおり即
     assert(s.pendingChoice === null, "確認は立たない")
     assert(ALIVE(s, "p1", chaga.instanceId), "その場で復活している")
     assert(chaga.cores === 1, "コストも即時に支払われている")
+}
+
+console.log("=== バッチ破壊：復活の確認で中断しても、残りの対象がちゃんと破壊される ===")
+{
+    // 2026-08-13：destroyAll をバッチ（destroyBatch フレーム）経由にしたことで、
+    // 「復活しますか」の確認が**破壊のその場**で立つようになった。
+    // 中断した時点では**まだ破壊されていない対象が残っている**ので、
+    // 答えたあとに残りが破壊されるかを検査する（再開が壊れていると残りが取り残される）。
+    const FILLER = CARDS.find(
+        (c) =>
+            c.type === "spirit" &&
+            (c.effects ?? []).length === 0 &&
+            (c.levels?.[0]?.cores ?? 99) === 1 &&
+            (c.levels?.[0]?.bp ?? 99999) <= WIPE_MAXBP,
+    )!
+    const s = setupOpponentAttackStep("revive-batch-resume", true)
+    // チャガマル（復活の確認が立つ側）と、確認を持たない普通のスピリットを並べる
+    const chaga = put(s, "p1", CHAGA.cardId, CHAGA_CORES)
+    const other1 = put(s, "p1", FILLER.cardId, 1)
+    const other2 = put(s, "p1", FILLER.cardId, 1)
+
+    wipeDuringOpponentAttack(s)
+    assert(s.pendingChoice !== null, "復活の確認がその場で立つ")
+    assert(ALIVE(s, "p1", chaga.instanceId), "確認中、チャガマルはまだ場に残っている")
+
+    // 「復活させない」（スキップ）を選ぶ → チャガマルも破壊され、残りも破壊されきる
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "「復活させない」を選ぶ")
+    assert(s.pendingChoice === null, "選択待ちが解消される")
+    assert(!ALIVE(s, "p1", chaga.instanceId), "断ったのでチャガマルも破壊された")
+    assert(!ALIVE(s, "p1", other1.instanceId), "中断をまたいで残りの対象1も破壊された")
+    assert(!ALIVE(s, "p1", other2.instanceId), "中断をまたいで残りの対象2も破壊された")
+}
+
+console.log("--- 復活を断って破壊された1体も「破壊できた数」に算入される ---")
+{
+    // 中断の原因になった1体はバッチのループの外（declineReviveConfirm）で破壊されるため、
+    // 素朴に数えると取りこぼす。state.lastReviveDestroyed で結果を持ち回って算入している
+    const FILLER = CARDS.find(
+        (c) =>
+            c.type === "spirit" &&
+            (c.effects ?? []).length === 0 &&
+            (c.levels?.[0]?.cores ?? 99) === 1 &&
+            (c.levels?.[0]?.bp ?? 99999) <= WIPE_MAXBP,
+    )!
+    const s = setupOpponentAttackStep("revive-batch-count", true)
+    const chaga = put(s, "p1", CHAGA.cardId, CHAGA_CORES)
+    put(s, "p1", FILLER.cardId, 1)
+    const aliveBefore = s.players.p1.field.spirits.length
+
+    wipeDuringOpponentAttack(s)
+    assert(s.pendingChoice !== null, "復活の確認が立つ")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "「復活させない」を選ぶ")
+
+    const actuallyDestroyed = aliveBefore - s.players.p1.field.spirits.length
+    assert(actuallyDestroyed === 2, `2体とも破壊された（実際: ${actuallyDestroyed}体）`)
+    assert(s.lastReviveDestroyed === undefined, "復活の結果フラグは読み取り後に消えている")
+    void chaga
 }

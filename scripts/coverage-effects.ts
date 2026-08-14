@@ -268,11 +268,12 @@ const __covEid = (e: unknown): string =>
                 total += effect.amount`,
     )
     // costMod（置換 mode:"set"）: 採用値を決める時点
+    // （2026-08-14: setToCounter の追加で置換値の計算が1行増えたためアンカーを追随させた）
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `            if (result === undefined || effect.setTo < result) result = effect.setTo`,
+        `            if (result === undefined || setTo < result) result = setTo`,
         `            __covRec2C("cont\t" + __covEid2C(effect))
-            if (result === undefined || effect.setTo < result) result = effect.setTo`,
+            if (result === undefined || setTo < result) result = setTo`,
     )
     // reductionGrant: 軽減シンボルを実際に足す時点
     patch(
@@ -294,12 +295,11 @@ const __covEid = (e: unknown): string =>
     // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
     // （2026-08-09: hasContinuousKeywordGrant が continuousKeywordGrantCount へ実体を移し、
     //   返り値が true から effect.count ?? 1 に変わったためアンカーを追随させた）
+    // （2026-08-14: keywordGrant.minBp の追加で最終行の直前が変わったためアンカーを追随させた）
     patch(
         f,
-        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            return effect.count ?? 1`,
-        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            __covRec2("cont\t" + __covEid(effect))
+        `            return effect.count ?? 1`,
+        `            __covRec2("cont\t" + __covEid(effect))
             return effect.count ?? 1`,
     )
     // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
@@ -412,12 +412,11 @@ const __covEid = (e: unknown): string =>
     patch(
         f,
         // ※ 2026-08-08: 集計が countSpiritsWeighted + instHasCost（道化師クランの付与コスト対応）へ変わった
-        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
-                if (matchCount < count) continue
+        // ※ 2026-08-10: 数える側の発生源種別（card(source.cardId).type）を渡すようになり複数行に整形された
+        `                if (matchCount < count) continue
             }
             return true`,
-        `                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
-                if (matchCount < count) continue
+        `                if (matchCount < count) continue
             }
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
@@ -498,14 +497,33 @@ process.on("exit", () => {
         //     BS07ブラックリチュアルの fireDestroyTriggerFirst で両経路に1行挟まったため、
         //     アンカーは applyRevived の行だけにした。**先頭の改行は必須**：これが無いと
         //     8スペース版のパターンが12スペース版の一部にも一致して「2箇所」になる
+        //     ※ 2026-08-10: tryReviveOnDestroy は EffectModules.ts から removal.ts へ移設された
         for (const indent of ["        ", "            "]) {
             patch(
-                path.join(tree, "server/src/logic/EffectModules.ts"),
+                path.join(tree, "server/src/logic/removal.ts"),
                 `\n${indent}applyRevived(effect.revived)`,
                 `\n${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
                     `${indent}applyRevived(effect.revived)`,
             )
         }
+
+        // (4.0) triggers.ts 側で __covRecord を使うための import 追記。
+        //     triggerSuppression 等の計測点がここにあるので、無いと ReferenceError で落ちる
+        //     （2026-08-14: 移設時に入れ忘れていたぶんを補った）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `    rawLevel,\n    pushResumeFrames,`,
+            `    rawLevel,\n    pushResumeFrames,\n    __covRecord,`,
+        )
+
+        // (4.1) removal.ts 側で __covRecord を使うための import 追記。
+        //     (4) の applyRevived 計測はここが無いと ReferenceError で落ちる
+        //     （2026-08-14: tryReviveOnDestroy の移設時に入れ忘れていたぶんを補った）
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `    rawLevel,`,
+            `    rawLevel,\n    __covRecord,`,
+        )
 
         // (4.5) keywordGrant（装甲）は shared/ の hasContinuousKeywordGrant を通らない。
         //     refreshLevelAsOverrides が CardInstance.armorColorsGranted へ毎回再計算して
@@ -559,7 +577,8 @@ process.on("exit", () => {
         const em = path.join(tree, "server/src/logic/EffectModules.ts")
         // globalConstraint「ownNexusIndestructible」: hasOwnNexusIndestructible の true 判定
         patch(
-            em,
+            // ※ 2026-08-10: この処理は EffectModules.ts から removal.ts へ移設された
+            path.join(tree, "server/src/logic/removal.ts"),
             // ※ 2026-08-07 にバニラ判定が instIsVanilla(s) へ一本化された（isVanillaCard(getCard(...)) から変更）。
             //    差し込み先はエンジンの現在の形に追随させること
             `            if (effect.condition) {
@@ -582,7 +601,8 @@ process.on("exit", () => {
         // ※ 2026-08-08: 2つのインライン走査が hasActiveGlobalConstraint(state, type) へ一本化された。
         //    共通ループを1箇所差し込めば両方を記録できる（記録するのは実際に成立した効果エントリ）
         patch(
-            em,
+            // ※ 2026-08-10: この処理は EffectModules.ts から removal.ts へ移設された
+            path.join(tree, "server/src/logic/removal.ts"),
             `                if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -698,11 +718,11 @@ process.on("exit", () => {
         // keyword「転召」: resolveTensho の解決時点（effect が既に対象の keyword エントリそのもの）
         patch(
             em,
-            `    if (!effect || effect.kind !== "keyword") return
-    const minCost = effect.minCost ?? 0`,
-            `    if (!effect || effect.kind !== "keyword") return
-    __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-    const minCost = effect.minCost ?? 0`,
+            `    if (!spec) return
+    const { minCost, dest } = spec`,
+            `    if (!spec) return
+    __covRecord("cont\\t" + String((spec.entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+    const { minCost, dest } = spec`,
         )
         // colorAs: refreshLevelAsOverrides の colorsAsContinuous 代入点
         patch(
@@ -838,8 +858,9 @@ process.on("exit", () => {
             return 2`,
         )
         // triggerSuppression: isTriggerSuppressed が true を返す時点
+        // ※ 2026-08-10: この関数は EffectModules.ts から triggers.ts へ移設された
         patch(
-            em,
+            path.join(tree, "server/src/logic/triggers.ts"),
             `                if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
                 return true`,
@@ -925,8 +946,8 @@ process.on("exit", () => {
         const ge = path.join(tree, "server/src/logic/GameEngine.ts")
         patch(
             ge,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    checkNoMutationAfterSuspend,\n    noteHandleActionEntry,\n    pushResumeFrames,\n    suspend,\n} from "./GameState"`,
+            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    checkNoMutationAfterSuspend,\n    noteHandleActionEntry,\n    pushResumeFrames,\n    suspend,\n    __covRecord,\n} from "./GameState"`,
         )
         // ※ 2026-08-08: リザーブからの【覚醒】（ディノゾールLv2）が分岐として増え、
         //    コア移動の実行点が2つになった。両方に同じ記録を入れる（記録関数を1つ差し込んで共有）
@@ -957,28 +978,18 @@ process.on("exit", () => {
     __recAwaken()
     from.cores -= count`,
         )
+        // ※ 2026-08-14: バトル解決を再開可能なステップ列（runBattleStep）に割ったため、
+        //    【呪撃】の破壊は case 5 の中へ移動した。差し込み先もその形に合わせる
         patch(
             ge,
-            `            } else {
-                log(
-                    state,
-                    \`\${getCard(attacker.cardId).name}の【呪撃】：\${getCard(blocker.cardId).name}を破壊した。\`,
-                )
-                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
-            `            } else {
-                log(
-                    state,
-                    \`\${getCard(attacker.cardId).name}の【呪撃】：\${getCard(blocker.cardId).name}を破壊した。\`,
-                )
-                const __jugekiEntry = getCard(attacker.cardId).effects.find(
-                    (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, attackerLevel),
-                )
-                if (__jugekiEntry) __covRecord("cont\\t" + String((__jugekiEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-                applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-                destroySpirit(state, defenderPid, blocker.instanceId, "destroy", {`,
+            `            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)`,
+            `            const __jugekiEntry = getCard(attacker.cardId).effects.find(
+                (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, f.attackerLevel),
+            )
+            if (__jugekiEntry) __covRecord("cont\\t" + String((__jugekiEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
+            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)`,
         )
 
         // (6) createInstance 本体の先頭に「場に出たカード」の記録を挿す

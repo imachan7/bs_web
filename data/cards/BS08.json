@@ -740,9 +740,12 @@
     "turn": "opponent",
     "maxBp": 6000,
     "action": {
-     "type": "coreToTrashSelf",
-     "count": 1
-    }
+     "type": "coreToOpponentTrashChoice",
+     "count": 1,
+     "spiritsOnly": true,
+     "chooserIsTarget": true
+    },
+    "selfMode": "source"
    }
   ]
  },
@@ -1167,13 +1170,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
-     "all": true,
+     "type": "destroyAll",
      "filter": {
       "cost": {
        "max": 4
-      }
+      },
+      "rested": true
      }
     },
     "optional": false

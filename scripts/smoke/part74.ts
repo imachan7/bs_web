@@ -243,8 +243,9 @@ console.log("=== BS05-X17 幻獣王リーン：召喚時、相手のネクサス
     put(s, "p2", "BS01-001", 1)
     put(s, "p2", "BS01-002", 1)
     const p2HandBefore = s.players.p2.hand.length
+    put(s, "p1", "BS02-023", 1) // 【転召:コスト6以上】の犠牲（効果を持たないコスト6のスピリット）
     const reanId = summonAt(s, "p1", ["BS05-X17"], 0)
-    assert(reanId !== null, "リーンを召喚できる（転召は対象なしで不発）")
+    assert(reanId !== null, "リーンを召喚できる（転召の犠牲あり）")
     assert(s.players.p2.field.spirits.length === 0, "相手ネクサス2つぶん、相手スピリット2体が手札へ戻る")
     assert(s.players.p2.hand.length === p2HandBefore + 2, "戻された2体が相手の手札に加わる")
 }
@@ -256,8 +257,9 @@ console.log("=== BS05-X18 超獣王ベヒードス：召喚時破壊／アタッ
     s.players.p2.trashCards = ["BS01-114", "BS01-142"] // 赤マジック・白マジック＝2色
     put(s, "p2", "BS01-001", 1)
     put(s, "p2", "BS01-002", 1)
+    put(s, "p1", "BS02-023", 1) // 【転召:コスト6以上】の犠牲
     const behedosuId = summonAt(s, "p1", ["BS05-X18"], 0)
-    assert(behedosuId !== null, "ベヒードスを召喚できる（転召は対象なしで不発）")
+    assert(behedosuId !== null, "ベヒードスを召喚できる（転召の犠牲あり）")
     assert(s.players.p2.field.spirits.length === 0, "相手トラッシュのマジック色数（2色）ぶん相手スピリットが破壊される")
 }
 {

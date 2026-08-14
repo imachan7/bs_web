@@ -1898,9 +1898,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
-     "anySide": true
+     "type": "destroy",
+     "anySide": true,
+     "filter": {
+      "rested": true
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -2279,9 +2282,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
-     "anySide": true
+     "type": "destroy",
+     "anySide": true,
+     "filter": {
+      "rested": true
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -2336,9 +2342,12 @@
      3
     ],
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
-     "anySide": true
+     "type": "destroy",
+     "anySide": true,
+     "filter": {
+      "rested": true
+     },
+     "count": 1
     },
     "optional": false
    }
@@ -5751,9 +5760,12 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "destroyExhausted",
-     "count": 1,
-     "anySide": true
+     "type": "destroy",
+     "anySide": true,
+     "filter": {
+      "rested": true
+     },
+     "count": 1
     }
    },
    {

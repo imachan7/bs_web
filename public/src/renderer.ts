@@ -186,7 +186,6 @@ export function magicTargetSide(
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
         effect.action.type === "exhaust" ||
-        effect.action.type === "destroyExhausted" ||
         effect.action.type === "returnToHand" ||
         effect.action.type === "returnToDeckTop"
     ) {
@@ -339,6 +338,10 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
+        case "returnToHand":
+            return `💨 ${ev.cardName} 手札へ戻る`
+        case "returnToDeck":
+            return `🌪 ${ev.cardName} デッキ${ev.position === "top" ? "上" : "下"}へ戻る`
     }
 }
 
@@ -386,6 +389,12 @@ export function render(view: GameView, ui: UiState): void {
     const canDefend = isDefender && !view.isFlashTiming
 
     // ステータスバー
+    const hasRyukiEntaku = view.players[you].field.nexuses.some(n => n.cardId === "BS08-055")
+    show("lbl-pay-to-negate", hasRyukiEntaku)
+    if (hasRyukiEntaku) {
+        ($("chk-pay-to-negate") as HTMLInputElement).checked = view.players[you].payToNegate ?? true
+    }
+
     $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
     document.querySelectorAll(".phase-step").forEach(el => {
         el.classList.remove("active")
@@ -1289,6 +1298,22 @@ function renderBattle(view: GameView): void {
 // ロビー側の表示制御
 export function showWaiting(): void {
     show("waiting-message", true)
+    // 待機中はボタンの文言を「参加を取り消す」に変えて残す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "参加を取り消す"
+        joinBtn.classList.add("cancel-mode")
+    }
+}
+
+export function hideWaiting(): void {
+    show("waiting-message", false)
+    // ボタンの文言を元に戻す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "対戦ルームに入る"
+        joinBtn.classList.remove("cancel-mode")
+    }
 }
 
 export function showToast(message: string): void {

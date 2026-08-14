@@ -55,6 +55,11 @@ export function canBlock(
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
+    // このバトルの間だけブロックできない（BS09-042妖精騎士ピーター）。
+    // 効果で直接付けた印なので blockConstraintNegatedThisTurn（制約の無効化）では消えない
+    if (blockerInst.cantBlockThisBattle) {
+        return "このスピリットはこのバトルの間ブロックできません"
+    }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {
             return "このスピリットはブロックできません"
@@ -70,7 +75,10 @@ export function canBlock(
 
     // アタッカー側の制約（unblockableBy）。
     // レッドウォール使用中は、ブロック側がこのターン「ブロックされない」効果を無視できる
-    if (attackerInst && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
+    // BS09-049炎蜥蜴クトゥグマ：このスピリットは「ブロックされない」効果を持つ相手もブロックできる
+    // （継続的な制約・ターン限定の印のどちらも乗り越える。2026-08-14 ユーザー確認）
+    const ignoresUnblockable = blockerConstraints.some((c) => c.type === "canBlockUnblockable")
+    if (attackerInst && !ignoresUnblockable && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
         // 強者統べる大地Lv2：指定された自分のスピリットは、ターンに1回だけブロックされない
         // （印は次のバトルの終了時に消えるので、同じターンの2回目のアタックはブロックできる）
         if (attackerInst.unblockableOnceThisTurn) {

@@ -79,13 +79,19 @@ console.log("=== turnStartResumeStep: ターン開始処理が選択待ちで中
     engineRunTurnStart(s)
 
     assert(s.pendingChoice !== null, "ドローステップの破棄選択でターン開始処理が中断する")
-    assert(s.turnStartResumeStep !== null, "中断位置が turnStartResumeStep に記録される")
+    assert(
+        s.resumeStack.some((fr) => fr.kind === "turnStart"),
+        "中断位置が再開フレーム（kind:\"turnStart\"）として積まれる",
+    )
     assert(s.phase !== "main", "中断中はまだ main に到達していない")
 
     const drained = drainChoices(s)
     assert(drained >= 1, `選択が消化された（${drained}回）`)
     assert(s.pendingChoice === null, "選択後に pendingChoice が解消される")
-    assert(s.turnStartResumeStep === null, "再開位置がクリアされる")
+    assert(
+        !s.resumeStack.some((fr) => fr.kind === "turnStart"),
+        "再開フレームが消化されて残っていない",
+    )
     assert(s.phase === "main", "ターン開始処理が再開して main まで到達する")
     // 通常ドロー1枚 + 百識の谷e1のドロー1枚 - 破棄1枚 = +1
     assert(
@@ -167,7 +173,7 @@ console.log("=== destroyExhausted: 疲労2体で choice が立ち、選んだ側
     const [a, b] = twoEnemies(s, "BS01-002", 1)
     for (const x of s.players.p2.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } })
     assert(s.pendingChoice !== null, "疲労候補2体で pendingChoice が立つ")
     assert(s.players.p2.field.spirits.length === 2, "選択待ち中はまだ破壊されていない")
 

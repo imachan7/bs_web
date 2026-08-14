@@ -109,6 +109,16 @@ button:active {
     font-size: 14px;
 }
 
+/* 参加取り消しモード */
+#join-btn.cancel-mode {
+    background: #8b2030;
+    transition: background 0.2s;
+}
+
+#join-btn.cancel-mode:hover {
+    background: #a52838;
+}
+
 #deck-builder-link {
     margin-top: 8px;
     font-size: 13px;
@@ -311,6 +321,11 @@ button:active {
 .event-banner.event-draw {
     border-color: rgba(156, 163, 175, 0.6);
     color: var(--text-muted);
+}
+.event-banner.event-returnToHand,
+.event-banner.event-returnToDeck {
+    border-color: rgba(6, 182, 212, 0.6);
+    color: #67e8f9;
 }
 
 @keyframes event-banner-inout {

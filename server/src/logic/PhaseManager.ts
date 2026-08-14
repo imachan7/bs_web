@@ -1,6 +1,6 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { draw, getCard, log } from "./GameState"
+import { draw, getCard, log, pushResumeFrames } from "./GameState"
 import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
@@ -35,12 +35,24 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             fireStepTriggers(state, "core")
         },
-        // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
+        // ドローステップ①：ドローより前に発火する効果（「ドローしないことで〜する」）。
+        // ここで選択待ちになると、再開は**次の区間＝ドロー**からになるので、
+        // 「発動を確認してからドローする／しない」が成立する（区間を分けているのはこのため）
         () => {
             state.phase = "draw"
-            draw(state, pid, 1, true)
+            state.drawStepSkipped = false
+            fireStepTriggers(state, "draw", undefined, "enter", "beforeDraw")
+        },
+        // ドローステップ②：ドロー本体（先攻1ターン目も通常通りドローする。公式ルール）と、
+        // ドローの後に発火する効果（引いたカードを破棄の対象にできる百識の谷Lv1など）
+        () => {
+            if (state.drawStepSkipped) {
+                log(state, `${player.name}は効果のコストとしてドローしなかった。`)
+            } else {
+                draw(state, pid, 1, true)
+            }
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
-            fireStepTriggers(state, "draw")
+            fireStepTriggers(state, "draw", undefined, "enter", "afterDraw")
         },
         // リフレッシュステップ：トラッシュのコアをリザーブに戻し、全回復
         () => {
@@ -76,38 +88,28 @@ function turnStartSegments(state: GameState): (() => void)[] {
 
 // ターン開始処理のステップ列を fromIndex から順に実行する。
 // ステップ処理後に pendingChoice が立っていたら（ステップ誘発が選択待ちを要求したら）、
-// 次のステップ番号を state.turnStartResumeStep に記録してそこで中断する。
-// 全ステップを完走したら levelAs を再計算し、再開位置をクリアする。
-function driveTurnStart(state: GameState, fromIndex: number): void {
+// 次のステップ番号を**再開フレーム**に積んでそこで中断する（docs/design/RESUME_STACK.md）。
+// 全ステップを完走したら levelAs を再計算する。
+export function driveTurnStart(state: GameState, fromIndex: number): void {
     const segments = turnStartSegments(state)
     for (let i = fromIndex; i < segments.length; i++) {
         segments[i]!()
-        if (state.winner) {
-            state.turnStartResumeStep = null
-            return
-        }
+        if (state.winner) return
         if (state.pendingChoice) {
-            state.turnStartResumeStep = i + 1
+            pushResumeFrames(state, [{ kind: "turnStart", step: i + 1 }])
             return
         }
     }
-    state.turnStartResumeStep = null
     // 継続的なレベル置換（levelAs）をターン開始処理の最後に再計算する
     // （ジャグリーンのスピリット数条件・トパーズの流星のsourceMinLevelなど）
     refreshLevelAsOverrides(state)
 }
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める。
-// 途中のステップ誘発が pendingChoice を立てた場合はそこで中断し、resumeTurnStart で再開する
+// 途中のステップ誘発が pendingChoice を立てた場合はそこで中断し、
+// 再開フレーム（kind:"turnStart"）として再開スタックに載る
 export function runTurnStart(state: GameState): void {
     driveTurnStart(state, 0)
-}
-
-// pendingChoice の解決後に、中断していたターン開始処理があれば続きのステップから再開する。
-// 中断していなければ（turnStartResumeStep が null なら）何もしない
-export function resumeTurnStart(state: GameState): void {
-    if (state.turnStartResumeStep === null) return
-    driveTurnStart(state, state.turnStartResumeStep)
 }
 
 // メインステップ → アタックステップ

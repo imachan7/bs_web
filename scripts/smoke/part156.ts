@@ -122,11 +122,8 @@ console.log("=== 実対戦（interactiveTargets）では確認を出し、答え
 
     millByP1Spirit(s, 2)
     assert(s.players.p2.deck.length === deckBefore, "確認を出す時点ではまだ破棄していない")
-    assert((s.pendingDeckMillNegates ?? []).length === 1, "確認待ちの行列に1件積まれた")
-
-    // handleAction の末尾で確認が立つ（ここでは「安全な地点」を通すために pass を投げる）
-    handleAction(s, "p1", { type: "pass" })
-    assert(s.pendingChoice?.deckMillNegate !== undefined, "pendingChoice に確認が立った")
+    // 2026-08-13: 確認は**破棄が起きるその場**で立つ（以前は handleAction の末尾まで遅延していた）
+    assert(s.pendingChoice?.deckMillNegate !== undefined, "破棄が起きるその場で確認が立つ")
     assert(s.pendingChoice?.pid === "p2", "答えるのはデッキを破棄される側（＝聖剣の持ち主）")
 
     // 「無効にする」を選ぶ
@@ -146,7 +143,6 @@ console.log("=== 確認を断ると、見送っていた破棄がそこで行わ
     const lifeBefore = s.players.p2.life
 
     millByP1Spirit(s, 2)
-    handleAction(s, "p1", { type: "pass" })
     assert(s.pendingChoice?.deckMillNegate !== undefined, "確認が立っている")
 
     // option を渡さない＝スキップ（無効にしない）
@@ -155,18 +151,21 @@ console.log("=== 確認を断ると、見送っていた破棄がそこで行わ
     assert(s.players.p2.life === lifeBefore, "ライフは支払っていない")
 }
 
-console.log("=== 確認を出すまでに聖剣が場を離れていたら、破棄はそのまま行われる ===")
+console.log("=== 確認はその場で出るので、発生源が場を離れる猶予が無い ===")
 {
-    const s = base("sword-gone")
+    // 以前は handleAction の末尾まで確認を遅延していたため、その間に発生源（聖剣）が
+    // 場を離れると「無効にできたはずの破棄がそのまま通る」という猶予があった。
+    // 破棄が起きるその場で聞くようになり、この猶予そのものが無くなった
+    const s = base("sword-no-gap")
     s.interactiveTargets = true
     const sword = putSword(s, LV2_CORES)
     const deckBefore = s.players.p2.deck.length
 
     millByP1Spirit(s, 2)
-    // 確認が立つ前にネクサスが場を離れる
-    s.players.p2.field.nexuses = s.players.p2.field.nexuses.filter((n) => n.instanceId !== sword.instanceId)
-    handleAction(s, "p1", { type: "pass" })
-
-    assert(s.pendingChoice === null, `${getCard(sword.cardId).name}が場に無いので確認は出ない`)
-    assert(s.players.p2.deck.length === deckBefore - 2, "見送っていた破棄がここで行われた")
+    assert(s.pendingChoice?.deckMillNegate !== undefined, "破棄と同じ呼び出しの中で確認が立つ")
+    assert(
+        s.players.p2.field.nexuses.some((n) => n.instanceId === sword.instanceId),
+        `確認が立った時点で${getCard(sword.cardId).name}はまだ場にいる`,
+    )
+    assert(s.players.p2.deck.length === deckBefore, "答えるまで破棄は行われない")
 }

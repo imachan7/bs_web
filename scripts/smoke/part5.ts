@@ -530,9 +530,13 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     const reserveBefore = s.players.p1.reserve
     const handBefore = s.players.p1.hand.length
     destroySpirit(s, "p1", carbuncle.instanceId)
-    // 自身のコア3個 + coreGainPer（想獣1体=ケルル・ベロスのみ。破壊時点でカーバルク自身はフィールドから除去済み）= +4
-    assert(s.players.p1.reserve === reserveBefore + 4, "破壊時：自身のコア3+coreGainPer(想獣1体分)=+4")
-    assert(s.players.p1.hand.length === handBefore + 1, "破壊時：drawPer(想獣1体分)で1枚ドロー")
+    // 自身のコア3個 + coreGainPer（想獣2体）= +5。
+    // ⚠️ 2026-08-14：破壊待機状態を導入したことで、**破壊されたカーバルク自身も
+    //    「自分のフィールドにいる想獣」に数えられる**ようになった（TIMING_CHART.md §1.5：
+    //    破壊されたカードは破壊時の誘発を解決し終えるまでフィールドに存在する）。
+    //    以前は破壊時点で場から除去済みだったため1体しか数えていなかった
+    assert(s.players.p1.reserve === reserveBefore + 5, "破壊時：自身のコア3+coreGainPer(想獣2体分)=+5")
+    assert(s.players.p1.hand.length === handBefore + 2, "破壊時：drawPer(想獣2体分)で2枚ドロー")
 }
 {
     console.log("--- BS02-106 ローヤルポーション：refreshAllByCostで両陣営のコスト2スピリットを回復 ---")

@@ -14,6 +14,7 @@ import type {
     AuraDef,
     CardData,
     CardInstance,
+    CardType,
     Color,
     FamilyFilter,
     Keyword,
@@ -47,6 +48,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     seimei: { id: "seimei", label: "聖命" },
     kyoshu: { id: "kyoshu", label: "強襲" },
     hyoheki: { id: "hyoheki", label: "氷壁" },
+    fushi: { id: "fushi", label: "不死" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
@@ -236,7 +238,12 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
 // （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
 // **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
 export function instLevels(inst: CardInstance): LevelDef[] {
-    return inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    const levels = inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
+    // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
+    const bonus = inst.levelCostBonusContinuous ?? 0
+    if (bonus === 0) return levels
+    return levels.map((lv) => ({ ...lv, cores: lv.cores + bonus }))
 }
 
 // インスタンス単位の維持コア数（最小レベルに必要なコア数）。
@@ -322,6 +329,21 @@ export function hasContinuousKeywordGrant(
     return continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0
 }
 
+// keywordGrant.minBp 用のBP参照。
+// **相互再帰を切るためのガードを噛ませてある**：BPオーラは keywordFilter を持てるので
+// 「キーワードを見る → BPを見る → BPオーラがキーワードを見る」で循環しうる。
+// 再入したときはオーラ抜きの素のBP（レベル相当）で判定する
+const bpForKeywordGrantInFlight = new Set<string>()
+function bpForKeywordGrant(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
+    if (bpForKeywordGrantInFlight.has(inst.instanceId)) return currentLevel(inst).bp
+    bpForKeywordGrantInFlight.add(inst.instanceId)
+    try {
+        return effectiveBp(board, ownerPid, inst)
+    } finally {
+        bpForKeywordGrantInFlight.delete(inst.instanceId)
+    }
+}
+
 // 継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
 // 一致するエントリのeffect.count（省略時1）を返す。該当なしは0（＝持たない）。
 // hasContinuousKeywordGrant と同じ走査・絞り込みを共有する（BS08キマイラアサルト：付与する【強襲】はcount:1）
@@ -357,6 +379,9 @@ export function continuousKeywordGrantCount(
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
+            // 実効BPで見るので、BPバフで届いた個体にも付く
+            if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue
             return effect.count ?? 1
         }
     }
@@ -388,15 +413,27 @@ export function targetArmorColorCount(inst: CardInstance): number {
 // 両陣営のフィールドを走査する（発生源の持ち主を問わず「すべて」に効く）。
 // ここでは系統を一切参照しないので、spiritHasFamily から呼んでも再帰しない
 export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
+    // target:"opponentAll"（BS09-079キャラクターロスト）用に、対象の持ち主を割り出す
+    const instPid: PlayerId | undefined = board.players.p1.field.spirits.some(
+        (s) => s.instanceId === inst.instanceId,
+    )
+        ? "p1"
+        : board.players.p2.field.spirits.some((s) => s.instanceId === inst.instanceId)
+          ? "p2"
+          : undefined
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, ownerPid)) {
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "familySuppression") continue
+                if (effect.lentOnly && !isVirtualSource(source)) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                // 「相手のスピリットすべて」＝発生源の持ち主のスピリットには効かない。
+                // 対象の持ち主が分からないとき（場にいない個体）は効かせない側に倒す
+                if (effect.target === "opponentAll" && (instPid === undefined || instPid === ownerPid)) continue
                 return true
             }
         }
@@ -656,25 +693,36 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
 //
 // countingPid ＝ 数えている効果の持ち主。カードの効果文は「**自分の**スピリット/マジック/ネクサスの効果で
 // 数えるとき」と限定しているため、数える側が重みの持ち主でなければ 1 のまま。
-// なお「スピリットの効果か・ネクサスの効果か・マジックの効果か」の区別（シーサーズはネクサス除外、
-// スリーカードはマジック除外）は簡略化して見ていない（card-notes に記載）。
+//
+// countingSourceType ＝ 数えている効果の**発生源の種別**。シーサーズは「スピリット/マジックの効果」
+// （＝ネクサス除外）、スリーカードは「スピリット/ネクサスの効果」（＝マジック除外）と限定しているため、
+// 一致しなければ重みを載せない。**渡されなかったときは限定しない**（従来どおり効く側に倒す）：
+// 数える経路は多く、渡し漏れが「効かない」に倒れると発見しづらいため
 export function spiritCountWeight(
     board: Board,
     countingPid: PlayerId,
     ownerPid: PlayerId,
     inst: CardInstance,
+    countingSourceType?: CardType,
 ): number {
+    const typeAllowed = (allowed?: readonly CardType[]): boolean =>
+        allowed === undefined || countingSourceType === undefined || allowed.includes(countingSourceType)
     let weight = 1
     // シーサーズLv2：持ち主自身の効果で数えるときだけ N 体分
     if (countingPid === ownerPid) {
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "countAsMultiple") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            if (!typeAllowed(effect.sourceTypes)) continue
             weight = Math.max(weight, effect.count)
         }
     }
     // スリーカード：このターンの間、印を付けた側の効果でだけ N 体分（相手のスピリットにも付けられる）
-    if (inst.countAsThisTurn && inst.countAsThisTurn.pid === countingPid) {
+    if (
+        inst.countAsThisTurn &&
+        inst.countAsThisTurn.pid === countingPid &&
+        typeAllowed(inst.countAsThisTurn.sourceTypes)
+    ) {
         weight = Math.max(weight, inst.countAsThisTurn.count)
     }
     return weight
@@ -688,11 +736,12 @@ export function countSpiritsWeighted(
     countingPid: PlayerId,
     ownerPid: PlayerId,
     predicate: (inst: CardInstance) => boolean = () => true,
+    countingSourceType?: CardType,
 ): number {
     let total = 0
     for (const s of board.players[ownerPid].field.spirits) {
         if (!predicate(s)) continue
-        total += spiritCountWeight(board, countingPid, ownerPid, s)
+        total += spiritCountWeight(board, countingPid, ownerPid, s, countingSourceType)
     }
     return total
 }
@@ -702,6 +751,7 @@ export function countAuraCounter(
     sourcePid: PlayerId,
     counter: AuraCounter,
     targetInst?: CardInstance,
+    countingSourceType?: CardType, // 数えている効果の発生源の種別（spiritCountWeight の限定に使う）
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
@@ -712,24 +762,38 @@ export function countAuraCounter(
         )
     }
     if (counter === "ownExhausted") {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested)
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested, countingSourceType)
     }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
-            cardNameContains(s, counter.ownNameIncludes),
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => cardNameContains(s, counter.ownNameIncludes),
+            countingSourceType,
         )
     }
     // { ownCost: number }：発生源自身を含む自分フィールドの指定コストのスピリット数（BS06細剣の猫騎士ケット・シー）
     if ("ownCost" in counter) {
-        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => instHasCost(s, counter.ownCost))
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => instHasCost(s, counter.ownCost),
+            countingSourceType,
+        )
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
-    return countSpiritsWeighted(board, sourcePid, sourcePid, (s) =>
-        matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
+    return countSpiritsWeighted(
+        board,
+        sourcePid,
+        sourcePid,
+        (s) => matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
+        countingSourceType,
     )
 }
 // オーラの発動条件を、発生源の持ち主（sourcePid）基準で判定する
@@ -818,6 +882,12 @@ export function auraAppliesTo(
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false
     }
+    // 軽減シンボルの色数（BS09-003角竜人ドラケンLv2＝「軽減シンボルを2色以上持つ」）。
+    // 軽減はカード固有の情報なので、付与色（tempColors）ではなくカード静的な reduction を見る
+    if (aura.reductionColorsAtLeast !== undefined) {
+        const colors = new Set(card(targetInst.cardId).reduction)
+        if (colors.size < aura.reductionColorsAtLeast) return false
+    }
     if (
         aura.keywordFilter &&
         !spiritHasKeyword(board, targetOwnerPid, targetInst, aura.keywordFilter)
@@ -860,10 +930,11 @@ export function auraAmount(
     sourcePid: PlayerId,
     aura: AuraDef,
     targetInst?: CardInstance,
+    sourceType?: CardType, // オーラの発生源の種別（数え上げの限定に使う。呼び出し元が発生源インスタンスから求めて渡す）
 ): number {
     let amount = 0
     if (aura.amountPer !== undefined && aura.counter !== undefined) {
-        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst)
+        amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst, sourceType)
     }
     if (aura.amount !== undefined) {
         if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition)) {
@@ -918,7 +989,7 @@ export function effectiveBp(
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                const amount = auraAmount(board, pid, effect.aura, inst)
+                const amount = auraAmount(board, pid, effect.aura, inst, card(source.cardId).type)
                 if (bpBuffSuppressed && amount > 0) continue
                 total += amount
             }
@@ -960,6 +1031,16 @@ export function matchesTarget(
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
+    // 継続的な制約（unblockableBy）とターン限定の印（unblockableOnceThisTurn）の両方を見る
+    if (filter.unblockableOnly) {
+        const hasUnblockable =
+            inst.unblockableOnceThisTurn === true ||
+            activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
+        if (!hasUnblockable) return false
+    }
+    // keywords（BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）：いずれか1つでも持てばよい
+    if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
@@ -1051,7 +1132,8 @@ export function activeConstraints(
         .filter((c) => {
             if (c.type !== "unblockableBy" || c.requireOwnCostCountAtLeast === undefined) return true
             const { cost, count } = c.requireOwnCostCountAtLeast
-            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost)) >= count
+            // この制約は判定対象のスピリット自身が持つ kind:"constraint" なので、数える側の発生源はスピリット
+            return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost), "spirit") >= count
         })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
@@ -1083,6 +1165,16 @@ export function activeConstraints(
                 if (board.phase !== phase) continue
                 if (turn === "own" && pid !== board.turnPlayer) continue
                 if (turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            // colorFromChosen（BS09-081サマーソルトターン）：「指定した色」を、貸与時に選ばれた色
+            // （仮想発生源の lentChoiceColor）へ解決してから積む。色が選ばれていなければ付与しない
+            const c = effect.constraint
+            if (c.type === "unblockableBy" && c.colorFromChosen) {
+                const chosen = source.lentChoiceColor
+                if (chosen === undefined) continue
+                const { colorFromChosen: _flag, ...rest } = c
+                granted.push({ ...rest, colorFilter: chosen })
+                continue
             }
             granted.push(effect.constraint)
         }
@@ -1239,7 +1331,7 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp } = effect.constraint
                 // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
                 if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
                 // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
@@ -1248,6 +1340,8 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                     if (costsOfAttacker.some((cost) => costs.includes(cost))) return true
                     continue
                 }
+                // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
+                if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
                 if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
             }
         }
@@ -1392,10 +1486,18 @@ function hasImmunityAgainst(
                 if (!familyOk && !selfOk) continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // keywordFilter（BS09-055転生の谷Lv2＝【転召】持ち）
+            if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
-                const matchCount = countSpiritsWeighted(board, ownerPid, ownerPid, (s) => instHasCost(s, cost))
+                const matchCount = countSpiritsWeighted(
+                    board,
+                    ownerPid,
+                    ownerPid,
+                    (s) => instHasCost(s, cost),
+                    card(source.cardId).type,
+                )
                 if (matchCount < count) continue
             }
             return true
