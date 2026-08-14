@@ -19,7 +19,7 @@ import {
     suspend,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { destroyTargetsBatch, resumeDestroyBatch } from "./removal"
+import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch } from "./removal"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -1043,6 +1043,35 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 【不死】（BS09）：トラッシュのこのカードを、コストを支払って召喚するかの確認。action は解決しない
+    if (pending.fushiSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.fushiSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyFushiSummon(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}：【不死】で召喚しなかった。`)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 1体の破壊に対して同時に発揮する効果（「フィールドに残る」と【不死】）の解決順。
+    // action は解決せず、選ばれた側を記録して破壊バッチの再開へ戻す（TIMING_CHART.md §0-3）
+    if (pending.destroyEffectOrder) {
+        const options = pending.options ?? []
+        if (option === undefined) return "どちらを先に解決するか選んでください"
+        const index = options.indexOf(option)
+        const picked = pending.destroyEffectOrder.slots[index]
+        if (index < 0 || picked === undefined) return "選択できない候補です"
+        state.pendingChoice = null
+        state.destroyEffectOrderPick = picked
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
     // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
     if (pending.destroyOrder) {
@@ -1191,6 +1220,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (frame.kind === "destroyBatch") {
             resumeDestroyBatch(state, frame)
+            continue
+        }
+        if (frame.kind === "destroyOne") {
+            // 1体の破壊に伴う同時発揮（「フィールドに残る」と【不死】）の続きを回す
+            resolveDestroyOne(state, frame)
             continue
         }
         if (frame.kind === "battleResolve") {

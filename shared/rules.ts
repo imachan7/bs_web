@@ -48,6 +48,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     seimei: { id: "seimei", label: "聖命" },
     kyoshu: { id: "kyoshu", label: "強襲" },
     hyoheki: { id: "hyoheki", label: "氷壁" },
+    fushi: { id: "fushi", label: "不死" },
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）

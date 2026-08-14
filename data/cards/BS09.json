@@ -1,0 +1,117 @@
+[
+ {
+  "cardId": "BS09-014",
+  "name": "闇騎士ボールス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【不死：コスト5】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、自分のコスト5のスピリットが破壊されたとき召喚できる。",
+  "effects": [
+   {
+    "id": "BS09-014-e1",
+    "kind": "keyword",
+    "keyword": "fushi",
+    "levels": null,
+    "triggerCosts": [
+     5
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS09-X36",
+  "name": "魔界七将ベルドゴール",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "冥主",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【不死：コスト4/5】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト4/5の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2『このスピリットの召喚時』\n疲労状態のコスト4以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS09-X36-e1",
+    "kind": "keyword",
+    "keyword": "fushi",
+    "levels": null,
+    "triggerCosts": [
+     4,
+     5
+    ]
+   },
+   {
+    "id": "BS09-X36-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "rested": true,
+      "cost": {
+       "max": 4
+      }
+     }
+    }
+   }
+  ]
+ }
+]

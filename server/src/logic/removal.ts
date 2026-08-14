@@ -57,6 +57,7 @@ import {
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 import {
     fireFieldEventTriggers,
+    fireSummonTrigger,
     fireTrigger,
     notifyHandGained,
     notifyNexusDeployed,
@@ -68,6 +69,7 @@ import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
+    effectiveCost,
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
@@ -160,6 +162,7 @@ checkExhaustOnCoreChange,
     pickEnemyCandidates,
     placeCoresOnSpirit,
     resistanceAgainst,
+    resolveTensho,
     summonFreeFromHandIndex,
 } from "./EffectModules"
 
@@ -449,7 +452,214 @@ export function wouldAskReviveConfirm(
 ): boolean {
     const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
     if (!inst) return false
-    return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, true)
+    return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
+}
+
+// この個体を今このコンテキストで破壊しようとしたとき、
+// **そもそも「フィールドに残る」が成立しうるか**（任意・強制を問わない。副作用なし）。
+// 【不死】と「フィールドに残る」の解決順をターンプレイヤーに聞くべきかの判定に使う
+export function wouldRevive(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+    context?: DestroyContext,
+): boolean {
+    const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
+    if (!inst) return false
+    return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "any")
+}
+
+// ── 【不死】（BS09）──────────────────────────────────────────────────────
+// トラッシュにある【不死】持ちのスピリットカードは、指定コストの自分のスピリットが破壊されたとき、
+// **通常のコストを支払って**召喚できる（『お互いのアタックステップ』限定）。
+// ⚠️ 同じ破壊に対する「フィールドに残る」と**同時発揮**で、ターンプレイヤーが決める解決順が
+//    結果を変える（残るを先に解決すると破壊されなかったことになり、【不死】は発動できない）。
+// docs/design/BS09_PLAN.md §3 ／ docs/design/TIMING_CHART.md §0-3
+
+// この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
+// 召喚コスト＋維持コアをリザーブから払えないものは、確認自体を出さないので除く
+export function fushiCandidates(
+    state: GameState,
+    ownerPid: PlayerId,
+    destroyedCost: number,
+    // 破壊されたスピリットのシンボル（場から消えた後に数えるぶん）
+    extraSymbols?: Color[],
+): number[] {
+    // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
+    if (state.phase !== "attack") return []
+    const player = state.players[ownerPid]
+    const found: number[] = []
+    for (let i = 0; i < player.trashCards.length; i++) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined) continue
+        const card = getCard(cardId)
+        if (card.type !== "spirit") continue
+        const hit = card.effects.some(
+            (e) =>
+                e.kind === "keyword" &&
+                e.keyword === "fushi" &&
+                (e.triggerCosts ?? []).includes(destroyedCost),
+        )
+        if (!hit) continue
+        if (player.reserve < effectiveCost(state, ownerPid, card, extraSymbols) + minLevelCores(card)) continue
+        found.push(i)
+    }
+    return found
+}
+
+function suspendFushiSummon(
+    state: GameState,
+    ownerPid: PlayerId,
+    trashIndex: number,
+    extraSymbols?: Color[],
+): void {
+    const cardId = state.players[ownerPid].trashCards[trashIndex]
+    if (cardId === undefined) return
+    const card = getCard(cardId)
+    suspend(state, {
+        pid: ownerPid,
+        kind: "option",
+        prompt: `${card.name}：【不死】でトラッシュからコスト${String(effectiveCost(state, ownerPid, card, extraSymbols))}を支払って召喚しますか？`,
+        candidates: [],
+        options: ["召喚する"],
+        optional: true,
+        confirm: true,
+        fushiSummon: {
+            pid: ownerPid,
+            cardId,
+            trashIndex,
+            ...(extraSymbols && extraSymbols.length > 0 ? { extraSymbols } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+}
+
+// 【不死】の確認で「召喚する」が選ばれたときの後処理。**コストはここで支払う**
+export function applyFushiSummon(
+    state: GameState,
+    info: NonNullable<PendingChoice["fushiSummon"]>,
+): void {
+    const player = state.players[info.pid]
+    // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
+    const index =
+        player.trashCards[info.trashIndex] === info.cardId
+            ? info.trashIndex
+            : player.trashCards.indexOf(info.cardId)
+    if (index === -1) return
+    const card = getCard(info.cardId)
+    const cost = effectiveCost(state, info.pid, card, info.extraSymbols)
+    const maintain = minLevelCores(card)
+    if (player.reserve < cost + maintain) {
+        log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
+        return
+    }
+    player.trashCards.splice(index, 1)
+    // 召喚コストはリザーブからトラッシュへ、維持コアはリザーブからスピリットの上へ（通常の召喚と同じ）
+    player.reserve -= cost
+    player.trashCores += cost
+    player.reserve -= maintain
+    const inst = createInstance(info.cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}は【不死】で${card.name}をトラッシュから召喚した。（コスト${String(cost)}）`)
+    // 「召喚」なので【転召】も召喚時効果も通常どおり解決する
+    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (state.winner) return
+    if (state.pendingChoice) {
+        // 【転召】の途中で中断したら、召喚時効果以降は再開フレームに任せる（doSummon と同じ形）
+        pushResumeFrames(state, [
+            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+        ])
+        return
+    }
+    fireSummonTrigger(state, info.pid, inst)
+}
+
+// 【不死】が絡む1体ぶんの破壊を、確定した順番どおりに解決する。
+// 中断したら destroyOne フレームを積んで抜ける（続きは drainResumeStack が回す）。
+// 破壊の結果は state.lastReviveDestroyed に残す（バッチが「破壊できた数」に算入するため）
+export function resolveDestroyOne(
+    state: GameState,
+    frame: Extract<ResumeFrame, { kind: "destroyOne" }>,
+): void {
+    let fushiDone = frame.fushiDone
+    for (let s = frame.step; s < frame.order.length; s++) {
+        if (frame.order[s] === "destroy") {
+            state.lastReviveDestroyed = destroySpirit(
+                state,
+                frame.pid,
+                frame.instanceId,
+                "destroy",
+                frame.context,
+                { allowSuspend: true },
+            )
+        } else {
+            // ⚠️「破壊」を先に解決していて、そこで**場に残った**（＝破壊されなかった）なら、
+            // 【不死】の引き金（「破壊されたとき」）が成立しないので発揮しない。
+            // これが「残るを先に解決したら【不死】は撃てない」の実体（BS09_PLAN.md §3）
+            const destroyIndex = frame.order.indexOf("destroy")
+            if (destroyIndex >= 0 && destroyIndex < s && state.lastReviveDestroyed !== true) continue
+            // 破壊されて場から消えた後も、その個体のシンボルは【不死】の召喚の軽減に数える
+            // （まだ場にいる＝先に【不死】を解決した場合は二重に数えないよう空にする）
+            const stillOnField = state.players[frame.pid].field.spirits.some(
+                (x) => x.instanceId === frame.instanceId,
+            )
+            const extraSymbols = stillOnField ? [] : frame.destroyedSymbols
+            // 【不死】：候補を1枚ずつ確認する（確認のたびに中断しうる）。
+            // 候補は解決のたびに数え直す（召喚でトラッシュが減るため）
+            while (true) {
+                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost, extraSymbols)
+                const next = candidates[fushiDone]
+                if (next === undefined) break
+                fushiDone++
+                if (state.interactiveTargets) {
+                    suspendFushiSummon(state, frame.pid, next, extraSymbols)
+                    break
+                }
+                // 非対話（テスト・自動解決）では確認せずに召喚する（既存の任意効果と同じ簡略化）
+                const cardId = state.players[frame.pid].trashCards[next]
+                if (cardId === undefined) break
+                applyFushiSummon(state, {
+                    pid: frame.pid,
+                    cardId,
+                    trashIndex: next,
+                    ...(extraSymbols.length > 0 ? { extraSymbols } : {}),
+                })
+                if (state.pendingChoice || state.winner) break
+            }
+        }
+        if (state.winner) return
+        if (state.pendingChoice) {
+            // 「破壊」で中断したときはそのステップは終わっている（確認の答えが決着させる）ので次から。
+            // 【不死】で中断したときは同じステップの続き（残りの候補）から再開する
+            const nextStep = frame.order[s] === "destroy" ? s + 1 : s
+            pushResumeFrames(state, [{ ...frame, step: nextStep, fushiDone }])
+            return
+        }
+    }
+}
+
+// 「破壊そのもの」と【不死】のどちらを先に解決するかを、ターンプレイヤーに聞いて中断する
+function suspendDestroyEffectOrder(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): void {
+    suspend(state, {
+        pid: state.turnPlayer,
+        kind: "option",
+        prompt: `${state.players[ownerPid].name}の${getCard(inst.cardId).name}の破壊：どちらを先に解決しますか？`,
+        candidates: [],
+        options: ["フィールドに残る", "【不死】で召喚する"],
+        optional: false,
+        destroyEffectOrder: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            slots: ["destroy", "fushi"],
+        },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
 }
 
 // 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
@@ -472,8 +682,51 @@ export function destroySpiritsFrom(
         }
         const t = targets[i]
         if (!t) continue
-        if (destroySpirit(state, t.pid, t.instanceId, "destroy", t.context ?? context, { allowSuspend: true })) {
-            destroyed++
+        const ctx = t.context ?? context
+        // 【不死】（BS09）：この破壊を引き金にトラッシュから召喚できるカードがあるか。
+        // **絡まなければ従来どおり destroySpirit を直接呼ぶ**（ほぼ全てのケース）
+        const target = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
+        const fushi = target ? fushiCandidates(state, t.pid, getCard(target.cardId).cost) : []
+        if (fushi.length === 0) {
+            if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true })) {
+                destroyed++
+            }
+        } else if (target) {
+            // 「フィールドに残る」と【不死】が同時発揮するなら、ターンプレイヤーが解決順を決める
+            // （残るを先に解決すると破壊されなかったことになり、【不死】は発動できない）
+            let order: ("destroy" | "fushi")[] = ["destroy", "fushi"]
+            if (wouldRevive(state, t.pid, t.instanceId, ctx)) {
+                const pick = state.destroyEffectOrderPick
+                if (pick === undefined) {
+                    if (state.interactiveTargets) {
+                        suspendDestroyEffectOrder(state, t.pid, target)
+                        return { destroyed, stoppedAt: i }
+                    }
+                    // 非対話（テスト・自動解決）は「破壊を先に」で決定的に進める簡略化
+                } else {
+                    delete state.destroyEffectOrderPick
+                    order = pick === "fushi" ? ["fushi", "destroy"] : ["destroy", "fushi"]
+                }
+            }
+            delete state.lastReviveDestroyed
+            resolveDestroyOne(state, {
+                kind: "destroyOne",
+                pid: t.pid,
+                instanceId: t.instanceId,
+                destroyedCost: getCard(target.cardId).cost,
+                // 破壊で場から消えた後も軽減シンボルとして数えるため、破壊前に控えておく
+                destroyedSymbols: target.symbolsOverrideContinuous ?? [...getCard(target.cardId).symbol],
+                order,
+                step: 0,
+                fushiDone: 0,
+                ...(ctx ? { context: ctx } : {}),
+            })
+            // 中断せずに終わったなら、破壊できたかをここで算入する
+            // （中断した場合は destroyOne フレームが決着させ、resumeDestroyBatch が算入する）
+            if (!state.pendingChoice && state.lastReviveDestroyed === true) {
+                destroyed++
+                delete state.lastReviveDestroyed
+            }
         }
         if (state.winner) return { destroyed, stoppedAt: targets.length }
         // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する
@@ -614,9 +867,11 @@ function tryReviveOnDestroy(
     // true なら「破壊される代わりに復活できる」の確認を**その場で**出す（保留リストに積まない）。
     // ①の破壊（destroySpirits のバッチ経由）だけが立てる。②は渡さず保留へ（destroySpirit の注記）
     allowSuspend?: boolean,
-    // true なら**判定だけ**して結果を返す（確認も復活も実行しない）。
-    // 「確認が2件以上出るか」を数えるための下見に使う（wouldAskReviveConfirm）
-    probe?: boolean,
+    // **判定だけ**して結果を返す下見モード（確認も復活も実行しない）。
+    //   "confirm" ＝「復活しますか？」の確認が出るか（＝任意の復活があるか）
+    //   "any"     ＝任意・強制を問わず、そもそも復活が成立しうるか（【不死】との解決順の判定に使う）
+    // ⚠️ "any" はコストが払えるかまでは見ない近似（副作用なしで確かめられないため）
+    probe?: "confirm" | "any",
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -821,8 +1076,9 @@ function tryReviveOnDestroy(
             }
             return true
         }
-        // 下見は確認の有無だけを見る。任意でない復活（＝確認を出さずに確定する）はここで打ち切る
-        if (probe) return false
+        // 任意でない復活（＝確認を出さずに確定する）。"any" は復活しうるので true、
+        // "confirm" は確認が出ないので次のエントリを見に行く
+        if (probe) return probe === "any"
         if (!applyCost(effect)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
@@ -881,7 +1137,8 @@ function tryReviveOnDestroy(
                 }
                 return true
             }
-            // 下見は確認の有無だけを見る。任意でない復活は確認を出さないので、次の発生源を見に行く
+            // 任意でない復活。"any" は復活しうるので true、"confirm" は次の発生源を見に行く
+            if (probe === "any") return true
             if (probe) continue
             if (!applyCost(effect)) continue
             markOncePerTurn(effect, source)

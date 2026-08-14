@@ -374,6 +374,11 @@ export type Keyword =
     | "seimei" // 聖命：このスピリットのアタックで相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く（BS07初出）
     | "kyoshu" // 強襲：アタック時、ターン中に指定数まで、自分のネクサス1つを疲労させることで自身を回復できる（BS07初出）
     | "hyoheki" // 氷壁：相手が指定色のマジックの効果を使用したとき、このスピリットを疲労させることでその効果を無効にする（BS08初出）
+    | "fushi" // 不死：トラッシュにあるこのスピリットカードは、指定コストの自分のスピリットが破壊されたとき、
+    // **通常のコストを支払って**召喚できる（BS09初出）。引き金のコストは keyword エントリの triggerCosts が持つ。
+    // 発揮は『お互いのアタックステップ』限定で、破壊処理（＞６）のその場で確認する。
+    // ⚠️「フィールドに残る」と同時発揮なので、ターンプレイヤーが決める解決順が結果を変える
+    //   （残るを先に解決すると破壊されなかったことになり発動できない）。docs/design/BS09_PLAN.md §3
 // ※ 暴風と同じく、seimei / kyoshu / hyoheki も**キーワードエントリ自体は宣言**で、挙動は対になる
 //    エントリが持つ（seimei/kyoshu は triggered の onLifeDealt / onAttack、
 //    hyoheki は kind:"magicNegate"（cost:{exhaustSelf:true}＋colors＋turn:"opponent"））。宣言があることで
@@ -511,6 +516,8 @@ export type EffectDef =
           count?: number // 暴風用: 指定数（【暴風：2】＝2体）。表示と、同じカードの誘発エントリの体数を読み合わせるために持つ
           minCost?: number // 転召用: 対象スピリットのコスト下限
           dest?: "trash" | "void" // 転召用: コアの行き先（trash=持ち主のトラッシュ、void=消滅）
+          triggerCosts?: number[] // 不死用: 引き金になる自分のスピリットのコスト（【不死：コスト6/7】＝[6, 7]）。
+          // 省略時は「キーワードを持つ」宣言だけ（「【不死】を持つ自分のスピリットすべて」の絞り込み用）
       }
     | {
           id: string
@@ -1528,6 +1535,24 @@ export interface PendingChoice {
         sourceInstanceId: string
         context?: DestroyContext
     }
+    fushiSummon?: {
+        // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。
+        // reviveConfirm と同じく **action は解決しない**（BS09。docs/design/BS09_PLAN.md §3）
+        pid: PlayerId
+        cardId: string
+        trashIndex: number // 同名カードが複数あるときにどれを出したかを固定する
+        // 【不死】を誘発した「破壊されたスピリット」のシンボル。場から消えた後でも
+        // この召喚の軽減シンボルとして数える（2026-08-14 ユーザー確認。BS09_PLAN.md §3）
+        extraSymbols?: Color[]
+    }
+    destroyEffectOrder?: {
+        // 1体の破壊に対して**同時に発揮する効果**が2つ以上あるときの、解決順の選択待ち。
+        // 今のところ「フィールドに残る（＝破壊そのもの）」と【不死】の2種類。
+        // 選ばれた側を GameState.destroyEffectOrderPick に記録する（TIMING_CHART.md §0-3）
+        pid: PlayerId // 破壊される個体の持ち主（表示用。選ぶのはターンプレイヤー）
+        instanceId: string
+        slots: ("destroy" | "fushi")[] // PendingChoice.options と同順
+    }
     destroyOrder?: {
         // 同時に破壊される複数体のうち「**どの体から破壊処理をするか**」の選択待ち。
         // reviveConfirm と同じく **action は解決しない**。選ぶのは常にターンプレイヤーで、
@@ -1599,6 +1624,23 @@ export type ResumeFrame =
               voidCoreToSelfPerDestroyed?: true
               selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
           }
+      }
+    | {
+          // **1体の破壊に伴って同時に発揮する効果**の解決の続き。
+          // 今のところ「破壊そのもの（＝『フィールドに残る』の確認を含む）」と【不死】の2種類で、
+          // 順番はターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3 / BS09_PLAN.md §3）。
+          // **【不死】が絡むときだけ通る道**で、絡まなければ destroySpiritsFrom は従来どおり
+          // destroySpirit を直接呼ぶ（ほぼ全てのケース）
+          kind: "destroyOne"
+          pid: PlayerId // 破壊される個体の持ち主
+          instanceId: string
+          destroyedCost: number // 破壊される個体のコスト（【不死】の引き金判定に使う。破壊前に読む）
+          destroyedSymbols: Color[] // 破壊される個体のシンボル（破壊前に読む）。
+          // 【不死】の召喚の軽減シンボルとして、場から消えた後も数える
+          order: ("destroy" | "fushi")[] // 確定した解決順
+          step: number // 次に解決する order の位置
+          fushiDone: number // 【不死】の候補を何枚ぶん確認し終えたか
+          context?: DestroyContext
       }
     | {
           // バトル解決（＞５のBP比較が終わった後 〜 ＞７のバトル終了宣言）の続き。
@@ -1673,6 +1715,9 @@ export interface GameState {
     // 破壊バッチ（destroySpiritsFrom）が再開時に読み取り、その個体を残りの先頭へ入れ替えて消す。
     // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）
     destroyOrderPick?: string
+    // 直前の「破壊とその同時発揮の効果、どちらを先に解決するか」（PendingChoice.destroyEffectOrder）で
+    // ターンプレイヤーが選んだ側。destroySpiritsFrom が読み取って解決順を組み立て、読んだら消す
+    destroyEffectOrderPick?: "destroy" | "fushi"
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

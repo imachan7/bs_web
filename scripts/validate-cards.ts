@@ -289,10 +289,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         for (const col of c.symbol ?? []) {
             if (!VALID_COLORS.has(col)) add(id, `symbol に未知の色: ${String(col)}`)
         }
-        // 軽減シンボルは自分の色の範囲に収まるはず（多色カードは混色。BS05-X19＝赤3白3）
-        for (const col of c.reduction ?? []) {
-            if (Array.isArray(c.colors) && !c.colors.includes(col)) {
-                add(id, `reduction に自色以外の色が含まれる: ${col}（colors=${c.colors.join("/")}）`)
+        // 軽減シンボルには**自色が少なくとも1つ**含まれるはず。
+        // ⚠️ かつては「自色の範囲に収まるはず」という検査だったが、
+        //    **第九弾「超星」（BS09）が異色軽減を導入した**ため成り立たなくなった
+        //    （91枚中37枚が自色＋他色1色の軽減を持つ。BS09-014 闇騎士ボールス＝紫で赤2紫2）。
+        //    軽減の計算（shared/cost.ts）は色ごとに数えるので engine 側の変更は要らない。
+        //    自色が1つも無いものだけを取り込みミスとして拾う形に弱めてある
+        if (Array.isArray(c.colors) && (c.reduction ?? []).length > 0) {
+            if (!(c.reduction ?? []).some((col) => c.colors.includes(col))) {
+                add(id, `reduction に自色が1つも含まれない（colors=${c.colors.join("/")} / reduction=${(c.reduction ?? []).join("/")}）`)
             }
         }
 
