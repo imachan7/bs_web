@@ -2652,6 +2652,7 @@ export {
     resolveMagic,
     applyMagicRedirectChoice,
     applyMagicSideChoice,
+    applyMagicRepeatChoice,
     applyMagicNegateChoice,
     declineMagicNegateChoice,
 } from "./triggers"

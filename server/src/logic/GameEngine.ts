@@ -35,6 +35,7 @@ import {
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
     applyMagicSideChoice,
+    applyMagicRepeatChoice,
     applyHandFreeSummon,
     applyDeckMillNegate,
     applyReviveConfirm,
@@ -491,6 +492,9 @@ function doSetNexus(
     return null
 }
 
+// 無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
+export const MAGIC_FREE_OPTIONS = ["コストを支払わずに使用する", "コストを支払って使用する"]
+
 function doCastMagic(
     state: GameState,
     pid: PlayerId,
@@ -498,6 +502,9 @@ function doCastMagic(
     targetInstanceId?: string,
     paySources?: PaySource[],
     fromTegamoto?: boolean,
+    // undefined＝まだ聞いていない / true＝無償で使う / false＝あえてコストを払う。
+    // 確認から戻ってきたときだけ true/false が入る
+    freeChoice?: boolean,
 ): string | null {
     const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto)
     if (error) return error
@@ -506,7 +513,39 @@ function doCastMagic(
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
-    const cost = effectiveCost(state, pid, card)
+
+    // マジック無償化（kind:"magicFreeGrant"）の使用時確認（2026-08-15 ユーザー確認）。
+    // 無償化を持つカードすべてで毎回聞く。**あえてコストを払う**道を残すのは、
+    // 無償化の枠が1枚きりのカード（大天使イスフィール）で枠を温存できるようにするため。
+    // **払える見込みがあるときだけ**聞く（払えないなら無償で使う以外に道がなく、聞いても意味がない）。
+    // 見込みはリザーブだけで見る簡略化（フィールドのコアで払う場合は確認が出ないが、
+    // その場合も無償で使えることに変わりはないので不利益にならない）
+    const paidCost = effectiveCost(state, pid, card, true)
+    const isFree = paidCost > 0 && effectiveCost(state, pid, card) === 0
+    if (freeChoice === undefined && state.interactiveTargets && isFree && player.reserve >= paidCost) {
+        suspend(state, {
+            pid,
+            kind: "option",
+            prompt: `${card.name}：コストを支払わずに使用しますか？（支払う場合のコストは${paidCost}）`,
+            candidates: [],
+            options: MAGIC_FREE_OPTIONS,
+            optional: false,
+            magicFreeChoice: {
+                handIndex,
+                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+                ...(paySources !== undefined ? { paySources } : {}),
+                ...(fromTegamoto !== undefined ? { fromTegamoto } : {}),
+            },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return null
+    }
+    // あえて払うことを選んだ場合だけ無償化を無視する。
+    // resolveMagic は magicFreeDeclined を見て oncePerBattle の枠を消費しない
+    const declinedFree = isFree && freeChoice === false
+    const cost = effectiveCost(state, pid, card, declinedFree)
+    if (declinedFree) state.magicFreeDeclined = true
 
     payCost(state, pid, cost, paySources)
     if (fromTegamoto) {
@@ -1122,6 +1161,43 @@ function doResolveChoice(
         } else {
             declineDeckMillNegate(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 再発揮の確認（BS07大天使イスフィール）。action は解決せず、
+    // 選べば効果の並びをもう1周し、選ばなければマジック使用時の誘発へ進む
+    if (pending.magicRepeat) {
+        const options = pending.options ?? []
+        if (option === undefined) return "もう1度発揮するかどうか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0) return "選択できない候補です"
+        const info = pending.magicRepeat
+        state.pendingChoice = null
+        applyMagicRepeatChoice(state, info, index === 0) // 0=もう1度発揮する
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 無償化の使用時確認（BS07大天使イスフィールほか）。action は解決せず、
+    // 答えを持って doCastMagic をやり直す（コストの支払いはそのやり直しの中で行う）
+    if (pending.magicFreeChoice) {
+        const options = pending.options ?? []
+        if (option === undefined) return "コストを支払うかどうか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0) return "選択できない候補です"
+        const info = pending.magicFreeChoice
+        state.pendingChoice = null
+        const error = doCastMagic(
+            state,
+            pending.pid,
+            info.handIndex,
+            info.targetInstanceId,
+            info.paySources,
+            info.fromTegamoto,
+            index === 0, // 0=コストを支払わずに使用する
+        )
+        if (error) return error
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

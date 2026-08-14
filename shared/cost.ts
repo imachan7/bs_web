@@ -321,10 +321,14 @@ export function effectiveCost(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
+    ignoreFreeGrant = false,
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
-    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
+    // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）。
+    // ignoreFreeGrant は「無償で使えるが**あえてコストを払う**」を選んだとき（2026-08-15 ユーザー確認）。
+    // 無償化の枠が1枚きりのカード（大天使イスフィール）で枠を温存する余地があるため、使用時に選ばせる
     if (
+        !ignoreFreeGrant &&
         cardData.type === "magic" &&
         hasMagicFreeGrant(board, pid, cardData) &&
         !hasMagicRestriction(board, pid, "noFreeCastOpponent")

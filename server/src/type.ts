@@ -1676,6 +1676,26 @@ export interface PendingChoice {
         sourceInstanceId: string // 魔導書＝確認を出す側の発生源
         ownerPid: PlayerId // 魔導書の持ち主（＝選ぶ人）
     }
+    magicRepeat?: {
+        // 「マジックの効果発揮後、同じ効果をもう1度だけ発揮できる」（kind:"magicRepeatGrant"）の確認待ち。
+        // **action は解決しない**（選べば2周目を走らせ、選ばなければマジック使用時の誘発へ進む）。
+        // 1周目が解決しきってから聞く（『効果発揮後』なので順序が決まっている）
+        casterPid: PlayerId
+        cardId: string
+        timing: "main" | "flash"
+        targetInstanceId: string | undefined
+        sourceInstanceId: string // 再発揮を与えている発生源
+    }
+    magicFreeChoice?: {
+        // 「マジックをコストを支払わずに使用できる」（kind:"magicFreeGrant"）の使用時確認。
+        // **action は解決しない**（答えを持って doCastMagic をやり直す）。
+        // 無償化の枠が1枚きりのカード（大天使イスフィール）で枠を温存できるようにするため、
+        // 無償で使えるときも「あえてコストを払う」を選べる（2026-08-15 ユーザー確認）
+        handIndex: number
+        targetInstanceId?: string
+        paySources?: PaySource[]
+        fromTegamoto?: boolean
+    }
     action: EffectAction // 選択後に resolveAction する本体
     actorPid?: PlayerId // action を「誰の効果として」解決するか。省略時は pid（選択者自身）。
     // **選択者と実行者が別**のケースで使う（BS02-012 ケンドラゴス：相手に色を選ばせて、破壊は発生源の持ち主の効果として行う）
@@ -1820,6 +1840,10 @@ export interface GameState {
     // 対話モードでは resolveMagic が魔導書の持ち主に1回だけ確認し、そのマジックの解決中ずっと使う。
     // **非対話（テスト・自動解決）ではセットされず、従来どおり持ち主に有利な側へ自動で固定する**
     magicSideDecision?: { sourceInstanceId: string; keepPid: PlayerId | null }
+    // 「無償で使えるが、あえてコストを払って使う」を選んだ直後だけ立つ（doCastMagic が立て、
+    // resolveMagic が読んですぐ消す）。**oncePerBattle の無償化の枠を消費させない**ために使う
+    // （払って使ったのだから、1枚きりの枠は残る。BS07大天使イスフィール）
+    magicFreeDeclined?: boolean
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
