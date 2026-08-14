@@ -505,16 +505,18 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
 
 const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        // コアを1個だけ残し超過分を持ち主のリザーブへ置く（両陣営共通の適用処理）
+        // コアを1個だけ残し超過分を持ち主のリザーブ（dest:"trash"ならトラッシュ）へ置く（両陣営共通の適用処理）
+        const toTrash = action.dest === "trash"
         const applySqueeze = (pid: PlayerId, target: CardInstance): void => {
             const player = state.players[pid]
             const excess = target.cores - 1
             if (excess > 0) {
                 target.cores = 1
-                player.reserve += excess
+                if (toTrash) player.trashCores += excess
+                else player.reserve += excess
                 log(
                     state,
-                    `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}のリザーブに置いた。`,
+                    `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}の${toTrash ? "トラッシュ" : "リザーブ"}に置いた。`,
                 )
                 // 相手側のスピリットが対象になった場合のみ「相手の効果でコアが取り除かれた」通知（極光の大地）
                 if (pid !== owner) notifySpiritCoresRemovedByOpponent(state, pid, 1)
@@ -1273,6 +1275,19 @@ const opponentCoresToTrashHandler: ActionHandler<"opponentCoresToTrash"> = (ctx,
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 氷の女神フリッグ：相手のリザーブ→相手スピリット上（コアの多い順）の順にコアを相手のトラッシュへ
         const target = state.players[opp]
+        // reserveAll（BS09-017蛇凰神バァラルLv3）：リザーブにあるコアすべてをトラッシュへ。
+        // スピリット上のコアには触れないので、ここで完結する
+        if (action.reserveAll) {
+            const moved = target.reserve
+            if (moved === 0) {
+                log(state, `${sourceName}：${target.name}のリザーブにコアがなかった。`)
+                return
+            }
+            target.reserve = 0
+            target.trashCores += moved
+            log(state, `${sourceName}：${target.name}のリザーブのコア${String(moved)}個をトラッシュに置いた。`)
+            return
+        }
         let remaining = action.count
         const fromReserve = Math.min(remaining, target.reserve)
         target.reserve -= fromReserve

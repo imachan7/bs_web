@@ -778,8 +778,12 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // カード静的な名前（cardId基準）で判定する
         const nameOk = (cardId: string): boolean =>
             action.nameIncludes === undefined || getCard(cardId).name.includes(action.nameIncludes)
+        // colorFilter（BS09-015獄獣ガシャベルスLv3＝黄）：トラッシュのカードが対象なので
+        // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
+        const colorOk = (cardId: string): boolean =>
+            action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
         const isRecoverable = (cardId: string): boolean =>
-            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId)
+            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -1505,6 +1509,55 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
 }
 
+// BS09-058魔本収められし書架Lv2：持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す。
+// opponentHandToDeckTop の自分版（選ぶのは戻す本人なので owner に選択を出す）
+const handToOwnDeckTopHandler: ActionHandler<"handToOwnDeckTop"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象の手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.deck.unshift(cardId)
+        log(state, `${player.name}は手札1枚をデッキの上に戻した。`)
+        return
+    }
+    if (player.hand.length === 0) {
+        log(state, `${sourceName}：${player.name}の手札がなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        const indices = player.hand.map((_, i) => i)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：デッキの上に戻すカードを選んでください`,
+                "hand",
+                indices,
+                { type: "handToOwnDeckTop", count: 1 },
+                action.count > 1 ? { type: "handToOwnDeckTop", count: action.count - 1 } : null,
+            )
+        ) {
+            return
+        }
+    }
+    // 自動時は手札末尾から（本来は本人が選ぶ。決定的簡略化）
+    let moved = 0
+    for (let i = 0; i < action.count; i++) {
+        const cardId = player.hand.pop()
+        if (cardId === undefined) break
+        player.deck.unshift(cardId)
+        moved++
+    }
+    log(state, `${player.name}は手札${String(moved)}枚をデッキの上に戻した。`)
+    return
+}
+
 // BS07魔札の占い師ディーシャLv2：相手は手札からcount枚を選んで自分のデッキの一番上に戻す。
 // 選ぶのは戻される側（相手）なので、interactiveTargets では相手本人に選択を出す（discardOpponent と同じ形）
 const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ctx, action) => {
@@ -1866,6 +1919,7 @@ const handlers = {
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
+    handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,

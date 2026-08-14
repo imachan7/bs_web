@@ -761,10 +761,10 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
 
 // 【転召】の対象選択で中断した召喚の続き（cards.jsonには書かない内部専用）。
 // GameEngine が pendingChoice.queue へ積み、選択の解決後にここで召喚時効果以降へ合流する
-const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx) => {
+const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => {
     const { state, owner, self } = ctx
     if (!self) return
-    fireSummonSequence(state, owner, self)
+    fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 
 const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, action) => {

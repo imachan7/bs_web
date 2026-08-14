@@ -959,7 +959,7 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
 // 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
-export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance): void {
+export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
     const player = state.players[pid]
     // 転召でコアが尽きて消滅していれば、もう何もしない
@@ -967,8 +967,11 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     fireSummonTrigger(state, pid, inst)
     const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
     if (!state.winner && stillOnField()) {
+        // 【不死】による召喚も「召喚」なのでこのイベントを起こす。byFushi は
+        // 「【不死】の効果で召喚されたとき」（BS09-013ミミズクロ）を絞り込むためだけに渡す
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, undefined, undefined, undefined, {
             families: getCard(inst.cardId).family,
+            byFushi,
         })
     }
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
@@ -2255,6 +2258,8 @@ export function countEffectCounter(
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
     if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
+    if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0

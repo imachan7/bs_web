@@ -57,7 +57,6 @@ import {
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 import {
     fireFieldEventTriggers,
-    fireSummonTrigger,
     fireTrigger,
     notifyHandGained,
     notifyNexusDeployed,
@@ -157,6 +156,7 @@ checkExhaustOnCoreChange,
     destroyedCoresGoToTrash,
     emitEvent,
     exhaustSpirit,
+    fireSummonSequence,
     isResisted,
     pickEnemyByBp,
     pickEnemyCandidates,
@@ -655,11 +655,13 @@ export function applyFushiSummon(
     if (state.pendingChoice) {
         // 【転召】の途中で中断したら、召喚時効果以降は再開フレームに任せる（doSummon と同じ形）
         pushResumeFrames(state, [
-            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence", byFushi: true } },
         ])
         return
     }
-    fireSummonTrigger(state, info.pid, inst)
+    // 【不死】も「召喚」なので、召喚時効果だけでなく「自分のスピリットが召喚されたとき」の
+    // フィールド誘発も通常どおり起こす（byFushi=true。BS09-013ミミズクロ／BS09-071イモータルドロー）
+    fireSummonSequence(state, info.pid, inst, true)
 }
 
 // 【不死】が絡む1体ぶんの破壊を、確定した順番どおりに解決する。

@@ -629,6 +629,15 @@ export function fireStepTriggers(
                     // 水蛇シーサーペンタ：持ち主の手札が指定枚数以上のときのみ発火（Lvごとに閾値が変わる）
                     if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "opponentDeckNotEmpty" in effect.condition) {
+                    // BS09-058魔本収められし書架Lv2：相手のデッキが0枚のときは発揮しない
+                    if (state.players[opponentOf(pid)].deck.length === 0) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownSpiritMinBp" in effect.condition) {
+                    // BS09-015獄獣ガシャベルス：実効BPが指定値以上の自分のスピリットが1体でもいるときのみ発火
+                    const min = effect.condition.ownSpiritMinBp
+                    if (!state.players[pid].field.spirits.some((s) => effectiveBp(state, pid, s) >= min)) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownRefreshedSpiritsAtLeast" in effect.condition) {
                     // 紫水晶の森Lv2：自分のフィールドに回復状態のスピリットが指定体数以上いるときのみ発火
                     const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested, getCard(inst.cardId).type)
@@ -715,6 +724,8 @@ export function fireFieldEventTriggers(
         // event: "ownSpiritCoresRemovedByOpponent" 限定：実際に取り除かれたコア数。
         // effect.countMode === "cores" のエントリのみ repeatPerCount の繰り返し回数として使う（BS06希望の大灯台Lv1）
         coresRemoved?: number
+        // event: "ownSpiritSummoned" 限定：その召喚が【不死】によるものだったか（fushiSummonOnly の判定に使う。BS09-013ミミズクロ）
+        byFushi?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -812,6 +823,8 @@ export function fireFieldEventTriggers(
                           matchesFamilyFilter(state, selfOverride.pid, selfOverride.inst, effect.familyFilter)
                 if (!ok) continue
             }
+            // 【不死】の効果で召喚されたときのみ（BS09-013ミミズクロ）。通常の召喚では発火しない
+            if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
             // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
             // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
             // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
@@ -1470,6 +1483,15 @@ function runMagicActions(
                         state,
                         `${card.name}：自分のスピリットが${minCount}体未満のため発動しなかった。`,
                     )
+                    continue
+                }
+            } else if ("ownFieldHasColorSpirits" in effect.condition) {
+                // BS09-072シャドウブレイド：指定した色のスピリットが**それぞれ**1体以上いないと使用できない
+                // （1体が多色で複数の色を満たしてもよい）
+                const wanted = effect.condition.ownFieldHasColorSpirits
+                const spirits = state.players[owner].field.spirits
+                if (!wanted.every((c) => spirits.some((s) => instHasColor(s, c)))) {
+                    log(state, `${card.name}：必要な色のスピリットがそろっていないため発動しなかった。`)
                     continue
                 }
             } else if ("ownFieldHasAllNames" in effect.condition) {

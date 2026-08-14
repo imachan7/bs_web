@@ -1199,8 +1199,14 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
 // 発生源の持ち主のまま解決する（destroyAllExceptChosenColorsと同じ「相手に選ばせて自分の効果として解決する」形）
 const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
-    const allSpiritIds = (): string[] =>
-        [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].map((s) => s.instanceId)
+    // keywordExclude（BS09-016闇騎士モルドレッド＝【転召】を持たない）：候補から除外する。
+    // 一時付与・継続付与も見るので spiritHasKeyword で判定する
+    const eligible = (pid: PlayerId, s: CardInstance): boolean =>
+        action.keywordExclude === undefined || !spiritHasKeyword(state, pid, s, action.keywordExclude)
+    const allSpiritIds = (): string[] => [
+        ...state.players.p1.field.spirits.filter((s) => eligible("p1", s)).map((s) => s.instanceId),
+        ...state.players.p2.field.spirits.filter((s) => eligible("p2", s)).map((s) => s.instanceId),
+    ]
 
     let chosenOwn = action.chosenOwn
     let chosenOpp = action.chosenOpp
@@ -1239,7 +1245,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         // 非対話時：各プレイヤーが「相手フィールドの実効BP最大」を自動選択する
         // （プレイヤー選択の決定的簡略化。pickEnemyByBpと同じ考え方。相手フィールドが空なら自分フィールドから選ぶ）
         const pickMaxBp = (fromPid: PlayerId, viewerPid: PlayerId): string | undefined => {
-            const spirits = state.players[fromPid].field.spirits
+            const spirits = state.players[fromPid].field.spirits.filter((s) => eligible(fromPid, s))
             if (spirits.length === 0) return undefined
             return spirits.reduce((best, s) =>
                 effectiveBp(state, fromPid, s) > effectiveBp(state, fromPid, best) ? s : best,
@@ -1255,6 +1261,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         if (id === undefined || destroyedIds.has(id)) continue
         const found = findSpiritAny(state, id)
         if (!found) continue
+        if (!eligible(found.pid, found.inst)) continue
         destroyedIds.add(id)
         batch.push({ pid: found.pid, instanceId: found.inst.instanceId })
     }
