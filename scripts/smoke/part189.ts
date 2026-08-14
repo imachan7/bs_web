@@ -176,3 +176,14 @@ console.log("=== BS09-005 銀河竜アンドロメテオス Lv2：青のスピ�
     refreshLevelAsOverrides(s)
     assert(!instHasColor(lv1, "blue"), "Lv1では青にならない")
 }
+
+console.log("=== BS09-050 歌姫カナリー Lv2：自分のネクサスが配置されたときコア1個 ===")
+{
+    const s: GameState = createGame("cov-050", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "red" })
+    runTurnStart(s)
+    const canary = put(s, "p1", "BS09-050", 4) // Lv2
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(canary).level === 2, "前提：Lv2")
+    fireFieldEventTriggers(s, "p1", "ownNexusDeployed")
+    assert(canary.cores === 5, "ネクサスが配置されるとボイドからコア1個が置かれる")
+}
