@@ -969,7 +969,9 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     if (!state.winner && stillOnField()) {
         // 【不死】による召喚も「召喚」なのでこのイベントを起こす。byFushi は
         // 「【不死】の効果で召喚されたとき」（BS09-013ミミズクロ）を絞り込むためだけに渡す
-        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, undefined, undefined, undefined, {
+        // eventColors に召喚されたスピリットの色を渡す（fieldEvent.colorFilter が
+        // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
+        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
         })
@@ -1725,6 +1727,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 持ち主の対象スピリット（familyFilter一致）のシンボルを、そのスピリット元々の
                     // シンボル1色目でcount個に固定する（継続。BS08海底に眠りし古代都市Lv2）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // phaseTurn（BS09-008炎皇帝アグニフォンLv2-3＝『自分のアタックステップ』）
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
                     for (const spirit of player.field.spirits) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         const baseColor = getCard(spirit.cardId).symbol[0]

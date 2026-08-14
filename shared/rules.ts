@@ -329,6 +329,21 @@ export function hasContinuousKeywordGrant(
     return continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0
 }
 
+// keywordGrant.minBp 用のBP参照。
+// **相互再帰を切るためのガードを噛ませてある**：BPオーラは keywordFilter を持てるので
+// 「キーワードを見る → BPを見る → BPオーラがキーワードを見る」で循環しうる。
+// 再入したときはオーラ抜きの素のBP（レベル相当）で判定する
+const bpForKeywordGrantInFlight = new Set<string>()
+function bpForKeywordGrant(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
+    if (bpForKeywordGrantInFlight.has(inst.instanceId)) return currentLevel(inst).bp
+    bpForKeywordGrantInFlight.add(inst.instanceId)
+    try {
+        return effectiveBp(board, ownerPid, inst)
+    } finally {
+        bpForKeywordGrantInFlight.delete(inst.instanceId)
+    }
+}
+
 // 継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
 // 一致するエントリのeffect.count（省略時1）を返す。該当なしは0（＝持たない）。
 // hasContinuousKeywordGrant と同じ走査・絞り込みを共有する（BS08キマイラアサルト：付与する【強襲】はcount:1）
@@ -364,6 +379,9 @@ export function continuousKeywordGrantCount(
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
+            // 実効BPで見るので、BPバフで届いた個体にも付く
+            if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue
             return effect.count ?? 1
         }
     }
@@ -852,6 +870,12 @@ export function auraAppliesTo(
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false
     }
+    // 軽減シンボルの色数（BS09-003角竜人ドラケンLv2＝「軽減シンボルを2色以上持つ」）。
+    // 軽減はカード固有の情報なので、付与色（tempColors）ではなくカード静的な reduction を見る
+    if (aura.reductionColorsAtLeast !== undefined) {
+        const colors = new Set(card(targetInst.cardId).reduction)
+        if (colors.size < aura.reductionColorsAtLeast) return false
+    }
     if (
         aura.keywordFilter &&
         !spiritHasKeyword(board, targetOwnerPid, targetInst, aura.keywordFilter)
@@ -995,6 +1019,8 @@ export function matchesTarget(
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
+    // keywords（BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）：いずれか1つでも持てばよい
+    if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
@@ -1428,6 +1454,8 @@ function hasImmunityAgainst(
                 if (!familyOk && !selfOk) continue
             }
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
+            // keywordFilter（BS09-055転生の谷Lv2＝【転召】持ち）
+            if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）

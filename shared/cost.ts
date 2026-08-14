@@ -302,8 +302,12 @@ export function costSetOverride(
             // BS07女帝ペンプレスLv2-3：手札のカード名に「ペンタン」を含むスピリットカードのみ
             if (effect.nameContains !== undefined && !cardData.name.includes(effect.nameContains)) continue
             if (effect.cardTypeFilter !== undefined && cardData.type !== effect.cardTypeFilter) continue
+            // setToCounter（BS09-067ビッグバンエナジー＝「コストを自分のライフと同じ数にする」）：
+            // 固定値でなく、その時点の値を置換後のコストにする
+            const setTo =
+                effect.setToCounter === "ownLife" ? board.players[pid].life : effect.setTo
             // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
-            if (result === undefined || effect.setTo < result) result = effect.setTo
+            if (result === undefined || setTo < result) result = setTo
         }
     }
     return result

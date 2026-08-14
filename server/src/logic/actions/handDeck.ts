@@ -1509,6 +1509,43 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
 }
 
+// BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
+// ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
+const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有で判定する
+    const eligible = (cardId: string): boolean =>
+        getCard(cardId).type === "spirit" && hasKeyword(cardId, action.keyword)
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || !eligible(cardId)) {
+            log(state, `${sourceName}：破棄するカードがなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
+        draw(state, owner, action.count)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => eligible(player.hand[i]!))
+    if (indices.length === 0) {
+        log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットカードが手札になく、発動しなかった。`)
+        return
+    }
+    if (tryInteractiveCardChoice(state, owner, self, `${sourceName}：コストとして破棄するカードを選んでください`, "hand", indices, action, null)) {
+        return
+    }
+    // 自動時は先頭（決定的簡略化）
+    const index = indices[0]!
+    const cardId = player.hand[index]!
+    player.hand.splice(index, 1)
+    player.trashCards.push(cardId)
+    log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
+    draw(state, owner, action.count)
+}
+
 // BS09-058魔本収められし書架Lv2：持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す。
 // opponentHandToDeckTop の自分版（選ぶのは戻す本人なので owner に選択を出す）
 const handToOwnDeckTopHandler: ActionHandler<"handToOwnDeckTop"> = (ctx, action) => {
@@ -1919,6 +1956,7 @@ const handlers = {
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
+    costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
     handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,
     returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,

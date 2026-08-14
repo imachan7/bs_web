@@ -203,7 +203,7 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
-    "sameCostAsBlocker", "attackingOnly", "keywordExclude", "hasTrigger",
+    "sameCostAsBlocker", "attackingOnly", "keywords", "keywordExclude", "hasTrigger",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

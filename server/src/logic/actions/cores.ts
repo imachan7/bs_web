@@ -1420,6 +1420,18 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
+        // upTo（BS09-X35超神星龍ジークヴルム・ノヴァ）：「ライフが5になるように」不足分だけ置く。
+        // すでにその数以上なら何も置かない。ボイドから置くので必ず届く
+        if (action.upTo !== undefined) {
+            const need = action.upTo - player.life
+            if (need <= 0) {
+                log(state, `${sourceName}：ライフはすでに${String(action.upTo)}以上のため、コアは置かれなかった。`)
+                return
+            }
+            player.life += need
+            log(state, `${player.name}はボイドからライフにコア${String(need)}個を置いた。（現在ライフ${String(player.life)}）`)
+            return
+        }
         // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
         if (action.from === "void") {
             player.life += action.count

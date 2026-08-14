@@ -182,14 +182,22 @@ function clashScenario(s: GameState, attackerInstanceId: string): string | null 
 
     const targets = withKeyword("clash")
     let ok = 0
+    const skipped: string[] = []
     for (const { card, level } of targets) {
         const s2 = base(`clash-${card.cardId}`)
         const clasher = put(s2, "p1", card.cardId, coresForLevel(card, level))
-        // ブロックできる相手が居てはじめて激突が効く（壁役はBP5000でアタック時除去に巻き込まれない）
-        put(s2, "p2", WALL.cardId, 1)
+        // ブロックできる相手が居てはじめて激突が効く（壁役はBP5000）
+        const wall = put(s2, "p2", WALL.cardId, 1)
         const setupError = clashScenario(s2, clasher.instanceId)
         if (setupError !== null) {
             assert(false, `${card.cardId} ${card.name}：${setupError}`)
+            continue
+        }
+        // アタック時の除去で壁役ごと消してしまうカード（BS09-X35超神星龍ジークヴルム・ノヴァ Lv3＝
+        // BP合計10000まで破壊）は、ブロックできる相手が居なくなるので**ライフ受けが通って当然**。
+        // 【激突】の検査にならないため対象外にする（エンジンの不具合ではない）
+        if (!s2.players.p2.field.spirits.some((x) => x.instanceId === wall.instanceId)) {
+            skipped.push(`${card.cardId} ${card.name}`)
             continue
         }
         if (act(s2, "p2", { type: "takeLife" }) === null) {
@@ -199,5 +207,8 @@ function clashScenario(s: GameState, attackerInstanceId: string): string | null 
         ok++
     }
     assert(targets.length >= 4, `【激突】持ちを列挙できる（${targets.length}枚）`)
-    assert(ok === targets.length, `【激突】持ち全${targets.length}枚がライフ受けを拒否する（成功${ok}枚）`)
+    assert(
+        ok === targets.length - skipped.length,
+        `【激突】持ち${targets.length - skipped.length}枚がライフ受けを拒否する（成功${ok}枚${skipped.length > 0 ? `／対象外${skipped.length}枚: ${skipped.join("、")}` : ""}）`,
+    )
 }

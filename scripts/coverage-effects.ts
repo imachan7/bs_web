@@ -268,11 +268,12 @@ const __covEid = (e: unknown): string =>
                 total += effect.amount`,
     )
     // costMod（置換 mode:"set"）: 採用値を決める時点
+    // （2026-08-14: setToCounter の追加で置換値の計算が1行増えたためアンカーを追随させた）
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `            if (result === undefined || effect.setTo < result) result = effect.setTo`,
+        `            if (result === undefined || setTo < result) result = setTo`,
         `            __covRec2C("cont\t" + __covEid2C(effect))
-            if (result === undefined || effect.setTo < result) result = effect.setTo`,
+            if (result === undefined || setTo < result) result = setTo`,
     )
     // reductionGrant: 軽減シンボルを実際に足す時点
     patch(
@@ -294,12 +295,11 @@ const __covEid = (e: unknown): string =>
     // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
     // （2026-08-09: hasContinuousKeywordGrant が continuousKeywordGrantCount へ実体を移し、
     //   返り値が true から effect.count ?? 1 に変わったためアンカーを追随させた）
+    // （2026-08-14: keywordGrant.minBp の追加で最終行の直前が変わったためアンカーを追随させた）
     patch(
         f,
-        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            return effect.count ?? 1`,
-        `            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            __covRec2("cont\t" + __covEid(effect))
+        `            return effect.count ?? 1`,
+        `            __covRec2("cont\t" + __covEid(effect))
             return effect.count ?? 1`,
     )
     // constraint（別経路）: untargetableByOpponent は activeConstraints を通らず
