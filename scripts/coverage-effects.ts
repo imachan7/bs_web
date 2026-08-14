@@ -507,6 +507,46 @@ process.on("exit", () => {
             )
         }
 
+        // (4.-1) keyword のうち【強襲】【氷壁】【聖命】【不死】は、2026-07-30 に8キーワードへ
+        //     計測点を入れた後で追加されたため計測点が無く、**永久に「未実行」と出ていた**
+        //     （2026-08-15 追加）。いずれも「宣言」であり挙動は別エントリが持つので、
+        //     **そのキーワードでなければ通らない解決点**に置く
+        const kwEid = (expr: string, keyword: string): string =>
+            `String(((getCard(${expr}).effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "keyword" && e["keyword"] === "${keyword}")?.["__eid"]) ?? "?")`
+        // 強襲：ネクサスを疲労させて実際に回復した時点
+        patch(
+            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
+            `import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
+            `import { currentLevel, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
+        )
+        patch(
+            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
+            `    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
+            `    __covRecord("cont\t" + ${kwEid("self.cardId", "kyoshu")})
+    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
+        )
+        // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
+        patch(
+            path.join(tree, "server/src/logic/actions/cores.ts"),
+            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {`,
+            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {
+                __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,
+        )
+        // 氷壁：【氷壁】を持つ発生源が無効化元として確定した時点
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            return payer && "exhaustSelf" in effect.cost`,
+            `            if (isHyoheki) __covRecord("cont\t" + ${kwEid("inst.cardId", "hyoheki")})
+            return payer && "exhaustSelf" in effect.cost`,
+        )
+        // 不死：トラッシュのカードが【不死】の引き金条件を満たして候補になった時点
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `        found.push(i)`,
+            `        __covRecord("cont\t" + ${kwEid("cardId", "fushi")})
+        found.push(i)`,
+        )
+
         // (4.0) triggers.ts 側で __covRecord を使うための import 追記。
         //     triggerSuppression 等の計測点がここにあるので、無いと ReferenceError で落ちる
         //     （2026-08-14: 移設時に入れ忘れていたぶんを補った）
