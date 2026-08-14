@@ -62,6 +62,7 @@ import {
     millDeck,
     notifyNexusDeployed,
     refreshLevelAsOverrides,
+    sweepLevelCostDepletion,
     resolveAction,
     resolveFunsai,
     resolveKoboOnBattleEnd,
@@ -105,6 +106,8 @@ export function handleAction(
     // 継続的なレベル置換（levelAs）をアクション実行の事後フックとして再計算する
     // （召喚・破壊等でフィールドのスピリット数が変わるたびにジャグリーンの条件を反映するため）
     if (!state.winner) refreshLevelAsOverrides(state)
+    // 「Lvコストを+1する」で維持コアを下回った個体を掃除する（refreshLevelAsOverrides の後に置くこと）
+    sweepLevelCostDepletion(state)
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)

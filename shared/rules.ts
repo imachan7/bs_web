@@ -238,7 +238,12 @@ export function currentLevel(inst: CardInstance): { level: number; bp: number } 
 // （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
 // **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
 export function instLevels(inst: CardInstance): LevelDef[] {
-    return inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    const levels = inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
+    // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
+    const bonus = inst.levelCostBonusContinuous ?? 0
+    if (bonus === 0) return levels
+    return levels.map((lv) => ({ ...lv, cores: lv.cores + bonus }))
 }
 
 // インスタンス単位の維持コア数（最小レベルに必要なコア数）。

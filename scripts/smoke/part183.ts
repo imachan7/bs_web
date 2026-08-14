@@ -12,9 +12,11 @@ import {
     assert,
     createGame,
     createInstance,
+    currentLevel,
     destroySpirit,
     effectiveBp,
     fireStepTriggers,
+    instMinLevelCores,
     getCard,
     refreshLevelAsOverrides,
     resolveAction,
@@ -23,6 +25,7 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { applyFushiSummon } from "../../server/src/logic/removal"
+import { sweepLevelCostDepletion } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -254,4 +257,46 @@ console.log("=== BS09-072 シャドウブレイド：赤と紫がそろってい
     tensho.isRested = true
     resolveAction(s, "p1", null, { type: "destroyAll", filter: { rested: true, keywordExclude: "tensho" } })
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === tensho.instanceId), "【転召】持ちは破壊されない")
+}
+
+console.log("=== BS09-017 蛇凰神バァラル：相手のスピリットすべてのLvコストを+1する ===")
+{
+    const s: GameState = createGame("bs09-017", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    // 相手のゴラドン（Lv1=1個/Lv2=3個）をコア3個で置く → 本来 Lv2
+    const enemy = put(s, "p2", PLAIN, 3)
+    assert(currentLevel(enemy).level === 2, "前提：コア3個ならLv2")
+    put(s, "p1", "BS09-017", 5) // Lv2（コア5個）
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(enemy).level === 1, "Lvコストが+1され、コア3個ではLv1どまりになる")
+    assert(instMinLevelCores(enemy) === 2, "維持コア（Lv1のコスト）も1個→2個に上がる")
+}
+{
+    // Lv1 のバァラルでは発揮しない
+    const s: GameState = createGame("bs09-017b", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const enemy = put(s, "p2", PLAIN, 3)
+    put(s, "p1", "BS09-017", 1) // Lv1
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(enemy).level === 2, "Lv1のバァラルでは相手のLvは下がらない")
+}
+{
+    // コア1個の相手はLv1に届かなくなり、維持コア割れで消滅する（2026-08-14 ユーザー確認）
+    const s: GameState = createGame("bs09-017c", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const enemy = put(s, "p2", PLAIN, 1)
+    put(s, "p1", "BS09-017", 5)
+    refreshLevelAsOverrides(s)
+    sweepLevelCostDepletion(s)
+    assert(!s.players.p2.field.spirits.some((x) => x.instanceId === enemy.instanceId), "コア1個の相手は消滅する")
+}
+{
+    // 自分のスピリットは対象外（target:"opponentAll"）
+    const s: GameState = createGame("bs09-017d", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const mine = put(s, "p1", PLAIN, 3)
+    put(s, "p1", "BS09-017", 5)
+    refreshLevelAsOverrides(s)
+    sweepLevelCostDepletion(s)
+    assert(currentLevel(mine).level === 2, "自分のスピリットのLvコストは上がらない")
 }

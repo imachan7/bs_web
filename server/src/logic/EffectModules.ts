@@ -1533,6 +1533,30 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
 // 発生源自身のレベル判定（sourceMinLevel）は rawLevel（コア数基準・上書き無視）で行い、
 // currentLevel の再帰・自己参照を避ける。
 // 呼び出し箇所: GameEngine.handleAction の事後フック／ターン開始処理の最後／ゲーム生成直後
+// 継続効果で「Lvコスト」が上がった結果、維持コア（Lv1）を下回った個体を消滅させる。
+// コアが減ったのではなく**必要なコア数が増えた**ことで起きるので、コアを動かす各所の
+// 判定では拾えない。プレイヤーに手番が戻る地点（GameEngine.handleAction の事後フック）で
+// まとめて掃除する（BS09-017蛇凰神バァラル。2026-08-14 ユーザー確認）。
+// levelCostBonusContinuous が乗っている個体だけを見るので、既存の挙動は変わらない
+export function sweepLevelCostDepletion(state: GameState): void {
+    for (let guard = 0; guard < 20; guard++) {
+        if (state.winner || state.pendingChoice) return
+        let destroyed = false
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const inst of [...state.players[pid].field.spirits]) {
+                if ((inst.levelCostBonusContinuous ?? 0) === 0) continue
+                if (inst.cores >= instMinLevelCores(inst)) continue
+                destroySpirit(state, pid, inst.instanceId, "deplete")
+                destroyed = true
+                if (state.winner || state.pendingChoice) return
+            }
+        }
+        if (!destroyed) return
+        // 消滅で発生源やフィールドの数が変われば、継続効果を組み直してもう一巡する
+        refreshLevelAsOverrides(state)
+    }
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
@@ -1540,6 +1564,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.symbolsOverrideContinuous
@@ -1618,6 +1643,18 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         spirit.treatedAsVanillaContinuous = true
+                    }
+                    continue
+                }
+                if (effect.kind === "levelCostMod") {
+                    // 「相手のスピリットすべてのLvコストを+1する」（BS09-017蛇凰神バァラルLv2-3）。
+                    // 加算は重ねられる（同名を2体並べたら+2）。維持コア割れの掃除は
+                    // GameEngine.handleAction の事後フック（sweepLevelCostDepletion）が行う
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
+                    for (const spirit of state.players[targetPid].field.spirits) {
+                        spirit.levelCostBonusContinuous =
+                            (spirit.levelCostBonusContinuous ?? 0) + effect.amount
                     }
                     continue
                 }

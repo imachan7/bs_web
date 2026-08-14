@@ -992,6 +992,15 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "levelCostMod" // 発生源が場にありレベル有効の間、対象スピリットすべての「Lvコスト」（各レベルに必要なコア数）を amount だけ増やす。
+          // **Lv1のコストも上がる**ので、コアが足りなくなった個体は維持コア割れで消滅する（2026-08-14 ユーザー確認）。
+          // CardInstance.levelCostBonusContinuous へ毎回再構築して反映し、shared/rules.instLevels が見る（BS09-017蛇凰神バァラル）
+          levels: number[] | null
+          target: "opponentAll" | "ownAll"
+          amount: number
+      }
+    | {
+          id: string
           kind: "keywordGrant" // 発生源が場にありレベル有効の間、持ち主の familyFilter 一致スピリットすべてにキーワードを継続付与する（暴双龍ディラノス）
           levels: number[] | null
           keyword: Keyword
@@ -1405,6 +1414,7 @@ export interface CardInstance {
     // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
     pendingDestruction?: true
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
+    levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
     lifeDamageNegatedFor?: PlayerId // このスピリットのアタックでは、ここに入っているプレイヤーのライフはこのターン減らない（ターン終了処理でリセット。BS04ミストカーテン）
