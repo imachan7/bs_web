@@ -443,6 +443,8 @@ export function exhaustSpirit(
     // 記録（BS06颶風高原Lv2）と "ownBofuExhausted" の発火（BS06ミストラルコア）に使う
     bofuSourcePid?: PlayerId,
 ): void {
+    // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
+    if (inst.pendingDestruction) return
     if (inst.isRested) return
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
@@ -457,6 +459,8 @@ export function exhaustSpirit(
 // リフレッシュステップ・効果による回復・【強襲】のいずれもここを通す
 // （疲労を exhaustSpirit に一元化したのと同じ理由で、2026-08-09 に11箇所から集約した。BS07）
 export function refreshSpirit(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
+    if (inst.pendingDestruction) return
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")

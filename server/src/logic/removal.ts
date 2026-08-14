@@ -229,11 +229,21 @@ export function destroySpirit(
     if (index === -1) return false
     const inst = player.field.spirits[index]
     if (!inst) return false
+    // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
+    // ただし skipRevive は「復活を断ったあとの同じ破壊の続き」なので通す
+    if (inst.pendingDestruction && !options?.skipRevive) return false
     const master = getCard(inst.cardId)
+
+    // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
+    // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
+    inst.pendingDestruction = true
+    // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
+    inst.coresAtDestruction = inst.cores
 
     // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
     // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
-    // 「〜できる」の任意発動は常に発動する簡略化とする。
+    // ⚠️ ここで true が返るのは「復活した」「確認を保留した」の両方。
+    //    確認待ちの間も破壊待機状態のままなので、印はここでは消さない（applyRevived が消す）
     if (
         cause === "destroy" &&
         !options?.skipRevive &&
@@ -242,10 +252,115 @@ export function destroySpirit(
         return false
     }
 
-    // 破壊直前のコア数を記録（リザーブへ移す前。漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
-    inst.coresAtDestruction = inst.cores
+    log(
+        state,
+        `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
+    )
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
 
+    // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
+    // （clearBattle 後には判定できない。attackerOnly の判定に使う）
+    const wasAttacker = state.battle?.attackerInstanceId === inst.instanceId
+    const byBattle = context?.battle !== undefined
+
+    // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
+    // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
+    if (cause === "destroy") {
+        fireTrigger(state, ownerPid, inst, "onDestroy")
+        if (state.pendingChoice || state.winner) {
+            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker)
+            return true
+        }
+    }
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker)
+    if (state.pendingChoice || state.winner) {
+        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker)
+        return true
+    }
+
+    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
+    commitPendingDestruction(state, ownerPid, inst)
+    return true
+}
+
+// 破壊時の誘発が中断した／勝敗が決まったときに、残り（フィールドイベント誘発と破壊の確定）を
+// 再開フレームへ預ける。**破壊待機状態のまま**中断するのが要点（TIMING_CHART.md §1.5）
+function suspendDestroyCommit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    step: number,
+    byBattle: boolean,
+    wasAttacker: boolean,
+): void {
+    // 勝敗が決まっているならもう盤面は動かさない（待機のまま終わってよい）
+    if (state.winner) {
+        commitPendingDestruction(state, ownerPid, inst)
+        return
+    }
+    pushResumeFrames(state, [
+        { kind: "destroyCommit", pid: ownerPid, instanceId: inst.instanceId, step, byBattle, wasAttacker },
+    ])
+}
+
+// フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
+// （侵食されゆく銀世界Lv2）。破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
+// バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す。
+// selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで
+// 「破壊されたスピリットのBP以下」を参照できるようにする）
+function fireOwnSpiritDestroyed(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    byBattle: boolean,
+    wasAttacker: boolean,
+): void {
+    const master = getCard(inst.cardId)
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
+        vanilla: instIsVanilla(inst),
+        byBattle,
+        wasAttacker,
+        families: master.family,
+        // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
+        costs: instAllCosts(inst),
+    })
+}
+
+// 中断していた破壊処理の続き（drainResumeStack から呼ぶ）
+export function resumeDestroyCommit(
+    state: GameState,
+    frame: Extract<ResumeFrame, { kind: "destroyCommit" }>,
+): void {
+    const inst = state.players[frame.pid].field.spirits.find((s) => s.instanceId === frame.instanceId)
+    // 誘発の解決中に復活した／場から居なくなったなら、破壊は成立しない
+    if (!inst || !inst.pendingDestruction) return
+    if (frame.step <= 1) {
+        fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker)
+        if (state.pendingChoice || state.winner) {
+            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker)
+            return
+        }
+    }
+    commitPendingDestruction(state, frame.pid, inst)
+}
+
+// 破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
+// **順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
+// 誘発の解決中に復活した／場から居なくなった場合は何もしない
+export function commitPendingDestruction(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): void {
+    if (!inst.pendingDestruction) return
+    const player = state.players[ownerPid]
+    const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
+    if (index === -1) {
+        delete inst.pendingDestruction
+        return
+    }
     player.field.spirits.splice(index, 1)
+    player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
     // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間はトラッシュへ置かれる
     if (destroyedCoresGoToTrash(state)) {
@@ -253,34 +368,7 @@ export function destroySpirit(
     } else {
         player.reserve += inst.cores
     }
-    player.trashCards.push(inst.cardId)
-    log(
-        state,
-        `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
-    )
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
-
-    if (cause === "destroy") {
-        fireTrigger(state, ownerPid, inst, "onDestroy")
-    }
-    // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
-    // （侵食されゆく銀世界Lv2）。fireFieldEventTriggers の action がさらに destroySpirit を
-    // 呼ぶカードは現対象に無いが、呼ぶ場合は再入（同一スピリットの二重破壊）に注意すること
-    // 破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
-    // バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す
-    // selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで「破壊されたスピリットのBP以下」を
-    // 参照できるようにする。既存カードはselfを参照しないアクションのみのため挙動は変わらない）
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
-        vanilla: instIsVanilla(inst),
-        byBattle: context?.battle !== undefined,
-        // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
-        // （clearBattle 後には判定できない。attackerOnly の判定に使う）
-        wasAttacker: state.battle?.attackerInstanceId === inst.instanceId,
-        families: master.family,
-        // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
-        costs: instAllCosts(inst),
-    })
-    return true
+    delete inst.pendingDestruction
 }
 
 // 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
@@ -1025,6 +1113,9 @@ function tryReviveOnDestroy(
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
     // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
     const applyRevived = (revived: { rested: boolean } | { toHand: true }): void => {
+        // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
+        // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
+        delete inst.pendingDestruction
         if ("toHand" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)

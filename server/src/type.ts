@@ -1391,6 +1391,12 @@ export interface CardInstance {
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
+    // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
+    // 破壊時の誘発を解決し終えてトラッシュに置かれるまでの間だけ立つ。
+    // この間もカードはフィールドに存在し、コアも乗ったままで、**カードの効果の対象に取れる**
+    // （数・シンボル・【転召】の生贄にも数える）。
+    // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
+    pendingDestruction?: true
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
@@ -1624,6 +1630,18 @@ export type ResumeFrame =
               voidCoreToSelfPerDestroyed?: true
               selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
           }
+      }
+    | {
+          // 破壊待機状態の続き（＞６）。破壊時の誘発が中断したときに、
+          // **カードを破壊待機状態のまま**残して、残りの処理を後へ送るために積む。
+          // step:1＝フィールドイベント誘発から／step:2＝破壊の確定（トラッシュ行き）だけ。
+          // docs/design/TIMING_CHART.md §1.5
+          kind: "destroyCommit"
+          pid: PlayerId
+          instanceId: string
+          step: number
+          byBattle: boolean // 誘発の絞り込み（byBattleOnly）用。破壊時の DestroyContext から取る
+          wasAttacker: boolean // 同上（attackerOnly）。バトルが終わると判定できないので破壊時に控える
       }
     | {
           // **1体の破壊に伴って同時に発揮する効果**の解決の続き。

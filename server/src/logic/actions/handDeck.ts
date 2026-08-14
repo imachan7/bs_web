@@ -1651,7 +1651,22 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
         const player = state.players[owner]
-        // 破壊時に呼ばれるため、直前にトラッシュへ送られた自分のカードを手札へ戻す
+        // 破壊時に呼ばれる。このとき自分のカードは**破壊待機状態でまだフィールドにいる**ので、
+        // そこから手札へ移す（TIMING_CHART.md §1.5。乗っていたコアはリザーブへ）。
+        // 破壊待機状態を解いてから抜けるので、あとで commitPendingDestruction がトラッシュへ送ることはない
+        if (self.pendingDestruction) {
+            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
+            if (fieldIdx >= 0) {
+                player.field.spirits.splice(fieldIdx, 1)
+                player.reserve += self.cores
+            }
+            delete self.pendingDestruction
+            player.hand.push(self.cardId)
+            log(state, `${getCard(self.cardId).name}は手札に戻った。`)
+            notifyHandGained(state, owner, 1)
+            return
+        }
+        // 破壊以外の経路（既にトラッシュへ送られている場合）への保険
         const idx = player.trashCards.lastIndexOf(self.cardId)
         if (idx >= 0) {
             player.trashCards.splice(idx, 1)

@@ -19,7 +19,7 @@ import {
     suspend,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch } from "./removal"
+import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit } from "./removal"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -1220,6 +1220,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (frame.kind === "destroyBatch") {
             resumeDestroyBatch(state, frame)
+            continue
+        }
+        if (frame.kind === "destroyCommit") {
+            // 破壊待機状態のまま中断していた破壊処理（誘発の残り＋トラッシュ行き）を続ける
+            resumeDestroyCommit(state, frame)
             continue
         }
         if (frame.kind === "destroyOne") {
