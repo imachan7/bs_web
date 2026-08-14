@@ -413,15 +413,27 @@ export function targetArmorColorCount(inst: CardInstance): number {
 // 両陣営のフィールドを走査する（発生源の持ち主を問わず「すべて」に効く）。
 // ここでは系統を一切参照しないので、spiritHasFamily から呼んでも再帰しない
 export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
+    // target:"opponentAll"（BS09-079キャラクターロスト）用に、対象の持ち主を割り出す
+    const instPid: PlayerId | undefined = board.players.p1.field.spirits.some(
+        (s) => s.instanceId === inst.instanceId,
+    )
+        ? "p1"
+        : board.players.p2.field.spirits.some((s) => s.instanceId === inst.instanceId)
+          ? "p2"
+          : undefined
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, ownerPid)) {
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "familySuppression") continue
+                if (effect.lentOnly && !isVirtualSource(source)) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                // 「相手のスピリットすべて」＝発生源の持ち主のスピリットには効かない。
+                // 対象の持ち主が分からないとき（場にいない個体）は効かせない側に倒す
+                if (effect.target === "opponentAll" && (instPid === undefined || instPid === ownerPid)) continue
                 return true
             }
         }
@@ -1145,6 +1157,16 @@ export function activeConstraints(
                 if (board.phase !== phase) continue
                 if (turn === "own" && pid !== board.turnPlayer) continue
                 if (turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            // colorFromChosen（BS09-081サマーソルトターン）：「指定した色」を、貸与時に選ばれた色
+            // （仮想発生源の lentChoiceColor）へ解決してから積む。色が選ばれていなければ付与しない
+            const c = effect.constraint
+            if (c.type === "unblockableBy" && c.colorFromChosen) {
+                const chosen = source.lentChoiceColor
+                if (chosen === undefined) continue
+                const { colorFromChosen: _flag, ...rest } = c
+                granted.push({ ...rest, colorFilter: chosen })
+                continue
             }
             granted.push(effect.constraint)
         }

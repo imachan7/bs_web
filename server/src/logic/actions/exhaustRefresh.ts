@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
+    canExhaustNexus,
     bothSidesPids,
     destroySpirit,
     exhaustSpirit,
@@ -625,6 +626,11 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
     const used = self.kyoshuUsed?.turn === state.turn ? self.kyoshuUsed.count : 0
     if (used >= limit) {
         log(state, `${getCard(self.cardId).name}の【強襲】はこのターンの上限（${limit}回）に達している。`)
+        return
+    }
+    // BS09-063花の宮殿Lv2：相手が「自分のネクサスを疲労させられない」制約を張っている間は使えない
+    if (!canExhaustNexus(state, owner)) {
+        log(state, `${sourceName}：ネクサスを疲労させられないため発動しなかった。`)
         return
     }
     const candidates = state.players[owner].field.nexuses.filter((n) => !n.isRested)

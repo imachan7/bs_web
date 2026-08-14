@@ -314,6 +314,10 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    // 「このバトルの間ブロックできない」の印もここで切れる（BS09-042妖精騎士ピーター）
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) delete inst.cantBlockThisBattle
+    }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const lent = state.players[pid].battleVirtualInstances
@@ -458,6 +462,10 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             : {}),
         // 「手札を破棄して効果を受けない」の方針は自分にだけ返す（UIのトグルの現在値）
         ...(isSelf && player.payToNegate !== undefined ? { payToNegate: player.payToNegate } : {}),
+        // 「相手の手札の内容を見た」記録は持ち主にだけ返す（BS09-039探偵ペンタン）
+        ...(isSelf && player.peekedOpponentCardIds !== undefined
+            ? { peekedOpponentCardIds: player.peekedOpponentCardIds }
+            : {}),
     }
 }
 

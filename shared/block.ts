@@ -55,6 +55,11 @@ export function canBlock(
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
+    // このバトルの間だけブロックできない（BS09-042妖精騎士ピーター）。
+    // 効果で直接付けた印なので blockConstraintNegatedThisTurn（制約の無効化）では消えない
+    if (blockerInst.cantBlockThisBattle) {
+        return "このスピリットはこのバトルの間ブロックできません"
+    }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {
             return "このスピリットはブロックできません"

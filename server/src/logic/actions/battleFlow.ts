@@ -16,6 +16,7 @@ import {
     fireSummonTrigger,
     fireTrigger,
     notifyNexusDeployed,
+    pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
     resolveKoboOnBattleEnd,
@@ -786,6 +787,57 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 
 // 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
 // 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
+// BS09-044妖精の姫巫女ハマ・ドリュアス：このバトルに「ブロッカーがLv1なら
+// BPを比べずブロックされなかった扱いにする」印を立てる（判定はバトル解決側）
+const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfBlockerLevel1"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
+        return
+    }
+    state.battle.treatAsUnblockedIfBlockerLevel1 = true
+    log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
+}
+
+// BS09-042妖精騎士ピーターLv2-3：相手のスピリット1体を指定し、このバトルの間ブロックさせない。
+// 指定するのは効果の持ち主（効果文の主語が「（自分が）指定する」。CHOOSER_RULES.md）
+const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> = (ctx) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId !== undefined) {
+        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+        if (!found) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        found.cantBlockThisBattle = true
+        log(state, `${getCard(found.cardId).name}は、このバトルの間ブロックできない。`)
+        return
+    }
+    const candidates: CardInstance[] = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ブロックできなくする相手のスピリットを選んでください`,
+            candidates.map((s: CardInstance) => s.instanceId),
+            false,
+            { type: "markCantBlockThisBattle" },
+            self,
+        )
+        return
+    }
+    // 非対話時は実効BP最大を自動選択（プレイヤー選択の決定的簡略化）
+    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
+        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+    )
+    chosen.cantBlockThisBattle = true
+    log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
+}
+
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
@@ -868,6 +920,8 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 
 const handlers = {
     endBattle: endBattleHandler,
+    treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
+    markCantBlockThisBattle: markCantBlockThisBattleHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
     endAttackStep: endAttackStepHandler,

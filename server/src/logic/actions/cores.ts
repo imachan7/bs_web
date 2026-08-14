@@ -4,6 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
+    fireFieldEventTriggers,
     bothSidesPids,
     isResisted,
     resistanceAgainst,
@@ -1451,6 +1452,11 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
                 state,
                 `${player.name}はボイドからライフにコア${action.count}個を置いた。（現在ライフ${player.life}）`,
             )
+            // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」。
+            // 発生源が【聖命】持ちのときだけ発火させる（同じ lifeCharge でも他のカードは対象外）
+            if (self && spiritHasKeyword(state, owner, self, "seimei")) {
+                fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
+            }
             return
         }
         const amount = Math.min(action.count, player.reserve)

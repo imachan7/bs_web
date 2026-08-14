@@ -1019,6 +1019,14 @@ function tryReviveOnDestroy(
             inst.cores -= 1
             return true
         }
+        if (effect.cost?.oneCoreToTrash) {
+            // BS09-063花の宮殿：対象のコア1個を持ち主のトラッシュへ。**コア1個でも支払う**ので、
+            // 支払った結果0個になった個体は待機解除の後に維持コア割れで消滅する（2026-08-14 ユーザー確認）
+            if (inst.cores <= 0) return false
+            inst.cores -= 1
+            player.trashCores += 1
+            return true
+        }
         if (effect.cost?.reserveOneToTrash) {
             // 持ち主のリザーブのコア1個を持ち主のトラッシュへ（リザーブ0なら不発）
             if (player.reserve <= 0) return false
@@ -1125,6 +1133,11 @@ function tryReviveOnDestroy(
             notifyHandGained(state, ownerPid, 1)
         } else {
             inst.isRested = revived.rested
+            // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
+            // （cause:"deplete" は復活判定に入らないので再帰しない。BS09-063花の宮殿＝コア1個の個体）
+            if (inst.cores < instMinLevelCores(inst)) {
+                destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+            }
         }
     }
 

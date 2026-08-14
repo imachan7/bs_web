@@ -276,11 +276,13 @@ export function resistanceAgainst(
     target: CardInstance,
     attempt: EffectAttempt,
 ): Resistance | null {
-    // ① 対象の絞り込み（マジック限定。絞り込み先の持ち主のスピリットだけが影響を受ける）
+    // ① 対象の絞り込み（**スピリット/マジックの効果**が対象。ネクサスの効果は通る。
+    // 絞り込み先の持ち主のスピリットだけが影響を受ける。2026-08-14 ユーザー確認で
+    // マジック限定からスピリットの効果へ拡張した。BS09-038ティンカ／BS05-040スノーホワイト）
     const redirect = state.magicRedirectTo
     if (
         redirect !== undefined &&
-        attempt.sourceType === "magic" &&
+        (attempt.sourceType === "magic" || attempt.sourceType === "spirit") &&
         target.instanceId !== redirect.instanceId &&
         state.players[redirect.pid].field.spirits.some((s) => s.instanceId === target.instanceId)
     ) {
@@ -1559,6 +1561,21 @@ export function sweepLevelCostDepletion(state: GameState): void {
     }
 }
 
+// BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
+// ownerPid のネクサスを疲労させてよいかを返す（【強襲】の疲労元・氷壁のネクサス支払いが見る）
+export function canExhaustNexus(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, opponentOf(ownerPid))) {
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "opponentNexusesUnexhaustable") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.constraint.phase !== undefined && state.phase !== effect.constraint.phase) continue
+            return false
+        }
+    }
+    return true
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
@@ -2308,6 +2325,10 @@ export function countEffectCounter(
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
+    // restedEnemyNexuses：相手の疲労状態のネクサス数（BS09-080エグゾーストネクサス）
+    if (counter === "restedEnemyNexuses") {
+        return state.players[opp].field.nexuses.filter((n) => n.isRested).length
+    }
     // ownRestedNexuses：自分の疲労状態のネクサス数（【強襲】がネクサスを疲労させる。BS07ネクサスアタック）
     if (counter === "ownRestedNexuses") {
         return state.players[owner].field.nexuses.filter((n) => n.isRested).length

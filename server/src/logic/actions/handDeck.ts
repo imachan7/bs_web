@@ -925,6 +925,11 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
+        // colors（BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）：
+        // トラッシュのカードが対象なのでカード静的な colors で判定する（配列＝いずれかでOR）
+        const magicOk = (cardId: string): boolean =>
+            getCard(cardId).type === "magic" &&
+            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c)))
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -940,7 +945,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         if (state.interactiveTargets) {
             const indices = player.trashCards
                 .map((id, i) => ({ id, i }))
-                .filter(({ id }) => getCard(id).type === "magic")
+                .filter(({ id }) => magicOk(id))
                 .map(({ i }) => i)
             if (indices.length >= 2) {
                 requestCardChoice(
@@ -961,7 +966,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // 決定的な自動選択で簡略化）
         let idx = -1
         for (let j = player.trashCards.length - 1; j >= 0; j--) {
-            if (getCard(player.trashCards[j]!).type === "magic") {
+            if (magicOk(player.trashCards[j]!)) {
                 idx = j
                 break
             }
@@ -1509,6 +1514,33 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
     }
 }
 
+// BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
+// 「内容を見ないで選び」その内容だけを見る。盤面は動かない。
+// **どの1枚を選ぶかは今のところ先頭で固定**（裏向きの相手手札を選ぶUIが未実装のため。
+// 選び方が情報を持たない＝どれを選んでも公平なので、決定的にしても不利益はない）
+const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    const player = state.players[owner]
+    const index = player.hand.findIndex((id) => getCard(id).name === action.cardName)
+    if (index === -1) {
+        log(state, `${sourceName}：手札に[${action.cardName}]がなく、発動しなかった。`)
+        return
+    }
+    const target = state.players[opp]
+    if (target.hand.length === 0) {
+        log(state, `${sourceName}：${target.name}の手札がなく、発動しなかった。`)
+        return
+    }
+    const paid = player.hand.splice(index, 1)[0]!
+    player.trashCards.push(paid)
+    log(state, `${player.name}はコストとして${getCard(paid).name}を破棄した。`)
+    const peeked = target.hand[0]!
+    if (!player.peekedOpponentCardIds) player.peekedOpponentCardIds = []
+    player.peekedOpponentCardIds.push(peeked)
+    // ログには**カード名を出さない**（両者が読むため。見た本人は PlayerView から知る）
+    log(state, `${player.name}は${target.name}の手札1枚の内容を見た。`)
+}
+
 // BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
 // ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
 const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
@@ -1963,6 +1995,7 @@ const handlers = {
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
+    costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
     costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
     handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,

@@ -141,6 +141,7 @@ export {
 
 
 import {
+    canExhaustNexus,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -387,7 +388,13 @@ export function fireTrigger(
                 selfInstance,
             )
         } else {
+            // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
+            // （2026-08-14 ユーザー確認。BS09-038スズランの妖精ティンカ／BS05-040スノーホワイトの
+            //  効果文どおり「スピリット/マジックの効果」が対象）。ネクサスの効果は対象外
+            const redirecting = card.type === "spirit"
+            if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+            if (redirecting) delete state.magicRedirectTo
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
@@ -1069,7 +1076,7 @@ export function notifySpiritCoresRemovedByOpponent(
 //   - 明示ターゲットあり → それがサンク自身のときだけ絞り込む（他の1体を選んだならサンクは対象外）
 //   - 明示ターゲットなし（全体効果・自動選択） → 対象に含むものとして絞り込む
 //     （利用者確認：マジックの「対象」には全体を含む効果も含まれる。DECISIONS.md）
-function setMagicRedirect(
+function setTargetRedirect(
     state: GameState,
     casterPid: PlayerId,
     targetInstanceId: string | undefined,
@@ -1169,6 +1176,8 @@ function magicNegateNexusPayer(state: GameState, ownerPid: PlayerId): CardInstan
         }
     }
     if (!granted) return null
+    // BS09-063花の宮殿Lv2：相手がネクサスの疲労を禁じている間は肩代わりできない
+    if (!canExhaustNexus(state, ownerPid)) return null
     return state.players[ownerPid].field.nexuses.find((n) => !n.isRested) ?? null
 }
 
@@ -1588,7 +1597,7 @@ function runMagicActions(
         }
         // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
-        setMagicRedirect(state, owner, targetInstanceId, effect.action)
+        setTargetRedirect(state, owner, targetInstanceId, effect.action)
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
         // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
         resolveAction(

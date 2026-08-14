@@ -1383,6 +1383,17 @@ function resolveBattle(state: GameState): void {
         clearBattle(state)
         return
     }
+    // BS09-044妖精の姫巫女ハマ・ドリュアス：ブロッカーがLv1なら、**BPを比べずに**
+    // 「ブロックされなかった」ものとして扱う（＝ライフに通る。どちらも破壊されず、
+    // ブロッカーは疲労したまま場に残る。BS09_PLAN.md §4。2026-08-14 ユーザー確認）
+    if (state.battle.treatAsUnblockedIfBlockerLevel1 && currentLevel(blocker).level === 1) {
+        log(
+            state,
+            `${getCard(blocker.cardId).name}はLv1のため、BPを比べずブロックされなかったものとして扱う。`,
+        )
+        resolveLifeDamage(state)
+        return
+    }
     // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
     const attackerBp = battleBp(state, attackerPid, attacker)
     const blockerBp = battleBp(state, defenderPid, blocker)
