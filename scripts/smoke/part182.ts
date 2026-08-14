@@ -7,16 +7,26 @@
 //   4. その後、乗っていたコアをリザーブへ移す
 //
 // 破壊待機状態の間は**疲労も回復もできず、そこからさらに破壊されることもない**。
-import { assert, createGame, createInstance, destroySpirit, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import {
+    assert,
+    createGame,
+    createInstance,
+    destroyNexus,
+    destroySpirit,
+    effectiveBp,
+    refreshLevelAsOverrides,
+    runTurnStart,
+} from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { exhaustSpirit, refreshSpirit } from "../../server/src/logic/EffectModules"
-import { commitPendingDestruction } from "../../server/src/logic/removal"
+import { exhaustSpirit, refreshSpirit, tenshoCandidates } from "../../server/src/logic/EffectModules"
+import { commitPendingDestruction, commitPendingNexusDestruction } from "../../server/src/logic/removal"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {
     cardId: string
     name: string
     type?: string
+    colors?: string[]
     family?: string[]
     effects?: Record<string, unknown>[]
     levels?: { level?: number; cores?: number; bp?: number }[]
@@ -114,4 +124,91 @@ console.log("=== 破壊待機状態の解除：カードはトラッシュへ、
         `乗っていたコア${String(cores)}個はリザーブへ（実際: ${String(s.players.p1.reserve - reserveBefore)}）`,
     )
     assert(inst.pendingDestruction === undefined, "印は消える")
+}
+
+// ネクサスも破壊待機状態になり、その間も効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
+const BUFF_NEXUS = CARDS.find((c) => {
+    if (c.type !== "nexus") return false
+    return (c.effects ?? []).some((e) => {
+        if (e["kind"] !== "aura") return false
+        const aura = e["aura"] as Record<string, unknown> | undefined
+        return (
+            aura?.["type"] === "bp" &&
+            aura["target"] === "ownAll" &&
+            typeof aura["amount"] === "number" &&
+            typeof aura["colorFilter"] === "string" &&
+            aura["battlingOnly"] === undefined
+        )
+    })
+})!
+const BUFF_ENTRY = (BUFF_NEXUS.effects ?? []).find((e) => e["kind"] === "aura")!
+const BUFF_AURA = BUFF_ENTRY["aura"] as Record<string, unknown>
+const BUFF_COLOR = BUFF_AURA["colorFilter"] as string
+const BUFF_AMOUNT = BUFF_AURA["amount"] as number
+
+console.log("=== 破壊待機中のネクサスも、継続効果はそのまま働く ===")
+{
+    const s: GameState = createGame("pending-nexus-aura", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const buffed = CARDS.find(
+        (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.colors ?? []).includes(BUFF_COLOR),
+    )!
+    const spirit = put(s, "p1", buffed.cardId, 1)
+    const baseBp = effectiveBp(s, "p1", spirit)
+
+    const nexus = createInstance(BUFF_NEXUS.cardId, s.turn, BUFF_NEXUS.levels?.[0]?.cores ?? 0)
+    s.players.p1.field.nexuses.push(nexus)
+    refreshLevelAsOverrides(s)
+    assert(effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT, "ネクサスの継続効果でBPが上がる")
+
+    // 破壊待機状態にしても、まだフィールドにいるので効果は生きている
+    nexus.pendingDestruction = true
+    refreshLevelAsOverrides(s)
+    assert(
+        effectiveBp(s, "p1", spirit) === baseBp + BUFF_AMOUNT,
+        "破壊待機中でも継続効果は切れない",
+    )
+
+    // 確定してトラッシュへ置かれると、そこで初めて効果が切れる
+    commitPendingNexusDestruction(s, "p1", nexus)
+    refreshLevelAsOverrides(s)
+    assert(effectiveBp(s, "p1", spirit) === baseBp, "トラッシュに置かれた時点で効果が切れる")
+    assert(s.players.p1.trashCards.includes(BUFF_NEXUS.cardId), "カードはトラッシュへ")
+}
+
+console.log("=== 破壊待機中のネクサスは、そこからさらに破壊されない ===")
+{
+    const s: GameState = createGame("pending-nexus-redestroy", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
+    runTurnStart(s)
+    const nexus = createInstance(BUFF_NEXUS.cardId, s.turn, 2)
+    s.players.p1.field.nexuses.push(nexus)
+    refreshLevelAsOverrides(s)
+    nexus.pendingDestruction = true
+    const reserveBefore = s.players.p1.reserve
+    assert(destroyNexus(s, "p1", nexus.instanceId) === false, "破壊は成立しない")
+    assert(
+        s.players.p1.field.nexuses.some((n) => n.instanceId === nexus.instanceId),
+        "フィールドに残ったまま",
+    )
+    commitPendingNexusDestruction(s, "p1", nexus)
+    assert(s.players.p1.reserve === reserveBefore + 2, "確定すると乗っていたコアがリザーブへ移る")
+}
+
+console.log("=== 破壊待機中のスピリットは【転召】の生贄にできる ===")
+{
+    // 破壊で誘発した効果がスピリットを召喚し、そのカードが【転召】を持っていた場合、
+    // 破壊待機状態のスピリットを生贄にできる（2026-08-14 ユーザー確認。TIMING_CHART.md §1.5）。
+    // 実カードの組み合わせはまだ無いので、候補列挙の土台だけを固定しておく
+    const { s, inst } = makePending("pending-tensho")
+    // 破壊待機の印を外した状態と付けた状態で、候補が変わらないことを見る
+    // （minCost はカードのコストに依存しないよう 0 にする）
+    delete inst.pendingDestruction
+    const before = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
+    inst.pendingDestruction = true
+    const after = tenshoCandidates(s, "p1", 0).map((c) => c.instanceId)
+    assert(before.includes(inst.instanceId), "（前提）破壊されていなければ候補に入る")
+    assert(
+        after.length === before.length && after.includes(inst.instanceId),
+        "破壊待機中でも【転召】の生贄候補に入る",
+    )
 }

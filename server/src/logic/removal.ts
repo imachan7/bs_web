@@ -217,7 +217,10 @@ export function destroySpirit(
     //   ② 「破壊する"ことで"〜する」＝同時発揮     → 恩恵の後に聞く（＝渡さずに
     //      pendingReviveConfirms へ積み、アクションの末尾で確認する）
     // どちらも必要なので、片方を消してはいけない
-    options?: { skipRevive?: true; allowSuspend?: true },
+    // deferCommit: 破壊待機の設定と確定（トラッシュ行き）を**呼び出し元が管理する**印。
+    // 【不死】のように「破壊時の誘発」として同じ待機の窓の中で解決したいものがあるときに使う
+    // （resolveDestroyOne。docs/design/TIMING_CHART.md §1.5）
+    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -230,8 +233,9 @@ export function destroySpirit(
     const inst = player.field.spirits[index]
     if (!inst) return false
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
-    // ただし skipRevive は「復活を断ったあとの同じ破壊の続き」なので通す
-    if (inst.pendingDestruction && !options?.skipRevive) return false
+    // ただし skipRevive（復活を断ったあとの同じ破壊の続き）と
+    // deferCommit（呼び出し元が待機を管理している同じ破壊）は通す
+    if (inst.pendingDestruction && !options?.skipRevive && !options?.deferCommit) return false
     const master = getCard(inst.cardId)
 
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
@@ -268,18 +272,19 @@ export function destroySpirit(
     if (cause === "destroy") {
         fireTrigger(state, ownerPid, inst, "onDestroy")
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker)
+            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, options?.deferCommit)
             return true
         }
     }
     fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker)
+        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, options?.deferCommit)
         return true
     }
 
-    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
-    commitPendingDestruction(state, ownerPid, inst)
+    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ。
+    // deferCommit のときは呼び出し元が同じ窓の中で続きを解決するので、ここでは確定しない
+    if (!options?.deferCommit) commitPendingDestruction(state, ownerPid, inst)
     return true
 }
 
@@ -292,14 +297,23 @@ function suspendDestroyCommit(
     step: number,
     byBattle: boolean,
     wasAttacker: boolean,
+    deferCommit?: true,
 ): void {
     // 勝敗が決まっているならもう盤面は動かさない（待機のまま終わってよい）
     if (state.winner) {
-        commitPendingDestruction(state, ownerPid, inst)
+        if (!deferCommit) commitPendingDestruction(state, ownerPid, inst)
         return
     }
     pushResumeFrames(state, [
-        { kind: "destroyCommit", pid: ownerPid, instanceId: inst.instanceId, step, byBattle, wasAttacker },
+        {
+            kind: "destroyCommit",
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            step,
+            byBattle,
+            wasAttacker,
+            ...(deferCommit ? { deferCommit } : {}),
+        },
     ])
 }
 
@@ -337,11 +351,12 @@ export function resumeDestroyCommit(
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker)
+            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.deferCommit)
             return
         }
     }
-    commitPendingDestruction(state, frame.pid, inst)
+    // deferCommit のときは、外側（destroyOne フレーム）が【不死】を解決してから確定させる
+    if (!frame.deferCommit) commitPendingDestruction(state, frame.pid, inst)
 }
 
 // 破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
@@ -566,13 +581,7 @@ export function wouldRevive(
 
 // この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
 // 召喚コスト＋維持コアをリザーブから払えないものは、確認自体を出さないので除く
-export function fushiCandidates(
-    state: GameState,
-    ownerPid: PlayerId,
-    destroyedCost: number,
-    // 破壊されたスピリットのシンボル（場から消えた後に数えるぶん）
-    extraSymbols?: Color[],
-): number[] {
+export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCost: number): number[] {
     // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
     if (state.phase !== "attack") return []
     const player = state.players[ownerPid]
@@ -589,35 +598,25 @@ export function fushiCandidates(
                 (e.triggerCosts ?? []).includes(destroyedCost),
         )
         if (!hit) continue
-        if (player.reserve < effectiveCost(state, ownerPid, card, extraSymbols) + minLevelCores(card)) continue
+        if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
         found.push(i)
     }
     return found
 }
 
-function suspendFushiSummon(
-    state: GameState,
-    ownerPid: PlayerId,
-    trashIndex: number,
-    extraSymbols?: Color[],
-): void {
+function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: number): void {
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
     const card = getCard(cardId)
     suspend(state, {
         pid: ownerPid,
         kind: "option",
-        prompt: `${card.name}：【不死】でトラッシュからコスト${String(effectiveCost(state, ownerPid, card, extraSymbols))}を支払って召喚しますか？`,
+        prompt: `${card.name}：【不死】でトラッシュからコスト${String(effectiveCost(state, ownerPid, card))}を支払って召喚しますか？`,
         candidates: [],
         options: ["召喚する"],
         optional: true,
         confirm: true,
-        fushiSummon: {
-            pid: ownerPid,
-            cardId,
-            trashIndex,
-            ...(extraSymbols && extraSymbols.length > 0 ? { extraSymbols } : {}),
-        },
+        fushiSummon: { pid: ownerPid, cardId, trashIndex },
         action: { type: "noop" },
         selfInstanceId: null,
     })
@@ -636,7 +635,7 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = effectiveCost(state, info.pid, card, info.extraSymbols)
+    const cost = effectiveCost(state, info.pid, card)
     const maintain = minLevelCores(card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
@@ -673,13 +672,17 @@ export function resolveDestroyOne(
     let fushiDone = frame.fushiDone
     for (let s = frame.step; s < frame.order.length; s++) {
         if (frame.order[s] === "destroy") {
+            // deferCommit：破壊待機状態を解かずに戻ってくる。こうすることで
+            // 続く【不死】の解決が**同じ待機の窓の中**で走る（TIMING_CHART.md §1.5）。
+            // 破壊された個体はまだ場にいるので、シンボルは軽減にそのまま数えられ、
+            // 【転召】の生贄にも取れる
             state.lastReviveDestroyed = destroySpirit(
                 state,
                 frame.pid,
                 frame.instanceId,
                 "destroy",
                 frame.context,
-                { allowSuspend: true },
+                { allowSuspend: true, deferCommit: true },
             )
         } else {
             // ⚠️「破壊」を先に解決していて、そこで**場に残った**（＝破壊されなかった）なら、
@@ -687,32 +690,23 @@ export function resolveDestroyOne(
             // これが「残るを先に解決したら【不死】は撃てない」の実体（BS09_PLAN.md §3）
             const destroyIndex = frame.order.indexOf("destroy")
             if (destroyIndex >= 0 && destroyIndex < s && state.lastReviveDestroyed !== true) continue
-            // 破壊されて場から消えた後も、その個体のシンボルは【不死】の召喚の軽減に数える
-            // （まだ場にいる＝先に【不死】を解決した場合は二重に数えないよう空にする）
-            const stillOnField = state.players[frame.pid].field.spirits.some(
-                (x) => x.instanceId === frame.instanceId,
-            )
-            const extraSymbols = stillOnField ? [] : frame.destroyedSymbols
             // 【不死】：候補を1枚ずつ確認する（確認のたびに中断しうる）。
-            // 候補は解決のたびに数え直す（召喚でトラッシュが減るため）
+            // 候補は解決のたびに数え直す（召喚でトラッシュが減るため）。
+            // 破壊された個体は破壊待機状態でまだ場にいるので、
+            // **その個体のシンボルも軽減にそのまま数えられる**（特別扱いは要らない）
             while (true) {
-                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost, extraSymbols)
+                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost)
                 const next = candidates[fushiDone]
                 if (next === undefined) break
                 fushiDone++
                 if (state.interactiveTargets) {
-                    suspendFushiSummon(state, frame.pid, next, extraSymbols)
+                    suspendFushiSummon(state, frame.pid, next)
                     break
                 }
                 // 非対話（テスト・自動解決）では確認せずに召喚する（既存の任意効果と同じ簡略化）
                 const cardId = state.players[frame.pid].trashCards[next]
                 if (cardId === undefined) break
-                applyFushiSummon(state, {
-                    pid: frame.pid,
-                    cardId,
-                    trashIndex: next,
-                    ...(extraSymbols.length > 0 ? { extraSymbols } : {}),
-                })
+                applyFushiSummon(state, { pid: frame.pid, cardId, trashIndex: next })
                 if (state.pendingChoice || state.winner) break
             }
         }
@@ -725,6 +719,10 @@ export function resolveDestroyOne(
             return
         }
     }
+    // すべて解決し終えた。破壊待機状態を解いてカードをトラッシュへ
+    // （deferCommit で先送りしていたぶん。復活していれば印は消えているので何もしない）
+    const inst = state.players[frame.pid].field.spirits.find((x) => x.instanceId === frame.instanceId)
+    if (inst) commitPendingDestruction(state, frame.pid, inst)
 }
 
 // 「破壊そのもの」と【不死】のどちらを先に解決するかを、ターンプレイヤーに聞いて中断する
@@ -802,8 +800,6 @@ export function destroySpiritsFrom(
                 pid: t.pid,
                 instanceId: t.instanceId,
                 destroyedCost: getCard(target.cardId).cost,
-                // 破壊で場から消えた後も軽減シンボルとして数えるため、破壊前に控えておく
-                destroyedSymbols: target.symbolsOverrideContinuous ?? [...getCard(target.cardId).symbol],
                 order,
                 step: 0,
                 fushiDone: 0,
@@ -1306,29 +1302,109 @@ export function destroyNexus(
         )
         return false
     }
-    player.field.nexuses.splice(index, 1)
-    player.reserve += inst.cores
-    player.trashCards.push(inst.cardId)
+    // 破壊待機状態のネクサスは、そこからさらに破壊されない（TIMING_CHART.md §1.5）
+    if (inst.pendingDestruction) return false
+    // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
+    // この間もネクサスの効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
+    inst.pendingDestruction = true
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
-    // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火
-    // （竜狩りのアーケオルニ）。バウンス（returnNexusToHand）はここを通らないため対象外
-    fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
-    fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
     // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが「その破壊されたネクサス」を参照するため）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
-    // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火（シャークハンマー）。
-    // 「**相手の**効果で破壊されたとき」限定のエントリ（BS07の各色ネクサス6枚）のために、
-    // 効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか、を eventInfo で渡す
-    const byOpponentEffect =
+    driveNexusDestruction(state, ownerPid, inst, 1, byOpponentEffectOf(context, ownerPid))
+    return true
+}
+
+// 「相手の効果で破壊されたとき」限定のエントリ（BS07の各色ネクサス6枚）の判定材料。
+// 効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか
+function byOpponentEffectOf(context: DestroyContext | undefined, ownerPid: PlayerId): boolean {
+    return (
         context?.sourceType !== undefined &&
         context.sourcePid !== undefined &&
         context.sourcePid !== ownerPid
-    // 破壊されたネクサス自身も走査に含める（extraSources）。「自分のネクサスが破壊されたとき」を
-    // そのネクサス自身が持つ形（BS07の各色ネクサス6枚）は、ここで渡さないと自分の破壊では発火しない
-    fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
-        byOpponentEffect,
-    }, [inst])
-    return true
+    )
+}
+
+// ネクサスの破壊処理（＞６）を1ステップずつ進める。**1ステップ＝中断しうる呼び出し1つ**。
+// 途中で選択待ちが立ったら destroyNexusCommit フレームに次のステップを載せて抜ける
+// （破壊待機状態のまま残る）。docs/design/TIMING_CHART.md §1.5
+function driveNexusDestruction(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    startStep: number,
+    byOpponentEffect: boolean,
+): void {
+    for (let step = startStep; step <= 4; step++) {
+        switch (step) {
+            // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず
+            // 両陣営のフィールドから発火（竜狩りのアーケオルニ）。
+            // バウンス（returnNexusToHand）はここを通らないため対象外
+            case 1:
+                fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
+                break
+            case 2:
+                fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
+                break
+            // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ
+            // 発火（シャークハンマー）。破壊されたネクサス自身は**破壊待機状態でまだ場にいる**ので、
+            // 「自分のネクサスが破壊されたとき」をそのネクサス自身が持つ形（BS07の各色ネクサス6枚）も
+            // 走査にそのまま含まれる（以前は場から外していたため extraSources で補っていた）
+            case 3:
+                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
+                    byOpponentEffect,
+                })
+                break
+            // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
+            default:
+                commitPendingNexusDestruction(state, ownerPid, inst)
+                return
+        }
+        if (state.winner) {
+            commitPendingNexusDestruction(state, ownerPid, inst)
+            return
+        }
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [
+                {
+                    kind: "destroyNexusCommit",
+                    pid: ownerPid,
+                    instanceId: inst.instanceId,
+                    step: step + 1,
+                    byOpponentEffect,
+                },
+            ])
+            return
+        }
+    }
+}
+
+// 中断していたネクサスの破壊処理の続き（drainResumeStack から呼ぶ）
+export function resumeDestroyNexusCommit(
+    state: GameState,
+    frame: Extract<ResumeFrame, { kind: "destroyNexusCommit" }>,
+): void {
+    const inst = state.players[frame.pid].field.nexuses.find((n) => n.instanceId === frame.instanceId)
+    if (!inst || !inst.pendingDestruction) return
+    driveNexusDestruction(state, frame.pid, inst, frame.step, frame.byOpponentEffect)
+}
+
+// 破壊待機状態のネクサスを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）
+export function commitPendingNexusDestruction(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): void {
+    if (!inst.pendingDestruction) return
+    const player = state.players[ownerPid]
+    const index = player.field.nexuses.findIndex((n) => n.instanceId === inst.instanceId)
+    if (index === -1) {
+        delete inst.pendingDestruction
+        return
+    }
+    player.field.nexuses.splice(index, 1)
+    player.trashCards.push(inst.cardId)
+    player.reserve += inst.cores
+    delete inst.pendingDestruction
 }
 
 // ネクサスを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。

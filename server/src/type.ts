@@ -1547,9 +1547,6 @@ export interface PendingChoice {
         pid: PlayerId
         cardId: string
         trashIndex: number // 同名カードが複数あるときにどれを出したかを固定する
-        // 【不死】を誘発した「破壊されたスピリット」のシンボル。場から消えた後でも
-        // この召喚の軽減シンボルとして数える（2026-08-14 ユーザー確認。BS09_PLAN.md §3）
-        extraSymbols?: Color[]
     }
     destroyEffectOrder?: {
         // 1体の破壊に対して**同時に発揮する効果**が2つ以上あるときの、解決順の選択待ち。
@@ -1642,6 +1639,18 @@ export type ResumeFrame =
           step: number
           byBattle: boolean // 誘発の絞り込み（byBattleOnly）用。破壊時の DestroyContext から取る
           wasAttacker: boolean // 同上（attackerOnly）。バトルが終わると判定できないので破壊時に控える
+          // 破壊の確定（トラッシュ行き）を**呼び出し元（destroyOne フレーム）が行う**印。
+          // 【不死】を同じ待機の窓の中で解決するときに立つ
+          deferCommit?: true
+      }
+    | {
+          // ネクサスの破壊処理（＞６）の続き。誘発が中断したときに、
+          // **ネクサスを破壊待機状態のまま**残して残りを後へ送る。docs/design/TIMING_CHART.md §1.5
+          kind: "destroyNexusCommit"
+          pid: PlayerId
+          instanceId: string
+          step: number
+          byOpponentEffect: boolean // 「相手の効果で破壊されたとき」限定エントリの判定材料
       }
     | {
           // **1体の破壊に伴って同時に発揮する効果**の解決の続き。
@@ -1653,8 +1662,6 @@ export type ResumeFrame =
           pid: PlayerId // 破壊される個体の持ち主
           instanceId: string
           destroyedCost: number // 破壊される個体のコスト（【不死】の引き金判定に使う。破壊前に読む）
-          destroyedSymbols: Color[] // 破壊される個体のシンボル（破壊前に読む）。
-          // 【不死】の召喚の軽減シンボルとして、場から消えた後も数える
           order: ("destroy" | "fushi")[] // 確定した解決順
           step: number // 次に解決する order の位置
           fushiDone: number // 【不死】の候補を何枚ぶん確認し終えたか

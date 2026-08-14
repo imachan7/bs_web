@@ -317,11 +317,6 @@ export function effectiveCost(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
-    // フィールドに無いのに軽減シンボルとして数えるもの。
-    // 【不死】（BS09）専用：**その召喚を誘発した「破壊されたスピリット」のシンボル**は、
-    // 場から消えた後でも軽減シンボルとして参照できる（2026-08-14 ユーザー確認）。
-    // 破壊と【不死】の召喚は同時なので、破壊の前後で軽減量が変わらない形になる
-    extraSymbols?: Color[],
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
     // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）
@@ -355,9 +350,7 @@ export function effectiveCost(
         if (!reductionBlocked && !reductionBlockedBySummonCost) {
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
-                const have =
-                    countSymbols(board.players[pid], [color]) +
-                    (extraSymbols ?? []).filter((c) => c === color).length
+                const have = countSymbols(board.players[pid], [color])
                 reduction += Math.min(need, have)
             }
         }

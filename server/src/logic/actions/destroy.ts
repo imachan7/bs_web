@@ -1159,23 +1159,33 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             return
         }
         const player = state.players[owner]
-        const trashIndex = player.trashCards.lastIndexOf(last.cardId)
-        if (trashIndex === -1) {
-            log(state, `${sourceName}：戻せるネクサスがトラッシュになかった。`)
+        // 「フィールドに戻す」は**破壊待機状態から戻す**という意味で、トラッシュからの回収ではない
+        // （docs/design/TIMING_CHART.md §1.5）。したがって破壊待機状態のネクサスを探し、
+        // 待機を解除する。コアも乗ったまま・レベルもそのままでフィールドにとどまる
+        const pending = player.field.nexuses.find((n) => n.pendingDestruction)
+        const trashIndex = pending ? -1 : player.trashCards.lastIndexOf(last.cardId)
+        if (!pending && trashIndex === -1) {
+            log(state, `${sourceName}：戻せるネクサスがなかった。`)
             return
         }
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
         const paid = requiredCost ?? self.cores
         self.cores -= paid
         player.trashCores += paid
-        player.trashCards.splice(trashIndex, 1)
-        player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))
+        const revivedName = getCard(pending ? pending.cardId : last.cardId).name
+        if (pending) {
+            delete pending.pendingDestruction
+        } else {
+            // 破壊が確定した後（既にトラッシュへ行っている）経路への保険
+            player.trashCards.splice(trashIndex, 1)
+            player.field.nexuses.push(createInstance(last.cardId, state.turn, 0))
+            notifyNexusDeployed(state, owner)
+        }
         state.lastDestroyedNexus = null
         log(
             state,
-            `${sourceName}：コア${paid}個をトラッシュに置き、${getCard(last.cardId).name}をフィールドに戻した。`,
+            `${sourceName}：コア${paid}個をトラッシュに置き、${revivedName}をフィールドに戻した。`,
         )
-        notifyNexusDeployed(state, owner)
         if (self.cores < instMinLevelCores(self)) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
