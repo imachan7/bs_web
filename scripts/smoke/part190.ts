@@ -82,7 +82,8 @@ function familiesIn(node: unknown, acc: Set<string>): void {
     }
 }
 
-// 効果の中に書かれた**キーワード条件**（keywordFilter）を集める。familiesIn と同じ理由で値として拾う
+// 効果の中に書かれた**キーワード条件**を集める（keywordFilter / winnerKeywordFilter）。
+// familiesIn と同じ理由で値として拾う
 function keywordsIn(node: unknown, acc: Set<string>): void {
     if (Array.isArray(node)) {
         for (const v of node) keywordsIn(v, acc)
@@ -90,11 +91,27 @@ function keywordsIn(node: unknown, acc: Set<string>): void {
     }
     if (node === null || typeof node !== "object") return
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-        if (k === "keywordFilter") {
+        if (/keywordfilter$/i.test(k)) {
             if (typeof v === "string") acc.add(v)
             else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") acc.add(x)
         }
         keywordsIn(v, acc)
+    }
+}
+
+// 効果の中に書かれた**カード名の条件**を集める（winnerNameContains 等）
+function namesIn(node: unknown, acc: Set<string>): void {
+    if (Array.isArray(node)) {
+        for (const v of node) namesIn(v, acc)
+        return
+    }
+    if (node === null || typeof node !== "object") return
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (/namecontains$/i.test(k)) {
+            if (typeof v === "string") acc.add(v)
+            else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") acc.add(x)
+        }
+        namesIn(v, acc)
     }
 }
 
@@ -190,6 +207,15 @@ function buildBoard(testCard: CardData): {
         if (!helper) continue
         for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
     }
+    // 「**〇〇がバトルに勝ったとき**」のような**名前条件**があれば、その名前のカードも置く
+    // （神機レーヴァテインは「巨神機トール」が勝たないと発揮しない。自分を勝者にしても通らない）
+    const names = new Set<string>()
+    namesIn(testCard.effects ?? [], names)
+    for (const nm of names) {
+        const helper = CARDS.find((c) => c.type === "spirit" && c.name.includes(nm))
+        if (!helper) continue
+        for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
+    }
     // コスト2以下の個体も置く（maxCost 指定の効果のため）
     if (LOW_COST) for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, LOW_COST, maxCores(LOW_COST))
     // **Lv1 の個体も**1体ずつ置く（「Lv1のスピリットは〜」のようなレベル条件のため。
@@ -225,6 +251,24 @@ function pickSubject(s: GameState, cond: Record<string, unknown>): ReturnType<ty
             wantKws.length === 0 ||
             wantKws.some((k) => spiritHasKeyword(s, "p1", inst, k as never))
         if (famOk && kwOk) return inst
+    }
+    return null
+}
+
+// バトル勝利誘発の**勝者**を選ぶ（winnerNameContains / winnerFamilyFilter / winnerKeywordFilter）
+function pickWinner(s: GameState, cond: Record<string, unknown>): ReturnType<typeof createInstance> | null {
+    const nm = cond["winnerNameContains"]
+    const fam = cond["winnerFamilyFilter"]
+    const kw = cond["winnerKeywordFilter"]
+    if (nm === undefined && fam === undefined && kw === undefined) return null
+    const wantFams = typeof fam === "string" ? [fam] : Array.isArray(fam) ? (fam as string[]) : []
+    const wantKws = typeof kw === "string" ? [kw] : Array.isArray(kw) ? (kw as string[]) : []
+    for (const inst of s.players.p1.field.spirits) {
+        const card = getCard(inst.cardId)
+        if (typeof nm === "string" && !card.name.includes(nm)) continue
+        if (wantFams.length > 0 && !wantFams.some((f) => (card.family ?? []).includes(f))) continue
+        if (wantKws.length > 0 && !wantKws.some((k) => spiritHasKeyword(s, "p1", inst, k as never))) continue
+        return inst
     }
     return null
 }
@@ -310,14 +354,21 @@ for (const card of CARDS) {
                 s.turnPlayer = "p1"
             }
             // (3) バトル勝利誘発（battleWon は勝者を渡す別経路）
-            if (effects.some((e) => e.kind === "battleWon")) {
+            // (3) バトル勝利誘発：**勝者に条件がある**（「〇〇が勝ったとき」）ので、
+            //     エントリごとに条件（名前・系統・キーワード）を満たす勝者を盤面から選んで渡す
+            for (const e of effects) {
+                if (e.kind !== "battleWon") continue
+                const cond = e as unknown as Record<string, unknown>
+                const winner = pickWinner(s, cond) ?? selfInst
                 for (const role of ["attacker", "blocker"] as const) {
-                    // **テストカード自身**を勝者として渡す（先頭スピリットを渡していたため、
-                    // テスト対象の battleWon エントリが一度も発火していなかった）
-                    fireBattleWonTriggers(s, "p1", selfInst, role)
-                    if (!drain(s)) throw new Error("選択待ちが解消しない（battleWon）")
-                    fired++
+                    for (const tp of ["p1", "p2"] as PlayerId[]) {
+                        s.turnPlayer = tp
+                        fireBattleWonTriggers(s, "p1", winner, role)
+                        if (!drain(s)) throw new Error(`選択待ちが解消しない（battleWon／${role}）`)
+                        fired++
+                    }
                 }
+                s.turnPlayer = "p1"
             }
             // (4) フィールド誘発：**エントリごと**に撃つ（同じ event でも条件が違うため）。
             //     主体（イベントの当事者）はその条件（系統・キーワード）に合う駒を盤面から選び、
