@@ -249,10 +249,14 @@ function readContinuousEffects(s: GameState): void {
     }
     // フィールド全体の制約（globalConstraint）を種類ごとに読む
     for (const t of GLOBAL_CONSTRAINT_TYPES) hasGlobalConstraint(s, t as never)
-    // ブロック可否（constraint 系の読み出し）
-    const a = s.players.p1.field.spirits[0]
-    for (const b of s.players.p2.field.spirits) {
-        if (a) canBlock(s, "p2", b, "p1", a)
+    // ブロック可否（constraint 系の読み出し）。**全組み合わせ**で読む：
+    // 「Lv1のスピリットにブロックされない」のような条件は、攻撃側・ブロック側の
+    // 組み合わせ次第でしか通らない（先頭同士だけでは一度も適用されない）
+    for (const a of s.players.p1.field.spirits) {
+        for (const b of s.players.p2.field.spirits) canBlock(s, "p2", b, "p1", a)
+    }
+    for (const a of s.players.p2.field.spirits) {
+        for (const b of s.players.p1.field.spirits) canBlock(s, "p1", b, "p2", a)
     }
 }
 
@@ -308,7 +312,9 @@ for (const card of CARDS) {
             // (3) バトル勝利誘発（battleWon は勝者を渡す別経路）
             if (effects.some((e) => e.kind === "battleWon")) {
                 for (const role of ["attacker", "blocker"] as const) {
-                    fireBattleWonTriggers(s, "p1", s.players.p1.field.spirits[0]!, role)
+                    // **テストカード自身**を勝者として渡す（先頭スピリットを渡していたため、
+                    // テスト対象の battleWon エントリが一度も発火していなかった）
+                    fireBattleWonTriggers(s, "p1", selfInst, role)
                     if (!drain(s)) throw new Error("選択待ちが解消しない（battleWon）")
                     fired++
                 }
