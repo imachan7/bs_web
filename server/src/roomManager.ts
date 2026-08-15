@@ -63,6 +63,11 @@ export class RoomManager {
     }
 
     // gameId から進行中のルームを探す（バグ報告への対戦ログ添付用）
+    // roomId でルームを取る（デバッグ用の盤面差し替えが使う）
+    getRoom(roomId: string): Room | null {
+        return this.rooms.get(roomId) ?? null
+    }
+
     findByGameId(gameId: string): Room | null {
         for (const room of this.rooms.values()) {
             if (room.game?.gameId === gameId) return room

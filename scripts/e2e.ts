@@ -4,8 +4,16 @@ import { io, type Socket } from "socket.io-client"
 import type { GameAction, GameView, PlayerId } from "../server/src/type"
 import { DECK_RECIPES } from "../data/constants"
 
+import { loadAllCards } from "../data/loadCards"
+
 const PORT = Number(process.env.PORT ?? 3000)
 const URL = `http://localhost:${PORT}`
+
+// 盤面差し替えの検証に置くスピリット。**実データから決定的に選ぶ**
+// （cardId の直書きは過去にIDが全面的にズレた事故があるため。CLAUDE.md「重要な罠」）
+const SAMPLE_SPIRIT = (
+    loadAllCards() as unknown as { cardId: string; type?: string; effects?: unknown[] }[]
+).find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!.cardId
 
 // join に渡す任意ペイロード（deck / deckCards のどちらかを指定する）
 interface JoinOptions {
@@ -184,6 +192,59 @@ async function main(): Promise<void> {
         assert(other.playerId === "p1", "空いた席（p1）に別の人が入れる")
         other.socket.disconnect()
         dup.socket.disconnect()
+    }
+
+    // ── デバッグ用の盤面差し替え（ローカル実行時だけ有効な機能）────────────────
+    // 「盤面と手札を用意して実際に動かして確かめる」ための入口。対戦画面は既存のまま使う
+    console.log("=== デバッグ用の盤面差し替え ===")
+    {
+        const enabled = (await (await fetch(`${URL}/api/debug/enabled`)).json()) as { enabled?: boolean }
+        assert(enabled.enabled === true, "ローカル実行ではデバッグ機能が有効になる")
+
+        const roomId = "e2e-debug"
+        const d1 = await connect("盤面太郎", { roomId, deck: "red" })
+        const d2 = await connect("盤面次郎", { roomId, deck: "blue" })
+        await d1.nextState() // 対戦開始の配信
+
+        const board = {
+            turn: 5,
+            turnPlayer: "p1",
+            phase: "main",
+            players: {
+                p1: { life: 3, reserve: 8, hand: [], field: { spirits: [{ cardId: SAMPLE_SPIRIT, cores: 2 }] } },
+                p2: { life: 4, field: { spirits: [{ cardId: SAMPLE_SPIRIT, cores: 1, isRested: true }] } },
+            },
+        }
+        const res = await fetch(`${URL}/api/debug/setup`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ roomId, board }),
+        })
+        assert(res.status === 200, `盤面の差し替えが成功する（実際: ${res.status}）`)
+
+        const v = await d1.nextState()
+        assert(v.turn === 5 && v.phase === "main", "ターン・フェーズが指定どおりになる")
+        assert(v.players.p1.life === 3 && v.players.p2.life === 4, "両者のライフが指定どおりになる")
+        assert(v.players.p1.field.spirits.length === 1, "自分の場が指定どおりになる")
+        assert(v.players.p2.field.spirits[0]?.isRested === true, "相手の疲労状態も指定できる")
+
+        // 打ち間違いを黙って通さない（盤面が静かに欠けるのを防ぐ）
+        const bad = await fetch(`${URL}/api/debug/setup`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ roomId, board: { players: { p1: { hand: ["ZZZ-999"] } } } }),
+        })
+        assert(bad.status === 400, "存在しないカードIDは拒否される")
+
+        const noRoom = await fetch(`${URL}/api/debug/setup`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ roomId: "e2e-nosuch", board: {} }),
+        })
+        assert(noRoom.status === 404, "存在しないルームは拒否される")
+
+        d1.socket.disconnect()
+        d2.socket.disconnect()
     }
 
     console.log("")
