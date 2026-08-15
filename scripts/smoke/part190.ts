@@ -25,7 +25,7 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger, fireFieldEventTriggers, fireBattleWonTriggers, resolveMagic } from "../../server/src/logic/EffectModules"
-import { activeConstraints, instHasColor, noLifeDamageByCost } from "../../shared/rules"
+import { activeConstraints, hasGlobalConstraint, instHasColor, noLifeDamageByCost } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
 import { loadAllCards } from "../../data/loadCards"
@@ -44,6 +44,20 @@ for (const c of CARDS) {
     for (const col of c.colors) if (!VANILLA_BY_COLOR.has(col)) VANILLA_BY_COLOR.set(col, c)
 }
 const HELPERS = [...VANILLA_BY_COLOR.values()]
+// コスト2以下の駒（「コスト2以下のスピリットがアタックしても〜」のようなコスト条件のため。
+// 色ごとのバニラだけではコストが偏り、maxCost 指定の効果が一度も通らないことがある）
+const LOW_COST = CARDS.find(
+    (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= 2,
+)
+// フィールド全体の制約（globalConstraint）は種類ごとに読み出し関数が違うので、
+// **カードデータに実在する type をすべて集めて**汎用判定 hasGlobalConstraint に通す。
+// 読まなければ「盤面にあるのに一度も適用されていない」ままになる
+const GLOBAL_CONSTRAINT_TYPES = new Set<string>()
+for (const c of CARDS) {
+    for (const e of (c.effects ?? []) as EffectDef[]) {
+        if (e.kind === "globalConstraint") GLOBAL_CONSTRAINT_TYPES.add(e.constraint.type)
+    }
+}
 // 手札・トラッシュに入れる種別ごとの1枚（効果を持たないものを優先し、無ければ先頭）
 const pickByType = (type: string): CardData =>
     CARDS.find((c) => c.type === type && (c.effects ?? []).length === 0) ??
@@ -146,6 +160,8 @@ function buildBoard(testCard: CardData): {
         if (!helper) continue
         for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
     }
+    // コスト2以下の個体も置く（maxCost 指定の効果のため）
+    if (LOW_COST) for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, LOW_COST, maxCores(LOW_COST))
     // **Lv1 の個体も**1体ずつ置く（「Lv1のスピリットは〜」のようなレベル条件のため。
     // 他の脇役は最高Lvで置いているので、Lv1 を見る効果はそれだけでは通らない）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -182,6 +198,8 @@ function readContinuousEffects(s: GameState): void {
         effectSources(s, pid)
         for (const cardId of s.players[pid].hand) effectiveCost(s, pid, getCard(cardId))
     }
+    // フィールド全体の制約（globalConstraint）を種類ごとに読む
+    for (const t of GLOBAL_CONSTRAINT_TYPES) hasGlobalConstraint(s, t as never)
     // ブロック可否（constraint 系の読み出し）
     const a = s.players.p1.field.spirits[0]
     for (const b of s.players.p2.field.spirits) {
