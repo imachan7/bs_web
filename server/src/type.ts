@@ -1464,6 +1464,14 @@ export interface CardInstance {
     // （数・シンボル・【転召】の生贄にも数える）。
     // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
     pendingDestruction?: true
+    // **バウンス待機状態**（バトスピ Wiki「バウンスについて」。2020年5月のルール改定）。
+    // 手札／デッキへ戻す効果を解決してから、実際にその場所へ移るまでの間だけ立つ。
+    // この間もカードはフィールドに留まるが、**破壊待機状態とは扱いが違う**:
+    //   - シンボルを**軽減に使えない**（破壊待機は使える）
+    //   - 「手札／デッキに戻ることに関する効果」以外は**発揮できず、その対象にもならない**
+    //   - 発揮できるのは「フィールドを離れるとき」「手札／デッキに戻るとき」だけ
+    // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
+    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     cantBlockThisBattle?: true // このバトルの間ブロックできない（markCantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーター）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
@@ -1755,6 +1763,13 @@ export type ResumeFrame =
           // 破壊の確定（トラッシュ行き）を**呼び出し元（destroyOne フレーム）が行う**印。
           // 【不死】を同じ待機の窓の中で解決するときに立つ
           deferCommit?: true
+      }
+    | {
+          // バウンス待機状態の続き。**移動はすでに済んでいて、残りの誘発だけ**を後へ送る。
+          // 戻ったカードはもうフィールドに無いので、誘発に渡すインスタンスをそのまま持ち回る
+          kind: "bounceFlush"
+          moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[]
+          index: number
       }
     | {
           // ネクサスの破壊処理（＞６）の続き。誘発が中断したときに、

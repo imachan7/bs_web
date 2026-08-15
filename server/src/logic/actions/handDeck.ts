@@ -24,6 +24,8 @@ import {
     requestChoice,
     resolveMagic,
     returnSpiritToDeckBottom,
+    markBounce,
+    flushBounces,
     returnSpiritToDeckTop,
     returnSpiritToHand,
     tryInteractiveCardChoice,
@@ -1447,14 +1449,17 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             ) {
                 return
             }
+            // **まとめて待機させてから一度に戻す**（Wiki「バウンスについて」）。
+            // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう
             for (let i = 0; i < resolvedCount; i++) {
                 const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType, "bounce")
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
                 }
-                returnSpiritToHand(state, target.pid, target.inst, sourceName)
+                markBounce(state, target.pid, target.inst, "hand", sourceName)
             }
+            flushBounces(state)
             return
         }
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
@@ -1508,10 +1513,12 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
                 return true
             })
             for (const s of targets) {
-                returnSpiritToHand(state, pid, s, sourceName)
+                markBounce(state, pid, s, "hand", sourceName)
                 returned++
             }
         }
+        // 全部を待機させてから一度に戻す（「戻ったとき」の誘発は全部戻ってからまとめて発揮する）
+        flushBounces(state)
         if (returned === 0) log(state, `${sourceName}：手札に戻す対象がいなかった。`)
         return
 }
@@ -1731,9 +1738,11 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
                 log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 continue
             }
-            returnSpiritToDeckBottom(state, rec.pid, inst, sourceName)
+            markBounce(state, rec.pid, inst, "deckBottom", sourceName)
             returned += 1
         }
+        // 全部を待機させてから一度に戻す
+        flushBounces(state)
         if (returned === 0) {
             log(state, `${sourceName}：デッキの下に戻せるスピリットがいなかった。`)
         }

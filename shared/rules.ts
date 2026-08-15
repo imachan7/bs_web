@@ -274,6 +274,9 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
+        // **バウンス待機中のカードのシンボルは軽減に使えない**（バトスピ Wiki「バウンスについて」）。
+        // 破壊待機中は使えるので、そこだけ扱いが違う
+        if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         let matched = false

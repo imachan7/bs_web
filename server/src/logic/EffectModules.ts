@@ -53,7 +53,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { destroySpirit } from "./removal"
+import { destroySpirit, flushBounces } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -1933,6 +1933,9 @@ export function pickEnemyCandidates(
     }
     return state.players[targetPid].field.spirits.filter(
         (s) =>
+            // **バウンス待機中は「戻ることに無関係な効果」の対象にならない**
+            // （バトスピ Wiki「バウンスについて」。破壊待機中は対象に取れるので扱いが違う）
+            !s.pendingBounce &&
             effectiveBp(state, targetPid, s) <= maxBp &&
             !isResisted(state, targetPid, s, attempt) &&
             extraPredicate(s),
@@ -1955,7 +1958,8 @@ export function pickAnySideCandidates(
     // 封印された魔導書Lv1：マジックの効果なら、片側だけに変更する選択が済んでいる場合がある
     return applyBothSidesRedirectToCandidates(state, sourceType, [
         ...pickEnemyCandidates(state, opp, Infinity, matches, sourceColors, sourceType, op),
-        ...state.players[owner].field.spirits.filter(matches),
+        // 自分側もバウンス待機中は対象外（相手側は pickEnemyCandidates が弾く）
+        ...state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matches(s)),
     ])
 }
 
@@ -1982,7 +1986,7 @@ export function pickAnySideByBp(
         keepPid !== null && keepPid !== owner
             ? []
             : state.players[owner].field.spirits.filter(
-                  (s) => effectiveBp(state, owner, s) <= maxBp && matches(s),
+                  (s) => !s.pendingBounce && effectiveBp(state, owner, s) <= maxBp && matches(s),
               )
     const ownCandidate =
         ownCandidates.length > 0
@@ -2503,6 +2507,10 @@ export function resolveAction(
     }
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void
     handler(ctx, action)
+    // バウンス待機状態のカードを、**この効果の解決が終わった時点で**まとめて手札／デッキへ移す
+    // （Wiki「バウンスについて」：待機中の「戻るとき」効果は割り込まず、解決後に発揮する）。
+    // 選択待ちで中断している間はまだ解決が終わっていないので、待機のまま残す
+    if (!state.pendingChoice) flushBounces(state)
 
 }
 
@@ -2675,6 +2683,9 @@ export {
     returnSpiritToHand,
     returnSpiritToDeckTop,
     returnSpiritToDeckBottom,
+    flushBounces,
+    fireBounceTriggers,
+    markBounce,
     canTakeCoresFrom,
     removeCores,
     removeCoresToTrash,

@@ -1492,8 +1492,10 @@ export function returnNexusToHand(
     notifyHandGained(state, ownerPid, 1)
 }
 
-// スピリットを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
-// 破壊ではないため onDestroy は誘発しない（destroySpirit とは別処理）。
+// スピリットを持ち主の手札へ戻す（バウンス）。
+// **その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
+// 実際の移動と「手札に戻ったとき」の誘発は、バウンス効果の解決が終わってから
+// flushBounces がまとめて行う。破壊ではないため onDestroy は誘発しない。
 export function returnSpiritToHand(
     state: GameState,
     ownerPid: PlayerId,
@@ -1501,29 +1503,111 @@ export function returnSpiritToHand(
     // 効果の発生源カード名。渡すとログとイベントに載せる（何の効果で戻ったのかを対戦者が追えるように）
     sourceName?: string,
 ): void {
+    markBounce(state, ownerPid, inst, "hand", sourceName)
+    flushBounces(state)
+}
+
+// バウンス待機状態にする。フィールドには留めたまま印だけ付ける。
+// **すでに待機中なら何もしない**（同じカードを2つの効果が戻そうとしても1回しか戻らない）。
+//
+// **1つの効果で複数体を戻すときはこれを直接呼び、最後に flushBounces を1回呼ぶ**。
+// そうすると「全部戻ってから、まとめて『戻ったとき』が誘発する」というルールどおりになる
+// （1体ずつ戻すと、1体目の誘発が2体目以降の対象を変えてしまう）。
+// 1体だけ戻す場合は returnSpiritToHand 等がその場で flush するので結果は変わらない
+export function markBounce(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    to: "hand" | "deckTop" | "deckBottom",
+    sourceName?: string,
+): void {
     const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.hand.push(inst.cardId)
-    log(
-        state,
-        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}は手札に戻った。`,
-    )
-    emitEvent(state, {
-        type: "returnToHand",
-        pid: ownerPid,
-        cardName: getCard(inst.cardId).name,
-        ...(sourceName !== undefined ? { sourceName } : {}),
-    })
-    notifyHandGained(state, ownerPid, 1)
-    // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
-    // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
-    if (!state.winner) {
-        fireFieldEventTriggers(state, ownerPid, "ownSpiritReturnedToHand", { pid: ownerPid, inst }, instColors(inst))
+    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
+    if (inst.pendingBounce) return
+    inst.pendingBounce = { to }
+    if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
+}
+
+// バウンスの発生源カード名（ログ用）。CardInstance に持たせると盤面の状態が増えるので、
+// **待機中だけの一時情報**としてここに置く（flushBounces が使い終わったら消す）
+const bounceSourceNames = new Map<string, string>()
+
+// バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。
+// **バウンス効果の解決が終わった時点で呼ぶ**。
+//
+// 移動を先に全部済ませてから誘発するのが要点（Wiki：待機中の「戻るとき」効果は割り込まない）。
+// 1体戻すごとに誘発していると、その誘発が2体目以降の対象を変えてしまう
+// （例：紅玉の火山弾＝地竜が手札に戻ったとき相手1体を破壊、とまとめ戻しの組み合わせ）
+export function flushBounces(state: GameState): void {
+    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[] = []
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const inst of [...player.field.spirits]) {
+            const pb = inst.pendingBounce
+            if (!pb) continue
+            const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
+            if (index === -1) continue
+            player.field.spirits.splice(index, 1)
+            player.reserve += inst.cores
+            delete inst.pendingBounce
+            const sourceName = bounceSourceNames.get(inst.instanceId)
+            bounceSourceNames.delete(inst.instanceId)
+            const name = getCard(inst.cardId).name
+            const prefix = sourceName !== undefined ? `${sourceName}：` : ""
+            if (pb.to === "hand") {
+                player.hand.push(inst.cardId)
+                log(state, `${prefix}${player.name}の${name}は手札に戻った。`)
+                emitEvent(state, {
+                    type: "returnToHand",
+                    pid,
+                    cardName: name,
+                    ...(sourceName !== undefined ? { sourceName } : {}),
+                })
+            } else {
+                const top = pb.to === "deckTop"
+                if (top) player.deck.unshift(inst.cardId)
+                else player.deck.push(inst.cardId)
+                log(state, `${prefix}${player.name}の${name}はデッキの一番${top ? "上" : "下"}に戻った。`)
+                emitEvent(state, {
+                    type: "returnToDeck",
+                    pid,
+                    cardName: name,
+                    position: top ? "top" : "bottom",
+                    ...(sourceName !== undefined ? { sourceName } : {}),
+                })
+            }
+            moved.push({ pid, inst, to: pb.to })
+        }
+    }
+    if (moved.length === 0) return
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const n = moved.filter((m) => m.pid === pid && m.to === "hand").length
+        if (n > 0) notifyHandGained(state, pid, n)
+    }
+    fireBounceTriggers(state, moved, 0)
+}
+
+// 移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**
+// （割り込まれる側の作法。docs/design/RESUME_STACK.md）
+export function fireBounceTriggers(
+    state: GameState,
+    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[],
+    from: number,
+): void {
+    for (let i = from; i < moved.length; i++) {
+        const m = moved[i]!
+        if (state.winner) return
+        // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
+        // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
+        if (m.to === "hand") {
+            fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+        }
+        if (state.pendingChoice) {
+            if (i + 1 < moved.length) {
+                pushResumeFrames(state, [{ kind: "bounceFlush", moved, index: i + 1 }])
+            }
+            return
+        }
     }
 }
 
@@ -1536,25 +1620,8 @@ export function returnSpiritToDeckTop(
     // 効果の発生源カード名。渡すとログの先頭に出す（何の効果で戻ったのかを対戦者が追えるように）
     sourceName?: string,
 ): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.deck.unshift(inst.cardId)
-    log(
-        state,
-        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}はデッキの一番上に戻った。`,
-    )
-    emitEvent(state, {
-        type: "returnToDeck",
-        pid: ownerPid,
-        cardName: getCard(inst.cardId).name,
-        position: "top",
-        ...(sourceName !== undefined ? { sourceName } : {}),
-    })
+    markBounce(state, ownerPid, inst, "deckTop", sourceName)
+    flushBounces(state)
 }
 
 // スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
@@ -1566,25 +1633,8 @@ export function returnSpiritToDeckBottom(
     // 効果の発生源カード名。渡すとログの先頭に出す（颶風高原Lv2 で「何によって戻ったか」が分かるように）
     sourceName?: string,
 ): void {
-    const player = state.players[ownerPid]
-    const index = player.field.spirits.findIndex(
-        (s) => s.instanceId === inst.instanceId,
-    )
-    if (index === -1) return
-    player.field.spirits.splice(index, 1)
-    player.reserve += inst.cores
-    player.deck.push(inst.cardId)
-    log(
-        state,
-        `${sourceName ? `${sourceName}：` : ""}${player.name}の${getCard(inst.cardId).name}はデッキの一番下に戻った。`,
-    )
-    emitEvent(state, {
-        type: "returnToDeck",
-        pid: ownerPid,
-        cardName: getCard(inst.cardId).name,
-        position: "bottom",
-        ...(sourceName !== undefined ? { sourceName } : {}),
-    })
+    markBounce(state, ownerPid, inst, "deckBottom", sourceName)
+    flushBounces(state)
 }
 
 // 相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。

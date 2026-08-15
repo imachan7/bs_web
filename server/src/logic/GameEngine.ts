@@ -72,6 +72,8 @@ import {
     resolveMagic,
     resolveTensho,
     returnSpiritToHand,
+    fireBounceTriggers,
+    flushBounces,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -111,6 +113,10 @@ export function handleAction(
     if (!state.winner) refreshLevelAsOverrides(state)
     // 「Lvコストを+1する」で維持コアを下回った個体を掃除する（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
+    // バウンス待機状態のカードは、選択待ちが無くなった時点で必ず手札／デッキへ移す。
+    // 通常は効果の解決ごとに resolveAction が移すが、そこを通らない経路
+    // （エンドステップの「デッキ下に戻る」、召喚時の入れ替えなど）でも盤面に居座らせないための安全網
+    if (!state.pendingChoice) flushBounces(state)
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)
@@ -1353,6 +1359,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "destroyOne") {
             // 1体の破壊に伴う同時発揮（「フィールドに残る」と【不死】）の続きを回す
             resolveDestroyOne(state, frame)
+            continue
+        }
+        if (frame.kind === "bounceFlush") {
+            // バウンス待機から実際に戻したあとの誘発が中断していた。残りの体ぶんを続ける
+            fireBounceTriggers(state, frame.moved, frame.index)
             continue
         }
         if (frame.kind === "battleResolve") {
