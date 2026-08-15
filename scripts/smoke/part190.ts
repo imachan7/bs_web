@@ -82,6 +82,22 @@ function familiesIn(node: unknown, acc: Set<string>): void {
     }
 }
 
+// 効果の中に書かれた**キーワード条件**（keywordFilter）を集める。familiesIn と同じ理由で値として拾う
+function keywordsIn(node: unknown, acc: Set<string>): void {
+    if (Array.isArray(node)) {
+        for (const v of node) keywordsIn(v, acc)
+        return
+    }
+    if (node === null || typeof node !== "object") return
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (k === "keywordFilter") {
+            if (typeof v === "string") acc.add(v)
+            else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") acc.add(x)
+        }
+        keywordsIn(v, acc)
+    }
+}
+
 function put(s: GameState, pid: PlayerId, card: CardData, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(card.cardId, s.turn, cores)
     s.players[pid].field.spirits.push(inst)
@@ -160,6 +176,20 @@ function buildBoard(testCard: CardData): {
         if (!helper) continue
         for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
     }
+    // テスト対象が**キーワードを条件にしている**なら、そのキーワードを持つスピリットも置く
+    // （【粉砕】【暴風】【不死】…。主体がそのキーワードを持たないと誘発条件が通らない）
+    const keywords = new Set<string>()
+    keywordsIn(testCard.effects ?? [], keywords)
+    for (const kw of keywords) {
+        const helper = CARDS.find(
+            (c) =>
+                c.type === "spirit" &&
+                c.cardId !== testCard.cardId &&
+                (c.effects ?? []).some((e) => e.kind === "keyword" && e.keyword === kw),
+        )
+        if (!helper) continue
+        for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
+    }
     // コスト2以下の個体も置く（maxCost 指定の効果のため）
     if (LOW_COST) for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, LOW_COST, maxCores(LOW_COST))
     // **Lv1 の個体も**1体ずつ置く（「Lv1のスピリットは〜」のようなレベル条件のため。
@@ -178,6 +208,25 @@ function buildBoard(testCard: CardData): {
     else if (testCard.type === "nexus") selfInst = putNexus(s, "p1", testCard, maxCores(testCard))
     refreshLevelAsOverrides(s)
     return { s, selfInst }
+}
+
+// フィールド誘発の**主体**（「自分のスピリットが召喚されたとき」の、その召喚されたスピリット）を選ぶ。
+// エントリ直下の familyFilter / keywordFilter を満たす駒を盤面から探す（無ければ null）
+function pickSubject(s: GameState, cond: Record<string, unknown>): ReturnType<typeof createInstance> | null {
+    const fam = cond["familyFilter"]
+    const kw = cond["keywordFilter"]
+    if (fam === undefined && kw === undefined) return null
+    const wantFams = typeof fam === "string" ? [fam] : Array.isArray(fam) ? (fam as string[]) : []
+    const wantKws = typeof kw === "string" ? [kw] : Array.isArray(kw) ? (kw as string[]) : []
+    for (const inst of s.players.p1.field.spirits) {
+        const card = getCard(inst.cardId)
+        const famOk = wantFams.length === 0 || wantFams.some((f) => (card.family ?? []).includes(f))
+        const kwOk =
+            wantKws.length === 0 ||
+            wantKws.some((k) => spiritHasKeyword(s, "p1", inst, k as never))
+        if (famOk && kwOk) return inst
+    }
+    return null
 }
 
 // バトルを成立させる（バトル関連の誘発・継続効果のため）
@@ -264,18 +313,25 @@ for (const card of CARDS) {
                     fired++
                 }
             }
-            // (4) フィールド誘発：カードが持つイベントをすべて撃つ
-            const events = new Set<string>()
-            for (const e of effects) if (e.kind === "fieldEvent") events.add(e.event)
-            for (const ev of events) {
+            // (4) フィールド誘発：**エントリごと**に撃つ（同じ event でも条件が違うため）。
+            //     主体（イベントの当事者）はその条件（系統・キーワード）に合う駒を盤面から選び、
+            //     フェーズ条件があればそのフェーズにする
+            for (const e of effects) {
+                if (e.kind !== "fieldEvent") continue
+                const cond = e as unknown as Record<string, unknown>
+                const subject = pickSubject(s, cond) ?? s.players.p1.field.spirits[0]!
+                const phases = typeof cond["phase"] === "string" ? [cond["phase"] as Phase] : ["attack" as Phase, "main" as Phase]
                 for (const tp of ["p1", "p2"] as PlayerId[]) {
-                    s.turnPlayer = tp
-                    const subject = s.players.p1.field.spirits[0]!
-                    fireFieldEventTriggers(s, "p1", ev as never, { pid: "p1", inst: subject }, undefined, s.players.p2.field.spirits[0]?.instanceId)
-                    if (!drain(s)) throw new Error(`選択待ちが解消しない（${ev}／turn:${tp}）`)
-                    fired++
+                    for (const ph of phases) {
+                        s.turnPlayer = tp
+                        s.phase = ph
+                        fireFieldEventTriggers(s, "p1", e.event as never, { pid: "p1", inst: subject }, undefined, s.players.p2.field.spirits[0]?.instanceId)
+                        if (!drain(s)) throw new Error(`選択待ちが解消しない（${e.event}／turn:${tp}／${ph}）`)
+                        fired++
+                    }
                 }
                 s.turnPlayer = "p1"
+                s.phase = "attack"
             }
         }
         // (5) ステップ誘発：カードが持つステップを、自分ターン／相手ターンの両方で撃つ
