@@ -968,23 +968,79 @@ export function bothSidesPids(
 ): PlayerId[] {
     const all: PlayerId[] = ["p1", "p2"]
     if (srcType !== "magic") return all
-    for (const ownerPid of all) {
+    const found = findBothSidesRedirectSource(state)
+    if (!found) return all
+    // 対話モードでは、どちらに変更するかを魔導書の持ち主に確認済み（resolveMagic が1回だけ聞く）。
+    // 「変更しない」を選んでいたら両陣営のまま（『〜に変更できる』の任意性）
+    const decision = state.magicSideDecision
+    if (decision && decision.sourceInstanceId === found.inst.instanceId) {
+        if (decision.keepPid === null) return all
+        log(
+            state,
+            `${getCard(found.inst.cardId).name}：このマジックの効果の対象を${state.players[decision.keepPid].name}のみに変更した。`,
+        )
+        return [decision.keepPid]
+    }
+    // 決定が無い＝非対話（テスト・自動解決）なので、従来どおり持ち主に有利な側へ固定する
+    const excluded = beneficial ? opponentOf(found.pid) : found.pid
+    log(
+        state,
+        `${getCard(found.inst.cardId).name}：このマジックの効果の対象を${state.players[opponentOf(excluded)].name}のみに変更した。（どちらに変更するかは簡略化）`,
+    )
+    return all.filter((p) => p !== excluded)
+}
+
+// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の発生源を探す。
+// **どちらに変更するか（あるいは変更しないか）は呼び出し側が決める**。
+// resolveMagic の事前確認（このマジックで対象変更が起こりうるか）と、実際に絞り込む
+// bothSidesPids / anySide の候補列挙が共用する。相手が使ったマジックにも効くので両陣営を走査する
+// （選ぶのはあくまで発生源の持ち主。docs/design/CHOOSER_RULES.md）
+export function findBothSidesRedirectSource(
+    state: GameState,
+): { pid: PlayerId; inst: CardInstance } | null {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(state, ownerPid)) {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "bothSidesTargetRedirect") continue
                 if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                 if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
-                const excluded = beneficial ? opponentOf(ownerPid) : ownerPid
-                log(
-                    state,
-                    `${getCard(source.cardId).name}：このマジックの効果の対象を${state.players[opponentOf(excluded)].name}のみに変更した。（どちらに変更するかは簡略化）`,
-                )
-                return all.filter((p) => p !== excluded)
+                return { pid: ownerPid, inst: source }
             }
         }
     }
-    return all
+    return null
+}
+
+// 封印された魔導書Lv1 の答えのうち「**対象として残る側**」を返す（null＝絞らない）。
+// 「お互いを対象とする効果」（bothSidesPids）だけでなく、**陣営を指定していない単体対象**
+// （action.anySide の「スピリット1体」「ネクサス1つ」）にも効かせるためのもの。
+// **マジックの効果にだけ効く**のは bothSidesPids と同じで、決定が無いとき
+// （非対話・魔導書が無い・「変更しない」を選んだ）は null を返して素通しさせる
+export function bothSidesRedirectKeepPid(
+    state: GameState,
+    sourceType: "spirit" | "nexus" | "magic" | undefined,
+): PlayerId | null {
+    if (sourceType !== "magic") return null
+    const decision = state.magicSideDecision
+    if (!decision || decision.keepPid === null) return null
+    const found = findBothSidesRedirectSource(state)
+    if (!found || found.inst.instanceId !== decision.sourceInstanceId) return null
+    return decision.keepPid
+}
+
+// 上の答えで候補列挙（pickAnySideCandidates）を片側に絞る。スピリットとネクサスの両方を見る
+// （「ネクサス1つ」を対象にする anySide があるため。BS03メビウスリング）
+export function applyBothSidesRedirectToCandidates(
+    state: GameState,
+    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    candidates: CardInstance[],
+): CardInstance[] {
+    const keepPid = bothSidesRedirectKeepPid(state, sourceType)
+    if (keepPid === null) return candidates
+    const keep = state.players[keepPid].field
+    const ids = new Set([...keep.spirits, ...keep.nexuses].map((c) => c.instanceId))
+    return candidates.filter((c) => ids.has(c.instanceId))
 }
 
 // 果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
@@ -1296,7 +1352,11 @@ export function resolveMagic(
     // oncePerBattle の無償化（BS07大天使イスフィール＝「マジックカード1枚を」）は、ここで使い切る。
     // 再発揮（magicRepeatGrant）の消費は resolveMagicEffects 側で別に記録するので、
     // この記録によって**同じ1枚目の再発揮まで消えることはない**
-    consumeOncePerBattleMagicFree(state, owner, card)
+    // 「あえてコストを払って使う」を選んでいたら、1枚きりの無償枠は消費しない（2026-08-15 ユーザー確認）。
+    // doCastMagic が直前に立てるフラグなので、読んだらすぐ消す
+    const declinedFree = state.magicFreeDeclined === true
+    delete state.magicFreeDeclined
+    if (!declinedFree) consumeOncePerBattleMagicFree(state, owner, card)
     emitEvent(state, { type: "magic", pid: owner, cardName: card.name })
 
     // マジックの無効化（鏡の回廊Lv2／今後の【氷壁】）。効果を1つも解決する前に判定する。
@@ -1359,7 +1419,86 @@ export function resolveMagic(
         }
     }
 
+    if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId)) return
     resolveMagicEffects(state, owner, cardId, timing, targetInstanceId)
+}
+
+// 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
+// 出したら true（中断）を返す。**このマジックが実際に両陣営に関わる場合だけ**聞く
+// （相手だけを対象にする大多数のマジックで確認を出さないため）。答えはマジックの解決中ずっと使い回す
+function askBothSidesRedirect(
+    state: GameState,
+    owner: PlayerId,
+    card: CardData,
+    timing: "main" | "flash",
+    targetInstanceId: string | undefined,
+): boolean {
+    delete state.magicSideDecision
+    if (!state.interactiveTargets) return false
+    const found = findBothSidesRedirectSource(state)
+    if (!found) return false
+    const touches = card.effects.some(
+        (e) => e.kind === "magic" && e.timing === timing && actionTouchesBothSides(e.action),
+    )
+    if (!touches) return false
+    suspend(state, {
+        pid: found.pid, // 選ぶのは**魔導書の持ち主**（マジックの使用者とは限らない）
+        kind: "option",
+        prompt: `${getCard(found.inst.cardId).name}：${card.name}の効果の対象を変更しますか？`,
+        candidates: [],
+        options: BOTH_SIDES_REDIRECT_OPTIONS,
+        optional: false,
+        magicSideChoice: {
+            casterPid: owner,
+            cardId: card.cardId,
+            timing,
+            targetInstanceId,
+            sourceInstanceId: found.inst.instanceId,
+            ownerPid: found.pid,
+        },
+        action: { type: "noop" },
+        selfInstanceId: found.inst.instanceId,
+    })
+    return true
+}
+
+// 確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=変更しない / 1=相手のみ / 2=自分のみ）。
+// 「相手」「自分」はどちらも**魔導書の持ち主から見た**呼び方
+export const BOTH_SIDES_REDIRECT_OPTIONS = ["変更しない", "相手のみ", "自分のみ"]
+
+// 「お互いを対象とする」効果（side:"both" 等）か、陣営を指定しない単体対象（anySide）を含むか。
+// EffectAction は判別共用体で、両陣営を示す印が型ごとに散らばっているため、
+// **ここだけは値として再帰的に**走査する（新しい action を足しても印さえ同じなら追随不要）
+const BOTH_SIDES_ACTION_TYPES = new Set([
+    "bothSidesCoreToTrash",
+    "bothSidesCoreToVoid",
+    "discardBothHands",
+])
+function actionTouchesBothSides(node: unknown): boolean {
+    if (Array.isArray(node)) return node.some(actionTouchesBothSides)
+    if (node === null || typeof node !== "object") return false
+    const o = node as Record<string, unknown>
+    if (o["anySide"] === true) return true
+    if (o["side"] === "both") return true
+    if (o["target"] === "anyAll") return true
+    if (typeof o["type"] === "string" && BOTH_SIDES_ACTION_TYPES.has(o["type"])) return true
+    return Object.values(o).some(actionTouchesBothSides)
+}
+
+// pendingChoice（対象の変更の確認）の後処理。keepPid=null なら変更せず、
+// それ以外はその側だけを対象として中断していた解決を続ける。GameEngine.doResolveChoice から呼ぶ
+export function applyMagicSideChoice(
+    state: GameState,
+    info: NonNullable<PendingChoice["magicSideChoice"]>,
+    keepPid: PlayerId | null,
+): void {
+    state.magicSideDecision = { sourceInstanceId: info.sourceInstanceId, keepPid }
+    if (keepPid === null) {
+        const source = findInstanceAnywhere(state, info.sourceInstanceId)
+        const name = source ? getCard(source.cardId).name : "効果"
+        log(state, `${name}：${getCard(info.cardId).name}の効果の対象を変更しなかった。`)
+    }
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
 }
 
 // このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
@@ -1387,6 +1526,8 @@ export function applyMagicRedirectChoice(
     approved: boolean,
 ): void {
     state.magicRedirectDecision = { sourceInstanceId: info.sourceInstanceId, approved }
+    // 絞り込みの確認で中断していた場合も、封印された魔導書の確認はここで出す（解決へ直行させない）
+    if (askBothSidesRedirect(state, info.casterPid, getCard(info.cardId), info.timing, info.targetInstanceId)) return
     resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
 }
 
@@ -1427,11 +1568,34 @@ export function resolveMagicEffects(
     // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
     // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
     // 「発揮後にもう1度」は約束どおり行う）
-    const repeat = hasMagicRepeatGrant(state, owner, true)
+    const repeatSource = findMagicRepeatGrantSource(state, owner)
     runMagicActions(state, owner, cardId, timing, targetInstanceId)
     // 選択待ちで中断したときは、残りの効果を pendingChoice の queue が引き継いでいるのでここで抜ける
     if (state.pendingChoice) return
-    if (repeat && !state.winner) {
+    if (repeatSource && !state.winner) {
+        // 「もう1度だけ発揮**できる**」＝任意なので、1周目が解決しきってから聞く（2026-08-15 ユーザー確認）。
+        // 非対話（テスト・自動解決）では従来どおり自動で2周目を走らせる
+        if (state.interactiveTargets) {
+            suspend(state, {
+                pid: owner,
+                kind: "option",
+                prompt: `${getCard(repeatSource.cardId).name}：${getCard(cardId).name}の効果をもう1度発揮しますか？`,
+                candidates: [],
+                options: MAGIC_REPEAT_OPTIONS,
+                optional: false,
+                magicRepeat: {
+                    casterPid: owner,
+                    cardId,
+                    timing,
+                    targetInstanceId,
+                    sourceInstanceId: repeatSource.instanceId,
+                },
+                action: { type: "noop" },
+                selfInstanceId: repeatSource.instanceId,
+            })
+            return
+        }
+        consumeMagicRepeatGrant(state, repeatSource)
         log(state, `${getCard(cardId).name}の効果をもう1度発揮する。`)
         runMagicActions(state, owner, cardId, timing, targetInstanceId)
         if (state.pendingChoice) return
@@ -1439,11 +1603,12 @@ export function resolveMagicEffects(
     fireMagicUsedTriggers(state, owner, getCard(cardId), timing)
 }
 
-// 使用者pidのフィールドに kind:"magicRepeatGrant" の有効な発生源があるか（BS07大天使イスフィール）。
-// consume=true のときは oncePerBattle の発生源を「このバトルで使い切った」として記録する
-// （呼び出し元は resolveMagicEffects の1箇所だけ。ここが再発揮を確定させる時点なので、
-// 消費もここで行う。無償化側とは消費点が違うのでリストを分けている＝BattleState のコメント参照）
-function hasMagicRepeatGrant(state: GameState, pid: PlayerId, consume = false): boolean {
+// 使用者pidのフィールドにある、kind:"magicRepeatGrant" の有効な発生源を返す（BS07大天使イスフィール）。
+// **消費（oncePerBattle の記録）はここでは行わない**：再発揮は「もう1度発揮**できる**」＝任意で、
+// 発揮しないことを選んだときは枠を使っていないので残す（2026-08-15 ユーザー確認）。
+// 消費は実際に2周目を走らせる直前に consumeMagicRepeatGrant で行う
+// （無償化側とは消費点が違うのでリストを分けている＝BattleState のコメント参照）
+function findMagicRepeatGrantSource(state: GameState, pid: PlayerId): CardInstance | null {
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -1452,14 +1617,45 @@ function hasMagicRepeatGrant(state: GameState, pid: PlayerId, consume = false): 
             if (effect.condition === "selfInBattle" && !isSelfInBattle(state, source.instanceId)) continue
             if (effect.oncePerBattle) {
                 if (!state.battle) continue // バトル外では消費を記録できないので成立させない
-                const used = (state.battle.oncePerBattleMagicRepeatUsed ??= [])
-                if (used.includes(source.instanceId)) continue
-                if (consume) used.push(source.instanceId)
+                if ((state.battle.oncePerBattleMagicRepeatUsed ?? []).includes(source.instanceId)) continue
             }
-            return true
+            return source
         }
     }
-    return false
+    return null
+}
+
+// 上で見つけた発生源を「このバトルで使い切った」として記録する（oncePerBattle のときだけ）
+function consumeMagicRepeatGrant(state: GameState, source: CardInstance): void {
+    const oncePerBattle = getCard(source.cardId).effects.some(
+        (e) => e.kind === "magicRepeatGrant" && e.oncePerBattle,
+    )
+    if (!oncePerBattle || !state.battle) return
+    const used = (state.battle.oncePerBattleMagicRepeatUsed ??= [])
+    if (!used.includes(source.instanceId)) used.push(source.instanceId)
+}
+
+// 再発揮の確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=発揮する / 1=しない）
+export const MAGIC_REPEAT_OPTIONS = ["もう1度発揮する", "発揮しない"]
+
+// pendingChoice（再発揮の確認）の後処理。GameEngine.doResolveChoice から呼ぶ
+export function applyMagicRepeatChoice(
+    state: GameState,
+    info: NonNullable<PendingChoice["magicRepeat"]>,
+    again: boolean,
+): void {
+    const card = getCard(info.cardId)
+    if (again) {
+        const source = findInstanceAnywhere(state, info.sourceInstanceId)
+        if (source) consumeMagicRepeatGrant(state, source)
+        log(state, `${card.name}の効果をもう1度発揮する。`)
+        runMagicActions(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+        if (state.pendingChoice) return
+        if (state.winner) return
+    } else {
+        log(state, `${card.name}の効果をもう1度は発揮しなかった。`)
+    }
+    fireMagicUsedTriggers(state, info.casterPid, card, info.timing)
 }
 
 // oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。

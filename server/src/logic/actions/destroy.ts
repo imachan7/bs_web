@@ -4,7 +4,9 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, draw, getCard, instMinLevelCores, log, minLevelCores, pushResumeFrames } from "../GameState"
 import {
+    applyBothSidesRedirectToCandidates,
     bothSidesPids,
+    bothSidesRedirectKeepPid,
     countEffectCounter,
     destroyNexus,
     destroySpirit,
@@ -224,7 +226,10 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
                   )
                   .map((s) => ({ pid: owner, inst: s }))
             : []
-        const targets = [...oppTargets, ...ownTargets]
+        // 封印された魔導書Lv1：マジックで「スピリットすべて」を対象にしたとき、
+        // 片側だけに変更する選択が済んでいればその側に絞る（anySide の単体対象と同じ扱い）
+        const keepPid = bothSidesRedirectKeepPid(state, srcType)
+        const targets = [...oppTargets, ...ownTargets].filter((t) => keepPid === null || t.pid === keepPid)
         if (targets.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -1131,10 +1136,11 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
                 return
             }
             if (state.interactiveTargets) {
-                const candidates = [
+                // 封印された魔導書Lv1：片側だけに変更する選択が済んでいればその側のネクサスに絞る
+                const candidates = applyBothSidesRedirectToCandidates(state, srcType, [
                     ...state.players[opp].field.nexuses,
                     ...state.players[owner].field.nexuses,
-                ]
+                ])
                 requestChoice(
                     state,
                     owner,
