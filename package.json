@@ -1,54 +1,55 @@
 {
-    "name": "bs_web",
-    "version": "1.0.0",
-    "description": "バトルスピリッツ初期弾をWebブラウザで対戦できるようにするプロジェクト",
-    "main": "server/src/index.ts",
-    "scripts": {
-        "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
-        "dev:server": "tsx watch server/src/index.ts",
-        "dev:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist --watch",
-        "build:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist",
-        "build": "npm run build:client",
-        "start": "tsx server/src/index.ts",
-        "typecheck": "tsc --noEmit",
-        "smoke": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts",
-        "smoke:quiet": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet",
-        "smoke:interactive": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet --interactive",
-        "chatbox": "tsx scripts/chatbox.ts",
-        "validate:cards": "tsx scripts/validate-cards.ts",
-        "validate:notes": "tsx scripts/validate-card-notes.ts",
-        "validate:gaps": "tsx scripts/check-effect-gaps.ts --check",
-        "gaps:report": "tsx scripts/check-effect-gaps.ts",
-        "gaps:update": "tsx scripts/check-effect-gaps.ts --update-baseline",
-        "coverage:effects": "tsx scripts/coverage-effects.ts",
-        "access:stats": "tsx scripts/access-stats.ts"
-    },
-    "engines": {
-        "node": ">=20"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/imachan7/bs_web.git"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "type": "commonjs",
-    "bugs": {
-        "url": "https://github.com/imachan7/bs_web/issues"
-    },
-    "homepage": "https://github.com/imachan7/bs_web#readme",
-    "dependencies": {
-        "express": "^4.21.2",
-        "socket.io": "^4.8.1",
-        "tsx": "^4.21.0"
-    },
-    "devDependencies": {
-        "@types/express": "^4.17.21",
-        "@types/node": "^25.6.0",
-        "concurrently": "^9.2.1",
-        "esbuild": "^0.28.0",
-        "socket.io-client": "^4.8.3",
-        "typescript": "^6.0.3"
-    }
+  "name": "bs_web",
+  "version": "1.0.0",
+  "description": "バトルスピリッツ初期弾をWebブラウザで対戦できるようにするプロジェクト",
+  "main": "server/src/index.ts",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch server/src/index.ts",
+    "dev:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist --watch",
+    "build:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist",
+    "build": "npm run build:client",
+    "start": "tsx server/src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts",
+    "smoke:quiet": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet",
+    "smoke:interactive": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet --interactive",
+    "chatbox": "tsx scripts/chatbox.ts",
+    "validate:cards": "tsx scripts/validate-cards.ts",
+    "validate:notes": "tsx scripts/validate-card-notes.ts",
+    "validate:gaps": "tsx scripts/check-effect-gaps.ts --check",
+    "gaps:report": "tsx scripts/check-effect-gaps.ts",
+    "gaps:update": "tsx scripts/check-effect-gaps.ts --update-baseline",
+    "coverage:effects": "tsx scripts/coverage-effects.ts",
+    "access:stats": "tsx scripts/access-stats.ts",
+    "fuzz": "tsx scripts/fuzz.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imachan7/bs_web.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/imachan7/bs_web/issues"
+  },
+  "homepage": "https://github.com/imachan7/bs_web#readme",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^25.6.0",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.28.0",
+    "socket.io-client": "^4.8.3",
+    "typescript": "^6.0.3"
+  }
 }
