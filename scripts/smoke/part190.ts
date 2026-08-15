@@ -50,6 +50,24 @@ const pickByType = (type: string): CardData =>
     CARDS.find((c) => c.type === type)!
 const FILLER = { spirit: pickByType("spirit"), nexus: pickByType("nexus"), magic: pickByType("magic") }
 
+// 効果の中に書かれた**系統名**をすべて集める（familyFilter / ownFamily / family …）。
+// 「系統：殻虫のスピリット1体につき」のような条件は、盤面にその系統がいないと**一度も発火しない**。
+// EffectDef は判別共用体で系統の書き場所が型ごとに散らばっているため、値として再帰的に拾う
+function familiesIn(node: unknown, acc: Set<string>): void {
+    if (Array.isArray(node)) {
+        for (const v of node) familiesIn(v, acc)
+        return
+    }
+    if (node === null || typeof node !== "object") return
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (/family/i.test(k)) {
+            if (typeof v === "string") acc.add(v)
+            else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") acc.add(x)
+        }
+        familiesIn(v, acc)
+    }
+}
+
 function put(s: GameState, pid: PlayerId, card: CardData, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(card.cardId, s.turn, cores)
     s.players[pid].field.spirits.push(inst)
@@ -116,6 +134,23 @@ function buildBoard(testCard: CardData): {
         // 脇役スピリットを色違いで並べる（色・系統・コストの条件が通りやすくなる）
         for (const h of HELPERS) put(s, pid, h, maxCores(h))
         putNexus(s, pid, FILLER.nexus, 3)
+    }
+    // テスト対象が**系統を条件にしている**なら、その系統を持つスピリットを両陣営に置く。
+    // これが無いと「系統：〇〇のスピリット」を見る効果は永久に発火しない（殻虫・剣獣・天霊…）
+    const families = new Set<string>()
+    familiesIn(testCard.effects ?? [], families)
+    for (const fam of families) {
+        const helper = CARDS.find(
+            (c) => c.type === "spirit" && (c.family ?? []).includes(fam) && c.cardId !== testCard.cardId,
+        )
+        if (!helper) continue
+        for (const pid of ["p1", "p2"] as PlayerId[]) put(s, pid, helper, maxCores(helper))
+    }
+    // **Lv1 の個体も**1体ずつ置く（「Lv1のスピリットは〜」のようなレベル条件のため。
+    // 他の脇役は最高Lvで置いているので、Lv1 を見る効果はそれだけでは通らない）
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const low = HELPERS[0]
+        if (low) put(s, pid, low, 1)
     }
     // 疲労状態のものも1体ずつ作る（「疲労状態の〜」「回復させる」が空振りしないように）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -188,14 +223,20 @@ for (const card of CARDS) {
             // (2) 誘発効果：カードが持つトリガーをすべて撃つ
             const triggers = new Set<TriggerEvent>()
             for (const e of effects) if (e.kind === "triggered") triggers.add(e.trigger)
+            // **自分のターン／相手のターンの両方**で撃つ。『相手のターン』条件の効果は
+            // turnPlayer を固定したままだと一度も発火しない（BS09-021 武士インパラー等）
             for (const ev of triggers) {
-                const opp = s.players.p2.field.spirits[0]
-                if (BATTLE_EVENTS.includes(ev)) {
-                    setBattle(s, selfInst.instanceId, opp?.instanceId ?? null)
+                for (const tp of ["p1", "p2"] as PlayerId[]) {
+                    s.turnPlayer = tp
+                    const opp = s.players.p2.field.spirits[0]
+                    if (BATTLE_EVENTS.includes(ev)) {
+                        setBattle(s, selfInst.instanceId, opp?.instanceId ?? null)
+                    }
+                    fireTrigger(s, "p1", selfInst, ev, "attacker", opp?.instanceId)
+                    if (!drain(s)) throw new Error(`選択待ちが解消しない（${ev}／turn:${tp}）`)
+                    fired++
                 }
-                fireTrigger(s, "p1", selfInst, ev, "attacker", opp?.instanceId)
-                if (!drain(s)) throw new Error(`選択待ちが解消しない（${ev}）`)
-                fired++
+                s.turnPlayer = "p1"
             }
             // (3) バトル勝利誘発（battleWon は勝者を渡す別経路）
             if (effects.some((e) => e.kind === "battleWon")) {
@@ -209,10 +250,14 @@ for (const card of CARDS) {
             const events = new Set<string>()
             for (const e of effects) if (e.kind === "fieldEvent") events.add(e.event)
             for (const ev of events) {
-                const subject = s.players.p1.field.spirits[0]!
-                fireFieldEventTriggers(s, "p1", ev as never, { pid: "p1", inst: subject }, undefined, s.players.p2.field.spirits[0]?.instanceId)
-                if (!drain(s)) throw new Error(`選択待ちが解消しない（${ev}）`)
-                fired++
+                for (const tp of ["p1", "p2"] as PlayerId[]) {
+                    s.turnPlayer = tp
+                    const subject = s.players.p1.field.spirits[0]!
+                    fireFieldEventTriggers(s, "p1", ev as never, { pid: "p1", inst: subject }, undefined, s.players.p2.field.spirits[0]?.instanceId)
+                    if (!drain(s)) throw new Error(`選択待ちが解消しない（${ev}／turn:${tp}）`)
+                    fired++
+                }
+                s.turnPlayer = "p1"
             }
         }
         // (5) ステップ誘発：カードが持つステップを、自分ターン／相手ターンの両方で撃つ
