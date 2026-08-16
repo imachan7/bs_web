@@ -1277,6 +1277,70 @@
   ]
  },
  {
+  "cardId": "SD01-028",
+  "name": "呪われし神殿",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の紫のスピリットすべてをBP+1000する。\nLv2『相手のアタックステップ』\n相手のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "SD01-028-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "purple",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "SD01-028-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritExhausted",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "subjectSide": "opponent",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "SD01-030",
   "name": "豊穣の大地",
   "type": "nexus",
@@ -1584,6 +1648,49 @@
     "action": {
      "type": "capLifeDamageThisTurn",
      "max": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD01-040",
+  "name": "アーマーパージ",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n【装甲】を持つ自分のスピリットすべてを回復させる。\nその後、このターンの間、自分のスピリットすべては、【装甲】をないものとして扱い、新たに得ることもない。",
+  "effects": [
+   {
+    "id": "SD01-040-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshOne",
+     "all": true,
+     "filter": {
+      "keyword": "armor"
+     }
+    }
+   },
+   {
+    "id": "SD01-040-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "disableOwnArmorThisTurn"
     }
    }
   ]

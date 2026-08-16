@@ -6,7 +6,7 @@
 // 従来の「減らない」も max:0 として同じ入口に合流している。
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { lifeDamageLimit, instanceSymbolCount, effectiveBp } from "../../shared/rules"
+import { lifeDamageLimit, instanceSymbolCount, effectiveBp, boardResistanceAgainst } from "../../shared/rules"
 import { resolveAction } from "../../server/src/logic/EffectModules"
 import type { Color } from "../../server/src/type"
 import { loadAllCards } from "../../data/loadCards"
@@ -130,5 +130,37 @@ console.log("--- エメラルドブースト：軽減シンボル1つにつきBP
     assert(
         effectiveBp(s, "p1", small) === smallBefore,
         "アタックしていない駒は上がらない",
+    )
+}
+
+console.log("--- アーマーパージ：このターン、自分の装甲は一切働かない ---")
+{
+    const card = byId("SD01-040")
+    assert(card.name === "アーマーパージ", "前提: SD01-040 はアーマーパージ")
+    // 装甲を持つ自分のスピリットと、その装甲色を持つ相手の発生源を用意する
+    const armored = CARDS.find(
+        (c) => c.type === "spirit" && (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === "armor" && Array.isArray(e["colors"])),
+    )!
+    const armorEntry = (armored.effects ?? []).find((e) => e["kind"] === "keyword" && e["keyword"] === "armor")!
+    const armorColors = (armorEntry["colors"] as string[])
+    const s = base("armor-purge")
+    const mine = put(s, "p1", armored, coresFor(armored, (armorEntry["levels"] as number[] | null)?.[0] ?? 1))
+    mine.isRested = true
+    refreshLevelAsOverrides(s)
+
+    // 装甲が効いている＝相手の同色の効果を受けない
+    const attempt = {
+        op: "destroy" as const, scope: "targeted" as const, actorPid: "p2" as const,
+        sourceType: "spirit" as const, sourceColors: [armorColors[0]] as Color[],
+    }
+    assert(boardResistanceAgainst(s, "p1", mine, attempt) !== null, "前提: 装甲で防げている")
+
+    s.players.p1.hand[0] = card.cardId
+    s.players.p1.reserve = 20
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, `${card.name}を使用`)
+    assert(!mine.isRested, "【装甲】を持つ自分のスピリットが回復する")
+    assert(
+        boardResistanceAgainst(s, "p1", mine, attempt) === null,
+        "その後、このターンは装甲が働かなくなる（自分から殴れる）",
     )
 }

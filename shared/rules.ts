@@ -622,7 +622,12 @@ export function boardResistanceAgainst(
     // ここから下はすべて「相手の効果」限定
     if (attempt.actorPid === targetOwnerPid) return null
 
-    if (hasArmorAgainst(target, attempt.sourceColors)) {
+    // 【装甲】。ただしこのターン「装甲を無いものとして扱う」効果を受けていれば働かない
+    //（すでに持っている分も、このターンに付与された分もまとめて落とす。SD01-040 アーマーパージ）
+    const armorDisabled = board.turnConstraints.some(
+        (c) => c.type === "armorDisabledForPid" && c.pid === targetOwnerPid,
+    )
+    if (!armorDisabled && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
     if (hasFullEffectImmunity(target, attempt.sourceType)) {

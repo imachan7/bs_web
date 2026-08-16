@@ -286,6 +286,7 @@ export type EffectAction =
     | { type: "selfBuffByExhaustFamily"; familyFilter: FamilyFilter } // familyFilter一致・self以外・回復状態の自分のスピリット1体（実効BP最大を自動選択＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。「〜することで」の任意コストは自動発動で簡略化。該当なしはno-op。BS02-X07巨神機トール）
     | { type: "refreshSelfByDestroyFamily"; familyFilter: FamilyFilter } // familyFilter一致・self以外の自分のスピリット1体（実効BP最小を自動選択＝犠牲を最小化する簡略化）を破壊し、このスピリット自身を回復させる（「〜することで」の任意コストは自動発動で簡略化。該当なしはno-op。BS02-X07巨神機トール）
     | { type: "refreshSelfByReturnToDeckTopName"; nameIncludes: string } // nameIncludes一致・self以外の自分のスピリット1体（実効BP最小を自動選択＝犠牲を最小化する簡略化）をデッキの一番上に戻し、このスピリット自身を回復させる（refreshSelfByDestroyFamilyの「破壊」を「デッキの上に戻す」に差し替えた版。「〜することで」の任意コストは自動発動で簡略化。該当なしはno-op。BS08勇者フェニックスペンタン）
+    | { type: "disableOwnArmorThisTurn" } // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）
     | { type: "capLifeDamageThisTurn"; max: number } // このターンの間、発生源の持ち主のライフは1回のアタックで max 個までしか減らない（GameState.turnConstraints に lifeDamageMaxForPid を積む。SD01-039 ブリザードウォール＝1しか減らない）
     | { type: "protectLifeByCostThisTurn"; costSacrificeChosen?: true; maxCost: number; costExhaustFamily?: FamilyFilter } // このターンの間、コストがmaxCost以下のスピリットのアタックでは**発生源の持ち主のライフだけ**が減らされない（GameState.turnConstraints に片側限定の制約を積む。両陣営に効く globalConstraint:"noLifeDamageByCost" の片側版）。costExhaustFamily指定時は、持ち主のフィールドの指定系統（配列＝OR）の回復状態スピリット1体（実効BP最小＝犠牲を最小化する簡略化）を疲労させることがコストで、該当がなければ不発（BS07秘密の花園Lv2＝「楽族」）
     | { type: "forceAttackThisTurn"; side: "opponent"; maxCost?: number; count?: number } // このターンの間、相手のスピリットに「可能ならば必ずアタックする」を課す（GameState.turnConstraints に mustAttack を積む）。maxCost指定時はコストがこれ以下のものすべて（BS08アンブッシュブロッカー：コスト3以下）。count指定時は体数を絞って指定する（targetInstanceId優先、interactiveTargets時はpendingChoice、自動時は実効BP最大。BS08獣機合神セイ・ドリガン：相手のスピリット1体を指定）。**簡略化**：原文の「このステップの最初に」という順序指定は持たず、そのターン中アタックが強制されるだけ
@@ -782,6 +783,9 @@ export type EffectDef =
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           excludePhase?: Phase // 指定時はこのステップでは発火しない（phaseと排他。BS08ダークアンキラーザウルス＝「ドローステップ以外で相手がドローしたとき」）
           turn?: "own" | "opponent" // 指定時はこの陣営条件でのみ発火（own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時。省略時はどちらでも発火）
+          subjectSide?: "own" | "opponent" // 指定時、**イベントの主体がどちら側か**で絞る（own=発生源の持ち主のもの、opponent=その相手のもの）。
+          // turn（誰のターンか）とは別の軸。「**相手の**スピリットが疲労したとき」のように、
+          // any…系のイベントで主体の陣営だけを条件にしたいときに使う（2026-08-16 ユーザー判断。SD01-028 呪われし神殿Lv2）
           colorFilter?: Color // event: "ownSpiritDestroyed" | "ownSpiritBlocked" | "anySpiritAttacked" | "ownSpiritSummoned" 限定：対象スピリットの色がこれと一致するときのみ発火（ownSpiritSummoned は BS09-002フタバニア＝「自分の青のスピリットが召喚されたとき」）
           // （祝福されし大聖堂／花の子リップ／BS05天焦がす大聖火。anySpiritAttackedはeventColors=instColors(アタックしたスピリット)で判定）
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
@@ -1917,6 +1921,9 @@ export type TurnConstraintDef =
     | { type: "noLifeDamageByCostForPid"; maxCost: number; pid: PlayerId } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）
     | { type: "mustAttackByInstance"; pid: PlayerId; instanceId: string } // このターンの間、pidの指定インスタンスは可能ならば必ずアタックする（action:"forceAttackThisTurn"のcount版が積む。BS08獣機合神セイ・ドリガン）
+    | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない
+    // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
+    //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）
     | { type: "lifeDamageMaxForPid"; max: number; pid: PlayerId } // このターンの間、この pid のライフは1回のアタックで max 個までしか減らない（0 なら減らない）。
     // **「減るか／減らないか」ではなく上限を値で持つ**のが要点（2026-08-16 ユーザー提案）。
     // ライフダメージはブロックされなかったアタックでのみ発生するので、
