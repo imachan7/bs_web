@@ -741,8 +741,8 @@ function renderSavedDecks(): void {
         info.textContent = `${saved.name} `
 
         const badge = document.createElement("span")
-        badge.className = `saved-badge ${total === 40 ? "valid" : "invalid"}`
-        badge.textContent = `${total}/40`
+        badge.className = `saved-badge ${total >= DECK_MIN_SIZE ? "valid" : "invalid"}`
+        badge.textContent = `${total}/${DECK_MIN_SIZE}`
         info.appendChild(badge)
         
         info.appendChild(document.createTextNode(` ${date}`))
@@ -940,34 +940,37 @@ function importDeckFile(file: File): void {
 
 // ---- プリセット生成 ----
 
-// data/constants.ts の DECK_RECIPES と同じ構成方針で自動生成する:
-// その色の低コスト順に スピリット9種×3 + ネクサス2種（3+1）+ マジック3種×3 = 40枚
+// その色の低コスト順に マジック・ネクサスを確保し、残りをスピリットで埋めて DECK_MIN_SIZE 枚にする
 function buildPreset(color: Color): Record<string, number> | null {
     // 単色サンプルなので多色カードは対象外にする（colors.length === 1 の判定）
     const pool = cards.filter((c) => c.colors.length === 1 && c.colors[0] === color && !c.limited)
     const byCost = (a: CardData, b: CardData) =>
         a.cost - b.cost || a.cardId.localeCompare(b.cardId)
-    const spirits = pool
-        .filter((c) => c.type === "spirit")
-        .sort(byCost)
-        .slice(0, 9)
-    const nexuses = pool
-        .filter((c) => c.type === "nexus")
-        .sort(byCost)
-        .slice(0, 2)
-    const magics = pool
-        .filter((c) => c.type === "magic")
-        .sort(byCost)
-        .slice(0, 3)
-    if (spirits.length < 9 || nexuses.length < 2 || magics.length < 3) {
+    const spirits = pool.filter((c) => c.type === "spirit").sort(byCost)
+    const nexuses = pool.filter((c) => c.type === "nexus").sort(byCost)
+    const magics = pool.filter((c) => c.type === "magic").sort(byCost)
+
+    const result: Record<string, number> = {}
+    let total = 0
+
+    const addCards = (list: CardData[], maxKinds: number, amountPerKind: number) => {
+        for (const card of list.slice(0, maxKinds)) {
+            const add = Math.min(amountPerKind, DECK_MIN_SIZE - total)
+            if (add > 0) {
+                result[card.cardId] = (result[card.cardId] || 0) + add
+                total += add
+            }
+        }
+    }
+
+    // ネクサス4枚、マジック9枚を目安に入れ、残りをスピリットで DECK_MIN_SIZE に到達させる
+    addCards(nexuses, 2, 2)
+    addCards(magics, 3, 3)
+    addCards(spirits, spirits.length, 3)
+
+    if (total < DECK_MIN_SIZE) {
         return null
     }
-    const result: Record<string, number> = {}
-    for (const card of spirits) result[card.cardId] = 3
-    nexuses.forEach((card, index) => {
-        result[card.cardId] = index === 0 ? 3 : 1
-    })
-    for (const card of magics) result[card.cardId] = 3
     return result
 }
 
@@ -978,7 +981,7 @@ function applyPreset(color: Color): void {
         return
     }
     applyDeck(preset, `${COLOR_LABELS[color]}単色サンプル`)
-    showToast(`${COLOR_LABELS[color]}単色サンプル（40枚）を読み込みました`)
+    showToast(`${COLOR_LABELS[color]}単色サンプル（${DECK_MIN_SIZE}枚）を読み込みました`)
 }
 
 // ---- イベント登録 ----
