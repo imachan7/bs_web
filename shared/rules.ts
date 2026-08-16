@@ -770,6 +770,11 @@ export function countAuraCounter(
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
+    // **対象自身**の軽減シンボル数（カード静的な reduction の個数。SD01-038 エメラルドブースト）。
+    // targetArmorColors と同じく発生源ではなく対象基準
+    if (counter === "targetReductionSymbols") {
+        return targetInst ? card(targetInst.cardId).reduction.length : 0
+    }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
         return countSpiritsWeighted(

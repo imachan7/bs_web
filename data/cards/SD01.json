@@ -1196,6 +1196,149 @@
   ]
  },
  {
+  "cardId": "SD01-027",
+  "name": "溶岩の大瀑布",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nアタックしている自分のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\n【覚醒】/【激突】を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "SD01-027-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "SD01-027-e2",
+    "kind": "battleWon",
+    "levels": [
+     2
+    ],
+    "role": "any",
+    "turn": "own",
+    "winnerKeywordFilter": "awaken",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "SD01-027-e3",
+    "kind": "battleWon",
+    "levels": [
+     2
+    ],
+    "role": "any",
+    "turn": "own",
+    "winnerKeywordFilter": "clash",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD01-030",
+  "name": "豊穣の大地",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nアタックかブロックをしている自分のスピリットすべてを、疲労状態の自分のスピリット1体につき、BP+1000する。\nLv2『自分のコアステップ』\n得られるコアを+1個する。",
+  "effects": [
+   {
+    "id": "SD01-030-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "battlingOnly": true,
+     "amountPer": 1000,
+     "counter": "ownExhausted",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   },
+   {
+    "id": "SD01-030-e2",
+    "kind": "coreStepBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1
+   }
+  ]
+ },
+ {
   "cardId": "SD01-034",
   "name": "エクストラドロー",
   "type": "magic",
@@ -1290,6 +1433,46 @@
   ]
  },
  {
+  "cardId": "SD01-036",
+  "name": "カースエンチャント",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリット1体に“【呪撃】『このスピリットのアタック時』このスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する”という効果を与える。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "SD01-036-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "grantKeyword",
+     "keyword": "jugeki"
+    }
+   },
+   {
+    "id": "SD01-036-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
   "cardId": "SD01-037",
   "name": "キャリーコア",
   "type": "magic",
@@ -1324,6 +1507,50 @@
     "action": {
      "type": "bpBuff",
      "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD01-038",
+  "name": "エメラルドブースト",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、アタックしている自分のスピリットすべてを、そのスピリットの軽減シンボル1つにつき、BP+1000する。",
+  "effects": [
+   {
+    "id": "SD01-038-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "SD01-038-e2",
+    "kind": "aura",
+    "levels": null,
+    "lentOnly": true,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "attackingOnly": true,
+     "amountPer": 1000,
+     "counter": "targetReductionSymbols",
+     "lentOnly": true
     }
    }
   ]

@@ -6,7 +6,9 @@
 // 従来の「減らない」も max:0 として同じ入口に合流している。
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { lifeDamageLimit, instanceSymbolCount } from "../../shared/rules"
+import { lifeDamageLimit, instanceSymbolCount, effectiveBp } from "../../shared/rules"
+import { resolveAction } from "../../server/src/logic/EffectModules"
+import type { Color } from "../../server/src/type"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {
@@ -15,6 +17,8 @@ interface CardRow {
     type?: string
     cost?: number
     symbol?: string[]
+    colors?: string[]
+    reduction?: string[]
     effects?: Record<string, unknown>[]
     levels?: { cores: number; bp: number }[]
 }
@@ -94,5 +98,37 @@ console.log("--- ブリザードウォール：このターンは1しか減ら�
     assert(
         lifeDamageLimit(s, "p1", attacker).max === Number.POSITIVE_INFINITY,
         "使った側のライフだけが守られる（相手には効かない）",
+    )
+}
+
+console.log("--- エメラルドブースト：軽減シンボル1つにつきBP+1000（対象自身のシンボル数で数える） ---")
+{
+    const card = byId("SD01-038")
+    assert(card.name === "エメラルドブースト", "前提: SD01-038 はエメラルドブースト")
+    // 軽減シンボルの数が違う2体を並べ、**それぞれの数に応じて**上がることを見る
+    const many = CARDS.find((c) => c.type === "spirit" && ((c as unknown as { reduction?: string[] }).reduction?.length ?? 0) >= 2)!
+    const few = CARDS.find((c) => c.type === "spirit" && ((c as unknown as { reduction?: string[] }).reduction?.length ?? 0) === 1)!
+    const s = base("emerald-boost")
+    s.phase = "attack"
+    const big = put(s, "p1", many, coresFor(many, 1))
+    const small = put(s, "p1", few, coresFor(few, 1))
+    refreshLevelAsOverrides(s)
+    // アタック中のスピリットだけが対象なので、バトルを成立させる
+    s.battle = { attackerInstanceId: big.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    const bigBefore = effectiveBp(s, "p1", big)
+    const smallBefore = effectiveBp(s, "p1", small)
+
+    resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined,
+        (card.colors ?? ["green"]) as Color[], "magic", undefined, undefined, card.cardId)
+    refreshLevelAsOverrides(s)
+
+    const bigSymbols = (many as unknown as { reduction?: string[] }).reduction?.length ?? 0
+    assert(
+        effectiveBp(s, "p1", big) === bigBefore + 1000 * bigSymbols,
+        `アタック中の駒は軽減シンボル${bigSymbols}つぶん上がる（${bigBefore}→${effectiveBp(s, "p1", big)}）`,
+    )
+    assert(
+        effectiveBp(s, "p1", small) === smallBefore,
+        "アタックしていない駒は上がらない",
     )
 }
