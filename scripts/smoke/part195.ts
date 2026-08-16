@@ -127,8 +127,10 @@ console.log("=== 【氷壁：色】は、カードごとに指定された色の
 
         // 指定色を持つマジックと、持たないマジックを実データから引く
         const hit = CARDS.find((c) => c.type === "magic" && (c.colors ?? []).some((col) => colors.includes(col)))
+        // **全色を指定しているカード**（翼神機グラン・ウォーデン）では「指定外の色」が存在しない。
+        // その場合も指定色の検証だけは行う
         const miss = CARDS.find((c) => c.type === "magic" && !(c.colors ?? []).some((col) => colors.includes(col)))
-        if (!hit || !miss) continue
+        if (!hit) continue
 
         const s2 = base(`hyoheki-${card.cardId}`)
         s2.turnPlayer = "p2" // 『相手のターン』に相手がマジックを使う場面
@@ -142,11 +144,13 @@ console.log("=== 【氷壁：色】は、カードごとに指定された色の
             found !== null && found.inst.instanceId === inst.instanceId,
             `${card.name}：指定色（${colors.join("/")}）のマジック[${hit.name}]を無効にできる`,
         )
-        const notFound = findMagicNegateSource(s2, "p2", getCard(miss.cardId))
-        assert(
-            notFound === null || notFound.inst.instanceId !== inst.instanceId,
-            `${card.name}：指定外の色のマジック[${miss.name}]は無効にできない`,
-        )
+        if (miss) {
+            const notFound = findMagicNegateSource(s2, "p2", getCard(miss.cardId))
+            assert(
+                notFound === null || notFound.inst.instanceId !== inst.instanceId,
+                `${card.name}：指定外の色のマジック[${miss.name}]は無効にできない`,
+            )
+        }
     }
 }
 
@@ -262,7 +266,6 @@ console.log("=== 【激突】は装甲で防げる（装甲持ちしかいなけ
             `${card.name} × ${armored.name}：装甲を持つ個体しかいなければ【激突】でも**ライフで受けられる**`,
         )
         checked++
-        if (checked >= 3) break // 代表3組で足りる（同じ判定を通るため）
     }
     assert(checked > 0, "【激突】と装甲の組み合わせを1つ以上検証した")
 }
