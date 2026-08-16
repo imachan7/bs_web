@@ -291,6 +291,25 @@ const __covEid = (e: unknown): string =>
                 __covRec2C("cont\t" + __covEid2C(effect))
                 return true`,
     )
+    // magicRestriction（costLimitAll）: hasMagicCostLock 経由で制限が成立する時点。
+    // **上の hasMagicRestriction とは別の関数**なので、こちらにも計測点が要る
+    // （BS05-065 青嵐の虚空 がこちらだけを通り、動作しているのに「未実行」と出ていた。2026-08-16）
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `                        spiritHasKeyword(board, ownerPid, s, effect.requireOwnKeyword!),
+                    )
+                ) {
+                    continue
+                }
+                return true`,
+        `                        spiritHasKeyword(board, ownerPid, s, effect.requireOwnKeyword!),
+                    )
+                ) {
+                    continue
+                }
+                __covRec2C("cont\t" + __covEid2C(effect))
+                return true`,
+    )
     // keywordGrant: 継続付与が成立して指定数を返す時点
     // （2026-07-31: vanillaFilter の追加で最終行が変わったためアンカーを差し替え）
     // （2026-08-09: hasContinuousKeywordGrant が continuousKeywordGrantCount へ実体を移し、
@@ -368,6 +387,16 @@ const __covEid = (e: unknown): string =>
         `            granted.push(effect.constraint)`,
         `            __covRec2("cont\\t" + __covEid(effect))
             granted.push(effect.constraint)`,
+    )
+    // constraintGrant（colorFromChosen）: 「指定した色」を解決して積む分岐は**別の push** を通るため、
+    // 上の計測点を迂回する（BS09-081 サマーソルトターンが動作しているのに「未実行」と出ていた。2026-08-16）
+    patch(
+        f,
+        `                const { colorFromChosen: _flag, ...rest } = c
+                granted.push({ ...rest, colorFilter: chosen })`,
+        `                const { colorFromChosen: _flag, ...rest } = c
+                __covRec2("cont\\t" + __covEid(effect))
+                granted.push({ ...rest, colorFilter: chosen })`,
     )
     // keyword「装甲」: hasArmorAgainst の静的判定が true を返す時点
     // （.some() の中は effect を取り出せないため、cid+keyword+level から専用ヘルパーで引き直す）

@@ -73,11 +73,11 @@ function putNexus(s: GameState, pid: PlayerId, card: CardRow, cores: number): Re
 console.log("=== パート200：カバレッジ最後の10件 ===")
 
 console.log("--- 『相手のアタックステップ』にコスト条件つきで働くフィールド誘発 ---")
-// ※ BS08-065 五行寺院 は**データに selfMode:"source" が無い**ため、効果がアタックした
-//    相手側で解決されてしまい（ログ：「〈相手の駒〉：コアを置く対象がいなかった」）、
-//    「自分の獣頭にコアを置く」が働かない。同じ形のゼンマイ平原は selfMode:"source" を持つ。
-//    データの不備と見ているが、直すかは判断待ちなのでここでは検証しない
-for (const [id, suffix] of [["BS07-061", "e1"]] as const) {
+// ※ BS08-065 五行寺院 は `selfMode:"source"` が**データから抜けていた**ため、
+//    効果がアタックした相手側で解決されてしまい（ログ：「〈相手の駒〉：コアを置く対象がいなかった」）、
+//    「自分の獣頭にコアを置く」が一度も働いていなかった（2026-08-16 にデータを修正）。
+//    同じ形のゼンマイ平原は最初から持っている
+for (const [id, suffix] of [["BS07-061", "e1"], ["BS08-065", "e1"]] as const) {
     const card = byId(id)
     const entry = entryOf(card, suffix)
     const level = (entry["levels"] as number[])[0]!
