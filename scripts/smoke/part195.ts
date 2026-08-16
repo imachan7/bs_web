@@ -211,8 +211,10 @@ console.log("=== 【激突】は、相手にブロックできる個体がいる
         const level = activeLevel(card, entriesOf(card, "clash")[0]!)
         const s2 = base(`clash-${card.cardId}`)
         const attacker = put(s2, "p1", card, coresFor(card, level))
-        put(s2, "p2", plain, coresFor(plain, 1))
-        put(s2, "p2", plain, coresFor(plain, 1))
+        // **最高レベルで**置く（Lv1のBPだと範囲破壊のBP上限に収まって2体とも消える）
+        const plainTop = plain.levels?.length ?? 1
+        put(s2, "p2", plain, coresFor(plain, plainTop))
+        put(s2, "p2", plain, coresFor(plain, plainTop))
         refreshLevelAsOverrides(s2)
 
         assert(act(s2, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, `${card.name}でアタック`)
