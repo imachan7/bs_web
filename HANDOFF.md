@@ -40,15 +40,21 @@ UI担当（Gemini）は `/Users/imachan/develop/bs_web` で作業していて、
 | セッションログ `.txt` 4,375行と `tools/legacy` 一式が復活（`b4f53e6`） | `bs_web` / `resume-stack`（84コミット遅れ）でのコミット |
 | ☕支援リンク（`c0d52fb` で削除）と GitHub の💻絵文字（`a52e630` で削除）が復活 | `bs_web-ui` の `24d6a03「Merge main into feature/ui-improvements」`。UI担当のブランチが 8/1 で止まっており、マージの解決が古い側を採った |
 
-**再発防止（これを守ること）:**
+**とった対策:**
 
-1. **chatbox は「同じブランチを見ている」ときだけ機能する。**
-   依頼を出したら、そのメッセージが**相手が見るブランチに届いているか**を確かめる
-2. **作業を始める前に必ず main を取り込む。** 古いベースでのコミットは、
-   相手が消した変更を「削除の取り消し」として記録してしまう
-3. **`git add -A` を使わない。** 触ったファイルだけを add する
-4. 実装担当の作業場所は `/Users/imachan/develop/bs_web` **1つだけ**
-   （ワークツリー `.claude/worktrees/battle-resolve-resume` は 2026-08-16 に撤去済み）
+1. **受信箱をリポジトリの外へ移し、git 管理をやめた。**
+   場所は `/Users/imachan/develop/bs_web-chatbox/`（`bs_web` と `bs_web-ui` の兄弟ディレクトリなので、
+   どちらのクローンから叩いても同じ受信箱に解決する。`BS_CHATBOX_DIR` で上書き可）。
+   コマンドは今までどおり `npx tsx scripts/chatbox.ts inbox <役割>`。
+   **リポジトリ内に `chatbox/` を作り直さないこと**（`.gitignore` 済み）
+2. **受信箱は git の外なのでバックアップされない。**
+   残したい結論は完了時に必ず `DECISIONS.md` / SPEC.md へ転記する
+3. **作業場所を1つにまとめた。** 実装担当は `/Users/imachan/develop/bs_web` だけ
+   （ワークツリー `.claude/worktrees/battle-resolve-resume` は撤去済み）
+4. **作業を始める前に必ず main を取り込む。`git add -A` を使わない。**
+   CLAUDE.md / GEMINI.md の両方に明記した
+
+UI担当には、新しい受信箱に `2026-08-16-1929` で連絡してある（**そちらが main を取り込むまで読めない**）。
 
 ### (2) SD01 は完了した（2026-08-16 後半）
 
