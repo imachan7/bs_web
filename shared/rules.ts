@@ -1355,6 +1355,48 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
 // 片側限定のライフ保護（TurnConstraintDef "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
 // このターンの間、コストがmaxCost以下のスピリットのアタックでは defenderPid のライフだけが減らされない。
 // noLifeDamageByCost（両陣営）と違い、守られるのは積んだ側だけ
+// このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
+// 0＝減らない／Infinity＝制限なし。実際の減少量は Math.min(アタッカーのシンボル数, max)。
+//
+// **「減るか／減らないか」ではなく値で返す**のが要点（2026-08-16 ユーザー提案）。
+// 「〇しか減らない」（SD01-039 ブリザードウォール）は上限として合流し、
+// 「減らない」は max:0 として合流する。今後この種の効果が増えてもここに集まる。
+// クライアントが「このアタックはライフに通るか」を判定するのにも使える（純粋な述語なので shared に置ける）。
+//
+// ⚠️ **副作用のあるものはここに入れない**。
+//    六花の司書長サーガ（ライフの代わりにデッキを破棄する）と、GameState 依存の
+//    hasLifeDamageNegate は、呼び出し側（GameEngine.resolveLifeDamage）が別に見る
+export function lifeDamageLimit(
+    board: Board,
+    defenderPid: PlayerId,
+    attacker: CardInstance,
+): { max: number; reason?: string } {
+    // 硝子の女神フレイア／ミストカーテン：このアタッカーのダメージそのものが打ち消されている
+    if (attacker.lifeDamageNegatedFor === defenderPid) {
+        return { max: 0, reason: "このアタックのライフダメージは打ち消されている" }
+    }
+    // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
+    if (noLifeDamageByCost(board, attacker)) {
+        return { max: 0, reason: "コスト条件によりライフが減らない" }
+    }
+    // BS07秘密の花園Lv2：このターン、コスト条件のアタックでは**この防御側だけ**が減らない
+    if (lifeProtectedByCostThisTurn(board, defenderPid, attacker)) {
+        return { max: 0, reason: "このターンはコスト条件によりライフが減らない" }
+    }
+    // BS08空帝竜騎プラチナム：アタッカーの実効BPが発生源以下なら減らない
+    if (protectedByBpUpToSelf(board, defenderPid, attacker)) {
+        return { max: 0, reason: "BP条件によりライフが減らない" }
+    }
+    // このターン限定の上限（ブリザードウォール＝1しか減らない）。複数あれば最も厳しいものを採る
+    let max = Number.POSITIVE_INFINITY
+    for (const c of board.turnConstraints) {
+        if (c.type === "lifeDamageMaxForPid" && c.pid === defenderPid) max = Math.min(max, c.max)
+    }
+    if (max === 0) return { max, reason: "このターンはライフが減らない" }
+    if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
+    return { max }
+}
+
 export function lifeProtectedByCostThisTurn(
     board: Board,
     defenderPid: PlayerId,

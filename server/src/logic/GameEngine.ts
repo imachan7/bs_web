@@ -20,7 +20,7 @@ import {
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
-import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -866,51 +866,12 @@ function resolveLifeDamage(state: GameState): void {
         return
     }
 
-    // 硝子の女神フレイア等：ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、
-    // ライフダメージそのものを打ち消す（emitEvent "lifeDamage" もfireTrigger onLifeDealtも発火しない）
-    // ミストカーテン：指定されたアタッカーのアタックでは、このターン使用者のライフが減らない
-    if (attacker.lifeDamageNegatedFor === defenderPid) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-    // BS07「勇傑」各色に共通：コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない。
-    // 両陣営に効く全体制約なので、発生源の持ち主を問わず hasGlobalConstraintByCost で見る
-    if (noLifeDamageByCost(state, attacker)) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-    // BS07秘密の花園Lv2：このターンの間、コスト条件を満たすアタックでは**この防御側のライフだけ**が減らない
-    if (lifeProtectedByCostThisTurn(state, defenderPid, attacker)) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-    // BS08空帝竜騎プラチナム：ブロックされなかったアタッカーの実効BPがこのスピリット自身の実効BP以下のとき、
-    // そのアタックでは自分のライフは減らない（片側のみ）
-    if (protectedByBpUpToSelf(state, defenderPid, attacker)) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-    if (hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
+    // ライフが減る量の上限を**1回で求める**（shared/rules.lifeDamageLimit）。
+    // 「減るか／減らないか」だった5つの門番（ダメージ打ち消し・コスト条件2種・BP条件・ターン上限）を
+    // ここに集約してある。0 なら従来どおり「受けなかった」扱い（2026-08-16 ユーザー提案）
+    const limit = lifeDamageLimit(state, defenderPid, attacker)
+    // hasLifeDamageNegate だけは GameState 依存でまだ shared に移せていないので個別に見る
+    if (limit.max === 0 || hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
@@ -933,7 +894,9 @@ function resolveLifeDamage(state: GameState): void {
 
     // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    const damage = instanceSymbolCount(attacker)
+    // ダメージはアタッカーのシンボル数。**上限があればそこで切り下げる**
+    //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
+    const damage = Math.min(instanceSymbolCount(attacker), limit.max)
     const dealt = Math.min(damage, defender.life)
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt

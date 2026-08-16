@@ -973,5 +973,38 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "SD01-039",
+  "name": "ブリザードウォール",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、自分のライフは、ブロックされなかった相手のスピリットのアタックでは、1しか減らない。",
+  "effects": [
+   {
+    "id": "SD01-039-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "capLifeDamageThisTurn",
+     "max": 1
+    }
+   }
+  ]
  }
 ]
