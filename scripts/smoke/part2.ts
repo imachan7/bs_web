@@ -40,7 +40,7 @@ import {
     spiritHasKeyword,
     effectiveCost,
     DECK_RECIPES,
-    DECK_SIZE,
+    DECK_MIN_SIZE,
     assert,
     act,
     takeLifeAndResolve,
@@ -602,7 +602,9 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
 console.log("=== カードデータの検証 ===")
 for (const [name, recipe] of Object.entries(DECK_RECIPES)) {
     const total = Object.values(recipe.cards).reduce((a, b) => a + b, 0)
-    assert(total === DECK_SIZE, `${name}デッキは${DECK_SIZE}枚（実際: ${total}）`)
+    // デッキは**40枚以上**（ちょうどではない。2026-08-16 ユーザー指摘。
+    // 構築済みデッキには42枚のものがある＝SD04 ジーク進化レボリューション）
+    assert(total >= DECK_MIN_SIZE, `${name}デッキは${DECK_MIN_SIZE}枚以上（実際: ${total}）`)
     for (const cardId of Object.keys(recipe.cards)) {
         getCard(cardId)
     }

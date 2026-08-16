@@ -768,6 +768,16 @@ export function fireFieldEventTriggers(
             // ownOnly（BS06冥騎士アンドラー／冥府の深淵）：発生源の持ち主（pid）のスピリットがアタックしたときのみ
             // （selfOverride.pidが発生源の持ち主と一致するときだけ通す。「自分のスピリットが」の限定）
             if (effect.ownOnly && selfOverride?.pid !== pid) continue
+            // subjectSide：**イベントの主体がどちら側か**で絞る（turn＝誰のターンか、とは別軸）。
+            // 「**相手の**スピリットが疲労したとき」のように、any…系のイベントで
+            // 主体の陣営だけを条件にしたいときに使う（SD01-028 呪われし神殿Lv2）
+            if (effect.subjectSide === "own" && selfOverride?.pid !== pid) continue
+            if (
+                effect.subjectSide === "opponent" &&
+                (selfOverride === undefined || selfOverride.pid === pid)
+            ) {
+                continue
+            }
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue

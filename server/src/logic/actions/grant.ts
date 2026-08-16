@@ -543,6 +543,26 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
         return
 }
 
+// このターンの間、持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。
+// 「【装甲】をないものとして扱い、**新たに得ることもない**」＝ すでに持っている分も、
+// このターンに付与された分もまとめて落とす。判定の入口（boardResistanceAgainst）で一括して無視する
+const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "armorDisabledForPid", pid: owner })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの【装甲】は働かない。`)
+}
+
+// このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
+// 「減るか／減らないか」ではなく**値**で持つので、今後の同種の効果（〇しか減らない）もここに集まる
+const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "lifeDamageMaxForPid", max: action.max, pid: owner })
+    log(
+        state,
+        `${sourceName}：このターンの間、${state.players[owner].name}のライフは1回のアタックで${action.max}しか減らない。`,
+    )
+}
+
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
@@ -922,6 +942,8 @@ const handlers = {
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
+    disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,

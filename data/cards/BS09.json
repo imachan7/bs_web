@@ -5346,6 +5346,7 @@
         "nameIncludes": [
           "鉄騎皇イグドラシル"
         ],
+        "selfMode": "source",
         "action": {
           "type": "voidCoreToSelf",
           "count": 6

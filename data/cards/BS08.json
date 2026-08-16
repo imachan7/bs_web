@@ -4328,6 +4328,7 @@
     "costFilter": {
      "max": 3
     },
+    "selfMode": "source",
     "action": {
      "type": "voidCoreToTarget",
      "count": 1,

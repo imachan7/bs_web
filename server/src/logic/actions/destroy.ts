@@ -102,6 +102,11 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
             return
         }
+        // interactive の選択後に再入するときは excludeTarget を落とす。
+        // 残したままだと、**プレイヤーが選んだ instanceId を「除外する対象」と誤読**して
+        // 誰も破壊されず、同じ選択待ちが立ち続ける（＝実プレイで進行不能になる。
+        // BS06-088 計画された場外乱闘Lv2 で再現。exhaustHandler は先に同じ対策をしていた）
+        const { excludeTarget: _excludeTarget, ...actionForChoice } = action
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
         // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
         const resolvedCount = action.countPerOpponentTrashMagicColors
@@ -123,9 +128,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     self,
                     `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     anySideCandidates,
-                    { ...action, count: 1 },
+                    { ...actionForChoice, count: 1 },
                     resolvedCount > 1
-                        ? { ...action, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false }
+                        ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false }
                         : null,
                 )
             ) {
@@ -165,8 +170,8 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     self,
                     `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
-                    { ...action, count: 1 },
-                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
+                    { ...actionForChoice, count: 1 },
+                    resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
                 )
             ) {
                 return

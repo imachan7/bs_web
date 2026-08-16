@@ -9,6 +9,7 @@ import { RoomManager, type Room } from "./roomManager"
 import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
+import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
 import { accessLogMiddleware, logSocketJoin } from "./accessLog"
 
@@ -272,6 +273,49 @@ app.get("/api/bug-reports", (req, res) => {
         // ファイル未作成＝報告0件
     }
     res.json({ ok: true, count: lines.length, reports: lines.map((l) => JSON.parse(l)) })
+})
+
+// デバッグ用の盤面差し替えを有効にするか（2026-08-16 ユーザー判断：**ローカル実行時だけ**）。
+// Azure App Service では WEBSITE_SITE_NAME が必ず設定されるので、それが無いときだけ受け付ける。
+// 明示的に切り替えたいときは BS_DEBUG_TOOLS=1 / 0
+const DEBUG_TOOLS =
+    process.env.BS_DEBUG_TOOLS === "1" ||
+    (process.env.BS_DEBUG_TOOLS !== "0" && !process.env.WEBSITE_SITE_NAME)
+
+// クライアントが「デバッグ機能を出してよいか」を判定するために叩く
+app.get("/api/debug/enabled", (_req, res) => {
+    res.json({ enabled: DEBUG_TOOLS })
+})
+
+// 進行中の対戦の盤面を、指定した内容で差し替える。
+// 対戦画面は既存のものをそのまま使い、ここでは状態だけを入れ替えて通常の配信に載せる
+app.post("/api/debug/setup", express.json({ limit: "256kb" }), (req, res) => {
+    if (!DEBUG_TOOLS) {
+        res.status(403).json({ ok: false, error: "デバッグ機能はこのサーバーでは無効です" })
+        return
+    }
+    const body = req.body as { roomId?: unknown; board?: unknown }
+    const roomId = typeof body.roomId === "string" ? body.roomId : ""
+    if (roomId === "") {
+        res.status(400).json({ ok: false, error: "roomId を指定してください" })
+        return
+    }
+    const room = roomManager.getRoom(roomId)
+    if (!room) {
+        res.status(404).json({ ok: false, error: `ルームが見つかりません: ${roomId}` })
+        return
+    }
+    if (!room.game) {
+        res.status(409).json({ ok: false, error: "対戦がまだ始まっていません（2人揃ってから実行してください）" })
+        return
+    }
+    const error = applyDebugBoard(room.game, (body.board ?? {}) as DebugBoard)
+    if (error) {
+        res.status(400).json({ ok: false, error })
+        return
+    }
+    broadcastState(room)
+    res.json({ ok: true })
 })
 
 // 両プレイヤーへそれぞれの視点の状態を送信する

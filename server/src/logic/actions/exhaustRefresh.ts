@@ -22,7 +22,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -209,6 +209,9 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 const bp = effectiveBp(state, pid, s)
                 if (action.minBp !== undefined && bp < action.minBp) continue
                 if (action.maxBp !== undefined && bp > action.maxBp) continue
+                // costFilter：対象のコストで絞る（道化師クランの付与コストも見る。
+                // returnAllToHand と同じ形。SD01-017 重装蟲キャタバルガ＝コスト1以下）
+                if (!instMatchesCostFilter(s, action.costFilter)) continue
                 // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
