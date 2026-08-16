@@ -137,6 +137,9 @@ console.log("=== [interactiveTargets] summonFromHandFree：手札の緑スピリ
     s.players.p1.reserve = 20
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "老賢樹トレントンを召喚")
+    // 「コストを支払わずに召喚できる」＝optional のため、まず発動確認が入る（2026-08-16 confirm式へ移行）
+    assert(s.pendingChoice?.confirm === true, "先に発動確認のpendingChoiceが立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
     assert(s.pendingChoice !== null, "候補2件のためpendingChoiceが立つ")
     assert(s.pendingChoice?.pid === "p1", "選択者は使用者(p1)")
     assert(s.pendingChoice?.kind === "card", "kindはcard")

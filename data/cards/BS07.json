@@ -3138,7 +3138,8 @@
       "yellow",
       "blue"
      ]
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS07-050-e2",

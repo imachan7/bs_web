@@ -2286,6 +2286,10 @@ export function applyMagicBuffBonus(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicBuffBonus") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            // 『自分のアタックステップ』限定（BS02-033騎獣スレイプホースLv3）。
+            // 上で state.phase === "attack" は確認済みなので、ここでは誰のターンかだけを見る
+            if (effect.turn === "own" && targetOwner !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && targetOwner === state.turnPlayer) continue
             if (effect.colorFilter && !(srcColors ?? []).includes(effect.colorFilter)) continue
             if (effect.target === "self") {
                 if (source.instanceId !== target.instanceId) continue

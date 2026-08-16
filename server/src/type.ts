@@ -634,6 +634,8 @@ export type EffectDef =
           timing: "main" | "flash"
           action: EffectAction
           mainForbidden?: boolean // trueなら、このエントリがtimingとして採用されるメインステップでの使用そのものを拒否する（効果文「メインステップで使えない」の忠実化。ネイチャーフォース）
+          oncePerTurn?: true // 「(この効果はターンに1回しか使えない)」。使用者ごと・cardIdごとにそのターン1回だけ発揮する。
+          // 2枚目は使用自体はできる（コストは払う）が効果は発揮されない。消費の記録は PlayerState.magicOncePerTurnUsed（BS03-133 ハイエリクサー）
           condition?:
               | { ownFamilyCountAtLeast: { family: string; count: number } } // 指定系統を持つ自分のスピリットがcount体以上のときのみ実行（spiritHasFamilyで判定。デルタクラッシュ）
               | { ownFieldHasMinSymbolSpirit: number } // 自分のフィールドにシンボル数がこれ以上のスピリットが1体以上いるときのみ実行（instanceSymbolCountで判定。ライトニングバリスタ／インフェルノアイズ等）
@@ -692,6 +694,8 @@ export type EffectDef =
           kind: "magicTargetRedirect" // 発生源が場にありレベル有効の間、**相手が使用したマジック**が発生源を対象に含むとき、そのマジックの効果の対象を発生源のみにする（＝持ち主の他のスピリットは、そのマジックの効果を受けない）。EffectModules.resolveMagic が GameState.magicRedirectTo を立て、isEffectBlocked が参照する（BS04アルカナソルジャー・サンクLv2）
           levels: number[] | null
           turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効（own=『自分のターン』。BS06細剣の猫騎士ケット・シー）
+          phase?: Phase // 指定時、state.phase が一致するときのみ有効（『相手の**アタックステップ**』のように
+          // ステップまで限定されている場合。turn だけだと相手のメインステップの効果からも守ってしまう。BS09-038スズランの妖精ティンカ）
           protectFamily?: FamilyFilter // 指定時、「発生源自身が対象」ではなく「持ち主のこの系統（配列＝OR）のスピリットが対象に含まれる」ときに絞り込む。絞り込み先は発生源自身（BS05プリンセス・スノーホワイト＝自分の白の「氷姫」を守り、対象を自分に付け替える）
           protectColor?: Color // protectFamily と併用：守る対象をこの色を持つスピリットに限る（スノーホワイト＝白）
           protectCost?: number // protectFamilyと同型：守る対象を「持ち主のこのコストのスピリット」に限る。絞り込み先は発生源自身（BS06細剣の猫騎士ケット・シー＝コスト2）
@@ -1252,6 +1256,8 @@ export type EffectDef =
           id: string
           kind: "magicBuffBonus" // マジックによるBPバフに追加でBP+する（対象・アタックステップ限定。騎獣スレイプホース）
           levels: number[] | null
+          turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効。
+          // ステップは実装側が常に state.phase === "attack" を要求しているので、『自分のアタックステップ』は turn:"own" で表す（BS02-033騎獣スレイプホースLv3）
           target: "self" | "ownOthers" | "ownAll" // self=発生源自身が対象になったとき / ownOthers=発生源以外の持ち主の緑スピリットが対象になったとき / ownAll=対象になった持ち主のスピリットすべて（色不問。BS06混迷する魔法実験場）
           colorFilter?: Color // 使用されたマジックの色（省略時は色不問）
           amountBonus: number
@@ -1659,6 +1665,7 @@ export interface PlayerState {
 
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
+    magicOncePerTurnUsed?: Record<string, number> // oncePerTurn 指定のマジックを最後に発揮したターン番号（cardId -> GameState.turn）
 }
 
 // バトル（アタック〜解決まで）の状態
