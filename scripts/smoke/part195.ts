@@ -189,8 +189,11 @@ console.log("=== 【激突】は、相手にブロックできる個体がいる
 {
     const cards = CARDS.filter((c) => c.type === "spirit" && entriesOf(c, "clash").length > 0)
     assert(cards.length > 0, "【激突】を持つスピリットが実データにある")
-    // ブロック役（効果を持たない素のスピリット）
-    const plain = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
+    // ブロック役（効果を持たない素のスピリット）。**BPが最も高いものを2体**置く：
+    // アタック時に範囲破壊を撃つ【激突】持ち（超神星龍ジークヴルム・ノヴァ＝BP合計10000まで破壊）が
+    // いるため、1体だと消えてしまい「ブロックできる個体がいる」状況を作れない
+    const plain = CARDS.filter((c) => c.type === "spirit" && (c.effects ?? []).length === 0)
+        .sort((a, b) => (b.levels?.[0]?.bp ?? 0) - (a.levels?.[0]?.bp ?? 0))[0]!
 
     // 立っている選択待ちを先頭で解消する（アタック時の効果が中断することがある）
     const drain = (s2: GameState): void => {
@@ -208,12 +211,14 @@ console.log("=== 【激突】は、相手にブロックできる個体がいる
         const level = activeLevel(card, entriesOf(card, "clash")[0]!)
         const s2 = base(`clash-${card.cardId}`)
         const attacker = put(s2, "p1", card, coresFor(card, level))
-        const blk = put(s2, "p2", plain, coresFor(plain, 1))
+        put(s2, "p2", plain, coresFor(plain, 1))
+        put(s2, "p2", plain, coresFor(plain, 1))
         refreshLevelAsOverrides(s2)
 
         assert(act(s2, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, `${card.name}でアタック`)
         drain(s2)
-        if (!s2.players.p2.field.spirits.some((x) => x.instanceId === blk.instanceId && !x.isRested)) continue
+        const blk = s2.players.p2.field.spirits.find((x) => !x.isRested)
+        if (!blk || s2.winner) continue
         // **フラッシュを閉じてから**ライフ受けを試す（閉じる前は「フラッシュ中」で弾かれ、
         // 【激突】が理由かどうか分からない）
         assert(
