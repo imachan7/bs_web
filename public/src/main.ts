@@ -1,5 +1,6 @@
 // サーバー通信、ユーザー操作の受付、状態購読
 import type { CardData, GameAction, GameView, PaySource, PlayerId } from "../../server/src/type"
+import { DECK_RECIPES, DECK_MIN_SIZE } from "../../data/constants"
 import {
     canDirectAttack,
     effectiveCost,
@@ -617,6 +618,16 @@ function loadSavedDecks(): SavedDeck[] {
 }
 
 // deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
+function populateBuiltinDecks(): void {
+    const select = byId("deck-select") as HTMLSelectElement
+    for (const [key, recipe] of Object.entries(DECK_RECIPES)) {
+        const option = document.createElement("option")
+        option.value = key
+        option.textContent = recipe.label
+        select.appendChild(option)
+    }
+}
+
 function populateCustomDecks(): void {
     const select = byId("deck-select") as HTMLSelectElement
     // 既存のカスタムデッキをクリア
@@ -635,11 +646,10 @@ function populateCustomDecks(): void {
 
         const option = document.createElement("option")
         option.value = `${CUSTOM_DECK_PREFIX}${saved.name}`
-        if (total === 40) {
-            option.textContent = `カスタム: ${saved.name}`
+        if (total >= DECK_MIN_SIZE) {
+            option.textContent = `カスタム: ${saved.name}（${total}枚）`
         } else {
-            const reason = total < 40 ? "40枚未満" : "40枚超過"
-            option.textContent = `カスタム: ${saved.name}（${reason}のため使用不可）`
+            option.textContent = `カスタム: ${saved.name}（${total}枚のため使用不可）`
             option.disabled = true
         }
         select.appendChild(option)
@@ -759,6 +769,7 @@ async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
+    populateBuiltinDecks()
     populateCustomDecks()
     setupEffectTooltip()
 
