@@ -912,6 +912,11 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 - `targetSameLevelAsSelf` — `targetInstanceId` のスピリットのLvがイベント対象と同じときのみ（ペンタン帝国Lv2＝同Lvにブロックされたとき）
 - `eventTargetIsSelf` — イベント対象が発生源自身のときのみ（スクルディア＝「**この**スピリットが疲労したとき」）
 
+⚠️ **イベント対象を `self` にするということは、解決の主体もその持ち主になる**（2026-08-16 に実バグ）。
+「**相手の**スピリットが〜したとき、**自分は**ドローする」を素直に書くと**相手がドローする**ので、
+そういうエントリには **`selfMode: "source"`**（self＝発生源、主体＝発生源の持ち主）を必ず付ける。
+SD01-028 呪われし神殿Lv2 がこれで相手にドローさせていた。
+
 ⚠️ `ownSpiritBlocked` は **self にブロックされた自分のスピリット（アタッカー）を渡す**
 （`refreshSelf` が「ブロックされたこのスピリットを回復」として機能する。2026-08-07 に selfOverride を追加）。
 `targetInstanceId` は従来どおりブロッカー。花の子リップの `levelOverrideTarget` は targetInstanceId しか見ないため影響を受けない。
