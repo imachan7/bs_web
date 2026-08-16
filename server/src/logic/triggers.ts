@@ -1229,6 +1229,9 @@ function findMagicRedirectSource(
             // 『相手のターン』＝発生源の持ち主がターンプレイヤーでないとき／『自分のターン』＝turnPlayerのとき
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
             if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
+            // 『相手の**アタックステップ**』のようにステップまで限定されているとき（BS09-038ティンカ）。
+            // turn だけでは相手のメインステップに使われた効果からも守ってしまう
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.protectFamily !== undefined || effect.protectCost !== undefined) {
                 // スノーホワイト：守る対象は「持ち主の指定系統（＋指定色）のスピリット」で、
                 // 絞り込み先は発生源自身。守る対象が1体も対象に含まれていなければ発動しない
@@ -1870,6 +1873,17 @@ function runMagicActions(
                     continue
                 }
             }
+        }
+        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・cardIdごとにそのターン1回だけ発揮する。
+        // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
+        // 2枚目は使用自体はできる（コストは払う）が、このエントリの効果だけが発揮されない（BS03-133 ハイエリクサー）
+        if (effect.oncePerTurn) {
+            const usedTurn = state.players[owner].magicOncePerTurnUsed?.[cardId]
+            if (usedTurn === state.turn) {
+                log(state, `${card.name}：この効果はターンに1回しか使えないため、発揮されなかった。`)
+                continue
+            }
+            ;(state.players[owner].magicOncePerTurnUsed ??= {})[cardId] = state.turn
         }
         // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）

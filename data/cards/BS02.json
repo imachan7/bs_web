@@ -285,7 +285,7 @@
      },
      "count": 1
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -699,7 +699,7 @@
      "type": "coreRemove",
      "count": 1
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -1320,7 +1320,7 @@
      "type": "coreRemove",
      "count": 2
     },
-    "optional": false
+    "optional": true
    },
    {
     "id": "BS02-024-e2",
@@ -1518,7 +1518,8 @@
     ],
     "action": {
      "type": "linkNexusCoresChoice"
-    }
+    },
+    "optional": true
    }
   ]
  },
@@ -1688,7 +1689,7 @@
       "green"
      ]
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -1789,6 +1790,7 @@
      2,
      3
     ],
+    "turn": "own",
     "target": "self",
     "colorFilter": "green",
     "amountBonus": 2000
@@ -1799,6 +1801,7 @@
     "levels": [
      3
     ],
+    "turn": "own",
     "target": "ownOthers",
     "colorFilter": "green",
     "amountBonus": 2000
@@ -1866,7 +1869,7 @@
      "type": "summonFromHandFree",
      "colorFilter": "green"
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -2643,7 +2646,7 @@
      "type": "summonFromHandFree",
      "sameFamilyAsSelf": true
     },
-    "optional": false
+    "optional": true
    },
    {
     "id": "BS02-048-e2",
@@ -3108,7 +3111,8 @@
     "action": {
      "type": "trashCoresToSpirit",
      "count": 2
-    }
+    },
+    "optional": true
    }
   ]
  },
@@ -3518,7 +3522,8 @@
     "action": {
      "type": "grantFamilyChoiceAll",
      "targetFamily": "歌鳥"
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS02-064-e1-cont",
@@ -3744,7 +3749,7 @@
       "white"
      ]
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -3798,7 +3803,7 @@
       "purple"
      ]
     },
-    "optional": false
+    "optional": true
    }
   ]
  },

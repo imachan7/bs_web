@@ -7003,6 +7003,7 @@
     "id": "BS03-133-e1",
     "kind": "magic",
     "timing": "flash",
+    "oncePerTurn": true,
     "action": {
      "type": "lifeCharge",
      "count": 2

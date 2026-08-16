@@ -3810,7 +3810,8 @@
     "action": {
      "type": "summonFromHandFree",
      "nameIncludes": "ペンタン"
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS05-064-e2",
@@ -3943,7 +3944,8 @@
      "pickType": "spirit",
      "nameIncludes": "巨人",
      "discardNonMatching": true
-    }
+    },
+    "optional": true
    },
    {
     "id": "BS05-066-e2",

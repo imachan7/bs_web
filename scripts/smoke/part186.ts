@@ -40,6 +40,9 @@ console.log("=== BS09-038 ティンカ：スピリットの効果の対象も自
     const s: GameState = createGame("bs09-038", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
     runTurnStart(s)
     s.turnPlayer = "p2" // 『相手のターン』
+    // ティンカの効果文は『相手の**アタックステップ**』なので、ステップも合わせる
+    // （下で使う『アタック時』誘発はアタックステップでしか起きない。2026-08-16 に phase 限定を実装）
+    s.phase = "attack"
     const tinka = put(s, "p1", "BS09-038", 1)
     // 守る対象＝系統「楽族」を持つ自分のスピリット（BS09-042 妖精騎士ピーターも「楽族」）
     const guarded = put(s, "p1", "BS09-042", 1)

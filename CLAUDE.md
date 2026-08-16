@@ -157,6 +157,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | 場所 | 中身 |
 | :-- | :-- |
 | `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
+| `docs/design/SEMANTICS_AUDIT.md` | **「動いているが解釈が間違っている」を探す作業の記録**。`npm run audit:semantics` の使い方・判定済みの一覧・そこから確定した一般則（fieldEvent の主語／「〜できる」は確認式／ステップ限定を書くべき3種類）。**効果を実装する前に §3 だけでも読む** |
 | `docs/design/EFFECT_GAPS_PLAYBOOK.md` | **残りの効果実装漏れ（36枚）を進めるための手引き**。着手順・1枚ごとの方針・器の早見表。効果の実装を始めるときに読む |
 | `docs/design/INTERRUPTION_POINTS.md` | **「ここでプレイヤーに選ばせたい」となったときに読む**。どの層なら中断できるか・3つの実装パターンと使い分け・新設の手順 |
 | `docs/design/TIMING_CHART.md` | **アタックステップのタイミング表（＞０〜＞７）の一次資料**。BP比較・破壊処理・バトル終了の前後関係と、**同時発揮の一般則（ターンプレイヤーが解決順を決める）**。バトル中の解決順で迷ったらまずここ（2026-08-14 ユーザー提供） |

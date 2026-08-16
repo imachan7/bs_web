@@ -2531,6 +2531,7 @@
           3
         ],
         "turn": "opponent",
+        "phase": "attack",
         "protectFamily": [
           "楽族"
         ]

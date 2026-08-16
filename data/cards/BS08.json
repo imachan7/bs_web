@@ -350,7 +350,9 @@
     "treatAs": "max",
     "sourceLevels": [
      2
-    ]
+    ],
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },

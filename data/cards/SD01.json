@@ -125,6 +125,10 @@
           "amount": 1000,
           "condition": {
             "ownHasKeyword": "awaken"
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "both"
           }
         }
       },
@@ -142,6 +146,10 @@
           "amount": 1000,
           "condition": {
             "ownHasKeyword": "clash"
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "both"
           }
         }
       }
