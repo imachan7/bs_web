@@ -6,7 +6,7 @@
 //   - BS04-039 宝石虫スカラベール：aura keywordFilter:soku + phaseTurn（自分のアタックステップ中のみ+1000）
 //   - BS04-043 ワルキューレ・ヒルド：fieldEvent ownLifeDamaged の refreshSelf はLv2のみ発揮
 //   - BS04-100 ジャングルロウ：メイン exhaustAllByLevel(1) ／ フラッシュ bpBuff+4000
-import { assert, act, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
 
 console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker で coreGain(Lv1/2) / refreshSelf(Lv2のみ) ===")
 {
@@ -30,6 +30,8 @@ console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker
     console.log("--- Lv1: coreGainのみ発揮（refreshSelfは発揮されない） ---")
     const reserveBefore1 = s.players.p1.reserve
     assert(act(s, "p1", { type: "attack", instanceId: falconLv1.instanceId }) === null, "Lv1ファル・コンドルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -39,6 +41,8 @@ console.log("=== BS04-025 ファル・コンドル: onBattle battleRole:attacker
     console.log("--- Lv2: coreGainに加えてrefreshSelfも発揮される ---")
     const reserveBefore2 = s.players.p1.reserve
     assert(act(s, "p1", { type: "attack", instanceId: falconLv2.instanceId }) === null, "Lv2ファル・コンドルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "ゴラドンでブロック（アタッカー勝利）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -61,6 +65,8 @@ console.log("=== BS04-032 槍蟲ルカニドス: onBattle（battleRole省略）�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p1がゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: lucanidos.instanceId }) === null,
         "ルカニドスでブロック（ブロッカー勝利）",
@@ -96,7 +102,7 @@ console.log("=== BS04-036 オッドセイ: constraint cantAttack / fieldEvent ow
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "p2がアタック")
     const lifeBefore = s.players.p1.life
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける（ブロッカーなし）")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける（ブロッカーなし）")
     assert(s.players.p1.life === lifeBefore - 1, "p1のライフが1減る")
     assert(!oddsea.isRested, "自分のライフが減ったのでオッドセイはrefreshSelfで回復する")
 }
@@ -135,7 +141,7 @@ console.log("=== BS04-043 ワルキューレ・ヒルド: fieldEvent ownLifeDama
     s.players.p2.field.spirits.push(attacker1)
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: attacker1.instanceId }) === null, "p2がアタック")
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける")
     assert(hild.isRested, "Lv1ではfieldEvent ownLifeDamagedのrefreshSelfは発揮されない")
 
     console.log("--- Lv2ではrefreshSelfが発揮される ---")
@@ -144,7 +150,7 @@ console.log("=== BS04-043 ワルキューレ・ヒルド: fieldEvent ownLifeDama
     const attacker2 = createInstance("BS01-001", s.turn, 1)
     s.players.p2.field.spirits.push(attacker2)
     assert(act(s, "p2", { type: "attack", instanceId: attacker2.instanceId }) === null, "p2が2体目でアタック")
-    assert(act(s, "p1", { type: "takeLife" }) === null, "p1がライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "p1がライフで受ける")
     assert(!hild.isRested, "Lv2ではrefreshSelfが発揮され回復状態になる")
 }
 

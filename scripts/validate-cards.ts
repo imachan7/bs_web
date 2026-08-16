@@ -17,21 +17,35 @@ import ACTION_HANDLERS from "../server/src/logic/actions/index"
 import { KEYWORDS } from "../shared/rules"
 import { COLOR_LABELS } from "../data/constants"
 import type { CardData } from "../server/src/type"
+import { loadAllCards } from "../data/loadCards"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
 const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
 
+// TriggerEvent（server/src/type.ts）に対応する誘発イベント名。
+// cards.json は型検査対象外のため、trigger 名の改名・削除がここで検出されないと
+// 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
+// TriggerEvent を追加・改名したらここにも追記すること
+const VALID_TRIGGERS = new Set([
+    "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
+])
+
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
-    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent",
+    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
-    "globalConstraint", "coreBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
+    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
-    "keywordGrant", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock",
-    "triggerSuppression",
+    "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
+    "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
+    "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
+    "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
+    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
 ])
 
 export interface ValidationIssue {
@@ -52,6 +66,191 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
             out.push(value as { type?: unknown })
         }
         collectActions(value, out)
+    }
+}
+
+// 仮想発生源では意味を成さない「self を参照するアクション」。
+// 仮想発生源は場に存在せず resolveAction に self=null が渡るため、これらは不発か誤動作になる
+// （TURN_EFFECT_SOURCES.md §4.1）
+const SELF_REFERENCING_ACTIONS = new Set([
+    "selfBuff",
+    "selfBuffPer",
+    "selfBuffByHandDiscard",
+    "refreshSelf",
+    "destroySelf",
+    "returnSelfToHand",
+    "coreRemoveSelf",
+    "coreToTrashSelf",
+    "voidCoreToSelf",
+    "voidCoreToSelfPer",
+    "tenshoCoreDump",
+    "tenshoSubstituteChoice",
+    "markNoRefreshTarget",
+])
+
+// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。
+// coverage-effects.ts の同名の集合と同じ分類
+const ACTION_BEARING_KINDS = new Set([
+    "triggered",
+    "magic",
+    "step",
+    "fieldEvent",
+    "battleWon",
+    "activated",
+])
+
+// lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。
+// 貸与を発動するのは action を持つエントリ（マジックの kind:"magic" か、スピリットの
+// kind:"triggered" 等）で、貸されるのは継続効果エントリのほう
+function checkLentEffects(
+    c: CardData,
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
+        // 貸与されるのは**継続効果のエントリだけ**。action を持つ kind（magic / triggered / step /
+        // fieldEvent / battleWon / activated）は発動側であって貸与対象ではない。
+        // 仮想発生源は field.spirits に入らないため、triggered 等はそもそも発火経路に乗らない。
+        // ※ ここを kind:"magic" だけの除外にしていると、スピリットの triggered から
+        //   lendSelfThisTurn を撃つ形（BS01-055 エメアント等）で、発動側のエントリ自身と
+        //   同一カードの無関係な誘発まで「levels が null でない」と誤って弾かれる
+        // ただし lentOnly:true が明示されているエントリは「貸される側」なので検査する
+        // （fieldEvent は action 持ちだが、lentOnly を書けば仮想発生源からのみ発火する貸与効果になる。
+        //  levels を null 以外で書くと仮想発生源は Lv0 なので**無言で一度も発火しない**）
+        const lentOnlyEntry = (e as { lentOnly?: boolean }).lentOnly === true
+        if (!lentOnlyEntry && (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword")) continue
+
+        // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
+        // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**
+        if (e.levels !== null) {
+            add(
+                c.cardId,
+                `貸与効果 ${e.id ?? e.kind} の levels が null でない（仮想発生源は Lv0 のため無言で発火しなくなる。TURN_EFFECT_SOURCES.md §2.2）`,
+            )
+        }
+
+        // §4.1: aura の target:"self" は仮想発生源では常に不成立
+        if (e.kind === "aura" && e.aura?.target === "self") {
+            add(c.cardId, `貸与効果 ${e.id ?? e.kind} の aura target が "self"（仮想発生源では成立しない）`)
+        }
+
+        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない
+        const lent: { type?: unknown }[] = []
+        collectActions([e], lent)
+        for (const a of lent) {
+            if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
+                add(
+                    c.cardId,
+                    `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
+                )
+            }
+        }
+    }
+}
+
+// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード）の検査。
+//
+// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition を見るが、
+// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter だけ。
+// 同じ kind に両方のフィールドが同居できる型なので、置換に加算側のフィルタを書くと
+// **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
+// 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
+// 書いた瞬間に発現するため、データ側で落とす。
+const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn", "condition"] as const
+
+function checkCostSetEffects(
+    c: CardData,
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const e of c.effects as { id?: string; kind?: string; mode?: string; amount?: unknown; setTo?: unknown }[]) {
+        if (e.kind !== "costMod" || e.mode !== "set") continue
+        for (const field of COST_SET_UNSUPPORTED) {
+            if (field in e) {
+                add(
+                    c.cardId,
+                    `costMod mode:"set" の ${e.id ?? e.kind} に ${field} がある（costSetOverride は参照しないため絞り込みが無言で無視される）`,
+                )
+            }
+        }
+        if ("amount" in e) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に amount がある（置換には setTo を使用してください）`)
+        }
+        if (!("setTo" in e)) {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に setTo がない（置換先を指定してください）`)
+        }
+    }
+}
+
+// TargetFilter（対象選択の絞り込み軸）の検査。
+//
+// 直交化 第2段階（2026-07-30）で cards.json の旧個別フィールド（maxBp / colorFilter …）を
+// filter へ移行し、型からも削除した。**JSON は型検査が効かない**ため、旧フィールドを書いても
+// TypeScript は何も言わず、normalizeFilter は filter だけを見るので
+// 「絞り込みが無言で消えて効果が広く当たる」という最悪の壊れ方をする。ここで落とす。
+const LEGACY_FILTER_FIELDS = [
+    "maxBp", "maxBpFromSelf", "bpEqualsSelf", "keywordFilter", "colorFilter",
+    "colorExclude", "familyFilter", "costFilter", "levelFilter", "vanillaFilter",
+    "minSymbols", "excludeSelf",
+] as const
+
+// normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
+// 新しく filter へ移すアクションを増やしたらここに追記する
+const FILTER_ACTIONS = new Set([
+    "destroy", "destroyAll", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
+])
+
+// TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
+const VALID_FILTER_KEYS = new Set([
+    "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
+    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
+    "sameCostAsBlocker", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
+])
+
+// filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
+const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
+    exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+    // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
+    // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family"],
+}
+
+function checkTargetFilters(
+    cardId: string,
+    actions: { type?: unknown }[],
+    add: (cardId: string, message: string) => void,
+): void {
+    for (const a of actions) {
+        if (typeof a.type !== "string") continue
+        const entry = a as Record<string, unknown>
+
+        if (FILTER_ACTIONS.has(a.type)) {
+            for (const f of LEGACY_FILTER_FIELDS) {
+                if (f in entry) {
+                    add(
+                        cardId,
+                        `${a.type} に旧フィールド ${f} がある（第2段階で filter へ移行済み。normalizeFilter は filter しか見ないため絞り込みが無言で消える）`,
+                    )
+                }
+            }
+        }
+
+        const filter = entry["filter"]
+        if (filter === undefined) continue
+        if (typeof filter !== "object" || filter === null || Array.isArray(filter)) {
+            add(cardId, `${a.type} の filter がオブジェクトでない`)
+            continue
+        }
+        const allowed = PARTIAL_FILTER_ACTIONS[a.type]
+        for (const key of Object.keys(filter)) {
+            if (!VALID_FILTER_KEYS.has(key)) {
+                add(cardId, `${a.type} の filter に未知の軸 "${key}" がある（TargetFilter に無いキーは無言で無視される）`)
+            } else if (allowed && !allowed.includes(key)) {
+                add(
+                    cardId,
+                    `${a.type} の filter の軸 "${key}" はこのアクションが見ない（対応は ${allowed.join(" / ")} のみ）`,
+                )
+            }
+        }
     }
 }
 
@@ -90,10 +289,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         for (const col of c.symbol ?? []) {
             if (!VALID_COLORS.has(col)) add(id, `symbol に未知の色: ${String(col)}`)
         }
-        // 軽減シンボルは自分の色の範囲に収まるはず（多色カードは混色。BS05-X19＝赤3白3）
-        for (const col of c.reduction ?? []) {
-            if (Array.isArray(c.colors) && !c.colors.includes(col)) {
-                add(id, `reduction に自色以外の色が含まれる: ${col}（colors=${c.colors.join("/")}）`)
+        // 軽減シンボルには**自色が少なくとも1つ**含まれるはず。
+        // ⚠️ かつては「自色の範囲に収まるはず」という検査だったが、
+        //    **第九弾「超星」（BS09）が異色軽減を導入した**ため成り立たなくなった
+        //    （91枚中37枚が自色＋他色1色の軽減を持つ。BS09-014 闇騎士ボールス＝紫で赤2紫2）。
+        //    軽減の計算（shared/cost.ts）は色ごとに数えるので engine 側の変更は要らない。
+        //    自色が1つも無いものだけを取り込みミスとして拾う形に弱めてある
+        if (Array.isArray(c.colors) && (c.reduction ?? []).length > 0) {
+            if (!(c.reduction ?? []).some((col) => c.colors.includes(col))) {
+                add(id, `reduction に自色が1つも含まれない（colors=${c.colors.join("/")} / reduction=${(c.reduction ?? []).join("/")}）`)
             }
         }
 
@@ -123,7 +327,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             continue
         }
         const seenEffectIds = new Set<string>()
-        for (const e of c.effects as { id?: string; kind?: string; keyword?: string }[]) {
+        for (const e of c.effects as {
+            id?: string
+            kind?: string
+            keyword?: string
+            trigger?: string
+            granted?: { trigger?: string }
+        }[]) {
+            // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
+            if (
+                e.kind === "triggerSuppression" &&
+                (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
+            ) {
+                add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
                 seenEffectIds.add(e.id)
@@ -134,10 +351,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (e.kind === "keyword" && (!e.keyword || !VALID_KEYWORDS.has(e.keyword))) {
                 add(id, `未知の keyword: ${String(e.keyword)}`)
             }
+            // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
+            if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
+                add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            if (
+                e.kind === "effectGrant" &&
+                (!e.granted?.trigger || !VALID_TRIGGERS.has(e.granted.trigger))
+            ) {
+                add(id, `未知の granted.trigger: ${String(e.granted?.trigger)}`)
+            }
         }
 
         // action.type がハンドラに登録されているか（未登録なら対戦中にクラッシュする）
-        const actions: { type?: unknown }[] = []
+        const actions: { type?: unknown; trigger?: unknown }[] = []
         collectActions(c.effects, actions)
         for (const a of actions) {
             if (typeof a.type !== "string") {
@@ -145,7 +372,24 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
             }
+            // suppressTriggerThisTurn.trigger も同様に検証する（未登録は無言で何も抑止しない）
+            if (a.type === "suppressTriggerThisTurn" && (typeof a.trigger !== "string" || !VALID_TRIGGERS.has(a.trigger))) {
+                add(id, `未知の trigger（suppressTriggerThisTurn）: ${String(a.trigger)}`)
+            }
         }
+
+        // --- lendSelfThisTurn（マジックの一時継続効果貸与）の検査 ---
+        // TURN_EFFECT_SOURCES.md §2.2 / §4.1。どちらもエラーが出ずに「無言で壊れる」ため、
+        // 実行時ではなくここで落とす
+        if (actions.some((a) => a.type === "lendSelfThisTurn")) {
+            checkLentEffects(c, add)
+        }
+
+        // --- costMod mode:"set"（コスト置換）の検査 ---
+        checkCostSetEffects(c, add)
+
+        // --- TargetFilter（旧フィールド残存・未知の軸・無視される軸）の検査 ---
+        checkTargetFilters(id, actions, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
@@ -153,13 +397,57 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
     return issues
 }
 
+// 「実装はあるのに、どのカードのデータからも使われていない action」を洗い出す。
+//
+// validate:gaps が「データにあるのにコードが無い」を見るのに対し、こちらは**逆方向**。
+// 実装を別の器へ移し替えたときに旧実装が残りがちで、実際 bpBuffAllByArmorColors は
+// aura 方式へ移行した後も4か月ほど残っていた（2026-08-10 に削除）。
+//
+// ⚠️ 内部専用（他のハンドラが ctx.resolve で呼ぶだけで cards.json には書かない）ものは
+// 正当なので、ここに登録して除外する。**除外理由を必ず書くこと**
+const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
+    ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
+    ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
+    ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
+    ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
+    ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
+    ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
+    ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+])
+
+export function findUnusedActions(cards: CardData[]): string[] {
+    const used = new Set<string>()
+    const walk = (o: unknown): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x)
+            return
+        }
+        if (o !== null && typeof o === "object") {
+            const t = (o as { type?: unknown }).type
+            if (typeof t === "string" && VALID_ACTIONS.has(t)) used.add(t)
+            for (const v of Object.values(o)) walk(v)
+        }
+    }
+    for (const c of cards) walk(c.effects)
+    return [...VALID_ACTIONS]
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a))
+        .sort()
+}
+
 // 単体実行時のエントリポイント
 function main(): void {
-    const cardsPath = path.resolve(__dirname, "../data/cards.json")
-    const cards = JSON.parse(fs.readFileSync(cardsPath, "utf-8")) as CardData[]
+    const cards = loadAllCards()
     const issues = validateCards(cards)
 
-    console.log(`data/cards.json: ${cards.length}枚を検証`)
+    for (const a of findUnusedActions(cards)) {
+        issues.push({
+            cardId: "(全体)",
+            message: `action "${a}" はどのカードにも使われていない（実装だけ残っている可能性。内部専用なら INTERNAL_ONLY_ACTIONS に理由つきで登録する）`,
+        })
+    }
+
+    console.log(`data/cards/*.json: ${cards.length}枚を検証`)
     console.log(`  照合対象: action ${VALID_ACTIONS.size}種 / keyword ${VALID_KEYWORDS.size}種 / kind ${VALID_KINDS.size}種`)
     if (issues.length === 0) {
         console.log("問題は見つかりませんでした ✅")

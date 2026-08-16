@@ -149,14 +149,42 @@ async function main(): Promise<void> {
     const e2 = await expectJoinError("同名4枚デッキ", { roomId: "e2e-invalid2", deckCards: over })
     assert(e2.includes("同名"), "同名4枚のデッキは拒否される")
 
-    // 禁止カード入り（ストームドロー BS01-132 を3枚入れ、合計は40のまま）
-    const banned: Record<string, number> = { ...customCards, "BS01-132": 3 }
+    // 禁止カード入り（冥犬ケルル・ベロス BS02-063 を3枚入れ、合計は40のまま）
+    const banned: Record<string, number> = { ...customCards, "BS02-063": 3 }
     delete banned["BS01-116"]
     const e3 = await expectJoinError("禁止カード入りデッキ", {
         roomId: "e2e-invalid3",
         deckCards: banned,
     })
     assert(e3.includes("禁止"), "禁止カード入りのデッキは拒否される")
+
+    console.log("=== 「対戦ルームに入る」を2回押したときの取り消し ===")
+    // 同じ socket が2回 join すると、以前は同じ人が p1 と p2 の両方に座り、
+    // 自分対自分で操作できない状態になっていた（2026-08-13 利用者報告）。
+    // 2回目は参加の取り消しになり、席が空く
+    {
+        const dup = await connect("二度押し太郎", { roomId: "e2e-dup", deck: "red" })
+        assert(dup.playerId === "p1", "1回目でp1に座る")
+        const cancelled = await new Promise<string>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("joinCancelled が届きませんでした")), 3000)
+            dup.socket.on("joinCancelled", (payload: { roomId: string }) => {
+                clearTimeout(timer)
+                resolve(payload.roomId)
+            })
+            dup.socket.on("state", () => {
+                clearTimeout(timer)
+                reject(new Error("2回目の参加でゲームが始まってしまいました（自分対自分）"))
+            })
+            dup.socket.emit("join", { roomId: "e2e-dup", name: "二度押し太郎", deck: "red" })
+        })
+        assert(cancelled === "e2e-dup", "2回目の参加は取り消される（ゲームは始まらない）")
+
+        // 取り消した後は、別の人がその席に座れる
+        const other = await connect("あとから花子", { roomId: "e2e-dup", deck: "purple" })
+        assert(other.playerId === "p1", "空いた席（p1）に別の人が入れる")
+        other.socket.disconnect()
+        dup.socket.disconnect()
+    }
 
     console.log("")
     if (failed > 0) {

@@ -1,18 +1,23 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color } from "../../type"
-import { currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, Color, EffectAction } from "../../type"
+import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
 import {
     findSpiritAny,
     getAllFamilies,
+    pickAnySideCandidates,
     pickEnemyByBp,
+    pickEnemyCandidates,
+    exhaustSpirit,
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
+    tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, isVanillaCard, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -33,6 +38,79 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
         return
 }
 
+// BS08グロウアップ：自分のスピリット1体を、このターンの間「実コスト+amount」の値もコストとして扱う
+// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget。元のコストも残るため厳密には
+// 「コスト以下」を参照する効果は元のコストでも引き続き反応する簡略化。CardInstance.tempAlsoCosts）
+const alsoCostBuffHandler: ActionHandler<"alsoCostBuff"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+    if (!target) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    const baseCost = getCard(target.cardId).cost
+    target.tempAlsoCosts.push(baseCost + action.amount)
+    log(
+        state,
+        `${getCard(target.cardId).name}は、このターンの間コスト${baseCost + action.amount}としても扱われる。`,
+    )
+    return
+}
+
+// BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
+// 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
+const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        if (targetInstanceId !== undefined) {
+            const target = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            target.tempGrantedTriggers = [
+                ...(target.tempGrantedTriggers ?? []),
+                { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+            ]
+            log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+            return
+        }
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter((s) =>
+            matchesTarget(state, owner, s, filter, self?.instanceId),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：効果を付与するスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        // 自動選択：実効BP最大の1体（決定的簡略化）
+        const target = candidates.reduce((best, s) =>
+            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        )
+        target.tempGrantedTriggers = [
+            ...(target.tempGrantedTriggers ?? []),
+            { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
+        ]
+        log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+        return
+}
+
 const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // リフレクションアーマー：自分のスピリット全員（costFilter指定時はコスト一致のみ）に
@@ -41,7 +119,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
         const targets = state.players[owner].field.spirits.filter(
             (s) =>
                 (action.costFilter === undefined || instHasCost(s, action.costFilter)) &&
-                (!action.vanillaFilter || isVanillaCard(getCard(s.cardId))),
+                (!action.vanillaFilter || instIsVanilla(s)),
         )
         if (targets.length === 0) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -62,7 +140,7 @@ const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) =
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 手札の条件一致カード1枚に、このターンの間キーワードを付与する
+        // 手札の条件一致カード（all指定時はすべて、それ以外は1枚）に、このターンの間キーワードを付与する
         const player = state.players[owner]
         const label = KEYWORDS[action.keyword].label
         const grant = (cardId: string): void => {
@@ -87,13 +165,21 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
             .filter((i) => {
                 const c = getCard(player.hand[i]!)
                 if (action.cardType !== undefined && c.type !== action.cardType) return false
-                if (action.familyFilter !== undefined && !c.family.includes(action.familyFilter)) {
-                    return false
+                if (action.familyFilter !== undefined) {
+                    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                    if (!wanted.some((f) => c.family.includes(f))) return false
                 }
                 return true
             })
         if (indices.length === 0) {
             log(state, `${sourceName}：対象の手札がなかった。`)
+            return
+        }
+        if (action.all) {
+            // BS08ライトニングスピード：選択を挟まず、条件一致する手札カードすべてに付与する。
+            // 付与はcardId単位（RuleValidatorがcardId一致で判定）のため、同名重複カードは1回にまとめる
+            const uniqueCardIds = new Set(indices.map((i) => player.hand[i]!))
+            for (const cardId of uniqueCardIds) grant(cardId)
             return
         }
         if (state.interactiveTargets) {
@@ -112,6 +198,50 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
         // 自動時：手札末尾（新しい方）の該当カードを対象にする簡略化
         const idx = indices[indices.length - 1]!
         grant(player.hand[idx]!)
+        return
+}
+
+// BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
+// このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
+const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        const hasBlockTrigger = (inst: CardInstance): boolean =>
+            getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
+        const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
+        const target = targetInstanceId
+            ? mine.find((s) => s.instanceId === targetInstanceId)
+            : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
+              mine.reduce<CardInstance | undefined>(
+                  (best, s) =>
+                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                  undefined,
+              )
+        if (!target) {
+            log(state, `${sourceName}：『ブロック時』効果を持つ自分のスピリットがいなかった。`)
+            return
+        }
+        target.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、${getCard(target.cardId).name}の『ブロック時』効果は『アタック時』に発揮される。`,
+        )
+        return
+}
+
+const grantColorThisTurnHandler: ActionHandler<"grantColorThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // BS07メテオフォール：自分のスピリット1体を、このターンの間その色としても扱う（色は固定）。
+        // 対象の選び方は grantKeyword と同じ（指定優先→バトル中→フィールド先頭）
+        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        if (!target.tempColors.includes(action.color)) target.tempColors.push(action.color)
+        log(
+            state,
+            `${getCard(target.cardId).name}に色「${COLOR_LABELS[action.color]}」が与えられた（ターン終了時まで）。`,
+        )
         return
 }
 
@@ -160,26 +290,18 @@ const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action)
         return
 }
 
-const grantColorAllHandler: ActionHandler<"grantColorAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // このターンの間、自分のスピリットすべてを指定色のスピリットとしても扱う（妖精ティングリー）
-        for (const s of state.players[owner].field.spirits) {
-            if (!s.tempColors.includes(action.color)) s.tempColors.push(action.color)
-        }
-        log(
-            state,
-            `${sourceName}：このターンの間、${state.players[owner].name}のスピリットすべてが${COLOR_LABELS[action.color]}のスピリットとしても扱われる。`,
-        )
-        return
-}
-
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceCardId, sourceName, chosenOption } = ctx
         if (!self) return
-        const holders = state.players[owner].field.spirits.filter((s) =>
-            spiritHasFamily(state, owner, s, action.targetFamily),
+        // 「フィールド、または手札にある系統：X を持つスピリット/スピリットカードすべて」が対象のため、
+        // 発動可否は場と手札の両方で見る（付与系統は見ない＝カード静的な系統だけ。音鳥クルーク）
+        const onField = state.players[owner].field.spirits.some((s) =>
+            getCard(s.cardId).family.includes(action.targetFamily),
         )
-        if (holders.length === 0) {
+        const inHand = state.players[owner].hand.some((cardId) =>
+            getCard(cardId).family.includes(action.targetFamily),
+        )
+        if (!onField && !inHand) {
             return
         }
         if (chosenOption === undefined) {
@@ -196,24 +318,14 @@ const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx,
             )
             return
         }
-        for (const s of holders) {
-            if (!s.tempFamilies.includes(chosenOption)) s.tempFamilies.push(chosenOption)
-        }
+        // 選んだ系統を載せた仮想発生源を積む（lendSelfThisTurn と同じ貸与。以後 kind:"familyGrant" の
+        // familyFromChoice エントリが継続付与するので、このターンに召喚したスピリットにも乗る）
+        const virtual = pushVirtualSource(state, owner, sourceCardId)
+        if (!virtual) return
+        virtual.lentChoiceFamily = chosenOption
         log(
             state,
-            `${sourceName}：系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた（ターン終了時まで）。`,
-        )
-        return
-}
-
-const grantAlsoCostAllHandler: ActionHandler<"grantAlsoCostAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 道化師クラン：自分のスピリットすべてを、このターンの間コストaction.costのスピリットとしても扱う
-        const targets = state.players[owner].field.spirits
-        for (const t of targets) t.tempAlsoCosts.push(action.cost)
-        log(
-            state,
-            `${state.players[owner].name}のスピリットすべては、このターンの間コスト${action.cost}のスピリットとしても扱われる。`,
+            `${sourceName}：このターンの間、系統「${chosenOption}」を「${action.targetFamily}」持ちすべてに与えた。`,
         )
         return
 }
@@ -227,6 +339,12 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
             const player = state.players[owner]
             if (player.reserve < action.costReserveToVoid) {
                 log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
+                return
+            }
+            // B（レベルを変える相手のネクサス）が無ければ発揮できない（COST_MODEL.md §1）。
+            // 以前は払ってから相手のネクサスを見ていたため、いないときも払い損になっていた
+            if (state.players[opp].field.nexuses.length === 0) {
+                log(state, `${sourceName}：相手のネクサスがないため発動しなかった。`)
                 return
             }
             player.reserve -= action.costReserveToVoid
@@ -288,16 +406,10 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
 
 const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのLvをこのターンの間1つ上として扱う（カードの最大Lvでキャップ。未指定時は自分の実効BP最大。ビルドアップ）
-        const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                          ? s
-                          : best,
-                  undefined,
-              )
+        // 対象スピリットのLvをこのターンの間1つ上として扱う（最大Lvでキャップ。anySide指定で両陣営から選べる。ビルドアップ）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：Lvを上げるスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
             return
@@ -326,9 +438,38 @@ const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (
         return
 }
 
-const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリットのtempExtraSymbolsをこのターンの間+1する（未指定時は自分の実効BP最大。ダブルハート）
+// 「自分か相手のスピリット1体を指定する」系の対象決定（ダブルハート／ビルドアップ）。
+// targetInstanceId 指定時はそれを使う。未指定なら anySide のとき両陣営から、
+// そうでなければ自分側だけから候補を作り、interactiveTargets ならプレイヤーに選ばせる。
+// choice を立てた場合は "pending" を返す（呼び出し側はそのまま return する）
+function pickSingleTarget(
+    ctx: ActionCtx,
+    action: { anySide?: true },
+    prompt: string,
+): CardInstance | undefined | "pending" {
+    const { state, owner, self, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId) {
+        const found = findSpiritAny(state, targetInstanceId)
+        return found?.inst
+    }
+    const candidates = action.anySide
+        ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType)
+        : state.players[owner].field.spirits.slice()
+    if (state.interactiveTargets && tryInteractiveTargetChoice(state, owner, self, prompt, candidates, action as EffectAction, null)) {
+        return "pending"
+    }
+    // 自動選択は実効BP最大（既存挙動）。両陣営のときは相手側→自分側の順で同値は先勝ち
+    return candidates.reduce<CardInstance | undefined>(
+        (best: CardInstance | undefined, s: CardInstance) =>
+            !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+        undefined,
+    )
+}
+
+const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlockThisTurn"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        // ブレイブチャージ：自分のスピリット1体の『このスピリットのアタック時』効果を、このターンの間
+        // 『このスピリットのブロック時』に発揮させる（未指定時は自分の実効BP最大。addSymbolThisTurn と同じ選び方）
         const target = targetInstanceId
             ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
             : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
@@ -338,6 +479,36 @@ const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, actio
                           : best,
                   undefined,
               )
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        target.attackTriggersAsBlockThisTurn = true
+        log(
+            state,
+            `${getCard(target.cardId).name}の『アタック時』効果は、このターンの間『ブロック時』に発揮される。`,
+        )
+        return
+}
+
+const blockTriggersAsAttackAllThisTurnHandler: ActionHandler<"blockTriggersAsAttackAllThisTurn"> = (ctx) => {
+    const { state, sourceName } = ctx
+        // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に移す
+        // （ブロック時には発揮されなくなる＝移し替え。fireTriggerが state.blockTriggersAsAttackThisTurn を参照）
+        state.blockTriggersAsAttackThisTurn = true
+        log(
+            state,
+            `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`,
+        )
+        return
+}
+
+const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 対象スピリットのtempExtraSymbolsをこのターンの間+1する（anySide指定で両陣営から選べる。ダブルハート）
+        const picked = pickSingleTarget(ctx, action, `${sourceName}：シンボルを追加するスピリットを選んでください`)
+        if (picked === "pending") return
+        const target = picked
         if (!target) {
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
@@ -368,6 +539,143 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
         log(
             state,
             `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットはアタックとブロックができない。`,
+        )
+        return
+}
+
+const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
+        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない。
+        // **誰を疲労させるかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
+        if (action.costExhaustFamily !== undefined) {
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
+                return
+            }
+            const { costExhaustFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const picked = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!picked) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                exhaustSpirit(state, owner, picked)
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
+            const chosen = candidates.reduce((min, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
+            )
+            exhaustSpirit(state, owner, chosen)
+        }
+        state.turnConstraints.push({
+            type: "noLifeDamageByCostForPid",
+            maxCost: action.maxCost,
+            pid: owner,
+        })
+        log(
+            state,
+            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
+        )
+        return
+}
+
+const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // maxCost指定時：コスト条件を満たす相手スピリットすべてに一括で課す（BS08アンブッシュブロッカー）
+        if (action.maxCost !== undefined) {
+            state.turnConstraints.push({ type: "mustAttackByCost", pid: opp, maxCost: action.maxCost })
+            log(
+                state,
+                `${sourceName}：このターンの間、${state.players[opp].name}のコスト${action.maxCost}以下のスピリットは可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        // 対象指定時：その1体に課す（targetInstanceId優先→interactiveTargets時はpendingChoice→自動時は実効BP最大。BS08獣機合神セイ・ドリガン）
+        if (targetInstanceId) {
+            const found = findSpiritAny(state, targetInstanceId)
+            if (!found || found.pid !== opp) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: found.inst.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(found.inst.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            return
+        }
+        const count = action.count ?? 1
+        const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：必ずアタックさせる相手のスピリットを選んでください`,
+                candidates,
+                action,
+                count > 1 ? { ...action, count: count - 1 } : null,
+            )
+        ) {
+            return
+        }
+        const chosenIds = new Set<string>()
+        let marked = 0
+        for (let i = 0; i < count; i++) {
+            const target = pickEnemyByBp(
+                state,
+                opp,
+                Infinity,
+                (s) => !chosenIds.has(s.instanceId),
+                srcColors,
+                srcType,
+            )
+            if (!target) break
+            chosenIds.add(target.instanceId)
+            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
+            log(
+                state,
+                `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
+            )
+            marked++
+        }
+        if (marked === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+        }
+        return
+}
+
+const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        state.turnConstraints.push({
+            type: "canBlockWhileRestedThisTurn",
+            pid: owner,
+            ...(action.familyFilter !== undefined ? { familyFilter: action.familyFilter } : {}),
+        })
+        const familyLabel = action.familyFilter
+            ? `系統：「${(Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]).join("」/「")}」を持つ`
+            : ""
+        log(
+            state,
+            `${sourceName}：このターンの間、${state.players[owner].name}の${familyLabel}スピリットすべては疲労状態でもブロックできる。`,
         )
         return
 }
@@ -455,25 +763,176 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         return
 }
 
+// 「このターンの間」継続効果を貸す共通処理：仮想発生源を1つ積んで返す（積めなければ null）。
+// grantFamilyChoiceAll（選択結果を載せる音鳥クルーク）も同じ器を使う。
+// scope:"battle" のときだけ積む先が battleVirtualInstances に変わる（lendSelfThisBattle）。
+// 積んだあとの扱い（effectSources に混ざる／isVirtualSource が "virtual-" で判定する）は共通
+function pushVirtualSource(
+    state: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["state"],
+    owner: Parameters<ActionHandler<"lendSelfThisTurn">>[0]["owner"],
+    sourceCardId: string | undefined,
+    scope: "turn" | "battle" = "turn",
+): CardInstance | null {
+    if (sourceCardId === undefined) {
+        log(state, "効果：貸し出す発生源のカードIDが特定できなかった。")
+        return null
+    }
+    const inst = createInstance(sourceCardId, state.turn, 0)
+    inst.instanceId = `virtual-${inst.instanceId}`
+    const player = state.players[owner]
+    if (scope === "battle") player.battleVirtualInstances.push(inst)
+    else player.turnVirtualInstances.push(inst)
+    return inst
+}
+
+// マジックが「このターンの間」継続効果を貸す機構（TURN_EFFECT_SOURCES.md）。
+// マジックのselfは常にnull（resolveMagicがself=nullで呼ぶ）ため、ctx.sourceCardIdを使うこと。
+// ここでselfを参照すると（マジックの唯一の用途で）必ずno-opになる罠なので注意（§3.3）
+const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (!pushVirtualSource(state, owner, sourceCardId)) return
+    log(
+        state,
+        `${getCard(sourceCardId!).name}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`,
+    )
+}
+
+// BS06ヒナペンタン：「このスピリットを疲労させることで、このターンの間〜」。
+// 疲労（任意コスト）と貸与（効果）を1つのアクションで行う。**分けてはいけない**：
+// optional エントリを2つに割ると確認が2回になり、実際に「疲労だけして効果が出ない」状態になっていた
+const exhaustSelfThenLendThisTurnHandler: ActionHandler<"exhaustSelfThenLendThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) return
+    if (self.isRested) {
+        log(state, `${sourceName}：すでに疲労しているため発動できなかった。`)
+        return
+    }
+    exhaustSpirit(state, owner, self)
+    log(state, `${sourceName}：疲労することで効果を発動した。`)
+    // 貸与は lendSelfThisTurn と同じ器（スピリット発生源なので self.cardId から引く）
+    if (!pushVirtualSource(state, owner, self.cardId)) return
+    log(state, `${sourceName}：このターンの間、自分の仮想発生源としてこの効果を貸し出した。`)
+}
+
+// 上の「このバトルの間」版（BS07ダーティフィスト／ニードルショット／ブルームフルート）。
+// バトル外（メインステップ等）で使われた場合、貸与は直後の clearBattle まで残るが、
+// これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
+const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => {
+    const { state, owner, sourceCardId } = ctx
+    if (!pushVirtualSource(state, owner, sourceCardId, "battle")) return
+    log(
+        state,
+        `${getCard(sourceCardId!).name}：このバトルの間、自分の仮想発生源としてこの効果を貸し出した。`,
+    )
+}
+
+// スピリットイリュージョン：全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに
+// 載せてこのターンの間貸し出す（familyGrantのfamilyFromChoiceと同形。BS02-111）。
+// マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
+// resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
+// EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
+const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceCardId, chosenOption } = ctx
+        if (chosenOption === undefined) {
+            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            requestChoice(
+                state,
+                owner,
+                "指定する色を選んでください",
+                [],
+                false,
+                { type: "colorChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+                null,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
+            ([, label]) => label === chosenOption,
+        )
+        if (!colorEntry) return
+        const [color] = colorEntry
+        const cardId = action.sourceCardId
+        const virtual = pushVirtualSource(state, owner, cardId)
+        if (!virtual) return
+        virtual.lentChoiceColor = color
+        log(
+            state,
+            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
+        )
+        return
+}
+
+// BS03ゴーレムクラフト：自分のフィールドのコアが1個以上置かれているネクサスすべてを、
+// このターンの間「コスト:1／系統:「造兵」／Lv1コスト:1／Lv1BP:2000／効果の記述なし」のスピリットとして扱う。
+//
+// **ネクサスをバトルに参加させる仕組みは作らない**。field.nexuses から field.spirits へ
+// 同じインスタンスのまま移してしまえば、アタック・ブロック・BP比較・全体破壊・体数カウント・
+// 対象選択といったスピリットの器（エンジン内で field.spirits を列挙している数百箇所）がそのまま効く。
+// 別カードへの差し替えにしないのも同じ理由で、cardId が変わらないので
+// 破壊時は destroySpirit がネクサスのカードをそのままトラッシュへ送る（追加実装が要らない）。
+//
+// カード側がステータスを全部明記しているため、上書きの中身は effects データから受け取る。
+// 対象は解決時点のネクサスに固定される（このあと置かれたネクサスは変換されない）
+const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsSpiritsThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const minCores = action.minCores ?? 1
+    const targets = player.field.nexuses.filter((n) => n.cores >= minCores)
+    if (targets.length === 0) {
+        log(state, `${sourceName}：コアが${minCores}個以上置かれた自分のネクサスがなかった。`)
+        return
+    }
+    for (const nexus of targets) {
+        const index = player.field.nexuses.indexOf(nexus)
+        player.field.nexuses.splice(index, 1)
+        nexus.asSpiritThisTurn = {
+            cost: action.cost,
+            family: [...action.family],
+            levels: action.levels.map((l) => ({ ...l })),
+        }
+        player.field.spirits.push(nexus)
+    }
+    const familyLabel = action.family.length > 0 ? `系統：「${action.family.join("・")}」の` : ""
+    log(
+        state,
+        `${sourceName}：${player.name}のネクサス${targets.length}つ（${targets.map((n) => getCard(n.cardId).name).join("・")}）は、このターンの間${familyLabel}スピリットとして扱われる。`,
+    )
+    return
+}
+
 const handlers = {
+    treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeyword: grantKeywordHandler,
+    grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
-    grantColorAll: grantColorAllHandler,
+    grantColorThisTurn: grantColorThisTurnHandler,
+    blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
-    grantAlsoCostAll: grantAlsoCostAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
+    attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
+    blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
+    colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
+    lendSelfThisTurn: lendSelfThisTurnHandler,
+    lendSelfThisBattle: lendSelfThisBattleHandler,
+    exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
+    forceAttackThisTurn: forceAttackThisTurnHandler,
+    grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
+    alsoCostBuff: alsoCostBuffHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

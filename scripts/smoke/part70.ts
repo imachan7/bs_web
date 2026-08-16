@@ -1,12 +1,15 @@
 // smoke パート70（TargetFilter 第2段階の前提：絞り込み軸を使うのに未カバーだったカード）
 //
 // **なぜ必要か**: 第2段階では cards.json の旧フィールド（maxBp / keywordFilter / familyFilter …）を
-// 新形式の filter へ移行する。しかし cards.json は fs 読み込みで **tsc の型検査対象外**なので、
+// 新形式の filter へ移行した。しかし cards.json は fs 読み込みで **tsc の型検査対象外**なので、
 // 移行を間違えても実行時まで分からない。**テストの無いカードは移行してはいけない。**
 //
 // ここで押さえるのは、絞り込み軸を使っているのに smoke に cardId が一度も出てこなかった15枚。
 // 各テストは「軸が効いている（条件を満たすものだけが対象になる）」ことを確認する。
-// 移行後もこのテストが無変更で通れば、移行が正しかったことの根拠になる。
+//
+// 移行（2026-07-30 実施）で変わったのは、各カードの**データの形を機械確認する「テスト前提」の
+// 読み出し先だけ**（action.maxBp → action.filter.maxBp など）。
+// 効果の結果を検証する本体のアサーションは無変更で通っており、これが移行が正しかったことの根拠になる。
 import {
     act,
     assert,
@@ -50,8 +53,8 @@ console.log("=== maxBp 軸: BP以下だけが破壊される（BS01-022 / BS03-0
     ]
     for (const { cardId, effIndex } of cases) {
         const card = getCard(cardId)
-        const eff = card.effects[effIndex] as { action?: { type?: string; maxBp?: number } }
-        const maxBp = eff.action?.maxBp
+        const eff = card.effects[effIndex] as { action?: { type?: string; filter?: { maxBp?: number } } }
+        const maxBp = eff.action?.filter?.maxBp
         assert(typeof maxBp === "number", `テスト前提: ${card.name} は maxBp を持つ`)
         if (typeof maxBp !== "number") continue
 
@@ -63,7 +66,7 @@ console.log("=== maxBp 軸: BP以下だけが破壊される（BS01-022 / BS03-0
         assert(underBp <= maxBp, `テスト前提: 低BP側(${underBp})が閾値(${maxBp})以下`)
         assert(effectiveBp(s, "p2", s.players.p2.field.spirits[1]!) > maxBp, "テスト前提: 高BP側が閾値超え")
 
-        resolveAction(s, "p1", null, { type: "destroy", maxBp, count: 1 })
+        resolveAction(s, "p1", null, { type: "destroy", filter: { maxBp }, count: 1 })
         const remain = enemyIds(s)
         assert(!remain.includes(under), `${card.name}: maxBp${maxBp} 以下が破壊される`)
         assert(remain.includes(over), `${card.name}: maxBp${maxBp} 超えは残る`)
@@ -73,8 +76,8 @@ console.log("=== maxBp 軸: BP以下だけが破壊される（BS01-022 / BS03-0
 console.log("--- destroyAll の maxBp（BS03-010 黒竜ヴリトラ: BP2000以下を全破壊） ---")
 {
     const card = getCard("BS03-010")
-    const eff = card.effects[0] as { action?: { maxBp?: number } }
-    const maxBp = eff.action?.maxBp
+    const eff = card.effects[0] as { action?: { filter?: { maxBp?: number } } }
+    const maxBp = eff.action?.filter?.maxBp
     assert(maxBp === 2000, `テスト前提: ${card.name} は maxBp 2000（実際 ${String(maxBp)}）`)
 
     const s = newGame("axis-destroyall-vritra")
@@ -82,7 +85,7 @@ console.log("--- destroyAll の maxBp（BS03-010 黒竜ヴリトラ: BP2000以�
     putEnemy(s, "BS01-001", 1) // BP1000（対象）
     const survivor = putEnemy(s, "BS01-025", 3) // BP10000（対象外）
 
-    resolveAction(s, "p1", null, { type: "destroyAll", maxBp: 2000 })
+    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 2000 } })
     const remain = enemyIds(s)
     assert(remain.length === 1 && remain[0] === survivor, "BP2000以下だけが全破壊され、超過は残る")
 }
@@ -90,8 +93,8 @@ console.log("--- destroyAll の maxBp（BS03-010 黒竜ヴリトラ: BP2000以�
 console.log("=== keywordFilter 軸: 指定キーワード持ちだけが破壊される（BS01-024 晶輝龍ディアマット） ===")
 {
     const card = getCard("BS01-024")
-    const eff = card.effects[0] as { action?: { keywordFilter?: string } }
-    assert(eff.action?.keywordFilter === "soku", `テスト前提: ${card.name} は keywordFilter soku`)
+    const eff = card.effects[0] as { action?: { filter?: { keyword?: string } } }
+    assert(eff.action?.filter?.keyword === "soku", `テスト前提: ${card.name} は filter.keyword soku`)
 
     const s = newGame("axis-keyword-diamat")
     // 神速を持つカードと持たないカードを1体ずつ
@@ -101,7 +104,7 @@ console.log("=== keywordFilter 軸: 指定キーワード持ちだけが破壊�
     const soku = putEnemy(s, sokuCard.cardId, 1)
     const plain = putEnemy(s, "BS01-001", 1)
 
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, keywordFilter: "soku" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { keyword: "soku" } })
     const remain = enemyIds(s)
     assert(!remain.includes(soku), "【神速】持ちが破壊される")
     assert(remain.includes(plain), "【神速】を持たないものは残る")
@@ -111,11 +114,14 @@ console.log("=== minSymbols 軸: シンボル数が足りる対象のみ（BS04-
 {
     // 4枚とも bpBuff amount:5000 minSymbols:2。データが同型であることを機械確認してから、
     // 代表1件で「シンボル2個には効き、1個には効かない」を検証する
+    // BS04-104/114 はメイン側の実装を足したのでエントリが2つある。フラッシュ側を名指しで拾う
     for (const id of ["BS04-096", "BS04-104", "BS04-107", "BS04-114"]) {
-        const eff = getCard(id).effects[0] as { action?: { minSymbols?: number; amount?: number } }
+        const eff = getCard(id).effects.find(
+            (e) => e.kind === "magic" && e.timing === "flash",
+        ) as { action?: { filter?: { minSymbols?: number }; amount?: number } }
         assert(
-            eff.action?.minSymbols === 2 && eff.action?.amount === 5000,
-            `テスト前提: ${getCard(id).name} は minSymbols2 / amount5000`,
+            eff.action?.filter?.minSymbols === 2 && eff.action?.amount === 5000,
+            `テスト前提: ${getCard(id).name} は filter.minSymbols2 / amount5000`,
         )
     }
 
@@ -130,23 +136,29 @@ console.log("=== minSymbols 軸: シンボル数が足りる対象のみ（BS04-
     const find = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
 
     // シンボル2個の側を対象指定 → 効く
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 5000, minSymbols: 2 }, twoId)
+    resolveAction(s, "p1", null, { type: "bpBuff", amount: 5000, filter: { minSymbols: 2 } }, twoId)
     assert(find(twoId).tempBpBuff === 5000, "シンボル2個の対象にはBP+5000が乗る")
 
     // シンボル1個の側を対象指定 → minSymbols を満たさないので効かない
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 5000, minSymbols: 2 }, oneId)
+    resolveAction(s, "p1", null, { type: "bpBuff", amount: 5000, filter: { minSymbols: 2 } }, oneId)
     assert(find(oneId).tempBpBuff === 0, "シンボル1個の対象には効かない（minSymbols 未達）")
 }
 
 console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-097 フォレストオーラ） ===")
 {
+    // 2026-07-31: bpBuff(attackingAll)+filter.family から lendSelfThisTurn + kind:"aura"
+    // （attackingOnly + familyFilter）へ移行済み（part76参照）。テスト前提は新データ形状で読む
     const card = getCard("BS04-097")
-    const eff = card.effects[0] as { action?: { familyFilter?: string[]; amount?: number } }
-    const families = eff.action?.familyFilter
+    const eff = card.effects.find((e) => e.kind === "aura") as
+        | { aura?: { familyFilter?: string[]; attackingOnly?: boolean; amount?: number } }
+        | undefined
+    const families = eff?.aura?.familyFilter
     assert(
         Array.isArray(families) && families.includes("爪鳥") && families.includes("樹魔"),
-        `テスト前提: ${card.name} は familyFilter [爪鳥, 樹魔]`,
+        `テスト前提: ${card.name} は aura.familyFilter [爪鳥, 樹魔]`,
     )
+    assert(eff?.aura?.attackingOnly === true, `テスト前提: ${card.name} は aura.attackingOnly`)
+    assert(eff?.aura?.amount === 3000, `テスト前提: ${card.name} は aura.amount 3000`)
 
     const s = newGame("axis-family-forestaura")
     const bird = getCard("BS01-059") // シダフクロウ（爪鳥）
@@ -155,22 +167,23 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
     const otherId = putOwn(s, other.cardId, 1)
     assert(spiritHasFamily(s, "p1", s.players.p1.field.spirits[0]!, "爪鳥"), "テスト前提: 爪鳥を持つ")
 
-    // attackingAll はアタック中のスピリットが対象。バトルを立ててアタッカーを爪鳥にする
+    // attackingOnly はアタック中のスピリットが対象。バトルを立ててアタッカーを爪鳥にする
     s.battle = {
         attackerInstanceId: birdId,
         blockerInstanceId: null,
         flashLockedPlayer: null,
         directed: false,
     }
-    resolveAction(s, "p1", null, {
-        type: "bpBuff",
-        amount: 3000,
-        attackingAll: true,
-        familyFilter: ["爪鳥", "樹魔"],
-    })
+    resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")
     const find = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
-    assert(find(birdId).tempBpBuff === 3000, "系統一致のアタッカーにBP+3000が乗る")
-    assert(find(otherId).tempBpBuff === 0, "アタックしていない／系統不一致には乗らない")
+    assert(
+        effectiveBp(s, "p1", find(birdId)) === currentLevel(find(birdId)).bp + 3000,
+        "系統一致のアタッカーにBP+3000が乗る",
+    )
+    assert(
+        effectiveBp(s, "p1", find(otherId)) === currentLevel(find(otherId)).bp,
+        "アタックしていない／系統不一致には乗らない",
+    )
 
     // 系統が一致しないアタッカーには効かないことも確認する
     const s2 = newGame("axis-family-forestaura-miss")
@@ -181,14 +194,10 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
         flashLockedPlayer: null,
         directed: false,
     }
-    resolveAction(s2, "p1", null, {
-        type: "bpBuff",
-        amount: 3000,
-        attackingAll: true,
-        familyFilter: ["爪鳥", "樹魔"],
-    })
+    resolveAction(s2, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")
+    const plain = s2.players.p1.field.spirits[0]!
     assert(
-        s2.players.p1.field.spirits[0]!.tempBpBuff === 0,
+        effectiveBp(s2, "p1", plain) === currentLevel(plain).bp,
         "系統が一致しないアタッカーには乗らない",
     )
 }
@@ -196,8 +205,8 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
 console.log("=== vanillaFilter 軸: 効果を持たないカードだけ回復（BS03-108 鋼に覆われた高空） ===")
 {
     const card = getCard("BS03-108")
-    const eff = card.effects[0] as { action?: { vanillaFilter?: boolean } }
-    assert(eff.action?.vanillaFilter === true, `テスト前提: ${card.name} は vanillaFilter`)
+    const eff = card.effects[0] as { action?: { filter?: { vanilla?: boolean } } }
+    assert(eff.action?.filter?.vanilla === true, `テスト前提: ${card.name} は filter.vanilla`)
 
     const s = newGame("axis-vanilla-highsky")
     const vanilla = getCard("BS01-074") // バーサーカー・ガン（効果テキストなし）
@@ -209,7 +218,7 @@ console.log("=== vanillaFilter 軸: 効果を持たないカードだけ回復�
     const eId = putOwn(s, withEffect.cardId, 1)
     for (const x of s.players.p1.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshOne", vanillaFilter: true })
+    resolveAction(s, "p1", null, { type: "refreshOne", filter: { vanilla: true } })
     const find = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
     assert(!find(vId).isRested, "バニラが回復する")
     assert(find(eId).isRested, "効果持ちは疲労のまま")
@@ -223,7 +232,7 @@ console.log("=== all 軸: 条件を満たすものを全部（BS03-108 Lv2 の r
     putOwn(s, "BS01-025", 1) // 効果持ち
     for (const x of s.players.p1.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshOne", vanillaFilter: true, all: true })
+    resolveAction(s, "p1", null, { type: "refreshOne", filter: { vanilla: true }, all: true })
     const rested = s.players.p1.field.spirits.filter((x) => x.isRested)
     assert(rested.length === 1, `all 指定でバニラ2体がまとめて回復する（疲労のまま残るのは1体）`)
     assert(getCard(rested[0]!.cardId).effect !== "", "残ったのは効果持ちのほう")
@@ -279,7 +288,6 @@ console.log("=== anySide 軸: 両陣営が対象（BS05-016 吸血女王カー�
 
     resolveAction(s, "p1", null, {
         type: "destroyAll",
-        maxBp: Infinity,
         anySide: true,
         filter: { rested: true, cost: { max: 1 } },
     })

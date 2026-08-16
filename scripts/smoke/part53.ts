@@ -77,11 +77,13 @@ console.log("=== BS04-110 レッドウォール: 「ブロックされない」�
     s.players.p2.field.spirits.push(greenBlocker)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
-    assert(act(s, "p2", { type: "block", instanceId: greenBlocker.instanceId }) !== null, "通常は緑スピリットでブロックできない")
+    // ブロック宣言はフラッシュ①終了後にしかできないため、レッドウォールで無効化するには
+    // フラッシュ①の間（防御側に優先権がある間）に使う必要がある
     s.players.p2.hand = ["BS04-110"]
     s.players.p2.reserve = 20
-    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "レッドウォールをフラッシュで使用")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "レッドウォールをフラッシュ①中に使用")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（優先権を得て）")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: greenBlocker.instanceId }) === null, "使用後は「ブロックされない」を無視してブロックできる")
 }
 

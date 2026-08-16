@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { draw, log } from "./GameState"
-import { activeConstraints, coreStepBonusFor, fireStepTriggers, refreshLevelAsOverrides } from "./EffectModules"
+import { draw, getCard, log, pushResumeFrames } from "./GameState"
+import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -35,12 +35,24 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             fireStepTriggers(state, "core")
         },
-        // ドローステップ（先攻1ターン目も通常通りドローする。公式ルール）
+        // ドローステップ①：ドローより前に発火する効果（「ドローしないことで〜する」）。
+        // ここで選択待ちになると、再開は**次の区間＝ドロー**からになるので、
+        // 「発動を確認してからドローする／しない」が成立する（区間を分けているのはこのため）
         () => {
             state.phase = "draw"
-            draw(state, pid, 1)
+            state.drawStepSkipped = false
+            fireStepTriggers(state, "draw", undefined, "enter", "beforeDraw")
+        },
+        // ドローステップ②：ドロー本体（先攻1ターン目も通常通りドローする。公式ルール）と、
+        // ドローの後に発火する効果（引いたカードを破棄の対象にできる百識の谷Lv1など）
+        () => {
+            if (state.drawStepSkipped) {
+                log(state, `${player.name}は効果のコストとしてドローしなかった。`)
+            } else {
+                draw(state, pid, 1, true)
+            }
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
-            fireStepTriggers(state, "draw")
+            fireStepTriggers(state, "draw", undefined, "enter", "afterDraw")
         },
         // リフレッシュステップ：トラッシュのコアをリザーブに戻し、全回復
         () => {
@@ -52,10 +64,14 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             const refreshedInstanceIds = new Set<string>()
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-                // noRefresh（スクルディア）を持つスピリットはこのステップで回復しない
+                // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
+                // 相手のスピリットから「回復できない」と指定されている間も回復しない
+                // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
+                if (isRefreshBlockedByMark(state, pid, inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
-                inst.isRested = false
+                // 回復は refreshSpirit を通す（「このスピリットが回復したとき」＝onRefreshed を発火させる唯一の入口）
+                refreshSpirit(state, pid, inst)
             }
             fireStepTriggers(state, "refresh", refreshedInstanceIds)
         },
@@ -72,38 +88,28 @@ function turnStartSegments(state: GameState): (() => void)[] {
 
 // ターン開始処理のステップ列を fromIndex から順に実行する。
 // ステップ処理後に pendingChoice が立っていたら（ステップ誘発が選択待ちを要求したら）、
-// 次のステップ番号を state.turnStartResumeStep に記録してそこで中断する。
-// 全ステップを完走したら levelAs を再計算し、再開位置をクリアする。
-function driveTurnStart(state: GameState, fromIndex: number): void {
+// 次のステップ番号を**再開フレーム**に積んでそこで中断する（docs/design/RESUME_STACK.md）。
+// 全ステップを完走したら levelAs を再計算する。
+export function driveTurnStart(state: GameState, fromIndex: number): void {
     const segments = turnStartSegments(state)
     for (let i = fromIndex; i < segments.length; i++) {
         segments[i]!()
-        if (state.winner) {
-            state.turnStartResumeStep = null
-            return
-        }
+        if (state.winner) return
         if (state.pendingChoice) {
-            state.turnStartResumeStep = i + 1
+            pushResumeFrames(state, [{ kind: "turnStart", step: i + 1 }])
             return
         }
     }
-    state.turnStartResumeStep = null
     // 継続的なレベル置換（levelAs）をターン開始処理の最後に再計算する
     // （ジャグリーンのスピリット数条件・トパーズの流星のsourceMinLevelなど）
     refreshLevelAsOverrides(state)
 }
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める。
-// 途中のステップ誘発が pendingChoice を立てた場合はそこで中断し、resumeTurnStart で再開する
+// 途中のステップ誘発が pendingChoice を立てた場合はそこで中断し、
+// 再開フレーム（kind:"turnStart"）として再開スタックに載る
 export function runTurnStart(state: GameState): void {
     driveTurnStart(state, 0)
-}
-
-// pendingChoice の解決後に、中断していたターン開始処理があれば続きのステップから再開する。
-// 中断していなければ（turnStartResumeStep が null なら）何もしない
-export function resumeTurnStart(state: GameState): void {
-    if (state.turnStartResumeStep === null) return
-    driveTurnStart(state, state.turnStartResumeStep)
 }
 
 // メインステップ → アタックステップ
@@ -115,15 +121,38 @@ export function toAttackPhase(state: GameState): void {
 
 // ターン終了処理：エンドステップを経て相手のターンを開始する
 export function endTurn(state: GameState): void {
+    // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
+    // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
+    if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
+    if (state.winner) return
+
     state.phase = "end"
     fireStepTriggers(state, "end")
     if (state.winner) return
 
+    // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
+    // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
+    // 戻す処理中に配列が変わるのでスナップショットを取ってから回す
+    for (const pid of ["p1", "p2"] as const) {
+        for (const inst of [...state.players[pid].field.spirits]) {
+            if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
+        }
+    }
+
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
         state.players[pid].tempHandKeywordGrants = []
+        // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
+        state.players[pid].turnVirtualInstances = []
+        // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
+        state.players[pid].noRestWhenBlockingUsedThisTurn = false
+        // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
+        // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
+        state.players[pid].battleVirtualInstances = []
         for (const inst of state.players[pid].field.spirits) {
             inst.tempBpBuff = 0
+            // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
+            if (inst.battleBpBuff) inst.battleBpBuff = 0
             inst.cantAttackThisTurn = false
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
@@ -131,8 +160,27 @@ export function endTurn(state: GameState): void {
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
             inst.tempColors = []
-            inst.tempFamilies = []
             delete inst.tempExtraSymbols
+            delete inst.attackTriggersAsBlockThisTurn
+            delete inst.blockTriggersAsAttackThisTurn
+            delete inst.unblockableOnceThisTurn
+            delete inst.countAsThisTurn
+            delete inst.tempGrantedTriggers
+        }
+    }
+    // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。
+    // **フィールドに残っている個体だけが戻る**：破壊・手札戻しなどで場を離れたものは既に
+    // field.spirits から抜けているので、ここで復活することはない（破壊されたネクサスはトラッシュのまま）。
+    // 上の一時状態リセットより後に置くのは、戻す前に spirits として tempBpBuff 等を消しておくため。
+    // 疲労状態はそのまま引き継ぐ（アタックして疲労した個体は疲労したネクサスとして戻る）
+    for (const pid of ["p1", "p2"] as const) {
+        const field = state.players[pid].field
+        for (const inst of [...field.spirits]) {
+            if (inst.asSpiritThisTurn === undefined) continue
+            delete inst.asSpiritThisTurn
+            field.spirits.splice(field.spirits.indexOf(inst), 1)
+            field.nexuses.push(inst)
+            log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }
     // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット
@@ -162,8 +210,12 @@ export function endTurn(state: GameState): void {
     state.attacksThisTurn = 0
     // このターンの「ブロックされない」無視（レッドウォール）もリセット
     state.ignoreUnblockableThisTurn = []
+    // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット
+    state.blockTriggersAsAttackThisTurn = false
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
+    // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
+    state.millCountThisTurn = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

@@ -16,7 +16,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -31,6 +31,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -456,7 +457,7 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
         "ワルキューレだけなら対象を取る破壊は当たらない",
     )
     // ただし範囲破壊（destroyAll）にはワルキューレも当たる
-    resolveAction(s, "p1", null, { type: "destroyAll", maxBp: 9000 })
+    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 9000 } })
     assert(
         s.players.p2.field.spirits.length === 0,
         "範囲破壊(destroyAll)にはワルキューレも当たる",
@@ -477,7 +478,7 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
         s2.players.p2.field.spirits.length === 1,
         "フェザーバリア免疫スピリットは対象破壊されない",
     )
-    resolveAction(s2, "p1", null, { type: "destroyAll", maxBp: 9000 })
+    resolveAction(s2, "p1", null, { type: "destroyAll", filter: { maxBp: 9000 } })
     assert(
         s2.players.p2.field.spirits.length === 1,
         "フェザーバリア免疫スピリットは範囲破壊でも破壊されない",
@@ -874,6 +875,8 @@ console.log("=== 呪撃（BS02-015 ハンプダンプ） ===")
     s.players.p2.field.spirits.push(leewolf)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: hampdump.instanceId }) === null, "ハンプダンプでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: leewolf.instanceId }) === null, "リーヴォルフでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -894,8 +897,52 @@ console.log("=== 呪撃（BS02-015 ハンプダンプ） ===")
         act(s2, "p1", { type: "attack", instanceId: hampdump2.instanceId }) === null,
         "ハンプダンプでアタック（ブロッカーなし）",
     )
-    assert(act(s2, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける")
+    assert(takeLifeAndResolve(s2, "p2") === null, "防御側はライフで受ける")
     assert(s2.players.p1.field.spirits.length === 1, "ブロックされなければ【呪撃】は発動せずアタッカーは生存")
     assert(s2.battle === null, "バトル終了")
+
+    // --- 【呪撃】の発揮条件（2026-08-08 に BS06 の新テキストで確定した解釈）---
+    // 新テキスト「バトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する」は
+    // **バトル解決まで呪撃持ちが場にいること**を要求する。したがって:
+    //   - フラッシュタイミングで呪撃持ちが破壊された → バトル解決自体が走らないので発揮しない
+    //   - BP比較で呪撃持ちが破壊された（敗北・相打ち） → バトル解決は走っているので発揮する（上の s のケース）
+    // エンジンはキーワードを一元管理するため、旧テキストのカード（ハンプダンプ等）も同じ挙動になる
+    const s3 = createGame(
+        "jugeki-flash-destroyed-test",
+        { p1: "アキラ", p2: "ユウキ" },
+        { p1: "purple", p2: "purple" },
+    )
+    runTurnStart(s3)
+    const hampdump3 = createInstance("BS02-015", s3.turn, 3) // ハンプダンプ Lv2（呪撃）コスト3
+    s3.players.p1.field.spirits.push(hampdump3)
+    const blocker3 = createInstance("BS01-053", s3.turn, 6) // リーヴォルフ Lv3 BP5000
+    s3.players.p2.field.spirits.push(blocker3)
+    assert(act(s3, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
+    assert(act(s3, "p1", { type: "attack", instanceId: hampdump3.instanceId }) === null, "ハンプダンプでアタック")
+    assert(act(s3, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s3, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
+    assert(act(s3, "p2", { type: "block", instanceId: blocker3.instanceId }) === null, "リーヴォルフでブロック")
+    // ブロック後のフラッシュで、アタック済み＝疲労状態のハンプダンプ（コスト3）を破壊する
+    s3.players.p2.hand[0] = "BS06-097" // ブラッディコフィン（紫・フラッシュ：疲労コスト4以下を破壊）
+    s3.players.p2.reserve = 10
+    assert(
+        act(s3, "p2", {
+            type: "castMagic",
+            handIndex: 0,
+            targetInstanceId: hampdump3.instanceId,
+        }) === null,
+        "ブラッディコフィンで呪撃持ちアタッカーを破壊",
+    )
+    assert(
+        !s3.players.p1.field.spirits.includes(hampdump3),
+        "呪撃持ちアタッカーはフラッシュ中に破壊された",
+    )
+    assert(act(s3, "p1", { type: "pass" }) === null, "攻撃側パス")
+    assert(act(s3, "p2", { type: "pass" }) === null, "防御側パス（バトル解決を試みる）")
+    assert(
+        s3.players.p2.field.spirits.includes(blocker3),
+        "アタッカーがバトル解決前に消えているので【呪撃】は発揮せず、ブロッカーは生存する",
+    )
+    assert(s3.battle === null, "バトルは成立せず終了している")
 }
 

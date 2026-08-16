@@ -8,11 +8,12 @@
 import {
     assert,
     act,
+    takeLifeAndResolve,
     createGame,
     createInstance,
     effectiveCost,
     getCard,
-    lv1Cores,
+    minLevelCores,
     runTurnStart,
     validateDeckCards,
 } from "./helpers"
@@ -44,7 +45,9 @@ console.log("=== 【転召】(trash): 候補1体、コアがすべてトラッ�
     assert(s.players.p1.trashCards.includes("BS01-016"), "維持コア割れでスケルトン・ジョウがトラッシュへ")
 }
 
-console.log("=== 【転召】: 候補0体は不発（召喚自体は成立） ===")
+// 2026-08-13：候補0体のときは**召喚そのものができない**（【転召】は召喚のコスト）。
+// 以前は「召喚は成立し、転召だけ不発」だったため、犠牲なしで出せてしまっていた
+console.log("=== 【転召】: 候補0体では召喚できない ===")
 {
     const s = createGame(
         "tensho-notarget-test",
@@ -56,8 +59,9 @@ console.log("=== 【転召】: 候補0体は不発（召喚自体は成立） ==
     s.phase = "main"
     s.players.p1.reserve = 30
     s.players.p1.hand[0] = "BS04-010"
-    assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "対象がいなくても召喚は成立する")
-    assert(s.players.p1.field.spirits.length === 1, "召喚したスピリットのみ場にいる（何も起きない）")
+    assert(act(s, "p1", { type: "summon", handIndex: 0 }) !== null, "対象がいないので召喚できない")
+    assert(s.players.p1.field.spirits.length === 0, "場には何も出ていない")
+    assert(s.players.p1.hand[0] === "BS04-010", "カードは手札に残る")
 }
 
 console.log("=== 【転召】(void): 候補1体、コアが消滅（トラッシュにもリザーブにも移らない） ===")
@@ -78,7 +82,7 @@ console.log("=== 【転召】(void): 候補1体、コアが消滅（トラッシ
     const reserveBeforeSummon = s.players.p1.reserve
     const card = getCard("BS04-X13")
     const cost = effectiveCost(s, "p1", card)
-    const maintain = lv1Cores(card)
+    const maintain = minLevelCores(card)
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "BS04-X13を召喚できる")
     assert(s.players.p1.field.spirits.length === 1, "候補スピリットは維持コア割れで消滅する")
     assert(s.players.p1.field.spirits[0]?.cardId === "BS04-X13", "残っているのは魔龍帝ジークフリード")
@@ -107,7 +111,7 @@ console.log("=== ダブルシンボル: symbol2つのアタッカーの被ブロ
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック宣言できる")
     const lifeBefore = s.players.p2.life
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 2, "シンボル2つぶんライフが2減る")
 }
 

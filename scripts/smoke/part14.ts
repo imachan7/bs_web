@@ -218,5 +218,7 @@ console.log("--- ブロックもできない ---")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: keru.instanceId }) !== null, "ケルル・ベロスはブロックできない")
 }

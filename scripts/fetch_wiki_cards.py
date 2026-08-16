@@ -5,12 +5,24 @@ BS01〜BS05 のデータ投入で毎回セッション固有の使い捨てス�
 踏んだ罠ごとリポジトリに残す。
 
 使い方:
-    # 取得してファイルに出す（data/cards.json には書き込まない）
+    # 取得してファイルに出す（data/cards/ には書き込まない）
     python3 scripts/fetch_wiki_cards.py --set BS05 --refer '第五弾：皇騎' --pages 2 \
         --out data/staging/BS05.json
 
-    # 既存 data/cards.json と突き合わせて差分を出す（パーサーの正しさの検証用）
+    # 既存 data/cards/*.json と突き合わせて差分を出す（パーサーの正しさの検証用）
     python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify
+
+取得先への配慮（消さないこと）:
+  * 取得した HTML は既定で data/staging/.cache/ にキャッシュし、2回目以降は再取得しない。
+    --verify を何度も回してもリクエストは飛ばない。強制的に取り直したいときだけ --no-cache
+  * 2026-08-01 時点の https://batspi.com/robots.txt は次の3つを Disallow している:
+        /index.php?カード情報絞込み&   （実体は URL エンコード表記）
+        /?
+        /index.php/
+    本スクリプトが叩く /index.php?cmd=listcard&... は、いずれにも前方一致しないので
+    robots.txt 上は許可対象。ただしサイト側が動的なDB検索をボットに叩かれたくない意図は
+    明らかなので、REQUEST_INTERVAL_SEC を縮めたり並列化したりしないこと。
+    弾ごとに数ページしか取らない前提で「人が手で見て回るより軽い」に収めてある
 
 踏んだ罠（消さないこと）:
   * refer パラメータ必須。無いと「パラメータ不正」ページが返る
@@ -22,7 +34,7 @@ BS01〜BS05 のデータ投入で毎回セッション固有の使い捨てス�
   * タイプ行に (禁止カード) / (制限カード<1>) が付くことがある
   * レアリティはカード名の後ろの単独大文字。C,R のような複数表記あり
 
-出力は cards.json のスキーマに合わせるが、**effects（構造化された効果）は含まない**。
+出力は data/cards/*.json のスキーマに合わせるが、**effects（構造化された効果）は含まない**。
 効果の構造化は人手の作業なので、投入後に別途行う。
 色は CardData と同じ colors（配列。単色なら要素1）で出す。
 """
@@ -37,28 +49,37 @@ import urllib.parse
 import urllib.request
 
 BASE = "https://batspi.com/index.php"
+# 相手が困ったときの連絡先が辿れるよう、UA にリポジトリ URL を入れる
+USER_AGENT = "bs-web-card-importer/1.0 (+https://github.com/imachan7/bs_web)"
+REQUEST_INTERVAL_SEC = 3  # ページ間の待ち時間（縮めないこと。docstring「取得先への配慮」参照）
+DEFAULT_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "staging", ".cache")
 COLOR_MAP = {"赤": "red", "紫": "purple", "緑": "green", "白": "white", "黄": "yellow", "青": "blue"}
 TYPE_MAP = {"スピリット": "spirit", "ネクサス": "nexus", "マジック": "magic"}
 
 
 def fetch_page(card_set, refer, page, rowid, cache_dir):
-    """カードリストの1ページを取得する（cache_dir があればキャッシュを使う）"""
+    """カードリストの1ページを取得する。
+
+    戻り値は (HTML, 実際にネットワークへ取りに行ったか)。cache_dir が None のときだけ
+    キャッシュを使わない（--no-cache）。既定ではキャッシュするので、--verify の回し直しで
+    Wiki へリクエストが飛ぶことはない。
+    """
     cache = os.path.join(cache_dir, f"{card_set}_p{page}.html") if cache_dir else None
     if cache and os.path.exists(cache):
         with open(cache, encoding="utf-8", errors="replace") as f:
-            return f.read()
+            return f.read(), False
     params = urllib.parse.urlencode(
         {"cmd": "listcard", "sdan": card_set, "refer": refer, "rowid": rowid, "pcnt1": page}
     )
     url = f"{BASE}?{params}"
-    req = urllib.request.Request(url, headers={"User-Agent": "bs-web card importer"})
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=60) as res:
         body = res.read().decode("utf-8", errors="replace")
     if cache:
         os.makedirs(cache_dir, exist_ok=True)
         with open(cache, "w", encoding="utf-8") as f:
             f.write(body)
-    return body
+    return body, True
 
 
 def strip_tags(s):
@@ -188,10 +209,16 @@ def parse_html(page_html):
     return [parse_row(r) for r in rows]
 
 
-def verify_against_cards_json(parsed, cards_json_path):
-    """既存 data/cards.json と突き合わせて差分を報告する（パーサーの正しさの検証）"""
-    with open(cards_json_path, encoding="utf-8") as f:
-        existing = {c["cardId"]: c for c in json.load(f)}
+def verify_against_cards_json(parsed, cards_dir):
+    """既存 data/cards/*.json と突き合わせて差分を報告する（パーサーの正しさの検証）。
+    カードデータは弾ごとに分割されているので、ディレクトリ内の全 JSON を読んで結合する"""
+    existing = {}
+    for name in sorted(os.listdir(cards_dir)):
+        if not name.endswith(".json"):
+            continue
+        with open(os.path.join(cards_dir, name), encoding="utf-8") as f:
+            for c in json.load(f):
+                existing[c["cardId"]] = c
     fields = ["name", "type", "colors", "cost", "reduction", "family", "levels", "symbol", "flash", "rarity", "limited", "effect"]
     diffs = 0
     missing = 0
@@ -218,27 +245,36 @@ def main():
     ap.add_argument("--pages", type=int, required=True, help="ページ数（1ページ50枚）")
     ap.add_argument("--rowid", default="59632", help="Wiki のリストID（既定値で BS02 以降は通る）")
     ap.add_argument("--out", help="出力先 JSON。省略時は標準出力へは書かず件数だけ表示")
-    ap.add_argument("--verify", action="store_true", help="data/cards.json と突き合わせて差分を報告する")
-    ap.add_argument("--cache-dir", help="取得した HTML のキャッシュ先")
+    ap.add_argument("--verify", action="store_true", help="data/cards/*.json と突き合わせて差分を報告する")
+    ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR, help=f"取得した HTML のキャッシュ先（既定: {DEFAULT_CACHE_DIR}）")
+    ap.add_argument("--no-cache", action="store_true", help="キャッシュを使わず必ず Wiki から取り直す")
     args = ap.parse_args()
 
+    cache_dir = None if args.no_cache else args.cache_dir
+
     cards = []
+    fetched = 0
+    prev_from_network = False
     for page in range(1, args.pages + 1):
-        page_html = fetch_page(args.card_set, args.refer, page, args.rowid, args.cache_dir)
+        # 直前のページを実際に取りに行ったときだけ待つ（キャッシュヒットなら待つ意味がない）
+        if prev_from_network:
+            time.sleep(REQUEST_INTERVAL_SEC)
+        page_html, from_network = fetch_page(args.card_set, args.refer, page, args.rowid, cache_dir)
+        prev_from_network = from_network
+        fetched += from_network
         got = parse_html(page_html)
-        print(f"{args.card_set} page{page}: {len(got)}枚")
+        print(f"{args.card_set} page{page}: {len(got)}枚{'' if from_network else '（キャッシュ）'}")
         cards.extend(got)
-        if page < args.pages:
-            time.sleep(1)
 
     ids = [c["cardId"] for c in cards]
     if len(ids) != len(set(ids)):
         print("エラー: cardId が重複している", file=sys.stderr)
         return 1
     print(f"合計 {len(cards)}枚 / 多色 {sum(1 for c in cards if len(c['colors']) > 1)}枚")
+    print(f"Wiki へのリクエスト: {fetched}件 / {args.pages}ページ（残りはキャッシュ）")
 
     if args.verify:
-        ok = verify_against_cards_json(cards, os.path.join(os.path.dirname(__file__), "..", "data", "cards.json"))
+        ok = verify_against_cards_json(cards, os.path.join(os.path.dirname(__file__), "..", "data", "cards"))
         if not ok:
             return 1
 

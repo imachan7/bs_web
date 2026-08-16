@@ -51,6 +51,8 @@ console.log("=== BS04-011 風龍王フージャオス: onAttack refreshOne(famil
     assert(fujaosu.isRested, "アタック宣言でフージャオス自身は疲労する")
     assert(!aivern.isRested, "excludeSelf：自身以外の系統「翼竜」のアイバーンが回復した")
 
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")

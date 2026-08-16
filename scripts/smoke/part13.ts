@@ -19,6 +19,7 @@ import {
 } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
 import { instHasColor } from "../../server/src/logic/EffectModules"
+import { spiritHasFamily } from "../../shared/rules"
 
 console.log("=== BS02-052 チャガマルLv3：相手の効果による相手ターンの破壊は割り込んで復活する ===")
 {
@@ -152,6 +153,8 @@ console.log("=== BS02-083 鏡の回廊Lv1：【装甲】持ちが指定色との
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "リザドエッジでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: rob.instanceId }) === null, "ロブスタークでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -178,6 +181,8 @@ console.log("--- 赤以外の相手とのバトルでは復活しない ---")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "バーバルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: rob.instanceId }) === null, "ロブスタークでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -246,8 +251,8 @@ console.log("=== BS02-064 音鳥クルーク：自分のスタートステップ
 
     assert(act(s, "p1", { type: "resolveChoice", option: "機人" }) === null, "系統「機人」を選ぶ")
     assert(s.pendingChoice === null, "選択後pendingChoiceは解消される")
-    assert(kuruku.tempFamilies.includes("機人"), "クルーク自身にも系統が付与される（歌鳥持ちのため）")
-    assert(piyon.tempFamilies.includes("機人"), "他の歌鳥持ち（ピヨン）にも系統が付与される")
+    assert(spiritHasFamily(s, "p1", kuruku, "機人"), "クルーク自身にも系統が付与される（歌鳥持ちのため）")
+    assert(spiritHasFamily(s, "p1", piyon, "機人"), "他の歌鳥持ち（ピヨン）にも系統が付与される")
 }
 
 console.log("--- 選択肢をスキップしても正常に処理が完了する ---")
@@ -268,10 +273,11 @@ console.log("--- 選択肢をスキップしても正常に処理が完了する
     assert(s.pendingChoice !== null, "pendingChoiceが立つ")
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "選択肢を選ばずスキップする")
     assert(s.pendingChoice === null, "スキップ後pendingChoiceは解消される")
-    assert(kuruku.tempFamilies.length === 0, "スキップ時はtempFamiliesが付与されない")
+    assert(!spiritHasFamily(s, "p1", kuruku, "機人"), "スキップ時は系統が付与されない")
+    assert(s.players.p1.turnVirtualInstances.length === 0, "スキップ時は仮想発生源も積まれない")
 }
 
-console.log("--- 歌鳥持ちが自分のフィールドに1体もいない場合は不発（pendingChoiceが立たない） ---")
+console.log("--- 歌鳥持ちが自分のフィールドにも手札にも1枚もない場合は不発（pendingChoiceが立たない） ---")
 {
     const s = createGame(
         "kuruku-noholder-test",
@@ -282,7 +288,9 @@ console.log("--- 歌鳥持ちが自分のフィールドに1体もいない場�
 
     // p1のフィールドに歌鳥持ちを一体も置かず、resolveActionで直接呼び出して不発を確認する
     // （音鳥クルーク自身は歌鳥持ちのため、実際のカード運用ではフィールドにいる限り常にholdersに
-    // 含まれてしまう。ここではアクションハンドラ単体の「holders 0件なら不発」ロジックを検証する）
+    // 含まれてしまう。ここではアクションハンドラ単体の「対象0件なら不発」ロジックを検証する）
+    // 発動可否は手札の「歌鳥」持ちも見るため（カードテキストどおり）、手札を空にしてから確認する
+    s.players.p1.hand = []
     const dummySource = createInstance("BS02-064", s.turn, 1) // フィールドには置かない
 
     resolveAction(

@@ -22,7 +22,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -37,6 +37,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -60,11 +61,13 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: enemyAtk.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p1", { type: "block", instanceId: jassei.instanceId }) !== null,
         "cantBlock制約でドラグノ突撃兵はブロックできない",
     )
-    assert(act(s, "p1", { type: "takeLife" }) === null, "ブロックできないためライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "ブロックできないためライフで受ける")
 
     assert(act(s, "p2", { type: "endTurn" }) === null, "p2がターン終了")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
@@ -132,6 +135,8 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
     const p1HandBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: atk1.instanceId }) === null, "atk1でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: def1.instanceId }) === null, "p2がブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -147,6 +152,8 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
     const p1HandBefore2 = s.players.p1.hand.length
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ")
     assert(act(s, "p2", { type: "attack", instanceId: atk2.instanceId }) === null, "atk2でアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p1", { type: "block", instanceId: def2.instanceId }) === null, "p1がブロック宣言")
     assert(act(s, "p1", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -219,6 +226,8 @@ console.log("=== BS02 緑・白の構造化効果 ===")
     s.players.p2.field.spirits.push(gora)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: kaiser.instanceId }) === null, "大帝でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: gora.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     const lifeBefore = s.players.p2.life
@@ -244,6 +253,8 @@ console.log("=== BS02 緑・白の構造化効果 ===")
     s.players.p2.field.spirits.push(lio)
     act(s, "p1", { type: "nextPhase" })
     assert(act(s, "p1", { type: "attack", instanceId: gora.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: lio.instanceId }) === null, "ライオライダーでブロック")
     act(s, "p2", { type: "pass" })
     assert(act(s, "p1", { type: "pass" }) === null, "バトル解決")
@@ -263,6 +274,8 @@ console.log("=== BS02 緑・白の構造化効果 ===")
     s2.players.p2.field.spirits.push(frey)
     act(s2, "p1", { type: "nextPhase" })
     act(s2, "p1", { type: "attack", instanceId: gora2.instanceId })
+    act(s2, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
+    act(s2, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
     assert(act(s2, "p2", { type: "block", instanceId: frey.instanceId }) === null, "フレイでブロック")
     assert(s2.battle?.flashLockedPlayer === "p1", "onBlockのlockFlashで攻撃側がフラッシュ封印される")
 
@@ -444,6 +457,8 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     s.players.p2.field.spirits.push(lv3Blocker, lv2Blocker)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: supler.instanceId }) === null, "スプラーでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: lv3Blocker.instanceId }) !== null,
         "Lv3のブロッカーはlevelFilter[3]でブロックできない",
@@ -515,9 +530,13 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     const reserveBefore = s.players.p1.reserve
     const handBefore = s.players.p1.hand.length
     destroySpirit(s, "p1", carbuncle.instanceId)
-    // 自身のコア3個 + coreGainPer（想獣1体=ケルル・ベロスのみ。破壊時点でカーバルク自身はフィールドから除去済み）= +4
-    assert(s.players.p1.reserve === reserveBefore + 4, "破壊時：自身のコア3+coreGainPer(想獣1体分)=+4")
-    assert(s.players.p1.hand.length === handBefore + 1, "破壊時：drawPer(想獣1体分)で1枚ドロー")
+    // 自身のコア3個 + coreGainPer（想獣2体）= +5。
+    // ⚠️ 2026-08-14：破壊待機状態を導入したことで、**破壊されたカーバルク自身も
+    //    「自分のフィールドにいる想獣」に数えられる**ようになった（TIMING_CHART.md §1.5：
+    //    破壊されたカードは破壊時の誘発を解決し終えるまでフィールドに存在する）。
+    //    以前は破壊時点で場から除去済みだったため1体しか数えていなかった
+    assert(s.players.p1.reserve === reserveBefore + 5, "破壊時：自身のコア3+coreGainPer(想獣2体分)=+5")
+    assert(s.players.p1.hand.length === handBefore + 2, "破壊時：drawPer(想獣2体分)で2枚ドロー")
 }
 {
     console.log("--- BS02-106 ローヤルポーション：refreshAllByCostで両陣営のコスト2スピリットを回復 ---")
@@ -619,7 +638,7 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
     console.log("--- ターン終了で一時付与がクリアされる ---")
     act(s, "p2", { type: "pass" })
     act(s, "p1", { type: "pass" }) // フラッシュ終了
-    act(s, "p2", { type: "takeLife" })
+    takeLifeAndResolve(s, "p2")
     act(s, "p1", { type: "endTurn" })
     assert(attacker.tempKeywords.length === 0, "endTurnでtempKeywordsが空になる")
 
@@ -722,6 +741,8 @@ console.log("=== BS02-013 バット・バット：onBlockedでブロッカーの
     const reserveBefore = s.players.p2.reserve
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: batbat.instanceId }) === null, "バット・バットでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンでブロック")
     assert(blocker.cores === 1, "ブロッカーのコアが1個減る")
     assert(s.players.p2.reserve === reserveBefore + 1, "減ったコアがブロッカー側（相手）のリザーブへ加算される")
@@ -830,6 +851,8 @@ console.log("=== BS02-050 コリスタル：バトル（ブロックあり）で
     s.players.p2.field.spirits.push(weak)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: koristal.instanceId }) === null, "コリスタルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: weak.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
@@ -851,7 +874,7 @@ console.log("=== BS02-016 スライミー：Lv3のアタックでライフのコ
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: slimy.instanceId }) === null, "スライミーでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 1, "ライフが1減る")
     assert(s.players.p2.reserve === 0, "取り除かれたコアはリザーブでなくボイドへ消える")
 }

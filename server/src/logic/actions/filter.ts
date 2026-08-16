@@ -1,56 +1,100 @@
-// TargetFilter の互換層（直交化 第1段階）。
+// TargetFilter の解決（直交化 第2段階まで完了）。
 //
 // 背景: 対象選択の絞り込み軸（色・系統・コスト・レベル・キーワード・バニラ・BP）は、
 // 従来アクションごとに個別フィールドとして後付けされてきた（BS01〜BS04 で計28個）。
-// これを共通の TargetFilter に一本化するのが直交化だが、**cards.json のデータは移行しない**
-// （57箇所・44枚。うち13枚は smoke カバレッジが無く、移行ミスを検出できないため）。
+// 第1段階でこのモジュールが「旧フィールド → ResolvedTargetFilter」の畳み込みを引き受けて
+// 経路を新形式へ一本化し、**第2段階（2026-07-30）で cards.json のデータを filter へ移行**して
+// 旧フィールドと互換層（legacyToSpec）を削除した（40箇所・35枚。旧→新は同一経路を通るため
+// キー付け替えは構成上ふるまいを変えない。移行スクリプトが旧ファイルから期待値を再構成して
+// 全箇所を deep-equal で突き合わせ済み）。
 //
-// そこでこのモジュールが「旧フィールド → ResolvedTargetFilter」の畳み込みを一手に引き受ける。
-// ハンドラは normalizeFilter() の戻り値だけを見ればよく、**旧フィールドを直接読む箇所はゼロになる**。
-// 旧フィールドの削除とデータ移行は第2段階（13枚のテスト追加が前提）の別タスク。
-import type {
-    Color,
-    FamilyFilter,
-    Keyword,
-    ResolvedTargetFilter,
-    TargetFilter,
-} from "../../type"
+// 旧フィールドの再発は scripts/validate-cards.ts が検査する（型に無いキーは JSON では
+// 無言で無視されてしまうため、データ側の検査が必要）。
+import type { ResolvedTargetFilter, TargetFilter } from "../../type"
+import type { EffectAttempt } from "../../../../shared/rules"
 import { effectiveBp } from "../../../../shared/rules"
+import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 
-// 旧形式の個別フィールド。アクションごとに散っていた同義の軸をここで受ける。
-// 名前が違うだけで意味は同じもの（colorFilter → color など）を吸収する
-export interface LegacyFilterFields {
-    filter?: TargetFilter // 新形式（これが指定されていれば旧フィールドより優先される）
-    maxBp?: number
-    maxBpFromSelf?: boolean // BS04七龍帝の玉座Lv2：self の実効BP以下
-    bpEqualsSelf?: boolean // BS01プテラトマホーク：self と実効BPが同じ
-    keywordFilter?: Keyword
-    colorFilter?: Color
-    colorExclude?: Color
-    familyFilter?: FamilyFilter
-    costFilter?: { max?: number; min?: number }
-    levelFilter?: number[]
-    vanillaFilter?: true
-    minSymbols?: number
-    excludeSelf?: boolean
+// 耐性判定（EffectModules.resistanceAgainst / isResisted）へ渡す「何をしようとしているか」を
+// ActionCtx から組み立てる。**発生源の色と種別を渡し忘れると装甲やマジック耐性が無言で効かなくなる**ため、
+// ハンドラ側で毎回オブジェクトリテラルを書かずにこれを通すこと。
+//
+// scope は呼び出し側が決める:
+//   "targeted" = 1体を選んで作用する（「相手の効果の対象にならない」が効く）
+//   "area"     = 条件に合うものすべてに作用する（同上は効かない）
+export function attemptOf(
+    ctx: ActionCtx,
+    op: EffectAttempt["op"],
+    scope: EffectAttempt["scope"],
+): EffectAttempt {
+    return {
+        op,
+        scope,
+        actorPid: ctx.owner,
+        ...(ctx.srcType !== undefined ? { sourceType: ctx.srcType } : {}),
+        ...(ctx.srcColors !== undefined ? { sourceColors: ctx.srcColors } : {}),
+    }
+}
+
+// normalizeFilter に渡せるアクションの形。filter を持つアクションはすべてこれを満たす
+export interface FilterCarrier {
+    filter?: TargetFilter
 }
 
 // self 相対のBP指定が必要なのに self が不在だったことを表す。
 // 呼び出し側は「対象がいなかった」ログを出して no-op にする（旧実装の挙動をそのまま維持）
 export const SELF_REQUIRED = Symbol("selfRequired")
 
-// 旧フィールド／新 filter のどちらで書かれていても ResolvedTargetFilter を返す。
-// self 相対のBP（"selfBp" / maxBpFromSelf / bpEqualsSelf）はここで数値へ解決するため、
+// action.filter を ResolvedTargetFilter へ解決する。
+// self 相対のBP指定（"selfBp"）はここで数値へ解決するため、
 // matchesTarget はインスタンス単位の純粋な述語でいられる
 export function normalizeFilter(
     ctx: ActionCtx,
-    action: LegacyFilterFields,
+    action: FilterCarrier,
 ): ResolvedTargetFilter | typeof SELF_REQUIRED {
-    const spec: TargetFilter = action.filter ?? legacyToSpec(action)
+    const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
-    const { maxBp, minBp, exactBp, ...rest } = spec
+    // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsBlocker, sameCostAsSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
+
+    // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
+    // 記録が空（バトル外での発動など）なら対象なしにしたいので、一致しえない値を入れて空振りさせる
+    if (sameColorAsBattleLoser) {
+        const colors = ctx.state.lastBattleDestroyedColors
+        if (colors.length === 0) return SELF_REQUIRED
+        // 多色の敗者は現データに存在しないため先頭色で判定する（色軸は単一色のみ受ける）
+        resolved.color = colors[0]!
+    }
+    if (sameFamilyAsBattleLoser) {
+        const families = ctx.state.lastBattleDestroyedFamilies
+        if (families.length === 0) return SELF_REQUIRED
+        resolved.family = families // 配列＝いずれかの系統でOR
+    }
+    // 直前のバトルで破壊された側と同じ実効BP（BS03熾烈極める最前線Lv2）。
+    // 記録が0（バトル外での発動など）なら対象なしにする
+    if (sameBpAsBattleLoser) {
+        const bp = ctx.state.lastBattleDestroyedBp
+        if (bp === 0) return SELF_REQUIRED
+        resolved.exactBp = bp
+    }
+    // イベント対象として渡ってきたブロッカー（ctx.targetInstanceId）と同じコスト
+    // （BS06計画された場外乱闘Lv2：ブロックしたスピリットと同じコストの、他の相手のスピリット）
+    if (sameCostAsBlocker) {
+        const blocker = ctx.targetInstanceId ? findInstanceAnywhere(ctx.state, ctx.targetInstanceId) : undefined
+        if (!blocker) return SELF_REQUIRED
+        const cost = getCard(blocker.cardId).cost
+        resolved.cost = { min: cost, max: cost }
+    }
+
+    // self と同じコスト（BS09-060緑翼の大樹：召喚された【暴風】持ちと同じコストの相手）。
+    // fieldEvent では self にイベント対象（召喚されたスピリット）が入る
+    if (sameCostAsSelf) {
+        if (!ctx.self) return SELF_REQUIRED
+        const cost = getCard(ctx.self.cardId).cost
+        resolved.cost = { min: cost, max: cost }
+    }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる
     const selfBp = ctx.self ? effectiveBp(ctx.state, ctx.owner, ctx.self) : undefined
@@ -75,22 +119,4 @@ export function normalizeFilter(
     }
 
     return resolved
-}
-
-// 旧フィールド群を新形式の TargetFilter へ読み替える（データは無変更のまま）
-function legacyToSpec(a: LegacyFilterFields): TargetFilter {
-    const spec: TargetFilter = {}
-    if (a.maxBpFromSelf) spec.maxBp = "selfBp"
-    else if (a.maxBp !== undefined) spec.maxBp = a.maxBp
-    if (a.bpEqualsSelf) spec.exactBp = "selfBp"
-    if (a.colorFilter !== undefined) spec.color = a.colorFilter
-    if (a.colorExclude !== undefined) spec.colorExclude = a.colorExclude
-    if (a.familyFilter !== undefined) spec.family = a.familyFilter
-    if (a.costFilter !== undefined) spec.cost = a.costFilter
-    if (a.levelFilter !== undefined) spec.level = a.levelFilter
-    if (a.keywordFilter !== undefined) spec.keyword = a.keywordFilter
-    if (a.vanillaFilter !== undefined) spec.vanilla = a.vanillaFilter
-    if (a.minSymbols !== undefined) spec.minSymbols = a.minSymbols
-    if (a.excludeSelf !== undefined) spec.excludeSelf = a.excludeSelf
-    return spec
 }

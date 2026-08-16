@@ -42,6 +42,8 @@ console.log("=== BS03-021 魔界伯爵ヴィールLv3：ブロッカー破壊で
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: viel.instanceId }) === null, "ヴィールでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（ブロック後は防御側が優先権を持つ）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -74,6 +76,8 @@ console.log("=== BS03-101 ボルカノ・ゴレム：勝利でボイドから自
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: golem.instanceId }) === null, "ボルカノ・ゴレムでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（ブロック後は防御側が優先権を持つ）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -159,6 +163,8 @@ console.log("=== BS03-040 ベル・ダンディア e1：ブロック時に系統
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: belldandia.instanceId }) === null,
         "ベル・ダンディアでブロック",

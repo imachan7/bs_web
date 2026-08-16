@@ -34,6 +34,8 @@
                     <option value="white">白デッキ（低コストスピリット中心）</option>
                     <option value="yellow">黄デッキ（第二弾・低コストスピリット中心）</option>
                     <option value="blue">青デッキ（第三弾・低コストスピリット中心）</option>
+                    <option value="uitest-yp">選択UI検証（黄紫）</option>
+                    <option value="uitest-gwr">選択UI検証（緑白赤）</option>
                 </select>
             </label>
             <button id="join-btn">対戦ルームに入る</button>
@@ -41,14 +43,14 @@
         </div>
         <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
         
-        <!-- お知らせ・リポジトリリンク -->
-        <div class="lobby-announcements" style="margin-top: 20px; text-align: left; background: rgba(30, 30, 30, 0.8); border: 1px solid #444; border-radius: 8px; padding: 15px; max-width: 600px; margin-left: auto; margin-right: auto;">
-            <h3 style="margin-top: 0; color: #66b3ff; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 5px;">📢 お知らせ</h3>
-            <ul style="margin: 10px 0 0; padding-left: 20px; font-size: 14px; color: #eee; line-height: 1.5;">
-                <li>[2026/07/30] バグ報告フォームへの導線を追加・改善しました。</li>
-                <li>[2026/07/26] デッキビルダーに「弾」フィルタを追加しました。</li>
-                <li>第五弾のカード追加を準備中です。お楽しみに！</li>
-            </ul>
+        <!-- お知らせ（Gitコミット履歴から自動取得） -->
+        <div class="lobby-announcements">
+            <div class="announcement-header">
+                <span class="icon">📢</span> 最新のアップデート
+            </div>
+            <div id="announcement-list" class="announcement-list">
+                <div class="announcement-loading">読み込み中…</div>
+            </div>
         </div>
         
         <div style="text-align: center; margin-top: 16px; display: flex; justify-content: center; gap: 24px;">
@@ -90,15 +92,20 @@
             <button id="btn-toggle-log" class="log-toggle-btn">💬 ログ</button>
             <button id="btn-toggle-trash" class="log-toggle-btn">🗑 トラッシュ</button>
             <button id="btn-bug-report" class="log-toggle-btn" style="color: #ffcc00; border-color: #ffaa00;">🐛 バグ報告</button>
-            <span id="turn-info"></span>
+            <button id="btn-surrender" class="log-toggle-btn" style="color: #ff8888; border-color: #cc4444;">🏳 降参</button>
+            <label id="lbl-pay-to-negate" class="hidden" style="margin-left: 12px; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #ffeb3b; cursor: pointer; border: 1px solid #ffeb3b; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.5);">
+                <input type="checkbox" id="chk-pay-to-negate">
+                手札破棄で防ぐ（竜騎集う円卓）
+            </label>
+            <span id="turn-info" style="margin-left: auto;"></span>
             <div id="phase-bar">
-                <span class="phase-step" data-phase="start" data-short="開">開始</span>
+                <span class="phase-step" data-phase="start" data-short="ス">スタート</span>
                 <span class="phase-step" data-phase="core" data-short="コ">コア</span>
                 <span class="phase-step" data-phase="draw" data-short="ド">ドロー</span>
                 <span class="phase-step" data-phase="refresh" data-short="リ">リフレ</span>
                 <span class="phase-step" data-phase="main" data-short="メ">メイン</span>
                 <span class="phase-step" data-phase="attack" data-short="ア">アタック</span>
-                <span class="phase-step" data-phase="end" data-short="終">終了</span>
+                <span class="phase-step" data-phase="end" data-short="エ">エンド</span>
             </div>
         </div>
 
@@ -127,6 +134,7 @@
                         <button id="btn-take-life" class="hidden">ライフで受ける</button>
                         <button id="btn-pass" class="hidden">パス</button>
                         <button id="btn-attack-player" class="hidden">プレイヤーへアタック</button>
+                        <button id="btn-confirm-pay" class="hidden">この支払いで確定</button>
                         <button id="btn-cancel-target" class="hidden">対象選択をやめる</button>
                         <button id="btn-skip-choice" class="hidden">選ばない</button>
                         <div id="choice-options" class="hidden"></div>
@@ -182,6 +190,7 @@
 
         <div id="result-overlay" class="hidden">
             <div id="result-message"></div>
+            <button id="btn-return-lobby" style="margin-top: 24px; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; background: var(--accent); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">対戦エントランスに戻る</button>
         </div>
     </div>
 
@@ -189,5 +198,8 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/dist/main.js"></script>
+
+    <!-- 汎用ツールチップ -->
+    <div id="global-tooltip" class="hidden"></div>
 </body>
 </html>

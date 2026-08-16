@@ -113,6 +113,29 @@ az webapp log tail -n bs-web -g bs-web-rg
 az webapp log download -n bs-web -g bs-web-rg --log-file /tmp/bs-web-logs.zip
 ```
 
+### アクセス数を見る
+
+```bash
+npm run access:stats                    # az でログを回収して日別に集計
+npm run access:stats /tmp/logs.zip      # 落とし済みの zip を集計（az を叩かない）
+```
+
+日付ごとに「訪問者（ユニーク）・ページ・API・対戦参加」を出す。実体は
+`server/src/accessLog.ts` が stdout に書く `#ACCESS` 行で、docker ログとして残ったものを
+`scripts/access-stats.ts` が拾っている。Always On の死活監視と静的アセットは記録しない。
+
+**⚠️ Azure の「Web サーバーのログ記録」（httpLogs）は使えない。** Windows プラン専用の機能で、
+Linux では `az webapp log config --web-server-logging filesystem` が**エラーなく成功するのに
+`http/RawLogs` が一切生成されない**（2026-08-09 に実地で確認）。この空振りを避けるため、
+アクセスログはアプリ側から stdout に出す方式にしてある。
+
+**⚠️ ログ設定の変更はアプリを再起動させる。** ゲーム状態はメモリ内保持なので、
+進行中の対戦はその時点で消える。設定変更・デプロイは人が遊んでいない時間帯に行うこと。
+
+`az monitor metrics list --metric Requests` でもリクエスト数は取れるが、**Always On の死活監視
+（5分おき＝288回/日）が混ざる**ため実アクセスの把握には向かない。日別 300〜400 程度の日は
+ほぼ全部が監視リクエストである。
+
 ### 再起動・停止・開始
 
 ```bash

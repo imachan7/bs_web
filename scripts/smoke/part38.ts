@@ -8,7 +8,7 @@
 //     BS04エンジン拡張バッチ2でメイン行も構造化されたため、バトル外キャストはメイン効果を優先する
 //     ようになった。ここではバトル中のフラッシュ優先権下でキャストしてflash効果を検証する）
 //   - BS04-X14 魔界七将パンデミウム：battleRole省略のためブロッカー勝利でもドロー1枚（onBattle）
-import { assert, act, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
 
 console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2 selfBuff（アタック時BP+1000） ===")
 {
@@ -26,11 +26,13 @@ console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: enemyAtk.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p1", { type: "block", instanceId: cham.instanceId }) !== null,
         "Lv1のカメレウィップはcantBlockでブロックできない",
     )
-    assert(act(s, "p1", { type: "takeLife" }) === null, "ブロックできないためライフで受ける")
+    assert(takeLifeAndResolve(s, "p1") === null, "ブロックできないためライフで受ける")
 
     assert(act(s, "p2", { type: "endTurn" }) === null, "p2がターン終了")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
@@ -67,7 +69,7 @@ console.log("=== BS04-006 骸竜ゾン・サウル: e1オーラ（自分のア�
     s.players.p2.field.spirits.push(restedEnemy)
     assert(act(s, "p1", { type: "attack", instanceId: zonsaur.instanceId }) === null, "骸竜ゾン・サウルでアタック")
     assert(!s.players.p2.field.spirits.includes(restedEnemy), "疲労状態のゴラドンが破壊された")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ブロッカーがいないためライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ブロッカーがいないためライフで受ける")
 }
 
 console.log("=== BS04-016 堕天使アゼル: バトル勝利時、天霊のスピリット数ぶんドロー（drawPer/ownFamily） ===")
@@ -88,6 +90,8 @@ console.log("=== BS04-016 堕天使アゼル: バトル勝利時、天霊のス�
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: azel.instanceId }) === null, "堕天使アゼルでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: weakBlocker.instanceId }) === null,
         "ゴラドンでブロック（アタッカー勝利）",
@@ -182,6 +186,8 @@ console.log("=== BS04-X14 魔界七将パンデミウム: battleRole省略のた
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2アタックステップへ移行")
     assert(act(s, "p2", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "p2がゴラドンでアタック")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p1", { type: "block", instanceId: pandemium.instanceId }) === null,
         "パンデミウムでブロック（ブロッカー勝利）",

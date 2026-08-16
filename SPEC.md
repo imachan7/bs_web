@@ -4,8 +4,15 @@
 仕様が固まったり実装が進むたびにここへ追記していく。
 （データ構造そのものの定義は [data.md](./data.md)、公開用の紹介は [README.md](./README.md)）
 
-**進行中の計画**: [REFACTOR.md](./REFACTOR.md) — 共有ルール層の抽出（サーバー／クライアントのルール二重実装の解消）と
-`resolveAction`（3028行・100 case）の分割。**BS04 の残23枚の構造化を完了させてから着手する**。
+⚠️ ここには `REFACTOR.md`（共有ルール層の抽出と `resolveAction` の分割）へのリンクがあったが、
+**その文書は既に削除されている**（リンク切れだった。2026-07-31 に除去）。共有ルール層への一本化は
+`3f02796` で完了済み（2章の冒頭を参照）、`resolveAction` も `server/src/logic/actions/` へ分割済み。
+
+**先行設計（いずれも設計のみ・実装未着手）**: [BRAVE.md](./docs/design/BRAVE.md)（ブレイヴ。§11＝異魔神ブレイヴ）・
+[ULTIMATE.md](./docs/design/ULTIMATE.md)（アルティメット）・[SOULCORE.md](./docs/design/SOULCORE.md)（ソウルコア）・
+[BURST.md](./docs/design/BURST.md)（バースト）。**Wiki を出典に「確定した事実」と「未確定」を分けて記録**してあり、
+実装順の依存関係は ULTIMATE ↔ SOULCORE が `minLevelCores` を共有、異魔神ブレイヴは BRAVE の
+データモデル選択に影響する（詳細は各文書の §0）。
 
 ---
 
@@ -79,10 +86,11 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   副産物として aura の phaseTurn が target:"self" で無視されるバグを修正）＋波2の pendingChoice 基盤
   （コキュートスを構造化。2章の「効果解決中のプレイヤー選択」を参照）＋波3a（エンジェルボイス＝
   BattleState.compareByLevel の Lv比較バトル、ケン＝kind effectGrant の誘発効果付与、クラン＝
-  tempAlsoCosts/instHasCost の「コストとしても扱う」、魔導書e2＝kind drawDouble の効果ドロー倍化）の
+  instHasCost の「コストとしても扱う」（2026-07-31 に kind "alsoCostGrant" の継続効果へ移行）、魔導書e2＝kind drawDouble の効果ドロー倍化）の
   計95枚＋波3b（チャガマル・紫水晶の森・鏡の回廊e1＝kind reviveOnDestroy による破壊への割り込み復活
   （destroySpirit に破壊文脈を伝播、「できる」は常時発動の簡略化）、アディショナルカラー・クルーク＝
-  pendingChoice の kind:"option"（ボタン選択UI）と tempColors/tempFamilies・instHasColor）の
+  pendingChoice の kind:"option"（ボタン選択UI）と tempColors・instHasColor。クルークの系統付与は
+  2026-07-31 に継続効果へ移行し、tempFamilies は廃止）の
   計100枚＋最終波（クロスシザース＝coresLinkedTo/coresOverride のコア数リンク choice、夢魔の寝所＝
   exhaustOnManualCoreAdd（手動コア増加の検知）と constraintGrant（制約の付与。activeConstraints が
   フィールド発生源からの付与も合成）、ケルル・ベロス e1＝既存 constraint のみ）で
@@ -166,9 +174,10 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   reductionGrant keywordFilter、refreshOne familyFilter、kind "coreStepBonus"
   （カード名そろい条件つきコアステップ増加）、voidCoreToOwnNexuses を新設）の
   計114枚＋色・シンボル・レベル操作バッチ4枚（BS03-053/058/121/141。
-  CardInstance.colorsAsContinuous（kind "colorAs"、フラットフェイス。レベル表記は完全一致で有効）・
+  CardInstance.colorsAsContinuous（kind "colorAs"、フラットフェイス。レベル表記は完全一致で有効。
+  ティングリーは 2026-07-31 に colorAs target:"ownAll" の継続効果へ移行）・
   tempExtraSymbols（ダブルハート。ライフダメージとコスト軽減シンボル集計に反映）、
-  アクション grantColorAll（ティングリー）・addSymbolThisTurn・levelUpThisTurn（ビルドアップ。
+  アクション addSymbolThisTurn・levelUpThisTurn（ビルドアップ。
   最大Lvキャップ）を新設。ダブルハート/ビルドアップの「自分か相手のスピリット1体」は
   自分側のみに簡略化）の計118枚＋新概念バッチ4a の5枚（BS03-047/095/112/131/139。
   kind "exhaustImmunityGrant"＝相手効果の疲労免疫（トランプの王国。exhaust系3経路にガード）・
@@ -294,8 +303,13 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
     受け取らない設計のため、keywordGrant 由来の装甲を見るには全呼び出し箇所の signature 変更が必要
   - **090 ニーベルングリング**: ターン限定の誘発付与＋「破壊したスピリットと同じ系統」の伝播（新機構2つ）
   - **037 鎧装獣ヘイズ・ルーン / 042 獣使いドヴェルグ**: 条件付き cantAttack と、その名前フィルタでの無効化（対）
-  - **054 アルカナソルジャー・サンク**: マジックの対象リダイレクト。現エンジンのマジックは単体対象のため
-    実質 no-op になる（構造化しても意味を持たない）
+  - **054 アルカナソルジャー・サンク**: マジックの効果範囲を自身1体に絞る。
+    **⚠️ かつてここに「現エンジンのマジックは単体対象のため実質 no-op」と書いていたのは誤り**（2026-07-30 訂正）。
+    複数体に及ぶマジックは実際に7枚ある（フレイムテンペスト BS01-122／バインディングウッズ BS01-140／
+    セイムタイアード BS03-139／グラウンドハウリング BS04-099／ジャングルロウ BS04-100／
+    ドリームハンド BS04-102／ブランチロック BS05-074）。
+    **原作ルールでは「全体を含む効果」も『対象に含む』**（2026-07-30 利用者に確認）ため、
+    全体効果を自身1体に限定できる＝実装価値がある。設計は chatbox.md の同日エントリを参照
   - **088 栄光の表彰台**: ネクサス配置コストのデッキ破棄による代替支払い（禁止カード）
   - 各カードの一部の行のみ未対応: 033 Lv2-3・080 Lv2（【神速】テキストの書き換え）・081 Lv2・086 Lv1
     （「BPを+する」効果そのものの無効化）・079 Lv2
@@ -329,7 +343,7 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
 | BS05-X20 | 大甲帝デスタウロス | 紫・緑 | 9 | 紫3＋緑3（**混色**） | 紫緑 |
 
 これに合わせて `CardData.color: Color` を **`colors: Color[]` へ置換**した（2026-07-25。設計は削除前の
-`MULTICOLOR.md` に記録）。要点:
+`docs/archive/MULTICOLOR.md` に記録）。要点:
 
 - **色の一致判定は必ず述語を通す**。場のインスタンスは `instHasColor(inst, color)`、
   手札・デッキ側のカードは `cardHasColor(cardData, color)`、色の一覧が要るときは `instColors(inst)`。
@@ -347,6 +361,87 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
 - 回帰テストは `scripts/smoke/part58.ts`（色の両方ヒット・装甲・軽減・ライフダメージ・単色プリセット・
   BS05 のキーワード保持）
 
+### 第六弾：爆神（BS06・118枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 赤 | 13 | 3 | 4 | 20 |
+| 紫 | 13 | 3 | 4 | 20 |
+| 緑 | 13 | 3 | 4 | 20 |
+| 白 | 13 | 3 | 4 | 20 |
+| 黄 | 12 | 3 | 4 | 19 |
+| 青 | 12 | 3 | 4 | 19 |
+
+（Xレア4枚 BS06-X21〜X24 は各色の内訳に含む。効果文なしのバニラ18枚／効果文持ち100枚）
+
+- **新キーワードは【激突】と【暴風】の2つ**。どちらも「宣言をキーワードエントリで持ち、
+  挙動は対になる誘発エントリが担う」形で、BS07 の【聖命】【強襲】もこの方式を踏襲している
+- キーワード保持は 22 エントリ（激突4・暴風4・装甲4・覚醒2・呪撃2・神速2・光芒2・粉砕2）
+- **`noop`（意図どおり何もしない）を持つのは BS06-107 のみ**。実行時カバレッジで
+  「一度も実行されていない action」に挙がるが、これは正しい状態（§6 の読み方を参照）
+- 回帰テストは `scripts/smoke/part124〜132`（バッチ単位で1パート。part124 が新キーワード2つ、
+  part132 で118枚が完成）。バッチ横断の機構は part120〜123（マジック無効化・配置コストのデッキ破棄・
+  「数を数える」の一元化・お互いを対象とするマジックの対象変更）に分かれている
+
+### 第七弾：天醒（BS07・88枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 赤 | 10 | 2 | 3 | 15 |
+| 紫 | 9 | 2 | 3 | 14 |
+| 緑 | 10 | 2 | 3 | 15 |
+| 白 | 9 | 2 | 3 | 14 |
+| 黄 | 10 | 2 | 3 | 15 |
+| 青 | 10 | 2 | 3 | 15 |
+
+（Xレア4枚 BS07-X25〜X28 は各色の内訳に含む。効果文なしのバニラ7枚／効果文持ち81枚）
+
+- **新キーワードは【聖命】と【強襲】の2つ**。どちらも宣言だけをキーワードエントリで持ち、
+  挙動は対になる誘発エントリ（`onLifeDealt` / `onAttack`）が担う。
+  宣言があることで「【聖命】を持つ自分のスピリットすべて」のようなキーワード指定の絞り込みが効く
+- キーワード保持は 29 エントリ（転召6・聖命4・強襲4・激突3・暴風3・装甲3・呪撃2・粉砕2・覚醒1・神速1）
+- **各色に「勇傑」の勇者が1体ずついる**。いずれも「コスト2以下のスピリットのアタックでは、
+  お互いのライフは減らされない」（`globalConstraint: noLifeDamageByCost`）を共有する
+- **各色に「虚神」/「神将」を最高Lvとして扱うカードがある**（`levelAs` + `sourceLevels:[3]`）。
+  発生源がLv3のときだけ効く点に注意（`levels` は常に null で、レベル条件は `sourceLevels` 側で持つ）
+- **各色のネクサス1枚が「自分のネクサスが相手の効果で破壊されたとき」を持つ**。
+  実装はいずれも破壊の発生源を問わない簡略化で、`data/card-notes.json` に理由を記録している
+- **未実装は0枚**。BS07-022 ブラックカラカロッサムの「手札からフラッシュで特殊召喚してバトルを引き継ぐ」は
+  `kind:"battleSwapSummon"` として実装した（`GameAction summon` の `substituteInstanceId` を使う専用経路）。
+  効果文に「コストを支払わずに」が無いので、**[カラカロッサム]を手札に戻すのは追加コストであり
+  召喚コストは通常どおり必要**（`paySources` を伴う）。発動可否は `shared/summon.ts` の
+  `canBattleSwapSummon(board, pid, handIndex)` で判定でき、**サーバー検証もこの関数を通る**。
+  クライアントUIは chatbox 2026-08-09-0532 でUI担当へ依頼済み。簡略化は `data/card-notes.json` を参照
+- 回帰テストは `scripts/smoke/part136〜143`（色ごとに1パート＋実行時カバレッジの穴埋め1パート）
+
+### 第八弾：戦嵐（BS08・91枚）
+
+| 色 | スピリット | ネクサス | マジック | 合計 |
+| :-- | --: | --: | --: | --: |
+| 赤 | 10 | 2 | 3 | 15 |
+| 紫 | 10 | 2 | 3 | 15 |
+| 緑 | 10 | 2 | 3 | 15 |
+| 白 | 10 | 2 | 3 | 15 |
+| 黄 | 10 | 2 | 3 | 15 |
+| 青 | 10 | 2 | 3 | 15 |
+
+（Xレア6枚 BS08-X29〜X34 は各色の内訳に含む。加えて**多色1枚 `X003D` 極帝龍騎ジーク・クリムゾン**
+＝赤/白の2色で、cardId が `BS08-` 始まりでない唯一のカード。効果文なしのバニラ6枚／効果文持ち85枚）
+
+- **新キーワードは【氷壁】の1つ**。他は既出（転召15・激突3・装甲3・氷壁3・聖命3・暴風2・強襲2・呪撃1・光芒1・粉砕1で計34エントリ）
+- **弾のテーマは【転召】**。15エントリと突出して多く、`【転召：コストN以上/トラッシュ】`＝
+  `kind:"keyword" keyword:"tensho" minCost dest` で表す。周辺カードが3方向に分かれる:
+  - `constraint:"tenshoCoreSubstitute"`（転召の対象になったとき、疲労で代替できる）
+  - `action:"summonFromHandFree"` の `keywordFilter:"tensho" skipTensho`（転召させずに召喚）
+  - `filter.keywordExclude:"tensho"` / `fieldEvent:"ownTensho"`（転召持ちかどうかで対象を分ける）
+- **青は「相手の手札枚数」と「シンボル数」を参照する軸を持ち込んだ**。
+  前者は `aura.condition{opponentHandAtLeast}` と `triggered.condition{opponentHandAtLeast}`、
+  後者は `kind:"symbolFix"`（シンボルを固定＝軽減計算にも効く）と
+  `funsaiBonus.amountPerSymbolColor`（【粉砕】の枚数を自色シンボル数ぶん増やす）
+- **未実装は2枚**（BS08-038 猫娘アニー＝手札のカード自身が発揮する召喚条件、
+  BS08-064 鳳翼の聖剣＝デッキ破棄経路への割り込み。いずれも `data/card-notes.json` に理由を記録）
+- 回帰テストは `scripts/smoke/part144〜149`（色ごとに1パート。多色1枚は青のパートに含む）
+
 ### デッキ
 
 `data/constants.ts` の `DECK_RECIPES` に赤・紫・緑・白・黄・青の単色40枚を定義。
@@ -360,6 +455,13 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 ---
 
 ## 2. 実装済みのルール・効果
+
+> **⚠️ 以下の「クライアントミラー」の記述は当時の経緯です。** `3f02796` の共有ルール層への一本化で
+> **ミラー実装は全廃**され、現在 `public/src/` はルール判定を自前で持っていません
+> （`shared/rules.ts` / `shared/cost.ts` / `shared/block.ts` から import して再エクスポートするだけ）。
+> **新しい判定を足すときに「サーバーとクライアントの両方を直す」必要はありません**。`shared/` だけです。
+> 逆に、ルール判定を `renderer.ts` に自前実装すると表示バグの温床になります（実際に3件出ました）。
+
 
 ### ルール
 
@@ -413,9 +515,9 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 
 | キーワード | id | 状態 |
 | :-- | :-- | :-- |
-| 神速 | `soku` | 実装済み（バトル中のフラッシュタイミングで手札から召喚可能） |
+| 神速 | `soku` | 実装済み（バトル中のフラッシュタイミングで手札から召喚可能。**自分・相手どちらのターンでも使える**）。**コストの支払いはリザーブからのみ**で、フィールドのコアは使えない（通常召喚との違い）。取得元を広げるのは `kind:"sokuPaySourceGrant"`（BS04旋風渦巻く渓谷Lv2＝自分のフィールドすべて／BS04甲殻戦士ロングホーンLv2-3＝ロングホーン上のみ）。判定は `shared/rules.sokuPayableInstanceIds` でクライアントの支払いUIと共用 |
 | 覚醒 | `awaken` | 実装済み（サーバーAPI＋クライアントUI。優先権整合済み） |
-| 激突 | `clash` | 予約（第一・二弾未収録。将来弾向け） |
+| 激突 | `clash` | 実装済み（保持カードは未収録。part65 で一時付与により動作確認済み） |
 | 装甲 | `armor` | 実装済み（BS02。keyword エントリの `colors` に対象色を持つ） |
 | 呪撃 | `jugeki` | 実装済み（BS02。アタック時のみ、バトル終了時にブロッカーを破壊） |
 
@@ -425,13 +527,52 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
   対象自動選択（pickEnemyByBp）・範囲効果（destroyAll / exhaustAllByColor）・明示ターゲット
   （coreRemove / exhaust / destroyExhausted / returnToHand / returnToDeckTop）の全経路で防ぐ。
   バトルによる破壊・BP比較は効果ではないため防がない。クライアントのマジック対象選択にもミラー
+- **激突（【激突】）**: アタック時、相手はブロックできるなら必ずブロックしなければならない
+  （`validateTakeLife` がライフ受けを拒否する）。**保持カードはまだ1枚も収録されていない**ため、
+  `grantKeyword` による一時付与で `scripts/smoke/part65.ts` が経路を通している。
+  判定は `hasLegalBlocker`（`validateBlock` を実際に通る個体がいるか）で行うこと。
+  かつて `hasBlocker`（疲労とレベルしか見ない）を使っていたため、`cantBlock` 持ちしか
+  場にいない場合に**ブロックもライフ受けもできない詰み**になっていた（2026-07-26 修正）。
+  強制ブロック（`mustBlockGrant`）と同じ「可能ならば」の解釈に揃えてある
 - **呪撃（【呪撃】）**: アタッカーが呪撃を現レベルで持ちブロックされたバトルの解決後、
   BP比較の結果に関係なく（アタッカー自身が破壊されていても）ブロッカーを破壊する
   （`resolveBattle` 末尾フック、onDestroy 誘発あり）。ブロッカーがアタッカー色への装甲を持てば防がれる
+- **⚠️ 発揮条件は「バトル解決まで呪撃持ちが場にいること」**（2026-08-08 確定）。
+  BS06 の新テキスト「**バトル解決時に**ブロックしていた相手のスピリット1体を、バトル終了時に破壊する」
+  （冥府の深淵）を基準に解釈を固定した。旧テキスト「**このスピリットは**、ブロックした相手の〜」
+  （ストレイソウル／冥楽士ムール／ハンプダンプ等）のカードも**エンジンがキーワードを一元管理するため同じ挙動**になる
+  （テキスト差でカードごとに変えることはできない）。境界は次の2つ:
+
+  | 呪撃持ちが失われたタイミング | 発揮 | 理由 |
+  | :-- | :-- | :-- |
+  | **フラッシュ中**（ブロック後のフラッシュで破壊された等） | **しない** | `resolveBattle` 冒頭でアタッカー／ブロッカーを `findSpirit` で引き直し、いなければ `clearBattle` して即 return するため、呪撃フック（末尾）に到達しない |
+  | **BP比較**（バトルによる敗北・相打ち） | **する** | バトル解決は走りきっているため。`hasJugeki` はローカル参照の `attacker.cardId` から判定し、フィールド在否を見ない（意図的） |
+
+  相打ちでブロッカーも同時に破壊された場合は、破壊対象が場に残っていないので結果的に no-op になる
+  （`stillOnField` チェック）。テストは `scripts/smoke/part4.ts` の「呪撃」節に3ケースある
 
 ### 誘発効果（トリガー × アクション）
 
-トリガー: `onSummon` / `onAttack` / `onDestroy` / `onBattle` / `onBlock` / `onBlocked`
+トリガー: `onSummon` / `onAttack` / `onDestroy` / `onBattleStart` / `onBattleWin` / `onBattleLose` /
+`onBattleEnd` / `onBlock` / `onBlocked` / `onLifeDealt`
+
+#### ⚠️ バトル系トリガーの使い分け（2026-08-02 に実プレイで誤りが発覚した箇所）
+
+効果文の『このスピリットのバトル時』は **「アタック時またはブロック時」＝バトルが成立した時点**を意味する。
+かつて `onBattle` という名前のトリガーが**実際には「BPを比べ相手のスピリットだけを破壊したとき（勝利時）」**
+にしか発火しない実装で、名前と意味が食い違っていたため、勝利条件を伴わない『バトル時』が
+表現できず未実装・誤実装のカードが出た（蒼海の竜使いアズールは勝ったときしか発火していなかった）。
+**`onBattle` は `onBattleWin` に改名済み**。効果文からトリガーを選ぶときは次の表に従うこと:
+
+| 効果文 | トリガー |
+| :-- | :-- |
+| 『バトル時』**BPを比べ相手のスピリットだけを破壊したとき**〜 | `onBattleWin`（役割限定は `battleRole`） |
+| 『バトル時』〜（勝利条件なし） | `onBattleStart`（アタック宣言時・ブロック宣言時に発火。勝敗不問） |
+| 『バトル時』**BPを比べ相手のスピリットに破壊されたとき**〜 | `onBattleLose`（相打ちでは発火しない） |
+| 『バトル時』バトル終了時に〜 | `onBattleEnd` |
+
+`scripts/validate-cards.ts` が cards.json の未知の trigger 名を検出する（cards.json は型検査の対象外で、
+トリガー名の改名・打ち間違いが無言で不発になるため）。
 
 - `onBlocked` は相手のブロック宣言時に**アタッカー側**で発火（self=アタッカー、対象=ブロッカー。
   `fireTrigger` の第5引数 targetInstanceId 経由で coreRemove 等がブロッカーを対象に取る。
@@ -445,7 +586,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `destroy` | 相手スピリットを破壊（1体、BP最大を自動選択。maxBp 省略=BP不問、keywordFilter で「【神速】持ちのみ」等の限定可） |
 | `destroyAll` | BP以下の相手スピリットを全破壊 |
 | `selfBuff` | このスピリット自身をBP+（ターン終了時まで） |
-| `destroyNexus` | 相手ネクサスを破壊 |
+| `destroyNexus` | 相手ネクサスを破壊（`side:"both"` で両陣営、`levelFilter` で対象レベルを限定＝バスターファランクス／バスターランス） |
 | `returnSelfToHand` | このスピリットを持ち主の手札に戻す |
 | `coreRemove` | 対象スピリットのコアを持ち主のリザーブへ置く（対象指定可） |
 | `bpBuff` | 対象スピリット1体をBP+（ターン終了時まで、対象指定可） |
@@ -469,8 +610,8 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `endBattle` | 今のバトルをただちに終了（BP比較もライフダメージもなし） |
 | `exhaustAllByColor` | 相手最多色を自動選択し、その色の両者全スピリットを疲労（色選択の簡略化） |
 | `lockFlash` | このバトルの間、相手はフラッシュで手札のカードを使用不可（`flashLockedPlayer`。覚醒は対象外） |
-| `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化） |
-| `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版） |
+| `recoverSpiritFromTrash` | 自分のトラッシュのスピリットカードを手札へ（末尾＝新しい方から、選択の簡略化。`all:true` で該当カードすべて＝ネクロマンシー） |
+| `coreSqueezeOne` | 相手BP最大のスピリット1体をコア1個残しにし超過分を持ち主リザーブへ（coreSqueezeAll の単体版。`anySide:true` で両陣営から対象指定／選択可＝ウィークネス） |
 | `coreGainPer` | カウント値ぶんボイドから自分のリザーブへ（counter: drawPer と共通の `DrawPerCounter`。宝石の獣カーバルク） |
 | `refreshAllByCost` | **両陣営**の指定コストのスピリットをすべて回復（cantAttackThisTurn は付かない。ローヤルポーション） |
 | `destroyOwnByCost` | self 以外の自分スピリットからコスト ≤ maxCost かつコスト最大の1体を破壊（プレイヤー選択の決定的簡略化）。gainCoresEqualCost でそのコスト数のコアをボイドから自分リザーブへ（天使長プリンシパール） |
@@ -493,15 +634,86 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `coreDrainAllOthers` | self 以外の全スピリットからコア1個ずつ持ち主リザーブへ、消滅数ぶんボイドから self へ（魔界七将デスペラード） |
 | `grantBlockerImmunity` | ブロック中の自分スピリットにこのターンの免疫を付与（フェザーバリア） |
 | `negateOwnBlockConstraint` | 自分スピリット1体の cantBlock/cantBlockLowerBp をこのターン無効化（バーストファイア） |
+| `colorChoiceLendThisTurn` | 色を1つ選ばせてから自身をこのターンの仮想発生源として貸す（選択結果は `CardInstance.lentChoiceColor`。継続側は `levelAs.target:"allSpiritsByChosenColor"` で読む。スピリットイリュージョン） |
+| `blockTriggersAsAttackAllThisTurn` | このターンの間、**両陣営**の『ブロック時』効果を『アタック時』へ移す（`GameState.blockTriggersAsAttackThisTurn`。既存 `attackTriggersAsBlockThisTurn` の逆方向・全体版。アタックシフト） |
+| `voidCoreToOwnTrash` | ボイドからコアを持ち主のトラッシュへ（ブリッツ／メビウスリング） |
+| `nexusCoresToTrash` | 指定側（相手/両陣営）のネクサス上のコアをすべて持ち主のトラッシュへ（ネクサスは消滅しない。フォールダウン） |
+| `drawUpTo` | 自分の手札が size 枚になるまでドロー（すでに size 枚以上なら何もしない。フォースドロー） |
+| `trashSpiritsToDeckBottom` | 自分のトラッシュのスピリットカードを末尾から count 枚デッキの下へ（枚数・順番の選択は決定的簡略化。トリックプランク） |
+| `voidCoresToNexusLevel` | 自分のネクサス1つが指定レベルになるようボイドからコアを置く（対象は targetInstanceId → pendingChoice → コア数最少の順。フルアッド） |
+| `opponentNexusOrReserveCoreToTrash` | 相手のネクサス上（コア最多）→なければ相手リザーブの順にコアを相手トラッシュへ（エナジードレイン） |
+| `bothSidesCoreToVoid` | 両者がそれぞれ自分のスピリット／ネクサスから、コアの多い個体順に合計 count 個をボイドへ（インフェルノアイズ） |
 
-構造化済みの効果は135枚中 **123枚**（スピリット79/91・ネクサス12/12・マジック32/32）。
-**効果文を持つ全カードの構造化が完了**（残り12枚は効果テキストのないバニラ）。
+⚠️ **かつてここには「構造化済みの効果は135枚中123枚。効果文を持つ全カードの構造化が完了」と書かれていた。
+この数え方が実装漏れを長期間隠していた。** 1枚のカードに効果が2つ以上あることが多く、
+**1つ書けばそのカードは「済」に見えてしまう**（実際、BS01〜BS03 は「完了」と宣言されていたのに
+巨人王ランドルフ Lv3・幽霊船長シルバーシャーク Lv2 などが丸ごと落ちていた）。
+**進捗は枚数ではなく「効果節」の単位で数えること。** 現状は `npm run gaps:report` が正。
+
+### 山札公開からの無償召喚（revealAndSummonKeyword）
+
+`{ type: "revealAndSummonKeyword", count, keyword, returnToDeckBottomAtEndStep? }`（BS05トランスマイグレーション）。
+デッキ上 count 枚を公開し、その中の**指定キーワードを静的に持つスピリットカード**1枚をコストを支払わず召喚、
+残りはすべてトラッシュへ破棄する。
+
+- **召喚時効果は通常どおり発揮する**。`summonFromHandFree` / `summonFromTrashFree` は効果文に
+  「この効果で召喚されたスピリットの召喚時効果は発揮されない」と書かれているのでそれを再現しているが、
+  このカードには**その記載が無い**
+- **【転召】は解決しない**。「【転召】を発揮したものとして」＝**転召を済ませたものとして扱う**の意味で、
+  コアを置く必要も、犠牲になるスピリットも出ない。下の「効果による召喚と【転召】」の**唯一の例外**
+- 「召喚**できる**」＝任意なので、`requestCardChoice` に **`alwaysAsk`** を渡して候補1枚でも選択（スキップ可）を出す
+- ⚠️ **「残りは破棄する」は選んでもスキップしても走らせる必要がある**。スキップは `doResolveChoice` が
+  ハンドラを再入させないため、選択待ちの `queue` に後始末アクション `revealDiscardRest` を積んでおく。
+  積み忘れると `flushRevealedCardsIfIdle` が公開ゾーンを**デッキの下へ戻して**しまい、効果文と食い違う
+- `returnToDeckBottomAtEndStep` は召喚した個体に `CardInstance.returnToDeckBottomAtEndStep` を立てる。
+  `PhaseManager.endTurn` が `fireStepTriggers("end")` の**直後**（エンドステップの誘発からは見えている状態）で
+  `returnSpiritToDeckBottom` を呼ぶ
+
+### ⚠️ 効果による召喚と【転召】
+
+**コストを支払わない召喚でも【転召】は必ず行う**（公式Q&A 2024-10-31：
+「BS02-096 ディバインウィンドで【転召】を持つスピリットを召喚する場合、召喚コストを支払わなくてもよいから
+【転召】も無視できる？」→「いいえ。コストを支払わずに召喚した場合でも【転召】はしなければいけません」）。
+
+「この効果で召喚されたスピリットの『召喚時』効果は発揮されない」という記載は**転召を免除しない**。
+両者は別物なので、経路ごとに扱いを分けないこと。
+
+| 経路 | 召喚時効果 | 【転召】 |
+| :-- | :-- | :-- |
+| 通常召喚（`doSummon`） | 発揮する | 行う |
+| `summonFromHandFree`（トレントン／ディバインウィンド／天使長ソフィア 等） | 発揮しない | **行う** |
+| `summonFromTrashFree`（妖狐キュービック） | 発揮しない | **行う** |
+| `summonRepeatFromHand`（天使長セラフィー／兵隊アントマン） | 発揮しない | **行う** |
+| `revealAndSummonKeyword`（トランスマイグレーション） | 発揮する | **行わない**（「発揮したものとして」の明記があるため） |
+
+検証は smoke part114（一般側）と part113（例外側）。
+
+**手札からの召喚では【転召】は必須のコスト**（2026-08-13 利用者報告で修正）。
+コアを置く対象になる自分のスピリットが1体もいなければ `validateSummon` が召喚を拒否する
+（判定と解決はどちらも `tenshoSpecOf` / `tenshoCandidates` を通す）。
+
+解決の順序は **「召喚できるかの判定 → 【転召】の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」**。
+以前は召喚時効果が先に発揮されており、召喚時効果が犠牲を破壊してしまうカード
+（BS08-054 異神獣クトゥルム）では転召そのものが不発になっていた。
+転召の対象選択で中断した場合は、内部専用 action `"summonSequence"` を `pendingChoice.queue` へ積んで
+選択の解決後に「召喚時効果 →『召喚されたとき』誘発 → 天使長ファニムの疲労付与」へ合流する。
+
+対象になったスピリットは**破壊ではなく維持コア割れによる消滅**なので、破壊時効果は発揮されない。
+検証は smoke part175。
 
 ### 山札公開（deckReveal）
 
 `{ type: "deckReveal", count, pickType? }`。自分のデッキ上から count 枚を公開し、pickType に一致する
-最初の1枚（省略時は先頭）を手札へ、残りを元の順で山札の下に戻す（公開はログで両者可視、選択は自動の簡略化）。
-スワロウアイヴィー。今後の「上N枚を見て〇〇を手札」系に再利用可。
+最初の1枚（省略時は先頭）を手札へ、残りを元の順で山札の下に戻す。スワロウアイヴィー。
+
+実対戦（interactiveTargets）では公開ゾーン（`GameState.revealedCards`）へ積み、手札に加える1枚を選ばせる。
+**この選択からの再入で、冒頭の `deck.splice(0, count)` がもう一度走ってデッキの上から count 枚が
+消えていた**（2026-08-11 に card-notes の突き合わせで発見。スワロウアイヴィー5枚・サルベージ5枚・
+闘将カタパルドス2枚・古将ドグウ・ゴレムはネクサス数ぶん）。再入はデッキに触る前に処理して抜ける。
+
+`pickNone` を書くと手札に加えず公開して戻すだけになり、`returnToTop` と併用すると
+「好きな順番でデッキの上に戻す」になる（BS06-107 セカンドサイト）。戻す順番は
+`revealReturnToDeck`（`toTop` / 内部専用の `placed` で先に選んだカードを上へ）が1枚ずつ選ばせる。
 
 ### 手元ゾーン（PlayerState.tegamoto）
 
@@ -520,6 +732,110 @@ viewFor は公開ゾーンとして両者分をそのまま配信する（`GameV
   `noFreeCastOpponent`（凱旋門 e2）で打ち消される。使用後は通常どおり持ち主のトラッシュへ
 - クライアント UI（手元パネル・fromTegamoto 送信）は Gemini 担当で実装中（chatbox.md 参照）
 
+### マジックが「このターンの間」継続効果を貸す（turnVirtualInstances / lendSelfThisTurn）
+
+マジックは使用後トラッシュへ行くため、従来は「このターンの間、〜する」という**継続効果**を
+表現できなかった（BS05 だけで10枚前後がこれで構造化できずにいた）。
+`PlayerState.turnVirtualInstances: CardInstance[]` に**このターンだけの仮想発生源**を持たせて解決する。
+設計の全文は `docs/design/TURN_EFFECT_SOURCES.md`。
+
+- **データの書き方**: マジック自身の `effects` に `kind:"magic"` の `{ type: "lendSelfThisTurn" }` と、
+  貸したい継続効果を **`levels: null`** で並べる。実例は BS05-071 リアニメイト
+  （`reviveOnDestroy` を貸して「【呪撃】持ちが破壊されたら疲労状態で戻る」を1ターンだけ成立させる）
+- **新しい kind を作らなくてよい**のが利点。`reviveOnDestroy` / `constraint` / `aura` /
+  `keywordGrant` / `mustBlockGrant` などが一斉にマジックから使えるようになる
+- **スピリットの「このターンの間」効果も同じ器を使う**（2026-07-31 ルール確認：「このターンの間、
+  自分のスピリットすべて〜」は**使用後に召喚したスピリットにも乗る**継続効果が正）。誘発／スタートステップ側の
+  action を `lendSelfThisTurn` にし、継続エントリに **`lentOnly: true`** を付ける。
+  `lentOnly` は「仮想発生源（`isVirtualSource`）からのみ有効」の意味で、実在するスピリットが同じエントリを
+  持っていても恒久化しないためのゲート。`aura` / `keywordGrant` 相当・`colorAs` / `familyGrant` /
+  `alsoCostGrant` が対応する。これにより発生源が破壊されてもそのターンは効果が持続する（原作どおり）
+- 選択を伴う貸与（BS02-064 音鳥クルーク＝与える系統を選ぶ）は、選択結果を仮想発生源の
+  `CardInstance.lentChoiceFamily` に載せ、継続エントリ側は `familyGrant.familyFromChoice: true` で読む
+- 走査は `shared/rules.ts` の **`effectSources(board, pid)`** に集約する。
+  「フィールドに実在する発生源＋実在しないが効果を出す発生源」を返す器で、将来ここに種類が増える
+- **「このバトルの間」は別の器**（2026-08-10 追加）。効果テキストがそう書いているものは
+  `{ type: "lendSelfThisBattle" }` を使い、`PlayerState.battleVirtualInstances` へ積む。
+  `effectSources` が両方を混ぜて返すので**継続エントリ側の書き方は同じ**（`levels: null` / `lentOnly: true`）で、
+  違いは寿命だけ（`clearBattle` で切れる＝同じターンの2回目のバトルには効かない）。
+  BS07 のフラッシュ3枚（ダーティフィスト／ニードルショット／ブルームフルート）が該当。
+  BP増減も同様に、テキストが「このバトルの間」のものは `bpBuff` の **`scope: "battle"`**
+  （`CardInstance.battleBpBuff`。無指定は従来どおりターン終了時まで）
+
+#### ⚠️ 3つの罠（いずれも「無言で壊れる」ため必ず守ること）
+
+| 罠 | 内容 |
+| :-- | :-- |
+| **`levels: null` 必須** | 既存の走査はすべて `effectActiveAtLevel(effect.levels, currentLevel(source).level)` を通す。仮想発生源はコア0なのでレベル0になり、`levels` を書くと**無言で発火しない**。`scripts/validate-cards.ts` が検査する |
+| **`self` は使えない** | マジックの `resolveAction` は `self = null` で呼ばれる。ハンドラで `if (!self) return` と書くと**唯一の用途で必ず no-op** になる（型検査も smoke も通ってしまう）。発生源は **`ctx.sourceCardId`** から取る |
+| **走査の A/B 分類** | 「誰が継続効果を出しているか」＝A（`effectSources` を使う）。「盤面に何が存在するか」＝B（`player.field` を直接見る）。**関数単位ではなく、その走査が何を問うているかで判定する**。`countSymbols`（軽減シンボル集計）・`ownFieldSymbolColors`（色ロック）・`checkAuraCondition` の `hasOwnColor` 分岐はB。混ぜると「場に赤が1枚も無いのに赤のマジックを貸しただけで条件成立」「軽減シンボルが増える」といった別のバグになる |
+
+現在 `effectSources` へ差し替え済みのA分類は11個（`tryReviveOnDestroy` / `activeConstraints` /
+`hasContinuousKeywordGrant` / `checkAuraCondition` / `effectiveBp` のaura走査 / `mustBlockGrant` 走査 /
+`spiritHasFamily` の familyGrant 走査 / `refreshLevelAsOverrides` / **`hasGlobalConstraint`** /
+**`costCantAct`** / **`fireFieldEventTriggers`**）。残りは段階移行の対象。
+
+`fireFieldEventTriggers` を寄せたことで、**マジックから誘発効果も貸せる**ようになった
+（BS05ソウルクラッシュ＝「このターンの間、『魔界七将』が召喚されたとき疲労スピリットを全破壊」）。
+`kind:"fieldEvent"` は action を持つため `validate-cards.ts` の貸与検査からは既定で外れているので、
+**貸す側は `lentOnly: true` を必ず書く**こと（書けば検査対象に戻り、`levels: null` が強制される）。
+
+`effectSources` は `kind:"nexusEffectsDisabled"` を持つ発生源が相手にいる間、**対象プレイヤーのネクサスを
+一覧から丸ごと外す**（BS05ネクサスブロケイド＝「相手のネクサスすべての効果は発揮されない」）。
+判定関数は再帰を避けるため相手側の配列を直接走査する。
+
+⚠️ `hasGlobalConstraint` / `costCantAct` は 2026-08-01 まで `player.field` の直接走査だったため、
+**マジックから貸した globalConstraint が無言で無視されていた**（グレートウォール実装時に発覚）。
+同時に、クライアントのアタック/ブロックのハイライトが `costCantAct` を一度も呼んでおらず、
+実在カード（白夜の虚空・青嵐の虚空）でも表示と実際の可否が食い違っていたため是正した。
+
+`instHasCost` / `instHasColor` のように **state を受け取らない純粋述語**が読む値は、走査ではなく
+`refreshLevelAsOverrides` が `CardInstance` へ**都度全消去→再構築**する
+（`colorsAsContinuous` / `alsoCostsContinuous` / `armorColorsGranted` / **`treatedAsVanillaContinuous`**）。
+全呼び出し箇所の signature を変えずに継続効果へ対応させる定石。
+
+⚠️ バニラ判定は **`instIsVanilla(inst)`** に一本化した（2026-08-07）。`isVanillaCard(card(inst.cardId))` を
+直接書くと `kind:"vanillaAsGrant"` の継続付与（BS04スイッチヒッター＝「造兵をバニラとしても扱う」）が
+**無言で無視される**。カード（手札・デッキ側＝インスタンスが無い経路）を判定するときだけ `isVanillaCard` を使う。
+
+### 効果の無効化・読み替え（2026-08-01 バッチ）
+
+「効果そのものに介入する」層。既存の走査点に最小の分岐を足す方針で、4枚ぶんの器を入れた。
+
+| 器 | 内容 | 走査点 |
+| :-- | :-- | :-- |
+| `kind:"bpBuffSuppression"` | 発生源の持ち主から見た**相手**の「BPを+する」効果を発揮させない（古代闘技場Lv1） | BP増加アクションは `actions/buff.ts` の**レジストリを包んで**1箇所でゲート／BP増加オーラは `effectiveBp` のオーラ走査。BPを-する効果は対象外 |
+| `globalConstraint:"battlingEffectImmune"` | バトル中の両陣営スピリットは、お互いの**スピリット/マジック**の効果を受けない（茨の決戦地Lv2。ネクサスの効果は通る） | `isEffectBlocked` を装甲・マジック効果耐性と**同じガード地点すべて**へ（破壊・コア除去・疲労・バウンス・候補列挙・マジック対象検証） |
+| `action:"attackTriggersAsBlockThisTurn"` | 対象1体の『アタック時』効果をこのターン『ブロック時』へ移す（ブレイブチャージ） | `fireTrigger`（`CardInstance.attackTriggersAsBlockThisTurn`。アタック時には発揮されなくなる） |
+| `kind:"awakenFromReserve"` | 【覚醒】のコア移動元に**自分のリザーブ**を追加する（ディノゾールLv2の効果差し替え） | `validateAwaken` / `doAwaken`。`GameAction awaken` の `fromInstanceId` に番兵 `AWAKEN_FROM_RESERVE` を渡す（判定は shared の `canAwakenFromReserve` でクライアントと共用） |
+
+### カード名参照とバトル敗者参照（2026-08-01 バッチ）
+
+BS04 の未実装カードが要求した2つの軸。いずれも `TargetFilter` の軸として足したので、
+既存アクション（`destroy` / `destroyAll` / `exhaust` …）にそのまま乗る。
+
+| 軸 | 内容 |
+| :-- | :-- |
+| `filter.nameContains` | カード名の部分一致（`shared/rules.cardNameContains`）。`battleWon.winnerNameContains` / `constraintSuppression.nameContains` も同じ判定 |
+| `filter.sameColorAsBattleLoser` / `sameFamilyAsBattleLoser` | 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色／系統。`normalizeFilter` が `GameState.lastBattleDestroyedColors / Families` を読んで既存の `color` / `family` 軸へ畳む（記録が空なら不発） |
+
+あわせて入れた器:
+
+- `kind:"constraintSuppression"` — 持ち主の対象スピリットが持つ指定タイプの制約を発揮させない
+  （`activeConstraints` が合成結果から除外する。獣使いドヴェルグ＝「鎧装獣」の `cantAttack`）
+- `ConstraintDef.cantAttack.unlessOpponentHasColorSpirit` — 「相手のフィールドに指定色がいない間」だけ有効。
+  **条件判定は `activeConstraints` が行う**ので、`cantAttack` を読む側は変更不要
+- `kind:"magicTargetRedirect"` — 相手のマジックがこのスピリットを対象に含むとき、対象をこの1体に絞る
+  （アルカナソルジャー・サンクLv2）。`resolveMagic` が `GameState.magicRedirectTo` を**アクションごとに**立て、
+  `isEffectBlocked` が各ガードで参照する。対象に含むかは「明示ターゲットが自身」または
+  「明示ターゲット無し（全体効果）かつ自身が action.filter に合致」で判定する
+- `fieldEvent.selfMode:"source"` — イベント対象ではなく発生源自身を self にする（`battleWon.selfMode` と同型）
+
+⚠️ 免疫のガードは**5ファイル18箇所に散っている**（`hasArmorAgainst` / `hasMagicImmunity` /
+`isImmuneToArea` / `isUntargetableByOpponent` の組み合わせ）。新しい「効果を受けない」ルールは**述語 `isEffectBlocked` の中へ足す**こと（ガード地点を再び18箇所さわらずに済む）。
+ガード地点そのものを増やすときは1箇所も漏らさないこと。1箇所漏らすと、その経路だけ無言ですり抜ける。
+`grep -n "hasArmorAgainst\|hasMagicImmunity"` の各ヒットの前後に新しい述語が同居しているかを機械確認する。
+
 ### 起動能力（kind: "activated"）
 
 `{ kind: "activated", timing: "flashBattle", levels, cost: { reserveToTrash }, condition?, action }`。
@@ -532,8 +848,35 @@ resolveAction→passFlashPriority）。個別効果は `action` に載せるだ�
 
 `{ kind: "coreBonus", levels, amount }`。このスピリットに効果でコアが置かれるとき置く数を +amount（ボイド由来）。
 コアを置く各アクション（coreCharge / voidCoreToSelf / voidCoreToOther）が `placeCoresOnSpirit` 経由で参照。グラーバ。
-**マジックは32枚すべて構造化完了。**
+逆向きが `{ kind: "coreReturnBonus", levels, amount }`（効果でスピリットからリザーブへ置かれるコアを +amount。
+`removeCores`＝リザーブ行きの経路だけが見る。トラッシュ／ボイド行きには効かない。効果文が陣営を限定していないので
+**両陣営の発生源**を数える。置かれているコア数は超えない。BS02チャウーLv2）。
+⚠️ かつて「マジックは32枚すべて構造化完了」と書かれていたが、**これも枚数ベースの誤った完了宣言**だった。
+実際には「メイン：〈固有効果〉／フラッシュ：〈BP+N〉」型のマジック48枚で**メイン側が丸ごと落ちていた**
+（フラッシュ側だけ構造化されていたため「そのカードは実装済み」に見えていた）。§4 を参照。
 fieldEvent に `opponentDrew`（相手のドロー時に発火。シダフクロウ）を追加。
+
+### 対象選択の絞り込み軸（TargetFilter）— 直交化完了
+
+対象の絞り込み（BP・色・系統・コスト・レベル・キーワード・バニラ・シンボル数・コア数・疲労・self除外）は
+`server/src/type.ts` の **`TargetFilter`** に一本化されている。アクションは `filter?: TargetFilter` を持つだけでよく、
+新しい軸の組み合わせを表現するのにエンジン改修は要らない。
+
+- 判定は `shared/rules.ts` の `matchesTarget(state, pid, inst, filter, selfInstanceId?)`
+- self 相対のBP指定（`maxBp: "selfBp"` / `minBp` / `exactBp`）は
+  `server/src/logic/actions/filter.ts` の **`normalizeFilter`** が数値へ解決する
+  （self 不在なら `SELF_REQUIRED` を返し、呼び出し側は「対象がいなかった」で no-op）
+- `filter` を通るアクション: `destroy` / `destroyAll` / `destroyExhausted` / `exhaust` /
+  `refreshOne` / `bpBuff` / `bpBuffAll`。**新しいアクションはこの形で書く**
+
+経緯: 従来は `destroy.maxBp` / `refreshOne.colorFilter` のように**同じ軸がアクションごとに個別フィールドとして
+後付け**されていた（BS01〜BS04 で計28個）。第1段階で互換層 `legacyToSpec` を挟んで経路を新形式へ一本化し、
+**第2段階（2026-07-30）で cards.json の40箇所・35枚を `filter` へ移行し、旧フィールドと互換層を削除**した。
+
+⚠️ **cards.json は tsc の型検査対象外**なので、旧フィールドを書いても TypeScript は何も言わず、
+`normalizeFilter` は `filter` しか見ないため**絞り込みが無言で消えて効果が広く当たる**。
+`npm run validate:cards` が (1) 旧フィールドの残存、(2) `filter` の未知の軸（キーの打ち間違い）、
+(3) そのアクションが見ない軸（`exhaustAll` は `cores` / `excludeSelf` のみ対応）の3つを検査する。
 
 ### 免疫・効果無効
 
@@ -560,6 +903,15 @@ phase / turn で『相手のアタックステップ』等の限定が可能。
 アクション `refreshOne`（キーワード／色フィルタ付き1体回復。天使エンジュ＝黄限定）・`coreRemoveSelf`・`coreToTrashSelf`、
 オーラの `summonedThisTurnOnly`（風吹く丘陵 Lv2「このターン召喚された自分のスピリット+1000」）も追加。
 fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリットの色を限定。祝福されし大聖堂＝黄）にも対応。
+
+イベント対象で絞る軸（いずれも `selfOverride` のインスタンスを見る）:
+- `nameIncludes: string[]` — イベント対象のカード名がいずれかを含むときのみ（BS05ペンタン帝国Lv2＝「ペンタン」/「アンプルール」）
+- `targetSameLevelAsSelf` — `targetInstanceId` のスピリットのLvがイベント対象と同じときのみ（ペンタン帝国Lv2＝同Lvにブロックされたとき）
+- `eventTargetIsSelf` — イベント対象が発生源自身のときのみ（スクルディア＝「**この**スピリットが疲労したとき」）
+
+⚠️ `ownSpiritBlocked` は **self にブロックされた自分のスピリット（アタッカー）を渡す**
+（`refreshSelf` が「ブロックされたこのスピリットを回復」として機能する。2026-08-07 に selfOverride を追加）。
+`targetInstanceId` は従来どおりブロッカー。花の子リップの `levelOverrideTarget` は targetInstanceId しか見ないため影響を受けない。
 
 ### フィールド全体制約（kind: "globalConstraint"）
 
@@ -599,13 +951,41 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 `selfWasRefreshedThisStep`）、相手のスピリット/ネクサスを選んでコアを相手トラッシュへ）。
 **既存の自動選択アクションは変更していない**（選択式への置き換えは今後 opt-in で段階導入）。
 
+> **「ここでプレイヤーに選ばせたい」となったら [docs/design/INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) を先に読む。**
+> 中断できるかは**どの層にいるか**で決まる（`shared/rules` の述語からは中断できない）。
+> 層ごとの可否と3つの実装パターン（アクションハンドラで聞く／途中経過を action に載せて再入する／
+> 意思をあらかじめ盤面の状態にする）、新設の手順をそこにまとめてある。
+
+### 「アタック時 → ブロック時」の読み替え
+
+同じ「読み替え」でも**ターン限定**と**継続**、**移し替え**と**追加**の区別がある。混同しないこと。
+
+| 器 | 期間 | 意味 | カード |
+| :-- | :-- | :-- | :-- |
+| `CardInstance.attackTriggersAsBlockThisTurn` | このターン | 移し替え（アタック時には発揮しない） | ブレイブチャージ |
+| `GameState.blockTriggersAsAttackThisTurn` | このターン | 移し替え（逆方向・両陣営全体） | アタックシフト |
+| **`kind:"attackTriggersAsBlockGrant"`** | 発生源が場にある間 | **移し替え** | BS04ドラグノ近衛兵Lv1-2 |
+| `kind:"funsaiOnBlock"` | 発生源が場にある間 | **追加**（アタック時の発揮は残る） | 士気高き大本営 |
+| **`kind:"koboOnBlock"`** | 発生源が場にある間 | **追加** | BS03星降る巡礼地Lv2 |
+
+`attackTriggersAsBlockGrant` は `target:"anyAll"`（効果文が修飾なしの「スピリット」＝両陣営）に対応するため、
+述語 `hasAttackTriggersAsBlock` が**両プレイヤーの発生源**を走査する。`phaseTurn` は
+**発生源の持ち主**基準で判定する（『相手のアタックステップ』＝発生源の持ち主が非ターンプレイヤー）。
+
+`koboOnBlock` は `resolveBattle` の末尾で、ブロッカーの持ち主基準で
+`resolveKoboOnBattleEnd` をもう一度呼ぶ（アタッカー側の解決はそのまま）。
+
 ### バトル結果誘発（battleRole / kind: "battleWon"）
 
 - triggered の `battleRole?: "attacker" | "blocker"` — onBattle を勝利時の役割で限定
   （キングタウロス大公 Lv2-3「アタック時に相手だけ破壊→ライフクラッシュ」）
 - `{ kind: "battleWon", role, levels, action }` — 持ち主のスピリットが指定役割で勝利したとき、
   フィールドのネクサス等から発火。**resolveAction の self には勝利したスピリットが渡る**
-  （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）
+  （refreshSelf が「勝った自分のスピリットを回復」として機能する。無限蟲の蟻塚・古龍の縄張り Lv2）。
+  勝者の絞り込み軸は vanillaWinnerOnly / winnerNameContains / winnerMinCores / winnerFamilyFilter /
+  **winnerKeywordFilter**（BS03熾烈極める最前線Lv2＝覚醒持ち）
+- 敗者の参照軸は `TargetFilter` の sameColorAsBattleLoser / sameFamilyAsBattleLoser /
+  **sameBpAsBattleLoser**（`GameState.lastBattleDestroyedBp` を exactBp へ解決する。記録が無ければ対象なし）
 
 ### 必ずアタック（constraint: mustAttack）
 
@@ -616,18 +996,36 @@ fieldEvent は `colorFilter`（ownSpiritDestroyed で破壊されたスピリッ
 
 `{ kind: "constraint", levels, constraint: ConstraintDef }`。RuleValidator.validateBlock が参照する宣言的ルールで、
 クライアントのブロック可能ハイライトにも同判定をミラー。
+`kind: "constraintGrant"` は同じ `ConstraintDef` を自分のスピリットへ継続付与する
+（対象の絞り込み軸は minLevel / keywordFilter / vanillaFilter / **minSymbols**（シンボル数。BS05最古龍の顎Lv2＝2つ以上）／
+**nameIncludes**（カード名。BS05天焦がす大聖火Lv2＝「巨人」）／phaseTurn）。
 - `cantBlock` — このスピリットはブロックできない（テラノセイバー等）
 - `cantAttack` — このスピリットはアタックできない（カイザレオン大帝Lv1。mustAttack の対象からも除外）
 - `cantBlockLowerBp` — 自分より実効BPが低いアタッカーをブロックできない（リザードマン等）
-- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter）— このスピリットのアタックは指定色／
-  キーワード持ち／コア数以下／**指定レベル**のスピリットにブロックされない（ボーン・グラディエイター＝緑、
-  ラビクリスタ＝赤、スピノアックス＝神速、悪魔スプラー・デースペル＝レベル基準）
+- `immuneToOpponentSummonEffects` — このスピリットは、**相手のスピリットの**『このスピリットの召喚時』効果を受けない
+  （BS05リトルナイト・ランスロットLv3）。`fireSummonTrigger` が解決中だけ `GameState.resolvingSummonTriggerPid` を立て、
+  `isEffectBlocked` がそれを見て判定する。フラグは選択待ちを跨いでも残り、`handleAction` の事後フックが
+  選択の解決後にクリアする
+- `unblockableBy`（colorFilter / keywordFilter / maxCores / levelFilter / costAtMostAttacker / **nonVanilla**）— このスピリットの
+  アタックは指定色／キーワード持ち／コア数以下／**指定レベル**／**アタッカーのコスト以下**／
+  **カードに効果の記述を持つ**スピリットにブロックされない（ボーン・グラディエイター＝緑、ラビクリスタ＝赤、
+  スピノアックス＝神速、悪魔スプラー・デースペル＝レベル基準、ポテンシャルパワー＝相対コスト、
+  BS05幻獣王リーンLv3＝効果持ち）。
+  条件つきの2軸は `activeConstraints` が判定して制約自体を外す:
+  `requireOwnFieldColorNexus`（持ち主の場に指定色のネクサスがある間。鷹人ホークアイLv2）／
+  `requireOwnCostCountAtLeast`（持ち主の場に指定コストのスピリットがN体以上いる間。幻獣王リーンLv3＝コスト2が3体以上）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
-- `canDirectAttack`（targetFilter: rested / singleCore / recovered）— アタック時に条件を満たす相手スピリットを
+- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp、**targetMinCost**）— アタック時に条件を満たす相手スピリットを
   指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
   doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
   クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
+- `tenshoCoreSubstitute` — このスピリットが【転召】の対象になったとき、**疲労することで**上のコアすべてを
+  指定場所に置いたものとして扱う（実際にはコアを失わない代替。BS05の竜使い6枚＝各色1枚。
+  BS05-007/017/026/034/043/053）。「〜することで」は**任意**なので、`dumpAllCoresTensho` は
+  interactiveTargets 時に「疲労してコアを維持する／疲労せずコアを置く」の option choice
+  （action `tenshoSubstituteChoice`）を出す。すでに疲労中はコストを払えないため確認を出さず通常の転召になる。
+  自動時（テスト）は疲労側を選ぶ決定的簡略化
 
 ### アタックステップ終了（endAttackStep）
 
@@ -654,9 +1052,19 @@ handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安
 
 ### ステップ誘発（kind: "step"）
 
-`{ kind: "step", step: Phase, turn: "own"|"opponent"|"both", levels, action }`。
+`{ kind: "step", step: Phase, turn: "own"|"opponent"|"both", levels, action, timing? }`。
 PhaseManager が各ステップ処理直後に `fireStepTriggers(state, step)` を呼び、
 両者のフィールド（スピリット＋ネクサス）から該当効果を実行する（勝敗決定で打ち切り）。
+`timing: "end"` を書くと「そのステップの**終了時**」に発火する（省略時＝ステップ開始時）。
+`beforeDraw: true`（step:"draw" 限定）を書くと**ドローより前**に発火する。ドローステップは
+「ドロー前の効果」と「ドロー本体＋それ以外の効果」の2区間に分かれており、前者で
+`GameState.drawStepSkipped` が立つと後者は引かずに進む（BS07-058 常闇の聖堂Lv2
+「ドローしないことで」＝ドロー自体が支払い。`recoverSpiritFromTrash.costSkipDraw`）。
+区間を分けているのは、発動確認で中断したときの再開が `turnStartResumeStep` で
+「次の区間から」になるため。指定の無い step:"draw" は従来どおりドローの後に発火する
+（引いたカードを破棄の対象にできる百識の谷Lv1が依存している）。
+いまは `attack` にだけ発火点があり、`PhaseManager.endTurn` がエンドステップへ移る直前に
+`fireStepTriggers(state, "attack", undefined, "end")` を呼ぶ（紫水晶の森Lv2）。
 例: 千年雪の尖塔（自分スタートステップにネクサス/スピリットバウンス）、
 侵食されゆく銀世界（相手アタックステップにトラッシュコア全回収）、
 賢者の樹 Lv2（自分エンドステップに全回復）。
@@ -693,6 +1101,155 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 手札クリック → 対象スピリットクリックの2段階UIで送信する。
 `RuleValidator` は指定された対象がフィールドに実在するかを検証する。
 
+### 効果実装漏れの解消で足した器（2026-08-07）
+
+`docs/design/EFFECT_GAPS_PLAYBOOK.md` の残件を片付けるために追加したもの。
+どれも「1つ足すと1〜2枚が書ける」粒度なので、似た効果文を書くときはまずここを見る。
+
+| 器 | 意味 | 判定を持つ場所 | 代表カード |
+| :-- | :-- | :-- | :-- |
+| `battleWon.selfOnly` / `.optional` | 発生源自身が勝ったときだけ発火／「〜できる」 | `fireBattleWonTriggers` | 要塞龍ギガ Lv2 |
+| `action:"swapOpponentCores"` | 相手スピリット2体（実効BP上位）のコアをすべて入れ替える | `actions/cores.ts` | 天使スローン Lv2･Lv3 |
+| `step.timing:"end"` ／ `condition.ownRefreshedSpiritsAtLeast` | ステップ終了時の誘発／回復状態スピリットの体数条件 | `fireStepTriggers`・`PhaseManager.endTurn` | 紫水晶の森 Lv2 |
+| `magicRestriction:"costLimitAll"`（`maxCost` / `requireOwnKeyword` / `phase`） | お互い、指定コスト以下のマジックを使用できない | `shared/cost.hasMagicCostLock` | 青嵐の虚空 Lv2 |
+| `magicTargetRedirect.protectFamily` / `.protectColor` | 「持ち主の指定系統・色のスピリットが対象」で発動し、対象を発生源へ付け替える | `setMagicRedirect` | プリンセス・スノーホワイト |
+| `kind:"jugekiCoreToVoid"` | 【呪撃】で破壊する相手スピリットのコアをボイドへ（破壊の直前に取り除く） | `applyJugekiCoreToVoid` | 魔影街 Lv1 |
+| `action:"markUnblockableThisTurn"` ＋ `CardInstance.unblockableOnceThisTurn` | 「ターンに1回ブロックされない」印。`clearBattle` で使い切る | `shared/block.canBlock` | 強者統べる大地 Lv2 |
+| `action:"discardBothHands"` | お互いが手札からN枚を破棄（末尾から＝簡略化） | `actions/battleFlow.ts` | 魔界七将パンデミウム Lv3 |
+| `kind:"battleBpAsLevel"` | **バトルのBP比較のときだけ**別レベルのBPを使う | `EffectModules.battleBp` | 果て無き地平線 Lv1 |
+| `kind:"familySuppression"` | 条件に合うスピリットは系統をないものとして扱う | `shared/rules.spiritHasFamily` の先頭 | 暗礁海域 Lv1 |
+| `kind:"handKeywordGrant"` | **手札**のカードへの継続付与（手札に書き込まず場の発生源を見る） | `shared/rules.hasHandKeywordGrant` | 緑芽吹く原野 Lv2 |
+| `kind:"bothSidesTargetRedirect"` | 「お互いを対象とするマジックの効果」の対象を片側のみに変更 | `EffectModules.bothSidesPids` | 封印された魔導書 Lv1 |
+
+> `bothSidesPids` は**両陣営を対象にするアクション8種の共通入口**になった
+> （`destroyNexus` / `exhaustAll` / `returnAllToHand` / `nexusCoresToTrash` の `side:"both"`、
+> `bothSidesCoreToTrash`、`bothSidesCoreToVoid`、`draw side:"both"`、`discardBothHands`）。
+> 新しく「お互い」のアクションを足すときは `["p1","p2"]` を直書きせず、これを呼ぶこと。
+
+### カード種別を一時的に変える（2026-08-10）
+
+BS03-147 ゴーレムクラフト「自分のネクサスすべては、このターンの間、ネクサスとしての効果を失い
+"コスト:1/系統:「造兵」/Lv1コスト:1/Lv1BP:2000/効果の記述なし"のスピリットとして扱う」で追加した軸。
+
+**ネクサスをアタック・ブロック・バトルに参加させる仕組みは作っていない。**
+`field.nexuses` から `field.spirits` へ**同じインスタンスのまま移す**方式にしたので、
+スピリットの器（アタック・ブロック・BP比較・全体破壊・体数カウント・対象選択＝エンジン内で
+`field.spirits` を列挙している数百箇所）がそのまま効く。別カードへ差し替えないため
+`cardId` も変わらず、破壊時は `destroySpirit` がネクサスのカードをトラッシュへ送る（追加実装なし）。
+
+| 器 | 意味 | 判定を持つ場所 |
+| :-- | :-- | :-- |
+| `action:"treatOwnNexusesAsSpiritsThisTurn"` | 対象ネクサスを spirits へ移し、上書きを載せる | `actions/grant.ts` |
+| `CardInstance.asSpiritThisTurn`（`cost` / `family` / `levels`） | スピリットとしてのステータス上書き。ターン終了時に元へ戻す目印も兼ねる | `PhaseManager.endTurn` が戻す |
+| `instLevels` / `instMinLevelCores` | レベル表・維持コアを**インスタンスから**求める。**ネクサスのLv1コアは全107枚が0**なので、これが無いとコア0でも消滅しない | `shared/rules` |
+| `instBaseCost` / `instFamilies` | コスト・系統の上書き（`instHasCost` / `instAllCosts` / `spiritHasFamily` が経由する） | `shared/rules` |
+| `instEffectsSuppressed` | 「持つ効果すべてを発揮しない」の**共通述語**。`effectsDisabledContinuous`（BS07ルナースラッシュ）と `asSpiritThisTurn`（＝「ネクサスとしての効果を失い」）を1つにまとめた | `shared/rules` |
+
+> 発揮を止める箇所は必ず `instEffectsSuppressed` を通すこと（`effectSources` / `activeConstraints` /
+> `spiritHasKeyword` / `EffectModules.fireTrigger` の4か所）。
+> 片方の軸だけを直接見ると、もう一方が無言ですり抜ける。
+> 同じ理由で、**場のインスタンスの維持コアは `minLevelCores(getCard(...))` ではなく
+> `instMinLevelCores(inst)` を使う**（手札のカードから求める召喚・配置の経路は `minLevelCores` のままでよい）。
+
+### 保留確認（アクションの奥から任意コストを尋ねる）— 2026-08-10 に2例目
+
+「〜**することで**、〜する」は任意コストなので、実対戦では確認を出さなければならない。
+ところがその判定点は `destroySpirit` や `millDeck` のように**アクションハンドラの奥**にあり、
+その場では中断できない（`pendingChoice.queue` は `EffectAction` の列しか運べない）。
+
+対処は次の3段構えで統一する。**新しく「〜することで無効にする／〜のかわりに」を足すときはこの形に倣うこと。**
+
+1. 判定点では**結果を見送って** `GameState.pending◯◯s` の行列へ積む（本来の処理は行わない）
+2. `GameEngine.handleAction` の末尾＝アクションを解決しきった安全な地点で、行列から1件だけ
+   `pendingChoice` を立てる（`confirm: true` / `optional: true` / `action: {type:"noop"}`）
+3. `doResolveChoice` で、承認ならコストを払って確定、**拒否なら見送っていた処理をそこで行う**。
+   再入して無限に確認が出ないよう、やり直す呼び出しには打ち切りフラグを渡す
+
+| 例 | 行列 | 見送るもの | 打ち切りフラグ |
+| :-- | :-- | :-- | :-- |
+| `reviveOnDestroy.optional`（BS06暴かれた墓石Lv2） | `pendingReviveConfirms` | 破壊 | `destroySpirit(..., { skipRevive })` |
+| `kind:"deckMillNegate"`（BS08鳳翼の聖剣Lv2） | `pendingDeckMillNegates` | デッキ破棄 | `millDeck(..., { skipNegate })` |
+
+> 非対話（smoke の既定）では確認を出せないので、**その場で支払って発動する**簡略化にそろえる。
+> 復活の確認と1点だけ違うのは、**発生源が場を離れていた項目を捨てないこと**。
+> 復活は捨てれば「復活しなかった」で済むが、破棄を捨てると「破棄されないまま消える」ので、
+> そのときは見送っていた破棄を実行する。
+>
+### 効果耐性は1つの入口に集約する（2026-08-10）
+
+**新しく「相手のスピリットに何かをする」処理を書くときは、耐性の述語を並べずに
+`EffectModules.resistanceAgainst` を1回呼ぶこと。** 判定表は `shared/rules.boardResistanceAgainst` にある。
+
+```ts
+const resisted = resistanceAgainst(state, targetOwnerPid, target, attemptOf(ctx, "destroy", "targeted"))
+if (resisted) { log(state, `…は効果を受けなかった（${resisted.label}）。`); return }
+```
+
+集約前は6つの述語に分かれていて、**呼び出し側が「どれを見るべきか」を毎回自分で判断していた**（約70か所）。
+書き忘れても型は通り smoke も落ちないため、実際に穴が空いていた:
+範囲コア奪取が【装甲】を素通り／destroy の対象指定経路だけ完全耐性が抜け／
+exhaustAllByColor だけ完全耐性が抜け／クライアントの対象ハイライトにも同じ抜け。
+
+判定軸は2つ。**どちらも渡さないと無言で挙動が変わる**:
+
+| 軸 | 値 | 効くもの |
+| :-- | :-- | :-- |
+| `op` | `destroy` / `bounce` / `exhaust` / `coreRemove` / `other` | `bounce` と `exhaust` **だけ**が専用の耐性を持つ |
+| `scope` | `targeted` / `area` | 「相手の効果の対象にならない」は **`area` では効かない** |
+
+- 「相手限定の耐性は自分の効果には働かない」は入口が `actorPid` で自動的に扱う。
+  **anySide 系の非対称ルールを呼び出し側で書き分ける必要はない**
+- 発生源の色（`sourceColors`）を渡し忘れると装甲が判定できない。ハンドラでは `actions/filter.attemptOf(ctx, …)` を通す
+- 候補列挙（`pickEnemyCandidates` / `pickEnemyByBp` / `pickAnySide*`）も内部でこれを呼ぶ。
+  **戻す・疲労させる効果の候補列挙では第7引数に `op` を渡すこと**（渡さないとバウンス耐性・疲労耐性が効かない）
+- 返り値の `category` は**分岐用ではなくログ・UI表示用**。呼び出し側は「防がれたかどうか」だけ見る
+- `hasArmorAgainst` などの個別述語は入口の内部実装。**直接呼んでよいのはバトル文脈の装甲だけ**
+  （【呪撃】を装甲で防ぐ判定と `reviveOnDestroy.byBattleVsArmorColor`。どちらも「効果が届くか」ではなく装甲の色そのものを問う）
+
+判定表そのものは `scripts/smoke/part158.ts` が固定している。表を変えるとそこが落ちる。
+
+#### コストを払って受けない耐性（`EffectAttempt.probing`）
+
+`kind:"targetNegateByHandDiscard"`（BS08竜騎集う円卓Lv2「手札1枚を破棄することで、その効果を受けない」）だけは
+**判定に副作用がある**。素直に純粋述語へ足すと候補フィルタが1体ごとに呼ぶので手札が溶びる。2段に分けてある:
+
+| 段 | 呼ぶ側 | 挙動 |
+| :-- | :-- | :-- |
+| `probing: true` | 候補列挙（`pickEnemy*` / `pickAnySide*`）**だけ**が立てる | 防がない＝**対象にはなる**（コストも払わない） |
+| 未指定（既定） | 実際に適用する1点 | ここで初めてコストを払って防ぐ |
+
+実際のルールも「対象にはなる → そのあと受けない」なので、この順序が原作に合う。
+
+> **`probing` の向きは意図的に「既定＝適用する」にしてある。**
+> 立て忘れると *払いすぎる*＝テストで見える失敗になる。逆向き（既定が probing）だと、
+> 立て忘れが「耐性が無言で効かない」になり、このプロジェクトで繰り返してきた検出できない失敗に戻る。
+>
+> コスト付きの判定は**盤面だけで決まる耐性を全部見たあと**に置く（先に払うと、装甲などで
+> 元々防げていた対象化にまで手札を使う）。判定はサーバー側にしかない＝
+> **クライアントの対象ハイライトにこの耐性が出ないのは正しい**（対象にはなるため）。
+
+### コストを「コア以外」で支払う（2026-08-10 に2例目）
+
+「コスト1につき◯◯することで支払える」は、**どこまでその方法で払うかを選ばせない**。
+コアで足りない分だけを自動で回す簡略化にそろえる（選択UIを増やさないため。card-notes に明記する）。
+
+| 器 | 対象 | 支払い方 | 枚数を決める関数 |
+| :-- | :-- | :-- | :-- |
+| `kind:"nexusCostMillPay"` | ネクサスの配置コスト | デッキを上から1枚破棄 | `RuleValidator.nexusMillPayAmount` |
+| `kind:"summonCostHandDiscardPay"` | スピリットの召喚コスト | 手札1枚を破棄 | `RuleValidator.summonHandDiscardPayAmount` |
+
+> どちらも**置くコア（維持コア）は払えない**。上限は「コスト」「コアの不足分」「支払い元の残量」の最小値。
+> **検証（validate◯◯）と実行（do◯◯）が必ず同じ関数を通ること**。別々に計算すると
+> 「サーバーが受け付けるのにクライアントが支払いモードへ入る」ズレが出る。
+> クライアントの支払い可否判定も共有層の述語（`shared/cost.ts`）を通してそろえる。
+>
+> ビクティムは「スピリットカード**1枚**の召喚に」なので、`lendSelfThisTurn` で貸した仮想発生源を
+> 実際に使った時点で取り除く（`consumeSummonHandDiscardPay`）。使わなければターン終了で自然に消える。
+
+> `deckMillNegate` の限定軸は `by:"opponentSpiritEffect"` と `exceptFunsai`。
+> **`cause.funsai` を立てるのは `resolveFunsai` だけ**（`action:"mill"` は効果文で
+> 「デッキを破棄する」と書かれた通常の効果なので立てない）。
+
 ---
 
 ## 3. 効果・キーワードの追加方法（3層設計）
@@ -706,34 +1263,188 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 キーワードは名前参照（`hasKeyword`）で判定するため、「神速を持つスピリットを参照する効果」のような
 カード間の参照も使い回せる。
 
+#### 共有ルール層（`shared/`）— UIが発動可否を出す効果はここに判定を置く
+
+クライアントが「発動できるか」を自前で組むと、サーバー検証との二重実装になり、
+**型エラーにならず実対戦でしか露見しないズレ**を生む（`activatableAbility` が実際にサーバーより
+厳しくズレていた）。UIにボタン・ハイライトを出す判定は共有層に置き、**サーバー側の
+`RuleValidator` からも同じ関数を呼ぶ**こと。
+
+| ファイル | 中身 |
+| :-- | :-- |
+| `shared/board.ts` | `Board` / `BoardPlayer`＝`GameState` と `GameView` の共通部分。**隠匿情報は入れない**（相手の手札は `hand: null` で表現） |
+| `shared/rules.ts` | 盤面とカードマスタだけで決まる述語（BP・キーワード・レベル・装甲・対象条件） |
+| `shared/cost.ts` | コスト計算（`rules.ts` に依存） |
+| `shared/block.ts` | ブロック可否 |
+| `shared/summon.ts` | 召喚可否のうち `rules.ts` と `cost.ts` の**両方**に依存するもの（入れ替え召喚）|
+
+依存は一方向（`rules → cost → summon`）に保つ。両方を使う判定を `rules.ts` に書くと循環参照になる。
+制約として、共有層は node 組み込みモジュール（`node:fs` 等）を import しない
+（esbuild でクライアントへバンドルするため）。カードマスタは `shared/cardDb.ts` の注入経由で参照する。
+
+### ⚠️ データを書くときの原則（違反すると無言で挙動が変わる）
+
+`data/cards.json` は **tsc の型検査の対象外**なので、以下の取り違えは実行時まで発覚しない。
+効果文からデータを起こすときは必ずこの表で照合すること。
+
+| 効果文の表現 | 対象 | 書き方 |
+| :-- | :-- | :-- |
+| 「**相手の**スピリット」 | 相手のみ | 既定のまま（`anySide` を付けない） |
+| 「**自分の**スピリット」 | 自分のみ | 自分側を対象にする軸を使う |
+| **修飾なしの「スピリット」**／「**自分か相手の**スピリット」／「**お互いの**スピリット」 | **両陣営** | **`anySide: true`（アクションにより `side: "both"`）を明示する** |
+
+**修飾なしの「スピリット」は自分と相手の両方を指す**のがバトルスピリッツのルール。ところが
+`destroy` / `exhaust` / `destroyExhausted` / `returnToHand` / `returnToDeckTop` / `coreRemove` /
+`coreSqueezeOne` などのアクションは**既定が「相手のみ」**なので、`anySide` を書き忘れると
+**絞り込みが無言で片側に限定される**。2026-08-02 に実プレイで発覚し、BS01 だけで16枚が該当した
+（効果文に「自分か相手の」と明記されているダークウィッチ等3枚も相手限定になっていた）。
+**BS02〜BS05 は未点検**。
+
+非対話時（smoke）の `anySide` の自動選択は**両陣営から実効BP最大の1体**（同値は相手側優先）。
+自分自身が最大BPなら自分を対象に取る。実対戦は `interactiveTargets` が有効なのでプレイヤーが選ぶ。
+
+**「〜することで」は「〜できる」と同じ任意発動**（2026-08-07 ユーザー指摘）。
+『コア1個をボイドに置く**ことで**…する』『このスピリットを疲労させる**ことで**…』は、
+コストを払うかどうかをプレイヤーが選べる効果であって、条件を満たしたら自動で払う効果ではない。
+
+| 器 | 任意発動の書き方 |
+| :-- | :-- |
+| `triggered` / `step` / `fieldEvent` 等の action 持ち | **`"optional": true`** を書く（`requestActivationConfirm` が「発動しますか？」を出す） |
+| `activated`（`cost` を持つ起動能力） | 器そのものがプレイヤー起動なので追加不要 |
+| constraint 等の置換効果 | ハンドラ側で option choice を出す（`tenshoCoreSubstitute` が実例） |
+
+`costReserveToVoid` のような「アクション側に埋めたコスト」を書いても、それだけでは**強制**になる。
+カイザーアトラス皇帝（BS04-X15）はこれで自動発動になっていた（2026-08-07 に `optional: true` へ修正）。
+
 ---
 
 ## 4. 未対応（表示のみ）の効果
 
-第一弾には現エンジン未対応の効果が多く、これらは効果テキストを表示するだけで自動発動しない。
-対応する場合はそれぞれ新しいアクション型／トリガー／状態が必要。
+**実装状況の台帳は `data/card-notes.json`**（`npm run validate:notes` で検査）。
+status は `unimplemented`（未実装）/ `partial`（一部未実装）/ `simplified`（簡略化）の3種で、
+**デッキビルダー `/deck.html` がこれを読んでプレイヤーに警告を表示する**（`public/src/deck.ts`）。
+この章は要約であり、**個別の状況は card-notes.json を正とする**。
 
-- コア整理（「コア1個を残す」「別のスピリットに置く」等。単純なコア除去は `coreRemove` で対応済み）
-- 疲労状態のスピリットへの指定アタック（キラーテレスコープ。疲労付与自体は `exhaust` で対応済み）
-- （必ずアタックは `mustAttack`、ブロック制限は `constraint`、手札破棄は `discardOpponent` で対応済み）
-- 破壊耐性（オーディーンLv2-3「ネクサスは破壊されない」）、コスト増ルール（ルビーの太陽）
-  （常時BP参照は `aura`、ステップ起点のネクサス効果は `step` で対応済み。
-  **強制ブロックは `mustBlockGrant`、ドロー枚数修正は step 誘発の condition で対応済み（2026-07-25）**）
-- バトル時の条件付き効果（「相手だけ破壊したとき〜」）の多く
+2026-08-01 に実態を機械照合した結果、**効果が丸ごと未実装のカードは6枚だけ**（全609枚中）:
+
+| cardId | 名前 | 未実装の理由 |
+| :-- | :-- | :-- |
+| BS04-037 | 鎧装獣ヘイズ・ルーン | 「相手フィールドに赤がいない間アタックできない」＋相手アタック時の条件付き効果 |
+| BS04-042 | 獣使いドヴェルグ | カード名条件で「アタックできない」効果**そのものを無効化**する（効果の無効化層） |
+| BS04-054 | アルカナソルジャー・サンク | 相手マジックの**対象を絞り込む**置換（対象変更） |
+| BS04-088 | 栄光の表彰台 | 禁止カード。コスト支払いをデッキ破棄で代替するルール置換 |
+| BS04-090 | ニーベルングリング | カード名条件＋「相手だけ破壊したとき」の条件付きバトル効果 |
+| BS05-079 | スリーカード | 「数を数えるとき3体分」。**実装しない判断済み**（DECISIONS.md 参照） |
+
+一部未実装（`partial`）8枚・簡略化（`simplified`）18枚の内訳は card-notes.json を参照。
+`simplified` の大半は「対象を選べず自動選択される」もので、`interactiveTargets` の
+choice 化が進めば解消する系統。
+
+### 台帳に載っていない未実装（2026-08-01 発見 → 2026-08-02 から解消中）
+
+**マジック48枚で「メイン：」側の効果が未実装なのに、card-notes.json に注意書きがない**問題。
+「メイン：〈固有の効果〉／フラッシュ：〈BP+N〉」という構造のマジックで、**フラッシュ側の
+単純な BP バフだけが構造化され、メイン側が丸ごと落ちていた**。
+スキップ自体は §5 の方針（既存アクションで完全表現できる場合のみ構造化）どおりの意図的なものだったが、
+**注意書きが無いためデッキビルダーで警告が出ず、プレイヤーには完全実装に見えていた**。
+
+**注意書きを足すのではなく、実装して解消する方針に切り替えた**（2026-08-02）。進捗:
+
+| バッチ | 内容 | 枚数 |
+| :-- | :-- | --: |
+| 1 | コア／ゾーン操作系（コールオブロスト・バスターファランクス・インフェルノアイズ等） | 16 ✅ |
+| 2 | `lendSelfThisTurn` の継続効果（パーフェクトガード・ポテンシャルパワー・キラーテレスコープ等） | 8 ✅ |
+| 3a | レベル読み替え（フォーカード・ジャッジメントライツ・スピリットイリュージョン・アタックシフト・ブリッツ） | 5 ✅ |
+| 残り | プレイヤー選択／新概念を要するもの（下記19枚） | 19 |
+
+残り19枚（`data/cards.json` を機械照合。2026-08-02 時点）:
+BS01-123 リターンドロー／BS01-130 チェンジングコア／BS01-132 ストームドロー／BS02-088 クロスファイア／
+BS02-090 マインドフレア／BS02-091 セブンスクリムゾン／BS02-094 ブラッディレイン／BS02-096 ディバインウィンド／
+BS02-098 キャストオフ／BS03-134 パペットストリング／BS03-146 ネクサスレジスター／BS03-147 ゴーレムクラフト／
+BS04-104 グラシアルブレス／BS04-108 ストレートフラッシュ／BS04-109 スイッチヒッター／BS04-114 タイダルタイド／
+BS05-069 トランスマイグレーション／BS05-070 ソウルクラッシュ／BS05-081 ネクサスブロケイド
+
+### スピリット／ネクサスの取りこぼし（2026-08-02 に機械照合で発見）
+
+「効果文の見出し数 > 実装エントリ数」で照合したところ、**効果が丸ごと落ちているカードが13枚**見つかった
+（実プレイで巨人王ランドルフ Lv3 が発動しないという報告が発端）。うち BS05-025 神樹ディオネアス・
+BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
+
+| cardId | 名前 | 落ちている効果 |
+| :-- | :-- | :-- |
+| BS03-096 | 巨人王ランドルフ | Lv3『アタック時』【粉砕】で破棄する枚数ぶんコアを相手リザーブへ |
+| BS04-063 | 二刀流のアムブローズ | Lv2-3『アタック時』【粉砕】で破棄したスピリット1枚につきBP+1000 |
+| BS04-075 | 伝説巨人ジュード | Lv2-3『アタック時』【粉砕】で破棄した中にネクサスがあれば回復 |
+| BS02-X07 | 巨神機トール | Lv1-3・Lv3『アタック時』の2件 |
+| BS03-017 | 幽霊船長シルバーシャーク | Lv2『破壊時』コア2個のスピリット1体を破壊できる |
+| BS03-059 | アルカナビースト・ペイラ | Lv3『自分のアタックステップ』「アルカナ」全体BP+2000 |
+| BS03-070 | 天使長エクスシア | Lv2-3『アタック時』紫のネクサスがあれば1ドロー |
+| BS03-X11 | 大天使ヴァリエル | Lv1-3『召喚時』緑/黄1色を指定しトラッシュのマジック回収 |
+| BS04-057 | 天使長セラフィー | Lv1-3『召喚時』天霊を好きなだけ無償召喚 |
+| BS04-X14 | 魔界七将パンデミウム | Lv2-3 の敗北時誘発／Lv3『破壊時』お互い手札5枚破棄 |
+| BS01-025 | 要塞龍ギガ | Lv2『バトル時』勝ったとき自身のコアを他へ自由配置 |
+
+**13枚のうち8枚がキーワード持ち**（【粉砕】【光芒】【呪撃】）という強い偏りがある。
+`effects` に `{"kind":"keyword"}` を1件書いた時点で「実装済み」と見なされ、
+**同じカードの2つ目の効果が落ちる**というパターンが繰り返されている。
+なお【粉砕】で破棄した枚数・内容を参照する器（ランドルフ／アムブローズ／ジュード）はまだ無い。
+
+この照合方法では**「見出し数が一致していて中身が違う」ケースは検出できない**（1つの見出しに動作が
+2つ書かれていて片方だけ実装、など）。全609枚を「効果文の一節 ↔ 実装エントリ」で1対1照合する
+パスを弾ごとに回すのが確実。
+
+同様の台帳漏れがスピリット／ネクサスにもある（例: BS01-100 ルビーの太陽 Lv2 の
+「白のスピリットはコア増減で疲労する」）。
+
+検出方法（`data/cards.json` を python3 でパースする）:
+
+- **マジック**: `effect` テキストが「メイン：」と「フラッシュ：」の両方を持ち、
+  かつ**本文が異なる**のに、`effects` の `kind:"magic"` の `timing` が片方しか無いもの
+  → 48件検出（全件 `timing:"flash"` のみ実装。うち注意書きありは0件）
+- **スピリット／ネクサス**: 効果テキストの見出し行数（`Lv1･Lv2` / `『…』`）が
+  `effects` 件数を上回るもの → 133件が候補に挙がるが**誤検出が多い**
+  （1エントリの `levels` が複数レベルを兼ねるため）。個別確認が必要
+
+**残作業**: (1) 未着手のバッチ3〜4（24枚）の実装、(2) 実装しないと判断したものへの `partial` 注記、
+(3) `npm run validate:notes` への網羅性チェックの組み込み。
+現状の `validate:notes` は注意書きと cards.json の整合は見るが、
+**「注意書きが無いこと」自体は検出できない**（上記48件が長く見過ごされた原因）。
 
 ---
 
 ## 5. 既知の簡略化・今後の課題
 
-### BS02 の未対応20枚（表示のみで確定。再開する場合の分類）
+### 未着手の課題
 
-| 分類 | カード |
-| :-- | :-- |
-| 対話的な選択が本質 | コキュートス（スピリット/ネクサス択一）・クルーク（好きな系統）・アントマンLv2（好きなだけ召喚）・クロスシザース（ネクサス指定） |
-| 破壊への割り込み（置換・復活） | チャガマル・紫水晶の森・鏡の回廊e1 |
-| 効果無効・対象変更 | 鏡の回廊e2・封印された魔導書 |
-| バトル解決の置換 | エンジェルボイス（Lv比較バトル） |
-| 単発の新概念 | プレシオス・ラングリーズ（破壊時コア移譲）・スクルディア（回復ロック）・スレイプホース（マジック反応バフ）・リップ・ケン（能力付与）・オベロLv2-3（名前扱い）・クラン（コスト扱い）・アディショナルカラー（色付与）・ケルル・ベロス（強奪。禁止カード）・ミカファール・デストロードe2（破壊コア数連動）・トールe1/e3（選択コスト）・決闘台地e2・尖兵e2 ほか部分未対応 |
+#### ~~範囲コア奪取が【装甲】等の耐性を素通りする~~ — **2026-08-10 解消**
+
+「1体ずつ選んで取る」効果（`coreRemove` 等）は候補選び（`pickEnemy*`）が装甲・免疫を弾いていたが、
+「範囲でまとめて奪う」効果は候補を自前で走査していたため、**【装甲】もバトル中のコア保護
+（BS05茨の決戦地Lv1）もコア下限（BS08聖なる柱状彫刻）も素通り**していた。根本原因は、
+それらのハンドラが共通ヘルパーを通さず `inst.cores -= n` を直接いじっていたこと。
+
+対応: `removeCores` / `removeCoresToTrash` / `removeCoresToVoid` が**実際に取り除けた数を返す**ように
+してから、範囲側のハンドラをそこへ寄せた。手前には共通の `canTakeCoresFrom`
+（判定軸は `returnAllToHand` と同じ）を置いている。回帰テストは `scripts/smoke/part154.ts`。
+
+**残っている穴**: ネクサス上のコアと、コアを入れ替える系（`swapOpponentCores` 等）はまだ
+共通ヘルパーを通っていない。ネクサスには装甲・維持コアの概念が無いため実害は小さいが、
+コア下限は本来効くはず（`data/card-notes.json` の BS08-059 に記載）。
+
+### 残りの未対応カード（**枚数は `data/card-notes.json` が唯一の実態**。下表は 2026-08-10 時点）
+
+**BS01〜BS03 に「表示のみ」のカードは1枚も残っていない**（かつてここにあった「BS02 の未対応20枚」の表は
+すべて解消済みのため削除した）。現在の残りは `data/card-notes.json` の状態で数えるのが正確:
+
+| 状態 | 枚数 | 内訳 |
+| :-- | --: | :-- |
+| `unimplemented`（効果が発揮されない） | 0 | **0枚**。全906枚が何らかの形で構造化済み（2026-08-10 達成） |
+| `partial`（一部のレベル・節だけ未実装） | 1 | BS02-063 のみ。**禁止カードのため実装しない方針**なので、実質の残りは0枚（2026-08-10 達成） |
+| `simplified`（原作と挙動が異なる簡略化） | 28 | 対戦は成立する。カード詳細に注記を表示している |
+
+**`docs/design/EFFECT_GAPS_PLAYBOOK.md` が対象にしていた実装漏れは 2026-08-07 に解消済み**
+（`npm run validate:gaps` のベースラインは 17 件 → 5 件。残り5件はすべて上表の見送り分で、
+`data/card-notes.json` に理由を明記してある）。
 
 ### BS02 構造化で洗い出された未対応概念（履歴。対応済みは取り消し線）
 
@@ -754,21 +1465,28 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 - ~~ネクサス破壊への誘発トリガー（アーケオルニ）／相手のブロック宣言への攻撃側誘発（バット・バット・シーザー）／
   レベル指定の全体疲労（デストロードLv1）／色指定の全体破壊（ケンドラゴス。自動色指定で簡略化）~~
   — **バッチ2で対応済み（2026-07-17）**。デストロードLv2（破壊コア数連動）とプレシオス（条件付き・ネクサス版）は未対応のまま
-- **条件付きレベル変更**「スピリット2体以下の間Lv3として扱う」（ジャグリーン）
+- ~~**条件付きレベル変更**「スピリット2体以下の間Lv3として扱う」（ジャグリーン）~~ — **対応済み**（kind "levelAs" の condition maxOwnSpirits）
 - ~~レベル基準のブロック制限（スプラー・デースペル）~~ / ~~回復状態への指定アタック（オルカリア）~~ /
   ~~色フィルタ回復・fieldEvent（エンジュ・大聖堂）~~ / ~~系統カウンタ（カーバルク）~~ /
   ~~コスト指定全回復（ローヤルポーション）~~ / ~~自陣営破壊＋コスト連動コア獲得（プリンシパール）~~
   — **エンジン小拡張バッチで対応済み（2026-07-17）**
-- **条件付き・ネクサス版の色指定全体破壊**（プレシオス。ネクサス3色以上条件＋ライフ減少時の追撃も未対応）
-- **ライフ被弾コアの行き先変更**（スライミー: リザーブでなくボイドへ）
-- **自分か相手を選べる対象**（シーザーの疲労破壊）、**スピリット/ネクサス択一の対象**（コキュートス）
-- **コア増加の検知**（夢魔の寝所）、**破壊からの復活**（紫水晶の森）、
-  **自ネクサス破壊をコストにする効果**（サクリファイス）、**自身と同BPの破壊対象**（プテラトマホーク）
+- ~~プレシオス／スライミー／シーザー／コキュートス／夢魔の寝所／紫水晶の森／サクリファイス／
+  プテラトマホーク~~ — **いずれも構造化済み**（2026-08-01 に実データで確認。紫水晶の森のみ Lv2 が partial）
 
 - フラッシュの交互優先権パス・ブロック宣言後の追加フラッシュは実装済み（バトル中のみ）。
   メインステップのフラッシュ（バトル外）は優先権制の対象外
 - コスト支払いはスピリット上・**ネクサス上**のコアとの併用に対応済み（2026-07-19 対戦体験改善②。
   ネクサスは維持コア割れでも消滅せずレベルが下がるだけ。クライアントの支払いモードもネクサスクリック対応）
+- **ネクサスもメインステップの手動コア移動（`moveCore`）でレベルを上げ下げできる**（2026-08-01）。
+  従来は `findSpirit` のみを見ていたため、配置時に指定したレベルから変えられなかった。
+  ネクサスの Lv1 は全カード0コアなので、既存の維持コア判定のままコア0まで戻せる。
+  `exhaustOnManualCoreAdd`（夢魔の寝所／魔影街）は効果文が「コアの数を増やした**スピリット**」のため
+  ネクサスへの追加では発火させない
+- **「置くコア」（指定Lvぶんのコア）もフィールドのコアで賄える**（2026-08-01 利用者確認）。
+  `paySources` の上限は `cost + maintain`。フィールドから取ったコアは**先にコストへ充当し、
+  余りを置くコアへ**回す（コスト充当分はトラッシュへ、置くコア分は召喚/配置したカードの上へ直接置かれる）。
+  召喚レベル選択UIは、リザーブだけでは足りないレベルを「フィールドから取得」と表示して選べるようにしている。
+  **【神速】召喚だけは基礎ルールでリザーブのみ**（`sokuPaySourceGrant` が緩和する。上のキーワード表を参照）
 - ブロック後フラッシュ中に攻撃側／ブロック側が破壊された場合は、双方パス時の
   `resolveBattle` の不在ガードで安全終了する簡略実装（破壊時点での即時バトル終了は未対応）
 - マジックの対象選択UIは実装済み。誘発効果の対象は **実対戦では選択式**（`GameState.interactiveTargets`。
@@ -784,8 +1502,6 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 - マジックの構造化は「タイミングの文面が既存アクション（複合可）で完全表現できる場合のみ」。
   条件付き・色選択・未対応概念（効果無効・効果耐性・バトル終了系など）はスキップ
   （バウンス・コア操作系は `returnToHand` / `returnToDeckTop` / `coreCharge` / `lifeCharge` / `coreGain` で対応済み）
-- オフェンシブオーラ（BS01-116）は「アタック中の自分スピリットすべて」を単体 bpBuff で簡略化
-  （現エンジンは同時アタック1体のため等価）
 - クライアントの `magicTargetSide` はタイミング内の**最初の**効果で対象側を判定する。
   複合効果で対象付きアクションが2番目以降に来ると対象選択UIが誤判定する可能性
   （現構造化データでは該当なし）
@@ -826,10 +1542,52 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 | `npm run smoke:quiet` | 失敗と集計のみ表示（全 ✅ 行を出さない。委譲時はこちらを使わせる） |
 | データ取り込みの検証 | `python3 scripts/fetch_wiki_cards.py --set BS04 --refer '第四弾：龍帝' --pages 3 --verify` |
 
-smoke テストの本体は `scripts/smoke/part1〜58.ts` に分割（`scripts/smoke.ts` はランナー、
+| `npm run validate:cards` | cards.json の構造検査（型検査では止まらないデータ誤りの本体。costMod mode:"set" の setTo 必須、TargetFilter の旧フィールド残存・未知の軸など） |
+| `npm run coverage:effects` | **実行時カバレッジ**。HEAD の使い捨て worktree に計測コードを差し込んで smoke を回し、どの効果エントリが実際に適用されたかを数える（`--all` で ★一覧を全件表示） |
+
+smoke テストの本体は `scripts/smoke/part1〜135.ts` に分割（`scripts/smoke.ts` はランナー、
 共通ヘルパー＝assert/act/テスト用 runTurnStart/summary は `scripts/smoke/helpers.ts`）。
 テストを追加するときは新しい partN.ts を作って smoke.ts に import を1行足す。
-現在の合格数は **2,194件**（part57＝TargetFilter 直交化の回帰、part58＝多色カード対応の回帰）。
+現在の合格数は **5,296件**。
+
+### 実行時カバレッジの読み方（2026-08-08 時点）
+
+`coverage:effects` は3つの指標を出す。**★が最重要**で、「カードは場に出ているのに
+その効果行だけ一度も適用されていない＝通っているつもりで通っていない」を指す。
+
+| 指標 | 現在値 |
+| :-- | :-- |
+| ★ 場に出ているのに未適用 | 49件（triggered=25 / aura=6 / constraint=4 ほか） |
+| (a) 一度も実行されていない action.type | 1種（`noop`＝BS06-107。意図どおり何もしない） |
+| (b) 手で組んだ action でしか実行されていない（カードデータ経由が未検証） | 2種 |
+| action を持つ効果の実行率 | 552/653（84.5%） |
+| 継続効果（計測対応済み）の実行率 | 313/356（87.9%） |
+| 継続効果（未計測の kind） | 30件（22種。nameAsGrant / magicTargetRedirect 等の後発 kind） |
+
+**プール全体を回すハーネス**（2026-08-08 追加。カードIDを直書きせずデータから列挙するので、
+新しい弾で同型のカードが増えても自動的に検証対象に入る）:
+
+| パート | 対象 |
+| :-- | :-- |
+| part133 | マジックのフラッシュ側「このターンの間、スピリット1体をBP+N」82件 |
+| part134 | 【神速】12枚／【覚醒】10枚／【激突】4枚 |
+| part135 | 【装甲】16件／【転召】12枚／【粉砕】9枚／【呪撃】10枚／【光芒】9枚／【暴風】4枚 |
+
+**⚠️ 計測が丸ごと no-op になる事故に注意**（2026-08-08）。GameState.ts へ差し込む記録コードが
+`fs.writeFileSync` を使っていたが、カード読み込みが `data/loadCards.ts` へ移って同ファイルの
+`fs` import が消えたため ReferenceError になり、それを `catch` が飲んで **act/inst の記録が
+丸ごと0**になっていた（アクション実行率が実際の 74% に対し 2.3% と表示されていた）。
+現在は `require("fs")` を使い、3つの記録ファイルが揃っていなければ落とす検査を入れてある。
+
+**⚠️ 計測点の追随が要る**: 走査点を増やす／改名するとカバレッジが誤検出になる。実例——
+`costMod` の `amount` → `setTo` 改名で計測スクリプトが起動時に落ちた（2026-07-30 修正）。
+装甲の `keywordGrant` は `hasContinuousKeywordGrant` を通らず
+`refreshLevelAsOverrides` が `armorColorsGranted` へ materialize する別経路のため、
+実際に効いているのに「未適用」と出ていた（同日、materialize 地点にも計測点を追加）。
+2026-08-08 には差し込みアンカー13箇所がエンジンの変更（`instIsVanilla` への一本化、
+`hasActiveGlobalConstraint` への統合、`exhaustSpirit` の一元化、levelAs の分岐追加）とズレていた。
+**【暴風】は挙動を対になる `triggered` エントリが持つ**ため、keyword エントリ自体を読むのは
+颶風高原が指定数を引く1箇所だけ——そこが計測点になる。
 
 ---
 

@@ -12,7 +12,7 @@ import {
     currentLevel,
     effectiveCost,
     getCard,
-    lv1Cores,
+    minLevelCores,
     runTurnStart,
 } from "./helpers"
 
@@ -26,7 +26,7 @@ console.log("=== ネクサス上のコアのみで支払い（BS01-098 燃えさ
     runTurnStart(s)
 
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     // p1フィールドにネクサス支払い元（燃えさかる戦場、コア3個＝Lv2状態）を配置
     const nexus = createInstance("BS01-098", s.turn, 3)
@@ -62,7 +62,7 @@ console.log("=== スピリット＋ネクサス併用でコストを分割払い
     runTurnStart(s)
 
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     const spiritPayer = createInstance("BS01-001", s.turn, 5)
     s.players.p1.field.spirits.push(spiritPayer)
@@ -149,13 +149,15 @@ console.log("=== paySources合計がコストを超える場合の拒否（ネ�
     s.players.p1.reserve = 10
     const cost = effectiveCost(s, "p1", leewolfCard)
 
+    // ネクサス上のコアもコスト＋置くコアに充当できる（上限は cost + 維持コア）
+    const leewolfMaintain = minLevelCores(leewolfCard)
     assert(
         act(s, "p1", {
             type: "summon",
             handIndex: 0,
-            paySources: [{ instanceId: nexus.instanceId, count: cost + 1 }],
+            paySources: [{ instanceId: nexus.instanceId, count: cost + leewolfMaintain + 1 }],
         }) !== null,
-        "ネクサス経由でも過払い（合計 > コスト）は拒否される（維持コアは必ずリザーブから）",
+        "ネクサス経由でも過払い（合計 > コスト+置くコア）は拒否される",
     )
     assert(nexus.cores === 5, "拒否された支払いではネクサスのコアは変化しない")
 }

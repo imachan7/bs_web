@@ -1,69 +1,34 @@
 // smoke テストのランナー（本体は scripts/smoke/ に分割。npm run smoke / smoke:quiet で実行）
-// 新しいテストは scripts/smoke/ に partN.ts を追加してここに import を足す
-import "./smoke/part1"
-import "./smoke/part2"
-import "./smoke/part3"
-import "./smoke/part4"
-import "./smoke/part5"
-import "./smoke/part6"
-import "./smoke/part7"
-import "./smoke/part8"
-import "./smoke/part9"
-import "./smoke/part10"
-import "./smoke/part11"
-import "./smoke/part12"
-import "./smoke/part13"
-import "./smoke/part14"
-import "./smoke/part15"
-import "./smoke/part16"
-import "./smoke/part17"
-import "./smoke/part18"
-import "./smoke/part19"
-import "./smoke/part20"
-import "./smoke/part21"
-import "./smoke/part22"
-import "./smoke/part23"
-import "./smoke/part24"
-import "./smoke/part25"
-import "./smoke/part26"
-import "./smoke/part27"
-import "./smoke/part28"
-import "./smoke/part29"
-import "./smoke/part30"
-import "./smoke/part31"
-import "./smoke/part32"
-import "./smoke/part33"
-import "./smoke/part34"
-import "./smoke/part35"
-import "./smoke/part36"
-import "./smoke/part37"
-import "./smoke/part38"
-import "./smoke/part39"
-import "./smoke/part40"
-import "./smoke/part41"
-import "./smoke/part42"
-import "./smoke/part43"
-import "./smoke/part44"
-import "./smoke/part45"
-import "./smoke/part46"
-import "./smoke/part47"
-import "./smoke/part48"
-import "./smoke/part49"
-import "./smoke/part50"
-import "./smoke/part51"
-import "./smoke/part52"
-import "./smoke/part53"
-import "./smoke/part54"
-import "./smoke/part55"
-import "./smoke/part56"
-import "./smoke/part57"
-import "./smoke/part58"
-import "./smoke/part59"
-import "./smoke/part60"
-import "./smoke/part61"
-import "./smoke/part62"
-import "./smoke/part63"
-import "./smoke/part70"
-import { summary } from "./smoke/helpers"
+//
+// 新しいテストは scripts/smoke/partN.ts を追加するだけでよい（**ここへの import 追記は不要**。
+// ファイル名から自動で拾って番号順に実行する）。
+//
+// パートごとに try/catch で囲っているのは対話モード（--interactive）のため。
+// 対話モードでは選択結果が非対話時と変わるので、**テスト本体が落ちる**ことがある
+// （例：期待した位置にスピリットがおらず undefined を参照する）。それは engine のバグではなく
+// テストコードの前提崩れなので、1件で残り全パートを止めないよう捕捉して次へ進む。
+// 通常モードでは従来どおり即座に投げ直す（挙動を変えない）。
+import { readdirSync } from "node:fs"
+import { join } from "node:path"
+import { noteHarnessError, summary } from "./smoke/helpers"
+
+const INTERACTIVE =
+    process.argv.includes("--interactive") || process.env.SMOKE_INTERACTIVE === "1"
+
+const dir = join(__dirname, "smoke")
+const parts = readdirSync(dir)
+    .map((f) => /^part(\d+)\.ts$/.exec(f))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ file: `./smoke/part${m[1]}`, n: Number(m[1]) }))
+    .sort((a, b) => a.n - b.n)
+
+for (const part of parts) {
+    try {
+        require(part.file)
+    } catch (e) {
+        if (!INTERACTIVE) throw e
+        noteHarnessError(`part${part.n}`, e as Error)
+    }
+}
 
 summary()

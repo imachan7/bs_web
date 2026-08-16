@@ -42,6 +42,8 @@ console.log("=== BS03-003 ドラグノ暗殺者 Lv2：呪撃/神速持ちにブ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: assassin.instanceId }) === null, "暗殺者でアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err1 = act(s, "p2", { type: "block", instanceId: sokuBlocker.instanceId })
     assert(err1 !== null, "【神速】持ちのリーヴォルフはブロックできない")
     const err2 = act(s, "p2", { type: "block", instanceId: jugekiBlocker.instanceId })
@@ -122,6 +124,8 @@ console.log("=== BS03-023 人造生命体No.44 Lv2：呪撃＋ブロック勝利
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "弱いゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: no44.instanceId }) === null, "No.44でブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")

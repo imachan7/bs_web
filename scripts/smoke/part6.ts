@@ -22,7 +22,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -37,6 +37,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -191,7 +192,7 @@ console.log("=== BS02-101 リフレクションアーマー：コスト2の自�
     s.players.p1.reserve = 10
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "リフレクションアーマーを使用")
     // p2からの赤ソースの破壊効果（フレイムダンス相当）を直接シミュレート
-    resolveAction(s, "p2", null, { type: "destroy", maxBp: 4000, count: 1 }, undefined, ["red"])
+    resolveAction(s, "p2", null, { type: "destroy", filter: { maxBp: 4000 }, count: 1 }, undefined, ["red"])
     assert(s.players.p1.field.spirits.includes(cost2a), "コスト2のドラグノ偵察兵は装甲で赤の破壊効果を防ぐ")
     assert(s.players.p1.field.spirits.includes(cost2b), "コスト2のテラノセイバーも装甲で赤の破壊効果を防ぐ")
     assert(!s.players.p1.field.spirits.includes(cost0), "コスト2以外のゴラドンは装甲が付与されず破壊される")
@@ -249,11 +250,13 @@ console.log("=== BS02-110 ヘビィゲート：コスト1以下のスピリッ�
         act(s, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null,
         "コスト2のattacker2はアタックできる",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) !== null,
         "コスト0のblockerはこのターンブロックできない",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターン終了")
     assert(act(s, "p2", { type: "nextPhase" }) === null, "p2がアタックステップへ移行")
     assert(
@@ -278,7 +281,7 @@ console.log("=== BS02-034 老賢樹トレントン：アタックでライフを
         act(s, "p1", { type: "attack", instanceId: trenton.instanceId }) === null,
         "老賢樹トレントンでアタック",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2がライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "p2がライフで受ける")
     assert(
         s.players.p1.reserve === reserveBefore + 1,
         "ライフを減らしたことでボイドからコア1個を自分のリザーブに置く",
@@ -353,6 +356,8 @@ console.log("=== BS02-048 竜戦車アースガルド Lv2：コスト8以外が�
         act(s, "p1", { type: "attack", instanceId: earthgard.instanceId }) === null,
         "アースガルドでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: notCost8.instanceId }) !== null,
         "コスト8以外のnotCost8はブロックできない",
@@ -382,6 +387,8 @@ console.log("=== BS02-X07 巨神機トール：赤のアタッカーをブロッ
         act(s, "p1", { type: "attack", instanceId: redAttacker.instanceId }) === null,
         "赤のredAttackerでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールがブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2がパス（防御側から優先権）")
     assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")
@@ -391,6 +398,8 @@ console.log("=== BS02-X07 巨神機トール：赤のアタッカーをブロッ
         act(s, "p1", { type: "attack", instanceId: greenAttacker.instanceId }) === null,
         "緑のgreenAttackerでアタック",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: thor.instanceId }) === null, "トールが再度ブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "p2がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")

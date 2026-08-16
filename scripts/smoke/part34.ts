@@ -6,6 +6,7 @@
 //   - アクション: exhaustOpponentToMatch（BS03-139 セイムタイアード）
 import {
     act,
+    takeLifeAndResolve,
     assert,
     createGame,
     createInstance,
@@ -30,7 +31,7 @@ console.log("=== BS03-047 硝子の女神フレイア：アタッカーBP<=フ�
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "attackerでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(s.players.p2.life === lifeBefore, "アタッカーBP<=フレイアBPのためライフは減らなかった")
 }
 
@@ -49,7 +50,7 @@ console.log("=== BS03-047 硝子の女神フレイア：アタッカーBPがフ�
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "attackerでアタック")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(s.players.p2.life === lifeBefore - 1, "アタッカーBPがフレイアBPを超えるためライフが1減った")
 }
 

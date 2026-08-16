@@ -27,7 +27,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -42,6 +42,8 @@ import {
     DECK_SIZE,
     assert,
     act,
+    declareBlock,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -97,7 +99,7 @@ assert(act(state, "p1", { type: "nextPhase" }) === null, "アタックステッ�
 assert(act(state, "p1", { type: "attack", instanceId: inst.instanceId }) === null, "アタック宣言できる")
 assert(state.battle !== null, "バトルが発生")
 assert(act(state, "p1", { type: "takeLife" }) !== null, "アタック側のライフ受けは拒否")
-assert(act(state, "p2", { type: "takeLife" }) === null, "防御側はライフで受けられる")
+assert(takeLifeAndResolve(state, "p2") === null, "防御側はライフで受けられる")
 assert(state.players.p2.life === 4, "p2のライフが4になる")
 assert(state.players.p2.reserve === 5, "ライフのコアがリザーブへ移動（4+1）")
 assert(state.battle === null, "バトル終了")
@@ -119,7 +121,7 @@ assert(act(state, "p1", { type: "nextPhase" }) === null, "p1アタックステ�
 const goradon = state.players.p1.field.spirits[0]!
 assert(act(state, "p1", { type: "attack", instanceId: goradon.instanceId }) === null, "ゴラドンでアタック")
 const leewolf = state.players.p2.field.spirits[0]!
-assert(act(state, "p2", { type: "block", instanceId: leewolf.instanceId }) === null, "リーヴォルフでブロック")
+assert(declareBlock(state, "p2", leewolf.instanceId) === null, "リーヴォルフでブロック")
 // ブロック宣言では即解決せず、フラッシュが再オープンされる（防御側に優先権）
 assert(state.battle !== null, "ブロック宣言直後はバトル継続")
 assert(state.isFlashTiming === true && state.priorityPlayer === "p2", "ブロック後フラッシュ再オープン・防御側に優先権")
@@ -224,7 +226,7 @@ console.log("=== フラッシュ優先権（交互パス） ===")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(s.isFlashTiming === false, "2回連続パスでフラッシュ終了")
     const lifeBefore = s.players.p2.life
-    assert(act(s, "p2", { type: "takeLife" }) === null, "フラッシュ終了後はライフで受けられる")
+    assert(takeLifeAndResolve(s, "p2") === null, "フラッシュ終了後はライフで受けられる")
     assert(s.players.p2.life === lifeBefore - 1, "ライフが1減る")
     assert(s.battle === null, "バトル終了でフラッシュ状態もリセット")
 }
@@ -251,6 +253,8 @@ console.log("=== ブロック宣言後の追加フラッシュ ===")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ゴラドンでアタック")
     assert(s.priorityPlayer === "p2", "アタック直後は防御側に優先権")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
 
     // ブロック宣言 → 即解決せずフラッシュ再オープン（防御側から優先権）
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "リーヴォルフでブロック")
@@ -399,11 +403,11 @@ console.log("=== 疲労付与・疲労破壊アクション ===")
     assert(low.isRested === false, "no-opの間に他の対象が疲労することはない")
 
     // destroyExhausted: 回復状態の対象を指定 → no-op（破壊されない）
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 }, low.instanceId)
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } }, low.instanceId)
     assert(s.players.p2.field.spirits.includes(low), "回復状態の対象へのdestroyExhaustedはno-op")
 
     // destroyExhausted: 対象未指定 → 疲労状態のスピリット（high）が自動選択され破壊される
-    resolveAction(s, "p1", null, { type: "destroyExhausted", count: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { rested: true } })
     assert(!s.players.p2.field.spirits.includes(high), "疲労状態のスピリットが破壊される")
     assert(s.players.p2.field.spirits.includes(low), "回復状態のスピリットはdestroyExhaustedの自動選択で選ばれない")
     assert(s.players.p2.trashCards.includes("BS01-001"), "破壊されたスピリットがトラッシュへ送られる")
@@ -538,7 +542,7 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     // リーヴォルフ（コスト2・維持1、緑軽減1）。緑シンボル持ちが場に出るたびに軽減が乗るため、
     // 実コストは召喚のたびに effectiveCost で動的に取得する（ハードコードしない）
     const leewolfCard = getCard("BS01-053")
-    const leewolfMaintain = lv1Cores(leewolfCard)
+    const leewolfMaintain = minLevelCores(leewolfCard)
 
     // p1フィールドに支払い元スピリット（ゴラドン: 維持コア1、コア5個）を直接配置
     const payer = createInstance("BS01-001", s.turn, 5)
@@ -602,13 +606,15 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     s.players.p1.reserve = 10
     cost = effectiveCost(s, "p1", leewolfCard)
 
+    // フィールドのコアはコストにも「置くコア」にも充当できるため、上限は cost + 維持コア。
+    // それを1個でも超えると拒否される（2026-08-01 利用者確認により上限を cost から広げた）
     assert(
         act(s, "p1", {
             type: "summon",
             handIndex: 0,
-            paySources: [{ instanceId: payer2.instanceId, count: cost + 1 }],
+            paySources: [{ instanceId: payer2.instanceId, count: cost + leewolfMaintain + 1 }],
         }) !== null,
-        "過払い（合計 > コスト）は拒否される",
+        "過払い（合計 > コスト+置くコア）は拒否される",
     )
     assert(
         act(s, "p1", {
@@ -660,9 +666,13 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
     // フレイムテンペスト（コスト6・赤軽減2）を手札に。支払い元スピリットを先に配置してから実コストを動的に取得する
     // （赤シンボル持ちスピリットの数で軽減されるため、配置後に effectiveCost を計算しないと実際の支払い時と値がずれる）
     s.players.p1.hand[0] = "BS01-122"
-    const magicPayer1 = createInstance("BS01-001", s.turn, 4)
-    const magicPayer2 = createInstance("BS01-001", s.turn, 4)
-    s.players.p1.field.spirits.push(magicPayer1, magicPayer2)
+    // 支払い元は BP4000 のロクケラトプス（バニラ・コア5でLv3）。フレイムテンペストは
+    // BP3000以下のスピリットを**両陣営**破壊するため（anySide）、支払い後もBP4000を保つ個体を使う
+    const magicPayer1 = createInstance("BS01-002", s.turn, 5)
+    const magicPayer2 = createInstance("BS01-002", s.turn, 5)
+    // 直前のサブテストで置いた低BPスピリットは、破壊されるとコアがリザーブへ戻ってしまい
+    // 「リザーブは変化しない」の検証を汚すため、フィールドを支払い元2体だけにする
+    s.players.p1.field.spirits = [magicPayer1, magicPayer2]
     const magicCard = getCard("BS01-122")
     const magicCost = effectiveCost(s, "p1", magicCard)
     s.players.p1.reserve = 0 // リザーブは0、全額をスピリット上のコアで賄う
@@ -680,8 +690,8 @@ console.log("=== コスト支払い（スピリット上のコア） ===")
         }) === null,
         "マジックのコストを複数のスピリット上のコアに分割して支払える",
     )
-    assert(magicPayer1.cores === 4 - half, "支払い元1のコアが減る")
-    assert(magicPayer2.cores === 4 - rest, "支払い元2のコアが減る")
+    assert(magicPayer1.cores === 5 - half, "支払い元1のコアが減る")
+    assert(magicPayer2.cores === 5 - rest, "支払い元2のコアが減る")
     assert(s.players.p1.field.spirits.includes(magicPayer1), "維持コアを上回るため支払い元1は生存")
     assert(s.players.p1.field.spirits.includes(magicPayer2), "維持コアを上回るため支払い元2は生存")
     assert(s.players.p1.reserve === 0, "リザーブは変化しない（全額スピリット上のコアで支払った）")
@@ -824,7 +834,7 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
         act(s, "p1", { type: "attack", instanceId: freshC.instanceId }) === null,
         "アタック不可扱いでない個体は通常通りアタックできる",
     )
-    assert(act(s, "p2", { type: "takeLife" }) === null, "バトルを解決してテストを進める")
+    assert(takeLifeAndResolve(s, "p2") === null, "バトルを解決してテストを進める")
 
     assert(act(s, "p1", { type: "endTurn" }) === null, "ターン終了できる")
     assert(

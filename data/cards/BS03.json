@@ -1,0 +1,8005 @@
+[
+ {
+  "cardId": "BS03-001",
+  "name": "火精サラマンダート",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-002",
+  "name": "エッジホッグ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-002-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-003",
+  "name": "ドラグノ暗殺者",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このスピリットのアタック時』\nこのスピリットは【神速】を持つスピリットにブロックされない。\nLv2『このスピリットのアタック時』\nこのスピリットは【呪撃】/【神速】を持つスピリットにブロックされない。",
+  "effects": [
+   {
+    "id": "BS03-003-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "soku"
+    }
+   },
+   {
+    "id": "BS03-003-e2",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "soku"
+    }
+   },
+   {
+    "id": "BS03-003-e3",
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "keywordFilter": "jugeki"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-004",
+  "name": "ブロントライデント",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のフィールドに【覚醒】を持つスピリットがいる間、このスピリットをBP+2000する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amount": 2000,
+     "condition": {
+      "ownHasKeyword": "awaken"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-005",
+  "name": "エンチュウ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "溶魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-006",
+  "name": "ランカフォリンクス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットと同じBPを持つスピリット1体を破壊できる。",
+  "effects": [
+   {
+    "id": "BS03-006-e1",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-006-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "exactBp": "selfBp"
+     },
+     "count": 1
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-007",
+  "name": "フレイム・エルク",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコアが1個以上置かれているネクサスすべてを破壊する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyAllNexusesWithCores"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-008",
+  "name": "剣竜ステゴラーサウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットと同じLvのスピリットにブロックされたとき、このスピリットをBP+3000する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "targetSameLevelAsSelf": true
+    },
+    "action": {
+     "type": "selfBuff",
+     "amount": 3000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-009",
+  "name": "火吹きメルト",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-010",
+  "name": "黒竜ヴリトラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP2000以下のスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS03-010-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 2000
+     },
+     "anySide": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-011",
+  "name": "竜騎将ディライダロス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nBP2000以下のスピリット1体を破壊できる。\nLv2『自分のアタックステップ』\nコア1個だけを置いている自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-011-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 2000
+     },
+     "count": 1
+    },
+    "optional": true
+   },
+   {
+    "id": "BS03-011-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "coresExact": 1,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-012",
+  "name": "水龍王リヴァイア",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコアが3個以下のスピリット1体を破壊できる。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分のトラッシュのスピリットカード1枚を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS03-012-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxCores": 3
+     },
+     "count": 1,
+     "anySide": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS03-012-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     3
+    ],
+    "battleRole": "attacker",
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-013",
+  "name": "ヘルスコルピオ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-014",
+  "name": "スカル・フィッシュ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "霊獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。",
+  "effects": [
+   {
+    "id": "BS03-014-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS03-014-e2",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-015",
+  "name": "魔草マインドラゴラ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットの破壊時』\n相手のスピリット1体の上に置かれたコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS03-015-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-016",
+  "name": "透明人間エクリア",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手がオープンして手元に置いてあるカードすべてを破棄し、そのカード1枚につき相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS03-016-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "discardOpponentTegamotoDestroyPer"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-017",
+  "name": "幽霊船長シルバーシャーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットの破壊時』\nコア2個が置かれているスピリット1体を破壊できる。",
+  "effects": [
+   {
+    "id": "BS03-017-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-017-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "anySide": true,
+     "filter": {
+      "cores": 2
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-018",
+  "name": "ダークレイス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-019",
+  "name": "魔界軍師ヘルミア",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分は手札1枚を選んで破棄する。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS03-019-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "discardSelfOne"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-019-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-020",
+  "name": "メガ・ハンプダンプ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "幽魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-021",
+  "name": "魔界伯爵ヴィール",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "呪鬼"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、その破壊したスピリットと同じLvのスピリットすべてを疲労させる。",
+  "effects": [
+   {
+    "id": "BS03-021-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaustAllByLevel",
+     "level": "lastBattleDestroyed"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-022",
+  "name": "暗礁の歌姫セレン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS03-022-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-023",
+  "name": "人造生命体No.44",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS03-023-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-023-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     2
+    ],
+    "battleRole": "blocker",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-024",
+  "name": "吸血騎士ノスフェラト",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 8,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族",
+   "戦騎"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットは、Lv1スピリットからブロックされない。\nLv2\n【呪撃】を持つ自分のスピリットすべては、Lv1スピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS03-024-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   },
+   {
+    "id": "BS03-024-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "keywordFilter": "jugeki",
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-025",
+  "name": "スタッグシザー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-026",
+  "name": "木精ドリアドナ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "樹魔",
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-027",
+  "name": "フルミンゴ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2\n自分の手札にある【神速】を持つスピリットカードすべてに軽減シンボル[緑]を与える。",
+  "effects": [
+   {
+    "id": "BS03-027-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     2
+    ],
+    "cardType": "spirit",
+    "keywordFilter": "soku",
+    "symbols": [
+     "green"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-028",
+  "name": "モグランナー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv2\nこのスピリットは、相手がデッキからカードをドローするとき回復する。",
+  "effects": [
+   {
+    "id": "BS03-028-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-028-e2",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-029",
+  "name": "マッハフライ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-030",
+  "name": "調教師ライナ兄弟",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、自分のフィールドにあるネクサス1つにつき、コア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "BS03-030-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToSelfPer",
+     "counter": "ownNexuses"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-031",
+  "name": "黒風のパンター",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n自分のリザーブにあるコア1個につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-031-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownReserve",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-032",
+  "name": "蜘蛛女アラクネット",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n相手のLv1スピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS03-032-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "filter": {
+      "level": [
+       1
+      ]
+     },
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-033",
+  "name": "ビートプリースト",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2：フラッシュ\n自分のリザーブのコア1個を自分のトラッシュに置くことで、このターンの間、自分の手札にある系統：「殻虫」を持つスピリットカード1枚に“【神速】このスピリットは手札からフラッシュのタイミングで召喚できる。このときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS03-033-e1",
+    "kind": "activated",
+    "timing": "flashBattle",
+    "levels": [
+     2
+    ],
+    "cost": {
+     "reserveToTrash": 1
+    },
+    "action": {
+     "type": "grantKeywordToHandCard",
+     "keyword": "soku",
+     "familyFilter": "殻虫",
+     "cardType": "spirit"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-034",
+  "name": "闘鶏ビシャモン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3\n系統：「爪鳥」を持つ自分のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-034-e1",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "爪鳥",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-035",
+  "name": "太陽花ゾンネ・ブルム",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個ずつを、系統：「樹魔」/「爪鳥」を持つ自分のスピリットすべての上に置く。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToAllOwnByFamily",
+     "families": [
+      "樹魔",
+      "爪鳥"
+     ],
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-036",
+  "name": "神鳥ピーゴッド",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 8,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのバトル時』\nBPを比べ相手のスピリットに破壊されたとき、ボイドからコア4個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\n系統：「爪鳥」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-036-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "爪鳥"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-036-e1",
+    "kind": "triggered",
+    "trigger": "onBattleLose",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "coreGain",
+     "count": 4
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-037",
+  "name": "ラタトスカ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS03-037-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-038",
+  "name": "アンジェラフィッシュ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-039",
+  "name": "笛吹きのヘイムダル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのブロック時』\nこのバトル終了時まで、相手はフラッシュタイミングで手札のカードを使用できない。",
+  "effects": [
+   {
+    "id": "BS03-039-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "lockFlash"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-040",
+  "name": "ベル・ダンディア",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "魔人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのブロック時』\n系統：「巨獣」を持つ自分のスピリット1体を回復させる。\nLv3『自分のコアステップ』\n自分のフィールドにカード名[ウル・ディーネ]、[ベル・ダンディア]、[スクルディア]がそろっているとき、コアステップで得られるコアを+1個する。",
+  "effects": [
+   {
+    "id": "BS03-040-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "family": "巨獣"
+     }
+    }
+   },
+   {
+    "id": "BS03-040-e2",
+    "kind": "coreStepBonus",
+    "levels": [
+     3
+    ],
+    "amount": 1,
+    "condition": {
+     "ownFieldHasNames": [
+      "ウル・ディーネ",
+      "ベル・ダンディア",
+      "スクルディア"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-041",
+  "name": "機人アスク",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-042",
+  "name": "海獣ジューゴン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "巨獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-043",
+  "name": "ホタルリ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "光虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤/紫】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS03-043-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red",
+     "purple"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-044",
+  "name": "鋼人スルト",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1【装甲：赤/白】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2【装甲：赤/紫/白】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS03-044-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1
+    ],
+    "colors": [
+     "red",
+     "white"
+    ]
+   },
+   {
+    "id": "BS03-044-e2",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "red",
+     "purple",
+     "white"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-045",
+  "name": "銀狐ハティ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+5000する。",
+  "effects": [
+   {
+    "id": "BS03-045-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-046",
+  "name": "一角獣アインホルン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-046-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-047",
+  "name": "硝子の女神フレイア",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nブロックされなかった相手のスピリットのBPがこのスピリットのBP以下のとき、そのスピリットのアタックでは自分のライフは減らされない。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "lifeDamageNegate",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-048",
+  "name": "鎧蛇竜ミッドガルズ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲竜",
+   "巨獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のフィールドにいる系統：「巨獣」を持つスピリット1体につき、このスピリットをBP+1000する。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS03-048-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownFamily": "巨獣"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-048-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "blocker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-049",
+  "name": "ミケネ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS03-049-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshOne"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-050",
+  "name": "キノコノコ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n自分がマジックの効果を使用するたび、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-050-e1",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "levels": [
+     2
+    ],
+    "condition": "selfIsAttacking",
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-051",
+  "name": "ドングリン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-052",
+  "name": "フロッガー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-053",
+  "name": "百面相のフラットフェイス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2\nこのスピリットは白のスピリットとしても扱う。\nLv3\nこのスピリットは紫のスピリットとしても扱う。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "colorAs",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "white"
+    ]
+   },
+   {
+    "id": "e2",
+    "kind": "colorAs",
+    "levels": [
+     3
+    ],
+    "colors": [
+     "purple"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-054",
+  "name": "アルカナドール・トリア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+  "effects": [
+   {
+    "id": "BS03-054-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-055",
+  "name": "ゴマザラシ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のフィールドに白のスピリットがいる間、このスピリットをBP+1000する。\nLv2『相手のアタックステップ』\n自分の白のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-055-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amount": 1000,
+     "condition": {
+      "hasOwnColorSpirit": "white"
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   },
+   {
+    "id": "BS03-055-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 1000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-056",
+  "name": "オチョゴ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドに緑のスピリットがいるとき、ボイドからコア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownFieldHasColorSpirit": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-057",
+  "name": "ジェルフィ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n自分のフィールドに紫のスピリットがいるとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownFieldHasColorSpirit": "purple"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-058",
+  "name": "妖精ティングリー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nこのターンの間、自分のスピリットすべては黄のスピリットとしても扱う。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "lendSelfThisTurn"
+    },
+    "optional": false
+   },
+   {
+    "id": "e1-cont",
+    "kind": "colorAs",
+    "levels": null,
+    "colors": [
+     "yellow"
+    ],
+    "target": "ownAll",
+    "lentOnly": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-059",
+  "name": "アルカナビースト・ペイラ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\nLv3『自分のアタックステップ』\nカード名に「アルカナ」と入っている自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-059-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-059-e2",
+    "kind": "aura",
+    "levels": [
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "nameIncludesFilter": "アルカナ",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-060",
+  "name": "ランプキン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-061",
+  "name": "苺っ娘ストロベリ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットの破壊時』\n【光芒】を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS03-061-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "keyword": "kobo"
+     }
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-062",
+  "name": "チワール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「遊精」を持つ自分のスピリットすべてをBP+1000する。\nLv2･Lv3\n系統：「小玩」を持つ自分のスピリットが破壊されたとき、そのスピリットすべてを自分の手札に戻す。",
+  "effects": [
+   {
+    "id": "BS03-062-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "遊精",
+     "amount": 1000
+    }
+   },
+   {
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "scope": "ownAll",
+    "familyFilter": "小玩",
+    "when": {},
+    "revived": {
+     "toHand": true
+    },
+    "id": "BS03-062-e2"
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-063",
+  "name": "ポニサス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-064",
+  "name": "薔薇人バロッサ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv2『自分のアタックステップ』\n自分の黄のマジックカードすべてを、コストを支払わずに使用できる。",
+  "effects": [
+   {
+    "id": "BS03-064-e1",
+    "kind": "magicFreeGrant",
+    "levels": [
+     2
+    ],
+    "colorFilter": "yellow",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-065",
+  "name": "天使キュリオ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\n自分のフィールドに緑のネクサスがあるとき、ボイドからコア1個をこのスピリット上に置く。\nLv2･Lv3『このスピリットのアタック時』\n自分のフィールドに緑のネクサスがあるとき、ボイドからコア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "ownFieldHasColorNexus": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "condition": {
+     "ownFieldHasColorNexus": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-066",
+  "name": "天使アルケー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の黄のマジックカードすべてに軽減シンボル[黄][黄]を与える。\nLv2\n自分の手札の黄のスピリットカードすべてに軽減シンボル[黄][黄]を与える。",
+  "effects": [
+   {
+    "id": "BS03-066-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "magic",
+    "cardColor": "yellow",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ]
+   },
+   {
+    "id": "BS03-066-e2",
+    "kind": "reductionGrant",
+    "levels": [
+     2
+    ],
+    "cardType": "spirit",
+    "cardColor": "yellow",
+    "symbols": [
+     "yellow",
+     "yellow"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-067",
+  "name": "アルカナプリンセス・アン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "四道"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nカード名に「アルカナ」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3\nコスト3の自分のスピリットすべては、カード名に「アルカナ」が入っているものとして扱う。",
+  "effects": [
+   {
+    "id": "BS03-067-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownNameIncludes": "アルカナ"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "kind": "nameAsGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "costFilter": 3,
+    "id": "BS03-067-e2"
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-068",
+  "name": "フォルトロス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-069",
+  "name": "イワトビペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "漂精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n相手がマジックの効果を使用するとき、軽減シンボルによるコストの軽減はできなくなる。\nLv2『自分のターン』\n相手がマジックの効果を使用するとき、軽減シンボルによるコストの軽減はできなくなる。",
+  "effects": [
+   {
+    "id": "BS03-069-e1",
+    "kind": "magicRestriction",
+    "restriction": "noReductionOpponent",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent"
+   },
+   {
+    "id": "BS03-069-e2",
+    "kind": "magicRestriction",
+    "restriction": "noReductionOpponent",
+    "levels": [
+     2
+    ],
+    "turn": "own"
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-070",
+  "name": "天使長エクスシア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\nLv2･Lv3『このスピリットのアタック時』\n自分のフィールドに紫のネクサスがあるとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS03-070-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-070-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "condition": {
+     "ownFieldHasColorNexus": "purple"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-071",
+  "name": "戦闘獣ブルトップ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-072",
+  "name": "槍兵のジェフリー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-073",
+  "name": "ストン・スタチュー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のデッキを上から1枚破棄する。",
+  "effects": [
+   {
+    "id": "BS03-073-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-074",
+  "name": "戦闘獣ドーベン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-074-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-075",
+  "name": "犬人マードック",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のメインステップ』\nマジック/ネクサスの効果で相手の手札にカードが加えられたとき、相手のフィールド/リザーブから、そのカード1枚につき、コア1個を相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS03-075-e1",
+    "kind": "fieldEvent",
+    "event": "opponentHandAdded",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "repeatPerCount": true,
+    "action": {
+     "type": "coreToOpponentTrashChoice",
+     "count": 1,
+     "includeReserve": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-076",
+  "name": "爪剣のラザラス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS03-076-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-077",
+  "name": "強襲兵のノーマン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分の手札にある青のネクサスカード1枚を、コストを支払わずに自分のフィールドに配置できる。",
+  "effects": [
+   {
+    "id": "BS03-077-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "hand",
+     "colors": [
+      "blue"
+     ]
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-078",
+  "name": "暴れトロル",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-079",
+  "name": "作戦参謀フォクシン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互い、ターンに1回しかマジックの効果を使用できない。",
+  "effects": [
+   {
+    "id": "BS03-079-e1",
+    "kind": "magicRestriction",
+    "restriction": "oncePerTurnAll",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-080",
+  "name": "ロック・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS03-080-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-081",
+  "name": "人馬巨兵ダンストン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-082",
+  "name": "シャークハンマー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは、自分のネクサスが破壊されたとき回復する。",
+  "effects": [
+   {
+    "id": "BS03-082-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-083",
+  "name": "熊男ベアード",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-084",
+  "name": "巨猫ブリンクス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nお互いデッキから1枚ドローする。\nLv2『このスピリットの破壊時』\n自分は、相手の手札1枚を内容を見ないで破棄する。",
+  "effects": [
+   {
+    "id": "BS03-084-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1,
+     "side": "both"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-084-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "discardOpponent",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-085",
+  "name": "ウッド・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2\n相手のネクサスすべてのLv2効果は発揮されない。",
+  "effects": [
+   {
+    "id": "BS03-085-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "opponentNexusesAll",
+    "treatAs": 1,
+    "sourceLevels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-086",
+  "name": "修理屋バラン・バラン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 7,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のフィールドに緑のネクサスがある間、【粉砕】によって相手のトラッシュにカードが置かれるたび、ボイドからコア1個をこのスピリット上に置く。",
+  "effects": [
+   {
+    "id": "BS03-086-e1",
+    "kind": "fieldEvent",
+    "event": "ownFunsaiMilled",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "repeatPerCount": true,
+    "condition": {
+     "ownFieldHasColorNexus": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-087",
+  "name": "戦闘獣ライノ・セーラス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n相手のデッキを上から、このスピリット上に置かれているコア1個につき、1枚破棄する。",
+  "effects": [
+   {
+    "id": "BS03-087-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": "selfCoresAtDestruction"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-088",
+  "name": "城壊しのデニス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+5000できる。",
+  "effects": [
+   {
+    "id": "BS03-088-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 5000
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-089",
+  "name": "ディープ・アーノルド",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-090",
+  "name": "斬竜刀のガイ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分か相手のフィールドに赤のスピリットがいる間、【粉砕】を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS03-090-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByKeyword",
+    "keywordFilter": "funsai",
+    "treatAs": "max",
+    "phase": "attack",
+    "turn": "own",
+    "condition": {
+     "anyFieldHasColorSpirit": "red"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-091",
+  "name": "戦闘獣バン・ファロー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "戦獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-092",
+  "name": "島持ちのフランシス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分の手札のネクサスカード1枚を破棄することで、このスピリットをBP+5000できる。",
+  "effects": [
+   {
+    "id": "BS03-092-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "selfBuffByHandDiscard",
+     "discardCardType": "nexus",
+     "amount": 5000
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-093",
+  "name": "牛人ブルタニア",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-093-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-094",
+  "name": "偉大なる鍛冶師バギン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このスピリットのアタック時』\n自分のフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。\nLv2『このスピリットのアタック時』\nお互いのフィールドにあるネクサス1つにつき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-094-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "ownNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-094-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": "allNexuses",
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-095",
+  "name": "奇術師オリバー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のスタートステップ』\n相手の手札が4枚以上のとき、相手は手札が3枚になるようにカードを選んで破棄する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "discardOpponentDownTo",
+     "limit": 3
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-096",
+  "name": "巨人王ランドルフ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 9,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『このスピリットのアタック時』\n相手のスピリット1体の上から、このスピリットの【粉砕】によって破棄されるカード1枚につき、コア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS03-096-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-096-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 0,
+     "countCounter": "lastFunsaiTotal"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-097",
+  "name": "鷹人ホークアイ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットのアタックで相手のライフを減らしたとき、相手のデッキを上から5枚破棄する。\nLv2『このスピリットのアタック時』\n自分のフィールドに紫のネクサスがあるとき、このスピリットはブロックされない。",
+  "effects": [
+   {
+    "id": "BS03-097-e1",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 5
+    },
+    "optional": false
+   },
+   {
+    "kind": "constraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "requireOwnFieldColorNexus": "purple"
+    },
+    "id": "BS03-097-e2"
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-098",
+  "name": "戦闘竜ワイヴァーン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "戦獣",
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1『相手のアタックステップ』\nこのスピリットは、相手のスピリットをブロックできない。\nLv1･Lv2『このスピリットのアタック時』\nこのスピリットは、Lv1以下のスピリットにブロックされない。",
+  "effects": [
+   {
+    "id": "BS03-098-e1",
+    "kind": "constraint",
+    "levels": [
+     1
+    ],
+    "constraint": {
+     "type": "cantBlock"
+    }
+   },
+   {
+    "id": "BS03-098-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "unblockableBy",
+     "levelFilter": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-099",
+  "name": "虎拳士タイガ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS03-100",
+  "name": "武器コレクターのゴドフリー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるネクサスカードすべてを、コストを支払わずに配置できる。\nLv2･Lv3『このスピリットのアタック時』\n自分の青のネクサス1つにつき、このスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-100-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+     ],
+     "all": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS03-100-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "selfBuffPer",
+     "counter": {
+      "ownNexusColor": "blue"
+     },
+     "amountPer": 1000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-101",
+  "name": "ボルカノ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、ボイドから、コア1個ずつを自分の青のネクサスすべての上に置く。",
+  "effects": [
+   {
+    "id": "BS03-101-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "voidCoreToOwnNexuses",
+     "colorFilter": "blue",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-102",
+  "name": "無法者の荒野",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべてをBP+2000する。\nLv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。",
+  "effects": [
+   {
+    "id": "BS03-102-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "vanillaFilter": true,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS03-102-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-103",
+  "name": "熾烈極める最前線",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、相手のBP1000以下のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【覚醒】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、破壊されたスピリットと同じBPを持つ相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS03-103-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 1000
+     },
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-103-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "winnerKeywordFilter": "awaken",
+    "selfMode": "source",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "sameBpAsBattleLoser": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-104",
+  "name": "運命分かつ岐路",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、自分はデッキから1枚ドローする。\nLv2『お互いのアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、自分か相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS03-104-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "vanillaOnly": true,
+    "byBattleOnly": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-104-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "vanillaWinnerOnly": true,
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "anySide": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-105",
+  "name": "暗礁海域",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のターン』\nコアが2個以下しか置かれていないスピリットすべては、系統をないものとして扱い、新たに得ることもない。\nLv2『自分のアタックステップ』\n自分のコスト2のスピリットすべてに“【呪撃】『このスピリットのアタック時』このスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS03-105-e1",
+    "kind": "familySuppression",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "anyAll",
+    "maxCores": 2,
+    "turn": "own"
+   },
+   {
+    "id": "BS03-105-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "grantKeywordAll",
+     "keyword": "jugeki",
+     "costFilter": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-106",
+  "name": "深緑の樹海",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個をこのネクサス上に置く。\nLv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき手札に戻る。",
+  "effects": [
+   {
+    "id": "BS03-106-e1",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "vanillaWinnerOnly": true,
+    "selfMode": "source",
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-106-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "revived": {
+     "toHand": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-107",
+  "name": "果て無き地平線",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のLv1スピリットすべては、バトルでBPを比べるときLv2BPを使用する。\nLv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、自分のリザーブにあるコア1個を自分のトラッシュに置くことで、手札に戻る。",
+  "effects": [
+   {
+    "id": "BS03-107-e1",
+    "kind": "battleBpAsLevel",
+    "levels": [
+     1,
+     2
+    ],
+    "fromLevel": 1,
+    "useLevel": 2,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
+    "id": "BS03-107-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "keywordFilter": "soku",
+    "when": {
+     "byBattle": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    },
+    "revived": {
+     "toHand": true
+    },
+    "cost": {
+     "reserveOneToTrash": true
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-108",
+  "name": "鋼に覆われた高空",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『相手のアタックステップ』\nステップ開始時、カードに効果の記述を持たない自分のスピリット1体を回復させる。\nLv2『相手のアタックステップ』\nステップ開始時、カードに効果の記述を持たない自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS03-108-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "vanilla": true
+     }
+    }
+   },
+   {
+    "id": "BS03-108-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "vanilla": true
+     },
+     "all": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-109",
+  "name": "極光の大地",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のスピリット上に置いてあるコアが、相手のスピリット/ネクサス/マジックの効果によってリザーブ/トラッシュに置かれたとき、ボイドから、そのスピリット1体につき、コア1個を自分のリザーブに置く。\nLv2『自分のコアステップ』\n自分のフィールドに系統：「武装」を持つスピリットがいるとき、コアステップで得られるコアを+1個する。",
+  "effects": [
+   {
+    "id": "BS03-109-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritCoresRemovedByOpponent",
+    "levels": [
+     1,
+     2
+    ],
+    "repeatPerCount": true,
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-109-e2",
+    "kind": "coreStepBonus",
+    "levels": [
+     2
+    ],
+    "amount": 1,
+    "condition": {
+     "ownFieldHasFamily": "武装"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-110",
+  "name": "星降る巡礼地",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n【光芒】を持つ自分のスピリットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n自分のスピリットが持つ【光芒】の効果は、『このスピリットのブロック時』にも発揮される。",
+  "effects": [
+   {
+    "id": "BS03-110-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "kobo",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   },
+   {
+    "id": "BS03-110-e2",
+    "kind": "koboOnBlock",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-111",
+  "name": "子供部屋 午前0時",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のLv1スピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。\nLv2『相手のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、BPを比べ相手のLv3スピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。",
+  "effects": [
+   {
+    "id": "BS03-111-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattleKillerLevel": 1
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": true
+    }
+   },
+   {
+    "id": "BS03-111-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "vanillaFilter": true,
+    "when": {
+     "byBattleKillerLevel": 3
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-112",
+  "name": "トランプの王国",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「四道」を持つ自分のスピリットすべては、相手のスピリット/ネクサス/マジックの効果で疲労しない。\nLv2『自分のアタックステップ』\n自分の黄のスピリットが破壊されたとき、系統：「四道」を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "exhaustImmunityGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "familyFilter": "四道",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
+    "id": "e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "colorFilter": "yellow",
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "family": "四道"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-113",
+  "name": "力奪う凱旋門",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手は、相手のフィールドにあるシンボルと同じ色を含まない、マジックカードを使用できない。\nLv2\n相手はコストを支払わなければ、マジックカードを使用できない。",
+  "effects": [
+   {
+    "id": "BS03-113-e1",
+    "kind": "magicRestriction",
+    "restriction": "colorLockOpponent",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-113-e2",
+    "kind": "magicRestriction",
+    "restriction": "noFreeCastOpponent",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-114",
+  "name": "サファイアの城壁",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nカードに効果の記述を持たない自分のスピリットすべては、そのスピリット上に置かれているコアが1個のときLv1、コアが2個のときLv2、コアが3個以上のとき、そのスピリットが持つ最高Lvとして扱う。\nLv2\n自分のフィールドに効果の記述を持たないスピリットが3体以上いる間、自分のネクサスすべては相手のスピリット/ネクサス/マジックの効果によって破壊されない。",
+  "effects": [
+   {
+    "id": "BS03-114-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsVanilla",
+    "treatAs": "coresScaled",
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS03-114-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "ownNexusIndestructible"
+    },
+    "condition": {
+     "ownVanillaSpiritsAtLeast": 3
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-115",
+  "name": "崩壊する戦線",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n【粉砕】で相手のデッキを破棄するとき、破棄するカードを+2枚する。\nLv2『自分のアタックステップ』\n【粉砕】を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+  "effects": [
+   {
+    "id": "BS03-115-e1",
+    "kind": "funsaiBonus",
+    "levels": [
+     1,
+     2
+    ],
+    "amount": 2
+   },
+   {
+    "id": "BS03-115-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsByKeyword",
+    "keywordFilter": "funsai",
+    "treatAs": "max",
+    "phase": "attack",
+    "turn": "own",
+    "sourceMinLevel": 2
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-116",
+  "name": "英雄の喪失",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のメインステップ』\n相手の手札にカードが加えられたとき、相手のデッキを上から、そのカード1枚につき1枚破棄する。\nLv2『お互いのアタックステップ』\n系統：「勇傑」を持つ自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、相手はデッキを上から5枚破棄する。",
+  "effects": [
+   {
+    "id": "BS03-116-e1",
+    "kind": "fieldEvent",
+    "event": "opponentHandAdded",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "repeatPerCount": true,
+    "action": {
+     "type": "mill",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS03-116-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "byBattleOnly": true,
+    "familyFilter": "勇傑",
+    "action": {
+     "type": "mill",
+     "count": 5
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-117",
+  "name": "士気高き大本営",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のスピリットが持つ【粉砕】の効果は、『このスピリットのブロック時』にも発揮される。\nLv2『お互いのアタックステップ』\n【粉砕】の効果で相手のデッキを破棄したとき、ボイドから、コア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS03-117-e1",
+    "kind": "funsaiOnBlock",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-117-e2",
+    "kind": "fieldEvent",
+    "event": "ownFunsaiMilled",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-118",
+  "name": "フォースドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分の手札が4枚になるまで、自分はデッキからドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-118-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-118-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "drawUpTo",
+     "size": 4
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-119",
+  "name": "バスターランス",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nLv1のネクサスすべてを破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-119-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-119-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroyNexus",
+     "count": 0,
+     "all": true,
+     "side": "both",
+     "levelFilter": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-120",
+  "name": "フレイムサイクロン",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nBP5000以下のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS03-120-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "maxBp": 5000
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-121",
+  "name": "ダブルハート",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,R",
+  "limited": false,
+  "effect": "フラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それに、それが持つシンボルと同じ色のシンボル1つを追加する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "addSymbolThisTurn",
+     "anySide": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-122",
+  "name": "フォールダウン",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nネクサスすべての上に置いてあるコアすべてを持ち主のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-122-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   },
+   {
+    "id": "BS03-122-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "nexusCoresToTrash",
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-123",
+  "name": "ネクロマンシー",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにある、系統：「無魔」を持つスピリットカードすべてを手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-123-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-123-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 0,
+     "all": true,
+     "familyFilter": "無魔"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-124",
+  "name": "ポイズンミスト",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のリザーブにあるコアを好きなだけ自分のトラッシュに置くことで、同じ数だけ相手のリザーブにあるコアを、相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS03-124-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreTradeToOpponentTrash"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-125",
+  "name": "ウィークネス",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\nスピリット1体の上に置いてあるコア1個だけを残し、それ以外を持ち主のリザーブに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-125-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-125-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "coreSqueezeOne",
+     "count": 1,
+     "anySide": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-126",
+  "name": "ポーションベリー",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nボイドからコア1個をスピリット1体の上に置く。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-127",
+  "name": "アイビィーケイジ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nBP2000以下のスピリットすべてを疲労させる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-127-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-127-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "exhaustAll",
+     "side": "both",
+     "maxBp": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-128",
+  "name": "マルチプルコア",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n疲労状態の自分のスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS03-128-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "coreGainPer",
+     "counter": "ownExhausted"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-129",
+  "name": "フロックリカバリー",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n系統1つを指定する。\n指定した系統を持つ自分のスピリット3体を回復させる。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshByFamilyAuto",
+     "count": 3
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-130",
+  "name": "メビウスリング",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nネクサス1つを持ち主の手札に戻す。\n相手のネクサスを手札に戻した場合、ボイドからコア1個を自分のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-130-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-130-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "returnNexusToHand",
+     "count": 1,
+     "anySide": true,
+     "voidCoreToOwnTrashIfOpponent": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-131",
+  "name": "ユナイテッドパワー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のスピリット1体を疲労させることで、このターンの間、スピリット1体をBP+(疲労させたスピリットのBP)する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuffByExhaustOwn"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-132",
+  "name": "パーフェクトガード",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【装甲】を持つ自分のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態で自分のフィールドに戻る。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+  "effects": [
+   {
+    "id": "BS03-132-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   },
+   {
+    "id": "BS03-132-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-132-e3",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "scope": "ownAll",
+    "keywordFilter": "armor",
+    "when": {
+     "byBattle": true
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-133",
+  "name": "ハイエリクサー",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のリザーブから、自分のライフにコア2個を置く。\n(この効果はターンに1回しか使えない)",
+  "effects": [
+   {
+    "id": "BS03-133-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lifeCharge",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-134",
+  "name": "パペットストリング",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分の黄のスピリットすべてに、系統：「四道」を与える。\n同時にカード名に「アルカナ」が入っているものとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
+  "effects": [
+   {
+    "id": "BS03-134-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-134-e2",
+    "kind": "familyGrant",
+    "levels": null,
+    "target": "ownAll",
+    "family": "四道",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e3",
+    "kind": "nameAsGrant",
+    "levels": null,
+    "target": "ownAll",
+    "nameIncludes": "アルカナ",
+    "colorFilter": "yellow",
+    "lentOnly": true
+   },
+   {
+    "id": "BS03-134-e4",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-135",
+  "name": "エスケープルート",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターン中、系統2つ以上を持つ自分のスピリットすべては、BP比べで相手のスピリットに破壊された時、手札に戻る。\nフラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-135-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-135-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-135-e3",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "scope": "ownAll",
+    "minFamilies": 2,
+    "when": {
+     "byBattle": true
+    },
+    "revived": {
+     "toHand": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-136",
+  "name": "フォーカスライト",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n【光芒】を持つ自分のスピリット1体につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-136-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-136-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "drawPer",
+     "counter": {
+      "ownKeyword": "kobo"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-137",
+  "name": "フォーカード",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n自分のフィールドに系統：「四道」を持つスピリットが4体以上いるとき、このターンの間、相手のスピリットすべてをLv1として扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-137-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-137-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    },
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "四道",
+      "count": 4
+     }
+    }
+   },
+   {
+    "id": "BS03-137-e3",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "opponentSpiritsAll",
+    "treatAs": 1,
+    "lentOnly": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-138",
+  "name": "テレポートチェンジ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nバトルしている自分のスピリット1体を、バトルしていないものとして扱い、代わりに疲労状態の自分のスピリット1体を選び、バトルさせる。",
+  "effects": [
+   {
+    "id": "BS03-138-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "swapBattler"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-139",
+  "name": "セイムタイアード",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n自分と相手のフィールドの疲労しているスピリットの数が同じになるように、相手のスピリットを疲労させる。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "exhaustOpponentToMatch"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-140",
+  "name": "シャイニングマジック",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにあるマジックカード1枚を選んで手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+  "effects": [
+   {
+    "id": "BS03-140-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverMagicFromTrash"
+    }
+   },
+   {
+    "id": "BS03-140-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 4000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-141",
+  "name": "ビルドアップ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分か相手のスピリット1体を指定する。このターン中、それのLvを1つ上のものとして扱う。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "levelUpThisTurn",
+     "anySide": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-142",
+  "name": "サルベージ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から5枚オープンする。\nネクサスカードがあれば、その中から1枚を選び、手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-142-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deckReveal",
+     "count": 5,
+     "pickType": "nexus"
+    }
+   },
+   {
+    "id": "BS03-142-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-143",
+  "name": "ブリッツ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、【粉砕】を持つ自分のスピリットがアタックしたとき、ボイドから、コア1個を自分のトラッシュに置く。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-143-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-143-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-143-e3",
+    "kind": "effectGrant",
+    "levels": null,
+    "target": "ownAll",
+    "keywordFilter": "funsai",
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "voidCoreToOwnTrash",
+      "count": 1
+     }
+    },
+    "lentOnly": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-144",
+  "name": "マジックハンマー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n相手のデッキを上から5枚破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-144-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-144-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "mill",
+     "count": 5
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-145",
+  "name": "スクランブル",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、系統：「闘神」を持つ自分のスピリットすべてをBP+3000する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-145-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-145-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS03-145-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "闘神",
+     "amount": 3000,
+     "lentOnly": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-146",
+  "name": "ネクサスレジスター",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n自分の手札にあるネクサスカードを好きなだけ破棄する。\nその破棄したネクサスカード1枚につき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-146-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "discardHandNexusesThenDraw"
+    }
+   },
+   {
+    "id": "BS03-146-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-147",
+  "name": "ゴーレムクラフト",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のフィールドのコアが1個以上置かれているネクサスすべては、このターンの間、ネクサスとしての効果を失い“コスト：1/系統：「造兵」/Lv1コスト：1/Lv1BP：2000/効果の記述なし”のスピリットとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "BS03-147-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   },
+   {
+    "id": "BS03-147-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "treatOwnNexusesAsSpiritsThisTurn",
+     "minCores": 1,
+     "cost": 1,
+     "family": [
+      "造兵"
+     ],
+     "levels": [
+      {
+       "level": 1,
+       "cores": 1,
+       "bp": 2000
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-148",
+  "name": "コンストラクション",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n自分のトラッシュにある赤/緑/青のネクサスカードすべてを、コストを支払わずに配置する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS03-148-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 3000
+    }
+   },
+   {
+    "id": "BS03-148-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deployNexus",
+     "from": "trash",
+     "colors": [
+      "red",
+      "green",
+      "blue"
+     ],
+     "all": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-149",
+  "name": "デルタクラッシュ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n系統：「闘神」を持つ自分のスピリットが3体以上いるとき、相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "e1",
+    "kind": "magic",
+    "timing": "flash",
+    "condition": {
+     "ownFamilyCountAtLeast": {
+      "family": "闘神",
+      "count": 3
+     }
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-X09",
+  "name": "蛮騎士ハーキュリー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "戦騎"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ【神速】\nこのスピリットは手札からフラッシュのタイミングで召喚できる。\nこのときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。\nLv1･Lv2『このスピリットの召喚時』\n【神速】を持つスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS03-X09-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS03-X09-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "soku"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-X10",
+  "name": "凍獣マン・モール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 8,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "巨獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分の白のスピリットすべてに“『このスピリットのブロック時』このスピリットをBP+2000する”という効果を与える。\nLv2\n自分のスピリットすべてに“【装甲：赤/紫/緑】このスピリットは、相手の赤/紫/緑のスピリット/ネクサス/マジックの効果を受けない”という効果を与える。\nLv3\n自分のスピリットすべてに【装甲：赤/紫/緑/黄/青】を与える。",
+  "effects": [
+   {
+    "id": "BS03-X10-e1",
+    "kind": "effectGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "colorFilter": "white",
+    "granted": {
+     "trigger": "onBlock",
+     "action": {
+      "type": "selfBuff",
+      "amount": 2000
+     }
+    }
+   },
+   {
+    "id": "BS03-X10-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green"
+    ]
+   },
+   {
+    "id": "BS03-X10-e3",
+    "kind": "keywordGrant",
+    "levels": [
+     3
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colors": [
+     "red",
+     "purple",
+     "green",
+     "yellow",
+     "blue"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-X11",
+  "name": "大天使ヴァリエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n緑/黄から1色を指定し、自分のトラッシュにある指定した色のマジックカードすべてを手札に戻す。\nLv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分のトラッシュにある、このバトルで使用したマジックカードすべては手札に戻る。",
+  "effects": [
+   {
+    "id": "BS03-X11-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS03-X11-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "recoverAllMagicFromTrashByColorChoice",
+     "colors": [
+      "green",
+      "yellow"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS03-X12",
+  "name": "英雄巨人タイタス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "勇傑"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のデッキを上から10枚破棄する。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のデッキを上から10枚破棄する。",
+  "effects": [
+   {
+    "id": "BS03-X12-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 10
+    },
+    "optional": false
+   },
+   {
+    "id": "BS03-X12-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     2
+    ],
+    "battleRole": "attacker",
+    "action": {
+     "type": "mill",
+     "count": 10
+    },
+    "optional": false
+   }
+  ]
+ }
+]

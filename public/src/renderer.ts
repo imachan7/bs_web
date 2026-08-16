@@ -16,21 +16,26 @@ import type {
 } from "../../server/src/type"
 import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
-import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import {
     activeConstraints,
     cantActByCost,
     currentLevel,
+    instCostCantAct,
     effectiveBp,
     hasArmorAgainst,
     hasGlobalConstraint,
+    hasHandKeywordGrant,
     hasKeyword,
     hasMagicImmunity,
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
+    sokuPayableInstanceIds,
+    OPPONENT_RESERVE_TARGET,
+    canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
     instHasCost,
@@ -38,17 +43,34 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    effectActiveAtLevel,
+    handSizeOf,
+    type DirectAttackFilter,
+    boardResistanceAgainst,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
-// ---- カードマスターデータ（起動時に /data/cards.json から取得） ----
+// ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
 
 let DB = new Map<string, CardData>()
+
+let cardNameRegex: RegExp | null = null
+const cardNameMap = new Map<string, CardData>()
 
 export function setCardDb(cards: CardData[]): void {
     DB = new Map(cards.map((c) => [c.cardId, c]))
     // 共有ルール層（shared/）へカードマスタ参照を注入する（サーバーは GameState.getCard を注入）
     setCardLookup(master)
+
+    const uniqueNames = Array.from(new Set(cards.map((c) => c.name))).sort((a, b) => b.length - a.length)
+    const escapedNames = uniqueNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    cardNameRegex = new RegExp(`(${escapedNames.join('|')})`, 'g')
+    
+    for (const card of cards) {
+        if (!cardNameMap.has(card.name)) {
+            cardNameMap.set(card.name, card)
+        }
+    }
 }
 
 export function master(cardId: string): CardData {
@@ -114,6 +136,19 @@ export const hasMagicImmunityView = hasMagicImmunity
 // main.ts が effectiveCost を import しているため、ここから再エクスポートする
 export { effectiveCost }
 
+// 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+// 【神速】召喚のときは基礎ルールでリザーブのみのため、sokuPaySourceGrant が許可した対象だけ数える
+// （判定はサーバー validateSummon と同一の共有実装）
+export function payableFieldCores(view: GameView, cardId: string): number {
+    const player = view.players[view.you]
+    const card = master(cardId)
+    const isSoku = view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")
+    const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
+    return [...player.field.spirits, ...player.field.nexuses]
+        .filter((i) => allowed === null || allowed.has(i.instanceId))
+        .reduce((sum, i) => sum + i.cores, 0)
+}
+
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
     const hand = view.players[view.you].hand
@@ -125,7 +160,9 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const lv = card.levels.find((l) => l.level === targetLevel)
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
-    const need = cost + maintain
+    // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
+    const alt = payingAltPay(view, paying)
+    const need = cost + maintain - Math.min(alt.used, cost)
     const reserve = view.players[view.you].reserve
     return Math.max(need - reserve - assignedTotal, 0)
 }
@@ -149,7 +186,6 @@ export function magicTargetSide(
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
         effect.action.type === "exhaust" ||
-        effect.action.type === "destroyExhausted" ||
         effect.action.type === "returnToHand" ||
         effect.action.type === "returnToDeckTop"
     ) {
@@ -164,7 +200,8 @@ export function magicTargetSide(
         effect.action.type === "trashCoresToSpirit" ||
         effect.action.type === "voidCoreToTarget" ||
         effect.action.type === "addSymbolThisTurn" ||
-        effect.action.type === "levelUpThisTurn"
+        effect.action.type === "levelUpThisTurn" ||
+        effect.action.type === "attackTriggersAsBlockThisTurn"
     )
         return "self"
     return null
@@ -175,22 +212,54 @@ export function canAwaken(view: GameView, inst: CardInstance): boolean {
     return sharedCanAwaken(view, view.you, inst)
 }
 
-// 起動能力が今このスピリットで発動可能なら {effectId, cost} を返す
+// 起動能力が今このスピリットで発動可能なら {effectId, costLabel} を返す
 // （判定はサーバー validateActivateAbility と同一の共有実装）
 export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
-): { effectId: string; cost: number } | null {
+): { effectId: string; costLabel: string } | null {
     return sharedActivatableAbility(view, you, inst)
 }
 
-// 支払いモード：不足コストをスピリット上のコアで賄うための一時状態
+// 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 export interface PayingState {
     handIndex: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
+    substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
+    // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
+    discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
+    millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）
+}
+
+// この支払いで使える代替コストの種類と上限。
+// kind が null なら代替コストは使えない（＝従来どおりコアだけで払う）
+export interface AltPayInfo {
+    kind: "handDiscard" | "mill" | null
+    used: number
+    max: number
+}
+
+// 支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
+// （RuleValidator.summonHandDiscardPayAmount / nexusMillPayAmount。ズレると
+//  「UIで選べるのにサーバーが弾く」形の食い違いになる）
+export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
+    const player = view.players[view.you]
+    const cardId = player.hand?.[paying.handIndex]
+    if (cardId === undefined) return { kind: null, used: 0, max: 0 }
+    const card = master(cardId)
+    const cost = effectiveCost(view, view.you, card)
+    if (card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)) {
+        // 召喚するカード自身は破棄に使えないので手札枚数から1枚引く
+        const max = Math.min(cost, Math.max(0, handSizeOf(player) - 1))
+        return { kind: "handDiscard", used: paying.discardHandIndices.length, max }
+    }
+    if (card.type === "nexus" && canPayNexusCostByMill(view, view.you)) {
+        return { kind: "mill", used: paying.millPay, max: Math.min(cost, player.deckCount) }
+    }
+    return { kind: null, used: 0, max: 0 }
 }
 
 export interface UiState {
@@ -199,9 +268,11 @@ export interface UiState {
     awakenTarget: string | null
     paying: PayingState | null
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
-    directedAttack: { attackerInstanceId: string; filter: "rested" | "singleCore" | "recovered" } | null
+    directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
+    battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
@@ -209,16 +280,19 @@ export function canDirectAttack(
     view: GameView,
     pid: PlayerId,
     inst: CardInstance,
-): "rested" | "singleCore" | "recovered" | null {
+): DirectAttackFilter | null {
     return directAttackFilter(view, pid, inst)
 }
 
-// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）
+// 指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
+// targetPid は対象スピリットの持ち主（targetMinBp判定の実効BP計算に使う）
 export function matchesDirectedAttackFilter(
-    filter: "rested" | "singleCore" | "recovered",
+    filter: DirectAttackFilter,
     target: CardInstance,
+    view: GameView,
+    targetPid: PlayerId,
 ): boolean {
-    return sharedMatchesDirectedAttackFilter(filter, target) === null
+    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -249,7 +323,7 @@ function escapeHtml(str: string): string {
 let lastEventSeq = 0
 
 // バナー1件が画面に残る時間（CSSの event-banner-inout と合わせる）
-const EVENT_BANNER_DURATION_MS = 800
+const EVENT_BANNER_DURATION_MS = 3000
 
 function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
     switch (ev.type) {
@@ -264,6 +338,10 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
         case "lifeDamage":
             return null // バナーは出さず、ライフ表示のシェイク演出のみ
+        case "returnToHand":
+            return `💨 ${ev.cardName} 手札へ戻る`
+        case "returnToDeck":
+            return `🌪 ${ev.cardName} デッキ${ev.position === "top" ? "上" : "下"}へ戻る`
     }
 }
 
@@ -306,11 +384,17 @@ export function render(view: GameView, ui: UiState): void {
     // フラッシュ中で自分が優先権を持つか
     const hasPriority = view.priorityPlayer === you
     const inFlash = !!view.battle && view.isFlashTiming && hasPriority
-    // 防御側の応答（ブロック・ライフ受け）が可能か：優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender && (!view.isFlashTiming || hasPriority)
+    // 防御側の応答（ブロック・ライフ受け）が可能か：ブロック宣言はフラッシュタイミングの外
+    // （フラッシュ①終了後）でのみ行える。優先権の有無は関係ない
+    const canDefend = isDefender && !view.isFlashTiming
 
     // ステータスバー
+    const hasRyukiEntaku = view.players[you].field.nexuses.some(n => n.cardId === "BS08-055")
+    show("lbl-pay-to-negate", hasRyukiEntaku)
+    if (hasRyukiEntaku) {
+        ($("chk-pay-to-negate") as HTMLInputElement).checked = view.players[you].payToNegate ?? true
+    }
+
     $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
     document.querySelectorAll(".phase-step").forEach(el => {
         el.classList.remove("active")
@@ -349,11 +433,18 @@ export function render(view: GameView, ui: UiState): void {
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
     )
-    show("btn-take-life", canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive)
+    show(
+        "btn-take-life",
+        canDefend && !view.battle?.blockerInstanceId && !pendingChoiceActive,
+    )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null
     show("btn-cancel-target", anyMode)
+    // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
+    // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
+    // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
+    show("btn-confirm-pay", ui.paying !== null && payingRemaining(view, ui.paying) === 0)
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
@@ -381,15 +472,35 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "card" && myPendingChoice.cardZone === "reveal") {
+        // 公開ゾーン（デッキから「オープン」したカード）。トラッシュと同じボタンUIで並べる
+        const revealed = view.revealedCards?.cardIds ?? []
+        for (const idx of myPendingChoice.cardIndices ?? []) {
+            const cardId = revealed[idx]
+            if (cardId === undefined) continue
+            const card = master(cardId)
+            const b = document.createElement("button")
+            b.dataset.cardIndex = String(idx)
+            b.textContent = `${card.name}（${card.type === "spirit" ? "スピリット" : card.type === "nexus" ? "ネクサス" : "マジック"}）`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
         const cost = effectiveCost(view, view.you, card)
         const reserve = view.players[view.you].reserve
-        const affordableLevels = card.levels.filter(l => reserve >= cost + l.cores)
+        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
+        // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
+        const fieldCores = payableFieldCores(view, ui.summonLevelSelect.cardId)
+        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
         for (const l of affordableLevels) {
             const b = document.createElement("button")
             b.dataset.summonLevel = String(l.level)
-            b.textContent = `Lv${l.level} (${l.cores}コア)`
+            const needsField = reserve < cost + l.cores
+            b.textContent = needsField
+                ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
+                : `Lv${l.level} (${l.cores}コア)`
+            if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -402,17 +513,34 @@ export function render(view: GameView, ui: UiState): void {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
-        $("targeting-info").textContent =
-            `💎 コスト支払い: 残り ${remaining} コア。スピリット上のコアを割り当ててください`
+        const alt = payingAltPay(view, ui.paying)
+        const base = `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
+        if (alt.kind === "handDiscard") {
+            // 破棄する手札は「どれを捨てるか」を選ぶので、手札そのものをクリックさせる
+            $("targeting-info").textContent =
+                `${base}／🗑 手札を破棄してコストに充てられます（${alt.used}/${alt.max}枚）。手札をクリックして選んでください`
+        } else if (alt.kind === "mill") {
+            // デッキ破棄は上から順なので「何枚払うか」だけを選ぶ
+            $("targeting-info").innerHTML =
+                `${base}／📚 デッキ破棄でコストに充てられます: ` +
+                `<button data-altpay="dec">−</button> <b>${alt.used}</b> / ${alt.max} 枚 <button data-altpay="inc">＋</button>`
+        } else {
+            $("targeting-info").textContent = base
+        }
     } else if (ui.awakenTarget !== null) {
-        $("targeting-info").textContent =
-            "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
+        const fromReserve = canAwakenFromReserve(view, view.you)
+        $("targeting-info").textContent = fromReserve
+            ? "🔄 覚醒: コアの移動元にする自分のスピリットまたはリザーブを選んでください"
+            : "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
     } else if (ui.summonLevelSelect) {
         $("targeting-info").textContent =
             `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
+    } else if (ui.battleSwapSummon) {
+        $("targeting-info").textContent =
+            `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -425,8 +553,8 @@ export function render(view: GameView, ui: UiState): void {
     }
 
     // プレイヤー情報
-    renderInfo("opp-info", view, opp, false, lifeDamagedPids.has(opp))
-    renderInfo("my-info", view, you, true, lifeDamagedPids.has(you))
+    renderInfo("opp-info", view, ui, opp, false, lifeDamagedPids.has(opp))
+    renderInfo("my-info", view, ui, you, true, lifeDamagedPids.has(you))
 
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
@@ -451,13 +579,32 @@ export function render(view: GameView, ui: UiState): void {
     logEl.innerHTML = ""
     for (const line of view.log) {
         const div = document.createElement("div")
-        div.textContent = line
+        if (cardNameRegex && line.match(cardNameRegex)) {
+            const parts = line.split(cardNameRegex)
+            for (const part of parts) {
+                const card = cardNameMap.get(part)
+                if (card) {
+                    const span = document.createElement("span")
+                    span.className = "log-card-name"
+                    span.dataset.cardId = card.cardId
+                    span.textContent = part
+                    div.appendChild(span)
+                } else {
+                    div.appendChild(document.createTextNode(part))
+                }
+            }
+        } else {
+            div.textContent = line
+        }
+
         if (line.includes("ターン")) {
             div.className = "log-turn"
         } else if (line.includes("ステップ")) {
             div.className = "log-phase"
         } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
             div.className = "log-important"
+        } else if (line.includes("：")) {
+            div.className = "log-effect"
         }
         logEl.appendChild(div)
     }
@@ -467,7 +614,7 @@ export function render(view: GameView, ui: UiState): void {
     if (view.winner) {
         show("result-overlay", true)
         $("result-message").textContent =
-            view.winner === you ? "🏆 勝利！" : "敗北…"
+            view.winner === you ? "勝利" : "敗北"
     } else {
         show("result-overlay", false)
     }
@@ -476,6 +623,7 @@ export function render(view: GameView, ui: UiState): void {
 function renderInfo(
     id: string,
     view: GameView,
+    ui: UiState,
     pid: PlayerId,
     isSelf: boolean,
     lifeDamaged: boolean,
@@ -483,11 +631,20 @@ function renderInfo(
     const p = view.players[pid]
     const el = $(id)
     el.innerHTML = ""
+    // 覚醒モード中にリザーブからコアを移せるか（ディノゾールLv2の効果）
+    const reserveHighlight = isSelf
+        && ui.awakenTarget !== null
+        && canAwakenFromReserve(view, view.you)
+        && p.reserve >= 1
+    // 効果解決の選択待ちで「相手のリザーブ」が候補になっているか（犬人マードック）
+    const oppReserveChoice = !isSelf
+        && view.pendingChoice?.pid === view.you
+        && (view.pendingChoice?.candidates ?? []).includes(OPPONENT_RESERVE_TARGET)
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
-        ["", `リザーブ ${p.reserve}`],
+        ["reserve", `🔵 リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
         ["", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
@@ -496,6 +653,18 @@ function renderInfo(
     for (const [cls, text] of items) {
         const span = document.createElement("span")
         if (cls) span.className = cls
+        const isReserve = cls.includes("reserve")
+        // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
+        // 自分のリザーブ表示をクリック対象として識別できるようにする
+        if (isSelf && isReserve) {
+            span.dataset.reserve = "self"
+            if (reserveHighlight) span.classList.add("targetable", "clickable")
+        }
+        // 相手のリザーブも、選択待ちの候補になっているときだけクリック対象にする
+        if (!isSelf && isReserve) {
+            span.dataset.reserve = "opponent"
+            if (oppReserveChoice) span.classList.add("targetable", "clickable")
+        }
         span.textContent = text
         el.appendChild(span)
     }
@@ -523,6 +692,45 @@ function renderField(
     }
 }
 
+// コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
+function coreButtonsEl(instanceId: string, currentCores: number, levels: { level: number, cores: number }[]): HTMLElement {
+    const btns = document.createElement("div")
+    btns.className = "core-buttons"
+    
+    const removeBtn = document.createElement("button")
+    removeBtn.dataset.core = "remove"
+    removeBtn.dataset.instanceId = instanceId
+    removeBtn.textContent = "−"
+    removeBtn.title = "コアを1個リザーブへ戻す"
+    btns.appendChild(removeBtn)
+
+    // レベルごとのショートカットボタン
+    for (const lv of levels) {
+        if (lv.cores <= 0) continue // コア0個のレベル（基本ないが念のため）はスキップ
+        const isCurrentLv = currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores
+        if (isCurrentLv) {
+            continue // 現在のレベルのボタンは表示しない
+        }
+        
+        const lvBtn = document.createElement("button")
+        lvBtn.dataset.core = `set-${lv.cores}`
+        lvBtn.dataset.currentCores = String(currentCores)
+        lvBtn.dataset.instanceId = instanceId
+        lvBtn.textContent = `Lv${lv.level}`
+        lvBtn.title = `コアを${lv.cores}個（Lv${lv.level}）にする`
+        btns.appendChild(lvBtn)
+    }
+
+    const addBtn = document.createElement("button")
+    addBtn.dataset.core = "add"
+    addBtn.dataset.instanceId = instanceId
+    addBtn.textContent = "＋"
+    addBtn.title = "リザーブからコアを1個置く"
+    btns.appendChild(addBtn)
+
+    return btns
+}
+
 function fieldCardEl(
     view: GameView,
     ui: UiState,
@@ -537,10 +745,8 @@ function fieldCardEl(
     const myTurn = view.turnPlayer === view.you
     const myMainFree = myTurn && view.phase === "main" && !view.battle
     const isDefender = !!view.battle && !myTurn
-    // 防御側の応答（ブロック）が可能か：優先権を持つ間かフラッシュ終了後
-    const canDefend =
-        isDefender &&
-        (!view.isFlashTiming || view.priorityPlayer === view.you)
+    // 防御側の応答（ブロック）が可能か：フラッシュタイミングの外（フラッシュ①終了後）でのみ行える
+    const canDefend = isDefender && !view.isFlashTiming
     // ブロック判定用：現在のバトルのアタッカー（攻撃側は常にターンプレイヤー）
     const attacker = view.battle
         ? view.players[view.turnPlayer].field.spirits.find(
@@ -557,6 +763,30 @@ function fieldCardEl(
     el.dataset.cardId = inst.cardId
     el.dataset.side = isMine ? "mine" : "opp"
 
+    // 現在のフェーズで発動しているステップ効果があるか
+    const hasActiveStepEffect = m.effects.some((e) => {
+        if (e.kind !== "step") return false
+        if (e.step !== view.phase) return false
+        const isOwnerTurn = view.turnPlayer === ownerPid
+        if (e.turn === "own" && !isOwnerTurn) return false
+        if (e.turn === "opponent" && isOwnerTurn) return false
+        return effectActiveAtLevel(e.levels, level)
+    })
+    if (hasActiveStepEffect) {
+        el.classList.add("step-active")
+        const badge = document.createElement("div")
+        badge.className = "step-active-badge"
+        badge.textContent = "発動中"
+        el.appendChild(badge)
+    }
+
+    if (inst.asSpiritThisTurn) {
+        const badge = document.createElement("div")
+        badge.className = "as-spirit-badge"
+        badge.textContent = "スピリット化中"
+        el.appendChild(badge)
+    }
+
     const name = document.createElement("div")
     name.className = "name"
     name.textContent = m.name
@@ -565,9 +795,15 @@ function fieldCardEl(
     const stats = document.createElement("div")
     stats.className = "stats"
     stats.textContent = isNexus
-        ? `コスト${m.cost} Lv${level}`
-        : `コスト${m.cost} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        ? `Lv${level}`
+        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
     el.appendChild(stats)
+
+    // コストバッジを左上に表示
+    const costBadge = document.createElement("div")
+    costBadge.className = `cost-badge cost-${m.type}`
+    costBadge.textContent = String(m.cost)
+    el.appendChild(costBadge)
 
     const cores = document.createElement("div")
     cores.className = "cores"
@@ -590,12 +826,7 @@ function fieldCardEl(
     }
     el.appendChild(symbolsDiv)
 
-    if (m.effect) {
-        const eff = document.createElement("div")
-        eff.className = "effect-text"
-        eff.textContent = m.effect
-        el.appendChild(eff)
-    }
+
 
     if (view.battle?.attackerInstanceId === inst.instanceId) {
         el.classList.add("attacker-mark")
@@ -622,6 +853,19 @@ function fieldCardEl(
             if (assigned < inst.cores) {
                 el.classList.add("targetable", "clickable")
             }
+            return el
+        }
+        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる。
+        // ⚠️ ネクサスは clip-path で六角形に切り抜いているため、カード要素の**子**に置くと
+        // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
+        // クリップされないラッパーの直下へ、カードと**兄弟**として置く
+        if (isMine && myMainFree && !view.pendingChoice) {
+            const slot = document.createElement("div")
+            slot.className = "nexus-slot"
+            slot.appendChild(el)
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
+            return slot
         }
         return el
     }
@@ -676,6 +920,13 @@ function fieldCardEl(
             }
             return el
         }
+        // 入れ替え召喚の対象選択中
+        if (ui.battleSwapSummon !== null) {
+            if (ui.battleSwapSummon.substituteInstanceIds.includes(inst.instanceId)) {
+                el.classList.add("targetable", "clickable")
+            }
+            return el
+        }
         // 対象選択中（自分側）
         if (ui.targeting?.side === "self") el.classList.add("targetable", "clickable")
         // 覚醒可能（フラッシュ中で優先権あり）：バッジのクリックで覚醒モード開始
@@ -695,7 +946,7 @@ function fieldCardEl(
             badge.dataset.activate = inst.instanceId
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
-            badge.title = `コア${activatable.cost}個を払って効果を発動`
+            badge.title = activatable.costLabel
             el.appendChild(badge)
         }
         // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
@@ -704,7 +955,9 @@ function fieldCardEl(
         // このスピリットはアタックできない（カイザレオン大帝Lv1）
         const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
-        const costLocked = cantActByCost(view, inst)
+        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
+        // （道化師クランの付与コストも考慮する instCostCantAct を使う）
+        const costLocked = cantActByCost(view, inst) || instCostCantAct(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -720,11 +973,12 @@ function fieldCardEl(
         ) {
             el.classList.add("clickable", "usable")
         }
-        // ブロック可能（cantBlock / cantBlockLowerBp / unblockableBy / singleCoreCantAct の制約を反映）
+        // ブロック可能（cantBlock / cantBlockLowerBp / unblockableBy / singleCoreCantAct の制約を反映）。
+        // 疲労状態でも canBlockWhileRested（BS06計画された場外乱闘）を持てばブロックできるため、
+        // isRestedでの早期除外はせず canBlockAttacker（shared/block.canBlock）にまとめて判定させる
         if (
             canDefend &&
             !view.battle?.blockerInstanceId &&
-            !inst.isRested &&
             !singleCoreLocked &&
             !costLocked &&
             level >= 1 &&
@@ -734,35 +988,29 @@ function fieldCardEl(
         }
         // コア移動ボタン（メインステップのみ）
         if (myMainFree) {
-            const btns = document.createElement("div")
-            btns.className = "core-buttons"
-            for (const dir of ["add", "remove"] as const) {
-                const b = document.createElement("button")
-                b.dataset.core = dir
-                b.dataset.instanceId = inst.instanceId
-                b.textContent = dir === "add" ? "+" : "−"
-                b.title = dir === "add" ? "リザーブからコアを置く" : "コアをリザーブへ戻す"
-                btns.appendChild(b)
-            }
-            el.appendChild(btns)
+            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
+            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
         if (ui.directedAttack !== null) {
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst)) {
+            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid)) {
                 el.classList.add("targetable", "clickable")
             }
             return el
         }
-        // 対象選択中（相手側）。免疫スピリット（ワルキューレ／フェザーバリア）・
-        // 使用中マジックの色に対する装甲持ち・マジック効果耐性持ち（ポークン）は選択不可
-        // （対象選択モードは常にマジック使用時のみのため、sourceTypeの判定は不要）
-        if (ui.targeting?.side === "opponent" && !isUntargetableByOpponent(inst)) {
+        // 対象選択中（相手側）。耐性の判定は共有層に一本化されている（サーバーとまったく同じ表を通る）
+        if (ui.targeting?.side === "opponent") {
             const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
             const usingColors = usingCardId ? master(usingCardId).colors : undefined
-            if (!hasArmorAgainst(inst, usingColors) && !hasMagicImmunityView(view, ownerPid, inst)) {
-                el.classList.add("targetable", "clickable")
-            }
+            const resisted = boardResistanceAgainst(view, ownerPid, inst, {
+                op: "other",
+                scope: "targeted",
+                actorPid: view.you,
+                sourceType: "magic",
+                ...(usingColors ? { sourceColors: usingColors } : {}),
+            })
+            if (!resisted) el.classList.add("targetable", "clickable")
         }
     }
 
@@ -816,9 +1064,13 @@ function renderHand(view: GameView, ui: UiState): void {
         const cost = effectiveCost(view, view.you, m)
         const lv1 = m.levels.find((l) => l.level === 1)
         const need = cost + (lv1 ? lv1.cores : 0)
-        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか
+        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか、
+        // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
         const flashSummonable =
-            m.type === "spirit" && (hasKeyword(cardId, "soku") || tempSokuCardIds.has(cardId))
+            m.type === "spirit" &&
+            (hasKeyword(cardId, "soku") ||
+                tempSokuCardIds.has(cardId) ||
+                hasHandKeywordGrant(view, view.you, m, "soku"))
 
         // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
         // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）
@@ -827,14 +1079,15 @@ function renderHand(view: GameView, ui: UiState): void {
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
             !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
 
-        const usable =
-            !view.pendingChoice &&
-            !magicColorLocked &&
-            ((myMainFree && reserve >= need) ||
-                (inFlash &&
-                    !flashLocked &&
-                    reserve >= need &&
-                    ((m.type === "magic" && m.flash) || flashSummonable)))
+        const fieldCores = payableFieldCores(view, cardId)
+        const isTimingValid =
+            (myMainFree) ||
+            (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable))
+
+        const isUsableState = !view.pendingChoice && !magicColorLocked && isTimingValid
+        const usable = isUsableState && reserve >= need
+        const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
+        const unusable = !usable && !usableField
 
         let targetable = false
         let activeIndex = index
@@ -852,8 +1105,48 @@ function renderHand(view: GameView, ui: UiState): void {
         el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         el.dataset.handIndex = String(activeIndex)
         el.dataset.cardId = cardId
+        
         if (usable) el.classList.add("usable", "clickable")
-        if (targetable) el.classList.add("targetable", "clickable")
+        else if (usableField) {
+            el.classList.add("usable-field", "clickable")
+            const badge = document.createElement("div")
+            badge.className = "field-req-badge"
+            badge.textContent = "盤面コア必要"
+            el.appendChild(badge)
+        }
+        else el.classList.add("unusable")
+
+        if (targetable) {
+            el.classList.add("targetable", "clickable")
+            el.classList.remove("unusable")
+        }
+
+        // 召喚・配置・マジック使用のために選択されたカードをハイライト
+        const selectedHandIndex =
+            ui.paying?.handIndex ??
+            ui.summonLevelSelect?.handIndex ??
+            ui.targeting?.handIndex ?? null
+        if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
+            el.classList.add("selected")
+        }
+
+        // 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム）。
+        // 手札は同名カードをまとめて表示しているので、この束から何枚選ばれているかを出す
+        if (ui.paying !== null) {
+            const picked = g.indices.filter((i) => ui.paying!.discardHandIndices.includes(i)).length
+            if (picked > 0) {
+                el.classList.add("pay-discard")
+                const badge = document.createElement("div")
+                badge.className = "pay-discard-badge"
+                badge.textContent = `🗑${picked}`
+                el.appendChild(badge)
+            }
+            // 破棄に選べる手札（＝召喚するカード自身以外）はクリックできると分かるようにする
+            if (payingAltPay(view, ui.paying).kind === "handDiscard" && !g.indices.includes(ui.paying.handIndex)) {
+                el.classList.add("clickable")
+                el.classList.remove("unusable")
+            }
+        }
 
         const costBadge = document.createElement("div")
         costBadge.className = "cost-badge"
@@ -873,26 +1166,43 @@ function renderHand(view: GameView, ui: UiState): void {
         name.textContent = m.name
         el.appendChild(name)
 
+        const reductionCounts: Record<string, number> = {}
+        for (const c of m.reduction) {
+            reductionCounts[c] = (reductionCounts[c] || 0) + 1
+        }
+        const reductionText = Object.entries(reductionCounts)
+            .map(([c, count]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
+            .join("")
+
         const stats = document.createElement("div")
         stats.className = "stats"
         stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
         el.appendChild(stats)
 
+        if (reductionText) {
+            const reductionEl = document.createElement("div")
+            reductionEl.className = "stats"
+            reductionEl.textContent = `軽減:${reductionText}`
+            el.appendChild(reductionEl)
+        }
+
         if (m.levels.length > 0) {
             const bp = document.createElement("div")
             bp.className = "stats"
-            bp.textContent = m.levels
+            bp.innerHTML = m.levels
                 .filter((l) => l.bp > 0)
-                .map((l) => `Lv${l.level}:${l.bp}`)
-                .join(" ")
+                .map((l) => `Lv${l.level}(${l.cores}):${l.bp}`)
+                .join("<br>")
             el.appendChild(bp)
         }
 
-        if (m.effect) {
-            const eff = document.createElement("div")
-            eff.className = "effect-text"
-            eff.textContent = m.effect
-            el.appendChild(eff)
+        if (!m.effect) {
+            const vanilla = document.createElement("div")
+            vanilla.className = "stats"
+            vanilla.style.fontStyle = "italic"
+            vanilla.style.color = "var(--text-muted)"
+            vanilla.textContent = "（効果なし）"
+            el.appendChild(vanilla)
         }
 
         if (g.count > 1) {
@@ -963,7 +1273,7 @@ function renderBattle(view: GameView): void {
         if (view.isFlashTiming && !hasPriority) {
             message = `⚔ ${m.name}（BP${bp}）がアタック中。相手がフラッシュの優先権を持っています…`
         } else if (view.isFlashTiming) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」、またはブロック／「ライフで受ける」で応答してください。`
+            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。パス後にブロック／「ライフで受ける」を選べます。`
         } else {
             message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュ終了。ブロックするスピリットを選ぶか「ライフで受ける」を押してください。`
         }
@@ -988,6 +1298,22 @@ function renderBattle(view: GameView): void {
 // ロビー側の表示制御
 export function showWaiting(): void {
     show("waiting-message", true)
+    // 待機中はボタンの文言を「参加を取り消す」に変えて残す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "参加を取り消す"
+        joinBtn.classList.add("cancel-mode")
+    }
+}
+
+export function hideWaiting(): void {
+    show("waiting-message", false)
+    // ボタンの文言を元に戻す
+    const joinBtn = document.getElementById("join-btn")
+    if (joinBtn) {
+        joinBtn.textContent = "対戦ルームに入る"
+        joinBtn.classList.remove("cancel-mode")
+    }
 }
 
 export function showToast(message: string): void {
@@ -1095,7 +1421,7 @@ export function setupEffectTooltip(): void {
             m.levels.forEach(lv => {
                 const lvLine = document.createElement("div")
                 let text = `Lv${lv.level} (維持コア${lv.cores})`
-                if (lv.bp !== undefined) {
+                if (m.type === "spirit" && lv.bp !== undefined) {
                     text += ` BP ${lv.bp}`
                 }
                 lvLine.textContent = text
@@ -1136,16 +1462,23 @@ export function setupEffectTooltip(): void {
         tip.style.left = `${left}px`
     }
 
-    const hide = (): void => tip.classList.add("hidden")
+    let currentHoverCard: HTMLElement | null = null
+    const hide = (): void => {
+        tip.classList.add("hidden")
+        currentHoverCard = null
+    }
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
-        if (card) showFor(card)
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
+        if (card && card !== currentHoverCard) {
+            currentHoverCard = card
+            showFor(card)
+        }
     })
     document.addEventListener("mouseout", (e) => {
-        const from = (e.target as HTMLElement).closest(".card")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card")
+        const from = (e.target as HTMLElement).closest(".card, .log-card-name")
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .log-card-name")
         if (from && from !== to) hide()
     })
 
@@ -1155,7 +1488,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
         window.clearTimeout(pressTimer)
         if (!card) {
             hide()

@@ -3,7 +3,7 @@
 //   - BS04-045 氷の女神フリッグ: 相手が指定コストのマジックをフラッシュ使用したときコアをトラッシュへ（FieldEvent opponentMagicUsed）
 //   - BS04-085 魔力満ちる泉: 四道3体以上で相手の召喚コスト+1（costMod condition）／相手アタック時のコア課税
 //   - BS04-101 ミストカーテン: 指定した相手スピリットのアタックではライフが減らない
-import { assert, act, createGame, createInstance, effectiveCost, getCard, resolveAction, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveCost, getCard, resolveAction, runTurnStart } from "./helpers"
 
 console.log("=== BS04-027 アリゲイド Lv2: 一度に5枚以上の破棄で相手1体を疲労 ===")
 {
@@ -70,7 +70,7 @@ console.log("=== BS04-101 ミストカーテン: 指定した相手スピリッ�
         "ミストカーテンでアタッカーを指定",
     )
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受ける")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
     assert(s.players.p2.life === lifeBefore, "指定したアタッカーのアタックではライフが減らない")
 }
 

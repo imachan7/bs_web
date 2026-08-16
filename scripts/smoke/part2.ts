@@ -28,7 +28,7 @@ import {
     createInstance,
     draw,
     getCard,
-    lv1Cores,
+    minLevelCores,
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
@@ -43,6 +43,7 @@ import {
     DECK_SIZE,
     assert,
     act,
+    takeLifeAndResolve,
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
@@ -95,7 +96,7 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側の再パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(s.isFlashTiming === false, "両者連続パスでフラッシュ終了")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "ライフで受けてバトルを終える")
+    assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトルを終える")
     assert(s.battle === null, "バトルが終了する")
 
     // 2回目のバトル：新しいbattleではflashLockedPlayerがnullに戻っている
@@ -151,7 +152,10 @@ console.log("=== 新規構造化スピリットの誘発確認（実カード経
     s.players.p1.reserve = 20
 
     console.log("--- エメラルドシーザー（BS01-063）: 召喚時に相手スピリット1体を疲労 ---")
-    const enemy = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1 BP1000（回復状態）
+    // BP3000（Lv2）にしておく：後段のヘル・ブリンディ（returnToHand・anySide）で
+    // p1の場のエメラルドシーザー（BP3000）と実効BPが並び、非対話時の自動選択が
+    // 同値なら相手側を優先するルールにより enemy が選ばれるようにする
+    const enemy = createInstance("BS01-001", s.turn, 3) // ゴラドン Lv2 BP3000（回復状態）
     s.players.p2.field.spirits.push(enemy)
     s.players.p1.hand[0] = "BS01-063"
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "エメラルドシーザーを召喚できる")
@@ -376,6 +380,8 @@ console.log("--- 燃えさかる戦場（BS01-098）：バトル限定オーラ�
         effectiveBp(s, "p1", attacker) === 1000 + 2000,
         "アタック中は燃えさかる戦場2枚ぶんBP+2000（実効BP3000）",
     )
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "リーヴォルフでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -449,6 +455,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: nadja.instanceId }) === null, "ナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker1.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -464,6 +472,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
     s.players.p2.field.spirits.push(blocker2)
 
     assert(act(s, "p1", { type: "attack", instanceId: nadja2.instanceId }) === null, "2体目のナージャでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker2.instanceId }) === null, "同BPのゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -479,6 +489,8 @@ console.log("=== バトル勝利時効果（onBattle: 相手だけ破壊した�
     const p1ReserveBefore = s.players.p1.reserve
 
     assert(act(s, "p1", { type: "attack", instanceId: phenikios.instanceId }) === null, "フェニキオスでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker3.instanceId }) === null, "ゴラドンでブロック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -566,11 +578,11 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
     s.players.p1.field.spirits.push(other1, other2)
     s.players.p1.hand[0] = "BS01-X03" // キングタウロス大公: コスト8・緑軽減4
     s.players.p1.reserve = 20
-    const reserveAfterPay = 20 - effectiveCost(s, "p1", getCard("BS01-X03")) - lv1Cores(getCard("BS01-X03"))
+    const reserveAfterPay = 20 - effectiveCost(s, "p1", getCard("BS01-X03")) - minLevelCores(getCard("BS01-X03"))
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "キングタウロス大公を召喚できる")
     const king = s.players.p1.field.spirits.find((x) => x.cardId === "BS01-X03")!
     // 維持コア1 ＋ onSummonで「自分の他スピリット数（sp/other1/other2の3体）」ぶんボイドから追加
-    assert(king.cores === lv1Cores(getCard("BS01-X03")) + 3, "自分の他スピリット3体ぶんコアが増える（維持1+3）")
+    assert(king.cores === minLevelCores(getCard("BS01-X03")) + 3, "自分の他スピリット3体ぶんコアが増える（維持1+3）")
     assert(s.players.p1.reserve === reserveAfterPay, "増えたコアはボイド由来（リザーブはコスト・維持分のみ減る）")
 
     // 他スピリットが0体なら no-op（ログのみ）
@@ -636,7 +648,7 @@ console.log("=== カスタムデッキ検証（validateDeckCards） ===")
         "同名4枚のデッキは「同名」エラー",
     )
 
-    const banned: Record<string, number> = { ...base, "BS01-132": 3 } // ストームドロー（禁止）
+    const banned: Record<string, number> = { ...base, "BS02-063": 3 } // 冥犬ケルル・ベロス（禁止）
     delete banned["BS01-116"]
     assert(
         (validateDeckCards(banned) ?? "").includes("禁止"),
@@ -671,7 +683,7 @@ console.log("=== destroy のキーワードフィルタ（ディアマット） 
     s.players.p2.field.spirits.push(soku, plain)
 
     // keywordFilter: "soku" → BPが低くても神速持ちだけが対象になる
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, keywordFilter: "soku" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { keyword: "soku" } })
     assert(s.players.p2.field.spirits.length === 1, "1体だけ破壊される")
     assert(
         s.players.p2.field.spirits[0]!.instanceId === plain.instanceId,
@@ -680,7 +692,7 @@ console.log("=== destroy のキーワードフィルタ（ディアマット） 
 
     // 神速持ちがいなくなったら no-op
     const logLen = s.log.length
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, keywordFilter: "soku" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { keyword: "soku" } })
     assert(s.players.p2.field.spirits.length === 1, "神速持ち不在なら破壊されない")
     assert(s.log.length === logLen + 1, "対象なしのログが出る")
 
@@ -705,6 +717,8 @@ console.log("=== 制約：ブロック不可（cantBlock） ===")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const blockErr = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(
         blockErr !== null && blockErr.includes("ブロックできません"),
@@ -732,6 +746,8 @@ console.log("=== 制約：ブロック不可（cantBlock、複数レベル） ==
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     let err = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(err !== null && err.includes("ブロックできません"), "Lv1でもcantBlockでブロック拒否される")
 
@@ -756,6 +772,8 @@ console.log("=== 制約：BPの低いスピリットをブロックできない�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "BP1000のゴラドンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
     assert(
         err !== null && err.includes("BPの低いスピリットはブロックできません"),
@@ -786,6 +804,8 @@ console.log("=== 制約：cantBlockLowerBp（同BP以上なら可能） ===")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: strongAttacker.instanceId }) === null, "BP7000のトライソードンでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(
         act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null,
         "アタッカーのBPがブロッカー以上（同BP）ならcantBlockLowerBpでもブロックできる",
@@ -809,6 +829,8 @@ console.log("=== 制約：unblockableBy（キーワード：神速持ちにブ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "スピノアックスでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: sokuBlocker.instanceId })
     assert(
         err !== null && err.includes("ブロックされません"),
@@ -837,6 +859,8 @@ console.log("=== 制約：unblockableBy（色フィルタ：緑にブロック�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ボーン・グラディエイターでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: greenBlocker.instanceId })
     assert(err !== null && err.includes("ブロックされません"), "緑のペリリィフはブロックできない")
     assert(
@@ -862,6 +886,8 @@ console.log("=== 制約：unblockableBy（色フィルタ：赤にブロック�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ラビクリスタでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     const err = act(s, "p2", { type: "block", instanceId: redBlocker.instanceId })
     assert(err !== null && err.includes("ブロックされません"), "赤のゴラドンはブロックできない")
     assert(

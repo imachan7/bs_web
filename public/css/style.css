@@ -109,6 +109,16 @@ button:active {
     font-size: 14px;
 }
 
+/* 参加取り消しモード */
+#join-btn.cancel-mode {
+    background: #8b2030;
+    transition: background 0.2s;
+}
+
+#join-btn.cancel-mode:hover {
+    background: #a52838;
+}
+
 #deck-builder-link {
     margin-top: 8px;
     font-size: 13px;
@@ -250,6 +260,13 @@ button:active {
     font-size: 15px;
 }
 
+.player-info .reserve {
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 15px;
+}
+
 /* ライフ減少時の演出（次回再描画でクラスが外れるため一過性のアニメーションでよい）。
    イベント通知レイヤー（GameEvent type:"lifeDamage"）駆動でクラス付与する。シェイク＋赤パルスを1本化 */
 .player-info .life.life-changed {
@@ -267,7 +284,7 @@ button:active {
 /* ---- イベント通知レイヤー（GameEvent駆動のオーバーレイ演出） ---- */
 #event-layer {
     position: absolute;
-    top: 8px;
+    top: 60px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
@@ -279,16 +296,16 @@ button:active {
 }
 
 .event-banner {
-    padding: 6px 14px;
+    padding: 12px 24px;
     border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     background: rgba(26, 29, 36, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-main);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
-    animation: event-banner-inout 800ms ease-out forwards;
+    animation: event-banner-inout 3000ms ease-out forwards;
 }
 
 .event-banner.event-summon {
@@ -305,17 +322,36 @@ button:active {
     border-color: rgba(156, 163, 175, 0.6);
     color: var(--text-muted);
 }
+.event-banner.event-returnToHand,
+.event-banner.event-returnToDeck {
+    border-color: rgba(6, 182, 212, 0.6);
+    color: #67e8f9;
+}
 
 @keyframes event-banner-inout {
     0% { opacity: 0; transform: translateY(-8px); }
-    15% { opacity: 1; transform: translateY(0); }
-    75% { opacity: 1; transform: translateY(0); }
+    5% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-6px); }
 }
 
 .player-info .turn-mark {
     color: var(--warning);
     font-weight: 600;
+}
+
+/* 覚醒モード中にリザーブからコアを移せるときのハイライト */
+.player-info span.targetable {
+    color: var(--danger);
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    cursor: pointer;
+    animation: reserve-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes reserve-pulse {
+    0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+    50% { text-shadow: 0 0 16px rgba(239, 68, 68, 0.9), 0 0 4px rgba(239, 68, 68, 0.4); }
 }
 
 .field-row {
@@ -462,6 +498,50 @@ button:active {
     font-weight: 600;
 }
 
+#log .log-effect {
+    border-left: 2px solid rgba(59, 130, 246, 0.5);
+    padding-left: 6px;
+    margin-left: 2px;
+    background: rgba(59, 130, 246, 0.05);
+    border-radius: 0 4px 4px 0;
+}
+
+#log .log-card-name {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 0 2px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 4px;
+    color: #93c5fd;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+#log .log-card-name:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.7);
+}
+
+#global-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    background: rgba(15, 17, 21, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #f3f4f6;
+    font-size: 13px;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    max-width: 300px;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.1s ease-out;
+}
+
+
 #trash-content {
     flex: 1;
     overflow-y: auto;
@@ -522,6 +602,7 @@ button:active {
     color: var(--text-main);
     font-size: 10px;
     margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
 }
 
 .card .cores {
@@ -530,14 +611,7 @@ button:active {
     font-size: 10px;
 }
 
-.card .effect-text {
-    margin-top: auto;
-    font-size: 9px;
-    color: var(--text-muted);
-    max-height: 48px;
-    overflow: hidden;
-    line-height: 1.3;
-}
+
 
 /* 効果全文のツールチップ */
 #effect-tooltip {
@@ -556,6 +630,7 @@ button:active {
     color: var(--text-main);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     pointer-events: none;
+    font-variant-numeric: tabular-nums;
     white-space: pre-wrap;
 }
 
@@ -634,6 +709,23 @@ button:active {
     box-shadow: 0 0 0 2px var(--warning), 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
+.card.usable-field {
+    outline: 2px dashed var(--warning);
+    outline-offset: -2px;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+    animation: usable-field-pulse 2s infinite;
+}
+
+@keyframes usable-field-pulse {
+    0%, 100% { opacity: 1; outline-color: var(--warning); }
+    50% { opacity: 0.8; outline-color: rgba(245, 158, 11, 0.4); }
+}
+
+.card.unusable {
+    filter: brightness(0.5) grayscale(30%);
+    opacity: 0.6;
+}
+
 .card.targetable {
     box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
 }
@@ -642,10 +734,48 @@ button:active {
     box-shadow: 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6);
 }
 
+.card.selected {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(59, 130, 246, 0.7);
+    transform: translateY(-8px);
+    z-index: 10;
+    filter: brightness(1.15);
+}
+
+/* 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム） */
+.card.pay-discard {
+    box-shadow: 0 0 0 2px var(--danger, #ef4444), 0 0 16px rgba(239, 68, 68, 0.6);
+    filter: brightness(0.85) saturate(0.7);
+}
+
+.pay-discard-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: var(--danger, #ef4444);
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    padding: 1px 4px;
+    z-index: 11;
+}
+
+.card.step-active {
+    box-shadow: 0 0 0 2px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
+    animation: step-active-pulse 2s infinite;
+}
+
+@keyframes step-active-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--success), 0 0 12px rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 2px var(--success), 0 0 20px rgba(16, 185, 129, 0.8); }
+}
+
 .awaken-badge,
 .activate-badge,
 .pay-badge,
-.cant-attack-badge {
+.cant-attack-badge,
+.step-active-badge,
+.as-spirit-badge {
     position: absolute;
     min-width: 44px;
     padding: 4px 10px;
@@ -660,7 +790,9 @@ button:active {
 .awaken-badge::after,
 .activate-badge::after,
 .pay-badge::after,
-.cant-attack-badge::after {
+.cant-attack-badge::after,
+.step-active-badge::after,
+.as-spirit-badge::after {
     content: '';
     position: absolute;
     inset: -8px;
@@ -693,6 +825,36 @@ button:active {
     cursor: default;
 }
 
+.step-active-badge {
+    top: -6px; right: -6px;
+    background: var(--success);
+    color: #000;
+    pointer-events: none;
+}
+
+.as-spirit-badge {
+    top: -22px; right: -6px;
+    background: var(--warning);
+    color: #000;
+    pointer-events: none;
+}
+
+.field-req-badge {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(245, 158, 11, 0.9);
+    color: #000;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    pointer-events: none;
+    z-index: 5;
+    white-space: nowrap;
+}
+
 .card.attacker-mark {
     box-shadow: 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.6);
 }
@@ -703,12 +865,14 @@ button:active {
 
 .core-buttons {
     position: absolute;
-    top: -10px;
-    right: -10px;
+    top: 0;
+    right: -26px;
     display: flex;
+    flex-direction: column;
     gap: 4px;
     opacity: 0;
     transition: opacity 0.2s;
+    z-index: 10;
 }
 
 .card:hover .core-buttons {
@@ -716,11 +880,12 @@ button:active {
 }
 
 .core-buttons button {
-    width: 24px;
+    min-width: 24px;
     height: 24px;
-    padding: 0;
-    font-size: 12px;
-    border-radius: 50%;
+    padding: 0 6px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    border-radius: 12px;
     background: var(--bg-panel);
     border: 1px solid #444;
     display: flex;
@@ -728,6 +893,7 @@ button:active {
     justify-content: center;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
+
 .core-buttons button:hover {
     background: var(--accent);
     border-color: var(--accent);
@@ -748,6 +914,7 @@ button:active {
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(4px);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 100;
@@ -797,10 +964,7 @@ button:active {
     white-space: nowrap;
     margin-bottom: 2px;
 }
-.spirit-zone .card .effect-text,
-.nexus-zone .card .effect-text {
-    display: none;
-}
+
 
 .spirit-zone .card::before,
 .nexus-zone .card::before {
@@ -816,15 +980,16 @@ button:active {
     margin: 1px 0;
 }
 
-/* スピリットは円形 */
+/* スピリットは四角形 */
 .spirit-zone .card {
     width: 76px;
     height: 76px;
-    border-radius: 50%;
+    border-radius: 6px;
     background: linear-gradient(#2a2e39, #2a2e39) padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
     border: 2px solid transparent;
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    margin-right: 22px; /* ボタンが右にはみ出す分の余白 */
 }
 
 /* ネクサスは六角形 */
@@ -833,8 +998,16 @@ button:active {
     height: 78px;
     border-radius: 0;
     box-shadow: none; /* clip-path hides box-shadow */
+    background: transparent;
+    border: none;
+}
+.nexus-zone .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     background: linear-gradient(145deg, color-mix(in srgb, var(--c-main, #333) 30%, #20232c), color-mix(in srgb, var(--c-sub, #333) 30%, #20232c), #20232c 80%);
+    z-index: -1;
 }
 
 /* ホバー時の上書き（トークン用） */
@@ -849,19 +1022,22 @@ button:active {
 
 /* 状態バッジの上書き（トークン用） */
 .spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
-.spirit-zone .card.targetable { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.6); }
-.spirit-zone .card.attacker-mark { box-shadow: inset 0 0 0 2px var(--danger), 0 0 16px rgba(239, 68, 68, 0.8); }
-
-.nexus-zone .card.usable { background: linear-gradient(145deg, var(--warning), #20232c); }
-.nexus-zone .card.targetable { background: linear-gradient(145deg, var(--danger), #20232c); }
-.nexus-zone .card.attacker-mark { background: linear-gradient(145deg, var(--danger), #20232c); }
+.spirit-zone .card.targetable { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.spirit-zone .card.attacker-mark { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.nexus-zone .card.usable::after { background: linear-gradient(145deg, var(--warning), #20232c); }
+.nexus-zone .card.targetable::after { background: linear-gradient(145deg, var(--danger), #20232c); }
+.nexus-zone .card.attacker-mark::after { background: linear-gradient(145deg, var(--danger), #20232c); }
 
 /* ---- シンボルアイコン（盤面トークン用） ---- */
 .symbols {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
     display: flex;
-    gap: 4px;
-    justify-content: center;
-    margin-top: 2px;
+    gap: 2px;
+    justify-content: flex-end;
+    margin-top: 0;
+    z-index: 10;
 }
 .sym-icon {
     position: relative;
@@ -953,9 +1129,10 @@ button:active {
         opacity: 1;
     }
     .core-buttons button {
-        width: 32px;
+        min-width: 32px;
         height: 32px;
         font-size: 14px;
+        padding: 0 8px;
     }
 }
 
@@ -1020,10 +1197,7 @@ button:active {
     #hand .card .name {
         font-size: 10px;
     }
-    #hand .card .effect-text {
-        font-size: 8px;
-        max-height: 32px;
-    }
+
     #action-buttons-container {
         position: fixed;
         bottom: 8px;
@@ -1092,9 +1266,7 @@ button:active {
         font-size: 9px;
         padding: 4px;
     }
-    #hand .card .effect-text {
-        display: none;
-    }
+
     .cost-badge {
         width: 22px;
         height: 22px;
@@ -1141,4 +1313,175 @@ button:active {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* ---- 召喚レベル選択：リザーブだけでは足りず、フィールドのコアを使うレベル ---- */
+#choice-options button.needs-field-cores {
+    border-color: #c9a227;
+    background: rgba(201, 162, 39, 0.15);
+}
+#choice-options button.needs-field-cores::before {
+    content: "💠 ";
+}
+
+/* ---- ネクサスのコア移動ボタン ----
+   ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
+   まるごとクリップされて消える。ラッパー（.nexus-slot）の直下にカードと兄弟で置き、
+   六角形の外側へはみ出させる。小さな六角形の上でホバーを狙わせるのは押しづらいので常時表示する */
+.nexus-slot {
+    position: relative;
+    display: inline-flex;
+    /* ボタンが右へはみ出すぶんの余白。隣のネクサスに重ねてクリックを奪わないようにする */
+    margin-right: 22px;
+}
+.nexus-slot .core-buttons {
+    opacity: 0;
+    top: 0;
+    right: -26px;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+}
+.nexus-slot:hover .core-buttons {
+    opacity: 1;
+}
+.nexus-slot .core-buttons button {
+    min-width: 26px;
+    height: 26px;
+    font-size: 13px;
+    padding: 0 6px;
+    background: var(--bg-panel);
+    border: 1px solid #666;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+.log-card-name {
+    color: #66b3ff;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: help;
+}
+
+/* ---- お知らせパネル ---- */
+.lobby-announcements {
+    margin-top: 32px;
+    background: rgba(30, 33, 40, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.announcement-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e5e7eb;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.announcement-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.announcement-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.announcement-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(4px);
+}
+
+.announcement-date-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.announcement-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.announcement-meta .date {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.announcement-meta .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.badge.update {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.badge.new {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.badge.fix {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.badge.info {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.announcement-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 2px 0;
+    line-height: 1.4;
+}
+
+.announcement-entry .badge {
+    flex-shrink: 0;
+}
+
+.announcement-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #d1d5db;
+}
+
+.announcement-loading {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 13px;
 }

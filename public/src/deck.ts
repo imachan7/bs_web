@@ -30,6 +30,12 @@ const SERIES_LABELS: Record<string, string> = {
     "BS03": "覇闘",
     "BS04": "龍帝",
     "BS05": "皇騎",
+    "BS06": "爆神",
+    "BS07": "天醒",
+    "BS08": "戦嵐",
+    "BS09": "超星",
+    "X003": "プロモ",
+    "X004": "プロモ",
 }
 
 // ---- 状態 ----
@@ -44,13 +50,14 @@ let deck = new Map<string, number>()
 const filterColors = new Set<Color>()
 const filterTypes = new Set<CardType>()
 const filterCosts = new Set<number>() // COST_BANDS のインデックス
-const filterSeries = new Set<string>()
-const filterKeywords = new Set<Keyword>()
+let filterSeries = ""
+let filterKeywords = ""
 let filterFamily = ""
 let searchText = ""
+let sortOrder: "id" | "cost-asc" | "cost-desc" = "id"
 
 // 詳細パネルに固定表示するカード（クリックで選択）
-let selectedCardId: string | null = null
+
 
 // 保存済みデッキ（localStorage の内容）
 interface SavedDeck {
@@ -133,11 +140,11 @@ function passesFilter(card: CardData): boolean {
         }
         if (!hit) return false
     }
-    if (filterSeries.size > 0 && !filterSeries.has(card.cardId.substring(0, 4))) return false
-    if (filterKeywords.size > 0) {
+    if (filterSeries !== "" && card.cardId.substring(0, 4) !== filterSeries) return false
+    if (filterKeywords !== "") {
         let hasKw = false
-        for (const kw of filterKeywords) {
-            if (card.effects.some(e => e.kind === "keyword" && e.keyword === kw)) {
+        for (const effect of card.effects) {
+            if (effect.kind === "keyword" && effect.keyword === filterKeywords) {
                 hasKw = true
                 break
             }
@@ -158,7 +165,15 @@ function passesFilter(card: CardData): boolean {
 function renderPool(): void {
     const grid = $("pool-grid")
     grid.textContent = ""
-    const visible = cards.filter(passesFilter)
+    let visible = cards.filter(passesFilter)
+    
+    if (sortOrder === "cost-asc") {
+        visible.sort((a, b) => a.cost - b.cost || a.cardId.localeCompare(b.cardId))
+    } else if (sortOrder === "cost-desc") {
+        visible.sort((a, b) => b.cost - a.cost || a.cardId.localeCompare(b.cardId))
+    } else {
+        visible.sort((a, b) => a.cardId.localeCompare(b.cardId))
+    }
 
     for (const card of visible) {
         const el = document.createElement("div")
@@ -179,7 +194,7 @@ function renderPool(): void {
 
         // コストバッジ
         const costBadge = document.createElement("span")
-        costBadge.className = "cost-badge"
+        costBadge.className = `cost-badge cost-${card.type}`
         costBadge.textContent = String(card.cost)
         el.appendChild(costBadge)
 
@@ -206,6 +221,22 @@ function renderPool(): void {
         if (card.rarity !== "") parts.push(card.rarity)
         txt.textContent = parts.join(" / ")
         info.appendChild(txt)
+
+        // 軽減シンボル（対戦画面と同じアイコン表示）
+        if (card.reduction.length > 0) {
+            const redWrap = document.createElement("span")
+            redWrap.className = "reduction-icons"
+            const redLabel = document.createElement("span")
+            redLabel.className = "reduction-label"
+            redLabel.textContent = "軽減"
+            redWrap.appendChild(redLabel)
+            card.reduction.forEach(r => {
+                const icon = document.createElement("span")
+                icon.className = `sym-icon bg-${r}`
+                redWrap.appendChild(icon)
+            })
+            info.appendChild(redWrap)
+        }
 
         el.appendChild(info)
 
@@ -240,11 +271,13 @@ function renderPool(): void {
         }
 
         el.addEventListener("mouseenter", () => {
-            if (selectedCardId === null) renderDetail(card)
+            renderDetail(card, el)
+        })
+        el.addEventListener("mouseleave", () => {
+            hideDetail()
         })
         el.addEventListener("click", () => {
-            selectedCardId = card.cardId
-            renderDetail(card)
+            renderDetail(card, el)
             addCard(card.cardId)
         })
 
@@ -255,7 +288,7 @@ function renderPool(): void {
 }
 
 // カード詳細（効果テキスト全文）の表示
-function renderDetail(card: CardData): void {
+function renderDetail(card: CardData, anchor?: HTMLElement): void {
     const panel = $("detail-panel")
     panel.textContent = ""
 
@@ -286,23 +319,43 @@ function renderDetail(card: CardData): void {
 
     const meta = document.createElement("div")
     meta.className = "detail-meta"
+    let reductionText = "軽減0"
+    if (card.reduction.length > 0) {
+        const counts = new Map<Color, number>()
+        for (const c of card.reduction) {
+            counts.set(c, (counts.get(c) ?? 0) + 1)
+        }
+        const redParts = Array.from(counts.entries()).map(([c, count]) => `${COLOR_LABELS[c]}${count}`)
+        reductionText = `軽減: ${redParts.join("・")}`
+    }
+
     const bp = maxBp(card)
+    const symbolCount = card.symbol ? card.symbol.length : 0
     const parts = [
-        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（軽減${card.reduction.length}）`,
+        `${card.colors.map((c) => COLOR_LABELS[c]).join("・")} / ${TYPE_LABELS[card.type]} / コスト${card.cost}（${reductionText}） / シンボル${symbolCount}`,
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
-    if (card.type === "spirit") {
-        const levels = card.levels
-            .map((lv) => `Lv${lv.level}(コア${lv.cores}) BP${lv.bp}`)
-            .join(" / ")
-        parts.push(levels)
-    } else if (bp !== null) {
-        parts.push(`BP${bp}`)
-    }
+    if (bp !== null && card.type !== "nexus") parts.push(`BP${bp}`)
     if (card.rarity !== "") parts.push(`レアリティ: ${card.rarity}`)
     if (card.limited) parts.push("【禁止カード】デッキに入れられません")
     meta.textContent = parts.join("　")
     panel.appendChild(meta)
+
+    if (card.type === "spirit" && card.levels.length > 0) {
+        const lvDiv = document.createElement("div")
+        lvDiv.className = "detail-meta"
+        lvDiv.textContent = card.levels
+            .map((lv) => `Lv${lv.level}(コア${lv.cores}) BP${lv.bp}`)
+            .join(" / ")
+        panel.appendChild(lvDiv)
+    } else if (card.type === "nexus" && card.levels.length > 0) {
+        const lvDiv = document.createElement("div")
+        lvDiv.className = "detail-meta"
+        lvDiv.textContent = card.levels
+            .map((lv) => `Lv${lv.level}(維持コア${lv.cores})`)
+            .join(" / ")
+        panel.appendChild(lvDiv)
+    }
 
     const effect = document.createElement("div")
     effect.className = "detail-effect"
@@ -317,6 +370,50 @@ function renderDetail(card: CardData): void {
         noteEl.textContent = `【${statusLabel}】 ${note.note}`
         panel.appendChild(noteEl)
     }
+
+    // パネルを表示してフローティング配置
+    panel.classList.remove("hidden")
+    if (anchor) {
+        // 一度表示して高さを取得してから配置する
+        panel.style.left = "-9999px"
+        panel.style.top = "0"
+        requestAnimationFrame(() => {
+            positionDetail(panel, anchor)
+        })
+    }
+}
+
+// ツールチップをカード横に配置する
+function positionDetail(panel: HTMLElement, anchor: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect()
+    const pw = panel.offsetWidth
+    const ph = panel.offsetHeight
+    const gap = 8
+
+    // 右に置けるなら右、はみ出すなら左
+    let left = rect.right + gap
+    if (left + pw > window.innerWidth - 8) {
+        left = rect.left - pw - gap
+    }
+    // 左にも置けない（狭い画面）場合はカードの下
+    if (left < 8) {
+        left = Math.max(8, rect.left)
+    }
+
+    // 上端はカードに揃えるが、下にはみ出さないようにする
+    let top = rect.top
+    if (top + ph > window.innerHeight - 8) {
+        top = window.innerHeight - 8 - ph
+    }
+    if (top < 8) top = 8
+
+    panel.style.left = `${left}px`
+    panel.style.top = `${top}px`
+}
+
+// ツールチップを非表示にする
+function hideDetail(): void {
+    $("detail-panel").classList.add("hidden")
 }
 
 // ---- デッキ面 ----
@@ -427,7 +524,7 @@ function renderDeck(): void {
         row.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
 
         const cost = document.createElement("span")
-        cost.className = "row-cost"
+        cost.className = `row-cost cost-${card.type}`
         cost.textContent = String(card.cost)
         row.appendChild(cost)
 
@@ -464,11 +561,10 @@ function renderDeck(): void {
         })
         row.appendChild(minus)
 
-        // 行クリックで詳細表示
-        row.addEventListener("click", () => {
-            selectedCardId = cardId
-            renderDetail(card)
-        })
+        // ホバーおよびクリックで詳細表示
+        row.addEventListener("mouseenter", () => renderDetail(card, row))
+        row.addEventListener("mouseleave", () => hideDetail())
+        row.addEventListener("click", () => renderDetail(card, row))
 
         list.appendChild(row)
     }
@@ -907,45 +1003,31 @@ function setupFilterChips(): void {
         }
     }
 
-    const seriesContainer = $("filter-series")
+    const seriesSelect = $("filter-series") as HTMLSelectElement
     const sortedSeries = Array.from(availableSeries).sort()
     for (const s of sortedSeries) {
-        const btn = document.createElement("button")
-        btn.className = "chip"
-        btn.dataset.series = s
-        btn.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
-        btn.addEventListener("click", () => {
-            if (filterSeries.has(s)) {
-                filterSeries.delete(s)
-                btn.classList.remove("active")
-            } else {
-                filterSeries.add(s)
-                btn.classList.add("active")
-            }
-            renderPool()
-        })
-        seriesContainer.appendChild(btn)
+        const option = document.createElement("option")
+        option.value = s
+        option.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
+        seriesSelect.appendChild(option)
     }
+    seriesSelect.addEventListener("change", () => {
+        filterSeries = seriesSelect.value
+        renderPool()
+    })
 
-    const kwContainer = $("filter-keywords")
+    const kwSelect = $("filter-keywords") as HTMLSelectElement
     const sortedKw = Array.from(availableKeywords).sort()
     for (const kw of sortedKw) {
-        const btn = document.createElement("button")
-        btn.className = "chip"
-        btn.dataset.keyword = kw
-        btn.textContent = KEYWORDS[kw]?.label ?? kw
-        btn.addEventListener("click", () => {
-            if (filterKeywords.has(kw)) {
-                filterKeywords.delete(kw)
-                btn.classList.remove("active")
-            } else {
-                filterKeywords.add(kw)
-                btn.classList.add("active")
-            }
-            renderPool()
-        })
-        kwContainer.appendChild(btn)
+        const option = document.createElement("option")
+        option.value = kw
+        option.textContent = KEYWORDS[kw]?.label ?? kw
+        kwSelect.appendChild(option)
     }
+    kwSelect.addEventListener("change", () => {
+        filterKeywords = kwSelect.value
+        renderPool()
+    })
 
     const familySelect = $("filter-family") as HTMLSelectElement
     const sortedFamilies = Array.from(availableFamilies).sort((a, b) => a.localeCompare(b, "ja"))
@@ -999,10 +1081,29 @@ function setupFilterChips(): void {
             renderPool()
         })
     }
+    for (const btn of $("filter-notes").querySelectorAll<HTMLButtonElement>(".chip")) {
+        btn.addEventListener("click", () => {
+            const note = btn.dataset.note as NoteStatus
+            if (filterNotes.has(note)) {
+                filterNotes.delete(note)
+                btn.classList.remove("active")
+            } else {
+                filterNotes.add(note)
+                btn.classList.add("active")
+            }
+            renderPool()
+        })
+    }
 
-    const search = $("search-input") as HTMLInputElement
-    search.addEventListener("input", () => {
-        searchText = search.value.trim()
+    const searchInput = $("search-input") as HTMLInputElement
+    searchInput.addEventListener("input", () => {
+        searchText = searchInput.value
+        renderPool()
+    })
+
+    const sortSelect = $("sort-order") as HTMLSelectElement
+    sortSelect.addEventListener("change", () => {
+        sortOrder = sortSelect.value as "id" | "cost-asc" | "cost-desc"
         renderPool()
     })
 
@@ -1010,13 +1111,23 @@ function setupFilterChips(): void {
         filterColors.clear()
         filterTypes.clear()
         filterCosts.clear()
-        filterSeries.clear()
-        filterKeywords.clear()
+        filterNotes.clear()
+        
+        filterSeries = ""
+        ;(document.getElementById("filter-series") as HTMLSelectElement).value = ""
+        
+        filterKeywords = ""
+        ;(document.getElementById("filter-keywords") as HTMLSelectElement).value = ""
+        
         filterFamily = ""
         const familySelect = $("filter-family") as HTMLSelectElement
         familySelect.value = ""
         searchText = ""
-        search.value = ""
+        searchInput.value = ""
+
+        sortOrder = "id"
+        sortSelect.value = "id"
+
         for (const btn of document.querySelectorAll("#filters .chip")) {
             btn.classList.remove("active")
         }
@@ -1054,7 +1165,7 @@ function setupDeckIo(): void {
 
     // プール外クリックで詳細の固定選択を解除（ホバー表示に戻す）
     $("pool-grid").addEventListener("mouseleave", () => {
-        selectedCardId = null
+        hideDetail()
     })
 }
 
@@ -1077,7 +1188,8 @@ async function init(): Promise<void> {
         console.warn("Failed to fetch card-notes.json", e)
     }
 
-    const res = await fetch("/data/cards.json")
+    // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
+    const res = await fetch("/api/cards")
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")
         return

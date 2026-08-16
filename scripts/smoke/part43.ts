@@ -3,7 +3,10 @@
 // 拡張2: シンボル数条件（magic condition ownFieldHasMinSymbolSpirit）・
 //        対象フィルタ（bpBuff の minSymbols）— BS04-091 ライトニングバリスタ
 // 拡張3: 光芒（kobo）の一時付与対応（resolveKoboOnBattleEndがtempKeywordsも見るように）— BS04-106 グリームホープ
-import { assert, act, createGame, createInstance, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, currentLevel, effectiveBp, runTurnStart } from "./helpers"
+
+// 2026-07-31: 両カードとも bpBuffAll（tempBpBuff直書き）から lendSelfThisTurn + kind:"aura"
+// （familyFilter・lentOnly）へ移行（part76参照）。実効値は effectiveBp で確認する
 
 console.log("=== 拡張1: BS04-029 ブラックモノケイロス（召喚時、系統「殻人」/「殻虫」のいずれかでBP+3000） ===")
 {
@@ -22,9 +25,15 @@ console.log("=== 拡張1: BS04-029 ブラックモノケイロス（召喚時、
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ブラックモノケイロスを召喚")
     const monoceros = s.players.p1.field.spirits.find((sp) => sp.cardId === "BS04-029")
     assert(monoceros !== undefined, "ブラックモノケイロスが場に出た")
-    assert(monoceros?.tempBpBuff === 3000, "自身（系統「殻人」）もBP+3000される")
-    assert(shellAlly.tempBpBuff === 3000, "系統「殻虫」のビートビートルもBP+3000される（OR一致）")
-    assert(unrelated.tempBpBuff === 0, "系統が一致しないゴラドンはBP+3000されない")
+    assert(
+        effectiveBp(s, "p1", monoceros!) === currentLevel(monoceros!).bp + 3000,
+        "自身（系統「殻人」）もBP+3000される",
+    )
+    assert(
+        effectiveBp(s, "p1", shellAlly) === currentLevel(shellAlly).bp + 3000,
+        "系統「殻虫」のビートビートルもBP+3000される（OR一致）",
+    )
+    assert(effectiveBp(s, "p1", unrelated) === currentLevel(unrelated).bp, "系統が一致しないゴラドンはBP+3000されない")
 }
 
 console.log("=== 拡張1 既存回帰: BS03-145 スクランブル（familyFilterが単一文字列でも従来通り動く） ===")
@@ -42,8 +51,11 @@ console.log("=== 拡張1 既存回帰: BS03-145 スクランブル（familyFilte
     s.players.p1.hand[0] = "BS03-145"
     s.players.p1.reserve = 10
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "スクランブルを使用")
-    assert(jeffry.tempBpBuff === 3000, "系統「闘神」のジェフリーはBP+3000される（単一文字列は従来通り）")
-    assert(unrelated.tempBpBuff === 0, "系統が一致しないゴラドンはBP+3000されない")
+    assert(
+        effectiveBp(s, "p1", jeffry) === currentLevel(jeffry).bp + 3000,
+        "系統「闘神」のジェフリーはBP+3000される（単一文字列は従来通り）",
+    )
+    assert(effectiveBp(s, "p1", unrelated) === currentLevel(unrelated).bp, "系統が一致しないゴラドンはBP+3000されない")
 }
 
 console.log("=== 拡張2: BS04-091 ライトニングバリスタ メイン（シンボル2つ以上の自陣スピリットがいないと発動しない） ===")
@@ -169,7 +181,7 @@ console.log("=== 拡張3: BS04-106 グリームホープ（メイン：光芒の
         "フラッシュでリターンドローを使用",
     )
     assert(s.players.p1.trashCards.includes("BS01-123"), "使用直後はトラッシュにある")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "防御側はライフで受ける（バトル終了）")
+    assert(takeLifeAndResolve(s, "p2") === null, "防御側はライフで受ける（バトル終了）")
     assert(
         s.players.p1.hand.includes("BS01-123"),
         "一時付与された【光芒】でリターンドローが手札に戻った",
