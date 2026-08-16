@@ -153,3 +153,7 @@ data/bug-reports.jsonl
 
 # Python（scripts/fetch_wiki_cards.py）
 __pycache__/
+
+# エージェント間連絡の受信箱はリポジトリの外（develop/bs_web-chatbox）へ移した。
+# 誤って作り直しても追跡しない（2026-08-16）。理由は scripts/chatbox.ts の冒頭コメント
+chatbox/
