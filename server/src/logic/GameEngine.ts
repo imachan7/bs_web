@@ -1483,6 +1483,18 @@ function resolveBattle(state: GameState): void {
         resolveLifeDamage(state)
         return
     }
+    // SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら同じ扱い（判定だけが違う一般化版）
+    if (
+        state.battle.treatAsUnblockedIfLevelAtLeastBlocker &&
+        currentLevel(attacker).level >= currentLevel(blocker).level
+    ) {
+        log(
+            state,
+            `${getCard(attacker.cardId).name}は${getCard(blocker.cardId).name}と同じLv以上のため、BPを比べずブロックされなかったものとして扱う。`,
+        )
+        resolveLifeDamage(state)
+        return
+    }
     // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
     const attackerBp = battleBp(state, attackerPid, attacker)
     const blockerBp = battleBp(state, defenderPid, blocker)

@@ -328,7 +328,9 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         const player = state.players[owner]
         const isMatch = (cardId: string): boolean => {
             const c = getCard(cardId)
-            return c.type === "nexus" && action.colors.some((col) => cardHasColor(c, col))
+            // colors 省略時は色を問わない（SD02-006 鼬の暗殺者ウィゼーブ）
+            if (c.type !== "nexus") return false
+            return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
         const deployFromIndex = (idx: number): void => {
             const zone = action.from === "hand" ? player.hand : player.trashCards
@@ -870,6 +872,18 @@ const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfB
     log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
 }
 
+// SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら、BPを比べずに
+// 「ブロックされなかった」ものとして扱う（treatAsUnblockedIfBlockerLevel1 の一般化版）
+const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnblockedIfLevelAtLeastBlocker"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
+        return
+    }
+    state.battle.treatAsUnblockedIfLevelAtLeastBlocker = true
+    log(state, `${sourceName}：ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。`)
+}
+
 // BS09-042妖精騎士ピーターLv2-3：相手のスピリット1体を指定し、このバトルの間ブロックさせない。
 // 指定するのは効果の持ち主（効果文の主語が「（自分が）指定する」。CHOOSER_RULES.md）
 const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> = (ctx) => {
@@ -992,6 +1006,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
+    treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,

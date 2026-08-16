@@ -68,7 +68,10 @@ export interface TargetFilter {
     sameFamilyAsBattleLoser?: true // 直前のバトルで破壊された側と同じ系統（normalizeFilter が state.lastBattleDestroyedFamilies を family 軸へ解決する。記録が無ければ対象なし。BS04ニーベルングリング）
     sameBpAsBattleLoser?: true // 直前のバトルで破壊された側と同じ実効BP（normalizeFilter が state.lastBattleDestroyedBp を exactBp 軸へ解決する。記録が無ければ対象なし。BS03熾烈極める最前線Lv2）
     sameCostAsSelf?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝召喚されたスピリット等）と同じコスト。normalizeFilter が cost 軸へ解決する。self がいなければ対象なし（BS09-060緑翼の大樹＝「そのスピリットと同じコストの相手」）
-    sameCostAsBlocker?: true // イベント対象として渡ってきたブロッカー（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。ブロッカーが見つからなければ対象なし。BS06計画された場外乱闘Lv2）
+    sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
+    // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
+    // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
+    // ブロッカー限定だと読める名前で実体と食い違っていたため 2026-08-16 に改名した
     unblockableOnly?: true // 「ブロックされない」効果を持つものだけ（継続的な制約 unblockableBy ／ターン限定の印 unblockableOnceThisTurn のどちらでもよい。BS09-049炎蜥蜴クトゥグマLv3）
     keywords?: Keyword[] // 指定したキーワードの**いずれか**を持つもの（keyword の複数版。OR。BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）
     keywordExclude?: Keyword // 指定キーワードを**持たない**もの（一時付与・継続付与も考慮。keyword の否定。BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
@@ -138,7 +141,7 @@ export type EffectAction =
     | { type: "voidCoreToOther"; count: number; colorFilter?: Color; targets?: number } // colorFilter指定時はその色を持つ自分のスピリットのみ対象（instHasColorで判定。BS09-020ヤミヤンマ＝白）。targets指定時はその体数へcount個ずつ置く（実効BP上位から重複なく。BS09-023要塞蟲ラルバ＝白2体）。// ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
     | { type: "fireOwnDestroyTriggers" } // 発生源の持ち主のスピリットすべての『このスピリットの破壊時』効果を、**破壊させずに**発揮させる（フィールドから取り除かない。発揮順はフィールドの並び順。BS07女教皇リル・サキュバス）
     | { type: "coreSqueezeAll" } // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ（1個未満で維持コア割れになる場合は消滅処理を適用）
-    | { type: "endAttackStepAfterBattle" } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op）
+    | { type: "endAttackStepAfterBattle" } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op。サイレントウォール／SD02-003 天使デュナミス＝コスト2以下をブロックしたとき）
     | { type: "coreToTrashSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のトラッシュへ（維持コア割れの消滅処理を含む。selfがnullならno-op）
     | { type: "recoverSpiritFromTrash"; costSacrificeChosen?: true; count: number; familyFilter?: FamilyFilter; all?: true; thenDestroyIfFamily?: { family: FamilyFilter; maxBp: number }; costDestroyOwnKeyword?: Keyword; keywordFilter?: Keyword; colorFilter?: Color; nameIncludes?: string; costSkipDraw?: true } // colorFilter指定時はこの色を持つスピリットカードのみ対象（トラッシュのカードが対象なのでカード静的なcolorsで判定。BS09-015獄獣ガシャベルスLv3＝黄）。 // costSkipDraw指定時は「ドローしないことで」＝そのドローステップのドローを支払いに使う。実際に手札へ戻せたときだけ GameState.drawStepSkipped を立てる（step.beforeDraw と対で使う。BS07常闇の聖堂Lv2）。// nameIncludes指定時はカード名にこの文字列を含むカードのみ対象（カード静的な名前で判定＝トラッシュのカードが対象のため。BS08アルカナクィーン・パラス＝「アルカナ」）。keywordFilter指定時はこのキーワードエントリを静的に持つカードのみ対象（hasKeywordで判定＝トラッシュのカードが対象のため。BS08ターンインフェルノ＝【転召】持ち）。// costDestroyOwnKeyword指定時は、そのキーワードを持つ自分のスピリット1体（実効BP最小＝犠牲を最小化する簡略化）を破壊することがコストで、該当がなければ不発（BS07ブリュナグオン＝【呪撃】持ち）。// thenDestroyIfFamily指定時は、手札に戻したカードがその系統（配列＝OR。カード静的なfamilyで判定）を持つときだけ、続けてmaxBp以下の相手スピリット1体を破壊する（BS07ドラグロン占術師＝「勇傑」のときBP3000以下を破壊）。// 自分のトラッシュにあるスピリットカードをcount枚、手札に戻す（末尾＝新しい方から自動選択。本来は選択の簡略化。該当なしはno-op）。familyFilter指定時はその系統を持つカードのみ（配列＝OR。カード静的な family で判定。BS04鋼葉の樹林）。all指定時はcountを無視し、familyFilter該当カードすべてを手札に戻す（BS03ネクロマンシー）
     | { type: "coreSqueezeOne"; count: number; anySide?: true; dest?: "trash" } // dest:"trash"指定時は超過分をリザーブでなく持ち主のトラッシュへ置く（BS09-012ボーギー）。// 相手フィールドの実効BP最大のスピリットをcount体選び、それぞれコアを1個だけ残して超過分を持ち主のリザーブへ（coreSqueezeAllの単体版。対象なしはno-op）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり相手BP最大を自動選択。BS03ウィークネス）
@@ -150,6 +153,8 @@ export type EffectAction =
     | { type: "costDiscardNamedThenPeek"; cardName: string } // 自分の手札にある指定カード名のカード1枚を破棄することで、相手の手札1枚を**内容を見ないで選び**、その内容だけを見る（盤面は変わらない）。見たカードは PlayerState.peekedOpponentCardIds に積み、持ち主の PlayerView にだけ返す。手札に該当が無ければ不発（BS09-039探偵ペンタン＝[キャラクターロスト]）
     | { type: "discardSelfOne" } // 自分の手札の末尾1枚をトラッシュへ破棄（手札0ならno-op。本来は自分が選ぶ処理の簡略化）
     | { type: "discardBothHands"; count: number } // お互いが手札からcount枚を破棄する（自分→相手の順。破棄するカードは手札の末尾から＝各自が選ぶ処理の決定的簡略化。手札が足りなければある分だけ。BS04魔界七将パンデミウムLv3）
+    | { type: "treatAsUnblockedIfLevelAtLeastBlocker" } // このバトルに「アタッカーのLvがブロッカーのLv以上ならBPを比べずブロックされなかった扱いにする」印を立てる
+    // （BattleState.treatAsUnblockedIfLevelAtLeastBlocker。treatAsUnblockedIfBlockerLevel1 の一般化版。SD02-016 ウィングブーツ）
     | { type: "treatAsUnblockedIfBlockerLevel1" } // このバトルに「ブロッカーがLv1ならBPを比べずブロックされなかった扱いにする」印を立てる（BattleState.treatAsUnblockedIfBlockerLevel1。BS09-044ハマ・ドリュアスが effectGrant で楽族に配る）
     | { type: "markCantBlockThisBattle" } // 相手のスピリット1体を指定し、**このバトルの間**そのスピリットをブロックできなくする（CardInstance.cantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーターLv2-3）
     | { type: "markUnblockableThisTurn"; minBp: number; target?: "self" } // target:"self"指定時は発生源自身に印を付ける（BP最大の自動選択をしない。『このスピリットの召喚時：このターンの間、このスピリットはブロックされない』。BS07天使長トロン）// 実効BPがminBp以上の自分のスピリット1体（BP最大＝指定の決定的簡略化）に「このターン1回だけブロックされない」印を付ける（CardInstance.unblockableOnceThisTurn。印は次のバトルの終了時に消える。BS04強者統べる大地Lv2）
@@ -182,7 +187,7 @@ export type EffectAction =
     | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number; vanillaFilter?: true } // 自分のスピリット全員（costFilter指定時はコスト一致のみ、vanillaFilter指定時は効果の記述を持たないスピリットのみ）に、このターンの間キーワードを付与する（リフレクションアーマー／BS05サーキュラーソー・アーム）
     | { type: "banActByCostThisTurn"; maxCost: number } // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
     | { type: "deployNexusFromTrashByFieldCores"; colors: Color[] } // 自分のトラッシュにある指定色いずれかのネクサスカード1枚を、**自分のフィールドのコアだけ**を使ってコストを支払い配置する（リザーブは使わない。2026-08-14 ユーザー確認）。フィールドのコアが足りなければ不発。取るのはネクサス上→コアの多いスピリットの順（維持コアを割る個体からは取らない決定的簡略化。BS09-065名工集いし大工房Lv2）
-    | { type: "deployNexus"; from: "hand" | "trash"; colors: Color[]; all?: boolean } // 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）。all指定時は該当するネクサスカードをすべて配置する
+    | { type: "deployNexus"; from: "hand" | "trash"; colors?: Color[]; all?: boolean } // colors省略時は**色を問わない**（SD02-006 鼬の暗殺者ウィゼーブ＝「トラッシュにあるネクサスカード1枚」）。// 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）。all指定時は該当するネクサスカードをすべて配置する
     | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
     | { type: "levelOverrideOpponentNexuses"; level: number; costReserveToVoid?: number } // 相手の全ネクサスの levelOverrideThisTurn を level に設定（このターンの間）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから適用する（「できる」の任意発動は自動発動で簡略化。皇帝アンプルール）
     | { type: "treatOwnNexusesAsSpiritsThisTurn"; minCores?: number; cost: number; family: string[]; levels: LevelDef[] } // 自分のネクサス（minCores個以上のコアが置かれているもの。省略時1）を、このターンの間スピリットとして扱う（BS03ゴーレムクラフト）。field.nexuses から field.spirits へ**同じインスタンスのまま**移し、CardInstance.asSpiritThisTurn に cost/family/levels の上書きを載せる。ターン終了時に PhaseManager.endTurn が生き残りを field.nexuses へ戻す（破壊された個体は既に場を離れているので戻らず、ネクサスカードがトラッシュに残る）
@@ -203,6 +208,10 @@ export type EffectAction =
     //  この制限は**その『』ブロックの中だけ**に効く。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）。
     // chooserIsTarget 指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア3個を〜置く」。
     // 解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。exhaust.chooserIsTarget と同型。docs/design/CHOOSER_RULES.md）
+    | { type: "destroyOnePerCost"; costs: number[] } // 指定コストそれぞれについて相手のスピリット1体ずつを破壊する
+    // （SD02-010 轟剣士レーヴェン＝「コスト0/1/2/3/4の相手のスピリット1体ずつ」）。
+    // コストごとに独立して選ぶ（同じ個体は二度選べない＝コストが一致する個体は1体につき1回）。
+    // 対象がいないコストは飛ばす。interactiveTargets 時はコストごとに選択を出し、非対話では実効BP最大を自動選択
     | { type: "chooseActionMode"; modes: { label: string; actions: EffectAction[] }[] } // 効果文の「〜する。**または**、〜する」。使用者が modes からどれか1つを選び、その actions を順に解決する
     // （SD01-033 ヴィクトリーファイア＝「BP3000以下の相手2体を破壊する。または、BP3000以下の相手1体と相手のネクサス1つを破壊する」）。
     // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
@@ -330,6 +339,9 @@ export type EffectCounter =
     | "opponentTrashCores" // 相手のトラッシュに置かれているコア数（PlayerState.trashCores。BS04吸血鬼ダンピール）
     | "selfLevel" // このスピリット（self）自身の現在のLv（selfがnullなら0。BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」）
     | "selfSymbols" // このスピリット（self）自身が持つシンボル数（instanceSymbolCount。selfがnullなら0。BS05碧緑の竜使いグリューン：「このスピリットのシンボルと同じ数」）
+    | "targetSameFamilyOwn" // 対象スピリットと系統を1つ以上共有する自分のスピリットの数（**対象自身も数える**。
+    // 効果文が「このスピリット以外の」と書いていないため。SD02-015 フレンドリーパワー）。
+    // targetSymbols と同じく bpBuffPer ハンドラが対象選択後に個別計算するので、countEffectCounter には来ない
     | "targetSymbols" // **対象スピリット自身**（bpBuffPerが解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（bpBuffPerハンドラが対象選択後に個別計算する。BS06サベージパワー）
     | "lastFunsaiTotal" // 直前の【粉砕】で破棄した総枚数（GameState.lastFunsai。次のアタック宣言でリセット。BS03巨人王ランドルフ）
     | "lastFunsaiSpirits" // 直前の【粉砕】で破棄したカードのうちスピリットカードの枚数（GameState.lastFunsai。BS04二刀流のアムブローズ）
@@ -1616,6 +1628,8 @@ export interface BattleState {
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     compareByCores?: boolean // trueの場合、バトル解決時にBPの代わりに置かれているコアの数を比較する（BS06イマジンフィールド）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
+    treatAsUnblockedIfLevelAtLeastBlocker?: true // アタッカーのLvがブロッカーのLv以上なら、BPを比べずに「ブロックされなかった」ものとして扱う
+    // （挙動は treatAsUnblockedIfBlockerLevel1 と同じ。判定だけが違う。SD02-016 ウィングブーツ）
     treatAsUnblockedIfBlockerLevel1?: true // ブロッカーがLv1なら、BPを比べずに「ブロックされなかった」ものとして扱う（ライフに通り、どちらも破壊されない。ブロッカーは疲労したまま残る。BS09-044妖精の姫巫女ハマ・ドリュアス。BS09_PLAN.md §4）
     blockerCoresProtected?: true // このバトルの間、ブロッカー上のコアは効果で取り除けない（protectBlockerCoresThisBattle。BS09-027密林の勇者皇ヴォルザLv2-3）
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId

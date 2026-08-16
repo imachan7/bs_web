@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsBlocker, sameCostAsSelf, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsEventTarget, sameCostAsSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -81,10 +81,12 @@ export function normalizeFilter(
     }
     // イベント対象として渡ってきたブロッカー（ctx.targetInstanceId）と同じコスト
     // （BS06計画された場外乱闘Lv2：ブロックしたスピリットと同じコストの、他の相手のスピリット）
-    if (sameCostAsBlocker) {
-        const blocker = ctx.targetInstanceId ? findInstanceAnywhere(ctx.state, ctx.targetInstanceId) : undefined
-        if (!blocker) return SELF_REQUIRED
-        const cost = getCard(blocker.cardId).cost
+    // イベント対象と同じコスト。何が「イベント対象」かは誘発で変わる
+    // （onBlocked＝ブロッカー／onBlock＝アタックしている相手）
+    if (sameCostAsEventTarget) {
+        const target = ctx.targetInstanceId ? findInstanceAnywhere(ctx.state, ctx.targetInstanceId) : undefined
+        if (!target) return SELF_REQUIRED
+        const cost = getCard(target.cardId).cost
         resolved.cost = { min: cost, max: cost }
     }
 

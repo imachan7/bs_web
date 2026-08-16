@@ -203,12 +203,12 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
-    "sameCostAsBlocker", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
+    "sameCostAsEventTarget", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
-    exhaustAll: ["cores", "excludeSelf"], // BS05双剣虎ジェン・フー。他の軸は exhaustAll ハンドラが見ない
+    exhaustAll: ["cores", "excludeSelf", "cost", "sameCostAsEventTarget"], // BS05双剣虎ジェン・フー／SD02-002 ミザール（同じコスト）。他の軸は exhaustAll ハンドラが見ない
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
     bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family"],
