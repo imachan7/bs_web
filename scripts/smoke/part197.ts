@@ -119,7 +119,13 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             s.turnPlayer = entry["turn"] === "opponent" ? "p2" : "p1"
             s.phase = (entry["phase"] as Phase | undefined) ?? "attack"
 
-            const subject = put(s, "p1", subjectCard, coresFor(subjectCard, topLevel(subjectCard)))
+            // 主体を置く側を決める。**「どちらかのスピリットが〜」（any…）で『相手のターン』**なら
+            // 主体は相手のスピリット（自分の駒を主体にすると永久に条件を満たさない）
+            const subjectPid: PlayerId = event.startsWith("any") && entry["turn"] === "opponent" ? "p2" : "p1"
+            const subject = put(s, subjectPid, subjectCard, coresFor(subjectCard, topLevel(subjectCard)))
+            // ライフを減らしておく（「ライフが5になるように置く」系は満タンだと何も起きない）
+            s.players.p1.life = 2
+            s.players.p2.life = 2
             // 相手に2体（1体は疲労状態）。破壊・疲労・コア除去の対象になる
             const foe = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= 3)!
             put(s, "p2", foe, coresFor(foe, 1))
@@ -152,7 +158,7 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             }
 
             const before = snapshot(s)
-            fireFieldEventTriggers(s, "p1", event as never, { pid: "p1", inst: subject }, undefined,
+            fireFieldEventTriggers(s, "p1", event as never, { pid: subjectPid, inst: subject }, undefined,
                 s.players.p2.field.spirits[0]?.instanceId)
             // 選択待ちは先頭で解消する
             for (let i = 0; i < 20 && s.pendingChoice; i++) {
