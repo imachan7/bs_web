@@ -898,6 +898,16 @@ process.on("exit", () => {
                     }
                 } else if (effect.target === "opponentBlockersOfOwnKeyword") {`,
         )
+        // levelAs target:"opponentBlockersOfOwnKeyword"（SD02-005 天使ヘルヴィム）。
+        // 上の分岐とは別の代入点なので、計測点も別に要る
+        patch(
+            em,
+            `                            if (blocker) blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)`,
+            `                            if (blocker) {
+                                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                                blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)
+                            }`,
+        )
         patch(
             em,
             `                            if (!instHasColor(spirit, chosenColor)) continue
