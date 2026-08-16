@@ -650,6 +650,11 @@ function renderInfo(
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
         ["", `トラッシュ ${p.trashCards.length}枚`],
     ]
+
+    if (!isSelf && view.players[view.you].peekedOpponentCardIds?.length) {
+        const peeked = view.players[view.you].peekedOpponentCardIds!.map(id => master(id).name).join(" / ")
+        items.push(["", `(判明: ${peeked})`])
+    }
     for (const [cls, text] of items) {
         const span = document.createElement("span")
         if (cls) span.className = cls
@@ -784,6 +789,38 @@ function fieldCardEl(
         const badge = document.createElement("div")
         badge.className = "as-spirit-badge"
         badge.textContent = "スピリット化中"
+        el.appendChild(badge)
+    }
+
+    let unexhaustable = false
+    if (isNexus && view.phase === "attack") {
+        const otherPid = Object.keys(view.players).find(id => id !== ownerPid) as PlayerId
+        if (otherPid) {
+            const otherNexuses = view.players[otherPid].field.nexuses
+            for (const n of otherNexuses) {
+                if (n.cardId === "BS09-063" && levelOf(n).level >= 2) {
+                    unexhaustable = true
+                    break
+                }
+            }
+        }
+    }
+    if (unexhaustable) {
+        el.classList.add("unexhaustable")
+        const badge = document.createElement("div")
+        badge.className = "unexhaustable-badge"
+        badge.textContent = "疲労不可"
+        badge.style.position = "absolute"
+        badge.style.top = "-6px"
+        badge.style.right = "-6px"
+        badge.style.background = "#d32f2f"
+        badge.style.color = "white"
+        badge.style.fontSize = "10px"
+        badge.style.padding = "2px 6px"
+        badge.style.borderRadius = "4px"
+        badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.5)"
+        badge.style.zIndex = "2"
+        badge.style.pointerEvents = "none"
         el.appendChild(badge)
     }
 

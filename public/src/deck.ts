@@ -1,7 +1,7 @@
 // デッキビルダーページのロジック
 // カードプールの表示・フィルタ、デッキ編集、制約検証、保存・書き出しを担当する
 import type { CardData, CardType, Color, Keyword } from "../../server/src/type"
-import { COLOR_LABELS, DECK_SIZE } from "../../data/constants"
+import { COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
 import { KEYWORDS } from "../../shared/rules"
 
 // ---- 定数 ----
@@ -424,10 +424,7 @@ function addCard(cardId: string): void {
         showToast(`${card.name} は禁止カードのためデッキに入れられません`)
         return
     }
-    if (deckTotal() >= DECK_SIZE) {
-        showToast(`デッキは${DECK_SIZE}枚までです`)
-        return
-    }
+
     if (nameCount(card.name) >= nameLimit(card.name)) {
         showToast(`同名カードは${nameLimit(card.name)}枚までです（${card.name}）`)
         return
@@ -469,8 +466,8 @@ function validateDeck(target: Map<string, number>): string[] {
             errors.push(`同名カードが${limit}枚を超えています: ${name}（${count}枚）`)
         }
     }
-    if (total !== DECK_SIZE) {
-        errors.push(`デッキはちょうど${DECK_SIZE}枚必要です（現在${total}枚）`)
+    if (total < DECK_MIN_SIZE) {
+        errors.push(`デッキは${DECK_MIN_SIZE}枚以上必要です（現在${total}枚）`)
     }
     return errors
 }
@@ -478,8 +475,8 @@ function validateDeck(target: Map<string, number>): string[] {
 function renderDeck(): void {
     const total = deckTotal()
     const counter = $("deck-count")
-    counter.textContent = `${total} / ${DECK_SIZE}`
-    counter.className = total === DECK_SIZE ? "valid" : "invalid"
+    counter.textContent = `${total} / ${DECK_MIN_SIZE}以上`
+    counter.className = total >= DECK_MIN_SIZE ? "valid" : "invalid"
 
     // 検証結果の表示
     const validation = $("deck-validation")
@@ -488,7 +485,7 @@ function renderDeck(): void {
     if (errors.length === 0) {
         const ok = document.createElement("div")
         ok.className = "validation-ok"
-        ok.textContent = "有効なデッキです（40枚ちょうど）"
+        ok.textContent = "有効なデッキです"
         validation.appendChild(ok)
     } else {
         for (const message of errors) {
@@ -887,8 +884,8 @@ function validateImport(data: unknown): {
             continue
         }
     }
-    if (errors.length === 0 && total !== DECK_SIZE) {
-        warnings.push(`合計が${DECK_SIZE}枚ではありません（${total}枚）。編集を続けてください`)
+    if (errors.length === 0 && total < DECK_MIN_SIZE) {
+        warnings.push(`合計が${DECK_MIN_SIZE}枚未満です（${total}枚）。編集を続けてください`)
     }
     return { errors, warnings, name, cards: result }
 }
