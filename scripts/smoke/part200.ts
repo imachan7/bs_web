@@ -14,8 +14,10 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireFieldEventTriggers, resolveAction } from "../../server/src/logic/EffectModules"
+import { destroySpirit, fireFieldEventTriggers, resolveAction } from "../../server/src/logic/EffectModules"
 import { instColors } from "../../shared/rules"
+import { COLOR_LABELS } from "../../data/constants"
+import { canBlock } from "../../shared/block"
 import { loadAllCards } from "../../data/loadCards"
 import type { Color, Phase } from "../../server/src/type"
 
@@ -237,5 +239,111 @@ console.log("--- マジックのBP増加が上乗せされる ---")
     assert(
         t2.tempBpBuff === plain + bonus,
         `${card.name} Lv${level}：マジックのBP増加が+${bonus}上乗せされる（${plain}→${t2.tempBpBuff}）`,
+    )
+}
+
+console.log("--- マジックの使用そのものが弾かれる ---")
+{
+    // 青嵐の虚空Lv2：【転召】を持つ自分のスピリットがいるとき、コスト4以下のマジックは使用できない
+    const card = byId("BS05-065")
+    const entry = entryOf(card, "e2")
+    const level = (entry["levels"] as number[])[0]!
+    const maxCost = Number(entry["maxCost"])
+    const needKw = String(entry["requireOwnKeyword"])
+    const magic = CARDS.find((c) => c.type === "magic" && (c.cost ?? 99) <= maxCost)!
+    const tensho = CARDS.find(
+        (c) => c.type === "spirit" && (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === needKw),
+    )!
+    const s = base("bs05-065-cast")
+    s.phase = String(entry["phase"]) as Phase
+    putNexus(s, "p1", card, coresFor(card, level))
+    put(s, "p1", tensho, coresFor(tensho, 1))
+    refreshLevelAsOverrides(s)
+    s.players.p1.hand[0] = magic.cardId
+    // **実際に使おうとして弾かれる**ことを見る（判定関数を呼ぶだけでは使用の入口を通らない）
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null,
+        `${card.name} Lv${level}：【${needKw}】持ちがいる間はコスト${maxCost}以下のマジックを使用できない`,
+    )
+}
+
+console.log("--- バトルで破壊されたスピリットが復活する ---")
+{
+    // 夢中漂う桃幻郷Lv2：『自分のアタックステップ』相手のフィールドのシンボルが1色以下のとき、
+    // バトルで破壊された自分の黄のスピリットは疲労状態で復活する
+    const card = byId("BS06-087")
+    assert(card.name === "夢中漂う桃幻郷", "前提: BS06-087 は夢中漂う桃幻郷")
+    const entry = entryOf(card, "e2")
+    const level = (entry["levels"] as number[])[0]!
+    const color = String(entry["colorFilter"])
+    const yellow = CARDS.find(
+        (c) => c.type === "spirit" && (c.colors ?? []).includes(color as Color) && (c.effects ?? []).length === 0,
+    ) ?? CARDS.find((c) => c.type === "spirit" && (c.colors ?? []).includes(color as Color))!
+    const s = base("bs06-087")
+    s.turnPlayer = "p1"
+    s.phase = "attack"
+    putNexus(s, "p1", card, coresFor(card, level))
+    const victim = put(s, "p1", yellow, coresFor(yellow, 1))
+    // 相手のフィールドのシンボルは1色以下にする（条件）＝何も置かない
+    refreshLevelAsOverrides(s)
+
+    // バトルによる破壊（when.byBattle の条件）
+    destroySpirit(s, "p1", victim.instanceId, "destroy", { battle: { attackerColors: [] } })
+    while (s.pendingChoice) {
+        const pc = s.pendingChoice
+        s.pendingChoice = null
+        if (pc.action.type === "noop") break
+    }
+    assert(
+        s.players.p1.field.spirits.some((x) => getCard(x.cardId).name === yellow.name),
+        `${card.name} Lv${level}：バトルで破壊された自分の${color}のスピリットが復活する`,
+    )
+}
+
+console.log("--- マジックが色を指定して貸すブロック制限 ---")
+{
+    // サマーソルトターン：色を1色指定し、系統「楽族」の自分のスピリットは
+    // その色の相手のスピリットからブロックされない
+    const card = byId("BS09-081")
+    assert(card.name === "サマーソルトターン", "前提: BS09-081 はサマーソルトターン")
+    const entry = entryOf(card, "e2")
+    const fam = String(entry["familyFilter"])
+    const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(fam))!
+    // 指定する色と、その色を持つブロック役／持たないブロック役
+    const chosen: Color = "red"
+    const same = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.colors ?? []).includes(chosen))!
+    const other = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && !(c.colors ?? []).includes(chosen))!
+
+    const s = base("bs09-081")
+    const attacker = put(s, "p1", attackerCard, coresFor(attackerCard, topLevel(attackerCard)))
+    const sameInst = put(s, "p2", same, coresFor(same, 1))
+    const otherInst = put(s, "p2", other, coresFor(other, 1))
+    refreshLevelAsOverrides(s)
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    assert(canBlock(s, "p2", sameInst, "p1", attacker) === null, "前提: マジックを使う前は同じ色でもブロックできる")
+
+    // 色を選んで、このターンの間だけ効果を貸す
+    // 色は**表示ラベル**（日本語）で渡し、発生源は action の sourceCardId で指定する
+    resolveAction(
+        s,
+        "p1",
+        null,
+        { type: "colorChoiceLendThisTurn", sourceCardId: card.cardId },
+        undefined,
+        (card.colors ?? ["green"]) as Color[],
+        "magic",
+        COLOR_LABELS[chosen],
+        undefined,
+        card.cardId,
+    )
+    refreshLevelAsOverrides(s)
+
+    assert(
+        canBlock(s, "p2", sameInst, "p1", attacker) !== null,
+        `${card.name}：指定した色（${chosen}）の相手からはブロックされない`,
+    )
+    assert(
+        canBlock(s, "p2", otherInst, "p1", attacker) === null,
+        `${card.name}：指定していない色なら通常どおりブロックできる`,
     )
 }
