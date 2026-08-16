@@ -957,7 +957,9 @@ process.on("exit", () => {
             ) {
                 continue
             }
-            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }`,
+            return effect.blockerMaxBp === undefined
+                ? { source: inst }
+                : { blockerMaxBp: effect.blockerMaxBp, source: inst }`,
             `            if (
                 effect.familyFilter !== undefined &&
                 !matchesFamilyFilter(state, attackerPid, attacker, effect.familyFilter)
@@ -965,7 +967,9 @@ process.on("exit", () => {
                 continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }`,
+            return effect.blockerMaxBp === undefined
+                ? { source: inst }
+                : { blockerMaxBp: effect.blockerMaxBp, source: inst }`,
         )
         // keyword「激突」: 【激突】によりライフ受けが実際に拒否される時点
         patch(

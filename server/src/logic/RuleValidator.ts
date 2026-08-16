@@ -27,6 +27,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
+import { boardResistanceAgainst, instColors } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -758,7 +759,7 @@ function hasMustBlockAgainst(
     state: GameState,
     attackerPid: PlayerId,
     attacker: CardInstance,
-): { blockerMaxBp?: number } | null {
+): { blockerMaxBp?: number; source: CardInstance } | null {
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果）も含めて走査する
     for (const inst of effectSources(state, attackerPid)) {
         const level = currentLevel(inst).level
@@ -775,7 +776,9 @@ function hasMustBlockAgainst(
             ) {
                 continue
             }
-            return effect.blockerMaxBp === undefined ? {} : { blockerMaxBp: effect.blockerMaxBp }
+            return effect.blockerMaxBp === undefined
+                ? { source: inst }
+                : { blockerMaxBp: effect.blockerMaxBp, source: inst }
         }
     }
     return null
@@ -786,11 +789,41 @@ function hasMustBlockAgainst(
 // unblockableBy で実際にはブロックできない場合に強制ブロックで詰まない。
 // maxBp 指定時は実効BPがこれ以下の個体だけを合法ブロッカーの候補にする
 // （BS05ワーニングアタック：BP3000以下の合法ブロッカーがいるときだけライフ受けを拒否する）
-function hasLegalBlocker(state: GameState, pid: PlayerId, maxBp?: number): boolean {
-    return state.players[pid].field.spirits.some(
-        (s) =>
-            (maxBp === undefined || effectiveBp(state, pid, s) <= maxBp) &&
-            validateBlock(state, pid, s.instanceId) === null,
+function hasLegalBlocker(
+    state: GameState,
+    pid: PlayerId,
+    maxBp?: number,
+    // ブロックを強制している効果の発生源。渡すと、**その効果を受けない個体は数えない**。
+    // 【激突】も強制ブロックも「相手のスピリットを対象とした効果」なので、装甲などで防げる
+    // （バトスピ Wiki「激突」：赤に対する装甲を持つスピリットしかいなければ強制を無視できる。
+    //  2026-08-16 ユーザー指摘で判明。それまでブロック可否しか見ておらず耐性を素通りしていた）
+    forcedBy?: { pid: PlayerId; inst: CardInstance },
+): boolean {
+    return state.players[pid].field.spirits.some((s) => {
+        if (maxBp !== undefined && effectiveBp(state, pid, s) > maxBp) return false
+        if (validateBlock(state, pid, s.instanceId) !== null) return false
+        if (forcedBy && blockForceResisted(state, pid, s, forcedBy)) return false
+        return true
+    })
+}
+
+// ブロックの強制を、その個体が「効果を受けない」で弾くか。
+// 範囲効果（「相手のスピリットすべては」）として判定する
+function blockForceResisted(
+    state: GameState,
+    pid: PlayerId,
+    blocker: CardInstance,
+    forcedBy: { pid: PlayerId; inst: CardInstance },
+): boolean {
+    const sourceCard = getCard(forcedBy.inst.cardId)
+    return (
+        boardResistanceAgainst(state, pid, blocker, {
+            op: "other",
+            scope: "area",
+            actorPid: forcedBy.pid,
+            sourceType: sourceCard.type as "spirit" | "nexus" | "magic",
+            sourceColors: instColors(forcedBy.inst),
+        }) !== null
     )
 }
 
@@ -816,14 +849,17 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     if (
         attacker &&
         spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
-        hasLegalBlocker(state, pid)
+        hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
         return "【激突】によりブロックしなければなりません"
     }
     // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック／
     // BS05ワーニングアタック＝BP3000以下限定）。ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
     const mustBlock = attacker && hasMustBlockAgainst(state, state.turnPlayer, attacker)
-    if (mustBlock && hasLegalBlocker(state, pid, mustBlock.blockerMaxBp)) {
+    if (
+        mustBlock &&
+        hasLegalBlocker(state, pid, mustBlock.blockerMaxBp, { pid: state.turnPlayer, inst: mustBlock.source })
+    ) {
         return "相手の効果により、可能ならば必ずブロックしなければなりません"
     }
     return null
