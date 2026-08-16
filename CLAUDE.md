@@ -164,12 +164,26 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/COST_MODEL.md` | **「〜することで〜する」を実装するときに読む**。コストの一般則（AとBの両方が完全に解決できるときだけ発揮できる）・現状の適合表 |
 | `docs/design/RESUME_STACK.md` | **中断された側をどう書くか**（再開スタック・挿入順の規則・召喚と【転召】の手順）。エンジンの解決順に触るときに読む |
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
+| `docs/design/EFFECT_SOURCE_CONTEXT.md` | **「〜の効果で〜されたとき」を条件にする誘発を足すときに読む**。`currentEffectSource` の仕組みと、コア配置の検出を差分で取っている理由 |
 | `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 
 ## エージェント間連絡（chatbox）
 
 実装担当（Claude）・設計担当（Claude）・UI担当（Gemini）の連絡は `chatbox/` を使う。
+
+### ⚠️ 作業する場所とブランチ（2026-08-16 の事故を受けて）
+
+**実装担当の作業場所は `/Users/imachan/develop/bs_web` の1つだけ。** ワークツリーを増やさない。
+
+**chatbox は「実装担当とUI担当が同じブランチを見ている」ときだけ機能する。**
+2026-08-13〜16 に、二人が別ブランチに居たせいで**メッセージのファイルが相手側に存在せず**、
+連絡が2日間届かなかった。「chatbox ディレクトリが無いから」ではない（あった）。
+依頼を出したら、それが**相手が見るブランチに届いているか**を確かめること。
+
+**作業を始める前に必ず main を取り込む。`git add -A` を使わない。**
+古いベースでコミットすると、相手が消した変更が「削除の取り消し」として記録される。
+実際にこれで、セッションログ4,375行・`tools/legacy` 一式・削除済みの支援リンクと絵文字が復活した。
 
 **UIは UI担当（Gemini）の担当。実装担当は `public/` を書き換えない**（2026-08-09 ユーザー指示）。
 UI担当は `bs_web-ui` の別クローンで並行作業しているため、こちらが `public/` を触ると衝突する。

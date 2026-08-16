@@ -2455,6 +2455,61 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
 //   sourceColors = 効果発生源の色（装甲判定用）。省略時は self のカード色から求める（マジックは呼び出し側で明示する）
 //   sourceCardId = 発生源のカードID。省略時は self.cardId から求める。マジックはselfがnullのため
 //     resolveMagicが明示的にcard.cardIdを渡す（lendSelfThisTurn専用。TURN_EFFECT_SOURCES.md §3.3）
+
+// ── 「効果でコアが置かれた」の検出（fieldEvent "opponentCorePlaced"。SD01-029 蠢く地下墓地Lv1）──
+// docs/design/EFFECT_SOURCE_CONTEXT.md
+//
+// コアが増える箇所はエンジン中に28箇所あり、そのすべてに通知を足すと必ず書き漏れる
+// （RESUME_STACK.md §5(a) と同じ「呼び出し元が対応していない」問題）。
+// 代わりに resolveAction の**1箇所**で、効果1つの前後にコアの居場所を突き合わせる。
+//
+// 「置いた」の数え方は**増えた側だけの合計**にする。効果文が出所を限定していないため、
+// リザーブからスピリットへ移したものも、スピリットからスピリットへ移したものも1個と数える
+// （2026-08-16 ユーザー確認）。減った側を差し引くと移動が0個になってしまうので引かない。
+type CorePlaces = Record<PlayerId, { reserve: number; byInstance: Map<string, number> }>
+
+// 監視するカードが1枚も場に無いなら、スナップショット自体を省く（毎アクション走るため）
+function hasCorePlacedWatcher(state: GameState): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            for (const effect of getCard(inst.cardId).effects) {
+                if (effect.kind === "fieldEvent" && effect.event === "opponentCorePlaced") return true
+            }
+        }
+    }
+    return false
+}
+
+function snapshotCorePlaces(state: GameState): CorePlaces {
+    const snap = {} as CorePlaces
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        const byInstance = new Map<string, number>()
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            byInstance.set(inst.instanceId, inst.cores)
+        }
+        snap[pid] = { reserve: player.reserve, byInstance }
+    }
+    return snap
+}
+
+// 増えたコアの個数を数え、置かれた側の**相手**のフィールドから "opponentCorePlaced" を発火する
+// （「持ち主から見て相手のフィールド/リザーブにコアが置かれたとき」）
+function fireCorePlacedFromDiff(state: GameState, before: CorePlaces): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        const prev = before[pid]
+        let placed = Math.max(0, player.reserve - prev.reserve)
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            // この効果の間に場に出たカード（スナップショットに無い）は、そこに置かれたコアも「置いた」分
+            placed += Math.max(0, inst.cores - (prev.byInstance.get(inst.instanceId) ?? 0))
+        }
+        if (placed <= 0) continue
+        fireFieldEventTriggers(state, opponentOf(pid), "opponentCorePlaced", undefined, undefined, undefined, placed)
+    }
+}
+
 export function resolveAction(
     state: GameState,
     owner: PlayerId,
@@ -2476,8 +2531,12 @@ export function resolveAction(
     const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
-    const destroyContext: DestroyContext =
-        srcType !== undefined ? { sourcePid: owner, sourceType: srcType } : { sourcePid: owner }
+    const destroyContext: DestroyContext = {
+        sourcePid: owner,
+        ...(srcType !== undefined ? { sourceType: srcType } : {}),
+        // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
+        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+    }
 
     // アクション本体は server/src/logic/actions/ のドメイン別モジュールに分割されている。
     // ACTION_HANDLERS は ActionRegistry（全 EffectAction.type を網羅）として型付けされているため、
@@ -2509,7 +2568,26 @@ export function resolveAction(
             ),
     }
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void
+    // いま解決中の効果の発生源を state に載せる（docs/design/EFFECT_SOURCE_CONTEXT.md）。
+    // 「**相手の〈色〉の効果で**〜されたとき」（fieldEvent.sourceColorFilter）が読む。
+    // ネストした resolveAction は自分の値で上書きし、抜けるときに前の値へ戻す
+    const outerEffectSource = state.currentEffectSource
+    const isOutermostEffect = outerEffectSource === undefined
+    state.currentEffectSource = {
+        pid: owner,
+        ...(srcType !== undefined ? { type: srcType } : {}),
+        ...(srcColors !== undefined ? { colors: srcColors } : {}),
+    }
+    // 「効果でコアが置かれた」の検出用スナップショット。**一番外側の効果でだけ**取る
+    // （ネストで取ると同じ配置を二重に数える）。監視するカードが場に無ければ何もしない
+    const coreSnapshot = isOutermostEffect && hasCorePlacedWatcher(state) ? snapshotCorePlaces(state) : undefined
     handler(ctx, action)
+    // コアの居場所を突き合わせ、増えた側だけを合計して "opponentCorePlaced" を発火する。
+    // **currentEffectSource を戻す前に**呼ぶ（sourceColorFilter がこれを読むため）
+    if (coreSnapshot) fireCorePlacedFromDiff(state, coreSnapshot)
+    // exactOptionalPropertyTypes：undefined の代入ではなくプロパティごと消す
+    if (outerEffectSource === undefined) delete state.currentEffectSource
+    else state.currentEffectSource = outerEffectSource
     // バウンス待機状態のカードを、**この効果の解決が終わった時点で**まとめて手札／デッキへ移す
     // （Wiki「バウンスについて」：待機中の「戻るとき」効果は割り込まず、解決後に発揮する）。
     // 選択待ちで中断している間はまだ解決が終わっていないので、待機のまま残す

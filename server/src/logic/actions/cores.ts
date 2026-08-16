@@ -960,6 +960,70 @@ const reclaimTrashCoresHandler: ActionHandler<"reclaimTrashCores"> = (ctx, actio
         return
 }
 
+// 相手のスピリットから合計count個のコアを、1個ずつ対象を選びながら取り除く（SD01-013 冥剣士ベリト）。
+// coreRemove が「1体からN個」なのに対し、こちらは「N個を何体かに配分」。
+// 1個ぶんの実処理は coreRemove count:1 に委譲しているので、装甲・効果耐性・維持コア割れの消滅・
+// leaveAtLeast の判定はすべて coreRemove 側の1箇所に残る。
+// 残数の持ち回りは Pattern C「体数で再入」（docs/design/RESUME_STACK.md §7）：
+// tryInteractiveTargetChoice が 1個ぶんを選択待ちにし、残り (count-1) を再開フレームへ積む
+const coreRemoveDistributedHandler: ActionHandler<"coreRemoveDistributed"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        if (action.count <= 0) return
+        const floor = action.leaveAtLeast ?? 0
+        const one: EffectAction = {
+            type: "coreRemove",
+            count: 1,
+            ...(action.dest !== undefined ? { dest: action.dest } : {}),
+            ...(action.leaveAtLeast !== undefined ? { leaveAtLeast: action.leaveAtLeast } : {}),
+        }
+        // 選択の再入：選ばれた1体から1個だけ取り、残りは同じ形で続ける
+        if (targetInstanceId !== undefined) {
+            ctx.resolve(one, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
+            if (action.count > 1) {
+                ctx.resolve({ ...action, count: action.count - 1 }, { sourceColors: srcColors, sourceType: srcType })
+            }
+            return
+        }
+        // 候補：コアが floor を上回っている相手のスピリット（装甲・効果耐性で守られているものは除く）
+        const candidates = state.players[opp].field.spirits.filter(
+            (s) => s.cores > floor && !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "targeted")),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：コアを取り除ける相手のスピリットがいなかった。`)
+            return
+        }
+        const prompt = action.chooserIsTarget
+            ? `${sourceName}：コアを取り除く自分のスピリットを選んでください（残り${action.count}個）`
+            : `${sourceName}：コアを取り除く相手のスピリットを選んでください（残り${action.count}個）`
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                prompt,
+                candidates,
+                { ...action, count: 1 },
+                action.count > 1 ? { ...action, count: action.count - 1 } : null,
+                action.chooserIsTarget ? opp : undefined,
+            )
+        ) {
+            return
+        }
+        // 非対話（テスト）と候補1件のときの自動選択。docs/design/CHOOSER_RULES.md の規約に従い、
+        // chooserIsTarget なら「相手が選ぶであろうもの＝損の小さいコア最多の1体」、
+        // そうでなければ「発生源の持ち主が選ぶ＝痛いコア最少の1体」を取る
+        const pick = candidates.reduce((best, s) =>
+            action.chooserIsTarget
+                ? (s.cores > best.cores ? s : best)
+                : (s.cores < best.cores ? s : best),
+        )
+        ctx.resolve(one, { targetInstanceId: pick.instanceId, sourceColors: srcColors, sourceType: srcType })
+        if (action.count > 1) {
+            ctx.resolve({ ...action, count: action.count - 1 }, { sourceColors: srcColors, sourceType: srcType })
+        }
+        return
+}
+
 const coreToOpponentTrashChoiceHandler: ActionHandler<"coreToOpponentTrashChoice"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 相手フィールドのスピリット/ネクサス1つを選び、コアcount個を相手のトラッシュへ置く。
@@ -1843,6 +1907,7 @@ const handlers = {
     trashCoresToSpirit: trashCoresToSpiritHandler,
     trashCoresToKeywordSpirit: trashCoresToKeywordSpiritHandler,
     reclaimTrashCores: reclaimTrashCoresHandler,
+    coreRemoveDistributed: coreRemoveDistributedHandler,
     coreToOpponentTrashChoice: coreToOpponentTrashChoiceHandler,
     linkNexusCoresChoice: linkNexusCoresChoiceHandler,
     voidCoreToAllOwnByFamily: voidCoreToAllOwnByFamilyHandler,

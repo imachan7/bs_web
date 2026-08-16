@@ -1307,7 +1307,12 @@ function tryReviveOnDestroy(
 // globalConstraint "ownNexusIndestructible" があるか判定する。
 // hasGlobalConstraint は両陣営を走査する汎用判定だが、こちらは破壊対象の持ち主側のみに効く
 // 制約（サファイアの城壁）専用の判定のため別関数にしている。
-function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId, target?: CardInstance): boolean {
+function hasOwnNexusIndestructible(
+    state: GameState,
+    ownerPid: PlayerId,
+    target?: CardInstance,
+    context?: DestroyContext,
+): boolean {
     const player = state.players[ownerPid]
     const instances = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of instances) {
@@ -1320,6 +1325,24 @@ function hasOwnNexusIndestructible(state: GameState, ownerPid: PlayerId, target?
             if (effect.constraint.colors !== undefined) {
                 if (!target) continue
                 if (!effect.constraint.colors.some((c) => instHasColor(target, c))) continue
+            }
+            // sourceColors / sourceTypes（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）：
+            // 破壊しようとしている効果の発生源で絞る。発生源が分からないときは守らない側に倒す
+            if (effect.constraint.sourceColors !== undefined || effect.constraint.sourceTypes !== undefined) {
+                if (!context || context.sourcePid === undefined) continue
+                if (context.sourcePid === ownerPid) continue
+                if (
+                    effect.constraint.sourceColors !== undefined &&
+                    !effect.constraint.sourceColors.some((c) => (context.sourceColors ?? []).includes(c))
+                ) {
+                    continue
+                }
+                if (
+                    effect.constraint.sourceTypes !== undefined &&
+                    (context.sourceType === undefined || !effect.constraint.sourceTypes.includes(context.sourceType))
+                ) {
+                    continue
+                }
             }
             if (effect.condition) {
                 const vanillaCount = player.field.spirits.filter((s) =>
@@ -1358,7 +1381,7 @@ export function destroyNexus(
     }
     // 破壊耐性（サファイアの城壁Lv2）：破壊対象ネクサスの持ち主自身のフィールドに、
     // condition（バニラスピリット数）を満たす ownNexusIndestructible 発生源があれば破壊されない
-    if (hasOwnNexusIndestructible(state, ownerPid, inst)) {
+    if (hasOwnNexusIndestructible(state, ownerPid, inst, context)) {
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
