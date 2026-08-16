@@ -422,6 +422,70 @@
   ]
  },
  {
+  "cardId": "SD01-012",
+  "name": "双頭ヘビ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "SD01-012-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "SD01-012-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "SD01-014",
   "name": "スカンクス",
   "type": "spirit",
@@ -699,6 +763,83 @@
   "limited": false,
   "effect": "",
   "effects": []
+ },
+ {
+  "cardId": "SD01-026",
+  "name": "鉄騎皇イグドラシル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "動器",
+   "戦騎"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP3000以下のスピリットすべてを手札に戻す。\nLv2･Lv3\n自分の白のスピリットすべてに“【装甲：赤/白】このスピリットは、相手の赤/白のスピリット/ネクサス/マジックの効果を受けない”を与える。",
+  "effects": [
+   {
+    "id": "SD01-026-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "returnAllToHand",
+     "side": "both",
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   },
+   {
+    "id": "SD01-026-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "keyword": "armor",
+    "target": "ownAll",
+    "colorFilter": "white",
+    "colors": [
+     "red",
+     "white"
+    ]
+   }
+  ]
  },
  {
   "cardId": "SD01-034",
