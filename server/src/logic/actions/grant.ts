@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction } from "../../type"
 import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
 import {
+    bothSidesRedirectKeepPid,
     findSpiritAny,
     getAllFamilies,
     pickAnySideCandidates,
@@ -877,9 +878,15 @@ const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> =
         const virtual = pushVirtualSource(state, owner, cardId)
         if (!virtual) return
         virtual.lentChoiceColor = color
+        // 封印された魔導書Lv1：「対象を片側のみに変更する」を選んでいたら、その答えを仮想発生源に残す。
+        // 継続効果はマジックの解決が終わった後もターン中ずっと生きるため、
+        // 解決中しか生きない magicSideDecision ではなく**こちら側に写す**（2026-08-16 ユーザー確認）
+        const keepPid = bothSidesRedirectKeepPid(state, "magic")
+        if (keepPid !== null) virtual.lentKeepPid = keepPid
+        const sideLabel = keepPid !== null ? `${state.players[keepPid].name}の` : ""
         log(
             state,
-            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
+            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した${sideLabel}色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
         )
         return
 }

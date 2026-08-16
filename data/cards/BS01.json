@@ -4724,6 +4724,73 @@
   ]
  },
  {
+  "cardId": "BS01-104",
+  "name": "千本槍の古戦場",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\n相手のスピリットが疲労するたびに、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\nこのネクサス上のコア1個をトラッシュに置くことで、相手のブロックしたスピリット1体を、バトル終了後に破壊する。",
+  "effects": [
+   {
+    "id": "BS01-104-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritExhausted",
+    "levels": [
+     1,
+     2
+    ],
+    "subjectSide": "opponent",
+    "selfMode": "source",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS01-104-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritBlocked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "selfMode": "source",
+    "optional": true,
+    "action": {
+     "type": "destroyBlockerAfterBattle",
+     "costSelfCoresToTrash": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS01-105",
   "name": "魔帝の墓標",
   "type": "nexus",

@@ -1947,13 +1947,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                 } else if (effect.target === "allSpiritsByChosenColor") {
                     // 両陣営の、貸与時に選ばれた色（仮想発生源のlentChoiceColor）のスピリットすべてを
-                    // それぞれの最高Lvとして扱う（BS02-111スピリットイリュージョン）
+                    // それぞれの最高Lvとして扱う（BS02-111スピリットイリュージョン）。
+                    // 封印された魔導書Lv1で片側のみに変更されていたら（lentKeepPid）、その側だけに効く。
+                    // 答えは貸与時に写してあるので、マジックの解決が終わった後もターン中ずっと効く
                     const chosenColor = source.lentChoiceColor
                     if (chosenColor) {
-                        for (const spirit of [
-                            ...state.players.p1.field.spirits,
-                            ...state.players.p2.field.spirits,
-                        ]) {
+                        const keepPid = source.lentKeepPid
+                        const targets =
+                            keepPid !== undefined
+                                ? [...state.players[keepPid].field.spirits]
+                                : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits]
+                        for (const spirit of targets) {
                             if (!instHasColor(spirit, chosenColor)) continue
                             spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                         }

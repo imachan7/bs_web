@@ -1543,6 +1543,10 @@ const BOTH_SIDES_ACTION_TYPES = new Set([
     "bothSidesCoreToTrash",
     "bothSidesCoreToVoid",
     "discardBothHands",
+    // 「指定した色のスピリットすべて」＝両陣営が対象（BS02-111スピリットイリュージョン）。
+    // 効果本体は貸与した継続効果なので、絞り込みの答えは仮想発生源の lentKeepPid に写して
+    // ターン中ずっと使う（colorChoiceLendThisTurnHandler）
+    "colorChoiceLendThisTurn",
 ])
 function actionTouchesBothSides(node: unknown): boolean {
     if (Array.isArray(node)) return node.some(actionTouchesBothSides)

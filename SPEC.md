@@ -25,7 +25,7 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
 **パーサーを変更したら既存の弾で差分0を確認してから新しい弾に使うこと**
 （BS04 118枚・BS03 153枚・BS05 88枚で差分0を確認済み。BS02 のみ既知の Wiki 表記ゆれ1件）。
 
-### 第一弾（BS01・135枚）
+### 第一弾（BS01・136枚）
 
 | 色 | スピリット | ネクサス | マジック | 合計 |
 | :-- | --: | --: | --: | --: |
@@ -37,6 +37,9 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
 
 - 取得元: [バトスピ Wiki リスト解析](https://batspi.com/index.php?cmd=listcard&sdan=BS01)
 - 取得方法: `curl` で全ページ（`&rowid=...&pcnt1=N`）のHTMLを取得し、要約を介さず原文をパース
+- **BS01 のリストには欠番が18件ある**（構築済みデッキ「混沌の守護神」等でのみ配られたカード）。
+  リスト解析には出てこないので、必要になったものだけカード個別ページから取り込む
+  （2026-08-16 に BS01-104 千本槍の古戦場を追加。SD04 デスクロスブーストの構成に必要だった）
 - 各カードが持つ情報: コスト・軽減シンボル・系統・各レベルのコア数とBP・シンボル・効果テキスト（原文）・レアリティ・禁止フラグ・構造化済み効果（`effects`）
 
 ### 第二弾：激翔（BS02・115枚）
@@ -634,7 +637,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `coreDrainAllOthers` | self 以外の全スピリットからコア1個ずつ持ち主リザーブへ、消滅数ぶんボイドから self へ（魔界七将デスペラード） |
 | `grantBlockerImmunity` | ブロック中の自分スピリットにこのターンの免疫を付与（フェザーバリア） |
 | `negateOwnBlockConstraint` | 自分スピリット1体の cantBlock/cantBlockLowerBp をこのターン無効化（バーストファイア） |
-| `colorChoiceLendThisTurn` | 色を1つ選ばせてから自身をこのターンの仮想発生源として貸す（選択結果は `CardInstance.lentChoiceColor`。継続側は `levelAs.target:"allSpiritsByChosenColor"` で読む。スピリットイリュージョン） |
+| `colorChoiceLendThisTurn` | 色を1つ選ばせてから自身をこのターンの仮想発生源として貸す（選択結果は `CardInstance.lentChoiceColor`。継続側は `levelAs.target:"allSpiritsByChosenColor"` で読む。スピリットイリュージョン）。封印された魔導書Lv1で片側のみに変更されたときは、その答えも `CardInstance.lentKeepPid` へ写して**ターン中ずっと**絞り込む（CHOOSER_RULES.md §1.5.1） |
 | `blockTriggersAsAttackAllThisTurn` | このターンの間、**両陣営**の『ブロック時』効果を『アタック時』へ移す（`GameState.blockTriggersAsAttackThisTurn`。既存 `attackTriggersAsBlockThisTurn` の逆方向・全体版。アタックシフト） |
 | `voidCoreToOwnTrash` | ボイドからコアを持ち主のトラッシュへ（ブリッツ／メビウスリング） |
 | `nexusCoresToTrash` | 指定側（相手/両陣営）のネクサス上のコアをすべて持ち主のトラッシュへ（ネクサスは消滅しない。フォールダウン） |
@@ -1049,6 +1052,20 @@ handleAction 事後フック `forceEndTurnIfFlagged` がバトル終了後に安
 
 `fireTrigger` は同一トリガーの複数エントリを配列順にすべて実行する（複合可。
 例: ジークフリード Lv3 破壊時 = coreGain + lifeCharge で「ボイド→ライフ」を厳密等価に表現）。
+
+### バトル終了後の破壊（destroyBlockerAfterBattle）
+
+`{ type: "destroyBlockerAfterBattle", costSelfCoresToTrash }` は、発生源（ネクサス）上のコアを
+そのトラッシュへ置くことで、**いま宣言されたブロッカーを＞７（バトル終了）で破壊する予約**を立てる
+（`BattleState.endBattleDestroy`）。破壊は `runBattleStep` の＞７で、【呪撃】の直後に解決する。
+
+- 発揮（＝コストの支払い）は**ブロック宣言の時点**。支払いでレベルが下がっても予約は残る
+- 予約時に発生源の色を控える（発生源が場を離れた後でも装甲の判定ができるようにするため）
+- 装甲・効果耐性は**＞７のその時点**で `resistanceAgainst` により判定する
+- データ側は `kind:"fieldEvent"` `event:"ownSpiritBlocked"` に `selfMode:"source"`（self＝発生源）と
+  `optional:true`（「〜することで」＝任意コスト）を添えて使う。BS01-104 千本槍の古戦場Lv2
+
+規則の一次資料は [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §2。
 
 ### ステップ誘発（kind: "step"）
 

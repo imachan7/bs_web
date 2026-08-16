@@ -20,6 +20,7 @@ import {
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import type { EffectAttempt } from "../../../shared/rules"
 import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
@@ -52,6 +53,8 @@ import {
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
+    resistanceAgainst,
+    findSpiritAny,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
     hasJugekiOnBlockReplace,
@@ -1572,7 +1575,7 @@ type BattleOutcome = "attackerWins" | "blockerWins" | "mutual"
 type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
 
 // バトル解決の最終ステップ番号（runBattleStep の switch と対応）
-const BATTLE_LAST_STEP = 11
+const BATTLE_LAST_STEP = 12
 
 // ＞６（破壊処理）〜＞７（バトル終了宣言）を1ステップずつ進める。
 // **1ステップ＝中断しうる呼び出し1つ**にしてあるので、選択待ちが立ったら
@@ -1741,32 +1744,75 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             ])
             return
         }
+        // ＞７：「バトル終了後に破壊する」の予約（BattleState.endBattleDestroy）。
+        // 【呪撃】と同じ＞７に置く（2026-08-16 ユーザー確認。BS01-104 千本槍の古戦場Lv2）。
+        // 破壊は destroyTargetsBatch へまとめて渡す（1体ずつ復活の確認で中断しうるが、
+        // バッチ自身が再開フレームを持つので途中の予約が落ちない）。
+        // 発生源が既に場を離れていても予約は消えない（発揮はコストを払った時点で成立している）ので、
+        // 装甲・効果耐性の判定には予約時に控えた色と種別を使う
+        case 7: {
+            const reservations = state.battle?.endBattleDestroy ?? []
+            if (reservations.length === 0) return
+            // 予約は一度きり。ここで消してから解決する（同じステップに戻ってきても二重に破壊しない）
+            if (state.battle) delete state.battle.endBattleDestroy
+            const batch: { pid: PlayerId; instanceId: string; context?: DestroyContext }[] = []
+            for (const entry of reservations) {
+                const found = findSpiritAny(state, entry.targetInstanceId)
+                if (!found) continue
+                const attempt: EffectAttempt = {
+                    op: "destroy",
+                    scope: "targeted",
+                    actorPid: entry.sourcePid,
+                    sourceType: "nexus",
+                    sourceColors: entry.sourceColors,
+                }
+                const resisted = resistanceAgainst(state, found.pid, found.inst, attempt)
+                if (resisted) {
+                    log(
+                        state,
+                        `${getCard(found.inst.cardId).name}はバトル終了後の破壊を受けなかった（${resisted.label}）。`,
+                    )
+                    continue
+                }
+                batch.push({
+                    pid: found.pid,
+                    instanceId: found.inst.instanceId,
+                    context: {
+                        sourcePid: entry.sourcePid,
+                        sourceType: "nexus",
+                        sourceColors: entry.sourceColors,
+                    },
+                })
+            }
+            if (batch.length > 0) destroyTargetsBatch(state, attackerPid, batch)
+            return
+        }
         // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
         // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
-        case 7: {
+        case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
             return
         }
-        case 8: {
+        case 9: {
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
             return
         }
-        case 9: {
+        case 10: {
             resolveKoboOnBattleEnd(state, attackerPid, attacker)
             return
         }
         // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
         // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
-        case 10: {
+        case 11: {
             if (hasKoboOnBlock(state, defenderPid)) {
                 resolveKoboOnBattleEnd(state, defenderPid, blocker)
             }
             return
         }
-        case 11: {
+        case 12: {
             clearBattle(state)
             return
         }

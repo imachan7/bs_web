@@ -1362,7 +1362,50 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
     return
 }
 
+// BS01-104 千本槍の古戦場Lv2：このネクサス上のコア1個をトラッシュに置くことで、
+// 相手のブロックしたスピリット1体を「バトル終了後に破壊する」予約を立てる（BattleState.endBattleDestroy）。
+// **ここでは破壊しない**。実際の破壊は GameEngine のバトル解決＞７（【呪撃】の直後）で
+// 通常の destroy 経路を通すので、装甲・効果耐性はその時点で判定される。
+// self は発生源のネクサス自身（データ側で fieldEvent.selfMode:"source" を指定する）
+const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const battle = state.battle
+    if (!self) return
+    const blockerId = targetInstanceId ?? battle?.blockerInstanceId ?? undefined
+    if (!battle || blockerId === undefined) {
+        log(state, `${sourceName}：ブロックしたスピリットがいなかった。`)
+        return
+    }
+    const found = findSpiritAny(state, blockerId)
+    if (!found || found.pid === owner) {
+        log(state, `${sourceName}：ブロックしたスピリットがいなかった。`)
+        return
+    }
+    const cost = action.costSelfCoresToTrash
+    if (self.cores < cost) {
+        log(state, `${sourceName}：置くコアが足りなかった。`)
+        return
+    }
+    // ネクサスのコアはレベルが下がるだけで消滅しない。**支払いでLv2を割っても予約は残る**
+    // （発揮はコストを払った時点で成立している。2026-08-16 ユーザー確認）
+    self.cores -= cost
+    state.players[owner].trashCores += cost
+    const list = battle.endBattleDestroy ?? []
+    list.push({
+        targetInstanceId: found.inst.instanceId,
+        sourceInstanceId: self.instanceId,
+        sourcePid: owner,
+        sourceColors: instColors(self),
+    })
+    battle.endBattleDestroy = list
+    log(
+        state,
+        `${sourceName}：コア${cost}個をトラッシュに置き、${getCard(found.inst.cardId).name}をバトル終了後に破壊する。`,
+    )
+}
+
 const handlers = {
+    destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroyOnePerCost: destroyOnePerCostHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
