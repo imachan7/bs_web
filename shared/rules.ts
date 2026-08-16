@@ -1458,6 +1458,31 @@ export function protectedByBpUpToSelf(
     )
 }
 
+// フィールド全体制約 noOpponentTriggerByColor（片側のみ）：発生源の持ち主から見た**相手**の、
+// 指定色のスピリットの、指定した『〇〇時』効果は発揮されない（SD01-031 朝焼け岬Lv2＝紫の『召喚時』『破壊時』）。
+// ownerPid はこれから誘発しようとしているスピリットの持ち主。その**相手**のフィールドだけを走査する。
+// fireTrigger の入口から呼ぶため、封じられるのは『』でカテゴライズされた効果（kind:"triggered"）だけで、
+// ネクサスの常在効果による reviveOnDestroy は対象にならない（docs/design/CONJUNCTION.md）
+export function noOpponentTriggerByColor(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    event: TriggerEvent,
+): boolean {
+    for (const source of effectSources(board, ownerPid === "p1" ? "p2" : "p1")) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "noOpponentTriggerByColor") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!effect.constraint.triggers.includes(event)) continue
+            if (!instHasColor(inst, effect.constraint.color)) continue
+            return true
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
 // 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
 export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {

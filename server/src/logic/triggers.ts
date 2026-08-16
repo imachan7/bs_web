@@ -100,6 +100,7 @@ import {
     instMatchesCostFilter,
     matchesCostFilter,
     matchesFamilyFilter,
+    noOpponentTriggerByColor,
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
@@ -222,6 +223,14 @@ export function fireTrigger(
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
+    // globalConstraint "noOpponentTriggerByColor"（SD01-031 朝焼け岬Lv2）：
+    // 相手の指定色のスピリットの、指定した『〇〇時』効果は発揮されない。
+    // ここ（fireTrigger の入口）で落とすので、封じられるのは『』でカテゴライズされた効果だけになり、
+    // ネクサスの常在効果による reviveOnDestroy は素通りする（docs/design/CONJUNCTION.md）
+    if (noOpponentTriggerByColor(state, owner, selfInstance, event)) {
+        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
+        return
+    }
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
     if (instEffectsSuppressed(selfInstance)) {
@@ -316,6 +325,13 @@ export function fireTrigger(
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) return false
                 if (effectiveBp(state, found.pid, found.inst) < effect.condition.targetMinBp) return false
+            } else if ("targetBlockedMaxBp" in effect.condition) {
+                // SD01-024 人馬機兵アトリーズLv2：ブロックしたスピリット（targetInstanceId）の実効BPが
+                // これ以下のときのみ発火（targetMinBp の鏡）
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (effectiveBp(state, found.pid, found.inst) > effect.condition.targetBlockedMaxBp) return false
             } else if ("targetHasColor" in effect.condition) {
                 // 鉄蠍竜スコルド・ゴランLv3：ブロックしたスピリット（targetInstanceId）がこの色を持つときのみ発火
                 if (targetInstanceId === undefined) return false
@@ -779,6 +795,25 @@ export function fireFieldEventTriggers(
                 continue
             }
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
+            // sourceColorFilter：「**相手の**この色のスピリット/ネクサス/マジックの**効果によって**起きたとき」
+            // だけ発火する（SD01-029 蠢く地下墓地Lv1＝緑／SD01-031 朝焼け岬Lv1＝紫）。
+            // colorFilter がイベント**対象**の色を見るのに対し、こちらは効果の**発生源**の色を見る。
+            // currentEffectSource が無い＝効果によらない動き（ドローステップのドロー・コアステップのコア置き）
+            // なので発火させない。docs/design/EFFECT_SOURCE_CONTEXT.md
+            if (effect.sourceColorFilter !== undefined) {
+                const src = state.currentEffectSource
+                if (!src) continue
+                if (src.pid === pid) continue
+                if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
+            }
+            // targetColorFilter：イベントの「相手役」（targetInstanceId）の色で絞る。
+            // colorFilter（イベントの主体の色）とは別軸（SD01-029 蠢く地下墓地Lv2＝緑にブロックされたとき）
+            if (effect.targetColorFilter !== undefined) {
+                if (targetInstanceId === undefined) continue
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) continue
+                if (!instHasColor(found.inst, effect.targetColorFilter)) continue
+            }
             if (effect.vanillaOnly && !eventInfo?.vanilla) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
@@ -922,8 +957,10 @@ export function fireFieldEventTriggers(
                 }
                 // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
                 // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
+                // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
+                const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
                 if (effect.selfMode === "source") {
-                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
+                    resolveAction(state, pid, inst, effect.action, actionTargetId)
                 } else if (selfOverride) {
                     // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、
                     // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
@@ -934,12 +971,12 @@ export function fireFieldEventTriggers(
                         selfOverride.pid,
                         selfOverride.inst,
                         effect.action,
-                        targetInstanceId,
+                        actionTargetId,
                         instColors(inst),
                         getCard(inst.cardId).type,
                     )
                 } else {
-                    resolveAction(state, pid, inst, effect.action, targetInstanceId)
+                    resolveAction(state, pid, inst, effect.action, actionTargetId)
                 }
                 if (state.winner) return
                 if (state.pendingChoice) return

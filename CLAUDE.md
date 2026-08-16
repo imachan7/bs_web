@@ -164,6 +164,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/COST_MODEL.md` | **「〜することで〜する」を実装するときに読む**。コストの一般則（AとBの両方が完全に解決できるときだけ発揮できる）・現状の適合表 |
 | `docs/design/RESUME_STACK.md` | **中断された側をどう書くか**（再開スタック・挿入順の規則・召喚と【転召】の手順）。エンジンの解決順に触るときに読む |
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
+| `docs/design/EFFECT_SOURCE_CONTEXT.md` | **「〜の効果で〜されたとき」を条件にする誘発を足すときに読む**。`currentEffectSource` の仕組みと、コア配置の検出を差分で取っている理由 |
 | `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 

@@ -196,6 +196,18 @@ export type EffectAction =
     | { type: "reviveLastDestroyedNexus"; coreCost?: number } // self上のコアをコストぶん自分のトラッシュに置くことで、直近に破壊された自分のネクサス（GameState.lastDestroyedNexus）をトラッシュから自分のフィールドへ戻す（coreCost省略時はself上のコアすべて＝BS04戦闘獣ジャッカー。指定時はその数だけ支払う。コア不足なら不発。BS05ブロンズ・ゴレム＝1個）
     | { type: "negateLifeDamageFromTarget" } // 対象（targetInstanceId＝相手スピリット1体）のアタックでは、このターン自分のライフが減らない（CardInstance.lifeDamageNegatedFor。BS04ミストカーテン）
     | { type: "coreToOpponentTrashChoice"; count: number; includeReserve?: true; spiritsOnly?: true; chooserIsTarget?: true } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）。// spiritsOnly指定時は候補をスピリットだけに絞る（「相手のスピリット**上の**コア1個」の効果文にはネクサスが含まれない。BS08ダークスカルデーモンLv2）。// chooserIsTarget指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア1個を〜置く」。解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。returnToDeckTop.chooserIsTargetと同型）
+    | { type: "coreRemoveDistributed"; count: number; dest?: "void"; leaveAtLeast?: number; chooserIsTarget?: true } // 相手のスピリットから**合計count個**のコアを、1個ずつ対象を選びながら取り除く（coreRemoveが「1体からN個」なのに対し、こちらは「N個を何体かに配分」）。
+    // 1個ぶんの実処理は coreRemove count:1 に委譲する（装甲・効果耐性・維持コア割れの消滅・leaveAtLeast の判定を1箇所に保つため）。
+    // dest:"void" 指定時はリザーブでなくボイドへ。leaveAtLeast 指定時は、どの1体もその数を下回るところまでは取れない
+    // （SD01-013 冥剣士ベリト「この効果で相手のスピリット上のコアを0個にはできない」＝leaveAtLeast:1。
+    //  この制限は**その『』ブロックの中だけ**に効く。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）。
+    // chooserIsTarget 指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア3個を〜置く」。
+    // 解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。exhaust.chooserIsTarget と同型。docs/design/CHOOSER_RULES.md）
+    | { type: "chooseActionMode"; modes: { label: string; actions: EffectAction[] }[] } // 効果文の「〜する。**または**、〜する」。使用者が modes からどれか1つを選び、その actions を順に解決する
+    // （SD01-033 ヴィクトリーファイア＝「BP3000以下の相手2体を破壊する。または、BP3000以下の相手1体と相手のネクサス1つを破壊する」）。
+    // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
+    // （2026-08-16 ユーザー確認。docs/design/COST_MODEL.md の「コストではない」側）。
+    // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化
     | { type: "battleCompareByLevel" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにLvを比較させる（バトル外は不発。エンジェルボイス）
     | { type: "battleCompareByCores" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにコアの数を比較させる（コア数が少ない方が破壊。同数ならお互い破壊＝battleCompareByLevelと同じ分岐に乗る。バトル外は不発。BS06イマジンフィールド）
     | { type: "revealDiscardRest" } // 公開ゾーン（GameState.revealedCards）に残っているカードをすべて持ち主のトラッシュへ置く（cards.jsonには書かない。revealAndSummonKeyword が選択待ちの queue に積み、**選んでもスキップしても**必ず後始末が走るようにする。BS05トランスマイグレーション）
@@ -372,6 +384,11 @@ export type FieldEvent =
     | "ownSpiritExhausted" // 自分のスピリットが疲労したとき、持ち主のフィールド発生源から発火（**self には疲労したスピリットが渡る**。BS02生み出される尖兵Lv2／BS02スクルディア）
     | "anySpiritExhausted" // 両陣営どちらかのスピリットが疲労したとき、両者のフィールド発生源から発火（**self には疲労したスピリットが渡る**。BS05藍紫の虚空Lv1）
     | "ownSpiritDealtLife" // 自分のスピリットのアタックによって相手のライフを減らしたとき、持ち主のフィールド発生源から発火（**self にはライフを減らしたスピリットが渡る**。onLifeDealtの直後。BS06-X22魔界七将ベルゼビート）
+    | "opponentCorePlaced" // 持ち主から見て相手のフィールド（スピリット/ネクサス上）かリザーブに、**効果によって**コアが置かれたとき。
+    // eventCount=置かれたコアの個数。resolveAction が効果1つの前後でコアの居場所を突き合わせ、
+    // **増えた側だけ**を合計して発火する（出所は問わない＝リザーブからスピリットへ移したものも1個と数える）。
+    // 通常のコアステップ・コスト支払いのような効果によらない動きでは発火しない。
+    // sourceColorFilter と組み合わせて使う（SD01-029 蠢く地下墓地Lv1）。docs/design/EFFECT_SOURCE_CONTEXT.md
     | "ownTensho" // 自分の【転召】が解決したとき（dumpAllCoresTenshoが唯一の解決点から発火。eventInfo.families=犠牲になったスピリットのカード静的な系統。BS08関将龍皇ドラグロン：系統「竜人」を持つスピリットで【転召】したとき）
 // ※ 疲労イベントは EffectModules.exhaustSpirit（疲労の唯一の入口）から発火する。アタック宣言・ブロック宣言・
 //    効果による疲労のいずれも通る。すでに疲労している個体を疲労させ直しても発火しない
@@ -497,7 +514,10 @@ export type GlobalConstraintDef =
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
-    | { type: "ownNexusIndestructible"; colors?: Color[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない
+    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: ("spirit" | "nexus" | "magic")[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
+    // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
+    // どちらかを指定した場合は DestroyContext が要り、発生源が不明なときは**守らない**側に倒す（colors と同じ方針）。
+    // 「相手の」を明示している効果なので、指定時は sourcePid が持ち主と異なることも求める
       // （hasGlobalConstraintの両陣営走査とは異なり、destroyNexusが破壊対象ネクサスの持ち主のフィールドのみを判定する。サファイアの城壁）
     | { type: "maxSpiritsOnField"; max: number } // 両陣営とも、フィールドのスピリットがmax体以上のときは召喚できない（メインステップの通常召喚のみ。BS04旋風渦巻く渓谷＝5体以上召喚できない＝max4）
     | { type: "levelCantAct"; levels: number[] } // currentLevel がこのリストに含まれるスピリットは、アタックとブロックができない（両陣営。costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
@@ -511,6 +531,12 @@ export type GlobalConstraintDef =
       // （removeCores/removeCoresToTrash/removeCoresToVoidの共通フックで判定。coreSqueezeAll/One・coreDrainAllOthers・coreToVoidOwnなど
       // 直接コアを操作する一部アクションはこの経路を通らないため対象外＝簡略化。BS05茨の決戦地Lv1-2）
     | { type: "noTrashRecovery" } // お互い、トラッシュからカードを手札に戻せない（recoverSpiritFromTrash / recoverMagicFromTrash / recoverAllMagicFromTrashByColorChoice の各ハンドラ冒頭で判定。BS06鎖縛の武舞台Lv1-2）
+    | { type: "noOpponentTriggerByColor"; color: Color; triggers: TriggerEvent[] } // 発生源の持ち主から見た**相手**の、指定色のスピリットの、指定した『〇〇時』効果は発揮されない
+    // （noSummonTriggerByCost と違い両陣営ではなく片側だけ。SD01-031 朝焼け岬Lv2＝相手の紫の『召喚時』と『破壊時』）。
+    // ⚠️ 封じられるのは『』でカテゴライズされた効果＝`kind:"triggered"` だけで、
+    // ネクサス等の**常在効果**による「破壊されたときフィールドに残る」（`kind:"reviveOnDestroy"`）は封じられない
+    // （2026-08-16 ユーザー確認。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）。
+    // fireTrigger の入口で判定するため、この2つが自然に分かれる
     | { type: "noSummonTriggerByCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす。BS08共鳴する音叉の塔：コスト4以下）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（**カード静的なコスト**で判定＝軽減前の値。使用コスト計算の共通経路で軽減分を0にする。BS08超時空重力炉：コスト3以下）
     | { type: "coreFloorByCost"; ownOnly?: true } // ownOnly指定時は発生源の持ち主のスピリットだけを守る（BS09-059翡翠の社Lv2）。// **「Lv1コスト」＝Lv1に必要なコア数**（レベル表の表記。2026-08-14 ユーザー確認。以前は召喚コストとして実装していた）。// 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない（removeCores/removeCoresToTrash/removeCoresToVoidの共通処理で判定。**簡略化**：coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、コアを直接操作する範囲効果はこの下限を尊重しない。BS08聖なる柱状彫刻）
@@ -522,6 +548,7 @@ export type GlobalConstraintDef =
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: "spirit" | "nexus" | "magic"
+    sourceColors?: Color[] // 破壊を引き起こした効果の発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
     battle?: { attackerColors: Color[]; attackerLevel?: number; attackerBp?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル・実効BP（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }
 
@@ -561,6 +588,8 @@ export type EffectDef =
               | { lastFunsaiHasNexus: true } // 直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火（GameState.lastFunsai。BS04伝説巨人ジュード）
               | { lastFunsaiHasSpirit: true } // 直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。BS06爆砕巨人ダグラスLv2-3）
               | { targetMinBp: number } // fireTriggerのtargetInstanceIdのスピリットの実効BPがこれ以上のときのみ発火（onBlock用。BS06鍵鎚のヴァルグリンドLv2＝BP4000以上をブロックしたとき）
+              | { targetBlockedMaxBp: number } // fireTriggerのtargetInstanceIdのスピリットの実効BPがこれ以下のときのみ発火（targetMinBpの鏡。onBlock用。SD01-024 人馬機兵アトリーズLv2＝BP4000以下の相手をブロックしたとき）。
+              // fieldEvent.condition 側の targetMaxBp とは別物（あちらは event:"ownLifeDamaged" のアタッカーを見る）なので名前を分けている
               | { targetHasColor: Color } // fireTriggerのtargetInstanceIdのスピリットがこの色を持つときのみ発火（instHasColorで判定。onBlocked用。BS06鉄蠍竜スコルド・ゴランLv3＝白にブロックされたとき）
               | { targetMaxCost: number } // fireTriggerのtargetInstanceIdのスピリットのコストがこれ以下のときのみ発火（instMatchesCostFilterで判定。onBlocked用。BS06激神皇カタストロフドラゴンLv3＝コスト5以下にブロックされたとき）
               | { targetNotMaxLevel: true } // fireTriggerのtargetInstanceIdのスピリットのcurrentLevelが、そのカードが持つ最高Lv未満のときのみ発火（onBlocked用。BS07神帝獣スフィン・クロスLv3＝最高Lvではない相手にブロックされたとき）
@@ -788,6 +817,20 @@ export type EffectDef =
           // any…系のイベントで主体の陣営だけを条件にしたいときに使う（2026-08-16 ユーザー判断。SD01-028 呪われし神殿Lv2）
           colorFilter?: Color // event: "ownSpiritDestroyed" | "ownSpiritBlocked" | "anySpiritAttacked" | "ownSpiritSummoned" 限定：対象スピリットの色がこれと一致するときのみ発火（ownSpiritSummoned は BS09-002フタバニア＝「自分の青のスピリットが召喚されたとき」）
           // （祝福されし大聖堂／花の子リップ／BS05天焦がす大聖火。anySpiritAttackedはeventColors=instColors(アタックしたスピリット)で判定）
+          sourceColorFilter?: Color // 指定時、そのイベントが「**相手の**この色のスピリット/ネクサス/マジックの**効果によって**
+          // 起きたとき」だけ発火する（GameState.currentEffectSource で判定）。次の3つをすべて満たすことを求める:
+          //   ① 効果の解決中に起きた（＝currentEffectSource がある。通常のドロー・コアステップでは発火しない）
+          //   ② その効果の持ち主が発生源の持ち主ではない（＝「相手の」効果）
+          //   ③ その効果の発生源がこの色を持つ（多色は1色でも含めば一致）
+          // SD01-029 蠢く地下墓地Lv1（相手が緑の効果でコアを置いたとき）／SD01-031 朝焼け岬Lv1（相手が紫の効果で手札を得たとき）。
+          // colorFilter が「イベント**対象**の色」を見るのに対し、こちらは「効果の**発生源**の色」を見る。詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
+          targetColorFilter?: Color // 指定時、fireFieldEventTriggers が渡す targetInstanceId のスピリットがこの色を持つときのみ発火（instHasColorで判定）。
+          // colorFilter が「イベントの主体」の色を見るのに対し、こちらは「相手役」の色を見る
+          // （event:"ownSpiritBlocked" の colorFilter は**ブロックされた自分のスピリット**の色なので、
+          //  「相手の緑のスピリットがブロックしたとき」はこちらでないと書けない。SD01-029 蠢く地下墓地Lv2）
+          ignoreEventTarget?: true // 指定時、resolveAction に targetInstanceId を渡さない。
+          // イベント対象を**効果の対象にしない**とき用（SD01-029 蠢く地下墓地Lv2＝「相手のスピリット**1体**を疲労させる」は
+          // ブロックした個体に限らないので、ブロッカーの instanceId を明示ターゲットとして渡してはいけない）
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
           vanillaOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
@@ -805,7 +848,7 @@ export type EffectDef =
               | { firstAttackOfTurn: true } // event: "anySpiritAttacked" 限定：そのターンの最初のアタックのときのみ発火（GameState.attacksThisTurn === 1。triggered.conditionの同名軸と同じ判定。BS06神鳴る霊峰Lv2）
               | { targetMaxBp: number } // event: "ownLifeDamaged" 限定：ライフを減らしたスピリット（targetInstanceId＝アタッカー）の実効BPがこれ以下のときのみ発火（BS08竜騎集う円卓：BP5000以下のアタックで自分のライフが減らされたとき）
               | { targetKeywordExclude: Keyword } // event: "ownLifeDamaged" 限定：ライフを減らしたスピリットがそのキーワードを持つときは発火しない（spiritHasKeyword判定＝一時付与も見る。BS08デストラクションバリア：【転召】を持たない相手のスピリットのアタック）
-          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック）
+          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック／SD01-029 蠢く地下墓地＝置かれたコア1個につき）
           countMode?: "cores" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの繰り返し回数を「影響を受けたスピリット数」でなく「取り除かれたコア数」にする（省略時は従来どおりスピリット数。既存の極光の大地はこの指定が無いため挙動は変わらない。BS06希望の大灯台Lv1）
           minEventCount?: number // eventCount がこの値以上のときのみ発火（「一度に◯枚以上破棄したとき」。BS04アリゲイド＝5枚以上）
           magicCostEquals?: number // event: "opponentMagicUsed" 限定：使用されたマジックのコストがこれと一致するときのみ発火（BS04氷の女神フリッグ）
@@ -1866,6 +1909,12 @@ export interface GameState {
     // resolveMagic が読んですぐ消す）。**oncePerBattle の無償化の枠を消費させない**ために使う
     // （払って使ったのだから、1枚きりの枠は残る。BS07大天使イスフィール）
     magicFreeDeclined?: boolean
+    // いま解決中の効果の発生源（resolveAction が handler を呼ぶ間だけ立ち、抜けるときに元へ戻す）。
+    // 「**相手の〈色〉のスピリット/ネクサス/マジックの効果で**〜されたとき」を判定するために使う
+    // （fieldEvent.sourceColorFilter）。ドローステップのドローやコアステップのコア置きのような
+    // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
+    // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
+    currentEffectSource?: { pid: PlayerId; type?: "spirit" | "nexus" | "magic"; colors?: Color[] }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主

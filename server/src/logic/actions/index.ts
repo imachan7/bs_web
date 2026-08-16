@@ -4,6 +4,7 @@
 import type { ActionRegistry } from "./types"
 import battleFlow from "./battleFlow"
 import buff from "./buff"
+import control from "./control"
 import cores from "./cores"
 import destroy from "./destroy"
 import exhaustRefresh from "./exhaustRefresh"
@@ -13,6 +14,7 @@ import handDeck from "./handDeck"
 const ACTION_HANDLERS: ActionRegistry = {
     ...battleFlow,
     ...buff,
+    ...control,
     ...cores,
     ...destroy,
     ...exhaustRefresh,
