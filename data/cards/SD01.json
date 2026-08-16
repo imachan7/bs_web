@@ -199,6 +199,53 @@
   ]
  },
  {
+  "cardId": "SD01-005",
+  "name": "タルタルガー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットは、相手のスピリット/ネクサス/マジックの効果では、自分のフィールドから手札に戻らない。",
+  "effects": [
+   {
+    "id": "SD01-005-e1",
+    "kind": "immunityGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "self",
+    "against": "bounce"
+   }
+  ]
+ },
+ {
   "cardId": "SD01-006",
   "name": "晴天竜ウィンドレイク",
   "type": "spirit",
@@ -293,6 +340,70 @@
   "limited": false,
   "effect": "",
   "effects": []
+ },
+ {
+  "cardId": "SD01-008",
+  "name": "雷皇龍ジークヴルム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv3『自分のアタックステップ』\n【覚醒】を持つ自分のスピリットすべてに【激突】を与える。",
+  "effects": [
+   {
+    "id": "SD01-008-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "SD01-008-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     3
+    ],
+    "keyword": "clash",
+    "target": "ownAll",
+    "keywordFilter": "awaken"
+   }
+  ]
  },
  {
   "cardId": "SD01-009",
@@ -594,6 +705,134 @@
   ]
  },
  {
+  "cardId": "SD01-017",
+  "name": "重装蟲キャタバルガ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト1以下のスピリットすべてを疲労させる。",
+  "effects": [
+   {
+    "id": "SD01-017-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaustAll",
+     "side": "both",
+     "costFilter": {
+      "max": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD01-018",
+  "name": "草原の狩人キングゲパルド",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のライフが3以下の間、このスピリットをBP+3000する。\nLv2･Lv3『このスピリットのバトル時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "SD01-018-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amount": 3000,
+     "condition": {
+      "ownLifeAtMost": 3
+     }
+    }
+   },
+   {
+    "id": "SD01-018-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
   "cardId": "SD01-019",
   "name": "モモンガル",
   "type": "spirit",
@@ -627,6 +866,121 @@
   "limited": false,
   "effect": "",
   "effects": []
+ },
+ {
+  "cardId": "SD01-020",
+  "name": "ヒトデム",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【装甲：赤】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+2000する。",
+  "effects": [
+   {
+    "id": "SD01-020-e1",
+    "kind": "keyword",
+    "keyword": "armor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   },
+   {
+    "id": "SD01-020-e2",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "selfBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD01-021",
+  "name": "神機グングニル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n相手のコスト1以下のスピリットすべてを手札に戻す。",
+  "effects": [
+   {
+    "id": "SD01-021-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "returnAllToHand",
+     "side": "opponent",
+     "costFilter": {
+      "max": 1
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "SD01-022",

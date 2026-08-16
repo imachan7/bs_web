@@ -1523,6 +1523,8 @@ function hasImmunityAgainst(
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // target:"self"＝**発生源自身だけ**（「このスピリットは〜受けない」。SD01-005 タルタルガー）
+            if (effect.target === "self" && inst.instanceId !== source.instanceId) continue
             // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
             // （BS05白亜の竜使いアルブス：自身は対象系統を持たないが対象に含む）
             if (effect.familyFilter !== undefined) {
