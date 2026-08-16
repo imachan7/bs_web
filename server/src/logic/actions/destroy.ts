@@ -1204,7 +1204,10 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         // BS05ブロンズ・ゴレム：coreCost指定時はその数だけを支払う（不足なら不発）
         const last = state.lastDestroyedNexus
         const requiredCost = action.coreCost
-        if (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost)) {
+        // costFrom:"ownFieldOrReserve"（SD02-014 魔法監視塔Lv1）：コストを self 上ではなく
+        // 自分のフィールド/リザーブのコアから払う。**リザーブを優先**して場のスピリットを崩さない
+        const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
+        if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) {
             log(state, `${sourceName}：支払えるコアがなかった。`)
             return
         }
@@ -1222,10 +1225,40 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             log(state, `${sourceName}：戻せるネクサスがなかった。`)
             return
         }
+        // 支払える総量を先に確かめる（払えないなら何も起こさない。「〜することで」は任意コスト）
+        if (fromFieldOrReserve) {
+            const need = requiredCost ?? 1
+            const available = player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
+            if (available < need) {
+                log(state, `${sourceName}：支払えるコアがなかった。`)
+                return
+            }
+        }
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
-        const paid = requiredCost ?? self.cores
-        self.cores -= paid
-        player.trashCores += paid
+        let paid: number
+        if (fromFieldOrReserve) {
+            paid = requiredCost ?? 1
+            // リザーブ優先。足りない分だけ場のスピリット（コアが多い順）から取る
+            const fromReserve = Math.min(paid, player.reserve)
+            player.reserve -= fromReserve
+            let remaining = paid - fromReserve
+            for (const sp of [...player.field.spirits].sort((a, b) => b.cores - a.cores)) {
+                if (remaining <= 0) break
+                const take = Math.min(remaining, sp.cores)
+                sp.cores -= take
+                remaining -= take
+            }
+            if (remaining > 0) {
+                // 途中まで払ってしまわないよう、支払えないと分かった時点で戻す設計にはせず、
+                // 事前に総量を確かめる（下の early return で到達しない）
+                paid -= remaining
+            }
+            player.trashCores += paid
+        } else {
+            paid = requiredCost ?? self!.cores
+            self!.cores -= paid
+            player.trashCores += paid
+        }
         const revivedName = getCard(pending ? pending.cardId : last.cardId).name
         if (pending) {
             delete pending.pendingDestruction
@@ -1240,7 +1273,12 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             state,
             `${sourceName}：コア${paid}個をトラッシュに置き、${revivedName}をフィールドに戻した。`,
         )
-        if (self.cores < instMinLevelCores(self)) {
+        if (fromFieldOrReserve) {
+            // 場から取った結果、維持コア割れになったスピリットを消滅させる
+            for (const sp of [...player.field.spirits]) {
+                if (sp.cores < instMinLevelCores(sp)) destroySpirit(state, owner, sp.instanceId, "deplete")
+            }
+        } else if (self && self.cores < instMinLevelCores(self)) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
         return
@@ -1324,7 +1362,50 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
     return
 }
 
+// BS01-104 千本槍の古戦場Lv2：このネクサス上のコア1個をトラッシュに置くことで、
+// 相手のブロックしたスピリット1体を「バトル終了後に破壊する」予約を立てる（BattleState.endBattleDestroy）。
+// **ここでは破壊しない**。実際の破壊は GameEngine のバトル解決＞７（【呪撃】の直後）で
+// 通常の destroy 経路を通すので、装甲・効果耐性はその時点で判定される。
+// self は発生源のネクサス自身（データ側で fieldEvent.selfMode:"source" を指定する）
+const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const battle = state.battle
+    if (!self) return
+    const blockerId = targetInstanceId ?? battle?.blockerInstanceId ?? undefined
+    if (!battle || blockerId === undefined) {
+        log(state, `${sourceName}：ブロックしたスピリットがいなかった。`)
+        return
+    }
+    const found = findSpiritAny(state, blockerId)
+    if (!found || found.pid === owner) {
+        log(state, `${sourceName}：ブロックしたスピリットがいなかった。`)
+        return
+    }
+    const cost = action.costSelfCoresToTrash
+    if (self.cores < cost) {
+        log(state, `${sourceName}：置くコアが足りなかった。`)
+        return
+    }
+    // ネクサスのコアはレベルが下がるだけで消滅しない。**支払いでLv2を割っても予約は残る**
+    // （発揮はコストを払った時点で成立している。2026-08-16 ユーザー確認）
+    self.cores -= cost
+    state.players[owner].trashCores += cost
+    const list = battle.endBattleDestroy ?? []
+    list.push({
+        targetInstanceId: found.inst.instanceId,
+        sourceInstanceId: self.instanceId,
+        sourcePid: owner,
+        sourceColors: instColors(self),
+    })
+    battle.endBattleDestroy = list
+    log(
+        state,
+        `${sourceName}：コア${cost}個をトラッシュに置き、${getCard(found.inst.cardId).name}をバトル終了後に破壊する。`,
+    )
+}
+
 const handlers = {
+    destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroyOnePerCost: destroyOnePerCostHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,

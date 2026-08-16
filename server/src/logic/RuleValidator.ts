@@ -429,6 +429,21 @@ export function validateCastMagic(
         return "このマジックの色と一致するシンボルが自分のフィールドにないため使用できません"
     }
 
+    // SD02-011 獣皇子バハムンドLv2-3：相手フィールドに発生源があれば、
+    // **自分（使用者）のトラッシュにあるマジックカード**と同じ色を含むマジックは使用できない。
+    // colorLockOpponent の裏返しで、トラッシュが育つほど使える色が減る
+    if (hasMagicRestriction(state, pid, "trashColorLockOpponent")) {
+        const lockedColors = new Set<Color>()
+        for (const trashed of state.players[pid].trashCards) {
+            const t = getCard(trashed)
+            if (t.type !== "magic") continue
+            for (const c of t.colors) lockedColors.add(c)
+        }
+        if (card.colors.some((c) => lockedColors.has(c))) {
+            return "自分のトラッシュにある同じ色のマジックがあるため、このマジックは使用できません"
+        }
+    }
+
     // 対象指定がある場合、両プレイヤーのフィールドに該当スピリットが存在するか検証
     if (targetInstanceId !== undefined) {
         const exists =

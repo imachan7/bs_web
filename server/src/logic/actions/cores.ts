@@ -32,6 +32,8 @@ import {
     requestCardChoice,
     requestChoice,
     TENSHO_SUBSTITUTE_REST,
+    TENSHO_SUBSTITUTE_HAND,
+    applyTenshoSubstitute,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
@@ -332,13 +334,11 @@ const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (
         // 【転召】置換（BS05の竜使い）の任意発動のpendingChoice再開専用（cards.jsonには書かない）。
         // selfには転召の対象になった自分のスピリットが渡る
         if (!self) return
-        if (chosenOption === TENSHO_SUBSTITUTE_REST) {
-            log(state, `【転召】${getCard(self.cardId).name}は疲労し、コアをそのまま維持した。`)
-            exhaustSpirit(state, owner, self)
-            fireTenshoEvent(state, owner, self)
+        if (chosenOption === TENSHO_SUBSTITUTE_REST || chosenOption === TENSHO_SUBSTITUTE_HAND) {
+            applyTenshoSubstitute(state, owner, self, chosenOption === TENSHO_SUBSTITUTE_HAND)
             return
         }
-        // 「疲労せずコアを置く」：置換を飛ばして通常のコア移動を行う（再度の確認を出さない）
+        // 「置換しない」側：置換を飛ばして通常のコア移動を行う（再度の確認を出さない）
         dumpAllCoresTensho(state, owner, self, action.dest, true)
         return
 }

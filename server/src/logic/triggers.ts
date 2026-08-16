@@ -927,6 +927,13 @@ export function fireFieldEventTriggers(
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
                     const color = effect.condition.ownFieldHasColorNexus
                     if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
+                } else if ("targetMaxCostOfEventTarget" in effect.condition) {
+                    // SD02-004 神獣ハクタクLv2-3：ブロックした相手（targetInstanceId）のコストがこれ以下のときのみ。
+                    // 道化師クランの付与コストも見るため instMatchesCostFilter を使う
+                    if (targetInstanceId === undefined) continue
+                    const found = findSpiritAny(state, targetInstanceId)
+                    if (!found) continue
+                    if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCostOfEventTarget })) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue
@@ -1337,9 +1344,10 @@ export function findMagicNegateSource(
             const payer = isHyoheki && nexusPayer ? nexusPayer : null
             if ("exhaustSelf" in effect.cost) {
                 if (!payer && inst.isRested) continue
-            } else if (inst.cores < effect.cost.selfCoresToVoid) {
-                continue
+            } else if ("selfCoresToVoid" in effect.cost) {
+                if (inst.cores < effect.cost.selfCoresToVoid) continue
             }
+            // cost:{none} は支払い無し（SD02-014 魔法監視塔Lv2）。そのまま発動できる
             return payer && "exhaustSelf" in effect.cost
                 ? { pid: defenderPid, inst, effect, nexusPayer: payer }
                 : { pid: defenderPid, inst, effect }
@@ -1368,7 +1376,7 @@ function payMagicNegate(
         } else {
             exhaustSpirit(state, pid, inst)
         }
-    } else {
+    } else if ("selfCoresToVoid" in effect.cost) {
         // ボイド行きなので、リザーブにもトラッシュにも戻らない
         inst.cores -= effect.cost.selfCoresToVoid
         log(
@@ -1378,6 +1386,21 @@ function payMagicNegate(
     }
     if (effect.oncePerTurn) inst.magicNegateUsedTurn = state.turn
     log(state, `${getCard(inst.cardId).name}の効果で、${card.name}の効果は無効になった。`)
+    // afterNegate:"selfToDeckBottom"（SD02-014 魔法監視塔Lv2）：無効にした**後**、発生源をデッキの下へ。
+    // 「その後」＝前後関係なので支払いではない（無効にしなければ戻らない）。2026-08-16 ユーザー確認
+    if (effect.afterNegate === "selfToDeckBottom") {
+        const player = state.players[pid]
+        const index = player.field.nexuses.findIndex((n) => n.instanceId === inst.instanceId)
+        const zone = index >= 0 ? player.field.nexuses : player.field.spirits
+        const idx = index >= 0 ? index : player.field.spirits.findIndex((sp) => sp.instanceId === inst.instanceId)
+        if (idx >= 0) {
+            // 場を離れるので、上に乗っていたコアは持ち主のリザーブへ戻る（通常の離脱と同じ）
+            player.reserve += inst.cores
+            zone.splice(idx, 1)
+            player.deck.push(inst.cardId)
+            log(state, `${getCard(inst.cardId).name}はデッキの下に戻った。`)
+        }
+    }
 }
 
 export function resolveMagic(
@@ -1520,6 +1543,10 @@ const BOTH_SIDES_ACTION_TYPES = new Set([
     "bothSidesCoreToTrash",
     "bothSidesCoreToVoid",
     "discardBothHands",
+    // 「指定した色のスピリットすべて」＝両陣営が対象（BS02-111スピリットイリュージョン）。
+    // 効果本体は貸与した継続効果なので、絞り込みの答えは仮想発生源の lentKeepPid に写して
+    // ターン中ずっと使う（colorChoiceLendThisTurnHandler）
+    "colorChoiceLendThisTurn",
 ])
 function actionTouchesBothSides(node: unknown): boolean {
     if (Array.isArray(node)) return node.some(actionTouchesBothSides)

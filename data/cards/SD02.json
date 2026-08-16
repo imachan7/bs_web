@@ -176,6 +176,183 @@
     ]
   },
   {
+    "cardId": "SD02-004",
+    "name": "神獣ハクタク",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "想獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、コスト3以上の自分のスピリット1体の上のコアすべてをトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「想獣」か「獣頭」を選び、その系統を持つ自分のスピリット1体につき、自分はデッキから1枚ドローする。\nLv2･Lv3『自分のアタックステップ』\n自分のスピリットが相手のコスト4以下のスピリットにブロックされたとき、【転召】を持つ自分のスピリット1体を回復させる。",
+    "effects": [
+      {
+        "id": "SD02-004-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 3,
+        "dest": "trash"
+      },
+      {
+        "id": "SD02-004-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "drawPerChosenFamily",
+          "families": [
+            "想獣",
+            "獣頭"
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "SD02-004-e3",
+        "kind": "fieldEvent",
+        "event": "ownSpiritBlocked",
+        "levels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "selfMode": "source",
+        "ignoreEventTarget": true,
+        "condition": {
+          "targetMaxCostOfEventTarget": 4
+        },
+        "action": {
+          "type": "refreshOne",
+          "filter": {
+            "keyword": "tensho"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-005",
+    "name": "天使ヘルヴィム",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の黄のシンボル1つにつき、自分のデッキを上から1枚オープンする。\nその中のマジックカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3『自分のアタックステップ』\n【光芒】を持つ自分のスピリットをブロックしている相手のスピリットすべてはLv1として扱う。\nLv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+    "effects": [
+      {
+        "id": "SD02-005-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "deckReveal",
+          "countPer": {
+            "ownSymbols": "yellow"
+          },
+          "pickType": "magic"
+        },
+        "optional": false
+      },
+      {
+        "id": "SD02-005-e2",
+        "kind": "levelAs",
+        "levels": null,
+        "target": "opponentBlockersOfOwnKeyword",
+        "keywordFilter": "kobo",
+        "treatAs": 1,
+        "sourceLevels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own"
+      },
+      {
+        "id": "SD02-005-e3",
+        "kind": "keyword",
+        "keyword": "kobo",
+        "levels": [
+          3
+        ]
+      }
+    ]
+  },
+  {
     "cardId": "SD02-006",
     "name": "鼬の暗殺者ウィゼーブ",
     "type": "spirit",
@@ -219,6 +396,54 @@
           "from": "trash"
         },
         "optional": true
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-007",
+    "name": "犬兵バーナルド",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\nこのスピリットは、コスト3以下の相手のスピリットすべてを疲労状態でブロックできる。",
+    "effects": [
+      {
+        "id": "SD02-007-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "canBlockWhileRested",
+          "targetMaxCost": 3
+        }
       }
     ]
   },
@@ -296,6 +521,84 @@
           "type": "refreshSelfByExhaustNexus"
         },
         "optional": true
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-009",
+    "name": "獣将軍クジャルタ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nこのスピリットが【転召】の対象になったとき、このスピリットを手札に戻すことで、このスピリット上のコアすべてを指定場所に置いたものとして扱う。\nLv2\nこのスピリットと【転召】を持つ自分のスピリットすべてに“『このスピリットのバトル時』このスピリットをBP+2000する”という効果を与える。",
+    "effects": [
+      {
+        "id": "SD02-009-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "tenshoCoreSubstitute",
+          "mode": "returnToHand"
+        }
+      },
+      {
+        "id": "SD02-009-e2",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "battlingOnly": true,
+          "amount": 2000
+        }
+      },
+      {
+        "id": "SD02-009-e3",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "keywordFilter": "tensho",
+          "battlingOnly": true,
+          "amount": 2000
+        }
       }
     ]
   },
@@ -400,6 +703,280 @@
             "turn": "own"
           }
         }
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-011",
+    "name": "獣皇子バハムンド",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分は相手の手札すべてを見て、その中のマジックカード1枚を破棄する。\nLv2･Lv3『自分のアタックステップ』\n相手は、相手のトラッシュにあるマジックカードと同じ色のマジックの効果を使用できない。",
+    "effects": [
+      {
+        "id": "SD02-011-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 3,
+        "dest": "trash"
+      },
+      {
+        "id": "SD02-011-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "discardOpponent",
+          "count": 1,
+          "cardTypeFilter": "magic"
+        },
+        "optional": false
+      },
+      {
+        "id": "SD02-011-e3",
+        "kind": "magicRestriction",
+        "levels": [
+          2,
+          3
+        ],
+        "restriction": "trashColorLockOpponent",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-012",
+    "name": "天の城門",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n【転召】を持たない相手のLv1スピリットのアタックによって自分のライフが減らされるとき、自分のデッキを上から1枚破棄する。\nそのカードがスピリットカードのとき、自分のライフは減らされない。\nさらに、【転召】を持っていたとき手札に加える。\nLv2『自分のアタックステップ』\n【転召】を持つ自分のスピリットすべてのアタックは、同じLv以下の相手のスピリットからブロックされない。",
+    "effects": [
+      {
+        "id": "SD02-012-e1",
+        "kind": "lifeDamageMillGuard",
+        "levels": [
+          1,
+          2
+        ],
+        "turn": "opponent",
+        "attackerFilter": {
+          "maxLevel": 1,
+          "keywordExclude": "tensho"
+        },
+        "match": {
+          "cardType": "spirit"
+        },
+        "keepToHandIfKeyword": "tensho"
+      },
+      {
+        "id": "SD02-012-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "keywordFilter": "tensho",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "constraint": {
+          "type": "unblockableBy",
+          "levelAtMostAttacker": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-013",
+    "name": "転召の祭壇",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n相手は、【転召】を持たないコスト3以下のスピリットカードを召喚するとき、1コスト余分に支払わなければならない。\nLv2『自分のメインステップ』\n【転召】を持つスピリットカードを召喚するとき、そのスピリットカードと同じ系統を持つ自分のスピリットすべてをコスト+3する。",
+    "effects": [
+      {
+        "id": "SD02-013-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "opponentSummonCostIncrease",
+          "amount": 1,
+          "maxCost": 3,
+          "keywordExclude": "tensho"
+        }
+      },
+      {
+        "id": "SD02-013-e2",
+        "kind": "alsoCostGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "plus": 3
+      }
+    ]
+  },
+  {
+    "cardId": "SD02-014",
+    "name": "魔法監視塔",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": true,
+    "effect": "Lv1･Lv2\n自分のネクサスが破壊されたとき、自分のフィールド/リザーブのコア1個を自分のトラッシュに置くことで、破壊されたネクサス1つを同じ状態で自分のフィールドに戻す。\nLv2\n相手がマジックの効果を使用したとき、その効果を無効にできる。\nその後、このネクサスをデッキの下に戻す。",
+    "effects": [
+      {
+        "id": "SD02-014-e1",
+        "kind": "fieldEvent",
+        "event": "ownNexusDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "reviveLastDestroyedNexus",
+          "coreCost": 1,
+          "costFrom": "ownFieldOrReserve"
+        },
+        "optional": true
+      },
+      {
+        "id": "SD02-014-e2",
+        "kind": "magicNegate",
+        "levels": [
+          2
+        ],
+        "cost": {
+          "none": true
+        },
+        "afterNegate": "selfToDeckBottom"
       }
     ]
   },

@@ -37,6 +37,18 @@
 別人でありうるため。`bothSidesPids` と `bothSidesRedirectKeepPid` がこれを読む。
 **非対話（テスト・自動解決）ではセットされず、従来どおり持ち主に有利な側へ自動で固定する**。
 
+### 1.5.1 変更した対象が**ターン中続く継続効果**のとき（2026-08-16 ユーザー確認）
+
+スピリットイリュージョン（BS02-111）の「このターンの間、指定した色のスピリットすべてを最高Lvとして扱う」は、
+マジックの解決が終わった後もターン中ずっと生きる。**片側のみに変更したら、その絞り込みもターン中ずっと続く**
+（途中で両陣営に戻ったりしない）。
+
+`magicSideDecision` はマジックの解決中しか生きないので、**答えを仮想発生源へ写す**：
+`CardInstance.lentKeepPid`（`lentChoiceColor` の隣）。継続側の
+`kind:"levelAs"` `target:"allSpiritsByChosenColor"` がこれを読んで片側だけに適用する。
+確認を出すかどうかの判定（`actionTouchesBothSides`）には
+`colorChoiceLendThisTurn` を「両陣営に触れる action」として登録してある。
+
 ## 2. 実装の形
 
 `PendingChoice.pid` が**選択者**、`actorPid` が**解決の主体**。両者が異なるときだけ `actorPid` が入る。

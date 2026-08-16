@@ -1472,6 +1472,7 @@
         "phase": "attack",
         "turn": "opponent",
         "subjectSide": "opponent",
+        "selfMode": "source",
         "action": {
           "type": "draw",
           "count": 1

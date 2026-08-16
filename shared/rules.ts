@@ -863,15 +863,9 @@ export function auraAppliesTo(
         if (aura.phaseTurn.turn === "own" && sourcePid !== board.turnPlayer) return false
         if (aura.phaseTurn.turn === "opponent" && sourcePid === board.turnPlayer) return false
     }
-    if (aura.target === "self") {
-        return sourceInst.instanceId === targetInst.instanceId
-    }
-    // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
-    if (sourcePid !== targetOwnerPid) return false
-    if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
-        return false
-    }
+    // バトル中かどうかの3つも target を問わず適用する（phaseTurn と同じ理由）。
+    // かつては target:"self" の早期リターンより後にあり、**self では黙って無視されていた**
+    // （2026-08-16 に SD02-009 獣将軍クジャルタで判明。当時の該当カードはこの1枚だけ）
     if (aura.battlingOnly) {
         if (!board.battle) return false
         if (
@@ -881,9 +875,6 @@ export function auraAppliesTo(
             return false
         }
     }
-    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
-        return false
-    }
     if (aura.attackingOnly) {
         if (!board.battle) return false
         if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
@@ -891,6 +882,18 @@ export function auraAppliesTo(
     if (aura.blockingOnly) {
         if (!board.battle) return false
         if (board.battle.blockerInstanceId !== targetInst.instanceId) return false
+    }
+    if (aura.target === "self") {
+        return sourceInst.instanceId === targetInst.instanceId
+    }
+    // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
+    if (sourcePid !== targetOwnerPid) return false
+    if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
+    if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
+        return false
+    }
+    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
+        return false
     }
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false

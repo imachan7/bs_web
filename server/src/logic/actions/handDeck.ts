@@ -22,6 +22,7 @@ import {
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
+    spiritHasFamily,
     resolveMagic,
     returnSpiritToDeckBottom,
     markBounce,
@@ -31,7 +32,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -443,6 +444,41 @@ const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx, act
     pushAllRemaining()
 }
 
+// SD02-004 神獣ハクタク：系統を1つ選び、その系統を持つ自分のスピリット1体につき1枚引く。
+// **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
+// interactiveTargets 時は系統を選ばせ、非対話では引ける枚数が多い方を選ぶ決定的簡略化
+const drawPerChosenFamilyHandler: ActionHandler<"drawPerChosenFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+    const countFor = (family: string): number =>
+        state.players[owner].field.spirits.filter((sp) => spiritHasFamily(state, owner, sp, family)).length
+    if (action.families.length === 0) return
+    if (chosenOption === undefined && state.interactiveTargets && action.families.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：数える系統を選んでください`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            [...action.families],
+        )
+        return
+    }
+    const family =
+        chosenOption !== undefined && action.families.includes(chosenOption)
+            ? chosenOption
+            : [...action.families].reduce((best, f) => (countFor(f) > countFor(best) ? f : best))
+    const count = countFor(family)
+    if (count === 0) {
+        log(state, `${sourceName}：系統「${family}」を持つ自分のスピリットがいなかった。`)
+        return
+    }
+    log(state, `${sourceName}：系統「${family}」の自分のスピリット${count}体ぶん引く。`)
+    ctx.resolve({ type: "draw", count })
+}
+
 const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // スワロウアイヴィー：自分のデッキ上からcount枚を公開し、pickTypeに一致する最初の
@@ -473,7 +509,12 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
                 ? [...player.field.spirits, ...player.field.nexuses].filter(
                       (s) => instHasColor(s, countPer.ownColorTotal),
                   ).length
-                : player.field.nexuses.length
+                // ownSymbols：自分のフィールドの指定色シンボル数（SD02-005 天使ヘルヴィム「自分の黄のシンボル1つにつき」）。
+                // 軽減の集計と同じ countSymbols を使うので、シンボル固定（symbolFix）や
+                // 追加シンボル（ダブルハート）もそのまま反映される
+                : "ownSymbols" in countPer
+                  ? countSymbols(player, [countPer.ownSymbols])
+                  : player.field.nexuses.length
             : action.count ?? 0
         const revealed = player.deck.splice(0, count)
         if (revealed.length === 0) {
@@ -2009,6 +2050,7 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
 }
 
 const handlers = {
+    drawPerChosenFamily: drawPerChosenFamilyHandler,
     draw: drawHandler,
     drawPer: drawPerHandler,
     drawUpTo: drawUpToHandler,

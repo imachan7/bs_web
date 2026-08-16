@@ -306,3 +306,63 @@ console.log("--- 【転召】の対象になったとき（4種） ---")
     assert(s.players.p2.deck.length === deckBefore + 1, "相手のデッキの上に戻る")
     assert(s.players.p2.deck[0] === targetCard.cardId, "戻り先はデッキの一番上")
 }
+
+// ── カバレッジで「場に出ているのに一度も適用されていない」と出た SD01 の4件 ──
+// npm run coverage:effects が挙げたもの。データは正しいが smoke が一度も通していなかった
+console.log("--- SD01 の継続効果（カバレッジの穴を埋める） ---")
+{
+    // SD01-005 タルタルガー：相手の効果では手札に戻らない
+    const TARTAR = check("SD01-005", "タルタルガー", "red", "spirit")
+    const s = base("tartar")
+    const self = put(s, "p1", TARTAR, coresFor(TARTAR, 1))
+    const enemy = put(s, "p2", vanillaCost(1), 1)
+    resolveAction(s, "p2", enemy, { type: "returnToHand", count: 1 }, self.instanceId, ["red"], "spirit")
+    assert(
+        s.players.p1.field.spirits.some((x) => x.instanceId === self.instanceId),
+        "相手の効果では手札に戻らない",
+    )
+}
+{
+    // SD01-027 溶岩の大瀑布 Lv1-2：自分のアタックステップ、アタックしている自分すべてをBP+1000
+    const FALLS = check("SD01-027", "溶岩の大瀑布", "red", "nexus")
+    const s = base("falls")
+    putNexus(s, "p1", FALLS, coresFor(FALLS, 1))
+    const attackerCard = vanillaCost(3)
+    const attacker = put(s, "p1", attackerCard, coresFor(attackerCard, 1))
+    const idle = put(s, "p1", attackerCard, coresFor(attackerCard, 1))
+    const base1 = effectiveBp(s, "p1", attacker)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
+    assert(effectiveBp(s, "p1", attacker) === base1 + 1000, "アタックしている自分はBP+1000")
+    assert(effectiveBp(s, "p1", idle) === base1, "アタックしていない自分は上がらない")
+}
+{
+    // SD01-030 豊穣の大地 Lv1-2：バトル中の自分を、疲労状態の自分1体につきBP+1000
+    const FIELD = check("SD01-030", "豊穣の大地", "green", "nexus")
+    const s = base("fertile")
+    putNexus(s, "p1", FIELD, coresFor(FIELD, 1))
+    const attackerCard = vanillaCost(3)
+    const attacker = put(s, "p1", attackerCard, coresFor(attackerCard, 1))
+    const rested = put(s, "p1", attackerCard, coresFor(attackerCard, 1))
+    rested.isRested = true
+    const base2 = effectiveBp(s, "p1", attacker)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
+    // アタック宣言で自分も疲労するので、疲労状態は2体になる
+    assert(
+        effectiveBp(s, "p1", attacker) === base2 + 2000,
+        `疲労状態の自分1体につきBP+1000（疲労2体ぶん。${base2}→${effectiveBp(s, "p1", attacker)}）`,
+    )
+}
+{
+    // SD01-030 豊穣の大地 Lv2：自分のコアステップで得られるコアが+1
+    const FIELD = byId("SD01-030")
+    const s = base("fertile-core")
+    putNexus(s, "p1", FIELD, coresFor(FIELD, 2))
+    s.turnPlayer = "p1"
+    s.phase = "start"
+    const before = s.players.p1.reserve
+    runTurnStart(s)
+    // コアステップの基本1個＋ネクサスの+1
+    assert(s.players.p1.reserve === before + 2, `コアステップで2個得られる（${before}→${s.players.p1.reserve}）`)
+}
