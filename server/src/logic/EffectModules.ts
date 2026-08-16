@@ -2197,7 +2197,10 @@ export function applyMagicBuffBonus(
     const found = findSpiritAny(state, target.instanceId)
     if (!found) return
     const targetOwner = found.pid
-    for (const source of state.players[targetOwner].field.spirits) {
+    // **発生源はスピリットとは限らない**。BS06-085 混迷する魔法実験場（ネクサス）を
+    // スピリットだけ走査していたために一度も働かせられていなかった（2026-08-16 修正）。
+    // effectSources ならネクサスも、マジックが貸した仮想発生源も含む
+    for (const source of effectSources(state, targetOwner)) {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicBuffBonus") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
