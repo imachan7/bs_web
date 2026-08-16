@@ -765,6 +765,17 @@ async function init(): Promise<void> {
     // お知らせ（Gitコミット履歴）を非同期で取得・表示
     loadChangelog()
 
+    // デバッグ画面の有効性を確認
+    fetch("/api/debug/enabled")
+        .then(res => res.json())
+        .then(data => {
+            if (data.enabled) {
+                const link = document.getElementById("debug-editor-link")
+                if (link) link.classList.remove("hidden")
+            }
+        })
+        .catch(() => {})
+
     byId("join-btn").addEventListener("click", () => {
         const name =
             (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"

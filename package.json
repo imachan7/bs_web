@@ -6,8 +6,8 @@
     "scripts": {
         "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
         "dev:server": "tsx watch server/src/index.ts",
-        "dev:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist --watch",
-        "build:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts --bundle --outdir=public/dist",
+        "dev:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts public/src/debug.ts --bundle --outdir=public/dist --watch",
+        "build:client": "esbuild public/src/main.ts public/src/deck.ts public/src/bugreport.ts public/src/debug.ts --bundle --outdir=public/dist",
         "build": "npm run build:client",
         "start": "tsx server/src/index.ts",
         "typecheck": "tsc --noEmit",

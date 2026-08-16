@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>盤面エディタ (デバッグ用)｜バトスピWeb対戦</title>
+    <link rel="stylesheet" href="/css/deck.css" />
+    <link rel="stylesheet" href="/css/debug.css" />
+</head>
+<body>
+    <header id="topbar">
+        <h1>盤面エディタ (デバッグ用)</h1>
+        <div style="flex-grow: 1;"></div>
+        <a id="lobby-link" href="/">対戦ロビーへ戻る</a>
+    </header>
+
+    <div id="builder">
+        <!-- カードプール面 (流用) -->
+        <section id="pool-pane">
+            <div id="filters">
+                <div class="filter-row">
+                    <input id="search-input" type="text" placeholder="カード名で検索" />
+                    <button id="filter-reset">条件クリア</button>
+                    <span id="pool-count" style="margin-left: auto;"></span>
+                </div>
+            </div>
+            <div id="pool-grid"></div>
+            <div id="detail-panel" class="hidden"></div>
+        </section>
+
+        <!-- 盤面構築面 -->
+        <section id="board-pane" style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: #242838; padding: 12px; border-radius: 8px;">
+                <h2 style="margin-top: 0; font-size: 16px;">共通設定</h2>
+                <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                    <label>ルームID: <input type="text" id="cfg-room" value="room1" style="width: 80px;" /></label>
+                    <label>ターン: <input type="number" id="cfg-turn" value="1" min="1" style="width: 60px;" /></label>
+                    <label>手番: 
+                        <select id="cfg-turn-player">
+                            <option value="p1">p1</option>
+                            <option value="p2">p2</option>
+                        </select>
+                    </label>
+                    <label>フェーズ:
+                        <select id="cfg-phase">
+                            <option value="start">スタート</option>
+                            <option value="core">コア</option>
+                            <option value="draw">ドロー</option>
+                            <option value="refresh">リフレッシュ</option>
+                            <option value="main">メイン</option>
+                            <option value="attack">アタック</option>
+                            <option value="end">エンド</option>
+                        </select>
+                    </label>
+                    <button id="btn-submit" style="background: #e65100; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: auto;">この盤面にする</button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 16px;">
+                <!-- P1 -->
+                <div id="p1-area" style="flex: 1; background: #242838; padding: 12px; border-radius: 8px;">
+                    <h2 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 4px;">Player 1 (自分)</h2>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <label>ライフ: <input type="number" id="p1-life" value="5" min="0" style="width: 40px;"/></label>
+                        <label>リザーブ: <input type="number" id="p1-reserve" value="4" min="0" style="width: 40px;"/></label>
+                        <label>トラッシュコア: <input type="number" id="p1-trashcores" value="0" min="0" style="width: 40px;"/></label>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">フィールド</h3>
+                        <div id="p1-field" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">手札</h3>
+                        <div id="p1-hand" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">デッキ</h3>
+                        <div id="p1-deck" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">トラッシュ（カード）</h3>
+                        <div id="p1-trash" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                </div>
+                
+                <!-- P2 -->
+                <div id="p2-area" style="flex: 1; background: #242838; padding: 12px; border-radius: 8px;">
+                    <h2 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 4px;">Player 2 (相手)</h2>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <label>ライフ: <input type="number" id="p2-life" value="5" min="0" style="width: 40px;"/></label>
+                        <label>リザーブ: <input type="number" id="p2-reserve" value="4" min="0" style="width: 40px;"/></label>
+                        <label>トラッシュコア: <input type="number" id="p2-trashcores" value="0" min="0" style="width: 40px;"/></label>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">フィールド</h3>
+                        <div id="p2-field" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">手札</h3>
+                        <div id="p2-hand" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">デッキ</h3>
+                        <div id="p2-deck" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 8px 0 4px;">トラッシュ（カード）</h3>
+                        <div id="p2-trash" style="min-height: 40px; border: 1px dashed #555; padding: 4px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="deck-io" style="margin-top: 16px;">
+                <h2 style="margin-top: 0; font-size: 16px;">保存・書き出し</h2>
+                <div class="io-row">
+                    <button id="btn-export">JSONを書き出す</button>
+                    <label id="import-label" for="import-file" style="display: inline-block; background: #2c3044; border: 1px solid #555; padding: 6px 12px; cursor: pointer; border-radius: 4px;">JSONを読み込む</label>
+                    <input id="import-file" type="file" accept=".json,application/json" style="display: none;" />
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+    <script src="/dist/debug.js"></script>
+</body>
+</html>
