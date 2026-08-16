@@ -7,7 +7,7 @@
 //   globalConstraint に noTrashRecovery を追加（recoverSpiritFromTrash等3ハンドラの冒頭で判定）
 //   ConstraintDef に canBlockWhileRested（targetMaxCost付き）を追加（shared/block.canBlock）
 //   constraintGrant に familyFilter を追加
-//   TargetFilter に sameCostAsBlocker、destroy アクションに excludeTarget を追加
+//   TargetFilter に sameCostAsEventTarget（旧 sameCostAsBlocker）、destroy アクションに excludeTarget を追加
 //   levelAs の target に ownSpiritsByFamily、turn に "opponent" を追加
 //   funsaiBonus / 新設 millCapBonus に lentOnly を追加（EffectModules.funsaiBonusTotal/millCapBonusFor）
 //   triggered.condition に lastFunsaiHasSpirit を追加

@@ -4,8 +4,16 @@
 // エージェントは起動のたびに全履歴を読むため、それだけで7〜8万トークンを消費していた。
 // 1メッセージ1ファイルに分け、常時読むのは INDEX.md だけにする。
 //
-// INDEX.md は active/ から**生成される**。手で編集せず、壊れたら `index` で作り直す
-// （2クローン間で衝突しても再生成で解決できるようにするため）。
+// INDEX.md は active/ から**生成される**。手で編集せず、壊れたら `index` で作り直す。
+//
+// **保管場所はリポジトリの外**（2026-08-16 に移した）。既定は `../bs_web-chatbox`＝
+// bs_web と bs_web-ui の**兄弟ディレクトリ**なので、どちらのクローンから叩いても同じ受信箱になる。
+// git 管理をやめた理由は、受信箱をブランチに載せると壊れるため:
+//   - ブランチが違うとメッセージのファイルがそもそも存在しない（実装担当とUI担当が
+//     2日間連絡できなかった原因。2026-08-13〜16）
+//   - マージでメッセージが復活・消失する
+//   - 連絡のたびにコミットが増える（54件たまっていた）
+// 別の場所に置きたいときは環境変数 BS_CHATBOX_DIR で上書きする。
 //
 // 使い方:
 //   npx tsx scripts/chatbox.ts inbox 実装担当
@@ -16,7 +24,8 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 
 const ROOT = path.resolve(__dirname, "..")
-const CHATBOX_DIR = path.join(ROOT, "chatbox")
+// リポジトリの外に置く（上のコメント参照）。bs_web / bs_web-ui のどちらから見ても同じ場所を指す
+const CHATBOX_DIR = process.env.BS_CHATBOX_DIR ?? path.resolve(ROOT, "..", "bs_web-chatbox")
 const ACTIVE_DIR = path.join(CHATBOX_DIR, "active")
 const ARCHIVE_DIR = path.join(CHATBOX_DIR, "archive")
 const INDEX_PATH = path.join(CHATBOX_DIR, "INDEX.md")
@@ -68,7 +77,7 @@ function parseMessage(file: string): Msg | null {
     const text = fs.readFileSync(path.join(ACTIVE_DIR, file), "utf8")
     const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
     if (!m) {
-        console.error(`⚠️  フロントマターがありません: chatbox/active/${file}`)
+        console.error(`⚠️  フロントマターがありません: ${path.join(ACTIVE_DIR, file)}`)
         return null
     }
     const [, frontText = "", body = ""] = m
@@ -104,10 +113,13 @@ function writeIndex(): number {
     const lines = [
         "# chatbox INDEX",
         "",
-        "やりとり中のメッセージ一覧。**このファイルは `chatbox/active/` から自動生成される**ので、",
+        "やりとり中のメッセージ一覧。**このファイルは同じ階層の `active/` から自動生成される**ので、",
         "手で編集しない（壊れたら `npx tsx scripts/chatbox.ts index` で作り直す）。",
         "",
-        "運用ルールは [README.md](./README.md)、確定した判断は [../DECISIONS.md](../DECISIONS.md)。",
+        "運用ルールは [README.md](./README.md)、確定した判断はリポジトリの `DECISIONS.md`。",
+        "",
+        "この受信箱は**リポジトリの外**（既定 `develop/bs_web-chatbox`）にある。ブランチやクローンが違っても",
+        "同じ場所を見るため。git 管理していた頃は、ブランチが違うとメッセージが届かなかった。",
         "",
     ]
     if (msgs.length === 0) {
@@ -174,7 +186,7 @@ function cmdInbox(roleArg: string | undefined) {
     console.log(`📬 ${role} 宛の未処理メッセージ ${msgs.length}件:`)
     for (const m of msgs) {
         console.log(`  [${m.status}] ${m.id} ${normalizeRole(m.from)}→${role} : ${m.title}`)
-        console.log(`           chatbox/active/${m.file}`)
+        console.log(`           ${path.join(ACTIVE_DIR, m.file)}`)
     }
 }
 
@@ -210,7 +222,7 @@ function cmdNew(flags: Record<string, string>) {
     ].join("\n")
     fs.writeFileSync(path.join(ACTIVE_DIR, file), content, "utf8")
     writeIndex()
-    console.log(`✅ 作成しました: chatbox/active/${file}`)
+    console.log(`✅ 作成しました: ${path.join(ACTIVE_DIR, file)}`)
 }
 
 function cmdDone(id: string | undefined) {
@@ -220,7 +232,7 @@ function cmdDone(id: string | undefined) {
     }
     const msg = readActive().find((m) => m.id === id)
     if (!msg) {
-        console.error(`❌ chatbox/active/ に id=${id} のメッセージがありません`)
+        console.error(`❌ ${ACTIVE_DIR} に id=${id} のメッセージがありません`)
         process.exit(1)
     }
     // アーカイブは月次1ファイル。既存 archive の書式（## [送り手→受け手] 日付 — 見出し）に揃える

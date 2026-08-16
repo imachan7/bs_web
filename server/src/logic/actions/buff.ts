@@ -19,9 +19,10 @@ import {
     pickEnemyByBp,
     requestCardChoice,
     requestChoice,
+    spiritHasFamily,
     spiritHasKeyword,
 } from "../EffectModules"
-import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 
@@ -217,6 +218,29 @@ const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // targetSymbols（BS06サベージパワー）：**対象スピリット自身**のシンボル数を数えるため、
         // 対象選択をカウント計算より先に行う（マジックはself=nullでselfSymbolsが使えない）
+        // targetSameFamilyOwn（SD02-015 フレンドリーパワー）：**対象スピリットと系統を共有する自分のスピリット数**。
+        // targetSymbols と同じく、カウントが対象に依存するので対象選択を先に行う（マジックは self=null）
+        if (action.counter === "targetSameFamilyOwn") {
+            const target = pickBpBuffTarget(state, owner, targetInstanceId)
+            if (!target) {
+                log(state, `${sourceName}のBP増加：対象がいなかった。`)
+                return
+            }
+            // 系統は付与も考慮する（spiritHasFamily）。対象自身も数える
+            const families = instFamilies(target)
+            const count = state.players[owner].field.spirits.filter((s) =>
+                families.some((f) => spiritHasFamily(state, owner, s, f)),
+            ).length
+            if (count === 0) {
+                log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+                return
+            }
+            const amount = count * action.amountPer
+            target.tempBpBuff += amount
+            log(state, `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`)
+            applyMagicBuffBonus(state, target, srcType, srcColors)
+            return
+        }
         if (action.counter === "targetSymbols") {
             const target = pickBpBuffTarget(state, owner, targetInstanceId)
             if (!target) {

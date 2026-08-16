@@ -201,6 +201,14 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
 const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 指定側のスピリットをBP範囲で疲労させる（相手側のみ装甲・疲労免疫を尊重）
+        // filter.sameCostAsEventTarget（SD02-002 ミザール＝「アタックしている相手と同じコスト」）は
+        // normalizeFilter が cost 軸へ解決するので、ここで解決してから costFilter と同じ扱いで使う
+        const resolved = action.filter ? normalizeFilter(ctx, action) : undefined
+        if (resolved === SELF_REQUIRED) {
+            log(state, `${sourceName}：コストの参照元がいなかった。`)
+            return
+        }
+        const costFilter = action.costFilter ?? resolved?.cost
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let exhausted = 0
         for (const pid of sides) {
@@ -211,8 +219,9 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 if (action.maxBp !== undefined && bp > action.maxBp) continue
                 // costFilter：対象のコストで絞る（道化師クランの付与コストも見る。
                 // returnAllToHand と同じ形。SD01-017 重装蟲キャタバルガ＝コスト1以下）
-                if (!instMatchesCostFilter(s, action.costFilter)) continue
-                // filter は cores / excludeSelf の2軸のみ対応（BS05双剣虎ジェン・フー：コア1個のみ・自分以外）
+                if (!instMatchesCostFilter(s, costFilter)) continue
+                // filter は cores / excludeSelf / cost（sameCostAsEventTarget 経由を含む）に対応
+                // （BS05双剣虎ジェン・フー：コア1個のみ・自分以外／SD02-002 ミザール：同じコスト）
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
                 if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue

@@ -2356,6 +2356,8 @@ export function countEffectCounter(
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
+    // targetSameFamilyOwn も同様（bpBuffPer が対象選択後に数える。SD02-015 フレンドリーパワー）
+    if (counter === "targetSameFamilyOwn") return 0
     // restedEnemyNexuses：相手の疲労状態のネクサス数（BS09-080エグゾーストネクサス）
     if (counter === "restedEnemyNexuses") {
         return state.players[opp].field.nexuses.filter((n) => n.isRested).length

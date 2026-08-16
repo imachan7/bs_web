@@ -59,6 +59,35 @@ const destroyCostsEachOneHandler: ActionHandler<"destroyCostsEachOne"> = (ctx, a
     void sourceName
 }
 
+// SD02-010 轟剣士レーヴェン：「コスト0/1/2/3/4の相手のスピリット1体ずつを破壊する」。
+// コストごとに独立して destroy count:1 へ委譲する（装甲・効果耐性・選択・破壊待機の扱いを
+// destroy 側の1箇所に残すため）。選択待ちで中断したら、残りのコストを再開フレームへ積む
+// （Pattern C「体数で再入」の応用。docs/design/RESUME_STACK.md §7）
+const destroyOnePerCostHandler: ActionHandler<"destroyOnePerCost"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType } = ctx
+    for (let i = 0; i < action.costs.length; i++) {
+        const cost = action.costs[i]
+        if (cost === undefined) continue
+        ctx.resolve(
+            { type: "destroy", count: 1, filter: { cost: { min: cost, max: cost } } },
+            { sourceColors: srcColors, sourceType: srcType },
+        )
+        if (state.winner) return
+        if (state.pendingChoice) {
+            const rest = action.costs.slice(i + 1)
+            if (rest.length > 0) {
+                pushResumeFrames(state, [{
+                    kind: "action",
+                    selfInstanceId: self ? self.instanceId : null,
+                    actorPid: owner,
+                    action: { ...action, costs: rest },
+                }])
+            }
+            return
+        }
+    }
+}
+
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
@@ -1296,6 +1325,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
 }
 
 const handlers = {
+    destroyOnePerCost: destroyOnePerCostHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
