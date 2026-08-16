@@ -53,7 +53,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { destroySpirit, flushBounces } from "./removal"
+import { destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -906,22 +906,48 @@ export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean 
 // 発生源が有効なら持ち主のデッキを上から1枚破棄し、そのカードが match に一致していれば true（ライフを守る）。
 // keepToHandIfType 指定時は、破棄したカードがその種別なら（守れたかを問わず）トラッシュでなく手札へ加える。
 // 「〜できる」は自動適用の簡略化。発生源が複数あっても最初の1つだけを使う（デッキを何度も削らない）
-export function tryLifeDamageMillGuard(state: GameState, defenderPid: PlayerId): boolean {
+export function tryLifeDamageMillGuard(
+    state: GameState,
+    defenderPid: PlayerId,
+    // アタッカー。attackerFilter を持つ効果（SD02-012 天の城門）が条件に使う
+    attacker?: CardInstance,
+): boolean {
     const player = state.players[defenderPid]
     for (const source of effectSources(state, defenderPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "lifeDamageMillGuard") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
+            // attackerFilter（SD02-012 天の城門＝「【転召】を持たない相手のLv1スピリットのアタック」）。
+            // アタッカーが分からないときは働かせない側に倒す
+            if (effect.attackerFilter) {
+                if (!attacker) continue
+                const { maxLevel, keywordExclude } = effect.attackerFilter
+                if (maxLevel !== undefined && currentLevel(attacker).level > maxLevel) continue
+                if (
+                    keywordExclude !== undefined &&
+                    spiritHasKeyword(state, opponentOf(defenderPid), attacker, keywordExclude)
+                ) {
+                    continue
+                }
+            }
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
                 return false
             }
             const milled = getCard(cardId)
-            const guarded = milled.type === effect.match.cardType && milled.colors.includes(effect.match.color)
-            // keepToHandIfType（サーガLv2-3）：破棄したカードが指定種別なら手札へ。そうでなければトラッシュへ
-            if (effect.keepToHandIfType !== undefined && milled.type === effect.keepToHandIfType) {
+            const guarded =
+                milled.type === effect.match.cardType &&
+                (effect.match.color === undefined || milled.colors.includes(effect.match.color))
+            // keepToHandIfType（サーガLv2-3）：破棄したカードが指定種別なら手札へ。そうでなければトラッシュへ。
+            // keepToHandIfKeyword（SD02-012 天の城門）：そのキーワードを静的に持つときも手札へ
+            const toHand =
+                (effect.keepToHandIfType !== undefined && milled.type === effect.keepToHandIfType) ||
+                (effect.keepToHandIfKeyword !== undefined && hasKeyword(cardId, effect.keepToHandIfKeyword))
+            if (toHand) {
                 player.hand.push(cardId)
                 log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄し、手札に加えた。`)
                 notifyHandGained(state, defenderPid, 1)
@@ -1177,6 +1203,9 @@ export function resolveKoboOnBattleEnd(
 // 【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
 export const TENSHO_SUBSTITUTE_REST = "疲労してコアを維持する"
 export const TENSHO_SUBSTITUTE_DUMP = "疲労せずコアを置く"
+// mode:"returnToHand"（SD02-009 獣将軍クジャルタ）用のラベル。疲労版と選択肢の文言だけが違う
+export const TENSHO_SUBSTITUTE_HAND = "手札に戻してコアを維持する"
+export const TENSHO_SUBSTITUTE_HAND_DUMP = "手札に戻さずコアを置く"
 
 // 【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 // 自分の他スピリットからコストがminCost以上の候補を集め、上のコアすべてをdestへ置く
@@ -1334,29 +1363,36 @@ export function tenshoAfterTargetTrigger(
     // 疲労することでコアを置いたものとして扱う（実際にはコアを失わない代替。すでに疲労中は通常のコア移動になる）。
     // 「疲労させることで」は任意なので、実対戦では疲労するかコアを置くかをプレイヤーに選ばせる
     // （skipSubstitute=true は「コアを置く」を選んだ後の再入。tenshoSubstituteChoice からのみ渡る）
-    if (
-        !skipSubstitute &&
-        !inst.isRested &&
-        activeConstraints(state, ownerPid, inst).some((c) => c.type === "tenshoCoreSubstitute")
-    ) {
+    // mode:"returnToHand"（SD02-009 獣将軍クジャルタ）は疲労の代わりに手札へ戻る。
+    // 疲労版と違い「疲労していないこと」は条件にならない（既に疲労していても戻せる）
+    const substitute = activeConstraints(state, ownerPid, inst).find(
+        (c) => c.type === "tenshoCoreSubstitute",
+    )
+    const substituteMode = substitute?.type === "tenshoCoreSubstitute" ? (substitute.mode ?? "rest") : undefined
+    const substituteAvailable =
+        substituteMode === "returnToHand" ? true : substituteMode === "rest" ? !inst.isRested : false
+    if (!skipSubstitute && substituteAvailable) {
+        const toHand = substituteMode === "returnToHand"
         if (state.interactiveTargets) {
             requestChoice(
                 state,
                 ownerPid,
-                `【転召】${getCard(inst.cardId).name}：疲労してコアを維持しますか？`,
+                toHand
+                    ? `【転召】${getCard(inst.cardId).name}：手札に戻してコアを維持しますか？`
+                    : `【転召】${getCard(inst.cardId).name}：疲労してコアを維持しますか？`,
                 [],
                 false,
                 { type: "tenshoSubstituteChoice", dest },
                 inst,
                 "option",
-                [TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP],
+                toHand
+                    ? [TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP]
+                    : [TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP],
             )
             return
         }
         // 自動時（テスト）はコアを失わない側を選ぶ決定的簡略化
-        log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
-        exhaustSpirit(state, ownerPid, inst)
-        fireTenshoEvent(state, ownerPid, inst)
+        applyTenshoSubstitute(state, ownerPid, inst, toHand)
         return
     }
     fireTenshoEvent(state, ownerPid, inst)
@@ -1373,6 +1409,24 @@ export function tenshoAfterTargetTrigger(
         return
     }
     tenshoDumpAndDestroy(state, ownerPid, inst, dest)
+}
+
+// 【転召】の置換を実際に適用する（疲労 or 手札に戻す）。どちらもコアは指定場所へ行かない。
+// 手札に戻す場合は通常のバウンスと同じで、**上のコアは持ち主のリザーブへ**（2026-08-16 ユーザー確認）
+export function applyTenshoSubstitute(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    toHand: boolean,
+): void {
+    if (toHand) {
+        log(state, `【転召】${getCard(inst.cardId).name}は手札に戻り、コアはリザーブへ置かれた。`)
+        returnSpiritToHand(state, ownerPid, inst)
+    } else {
+        log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
+        exhaustSpirit(state, ownerPid, inst)
+    }
+    fireTenshoEvent(state, ownerPid, inst)
 }
 
 // 【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
@@ -1780,9 +1834,16 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
+                        // familyFilter（SD02-013 転召の祭壇Lv2＝召喚するカードと同じ系統のみ）
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        // plus 指定時は「元のコスト+plus としても扱う」（相対値版。固定値の cost と排他）
+                        const value = effect.plus !== undefined
+                            ? getCard(spirit.cardId).cost + effect.plus
+                            : effect.cost
+                        if (value === undefined) continue
                         if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []
-                        if (!spirit.alsoCostsContinuous.includes(effect.cost)) {
-                            spirit.alsoCostsContinuous.push(effect.cost)
+                        if (!spirit.alsoCostsContinuous.includes(value)) {
+                            spirit.alsoCostsContinuous.push(value)
                         }
                     }
                     continue
@@ -1866,6 +1927,23 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 発生源の持ち主の相手のスピリットすべて（BS03フォーカード／BS04ジャッジメントライツ）
                     for (const spirit of state.players[opponentOf(pid)].field.spirits) {
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "opponentBlockersOfOwnKeyword") {
+                    // SD02-005 天使ヘルヴィムLv2-3：**このキーワードを持つ自分のスピリット**を
+                    // ブロックしている相手をLv1として扱う。バトルは同時に1つしか起きないので対象は最大1体だが、
+                    // 効果文の「すべて」に合わせて集合として扱う
+                    const battle = state.battle
+                    const kw = effect.keywordFilter
+                    if (battle && battle.blockerInstanceId && kw) {
+                        const attacker = state.players[pid].field.spirits.find(
+                            (sp) => sp.instanceId === battle.attackerInstanceId,
+                        )
+                        if (attacker && spiritHasKeyword(state, pid, attacker, kw)) {
+                            const blocker = state.players[opponentOf(pid)].field.spirits.find(
+                                (sp) => sp.instanceId === battle.blockerInstanceId,
+                            )
+                            if (blocker) blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)
+                        }
                     }
                 } else if (effect.target === "allSpiritsByChosenColor") {
                     // 両陣営の、貸与時に選ばれた色（仮想発生源のlentChoiceColor）のスピリットすべてを

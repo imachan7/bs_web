@@ -135,6 +135,14 @@ export function canBlock(
             ) {
                 return "このスピリットは同じか低いコストのスピリットにブロックされません"
             }
+            // SD02-012 天の城門Lv2：ブロッカーのLvがアタッカーのLv以下ならブロックできない
+            // （costAtMostAttacker の Lv 版。「同じLv以下の相手のスピリットからブロックされない」）
+            if (
+                c.levelAtMostAttacker &&
+                currentLevel(blockerInst).level <= currentLevel(attackerInst).level
+            ) {
+                return "このスピリットは同じか低いLvのスピリットにブロックされません"
+            }
             // BS05幻獣王リーンLv3：カードに効果の記述を持つスピリットにブロックされない
             // （バニラ＝効果の記述を持たないスピリットならブロックできる）
             if (c.nonVanilla && !instIsVanilla(blockerInst)) {

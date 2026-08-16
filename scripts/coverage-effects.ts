@@ -811,10 +811,8 @@ process.on("exit", () => {
         // 対象インスタンスへ載せておき、読む側がそれを引く（tempFamilies の教訓＝書くだけの状態を実行済みにしない）
         patch(
             em,
-            `                    for (const spirit of player.field.spirits) {
-                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
-            `                    for (const spirit of player.field.spirits) {
-                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
+            `                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+            `                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
                             String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
                         if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
         )
@@ -893,12 +891,12 @@ process.on("exit", () => {
             `                    for (const spirit of state.players[opponentOf(pid)].field.spirits) {
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                } else if (effect.target === "allSpiritsByChosenColor") {`,
+                } else if (effect.target === "opponentBlockersOfOwnKeyword") {`,
             `                    for (const spirit of state.players[opponentOf(pid)].field.spirits) {
                         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
-                } else if (effect.target === "allSpiritsByChosenColor") {`,
+                } else if (effect.target === "opponentBlockersOfOwnKeyword") {`,
         )
         patch(
             em,

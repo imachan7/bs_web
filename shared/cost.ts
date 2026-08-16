@@ -109,6 +109,7 @@ export function hasMagicRestriction(
         | "oncePerTurnAll"
         | "noReductionOpponent"
         | "colorLockOpponent"
+        | "trashColorLockOpponent"
         | "noFreeCastOpponent"
         | "reserveOnlyOpponent"
         | "noFlashAll"
@@ -364,5 +365,31 @@ export function effectiveCost(
         }
         base = Math.max(cardData.cost - reduction, 0)
     }
-    return Math.max(base + costModTotal(board, pid, cardData), 0)
+    // SD02-013 転召の祭壇Lv1-2：相手フィールドの発生源が、条件を満たすスピリットカードの召喚に
+    // 追加コストを課す（「1コスト余分に支払わなければならない」）。軽減の後に足す
+    return Math.max(base + costModTotal(board, pid, cardData) + opponentSummonCostIncrease(board, pid, cardData), 0)
+}
+
+// globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+// スピリットカードを召喚するときに増える追加コストの合計（SD02-013 転召の祭壇Lv1-2）。
+// 条件は**カード静的な**コストとキーワードで見る（場に出る前の判定のため）
+function opponentSummonCostIncrease(board: Board, usingPid: PlayerId, cardData: CardData): number {
+    if (cardData.type !== "spirit") return 0
+    let total = 0
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        if (ownerPid === usingPid) continue
+        for (const source of effectSources(board, ownerPid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "opponentSummonCostIncrease") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const { amount, maxCost, keywordExclude } = effect.constraint
+                if (maxCost !== undefined && cardData.cost > maxCost) continue
+                if (keywordExclude !== undefined && hasKeyword(cardData.cardId, keywordExclude)) continue
+                total += amount
+            }
+        }
+    }
+    return total
 }

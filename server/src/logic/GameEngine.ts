@@ -882,7 +882,7 @@ function resolveLifeDamage(state: GameState): void {
     }
 
     // BS07六花の司書長サーガ：ライフが減る直前にデッキを1枚破棄し、条件に合えばライフが減らない
-    if (tryLifeDamageMillGuard(state, defenderPid)) {
+    if (tryLifeDamageMillGuard(state, defenderPid, attacker)) {
         log(
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
