@@ -34,6 +34,7 @@ export const INITIAL_LIFE = 5
 export const INITIAL_RESERVE = 4
 export const INITIAL_HAND = 4
 export const DECK_SIZE = 40
+export const DECK_MIN_SIZE = 40
 
 // デッキレシピ（cardId -> 枚数）。合計40枚
 export const DECK_RECIPES: Record<
