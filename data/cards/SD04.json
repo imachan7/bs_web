@@ -1,0 +1,323 @@
+[
+ {
+  "cardId": "X001",
+  "name": "神龍皇ジーク・カタストロフドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [
+   "古竜",
+   "虚神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 10,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv3『このスピリットの破壊時』\nボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "X001-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X002",
+  "name": "極龍帝ジーク・ソル・フリード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "龍帝",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるカード名に「ジーク」と入っているスピリットカード1枚を、コストを支払わず、【転召】させずに召喚できる。\nLv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。",
+  "effects": [
+   {
+    "id": "X002-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "nameIncludes": "ジーク",
+     "skipTensho": true
+    }
+   },
+   {
+    "id": "X002-e2",
+    "kind": "keyword",
+    "keyword": "awaken",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "X003S",
+  "name": "極帝龍騎ジーク・クリムゾン",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "竜騎",
+   "龍帝"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "red",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP3000以下のスピリットすべてを破壊する。\nこの効果で破壊したスピリット1体につき、ボイドからコア1個をこのスピリット上に置く。\nLv3『このスピリットのアタック時』\nこのスピリットをBP+5000する。",
+  "effects": [
+   {
+    "id": "X003S-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "X003S-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 3000
+     },
+     "anySide": true,
+     "voidCoreToSelfPerDestroyed": true
+    },
+    "optional": false
+   },
+   {
+    "id": "X003S-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "X003T",
+  "name": "極帝龍騎ジーク・クリムゾン",
+  "type": "spirit",
+  "colors": [
+   "red",
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "竜騎",
+   "龍帝"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "red",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、自分のコスト3以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP3000以下のスピリットすべてを破壊する。\nこの効果で破壊したスピリット1体につき、ボイドからコア1個をこのスピリット上に置く。\nLv3『このスピリットのアタック時』\nこのスピリットをBP+5000する。",
+  "effects": [
+   {
+    "id": "X003T-e1",
+    "kind": "keyword",
+    "keyword": "tensho",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "minCost": 3,
+    "dest": "trash"
+   },
+   {
+    "id": "X003T-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "maxBp": 3000
+     },
+     "anySide": true,
+     "voidCoreToSelfPerDestroyed": true
+    },
+    "optional": false
+   },
+   {
+    "id": "X003T-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "action": {
+     "type": "selfBuff",
+     "amount": 5000
+    },
+    "optional": false
+   }
+  ]
+ }
+]

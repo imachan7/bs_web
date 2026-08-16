@@ -45,7 +45,7 @@ import {
 } from "../../server/src/logic/EffectModules"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
 import type { GameAction, GameState, PlayerId } from "../../server/src/type"
-import { DECK_RECIPES, DECK_SIZE } from "../../data/constants"
+import { DECK_RECIPES, DECK_MIN_SIZE, DECK_SIZE } from "../../data/constants"
 
 let failed = 0
 let passed = 0
@@ -347,6 +347,7 @@ export {
     hasArmorAgainst,
     DECK_RECIPES,
     DECK_SIZE,
+    DECK_MIN_SIZE,
     assert,
     act,
     declareBlock,

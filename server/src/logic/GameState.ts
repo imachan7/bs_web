@@ -14,7 +14,7 @@ import type {
 } from "../type"
 import {
     DECK_RECIPES,
-    DECK_SIZE,
+    DECK_MIN_SIZE,
     INITIAL_HAND,
     INITIAL_LIFE,
     INITIAL_RESERVE,
@@ -121,8 +121,10 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
             return `同名カードは${limit}枚までです: ${name}（${count}枚）`
         }
     }
-    if (total !== DECK_SIZE) {
-        return `デッキはちょうど${DECK_SIZE}枚必要です（現在${total}枚）`
+    // デッキは**40枚以上**（ちょうど40枚ではない。2026-08-16 ユーザー指摘）。
+    // 上限は設けない：構築済みデッキにも42枚のものがある（SD04 ジーク進化レボリューション）
+    if (total < DECK_MIN_SIZE) {
+        return `デッキは${DECK_MIN_SIZE}枚以上必要です（現在${total}枚）`
     }
     return null
 }

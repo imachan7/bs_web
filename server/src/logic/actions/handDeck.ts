@@ -519,6 +519,9 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
         const matchesPick = (id: string): boolean =>
             (action.pickType === undefined || getCard(id).type === action.pickType) &&
             (action.nameIncludes === undefined || getCard(id).name.includes(action.nameIncludes)) &&
+            // colorFilter：カードの色で絞る（SD01-034 エクストラドロー＝赤のスピリットカードのみ）。
+            // familyFilter と同じくカード静的な色だけを見る（デッキ内にインスタンスが無いため）
+            (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter)) &&
             matchesFamily(id)
         // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
         // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。

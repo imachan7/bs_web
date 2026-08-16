@@ -1,0 +1,93 @@
+[
+ {
+  "cardId": "SD01-001",
+  "name": "エリマキリザード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "SD01-034",
+  "name": "エクストラドロー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "メイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から1枚オープンする。\nそのカードが赤のスピリットカードのとき手札に加える。\nそれ以外はデッキの上に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+  "effects": [
+   {
+    "id": "SD01-034-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
+   },
+   {
+    "id": "SD01-034-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "deckReveal",
+     "count": 1,
+     "pickType": "spirit",
+     "colorFilter": "red",
+     "returnToTop": true
+    }
+   },
+   {
+    "id": "SD01-034-e3",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000
+    }
+   }
+  ]
+ }
+]
