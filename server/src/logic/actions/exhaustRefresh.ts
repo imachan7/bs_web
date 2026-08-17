@@ -11,6 +11,7 @@ import {
     refreshSpirit,
     findSpiritAny,
     isResisted,
+    askPayToNegateIfNeeded,
     resistanceAgainst,
     pickAnySideCandidates,
     pickEnemyByBp,
@@ -78,7 +79,10 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 return
             }
-            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "exhaust", "targeted"))
+            const exhaustAttempt = attemptOf(ctx, "exhaust", "targeted")
+            // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
+            if (askPayToNegateIfNeeded(state, found.pid, found.inst, exhaustAttempt, action, self, sourceName)) return
+            const resisted = resistanceAgainst(state, found.pid, found.inst, exhaustAttempt)
             if (resisted) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return

@@ -256,6 +256,7 @@ export type EffectAction =
     | { type: "tenshoResume"; dest: "trash" | "void"; stage: "afterTargetTrigger" | "afterEvent"; skipSubstitute?: true } // 【転召】の途中で**誘発が選択待ちを立てた**ときの再開専用（cards.jsonには書かない）。self に転召の対象スピリットが渡る。// 転召の手順は「コアを外す＋対象スピリットの効果発揮 → 対象の消滅 → 召喚時効果」で、**消滅は効果の発揮が解決しきってから**でなければならない（2026-08-13 ユーザー確認）。stage:"afterTargetTrigger"＝『転召の対象になったとき』の誘発の後（置換の判断から再開）、stage:"afterEvent"＝『転召が解決したとき』の誘発の後（コア処理と消滅だけ）
     | { type: "tenshoCoreDump"; dest: "trash" | "void" } // 【転召】のpendingChoice再開専用（cards.jsonには書かない）。targetInstanceIdで指定された自分のスピリットの上のコアすべてをdestへ（trash=持ち主のトラッシュ、void=消滅）。維持コア割れは既存の消滅処理（destroySpirit "deplete"）に委ねる
     | { type: "markNoRefreshTarget" } // 相手の疲労状態のスピリット1体を「回復できない」と指定する（発生源＝self に CardInstance.noRefreshTargetInstanceId として記録し、**self が疲労状態で持ち主のフィールドにいる間**だけ効く。PhaseManager のリフレッシュステップが isRefreshBlockedByMark で参照）。対象は実効BP最大の1体を自動選択する決定的簡略化（アタック宣言中に発火しうるため、ここで pendingChoice を立てない。BS02スクルディア）
+    | { type: "payNegateDecide"; targetInstanceId: string; discardCount: number; sourceName: string; resume: EffectAction } // 「自分の手札1枚を破棄することで、その効果を受けない」（BS08竜騎集う円卓Lv2）の**確認専用**（cards.jsonには書かない）。守る側に「破棄する手札を選ぶ／スキップして効果を受ける」を聞き、答えを GameState.payNegateDecision に置いてから resume（元のアクション）を解決し直す。スキップでも resume を解決するので requestCardChoice の resolveOnSkip を立てる
     | { type: "tenshoSubstituteChoice"; dest: "trash" | "void" } // 【転召】置換（constraint "tenshoCoreSubstitute"）の任意発動の再開専用（cards.jsonには書かない）。self に渡された自分のスピリットについて、chosenOption が「疲労する」なら疲労してコアを維持し、それ以外なら通常どおり上のコアすべてをdestへ置く
     | { type: "revealAndSummonKeyword"; count: number; keyword: Keyword; returnToDeckBottomAtEndStep?: true } // 自分のデッキ上からcount枚を公開し、その中の**指定キーワードを静的に持つスピリットカード**1枚をコストを支払わず召喚する（維持コアはリザーブから。足りなければ不発）。召喚時効果は通常どおり発揮する（効果文に「発揮されない」の記載が無いため）。**【転召】は解決しない**（効果文の「【転召】を発揮したものとして」＝転召を済ませたものとして扱う。コアも失わず、犠牲になるスピリットも出ない。通常の効果による召喚では転召を必ず行う＝公式Q&A 2024-10-31 ので、この一文を持つカードだけが例外）。残った公開カードはすべてトラッシュへ破棄する。「〜できる」なので interactiveTargets 時は候補1枚でも選択（スキップ可）を出し、自動時はコスト最大の1枚を選ぶ決定的簡略化。returnToDeckBottomAtEndStep指定時は召喚した個体に CardInstance.returnToDeckBottomAtEndStep を立て、エンドステップで持ち主のデッキの下へ戻す（BS05トランスマイグレーション）
     | { type: "handMagicToTegamotoDraw"; placedSoFar?: number; awaitingSkip?: true } // 自分の手札にあるマジックカードを好きなだけ手元（PlayerState.tegamoto）に置き、置いた枚数ぶんデッキから引く（マジックブック）。
@@ -1659,6 +1660,10 @@ export interface PlayerState {
     // **持ち主の PlayerView にだけ返す**（相手には見せない）。同じカードを二重に見た場合も素直に積む。
     // 見たあとにそのカードが手札から離れても消さない簡略化（何を見たかの記録として残す。BS09-039探偵ペンタン）
     noRestWhenBlockingUsedThisTurn?: boolean // 「ターンに1回、ブロックしても疲労しない」（constraint の oncePerTurn）を、このターン既に使ったか。ターン終了でリセット（BS07ブリシンガメンの首飾りLv2）
+    // ⚠️ **廃止予定・もう読まれない**（2026-08-17）。効果ごとに聞く形（askPayToNegateIfNeeded →
+    // payNegateDecide → payNegateDecision）へ移したため、この方針は判定に使われない。
+    // クライアントがまだトグルを送ってくるので受け皿だけ残してある。
+    // UI からトグルが消えたら、この項目と GameAction "setPayToNegate" を一緒に削除すること
     payToNegate?: boolean // 「自分の手札1枚を破棄することで、その効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針。
     // **未指定は true（払う）＝従来どおり**。耐性の判定は装甲と同じ同期の述語なので、その場で選択を挟めない。
     // 代わりにこの方針をプレイヤーがあらかじめ切り替えておき（GameAction "setPayToNegate"）、判定はそれを読むだけにする
@@ -1971,6 +1976,11 @@ export interface GameState {
     // 対話モードでは resolveMagic が守る側に1回だけ確認し、その答えをこのマジックの解決中ずっと使う
     // （アクションごとに聞き直さない）。**非対話（テスト・自動解決）ではセットされず、従来どおり自動で絞り込む**
     magicRedirectDecision?: { sourceInstanceId: string; approved: boolean }
+    // 「手札1枚を破棄することで、その効果を受けない」（BS08竜騎集う円卓Lv2）の答え。
+    // **1回の対象化につき1つ**だけ立ち、resume を解決し終えたら消える。
+    // 手札の破棄は聞いた時点で済ませてあるので、resistanceAgainst 側はこの値を読むだけでよい。
+    // **非対話（テスト・自動解決）ではセットされず、従来どおり払える限り自動で払う**
+    payNegateDecision?: { targetInstanceId: string; paid: boolean }
     // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の答え。
     // **keepPid が対象として残る側**（null＝変更しない＝両陣営のまま）。魔導書の持ち主とマジックの使用者は
     // 別人でありうる（『自分のターン』中に相手がフラッシュで使った場合）ので、
@@ -2113,7 +2123,7 @@ export type GameAction =
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
     | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）
-    | { type: "setPayToNegate"; enabled: boolean } // 「手札を破棄して効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針を切り替える。
+    | { type: "setPayToNegate"; enabled: boolean } // ⚠️ **廃止予定・効果は無い**（2026-08-17。効果ごとに聞く形へ移した）。UI からトグルが消えたら PlayerState.payToNegate ごと削除する。// 「手札を破棄して効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針を切り替える。
     // 効果の判定自体は装甲と同じ同期の述語なので、**その場で聞くのではなく、あらかじめ盤面の状態にしておく**（PlayerState.payToNegate）。
     // 手順の外側の操作なので、自分のターンでなくても選択待ち中でも受け付ける。既定は true（従来どおり払って防ぐ）
     | { type: "takeLife" }

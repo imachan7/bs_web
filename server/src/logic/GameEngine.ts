@@ -184,8 +184,8 @@ function dispatchAction(
     // 降参はゲームの手順の外側にある操作なので、他のどの検証よりも先に処理する
     // （自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも降参できる）
     if (action.type === "surrender") return doSurrender(state, pid)
-    // 「手札を破棄して効果を受けない」を払うかどうかの方針切り替え（BS08竜騎集う円卓Lv2）。
-    // 盤面を変えない設定操作なので、降参と同じくいつでも受け付ける
+    // ⚠️ 廃止予定：この設定は**もう判定に使われない**（2026-08-17 に効果ごとに聞く形へ移した）。
+    // クライアントがまだ送ってくるので受け皿だけ残している。UI からトグルが消えたら削除すること
     if (action.type === "setPayToNegate") {
         state.players[pid].payToNegate = action.enabled
         log(

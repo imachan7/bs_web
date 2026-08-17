@@ -19,7 +19,8 @@
 
 | ブランチ | 中身 | 状態 |
 | :-- | :-- | :-- |
-| **`worktree-semantics-axis-s6s7`** | **いまの実装担当の作業。意味照合の軸を2つ追加（S6 主体／S7 選択者）＋カード6枚の挙動修正** | **push 済み・PR 未作成**。`.claude/worktrees/` のワークツリーで作業した |
+| **`worktree-round-table-negate`** | **いまの実装担当の作業。竜騎集う円卓Lv2 を「効果ごとに払うか選ぶ」形へ（中断点パターンD）** | **PR #27・マージ待ち。base は下の #26** |
+| `worktree-semantics-axis-s6s7` | 意味照合の軸を2つ追加（S6 主体／S7 選択者）＋カード6枚の挙動修正 | **PR #26・マージ待ち。#26 → #27 の順にマージすること** |
 | `semantics-audit` | 効果文と実装の意味照合＋実バグ6件の修正 | **マージ済み**（PR #24）。もう使わない |
 | `fix/deck-options` | UI担当がデッキ一覧を動的生成に直した作業。**中身は origin/main に入っている** | 役目を終えた（`semantics-audit` と同じコミットも乗っている） |
 | `worktree-battle-resolve-resume` | 千本槍の古戦場・デスクロスブースト（PR #23） | **マージ済み**。もう使わない |
@@ -502,12 +503,28 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 - 検証は全緑（smoke **7956件** / validate 3種 / typecheck / build:client）。
   お知らせ（`data/announcements.json`）にも対戦者向けに4件足した
 
+### 2026-08-17（後半）にやったこと：竜騎集う円卓Lv2（PR #27）
+
+ユーザー指摘「効果の内容を把握した上で選択する効果ではなかった」を受けて、
+事前トグル一律（＋破棄カード末尾固定）だったものを**効果ごとに聞く**形へ直した。
+
+- **中断点にパターンDを足した**（`docs/design/INTERRUPTION_POINTS.md`）。
+  「述語の中では聞けない」が、**述語を呼ぶ直前**はアクションハンドラなので聞ける。
+  答えを state に置いてから判定へ入る。§4 の「今後困りそうなところ」から1件外れた
+- **`payToNegate` トグルは廃止予定**。判定に使われなくなったが、クライアントがまだ送るので
+  受け皿だけ残してある。**UI からトグルが消えたら、型と GameAction を削除すること**（chatbox で依頼済み）
+- 実装中に踏んだ2点（`INTERRUPTION_POINTS.md` パターンDに記載）:
+  **`ctx.resolve` は `targetInstanceId` を引き継がない**／
+  **`requestCardChoice` の `pid` と `chooserPid` を両方「守る側」にすると `actorPid` が立たない**
+
 ### 次にやること（この順）
 
-1. **積み残し1件**：`BS05-040 プリンセス・スノーホワイト` に `optional` を付けられていない
+1. **PR #26 → #27 の順でマージする**（#27 の base は #26）
+2. **UI担当のトグル削除を待って、`PlayerState.payToNegate` と `GameAction "setPayToNegate"` を消す**
+3. **積み残し1件**：`BS05-040 プリンセス・スノーホワイト` に `optional` を付けられていない
    （`kind:"magicTargetRedirect"` が `optional` を持てない設計。型の拡張が要る。
    対象の付け替えは既に対話モードで確認を出しているので実害は小さい）
-2. 第2回の照合（残っている候補：S1 8件 / S3 23件 / S4 31件 / S5 10件。
+4. 第2回の照合（残っている候補：S1 8件 / S3 23件 / S4 31件 / S5 10件。
    **これらは「無害・誤検出」と判定済みで、次回も出続ける**。ゼロにするのが目的ではない）
 
 ### ⚠️ この点検の性質
