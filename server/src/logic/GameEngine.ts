@@ -77,6 +77,7 @@ import {
     returnSpiritToHand,
     fireBounceTriggers,
     flushBounces,
+    requestActivationConfirm,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -1340,7 +1341,21 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         const frameSelf = frame.selfInstanceId
             ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
             : null
-        resolveAction(state, frame.actorPid ?? pid, frameSelf, frame.action)
+        // optional な誘発の残りは、解決ではなく**発動確認から**再開する
+        if (frame.confirmPrompt !== undefined) {
+            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf)
+            continue
+        }
+        // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
+        resolveAction(
+            state,
+            frame.actorPid ?? pid,
+            frameSelf,
+            frame.action,
+            frame.targetInstanceId,
+            frame.sourceColors,
+            frame.sourceType,
+        )
     }
     return null
 }

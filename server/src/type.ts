@@ -835,7 +835,9 @@ export type EffectDef =
           winnerNameContains?: string // 勝利したスピリットのカード名がこの文字列を含むときのみ発火（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）
           winnerMinCores?: number // 勝利したスピリットに置かれているコアがこの数以上のときのみ発火（BS02エメラルドに輝く鍾乳洞Lv2＝コア3個以上）
           winnerFamilyFilter?: FamilyFilter // 勝利したスピリットが指定系統を持つときのみ発火（配列＝OR。matchesFamilyFilterで判定。BS04ドラゴンズラッシュ：翼竜/竜人/古竜）
-          winnerKeywordFilter?: Keyword // 勝利したスピリットがこのキーワードを持つときのみ発火（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定。BS03熾烈極める最前線Lv2＝覚醒持ち）
+          winnerKeywordFilter?: Keyword | Keyword[] // 勝利したスピリットがこのキーワードを持つときのみ発火（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定。BS03熾烈極める最前線Lv2＝覚醒持ち）。
+          // **配列＝OR**（SD01-027 溶岩の大瀑布「【覚醒】/【激突】を持つ自分のスピリットが…」）。
+          // ⚠️ OR をエントリ2つに分けて書かないこと。両方を持つスピリット（X004 龍星神ジーク・メテオヴルム）で**二重に発火する**
           selfOnly?: true // 発生源自身が勝利したときのみ発火（『このスピリットのバトル時』。同名の別個体では発火しない。BS01要塞龍ギガLv2）
           firstAttackOfTurn?: true // そのターンの最初のアタックで勝利したときのみ発火（GameState.attacksThisTurn === 1。triggered.condition／fieldEvent.conditionの同名軸と同じ判定。BS08太陽石の神殿）
           optional?: true // 「〜できる」＝任意。interactiveTargets では発動確認を出す（step/triggered の optional と同じ扱い。BS01要塞龍ギガLv2）
@@ -1850,6 +1852,15 @@ export type ResumeFrame =
           selfInstanceId: string | null // 発生源（self の復元用）
           action: EffectAction
           actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
+          // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
+          // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、
+          // 発生源の色・種別を渡さないと装甲やマジック効果耐性の判定が self 側から導出されて誤る
+          // 「〜できる」（optional）の誘発の残りを積むときに入れる。再開時は**発動確認から始める**。
+          // 入れないと2枚目以降が確認なしで自動発動してしまう（同名ネクサスを並べたときに出る）
+          confirmPrompt?: string
+          targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
+          sourceColors?: Color[] // 発生源の色（self とずれるとき）
+          sourceType?: CardType // 発生源の種別（同上）
       }
     | {
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
