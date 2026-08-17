@@ -4000,6 +4000,7 @@
     ],
     "turn": "opponent",
     "maxBp": 6000,
+    "selfMode": "source",
     "action": {
      "type": "voidCoreToTarget",
      "count": 1,
