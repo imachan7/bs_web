@@ -602,6 +602,13 @@ export function fireStepTriggers(
         state.turnPlayer,
         opponentOf(state.turnPlayer),
     ]
+    // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17）。
+    // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
+    // **同じステップの残りの誘発が永久に失われていた**
+    // （灼熱の谷を2枚並べると、1枚目の「手札1枚を破棄」で中断して2枚目が発火しなかった）。
+    // 中断したら残りを再開スタックへ積む（fireTrigger と同じ形）。
+    // 条件（handNotGreaterThanOpponent など）は**誘発した時点**で判定する
+    const firing: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }[] = []
     for (const pid of order) {
         const player = state.players[pid]
         const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -683,25 +690,50 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
-                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
-                if (effect.optional && state.interactiveTargets) {
-                    requestActivationConfirm(
-                        state,
-                        pid,
-                        `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                        effect.action,
-                        inst,
-                    )
-                } else {
-                    // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
-                    // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
-                    // カード名を含めることでUI側のホバー表示も効く
-                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
-                    resolveAction(state, pid, inst, effect.action)
-                }
-                if (state.winner) return
-                if (state.pendingChoice) return
+                firing.push({ pid, inst, effect })
             }
+        }
+    }
+    for (let i = 0; i < firing.length; i++) {
+        const entry = firing[i]
+        if (!entry) continue
+        const { pid, inst, effect } = entry
+        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
+        const player = state.players[pid]
+        const stillOnField =
+            player.field.spirits.some((x) => x.instanceId === inst.instanceId) ||
+            player.field.nexuses.some((x) => x.instanceId === inst.instanceId)
+        if (!stillOnField) continue
+        const card = getCard(inst.cardId)
+        // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
+        if (effect.optional && state.interactiveTargets) {
+            requestActivationConfirm(
+                state,
+                pid,
+                `${getCard(inst.cardId).name}の効果を発動しますか？`,
+                effect.action,
+                inst,
+            )
+        } else {
+            // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
+            // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
+            // カード名を含めることでUI側のホバー表示も効く
+            log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
+            resolveAction(state, pid, inst, effect.action)
+        }
+        if (state.winner) return
+        // 中断したら**残りを再開スタックへ積む**。積まないと、この後のステップ誘発が丸ごと消える
+        // 中断したら**残りを再開スタックへ積む**。積まないと、この後のステップ誘発が丸ごと消える
+        if (state.pendingChoice) {
+            pushResumeFrames(
+                state,
+                firing.slice(i + 1).map((e) => ({
+                    kind: "action" as const,
+                    selfInstanceId: e.inst.instanceId,
+                    action: e.effect.action,
+                })),
+            )
+            return
         }
     }
 }

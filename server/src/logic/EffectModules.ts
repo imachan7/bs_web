@@ -2277,14 +2277,24 @@ export function summonFreeFromHandIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
-            (skipTensho
-                ? "（このスピリットの召喚時効果は発揮されない。【転召】も発揮したものとして扱う）"
-                : "（このスピリットの召喚時効果は発揮されない）"),
+            (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
-    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない。
-    // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ：「【転召】させずに召喚できる」の明記あり）
+    // 転召持ちを召喚しても転召は無視できない）。
+    // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ／X002極龍帝ジーク・ソル・フリード：
+    // 「【転召】させずに召喚できる」の明記あり）
     if (!state.winner && !skipTensho) resolveTensho(state, owner, inst)
+    // ⚠️ **これも「召喚」なので、召喚時効果と「召喚されたとき」の誘発が発揮される**（2026-08-17 修正）。
+    // 以前はどちらも呼ばず「召喚時効果は発揮されない」とログに出していたが、
+    // 対象26枚のどのカードにも効果文にその制限は書かれていない
+    // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
+    //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
+    // summonSequence として積み直して選択の解決後に合流する
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
+    } else {
+        fireSummonSequence(state, owner, inst)
+    }
 }
 
 // summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
@@ -2314,12 +2324,17 @@ export function summonFreeFromTrashIndex(
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。` +
-            "（このスピリットの召喚時効果は発揮されない）",
+        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。`,
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
-    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない
+    // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst)
+    // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
+    } else {
+        fireSummonSequence(state, owner, inst)
+    }
 }
 
 // instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す

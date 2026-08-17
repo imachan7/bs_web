@@ -62,8 +62,10 @@ console.log("=== BS05-004 妖狐キュービック：破壊時にトラッシュ
     assert(summoned.cores === 1, "維持コア1個のみリザーブから払われる（幻龍シェイロンLv1）")
     const bystanderAfter = s.players.p1.field.spirits.find((x) => x.instanceId === bystander)!
     assert(
-        bystanderAfter.cores === 3,
-        "召喚された幻龍シェイロンのonSummon(coreSqueezeAll)は発揮されない（他のスピリットのコアが1個化されていない）",
+        // 2026-08-17：コストを支払わない召喚でも**召喚時効果は発揮される**ように直した（part215）。
+        // 幻龍シェイロンの onSummon（coreSqueezeAll）が働き、他のスピリットのコアも1個だけ残る
+        bystanderAfter.cores === 1,
+        "召喚された幻龍シェイロンのonSummon(coreSqueezeAll)が発揮され、他のスピリットのコアが1個になる",
     )
 }
 
