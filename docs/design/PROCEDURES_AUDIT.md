@@ -16,7 +16,7 @@
 
 1. ~~文書にあるのに実装が従っていない規則が1つある：同時発揮の解決順~~
    → **2026-08-17 に解消**（→ §3）。誘発でもターンプレイヤーに解決順を聞くようにした
-2. **対戦者が選ぶべき場面を実装が自動で決めている箇所が57件**ある（→ §4）
+2. **対戦者が選ぶべき場面を実装が自動で決めている箇所が44件**ある（→ §4）
 3. 手順書は9本あるが**索引がなかった**ので §2 に作った（同じ規則を何度も発見し直すのを防ぐ）
 4. **既存の `audit:semantics` はこの層を見ていない**。データと効果文しか突き合わせないので、
    「ハンドラ実装が対象を勝手に選んでいる」は検出できない（→ §6 の S9 提案）
@@ -31,8 +31,12 @@
 # ① 実装が自覚している簡略化を全部出す（94件）
 grep -rnE "簡略化|本来は|決め打ち" server/src/logic/**/*.ts
 
-# ② 近傍40行に interactiveTargets の分岐があるか＝実対戦では選択式かどうかで二分する
-#    分岐あり37件（テスト専用の自動化なので無害）／分岐なし57件（実対戦でも自動）
+# ② そのコメントが属する ActionHandler の**範囲全体**に interactiveTargets の分岐があるかで二分する
+#    分岐あり50件（テスト専用の自動化なので無害）／分岐なし44件（実対戦でも自動）
+#
+# ⚠️ 判定窓を「近傍40行」にすると誤検出が13件出る（2026-08-17 に実際に踏んだ）。
+#    recoverSpiritFromTrash は選択式の分岐がコメントより40行以上上にあるため「自動」に見えた。
+#    **ハンドラ範囲で見ること**（開始は ActionHandler<"…">、終わりは行頭の "}"）
 
 # ③ 解決順を「ターンプレイヤーに聞いている」箇所を探す
 grep -rn "destroyOrder|解決順" server/src/logic/*.ts   # → 破壊だけだった
@@ -107,31 +111,29 @@ grep -rl "<手順の語>" docs/design/*.md SPEC.md
 
 ---
 
-## 4. ⚠️ 対戦者が選ぶべき場面を実装が自動で決めている（57件）
+## 4. ⚠️ 対戦者が選ぶべき場面を実装が自動で決めている（44件）
 
 `interactiveTargets` の分岐が無い＝**実対戦でも自動**の箇所。性質ごとに:
 
-| 性質 | 件数 | 例 |
-| :-- | :-- | :-- |
-| **対象選択を自動で決めている** | 27 | 「実効BP最大の1体」「コスト最大から貪欲に」「フィールドの先頭側」に固定 |
-| 任意（「〜できる」「〜することで」）を自動発動 | 7 | 払うかどうかを聞かずに常に払う |
-| 順番を自動で決めている | 5 | 「好きな順番でデッキに戻す」を記録順で固定 |
-| 枚数・個数を選ばせていない | 3 | 「好きなだけ破棄する」を全部破棄で固定 |
-| 条件やタイミングの近似 | 5 | 「このフラッシュタイミングで」をバトル単位で近似 |
-| その他 | 10 | |
+影響カード枚数の多い順（**着手はこの順**。枚数はその action type を使うカード数）:
 
-影響カード枚数の多い順（上位。`ActionHandler<"...">` から機械推定）:
+| 枚数 | action type | 場所 | 中身 |
+| :-- | :-- | :-- | :-- |
+| 38 | `refreshSelf` | `exhaustRefresh.ts:596` | ⚠️ **対象選択ではない**（コストを払える範囲の解釈）。Q2 の対象外 |
+| ~~11~~ | ~~`refreshSelfByExhaustNexus`~~ | `exhaustRefresh.ts:617` | **2026-08-17 対応済み**（持ち主が選ぶ。テストは `part218.ts`） |
+| 10 | `lifeCrush` | `battleFlow.ts:200` | 任意コストを聞かずに自動発動（→ Q3 寄り） |
+| 3 | `selfBuffByExhaustFamily` | `buff.ts:384` | 疲労させる1体を実効BP最大に固定 |
+| 3 | `destroyByBpBudget` | `destroy.ts:689` | 予算内でBP最大から貪欲に選ぶ |
+| 2 | `moveCoresLeavingOne` / `destructionCoresToOwnSpirit` / `destroyByCostBudget` / `summonRepeatFromHand` / `costDiscardHandKeywordThenDraw` | | 対象・枚数の自動選択 |
+| 1 | 残り（`swapOpponentCores` / `returnBothSidesToDeckBottom` ほか） | | 対象・順番の自動選択 |
 
-| 枚数 | action type | 場所 |
-| :-- | :-- | :-- |
-| 38 | `refreshSelf` | `actions/exhaustRefresh.ts:596,617` |
-| 12 | `deckReveal` | `actions/handDeck.ts:569` |
-| 11 | `destroyNexus` | `actions/destroy.ts:689` ほか（**対象選択がそもそも無い**。2026-08-17 発見） |
-| 10 | `lifeCrush` | `actions/battleFlow.ts:200,253` |
-| 5 | `recoverMagicFromTrash` | `actions/handDeck.ts:1098,1119` |
-| 4 | `returnAllToHand` / `grantKeyword` | `actions/handDeck.ts:1656` / `actions/grant.ts:44` |
+**上位2件で21枚**、残りは1〜3枚ずつの長い裾。
 
-**注意**：この57件は「実装者が自覚してコメントを書いた」ものだけ。
+**進捗**：`refreshSelfByExhaustNexus`（11枚）は対応済み。**次は `lifeCrush`（10枚）**だが、
+これは対象選択ではなく「任意コストを聞かずに自動発動」なので Q3（任意性）として扱う。
+そのあとは1〜3枚ずつの裾を、`selfBuffByExhaustFamily` → `destroyByBpBudget` の順に。
+
+**注意**：この44件は「実装者が自覚してコメントを書いた」ものだけ。
 **コメントを書かずに自動化した箇所は含まれない**（`destroyNexus` の対象選択が無いことは、
 このgrepではなく PR #29 の作業中に偶然見つかった）。網羅には §6 の機械検査が要る。
 

@@ -614,10 +614,12 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
 // 【強襲】：自分の回復状態のネクサス1つを疲労させることで、このスピリットを回復する（BS07）。
 // ターン中の上限回数は self が持つ kind:"keyword" keyword:"kyoshu" の count から読む
 // （暴風と同じ設計＝キーワードエントリは宣言で、挙動と回数の読み出しはこちらが持つ）。
-// 疲労させるネクサスの選択は決定的簡略化：コア数が最少のもの（同数はフィールドの先頭側）。
+// 疲労させるネクサスは**持ち主が選ぶ**（2026-08-17。従来はコア数最少に固定していた
+// ＝docs/design/PROCEDURES_AUDIT.md §4 の棚卸しで見つけた「対戦者が選べていない」箇所）。
+// 非対話（テスト）ではコア数最少を選ぶ決定的簡略化のまま。
 // ネクサスはリフレッシュステップで回復する（PhaseManager が spirits と nexuses の両方を回復させる）
-const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus"> = (ctx) => {
-    const { state, owner, self, sourceName , srcType } = ctx
+const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus"> = (ctx, action) => {
+    const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
     if (!self) {
         log(state, `${sourceName}：回復対象がいなかった。`)
         return
@@ -654,7 +656,25 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
         log(state, `${sourceName}：疲労させられる自分のネクサスがなかった。`)
         return
     }
-    const nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
+    // 候補が2つ以上あるなら持ち主に選ばせる（選択の再入時は targetInstanceId で戻ってくる）
+    let nexus = candidates.length === 1 ? candidates[0] : undefined
+    if (nexus === undefined && targetInstanceId !== undefined) {
+        nexus = candidates.find((n) => n.instanceId === targetInstanceId)
+    }
+    if (nexus === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：【強襲】で疲労させる自分のネクサスを選んでください`,
+            candidates.map((n) => n.instanceId),
+            false, // 発動を選んだ以上、どれかは疲労させる（スキップ不可）
+            action,
+            self,
+        )
+        return
+    }
+    // 非対話（テスト）はコア数最少（同数はフィールドの先頭側）
+    if (nexus === undefined) nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
     if (!nexus) return
     nexus.isRested = true
     refreshSpirit(state, owner, self, srcType)
