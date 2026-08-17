@@ -177,6 +177,15 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 **場所は `/Users/imachan/develop/bs_web-chatbox/`**（`bs_web` と `bs_web-ui` の兄弟ディレクトリ。
 どちらのクローンから叩いても同じ場所に解決する。環境変数 `BS_CHATBOX_DIR` で上書き可）。
+
+**⚠️ ワークツリーの中から `scripts/chatbox.ts` を叩くとパスがずれる**（2026-08-17 に実際に踏んだ）。
+「兄弟ディレクトリ」を探す解決なので、`.claude/worktrees/<名前>/` から実行すると
+`bs_web/.claude/worktrees/bs_web-chatbox/` という**別の受信箱を作ってしまい、相手に届かない**。
+ワークツリーで作業しているときは必ず環境変数を付ける:
+
+```
+BS_CHATBOX_DIR=/Users/imachan/develop/bs_web-chatbox npx tsx scripts/chatbox.ts inbox 実装担当
+```
 **git 管理していない。** リポジトリ内に `chatbox/` を作り直さないこと（`.gitignore` 済み）。
 
 git に載せていた頃に起きたこと:

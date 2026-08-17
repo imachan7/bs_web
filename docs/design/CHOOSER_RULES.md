@@ -49,6 +49,65 @@
 確認を出すかどうかの判定（`actionTouchesBothSides`）には
 `colorChoiceLendThisTurn` を「両陣営に触れる action」として登録してある。
 
+## 1.6 主語が「自分は」なら、選ぶのは自分（2026-08-17 ユーザー確認）
+
+§1 の裏返し。**「相手は」だけでなく「自分は」も見ること。**
+選択者は `chooserIsTarget` を書かなくても**アクションの type に焼き込まれている**ことがあるため、
+「印が無い＝適合」ではない。
+
+代表が `discardOpponent`：**選択者は破棄される相手本人**に固定されている
+（`type.ts` の定義コメント／`handDeck.ts` の `tryInteractiveCardChoice(state, targetPid, …)`）。
+`forcedTargetPid` は選択式の再突入用の内部フィールドで、**cards.json には書かない**。
+
+| 効果文の形 | 選ぶ人 | 実装 |
+| :-- | :-- | :-- |
+| 「**相手は**、相手の手札1枚を破棄する」 | 相手 | `discardOpponent`（既定のまま。マッチュラ／ツクシンモア／忍者サルトベ） |
+| 「自分は、相手の手札1枚を**内容を見ないで**破棄する」 | **誰も選ばない＝ランダム** | `discardOpponent` に **`random: true`**（髑髏騎士ズ・ガイン／巨猫ブリンクス） |
+| 「自分は相手の**手札すべてを見て**、その中の◯◯カード1枚を破棄する」 | **自分**（相手の手札を開示して選ぶ） | `discardOpponent` に **`chooserIsSource: true`**（関将龍皇ドラグロン／獣皇子バハムンド） |
+| 「**相手は**その中から◯個をボイドに置く」（取り先が複数ゾーン） | 相手 | `opponentCoresToVoidByTotal`。1個ずつ `kind:"option"` で取り先を選ばせる（ブラッディレイン） |
+
+「内容を見ないで」は**自分も相手も中身を見ない**のだから、選択式にすると
+相手が不要牌を差し出せて印刷より弱くなる。だから誰も選ばない。
+
+### 1.6.0 相手の手札から**自分が**選ぶときは、公開ゾーンを使う（2026-08-17）
+
+`requestCardChoice` は「pid＝選択者＝ゾーンの持ち主」を前提にしていて、
+**他人のゾーンを見せて選ばせる形は表せない**。
+そこで `cardZone:"reveal"`（公開ゾーン＝`GameState.revealedCards`）を使う。
+クライアントは公開ゾーンをボタンで並べる描画を既に持っているので、**UI の追加実装は要らない**。
+
+- 相手の手札を公開ゾーンへ**移す**（`target.hand = []`）。
+  **コピーにしない**（同じカードが手札と公開ゾーンに二重に数えられ、保存則チェックが落ちる）
+- 選ばれた1枚を相手のトラッシュへ、**残りは手札へ戻す**
+- 効果文が「手札**すべて**を見て」なら公開ゾーンには手札全部を載せ、
+  選べる範囲は `cardIndices` で絞る（「その中の◯◯カード1枚」）
+- 相手は自分の手札を既に知っているので、**公開しても情報は漏れない**
+- 非対話（smoke）では自動選択。**自分が選ぶ効果なので自分に有利な1枚**
+  （該当カードのうちコスト最大）を落とす決定的簡略化にする
+
+### 1.6.1 選択肢が「盤面の個体」に収まらないとき（2026-08-17）
+
+コアの取り先のように**リザーブ・トラッシュ・フィールドの個体**が混ざる選択は、
+`kind:"target"`（候補が instanceId の配列）では表せない。`kind:"option"` を使い、
+**ラベル文字列**で並べる。
+
+- `resolveChoice` は**選んだラベル文字列**で返るので、**同名個体には連番を付けて一意にする**
+  （「ロクケラトプス」「ロクケラトプス（2体目）」）。重複すると取り先を特定できない
+- 複数個ぶんの選択は、残り個数を action の内部フィールド（`remaining`）に載せて再入する
+  （INTERRUPTION_POINTS.md のパターンB）
+- 選択者だけ相手にするのは `requestChoice` の `chooserPid`。
+  **`kind:"option"` でも `actorPid` が立つ**ので、装甲・効果耐性の判定は発生源基準のまま保たれる
+  （2026-08-17 に option 側へ対応を足した。それまでは target 側にしか無かった）
+- **非対話（smoke）では従来の自動選択を残す**（テストの決定性のため）
+
+**選択者が焼き込まれている type の一覧**（`scripts/check-effect-semantics.ts` の
+`OPPONENT_CHOOSES_ACTION_TYPES` と同じもの。増やしたら両方直すこと）:
+`discardOpponent` / `discardOpponentDownTo` / `opponentHandToDeckTop` /
+`destroyDownToOwnCount` / `costOwnSpiritCoresToTrashThenOpponent` /
+`sacrificeOwnNexusesThenEnemyDestroysOwn` / `opponentCoresToVoidByTotal`
+
+この食い違いは `npm run audit:semantics --axis S7` が両方向で検出する。
+
 ## 2. 実装の形
 
 `PendingChoice.pid` が**選択者**、`actorPid` が**解決の主体**。両者が異なるときだけ `actorPid` が入る。

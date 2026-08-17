@@ -773,7 +773,8 @@
         "action": {
           "type": "discardOpponent",
           "count": 1,
-          "cardTypeFilter": "magic"
+          "cardTypeFilter": "magic",
+          "chooserIsSource": true
         },
         "optional": false
       },

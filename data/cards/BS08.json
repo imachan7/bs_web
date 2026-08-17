@@ -585,7 +585,8 @@
     "action": {
      "type": "discardOpponent",
      "count": 1,
-     "cardTypeFilter": "spirit"
+     "cardTypeFilter": "spirit",
+     "chooserIsSource": true
     }
    },
    {

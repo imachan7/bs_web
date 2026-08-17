@@ -98,8 +98,12 @@ console.log("=== パート179：【転召】中に誘発が中断したら、対
 
     // 選択に応答すると、そこで初めてコアが外れて維持コア割れで消滅する
     const chosen = s.pendingChoice?.cardIndices?.[0] ?? -1
-    assert(chosen >= 0, "選択待ちは相手の手札からのカード選択")
-    assert(act(s, "p2", { type: "resolveChoice", cardIndex: chosen }) === null, "相手が破棄するカードを選ぶ")
+    assert(chosen >= 0, "選択待ちはカード選択")
+    // ドラグロンの効果文は「**自分は**相手の手札すべてを見て、その中のスピリットカード1枚を破棄する」。
+    // 2026-08-17 に選ぶのを自分（発生源の持ち主）へ直した（CHOOSER_RULES.md §1.6・part212）。
+    // ここで見たいのは【転召】の中断タイミングなので、選択者が変わっても筋は同じ
+    assert(s.pendingChoice?.pid === "p1", "選ぶのは発生源の持ち主（p1）")
+    assert(act(s, "p1", { type: "resolveChoice", cardIndex: chosen }) === null, "自分が破棄するカードを選ぶ")
 
     assert(s.pendingChoice === null, "選択の解決後、選択待ちは残らない")
     assert(

@@ -11,7 +11,7 @@
 // ② セカンドサイトのメインは noop で、カードテキストの「デッキの上から3枚オープンして、
 //    好きな順番でデッキの上に戻す」が何も起きていなかった。
 //    deckReveal に pickNone（拾わずに戻すだけ）、revealReturnToDeck に toTop（上へ戻す）を足して実装した。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 
 function zoneCount(s: GameState): number {
@@ -30,6 +30,20 @@ console.log("=== deckReveal：公開ゾーン経由で選んでもデッキが�
     s.interactiveTargets = true
     const src = createInstance("BS01-067", s.turn, 1) // スワロウアイヴィー（デッキ上5枚を公開）
     s.players.p1.field.spirits.push(src)
+    // ⚠️ デッキの**先頭にスピリットを1枚持ってくる**。
+    // createGame の seed は名前だけで、実際のシャッフルは Math.random（GameState.ts の shuffle）。
+    // つまりデッキ順は実行のたびに変わり、上5枚にスピリットが1枚も無いと
+    // pickType:"spirit" の候補が0件になってこのテストの前提が崩れる（間欠的に落ちていた）。
+    // 総数を変えないよう、デッキ内のスピリットを1枚だけ先頭へ移す
+    {
+        const deck = s.players.p1.deck
+        const idx = deck.findIndex((id) => getCard(id).type === "spirit")
+        assert(idx >= 0, "デッキにスピリットが1枚はある（テストの前提）")
+        if (idx > 0) {
+            const [sp] = deck.splice(idx, 1)
+            if (sp !== undefined) deck.unshift(sp)
+        }
+    }
     const totalBefore = totalCards(s)
     const deckBefore = s.players.p1.deck.length
 

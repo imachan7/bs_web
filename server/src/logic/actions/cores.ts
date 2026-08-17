@@ -1667,8 +1667,16 @@ const bothSidesCoreToVoidHandler: ActionHandler<"bothSidesCoreToVoid"> = (ctx, a
 // ブラッディレイン：相手のコア総量（フィールド＋トラッシュ＋リザーブ）に応じた個数をボイドへ置く。
 // 「相手がその中から選ぶ」を、リザーブ→トラッシュ→フィールド（コアの多い個体から）の順で
 // 機械的に取り除く決定的簡略化にしてある（相手の不利が最小になる順序）
+// 取り先1つぶんの選択肢。ラベルは相手に見せる文字列で、**同名個体があっても一意になるよう連番を付ける**
+// （resolveChoice はラベル文字列で返るため、重複すると取り先を特定できない）
+interface CoreSource {
+    label: string
+    kind: "reserve" | "trash" | "spirit" | "nexus"
+    instanceId?: string
+}
+
 const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTotal"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, chosenOption } = ctx
     const player = state.players[opp]
     const fieldCores =
         player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
@@ -1687,6 +1695,84 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
         log(state, `${sourceName}：${player.name}のコアは合計${total}個で条件を満たさなかった。`)
         return
     }
+
+    // ---- 実対戦：効果文の主語は「**相手は**その中から◯個をボイドに置く」なので、
+    //      取り先は1個ずつ**コアを失う側**が選ぶ（2026-08-17 ユーザー確認）。
+    //      それまでは対話モードでも下の決定的簡略化を通していた。
+    //      選択者だけ相手に差し替え、解決は発生源の持ち主の効果のまま（requestChoice の chooserPid）
+    if (state.interactiveTargets) {
+        // 再入時は action.remaining が残り個数。初回は count から始める
+        const left = action.remaining ?? count
+        if (left <= 0) return
+
+        // 取り先の候補を作る。装甲・効果耐性で取れない個体は候補から外す
+        const sources: CoreSource[] = []
+        if (player.reserve > 0) sources.push({ label: "リザーブ", kind: "reserve" })
+        if (player.trashCores > 0) sources.push({ label: "トラッシュ", kind: "trash" })
+        const seen = new Map<string, number>()
+        const labelFor = (name: string): string => {
+            const n = (seen.get(name) ?? 0) + 1
+            seen.set(name, n)
+            return n === 1 ? name : `${name}（${n}体目）`
+        }
+        for (const sp of player.field.spirits) {
+            if (sp.cores <= 0) continue
+            if (!canTakeCoresFrom(state, opp, sp, owner, srcColors, srcType)) continue
+            sources.push({ label: labelFor(getCard(sp.cardId).name), kind: "spirit", instanceId: sp.instanceId })
+        }
+        for (const nx of player.field.nexuses) {
+            if (nx.cores <= 0) continue
+            sources.push({ label: labelFor(getCard(nx.cardId).name), kind: "nexus", instanceId: nx.instanceId })
+        }
+        if (sources.length === 0) {
+            log(state, `${sourceName}：${player.name}に取り除けるコアがなかった。`)
+            return
+        }
+
+        // 選択の応答が来ていれば1個取り、残りがあれば再入して次を聞く
+        if (chosenOption !== undefined) {
+            const picked = sources.find((c) => c.label === chosenOption)
+            if (!picked) {
+                log(state, `${sourceName}：選ばれた取り先が見つからなかった。`)
+                return
+            }
+            if (picked.kind === "reserve") {
+                player.reserve -= 1
+                log(state, `${player.name}はリザーブのコア1個をボイドに置いた。`)
+            } else if (picked.kind === "trash") {
+                player.trashCores -= 1
+                log(state, `${player.name}はトラッシュのコア1個をボイドに置いた。`)
+            } else if (picked.kind === "spirit") {
+                const sp = player.field.spirits.find((x) => x.instanceId === picked.instanceId)
+                if (!sp) return
+                // 維持コア割れの消滅処理は removeCoresToVoid が担う
+                removeCoresToVoid(state, opp, sp, 1, owner)
+            } else {
+                const nx = player.field.nexuses.find((x) => x.instanceId === picked.instanceId)
+                if (!nx) return
+                nx.cores -= 1
+                log(state, `${getCard(nx.cardId).name}の上のコア1個をボイドに置いた。`)
+            }
+            const rest = left - 1
+            if (rest > 0) ctx.resolve({ ...action, remaining: rest })
+            return
+        }
+
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ボイドに置くコアの取り先を選んでください（残り${left}個）`,
+            [],
+            false,
+            { ...action, remaining: left },
+            self,
+            "option",
+            sources.map((c) => c.label),
+            opp, // 選ぶのはコアを失う側
+        )
+        return
+    }
+
     let remaining = count
     // リザーブ
     const fromReserve = Math.min(remaining, player.reserve)

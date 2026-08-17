@@ -505,6 +505,8 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     "sacrificeOwnNexusesThenEnemyDestroysOwn",
     // 相手本人に手札から選ばせてデッキの上へ戻す（type.ts の定義コメントで明言。BS07-013 ディーシャ）
     "opponentHandToDeckTop",
+    // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
+    "opponentCoresToVoidByTotal",
 ])
 
 // 「相手は」と書かれていても、**選択そのものは通常の手順に委ねられる**kind。
@@ -529,6 +531,24 @@ const CONSTRAINT_SUFFIX_RE = /(できない|できなくなる|なければな�
 // 効果の中の選択ではないので、効果データに選択者を書く必要がない
 // （燃えさかる戦場／翼持つ者の空域／ワーニングアタック／激神皇カタストロフドラゴン／闘将カタパルドス）
 const FORCED_BLOCK_RE = /ブロック(する|しなければ)/
+
+// 選択者が相手に焼き込まれた action を**ノード単位**で集める。
+// 次の2つは主語が「自分は」でも食い違わない:
+//   random:true         … 誰も選ばない（「内容を見ないで破棄する」）
+//   chooserIsSource:true … 選択者を発生源の持ち主に差し替えてある（「手札すべてを見て」）
+function collectOpponentChoosesActions(effects: Record<string, unknown>[]): string[] {
+    const found: string[] = []
+    for (const eff of effects) {
+        walk(eff, (key, value, node) => {
+            if (key !== "type" || typeof value !== "string") return
+            if (!OPPONENT_CHOOSES_ACTION_TYPES.has(value)) return
+            if (node.random === true) return
+            if (node.chooserIsSource === true) return
+            found.push(value)
+        })
+    }
+    return found
+}
 
 function collectActionTypes(effects: Record<string, unknown>[]): Set<string> {
     const types = new Set<string>()
@@ -758,7 +778,7 @@ for (const card of cards) {
         if (!aiteSent) {
             const jibunSent = sentences.find((sen) => /自分は/.test(sen))
             if (jibunSent) {
-                const baked = [...collectActionTypes(card.effects)].filter((t) => OPPONENT_CHOOSES_ACTION_TYPES.has(t))
+                const baked = collectOpponentChoosesActions(card.effects)
                 if (baked.length > 0) {
                     gaps.push({
                         axis: "S7",

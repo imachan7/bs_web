@@ -124,6 +124,25 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 時点で対象プレイヤーIdをactionに固定して持ち回す
         const targetPid = action.forcedTargetPid ?? opp
         const target = state.players[targetPid]
+        // chooserIsSource の選択から戻ってきた：公開ゾーンから1枚をトラッシュへ、**残りは手札へ戻す**。
+        // 公開ゾーンは手札からカードを移して作る（コピーではない）。コピーにすると
+        // 同じカードが手札と公開ゾーンに二重に数えられ、保存則チェックが落ちる
+        if (action.chooserIsSource && chosenCardIndex !== undefined) {
+            const revealed = state.revealedCards
+            if (!revealed) return
+            const cardId = revealed.cardIds[chosenCardIndex]
+            const rest = revealed.cardIds.filter((_, i) => i !== chosenCardIndex)
+            delete state.revealedCards
+            target.hand.push(...rest)
+            if (cardId === undefined) {
+                log(state, `${sourceName}の手札破棄：対象がいなかった。`)
+                return
+            }
+            target.trashCards.push(cardId)
+            log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
+            return
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = target.hand[chosenCardIndex]
             if (cardId === undefined) {
@@ -145,6 +164,67 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // このカード種別のカードだけを候補にする。該当がなければ不発
         const matchesType = (cardId: string): boolean =>
             action.cardTypeFilter === undefined || getCard(cardId).type === action.cardTypeFilter
+        // random 指定時は**誰も選ばない**。効果文「自分は、相手の手札1枚を内容を見ないで破棄する」は
+        // 自分も相手も中身を見ないので、選択式にすると相手が不要牌を差し出せてしまう
+        // （髑髏騎士ズ・ガイン／巨猫ブリンクス。2026-08-17 ユーザー確認）
+        if (action.random) {
+            const discardedRandom: string[] = []
+            for (let i = 0; i < action.count; i++) {
+                const indices = target.hand.map((_, j) => j).filter((j) => matchesType(target.hand[j]!))
+                const pick = indices[Math.floor(Math.random() * indices.length)]
+                if (pick === undefined) break
+                const [cardId] = target.hand.splice(pick, 1)
+                if (cardId === undefined) break
+                target.trashCards.push(cardId)
+                discardedRandom.push(getCard(cardId).name)
+                // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+                tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
+            }
+            if (discardedRandom.length === 0) {
+                log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                return
+            }
+            log(state, `${target.name}は手札「${discardedRandom.join("、")}」をランダムに破棄した。`)
+            return
+        }
+        // chooserIsSource：効果文が「自分は相手の**手札すべてを見て**、その中の◯◯カード1枚を破棄する」。
+        // 選ぶのは発生源の持ち主なので、相手の手札を公開ゾーンへ載せて自分に選ばせる
+        // （相手は自分の手札を既に知っているため、公開しても情報は漏れない。2026-08-17 ユーザー確認）
+        if (action.chooserIsSource) {
+            const eligible = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
+            if (eligible.length === 0) {
+                log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                return
+            }
+            if (state.interactiveTargets) {
+                // 効果文どおり**手札すべて**を見せる（選べるのは該当種別だけ＝cardIndices で絞る）。
+                // カードは手札から公開ゾーンへ**移す**（選択後に、選ばれた1枚以外を手札へ戻す）
+                state.revealedCards = { pid: targetPid, cardIds: [...target.hand] }
+                target.hand = []
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：${target.name}の手札から破棄するカードを選んでください`,
+                    "reveal",
+                    eligible,
+                    false,
+                    { ...action, forcedTargetPid: targetPid },
+                    self,
+                )
+                return
+            }
+            // 非対話：自分が選ぶので**自分に有利な1枚**＝該当カードのうちコスト最大を落とす（決定的簡略化）
+            let best = eligible[0]!
+            for (const i of eligible) {
+                if (getCard(target.hand[i]!).cost > getCard(target.hand[best]!).cost) best = i
+            }
+            const [cardId] = target.hand.splice(best, 1)
+            if (cardId === undefined) return
+            target.trashCards.push(cardId)
+            log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
+            tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
+            return
+        }
         if (state.interactiveTargets) {
             const indices = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
             if (indices.length === 0) {
