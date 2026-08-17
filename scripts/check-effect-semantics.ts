@@ -505,6 +505,8 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     "sacrificeOwnNexusesThenEnemyDestroysOwn",
     // 相手本人に手札から選ばせてデッキの上へ戻す（type.ts の定義コメントで明言。BS07-013 ディーシャ）
     "opponentHandToDeckTop",
+    // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
+    "opponentCoresToVoidByTotal",
 ])
 
 // 「相手は」と書かれていても、**選択そのものは通常の手順に委ねられる**kind。

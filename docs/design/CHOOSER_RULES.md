@@ -64,15 +64,31 @@
 | 「**相手は**、相手の手札1枚を破棄する」 | 相手 | `discardOpponent`（既定のまま。マッチュラ／ツクシンモア／忍者サルトベ） |
 | 「自分は、相手の手札1枚を**内容を見ないで**破棄する」 | **誰も選ばない＝ランダム** | `discardOpponent` に **`random: true`**（髑髏騎士ズ・ガイン／巨猫ブリンクス） |
 | 「自分は相手の**手札すべてを見て**、その中の◯◯カード1枚を破棄する」 | **自分**（相手の手札を開示して選ぶ） | 未実装。関将龍皇ドラグロン／獣皇子バハムンド |
+| 「**相手は**その中から◯個をボイドに置く」（取り先が複数ゾーン） | 相手 | `opponentCoresToVoidByTotal`。1個ずつ `kind:"option"` で取り先を選ばせる（ブラッディレイン） |
 
 「内容を見ないで」は**自分も相手も中身を見ない**のだから、選択式にすると
 相手が不要牌を差し出せて印刷より弱くなる。だから誰も選ばない。
+
+### 1.6.1 選択肢が「盤面の個体」に収まらないとき（2026-08-17）
+
+コアの取り先のように**リザーブ・トラッシュ・フィールドの個体**が混ざる選択は、
+`kind:"target"`（候補が instanceId の配列）では表せない。`kind:"option"` を使い、
+**ラベル文字列**で並べる。
+
+- `resolveChoice` は**選んだラベル文字列**で返るので、**同名個体には連番を付けて一意にする**
+  （「ロクケラトプス」「ロクケラトプス（2体目）」）。重複すると取り先を特定できない
+- 複数個ぶんの選択は、残り個数を action の内部フィールド（`remaining`）に載せて再入する
+  （INTERRUPTION_POINTS.md のパターンB）
+- 選択者だけ相手にするのは `requestChoice` の `chooserPid`。
+  **`kind:"option"` でも `actorPid` が立つ**ので、装甲・効果耐性の判定は発生源基準のまま保たれる
+  （2026-08-17 に option 側へ対応を足した。それまでは target 側にしか無かった）
+- **非対話（smoke）では従来の自動選択を残す**（テストの決定性のため）
 
 **選択者が焼き込まれている type の一覧**（`scripts/check-effect-semantics.ts` の
 `OPPONENT_CHOOSES_ACTION_TYPES` と同じもの。増やしたら両方直すこと）:
 `discardOpponent` / `discardOpponentDownTo` / `opponentHandToDeckTop` /
 `destroyDownToOwnCount` / `costOwnSpiritCoresToTrashThenOpponent` /
-`sacrificeOwnNexusesThenEnemyDestroysOwn`
+`sacrificeOwnNexusesThenEnemyDestroysOwn` / `opponentCoresToVoidByTotal`
 
 この食い違いは `npm run audit:semantics --axis S7` が両方向で検出する。
 

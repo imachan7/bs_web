@@ -2724,9 +2724,12 @@ export function requestChoice(
     chooserPid?: PlayerId,
 ): void {
     if (kind === "option") {
-        // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない
+        // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない。
+        // kind:"target" と同じく chooserPid で「選ぶのは相手／解決は発生源の持ち主」を表せる
+        // （doResolveChoice が actorPid を見て resolveAction の owner を決めるので、
+        //   装甲・効果耐性の判定が発生源基準のまま保たれる。BS02-094 ブラッディレイン）
         suspend(state, {
-            pid,
+            pid: chooserPid ?? pid,
             kind: "option",
             prompt,
             candidates: [],
@@ -2734,6 +2737,7 @@ export function requestChoice(
             optional,
             action,
             selfInstanceId: self ? self.instanceId : null,
+            ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
         })
         return
     }
