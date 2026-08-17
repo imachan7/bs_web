@@ -2308,7 +2308,8 @@
     "protectFamily": [
      "氷姫"
     ],
-    "protectColor": "white"
+    "protectColor": "white",
+    "optional": true
    },
    {
     "id": "BS05-040-e2",

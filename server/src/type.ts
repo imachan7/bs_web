@@ -700,6 +700,8 @@ export type EffectDef =
           protectFamily?: FamilyFilter // 指定時、「発生源自身が対象」ではなく「持ち主のこの系統（配列＝OR）のスピリットが対象に含まれる」ときに絞り込む。絞り込み先は発生源自身（BS05プリンセス・スノーホワイト＝自分の白の「氷姫」を守り、対象を自分に付け替える）
           protectColor?: Color // protectFamily と併用：守る対象をこの色を持つスピリットに限る（スノーホワイト＝白）
           protectCost?: number // protectFamilyと同型：守る対象を「持ち主のこのコストのスピリット」に限る。絞り込み先は発生源自身（BS06細剣の猫騎士ケット・シー＝コスト2）
+          optional?: true // 効果文が「〜にできる」＝任意。対話モードでは絞り込む前に発生源の持ち主へ確認を出す（resolveMagic が PendingChoice.magicRedirect を立てる）。
+          // 未指定＝強制で、確認せず自動的に絞り込む。現行4枚（BS04-054 / BS05-040 / BS06-056 / BS09-038）はすべて「できる」なので true
       }
     | {
           id: string

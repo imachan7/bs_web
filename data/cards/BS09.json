@@ -2534,7 +2534,8 @@
         "phase": "attack",
         "protectFamily": [
           "楽族"
-        ]
+        ],
+        "optional": true
       }
     ]
   },

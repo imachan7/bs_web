@@ -567,7 +567,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 誘発が放置される（→ `resolveInOrder` はその場で `resumeTriggerBatch` を呼ぶ）。
 
 ⚠️ **`scripts/coverage-effects.ts` は import 文の並びを文字列で持っている。**
-`GameEngine.ts` の import に1行足しただけで計測点が壊れて smoke が2件落ちた。
+https://github.com/imachan7/bs_web/pull/29/conflict?name=docs%252Fdesign%252FSEMANTICS_AUDIT.md&ancestor_oid=05bc8d80a53d6b697d1f560227f74ab058973aa1&base_oid=cd0b75336d5b478bcde0986ec0cf6d69cda6bf9d&head_oid=06e4af92c5b2d4da5f6bb91c7d17141feb0dea1b`GameEngine.ts` の import に1行足しただけで計測点が壊れて smoke が2件落ちた。
 import を触ったら `npm run smoke` の「計測点は全件健在」を確認する。
 
 **残りの質問（Q2〜Q4・Q6）は [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md) §5。**
@@ -576,12 +576,13 @@ Q2（対戦者が選べていない57件）は**影響枚数の多い順に直�
 
 ### 次にやること（この順）
 
-1. **PR #26 → #27 の順でマージする**（#27 の base は #26）
-2. **UI担当のトグル削除を待って、`PlayerState.payToNegate` と `GameAction "setPayToNegate"` を消す**
-3. **積み残し1件**：`BS05-040 プリンセス・スノーホワイト` に `optional` を付けられていない
-   （`kind:"magicTargetRedirect"` が `optional` を持てない設計。型の拡張が要る。
-   対象の付け替えは既に対話モードで確認を出しているので実害は小さい）
-4. 第2回の照合（残っている候補：S1 8件 / S3 23件 / S4 31件 / S5 10件。
+
+1. ~~**積み残し1件**：`BS05-040 プリンセス・スノーホワイト` の `optional`~~
+   → **2026-08-17 に解消**。`magicTargetRedirect` に `optional?: true` を足し、
+   **確認を出すのは `optional:true` のときだけ**にした（現行4枚は全部「〜にできる」なので挙動は不変）。
+   実装は最初から確認式で、足りなかったのは「データにそう書けないこと」だった。
+   **同型4枚のうち1枚だけが候補に出ていたのはツールの粒度の問題**（SEMANTICS_AUDIT §4.1）
+2. 第2回の照合（残っている候補：S1 8件 / S3 22件 / S4 31件 / S5 10件。
    **これらは「無害・誤検出」と判定済みで、次回も出続ける**。ゼロにするのが目的ではない）
 
 ### ⚠️ この点検の性質
