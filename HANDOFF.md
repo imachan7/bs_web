@@ -517,6 +517,23 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
   **`ctx.resolve` は `targetInstanceId` を引き継がない**／
   **`requestCardChoice` の `pid` と `chooserPid` を両方「守る側」にすると `actorPid` が立たない**
 
+### 2026-08-17 その2：効果の「重複」を点検した（実バグ4件。ブランチ `work/duplicate-triggers`）
+
+ユーザー指摘「灼熱の谷のように2枚あることで処理が順次行われるべきなのにそうでないものが他にもありそう」から。
+**2種類あった。詳細は [SEMANTICS_AUDIT.md §4.2](./docs/design/SEMANTICS_AUDIT.md)。**
+
+- **(a) 誘発ループの取りこぼし3件**。灼熱の谷（`fireStepTriggers`）と同じ形が
+  `fireFieldEventTriggers`（「〜されたとき」系すべて）／`fireBattleWonTriggers`／
+  `chooseActionMode` に残っていた。書き方の一般則は
+  **[RESUME_STACK.md §9](./docs/design/RESUME_STACK.md)** に書いた（**誘発を複数解決するときは必ず読む**）
+- **(b) OR を2エントリに分けたための二重発火1件**。`SD01-027 溶岩の大瀑布`Lv2 が
+  【覚醒】と【激突】を両方持つ `X004` で2枚引いていた。`winnerKeywordFilter` を配列（OR）にして統合
+- **`audit:semantics` に S8 軸を足した**（この形を自動検出する。現在0件）
+- 回帰テストは `scripts/smoke/part216.ts`（31件。修正前は9件落ちることを確認）
+
+⚠️ **`destroyNexus` は対象選択を出さず自動で1つ選ぶ**実装だと分かった（別件・未修理）。
+「相手のネクサス1つを破壊する」を対戦者が選べていない。次の点検候補。
+
 ### 次にやること（この順）
 
 1. **PR #26 → #27 の順でマージする**（#27 の base は #26）
