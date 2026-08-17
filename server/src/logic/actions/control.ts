@@ -1,7 +1,7 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { log, pushResumeFrames } from "../GameState"
+import { log, resolveInOrder } from "../GameState"
 import { requestChoice } from "../EffectModules"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -22,30 +22,21 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
             const mode = action.modes[index]
             if (!mode) return
             log(state, `${sourceName}：「${mode.label}」を選んだ。`)
-            for (let i = 0; i < mode.actions.length; i++) {
-                const next = mode.actions[i]
-                if (next === undefined) continue
-                ctx.resolve(next, { sourceColors: srcColors, sourceType: srcType })
-                if (state.winner) break
-                // 途中で選択待ちに入ったら、**残りを再開スタックへ積む**（2026-08-17）。
-                // 積まずに break していたため、モードの後半が永久に失われていた
-                // （ヴィクトリーファイアで「スピリット1体とネクサス1つ」を選ぶと、
-                // スピリットの対象選択で中断してネクサスが壊れなかった）
-                if (state.pendingChoice) {
-                    pushResumeFrames(
-                        state,
-                        mode.actions.slice(i + 1).map((a) => ({
-                            kind: "action" as const,
-                            selfInstanceId: self ? self.instanceId : null,
-                            action: a,
-                            actorPid: owner,
-                            ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
-                            ...(srcType !== undefined ? { sourceType: srcType } : {}),
-                        })),
-                    )
-                    break
-                }
-            }
+            // 選択待ちに入ったら**残りを再開スタックへ積む**（resolveInOrder が面倒を見る）。
+            // 積まずに break していたため、モードの後半が永久に失われていた
+            // （ヴィクトリーファイアで「スピリット1体とネクサス1つ」を選ぶと、
+            // スピリットの対象選択で中断してネクサスが壊れなかった。2026-08-17）
+            resolveInOrder(state, mode.actions, {
+                resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
+                frame: (a) => ({
+                    kind: "action" as const,
+                    selfInstanceId: self ? self.instanceId : null,
+                    action: a,
+                    actorPid: owner,
+                    ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+                    ...(srcType !== undefined ? { sourceType: srcType } : {}),
+                }),
+            })
         }
         // 選択の再入：選ばれたラベルからモードを引く
         if (chosenOption !== undefined) {

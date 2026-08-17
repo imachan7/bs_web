@@ -50,6 +50,7 @@ import {
     rawLevel,
     pushResumeFrames,
     suspend,
+    resolveInOrder,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -549,49 +550,43 @@ export function fireBattleWonTriggers(
             firing.push({ inst, effect })
         }
     }
-    for (let i = 0; i < firing.length; i++) {
-        const entry = firing[i]
-        if (!entry) continue
-        const { inst, effect } = entry
+    const selfOf = (e: (typeof firing)[number]): CardInstance =>
+        e.effect.selfMode === "source" ? e.inst : winnerInst
+    resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
-        if (!isVirtualSource(inst) && !isStillOnField(state, winnerPid, inst.instanceId)) continue
-        const actionSelf = effect.selfMode === "source" ? inst : winnerInst
-        // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
-        if (effect.optional && state.interactiveTargets) {
-            requestActivationConfirm(
-                state,
-                winnerPid,
-                `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                effect.action,
-                actionSelf,
-            )
-        } else {
-            resolveAction(state, winnerPid, actionSelf, effect.action)
-        }
-        if (state.winner) return
-        // 中断したら**残りを再開スタックへ積む**。積まないとこの後の誘発が丸ごと消える
-        if (state.pendingChoice) {
-            pushResumeFrames(
-                state,
-                firing.slice(i + 1).map((e) => {
-                    // optional は再開時も発動確認から始める（確認なしの自動発動を防ぐ）
-                    const confirm =
-                        e.effect.optional && state.interactiveTargets
-                            ? { confirmPrompt: `${getCard(e.inst.cardId).name}の効果を発動しますか？` }
-                            : {}
-                    return {
-                        kind: "action" as const,
-                        selfInstanceId: (e.effect.selfMode === "source" ? e.inst : winnerInst).instanceId,
-                        action: e.effect.action,
-                        actorPid: winnerPid,
-                        ...confirm,
-                    }
-                }),
-            )
-            return
-        }
-    }
+        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId),
+        resolve: (e) => {
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, winnerPid, activationPrompt(e.inst), e.effect.action, selfOf(e))
+            } else {
+                resolveAction(state, winnerPid, selfOf(e), e.effect.action)
+            }
+        },
+        frame: (e) => ({
+            kind: "action" as const,
+            selfInstanceId: selfOf(e).instanceId,
+            action: e.effect.action,
+            actorPid: winnerPid,
+            ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+        }),
+    })
+}
+
+// 発動確認の文面（3種の誘発で同じ形を使う）
+function activationPrompt(inst: CardInstance): string {
+    return `${getCard(inst.cardId).name}の効果を発動しますか？`
+}
+
+// optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。
+// exactOptionalPropertyTypes のため、付けないときはキー自体を出さない
+function confirmPromptIfOptional(
+    state: GameState,
+    inst: CardInstance,
+    optional: boolean | undefined,
+): { confirmPrompt?: string } {
+    return optional === true && state.interactiveTargets ? { confirmPrompt: activationPrompt(inst) } : {}
 }
 
 // 発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
@@ -738,48 +733,32 @@ export function fireStepTriggers(
             }
         }
     }
-    for (let i = 0; i < firing.length; i++) {
-        const entry = firing[i]
-        if (!entry) continue
-        const { pid, inst, effect } = entry
+    resolveInOrder(state, firing, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
-        const player = state.players[pid]
-        const stillOnField =
-            player.field.spirits.some((x) => x.instanceId === inst.instanceId) ||
-            player.field.nexuses.some((x) => x.instanceId === inst.instanceId)
-        if (!stillOnField) continue
-        const card = getCard(inst.cardId)
-        // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
-        if (effect.optional && state.interactiveTargets) {
-            requestActivationConfirm(
-                state,
-                pid,
-                `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                effect.action,
-                inst,
-            )
-        } else {
+        skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
+        resolve: (e) => {
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)
+                return
+            }
             // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
             // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
             // カード名を含めることでUI側のホバー表示も効く
-            log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
-            resolveAction(state, pid, inst, effect.action)
-        }
-        if (state.winner) return
-        // 中断したら**残りを再開スタックへ積む**。積まないと、この後のステップ誘発が丸ごと消える
-        // 中断したら**残りを再開スタックへ積む**。積まないと、この後のステップ誘発が丸ごと消える
-        if (state.pendingChoice) {
-            pushResumeFrames(
+            log(
                 state,
-                firing.slice(i + 1).map((e) => ({
-                    kind: "action" as const,
-                    selfInstanceId: e.inst.instanceId,
-                    action: e.effect.action,
-                })),
+                `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             )
-            return
-        }
-    }
+            resolveAction(state, e.pid, e.inst, e.effect.action)
+        },
+        frame: (e) => ({
+            kind: "action" as const,
+            selfInstanceId: e.inst.instanceId,
+            action: e.effect.action,
+            actorPid: e.pid,
+            ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+        }),
+    })
 }
 
 // フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
@@ -1071,62 +1050,34 @@ export function fireFieldEventTriggers(
         return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
     }
 
-    for (let i = 0; i < queue.length; i++) {
-        const entry = queue[i]
-        if (!entry) continue
-        const { inst, effect } = entry
+    resolveInOrder(state, queue, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
-        if (!isVirtualSource(inst) && !isStillOnField(state, pid, inst.instanceId)) continue
-        const ctx = contextOf(inst, effect)
-        // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
-        // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
-        if (effect.optional && state.interactiveTargets) {
-            requestActivationConfirm(
-                state,
-                ctx.actionPid,
-                `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                effect.action,
-                ctx.actionSelf,
-            )
-        } else {
-            resolveAction(
-                state,
-                ctx.actionPid,
-                ctx.actionSelf,
-                effect.action,
-                ctx.actionTargetId,
-                ctx.srcColors,
-                ctx.srcType,
-            )
-        }
-        if (state.winner) return
-        // 中断したら**残りを再開スタックへ積む**。積まないとこの後の誘発が丸ごと消える
-        if (state.pendingChoice) {
-            pushResumeFrames(
-                state,
-                queue.slice(i + 1).map((e) => {
-                    const c = contextOf(e.inst, e.effect)
-                    // optional は再開時も発動確認から始める（確認なしの自動発動を防ぐ）
-                    const confirm =
-                        e.effect.optional && state.interactiveTargets
-                            ? { confirmPrompt: `${getCard(e.inst.cardId).name}の効果を発動しますか？` }
-                            : {}
-                    return {
-                        kind: "action" as const,
-                        selfInstanceId: c.actionSelf.instanceId,
-                        action: e.effect.action,
-                        actorPid: c.actionPid,
-                        ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
-                        ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
-                        ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
-                        ...confirm,
-                    }
-                }),
-            )
-            return
-        }
-    }
+        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
+        resolve: (e) => {
+            const c = contextOf(e.inst, e.effect)
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
+            // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, c.actionPid, activationPrompt(e.inst), e.effect.action, c.actionSelf)
+            } else {
+                resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+            }
+        },
+        frame: (e) => {
+            const c = contextOf(e.inst, e.effect)
+            return {
+                kind: "action" as const,
+                selfInstanceId: c.actionSelf.instanceId,
+                action: e.effect.action,
+                actorPid: c.actionPid,
+                ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
+                ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
+                ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
+                ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+            }
+        },
+    })
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：

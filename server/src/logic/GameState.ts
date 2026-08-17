@@ -303,6 +303,38 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
     }
 }
 
+// 複数の効果／アクションを**順に解決する**共通形（docs/design/RESUME_STACK.md §9）。
+//
+// ⚠️ 自分でループを書かないこと。「ループの中で解決し、選択待ちが立ったら return する」形は、
+// **同じイベントの残りが永久に失われる**（2026-08-17 に実バグ4件。灼熱の谷を2枚並べると
+// 破棄が1枚しか起きない、ヴィクトリーファイアでネクサスが壊れない等）。
+// このヘルパーは `frame` を**必須**にしてあるので、残りの積み忘れが起きない。
+//
+// - `skip`：解決の直前に呼ぶ。先に解決した効果で発生源が場を離れていたら飛ばす用
+// - `resolve`：1件を解決する（選択待ちを立ててもよい）
+// - `frame`：中断したときに**残りの各件**を再開スタックへ積むためのフレーム
+export function resolveInOrder<T>(
+    state: GameState,
+    items: T[],
+    handlers: {
+        skip?: (item: T) => boolean
+        resolve: (item: T) => void
+        frame: (item: T) => ResumeFrame
+    },
+): void {
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item === undefined) continue
+        if (handlers.skip?.(item) === true) continue
+        handlers.resolve(item)
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, items.slice(i + 1).map(handlers.frame))
+            return
+        }
+    }
+}
+
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）
 export function clearBattle(state: GameState): void {
     // 「ターンに1回だけブロックされない」印は、そのアタックの解決（＝このバトルの終了）で使い切る
