@@ -145,6 +145,29 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // このカード種別のカードだけを候補にする。該当がなければ不発
         const matchesType = (cardId: string): boolean =>
             action.cardTypeFilter === undefined || getCard(cardId).type === action.cardTypeFilter
+        // random 指定時は**誰も選ばない**。効果文「自分は、相手の手札1枚を内容を見ないで破棄する」は
+        // 自分も相手も中身を見ないので、選択式にすると相手が不要牌を差し出せてしまう
+        // （髑髏騎士ズ・ガイン／巨猫ブリンクス。2026-08-17 ユーザー確認）
+        if (action.random) {
+            const discardedRandom: string[] = []
+            for (let i = 0; i < action.count; i++) {
+                const indices = target.hand.map((_, j) => j).filter((j) => matchesType(target.hand[j]!))
+                const pick = indices[Math.floor(Math.random() * indices.length)]
+                if (pick === undefined) break
+                const [cardId] = target.hand.splice(pick, 1)
+                if (cardId === undefined) break
+                target.trashCards.push(cardId)
+                discardedRandom.push(getCard(cardId).name)
+                // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+                tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
+            }
+            if (discardedRandom.length === 0) {
+                log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                return
+            }
+            log(state, `${target.name}は手札「${discardedRandom.join("、")}」をランダムに破棄した。`)
+            return
+        }
         if (state.interactiveTargets) {
             const indices = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
             if (indices.length === 0) {

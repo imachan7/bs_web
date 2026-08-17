@@ -49,6 +49,33 @@
 確認を出すかどうかの判定（`actionTouchesBothSides`）には
 `colorChoiceLendThisTurn` を「両陣営に触れる action」として登録してある。
 
+## 1.6 主語が「自分は」なら、選ぶのは自分（2026-08-17 ユーザー確認）
+
+§1 の裏返し。**「相手は」だけでなく「自分は」も見ること。**
+選択者は `chooserIsTarget` を書かなくても**アクションの type に焼き込まれている**ことがあるため、
+「印が無い＝適合」ではない。
+
+代表が `discardOpponent`：**選択者は破棄される相手本人**に固定されている
+（`type.ts` の定義コメント／`handDeck.ts` の `tryInteractiveCardChoice(state, targetPid, …)`）。
+`forcedTargetPid` は選択式の再突入用の内部フィールドで、**cards.json には書かない**。
+
+| 効果文の形 | 選ぶ人 | 実装 |
+| :-- | :-- | :-- |
+| 「**相手は**、相手の手札1枚を破棄する」 | 相手 | `discardOpponent`（既定のまま。マッチュラ／ツクシンモア／忍者サルトベ） |
+| 「自分は、相手の手札1枚を**内容を見ないで**破棄する」 | **誰も選ばない＝ランダム** | `discardOpponent` に **`random: true`**（髑髏騎士ズ・ガイン／巨猫ブリンクス） |
+| 「自分は相手の**手札すべてを見て**、その中の◯◯カード1枚を破棄する」 | **自分**（相手の手札を開示して選ぶ） | 未実装。関将龍皇ドラグロン／獣皇子バハムンド |
+
+「内容を見ないで」は**自分も相手も中身を見ない**のだから、選択式にすると
+相手が不要牌を差し出せて印刷より弱くなる。だから誰も選ばない。
+
+**選択者が焼き込まれている type の一覧**（`scripts/check-effect-semantics.ts` の
+`OPPONENT_CHOOSES_ACTION_TYPES` と同じもの。増やしたら両方直すこと）:
+`discardOpponent` / `discardOpponentDownTo` / `opponentHandToDeckTop` /
+`destroyDownToOwnCount` / `costOwnSpiritCoresToTrashThenOpponent` /
+`sacrificeOwnNexusesThenEnemyDestroysOwn`
+
+この食い違いは `npm run audit:semantics --axis S7` が両方向で検出する。
+
 ## 2. 実装の形
 
 `PendingChoice.pid` が**選択者**、`actorPid` が**解決の主体**。両者が異なるときだけ `actorPid` が入る。

@@ -530,6 +530,22 @@ const CONSTRAINT_SUFFIX_RE = /(できない|できなくなる|なければな�
 // （燃えさかる戦場／翼持つ者の空域／ワーニングアタック／激神皇カタストロフドラゴン／闘将カタパルドス）
 const FORCED_BLOCK_RE = /ブロック(する|しなければ)/
 
+// 選択者が相手に焼き込まれた action を**ノード単位**で集める。
+// random:true（＝誰も選ばない。「内容を見ないで破棄する」）が付いているものは
+// 選択者そのものが存在しないので、主語が「自分は」でも食い違わない
+function collectOpponentChoosesActions(effects: Record<string, unknown>[]): string[] {
+    const found: string[] = []
+    for (const eff of effects) {
+        walk(eff, (key, value, node) => {
+            if (key !== "type" || typeof value !== "string") return
+            if (!OPPONENT_CHOOSES_ACTION_TYPES.has(value)) return
+            if (node.random === true) return
+            found.push(value)
+        })
+    }
+    return found
+}
+
 function collectActionTypes(effects: Record<string, unknown>[]): Set<string> {
     const types = new Set<string>()
     for (const eff of effects) {
@@ -758,7 +774,7 @@ for (const card of cards) {
         if (!aiteSent) {
             const jibunSent = sentences.find((sen) => /自分は/.test(sen))
             if (jibunSent) {
-                const baked = [...collectActionTypes(card.effects)].filter((t) => OPPONENT_CHOOSES_ACTION_TYPES.has(t))
+                const baked = collectOpponentChoosesActions(card.effects)
                 if (baked.length > 0) {
                     gaps.push({
                         axis: "S7",

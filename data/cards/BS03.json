@@ -4421,7 +4421,8 @@
     ],
     "action": {
      "type": "discardOpponent",
-     "count": 1
+     "count": 1,
+     "random": true
     },
     "optional": false
    }
