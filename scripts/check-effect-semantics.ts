@@ -533,8 +533,9 @@ const CONSTRAINT_SUFFIX_RE = /(できない|できなくなる|なければな�
 const FORCED_BLOCK_RE = /ブロック(する|しなければ)/
 
 // 選択者が相手に焼き込まれた action を**ノード単位**で集める。
-// random:true（＝誰も選ばない。「内容を見ないで破棄する」）が付いているものは
-// 選択者そのものが存在しないので、主語が「自分は」でも食い違わない
+// 次の2つは主語が「自分は」でも食い違わない:
+//   random:true         … 誰も選ばない（「内容を見ないで破棄する」）
+//   chooserIsSource:true … 選択者を発生源の持ち主に差し替えてある（「手札すべてを見て」）
 function collectOpponentChoosesActions(effects: Record<string, unknown>[]): string[] {
     const found: string[] = []
     for (const eff of effects) {
@@ -542,6 +543,7 @@ function collectOpponentChoosesActions(effects: Record<string, unknown>[]): stri
             if (key !== "type" || typeof value !== "string") return
             if (!OPPONENT_CHOOSES_ACTION_TYPES.has(value)) return
             if (node.random === true) return
+            if (node.chooserIsSource === true) return
             found.push(value)
         })
     }
