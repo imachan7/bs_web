@@ -116,13 +116,17 @@ console.log("=== BS02-098 キャストオフ：怪虫1体を破壊してコス�
     const s = createGame("castoff-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s)
     put(s, "p1", "BS01-055", 1) // エメアント（系統：怪虫）
-    s.players.p1.hand = ["BS01-017"] // ランスラプトル（コスト5）
+    // ⚠️ 召喚されるカードは**バニラ**にする（2026-08-17）。
+    // コストを支払わない召喚でも召喚時効果が発揮されるようになったため（part215）、
+    // 以前使っていたランスラプトル（Lv1 BP2000／召喚時「BP2000以下1体を破壊できる」）だと
+    // 唯一の候補が自分自身になり自壊して、このテストの主眼（キャストオフの動作）が見えなくなる
+    s.players.p1.hand = ["BS03-009"] // 火吹きメルト（コスト5・バニラ）
     s.players.p1.reserve = 5
     resolveMagic(s, "p1", "BS02-098", "main")
     assert(s.players.p1.field.spirits.length === 1, "怪虫が破壊され、代わりに1体召喚されている")
     assert(
-        s.players.p1.field.spirits[0]!.cardId === "BS01-017",
-        "召喚されたのはコスト5のランスラプトル",
+        s.players.p1.field.spirits[0]!.cardId === "BS03-009",
+        "召喚されたのはコスト5の火吹きメルト",
     )
 }
 
@@ -141,7 +145,7 @@ console.log("=== BS02-096 ディバインウィンド：トラッシュのコア
 {
     const s = createGame("divinewind-main", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s)
-    s.players.p1.hand = ["BS01-017"] // コスト5
+    s.players.p1.hand = ["BS03-009"] // 火吹きメルト（コスト5・バニラ。上と同じ理由でバニラを使う）
     s.players.p1.reserve = 5
     s.players.p1.trashCores = 4 // コスト5には足りない
     resolveMagic(s, "p1", "BS02-096", "main")

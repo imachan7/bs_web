@@ -19,7 +19,8 @@
 
 | ブランチ | 中身 | 状態 |
 | :-- | :-- | :-- |
-| **`worktree-semantics-axis-s6s7`** | **いまの実装担当の作業。意味照合の軸を2つ追加（S6 主体／S7 選択者）＋カード6枚の挙動修正** | **push 済み・PR 未作成**。`.claude/worktrees/` のワークツリーで作業した |
+| **`worktree-round-table-negate`** | **いまの実装担当の作業。竜騎集う円卓Lv2 を「効果ごとに払うか選ぶ」形へ（中断点パターンD）** | **PR #27・マージ待ち。base は下の #26** |
+| `worktree-semantics-axis-s6s7` | 意味照合の軸を2つ追加（S6 主体／S7 選択者）＋カード6枚の挙動修正 | **PR #26・マージ待ち。#26 → #27 の順にマージすること** |
 | `semantics-audit` | 効果文と実装の意味照合＋実バグ6件の修正 | **マージ済み**（PR #24）。もう使わない |
 | `fix/deck-options` | UI担当がデッキ一覧を動的生成に直した作業。**中身は origin/main に入っている** | 役目を終えた（`semantics-audit` と同じコミットも乗っている） |
 | `worktree-battle-resolve-resume` | 千本槍の古戦場・デスクロスブースト（PR #23） | **マージ済み**。もう使わない |
@@ -502,7 +503,79 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 - 検証は全緑（smoke **7956件** / validate 3種 / typecheck / build:client）。
   お知らせ（`data/announcements.json`）にも対戦者向けに4件足した
 
+### 2026-08-17（後半）にやったこと：竜騎集う円卓Lv2（PR #27）
+
+ユーザー指摘「効果の内容を把握した上で選択する効果ではなかった」を受けて、
+事前トグル一律（＋破棄カード末尾固定）だったものを**効果ごとに聞く**形へ直した。
+
+- **中断点にパターンDを足した**（`docs/design/INTERRUPTION_POINTS.md`）。
+  「述語の中では聞けない」が、**述語を呼ぶ直前**はアクションハンドラなので聞ける。
+  答えを state に置いてから判定へ入る。§4 の「今後困りそうなところ」から1件外れた
+- **`payToNegate` トグルは廃止予定**。判定に使われなくなったが、クライアントがまだ送るので
+  受け皿だけ残してある。**UI からトグルが消えたら、型と GameAction を削除すること**（chatbox で依頼済み）
+- 実装中に踏んだ2点（`INTERRUPTION_POINTS.md` パターンDに記載）:
+  **`ctx.resolve` は `targetInstanceId` を引き継がない**／
+  **`requestCardChoice` の `pid` と `chooserPid` を両方「守る側」にすると `actorPid` が立たない**
+
+### 2026-08-17 その2：効果の「重複」を点検した（実バグ4件。ブランチ `work/duplicate-triggers`）
+
+ユーザー指摘「灼熱の谷のように2枚あることで処理が順次行われるべきなのにそうでないものが他にもありそう」から。
+**2種類あった。詳細は [SEMANTICS_AUDIT.md §4.2](./docs/design/SEMANTICS_AUDIT.md)。**
+
+- **(a) 誘発ループの取りこぼし3件**。灼熱の谷（`fireStepTriggers`）と同じ形が
+  `fireFieldEventTriggers`（「〜されたとき」系すべて）／`fireBattleWonTriggers`／
+  `chooseActionMode` に残っていた。書き方の一般則は
+  **[RESUME_STACK.md §9](./docs/design/RESUME_STACK.md)** に書いた（**誘発を複数解決するときは必ず読む**）
+- **(b) OR を2エントリに分けたための二重発火1件**。`SD01-027 溶岩の大瀑布`Lv2 が
+  【覚醒】と【激突】を両方持つ `X004` で2枚引いていた。`winnerKeywordFilter` を配列（OR）にして統合
+- **`audit:semantics` に S8 軸を足した**（この形を自動検出する。現在0件）
+- 回帰テストは `scripts/smoke/part216.ts`（31件。修正前は9件落ちることを確認）
+
+⚠️ **`destroyNexus` は対象選択を出さず自動で1つ選ぶ**実装だと分かった（別件・未修理）。
+「相手のネクサス1つを破壊する」を対戦者が選べていない。次の点検候補。
+
+### 2026-08-17 その3：手順の棚卸しをした（→ [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md)）
+
+「仕様がコードにしか無い」問題への対処として、**手順がどこまで文書化されているか**を機械的に洗った。
+
+- **手順書の索引を作った**（§2）。9本あるのに索引が無く、`chooserIsTarget` が3回再発明された原因
+- **文書にあるのに実装が従っていない規則が1件**（§3）：同時発揮の解決順。
+  TIMING_CHART §0-3「ターンプレイヤーが解決順を決める」を守っているのは**破壊だけ**で、
+  誘発は場に出た順で固定。同時発火は smoke 全体で38回＝稀なので、聞く実装にしても煩雑にならない
+- **対戦者が選ぶべき場面を実装が自動で決めている箇所が57件**（§4）。
+  `grep -rnE "簡略化|本来は|決め打ち"` の94件を、近傍に `interactiveTargets` 分岐があるかで二分した
+  （分岐あり37件＝テスト専用で無害／なし57件＝実対戦でも自動）
+- **質問リストは §5**（Q1〜Q6）。答えが出たら索引先の手順書へ1行ずつ移す
+
+⚠️ **`audit:semantics`（S1〜S8）はこの層を見ていない。** データと効果文しか突き合わせないので、
+「ハンドラ実装が対象を勝手に選んでいる」は死角。S9 軸の案は PROCEDURES_AUDIT §6。
+
+### 2026-08-17 その4：同時発揮の解決順をターンプレイヤーが決めるようにした（Q1 決着）
+
+棚卸し（§その3）で見つけた「文書にあるのに実装が従っていない規則」を実装した。
+
+- **誘発（`step` / `fieldEvent` / `battleWon`）でも解決順を聞く**。粒度の決着は
+  **[TIMING_CHART.md](./docs/design/TIMING_CHART.md) §0「実装状況」**（1行として移してある）:
+  **別のカード同士なら聞く／同じカードの複数エントリと同名カード2枚は聞かない**
+- 器は `GameState.resolveInOrder` の `askOrder` と `ResumeFrame` の `triggerBatch`。
+  破壊の `destroyOrder` と同じ形（pick を state に記録してバッチの再開へ戻す）
+- **UI側の追加実装は不要**（既存の `kind:"option"` 表示で受けられる）
+- 回帰テストは `scripts/smoke/part217.ts`
+
+⚠️ **踏んだ落とし穴**：再開スタックは `act()` の解決ループでしか消化されない。
+束を積むだけでは `pendingChoice` が立たず、呼び出し元から「何も起きなかった」ように見えて
+誘発が放置される（→ `resolveInOrder` はその場で `resumeTriggerBatch` を呼ぶ）。
+
+⚠️ **`scripts/coverage-effects.ts` は import 文の並びを文字列で持っている。**
+https://github.com/imachan7/bs_web/pull/29/conflict?name=docs%252Fdesign%252FSEMANTICS_AUDIT.md&ancestor_oid=05bc8d80a53d6b697d1f560227f74ab058973aa1&base_oid=cd0b75336d5b478bcde0986ec0cf6d69cda6bf9d&head_oid=06e4af92c5b2d4da5f6bb91c7d17141feb0dea1b`GameEngine.ts` の import に1行足しただけで計測点が壊れて smoke が2件落ちた。
+import を触ったら `npm run smoke` の「計測点は全件健在」を確認する。
+
+**残りの質問（Q2〜Q4・Q6）は [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md) §5。**
+Q2（対戦者が選べていない57件）は**影響枚数の多い順に直す**方針でユーザー確認済み（2026-08-17）。
+次の着手先は `refreshSelf` 38枚 → `deckReveal` 12枚 → `destroyNexus` 11枚 → `lifeCrush` 10枚。
+
 ### 次にやること（この順）
+
 
 1. ~~**積み残し1件**：`BS05-040 プリンセス・スノーホワイト` の `optional`~~
    → **2026-08-17 に解消**。`magicTargetRedirect` に `optional?: true` を足し、

@@ -1401,21 +1401,10 @@
         ],
         "role": "any",
         "turn": "own",
-        "winnerKeywordFilter": "awaken",
-        "action": {
-          "type": "draw",
-          "count": 1
-        }
-      },
-      {
-        "id": "SD01-027-e3",
-        "kind": "battleWon",
-        "levels": [
-          2
+        "winnerKeywordFilter": [
+          "awaken",
+          "clash"
         ],
-        "role": "any",
-        "turn": "own",
-        "winnerKeywordFilter": "clash",
         "action": {
           "type": "draw",
           "count": 1

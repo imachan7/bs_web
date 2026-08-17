@@ -157,6 +157,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | 場所 | 中身 |
 | :-- | :-- |
 | `docs/design/` | 先行設計（BRAVE / ULTIMATE / SOULCORE / BURST）と TURN_EFFECT_SOURCES。実装着手時のみ |
+| `docs/design/PROCEDURES_AUDIT.md` | **手順の棚卸し**。手順書の索引（どの規則がどこに書いてあるか）と、**どこにも書かれていない決定の一覧**。**手順・解決順に触る作業を始めるときは §2 の索引を先に見る**（同じ規則を発見し直さないため） |
 | `docs/design/SEMANTICS_AUDIT.md` | **「動いているが解釈が間違っている」を探す作業の記録**。`npm run audit:semantics` の使い方・判定済みの一覧・そこから確定した一般則（fieldEvent の主語／「〜できる」は確認式／ステップ限定を書くべき3種類）。**効果を実装する前に §3 だけでも読む** |
 | `docs/design/EFFECT_GAPS_PLAYBOOK.md` | **残りの効果実装漏れ（36枚）を進めるための手引き**。着手順・1枚ごとの方針・器の早見表。効果の実装を始めるときに読む |
 | `docs/design/INTERRUPTION_POINTS.md` | **「ここでプレイヤーに選ばせたい」となったときに読む**。どの層なら中断できるか・3つの実装パターンと使い分け・新設の手順 |

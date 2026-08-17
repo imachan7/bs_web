@@ -50,6 +50,7 @@ import {
     rawLevel,
     pushResumeFrames,
     suspend,
+    resolveInOrder,
 } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -500,6 +501,10 @@ export function fireBattleWonTriggers(
 ): void {
     // effectSources：このターンだけの仮想発生源（マジックが貸した継続効果。BS04ニーベルングリング）も含める
     const instances = effectSources(state, winnerPid)
+    // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17。fireStepTriggers と同じ形）。
+    // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
+    // **同じバトルの残りの誘発が永久に失われていた**（太陽石の神殿を2枚並べると2枚目が発火しない）
+    const firing: { inst: CardInstance; effect: Extract<EffectDef, { kind: "battleWon" }> }[] = []
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
@@ -535,29 +540,72 @@ export function fireBattleWonTriggers(
                 continue
             }
             // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
-            if (
-                effect.winnerKeywordFilter !== undefined &&
-                !spiritHasKeyword(state, winnerPid, winnerInst, effect.winnerKeywordFilter)
-            ) {
-                continue
+            // 配列＝OR（どれか1つ持っていれば発火する。1回だけ）
+            if (effect.winnerKeywordFilter !== undefined) {
+                const needs = Array.isArray(effect.winnerKeywordFilter)
+                    ? effect.winnerKeywordFilter
+                    : [effect.winnerKeywordFilter]
+                if (!needs.some((kw) => spiritHasKeyword(state, winnerPid, winnerInst, kw))) continue
             }
-            const actionSelf = effect.selfMode === "source" ? inst : winnerInst
-            // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
-            if (effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(
-                    state,
-                    winnerPid,
-                    `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                    effect.action,
-                    actionSelf,
-                )
-                return
-            }
-            resolveAction(state, winnerPid, actionSelf, effect.action)
-            if (state.winner) return
-            if (state.pendingChoice) return
+            firing.push({ inst, effect })
         }
     }
+    const selfOf = (e: (typeof firing)[number]): CardInstance =>
+        e.effect.selfMode === "source" ? e.inst : winnerInst
+    resolveInOrder(state, firing, {
+        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
+        // 仮想発生源はフィールドに実体が無いので在否を見ない
+        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, winnerPid, e.inst.instanceId),
+        resolve: (e) => {
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（step / triggered と同じ扱い）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, winnerPid, activationPrompt(e.inst), e.effect.action, selfOf(e))
+            } else {
+                resolveAction(state, winnerPid, selfOf(e), e.effect.action)
+            }
+        },
+        frame: (e) => ({
+            kind: "action" as const,
+            selfInstanceId: selfOf(e).instanceId,
+            action: e.effect.action,
+            actorPid: winnerPid,
+            ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+        }),
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => getCard(e.inst.cardId).name,
+            // ⚠️ **カード単位**で見る（効果エントリ単位にしない）。同じカードの複数エントリは
+            // 「ドロー後、〜する」のようにテキストで順序が決まっているので同時発揮ではなく、
+            // 同名カードを2枚並べた場合は順序を入れ替えても結果が同じ（対称）
+            key: (e) => e.inst.cardId,
+        },
+    })
+}
+
+// 発動確認の文面（3種の誘発で同じ形を使う）
+function activationPrompt(inst: CardInstance): string {
+    return `${getCard(inst.cardId).name}の効果を発動しますか？`
+}
+
+// optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。
+// exactOptionalPropertyTypes のため、付けないときはキー自体を出さない
+function confirmPromptIfOptional(
+    state: GameState,
+    inst: CardInstance,
+    optional: boolean | undefined,
+): { confirmPrompt?: string } {
+    return optional === true && state.interactiveTargets ? { confirmPrompt: activationPrompt(inst) } : {}
+}
+
+// 発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
+// 「集めてから解決する」形では、先に解決した効果で発生源が破壊されうるので都度確かめる
+function isStillOnField(state: GameState, pid: PlayerId, instanceId: string): boolean {
+    const player = state.players[pid]
+    return (
+        player.field.spirits.some((x) => x.instanceId === instanceId) ||
+        player.field.nexuses.some((x) => x.instanceId === instanceId)
+    )
 }
 
 // ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
@@ -602,6 +650,13 @@ export function fireStepTriggers(
         state.turnPlayer,
         opponentOf(state.turnPlayer),
     ]
+    // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17）。
+    // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
+    // **同じステップの残りの誘発が永久に失われていた**
+    // （灼熱の谷を2枚並べると、1枚目の「手札1枚を破棄」で中断して2枚目が発火しなかった）。
+    // 中断したら残りを再開スタックへ積む（fireTrigger と同じ形）。
+    // 条件（handNotGreaterThanOpponent など）は**誘発した時点**で判定する
+    const firing: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }[] = []
     for (const pid of order) {
         const player = state.players[pid]
         const instances = [...player.field.spirits, ...player.field.nexuses]
@@ -683,27 +738,45 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
-                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
-                if (effect.optional && state.interactiveTargets) {
-                    requestActivationConfirm(
-                        state,
-                        pid,
-                        `${getCard(inst.cardId).name}の効果を発動しますか？`,
-                        effect.action,
-                        inst,
-                    )
-                } else {
-                    // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
-                    // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
-                    // カード名を含めることでUI側のホバー表示も効く
-                    log(state, `${player.name}の${card.name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`)
-                    resolveAction(state, pid, inst, effect.action)
-                }
-                if (state.winner) return
-                if (state.pendingChoice) return
+                firing.push({ pid, inst, effect })
             }
         }
     }
+    resolveInOrder(state, firing, {
+        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
+        skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
+        resolve: (e) => {
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)
+                return
+            }
+            // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
+            // これが無いと「カードを2枚引いた」等の結果だけが残り、どのカードの効果か分からない。
+            // カード名を含めることでUI側のホバー表示も効く
+            log(
+                state,
+                `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
+            )
+            resolveAction(state, e.pid, e.inst, e.effect.action)
+        },
+        frame: (e) => ({
+            kind: "action" as const,
+            selfInstanceId: e.inst.instanceId,
+            action: e.effect.action,
+            actorPid: e.pid,
+            logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
+            ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+        }),
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}`,
+            // ⚠️ **カード単位**で見る（同じカードの複数エントリはテキスト順で決まっており同時発揮ではない）。
+            // 持ち主が違えば別扱い（自分と相手の同名ネクサスは順序が結果を変えうる）
+            key: (e) => `${e.pid}:${e.inst.cardId}`,
+        },
+    })
 }
 
 // フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
@@ -767,6 +840,16 @@ export function fireFieldEventTriggers(
     const instances = extraSources && extraSources.length > 0
         ? [...effectSources(state, pid), ...extraSources]
         : effectSources(state, pid)
+    // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17。fireStepTriggers と同じ形）。
+    // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
+    // **同じイベントの残りの誘発が永久に失われていた**
+    // （共鳴する音叉の塔を2枚並べると、1枚目の確認で中断して2枚目が発火しなかった）。
+    // 条件は**誘発した時点**で判定する（repeatTimes もここで確定させる）
+    const firing: {
+        inst: CardInstance
+        effect: Extract<EffectDef, { kind: "fieldEvent" }>
+        repeatTimes: number
+    }[] = []
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
@@ -952,44 +1035,73 @@ export function fireFieldEventTriggers(
                       ? eventCount
                       : 1
                 : 1
-            for (let i = 0; i < repeatTimes; i++) {
-                // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
-                // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
-                if (effect.optional && state.interactiveTargets) {
-                    const actionPid = effect.selfMode === "source" ? pid : (selfOverride?.pid ?? pid)
-                    const actionSelf = effect.selfMode === "source" ? inst : (selfOverride?.inst ?? inst)
-                    requestActivationConfirm(state, actionPid, `${card.name}の効果を発動しますか？`, effect.action, actionSelf)
-                    if (state.pendingChoice) return
-                    continue
-                }
-                // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
-                // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
-                // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
-                const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
-                if (effect.selfMode === "source") {
-                    resolveAction(state, pid, inst, effect.action, actionTargetId)
-                } else if (selfOverride) {
-                    // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、
-                    // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
-                    // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
-                    // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
-                    resolveAction(
-                        state,
-                        selfOverride.pid,
-                        selfOverride.inst,
-                        effect.action,
-                        actionTargetId,
-                        instColors(inst),
-                        getCard(inst.cardId).type,
-                    )
-                } else {
-                    resolveAction(state, pid, inst, effect.action, actionTargetId)
-                }
-                if (state.winner) return
-                if (state.pendingChoice) return
-            }
+            firing.push({ inst, effect, repeatTimes })
         }
     }
+
+    // 集めたものを順に解決する。`remaining` は「この誘発の残り回数」（repeatPerCount のぶん）
+    const queue: { inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }> }[] = []
+    for (const e of firing) for (let i = 0; i < e.repeatTimes; i++) queue.push({ inst: e.inst, effect: e.effect })
+
+    // 1件ぶんの解決に必要な文脈（再開スタックへ積むときも同じ組み合わせを使う）
+    const contextOf = (inst: CardInstance, effect: Extract<EffectDef, { kind: "fieldEvent" }>) => {
+        // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
+        // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
+        // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
+        const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
+        if (effect.selfMode === "source") {
+            return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+        }
+        if (selfOverride) {
+            // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、
+            // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
+            // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
+            // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
+            return {
+                actionPid: selfOverride.pid,
+                actionSelf: selfOverride.inst,
+                actionTargetId,
+                srcColors: instColors(inst),
+                srcType: getCard(inst.cardId).type,
+            }
+        }
+        return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+    }
+
+    resolveInOrder(state, queue, {
+        // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
+        // 仮想発生源はフィールドに実体が無いので在否を見ない
+        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
+        resolve: (e) => {
+            const c = contextOf(e.inst, e.effect)
+            // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
+            // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
+            if (e.effect.optional && state.interactiveTargets) {
+                requestActivationConfirm(state, c.actionPid, activationPrompt(e.inst), e.effect.action, c.actionSelf)
+            } else {
+                resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+            }
+        },
+        frame: (e) => {
+            const c = contextOf(e.inst, e.effect)
+            return {
+                kind: "action" as const,
+                selfInstanceId: c.actionSelf.instanceId,
+                action: e.effect.action,
+                actorPid: c.actionPid,
+                ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
+                ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
+                ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
+                ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
+            }
+        },
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => getCard(e.inst.cardId).name,
+            key: (e) => `${e.inst.cardId}:${e.effect.id}`,
+        },
+    })
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：

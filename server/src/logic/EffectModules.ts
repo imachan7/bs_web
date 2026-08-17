@@ -328,10 +328,14 @@ function tryPayableTargetNegate(
     if (attempt.actorPid === targetOwnerPid) return null
     if (attempt.sourceType !== "spirit") return null
     const player = state.players[targetOwnerPid]
-    // 「〜することで」は任意コスト。払うかどうかはプレイヤーの方針（GameAction "setPayToNegate"）を読む。
-    // ここは装甲と同じ同期の述語なので、その場で選択を挟めない代わりに**あらかじめ盤面の状態にしておく**。
-    // 未設定は true（従来どおり払って防ぐ）
-    if (player.payToNegate === false) return null
+    // 実対戦では、対象が確定した時点で**守る側に聞いてある**（askPayToNegateIfNeeded → payNegateDecide）。
+    // ここはその答えを読むだけ。答えは1回の対象化につき1つなので、**読んだら消費する**
+    const decision = state.payNegateDecision
+    if (decision !== undefined && decision.targetInstanceId === target.instanceId) {
+        delete state.payNegateDecision
+        // 破棄は聞いた時点で済ませてある（払ったならここでは手札に触らない）
+        return decision.paid ? { category: "paidNegate", label: "手札を破棄して効果を受けなかった" } : null
+    }
     for (const source of effectSources(state, targetOwnerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -356,6 +360,75 @@ function tryPayableTargetNegate(
         }
     }
     return null
+}
+
+// 「手札を破棄することで効果を受けない」を**払うかどうか、守る側に聞く**。
+// 聞いて中断したら true を返す（呼び出し元はそのまま return する。応答後に元のアクションが解決し直される）。
+//
+// 呼ぶ場所は **resistanceAgainst の直前**（対象が確定してから適用するまでの間）。
+// 効果の内容（どのカードの効果で、どのスピリットが対象か）が分かった状態で聞けるのはここだけで、
+// 判定そのものは装甲と同じ同期の述語のままにしておける。
+export function askPayToNegateIfNeeded(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+    resume: EffectAction,
+    self: CardInstance | null,
+    sourceName: string,
+): boolean {
+    // 非対話（テスト・自動解決）では聞かない。従来どおり払える限り自動で払う
+    if (!state.interactiveTargets) return false
+    if (attempt.probing) return false // 候補を数えているだけの問い合わせでは聞かない
+    if (attempt.scope !== "targeted") return false
+    if (attempt.actorPid === targetOwnerPid) return false
+    if (attempt.sourceType !== "spirit") return false
+    // すでに答えが出ている（＝この中断から戻ってきた）なら聞き直さない
+    if (state.payNegateDecision?.targetInstanceId === target.instanceId) return false
+    // 盤面だけで決まる耐性で既に防げているなら、手札を使わせない（tryPayableTargetNegate と同じ順序）
+    if (boardResistanceAgainst(state, targetOwnerPid, target, attempt)) return false
+    const player = state.players[targetOwnerPid]
+    for (const source of effectSources(state, targetOwnerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "targetNegateByHandDiscard") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.bySourceType !== attempt.sourceType) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
+            }
+            if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            // 払えないなら聞かない（そのまま効果を受ける）
+            if (player.hand.length < effect.discardCount) continue
+            requestCardChoice(
+                state,
+                // pid は**効果の実行者**（解決の主体。actorPid に入る）。
+                // 選ぶのは守る側なので、下の chooserPid に targetOwnerPid を渡す。
+                // ここを両方 targetOwnerPid にすると actorPid が立たず、
+                // 再開時に効果が守る側のものとして解決されてしまう（＝耐性が自分の効果扱いで無効になる）
+                attempt.actorPid,
+                `${sourceName}の効果から${getCard(target.cardId).name}を守るために破棄する手札を選んでください（選ばなければ効果を受けます）`,
+                "hand",
+                player.hand.map((_, i) => i),
+                true, // optional：スキップ＝効果を受ける
+                {
+                    type: "payNegateDecide",
+                    targetInstanceId: target.instanceId,
+                    discardCount: effect.discardCount,
+                    sourceName: getCard(source.cardId).name,
+                    resume,
+                },
+                self,
+                false,
+                true, // resolveOnSkip：スキップでも payNegateDecide へ戻して resume を解決する
+                targetOwnerPid, // 選ぶのは守る側。解決は効果の実行者のまま
+            )
+            return true
+        }
+    }
+    return false
 }
 
 // resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
@@ -2204,14 +2277,24 @@ export function summonFreeFromHandIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
-            (skipTensho
-                ? "（このスピリットの召喚時効果は発揮されない。【転召】も発揮したものとして扱う）"
-                : "（このスピリットの召喚時効果は発揮されない）"),
+            (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
-    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない。
-    // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ：「【転召】させずに召喚できる」の明記あり）
+    // 転召持ちを召喚しても転召は無視できない）。
+    // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ／X002極龍帝ジーク・ソル・フリード：
+    // 「【転召】させずに召喚できる」の明記あり）
     if (!state.winner && !skipTensho) resolveTensho(state, owner, inst)
+    // ⚠️ **これも「召喚」なので、召喚時効果と「召喚されたとき」の誘発が発揮される**（2026-08-17 修正）。
+    // 以前はどちらも呼ばず「召喚時効果は発揮されない」とログに出していたが、
+    // 対象26枚のどのカードにも効果文にその制限は書かれていない
+    // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
+    //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
+    // summonSequence として積み直して選択の解決後に合流する
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
+    } else {
+        fireSummonSequence(state, owner, inst)
+    }
 }
 
 // summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
@@ -2241,12 +2324,17 @@ export function summonFreeFromTrashIndex(
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。` +
-            "（このスピリットの召喚時効果は発揮されない）",
+        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。`,
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
-    // 転召持ちを召喚しても転召は無視できない）。「召喚時効果は発揮されない」は転召を免除しない
+    // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst)
+    // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
+    } else {
+        fireSummonSequence(state, owner, inst)
+    }
 }
 
 // instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
@@ -2784,28 +2872,35 @@ export function requestCardChoice(
     // スキップされたときも action を（cardIndex なしで）解決する。選び終わってから
     // 後処理がある効果で使う（PendingChoice.resolveOnSkip。BS08堕天使ミカファール）
     resolveOnSkip = false,
+    // 選ぶのが効果の持ち主ではない場合の選択者（requestChoice の chooserPid と同じ考え方）。
+    // 「相手の効果から自分を守るために、**守る側が自分の手札を捨てる**」（BS08竜騎集う円卓Lv2）のように、
+    // 選択者・ゾーンの持ち主と、効果の実行者が別人になる場合に使う。
+    // 解決自体は元の実行者（pid）の効果として続けるため actorPid に pid を残す
+    chooserPid?: PlayerId,
 ): void {
     if (cardIndices.length === 0) {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
         return
     }
     const only = cardIndices[0]
-    if (!alwaysAsk && cardIndices.length === 1 && only !== undefined) {
+    // chooserPid があるときは「選ばない」も意味を持つ選択なので、候補1枚でも自動解決しない
+    if (!alwaysAsk && chooserPid === undefined && cardIndices.length === 1 && only !== undefined) {
         resolveAction(state, pid, self, action, undefined, undefined, undefined, undefined, only)
         return
     }
     suspend(state, {
-        pid,
+        pid: chooserPid ?? pid,
         kind: "card",
         prompt,
         candidates: [],
         cardZone,
-        cardOwner: pid,
+        cardOwner: chooserPid ?? pid,
         cardIndices,
         optional,
         ...(resolveOnSkip ? { resolveOnSkip: true as const } : {}),
         action,
         selfInstanceId: self ? self.instanceId : null,
+        ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
     })
 }
 

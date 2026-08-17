@@ -17,6 +17,7 @@ import {
     noteHandleActionEntry,
     pushResumeFrames,
     suspend,
+    resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
@@ -77,6 +78,7 @@ import {
     returnSpiritToHand,
     fireBounceTriggers,
     flushBounces,
+    requestActivationConfirm,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -184,8 +186,8 @@ function dispatchAction(
     // 降参はゲームの手順の外側にある操作なので、他のどの検証よりも先に処理する
     // （自分のターンでなくても、フラッシュ中でも、対象の選択待ち中でも降参できる）
     if (action.type === "surrender") return doSurrender(state, pid)
-    // 「手札を破棄して効果を受けない」を払うかどうかの方針切り替え（BS08竜騎集う円卓Lv2）。
-    // 盤面を変えない設定操作なので、降参と同じくいつでも受け付ける
+    // ⚠️ 廃止予定：この設定は**もう判定に使われない**（2026-08-17 に効果ごとに聞く形へ移した）。
+    // クライアントがまだ送ってくるので受け皿だけ残している。UI からトグルが消えたら削除すること
     if (action.type === "setPayToNegate") {
         state.players[pid].payToNegate = action.enabled
         log(
@@ -1107,6 +1109,18 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 同時に発揮する誘発のうち「どれから解決するか」（ターンプレイヤーが決める）。
+    // action は解決せず、選ばれた番号を記録して誘発バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
+    if (pending.triggerOrder) {
+        const options = pending.options ?? []
+        if (option === undefined) return "どの効果から解決するか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0 || index >= pending.triggerOrder.count) return "選択できない候補です"
+        state.pendingChoice = null
+        state.triggerOrderPick = index
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
     // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
     if (pending.destroyOrder) {
@@ -1337,10 +1351,30 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             resumeBattleResolution(state, frame)
             continue
         }
+        if (frame.kind === "triggerBatch") {
+            resumeTriggerBatch(state, frame)
+            continue
+        }
+        // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
+        if (frame.logText !== undefined) log(state, frame.logText)
         const frameSelf = frame.selfInstanceId
             ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
             : null
-        resolveAction(state, frame.actorPid ?? pid, frameSelf, frame.action)
+        // optional な誘発の残りは、解決ではなく**発動確認から**再開する
+        if (frame.confirmPrompt !== undefined) {
+            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf)
+            continue
+        }
+        // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
+        resolveAction(
+            state,
+            frame.actorPid ?? pid,
+            frameSelf,
+            frame.action,
+            frame.targetInstanceId,
+            frame.sourceColors,
+            frame.sourceType,
+        )
     }
     return null
 }

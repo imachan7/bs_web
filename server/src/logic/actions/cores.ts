@@ -7,6 +7,7 @@ import {
     fireFieldEventTriggers,
     bothSidesPids,
     isResisted,
+    askPayToNegateIfNeeded,
     resistanceAgainst,
     checkExhaustOnCoreChange,
     countEffectCounter,
@@ -90,7 +91,10 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             return
         }
         // 明示ターゲットが相手側かつ装甲該当・マジック効果耐性該当なら効果を受けない
-        const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "coreRemove", "targeted"))
+        const coreAttempt = attemptOf(ctx, "coreRemove", "targeted")
+        // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
+        if (askPayToNegateIfNeeded(state, found.pid, found.inst, coreAttempt, action, self, sourceName)) return
+        const resisted = resistanceAgainst(state, found.pid, found.inst, coreAttempt)
         if (resisted) {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
             return
@@ -148,7 +152,10 @@ const coreDrainToLowerLevelHandler: ActionHandler<"coreDrainToLowerLevel"> = (ct
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "coreRemove", "targeted"))
+    const coreAttempt2 = attemptOf(ctx, "coreRemove", "targeted")
+    // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
+    if (askPayToNegateIfNeeded(state, found.pid, found.inst, coreAttempt2, { type: "coreDrainToLowerLevel" }, ctx.self, sourceName)) return
+    const resisted = resistanceAgainst(state, found.pid, found.inst, coreAttempt2)
     if (resisted) {
         log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
         return

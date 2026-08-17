@@ -16,6 +16,8 @@
  *   S3 任意性:   文末が「〜できる。」 vs optional:true / chooserIsTarget:true
  *   S4 タイミング: 見出しの『自分のアタックステップ』等 vs phase/turn/phaseTurn/step
  *   S5 数値:     節中の数値（N枚/N個/N体/BP+N/コストN以下） vs 対応するレベル群の数値フィールド
+ *   S8 重複:     同じ action を OR で2エントリに分けていて、両立すると二重発火する
+ *                （キーワード・系統・色での分割が危ない。levels/role/trigger/event 等は構造的に排他）
  *
  * 誤検出を減らす前処理（これが無いと166件中ほとんどが誤検出になる）:
  *   1. キーワードの定型説明文を落とす（頻度ベース: 同一文が3枚以上のカードの【…】直後に現れるもの）
@@ -599,8 +601,59 @@ function splitSentences(text: string): string[] {
 // 検出本体
 // ============================================================
 
+// ============================================================
+// S8: 重複（同じ action を OR で2エントリに分けている）
+// ============================================================
+//
+// SD01-027 溶岩の大瀑布「【覚醒】/【激突】を持つ自分のスピリットが…1枚ドローする」を
+// winnerKeywordFilter 違いの2エントリで書いていたため、**両方を持つスピリット**
+// （X004 龍星神ジーク・メテオヴルム）で2枚引いていた（2026-08-17 に修正）。
+//
+// 危ないのは「1体が同時に複数持てる」フィルタ（キーワード・系統・色）での分割だけ。
+// 下のキーが差分にあるものは**構造的に排他**なので、分けて書いても二重発火しない。
+const EXCLUSIVE_KEYS = new Set([
+    "levels", // レベルで排他
+    "role", // 1回のバトルで自分は attacker か blocker のどちらか
+    "battleRole",
+    "trigger", // 誘発イベントが別（onSummon / onAttack / onBlock…）
+    "event", // fieldEvent のイベントが別（ownMagicUsed / opponentMagicUsed…）
+    "step",
+    "phase",
+    "phaseTurn",
+    "turn",
+    "condition",
+    "magicCostEquals", // 1枚のマジックのコストは1つ
+    "winnerNameContains", // 1体が両方の名前を含むことはない
+    "byBattleOnly",
+])
+
+// 同一カード内で action が完全一致するエントリ対
+function pairsOfSameAction(effects: Record<string, unknown>[]): [Record<string, unknown>, Record<string, unknown>][] {
+    const out: [Record<string, unknown>, Record<string, unknown>][] = []
+    for (let i = 0; i < effects.length; i++) {
+        for (let j = i + 1; j < effects.length; j++) {
+            const a = effects[i]
+            const b = effects[j]
+            if (!a || !b) continue
+            if (a.kind !== b.kind) continue
+            if (!("action" in a) || !("action" in b)) continue
+            if (JSON.stringify(a.action) !== JSON.stringify(b.action)) continue
+            out.push([a, b])
+        }
+    }
+    return out
+}
+
+// id と action を除いた差分キー
+function diffKeys(a: Record<string, unknown>, b: Record<string, unknown>): string[] {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+    keys.delete("id")
+    keys.delete("action")
+    return [...keys].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+}
+
 interface SemGap {
-    axis: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7"
+    axis: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8"
     cardId: string
     name: string
     textEvidence: string
@@ -791,6 +844,22 @@ for (const card of cards) {
             }
         }
     }
+
+    // ---- S8 重複（OR を2エントリに分けたための二重発火） ----
+    if (!axisFilter || axisFilter === "S8") {
+        for (const [a, b] of pairsOfSameAction(card.effects)) {
+            const diff = diffKeys(a, b)
+            // 差分に「構造的に排他な軸」が1つでもあれば、同時に成立しないので安全
+            if (diff.some((k) => EXCLUSIVE_KEYS.has(k))) continue
+            gaps.push({
+                axis: "S8",
+                cardId: card.cardId,
+                name: card.name,
+                textEvidence: `同じ効果を2エントリに分けている（${a.id ?? "?"} / ${b.id ?? "?"}）`,
+                implKinds: `${String(a.kind)}：差分は ${diff.join(",") || "(完全同一)"}`,
+            })
+        }
+    }
 }
 
 gaps.sort((a, b) => a.axis.localeCompare(b.axis) || a.cardId.localeCompare(b.cardId))
@@ -807,8 +876,9 @@ if (jsonOutput) {
         S5: "S5 数値（節中の数値が対応レベル群の実装にどこにも現れない）",
         S6: "S6 解決の主体（fieldEvent が相手側でも発火するのに主体を発生源側へ固定していない）",
         S7: "S7 誰が選ぶか（効果文の主語と、実装側の選択者が食い違う）",
+        S8: "S8 重複（同じ効果を OR で2エントリに分けていて、両立すると二重発火する）",
     }
-    const order: SemGap["axis"][] = ["S1", "S2", "S3", "S4", "S5", "S6", "S7"]
+    const order: SemGap["axis"][] = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]
     for (const axis of order) {
         if (axisFilter && axisFilter !== axis) continue
         const list = gaps.filter((g) => g.axis === axis)
