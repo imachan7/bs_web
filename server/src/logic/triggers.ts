@@ -571,6 +571,15 @@ export function fireBattleWonTriggers(
             actorPid: winnerPid,
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => getCard(e.inst.cardId).name,
+            // ⚠️ **カード単位**で見る（効果エントリ単位にしない）。同じカードの複数エントリは
+            // 「ドロー後、〜する」のようにテキストで順序が決まっているので同時発揮ではなく、
+            // 同名カードを2枚並べた場合は順序を入れ替えても結果が同じ（対称）
+            key: (e) => e.inst.cardId,
+        },
     })
 }
 
@@ -756,8 +765,17 @@ export function fireStepTriggers(
             selfInstanceId: e.inst.instanceId,
             action: e.effect.action,
             actorPid: e.pid,
+            logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}`,
+            // ⚠️ **カード単位**で見る（同じカードの複数エントリはテキスト順で決まっており同時発揮ではない）。
+            // 持ち主が違えば別扱い（自分と相手の同名ネクサスは順序が結果を変えうる）
+            key: (e) => `${e.pid}:${e.inst.cardId}`,
+        },
     })
 }
 
@@ -1076,6 +1094,12 @@ export function fireFieldEventTriggers(
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
                 ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
             }
+        },
+        // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
+        askOrder: {
+            pid: state.turnPlayer,
+            label: (e) => getCard(e.inst.cardId).name,
+            key: (e) => `${e.inst.cardId}:${e.effect.id}`,
         },
     })
 }

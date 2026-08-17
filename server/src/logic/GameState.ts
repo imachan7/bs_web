@@ -320,8 +320,42 @@ export function resolveInOrder<T>(
         skip?: (item: T) => boolean
         resolve: (item: T) => void
         frame: (item: T) => ResumeFrame
+        // 同時発揮の解決順をターンプレイヤーに選ばせるとき、その表示ラベルを返す
+        // （docs/design/TIMING_CHART.md §0-3。**誘発だけに付ける**。
+        // 1つの効果の中のアクション列＝chooseActionMode は「同時発揮」ではないので付けない）。
+        // `key` は「同じ効果か」の判定用。**全部が同じ効果なら聞かない**
+        // （同名ネクサスを2枚並べた場合など。解決順を入れ替えても結果が同じ＝対称なので、
+        // 聞いても選ぶ意味がなく、ドローステップのたびに確認が出て煩雑になるだけ）
+        askOrder?: { pid: PlayerId; label: (item: T) => string; key: (item: T) => string }
     },
 ): void {
+    // 2件以上が同時に発揮するなら、解決順はターンプレイヤーが決める。
+    // 全部をフレーム化して誘発バッチに預け、あとは resumeTriggerBatch が1件ずつ聞いて解決する
+    if (handlers.askOrder !== undefined && state.interactiveTargets) {
+        const ask = handlers.askOrder
+        const live = items.filter((item) => handlers.skip?.(item) !== true)
+        // key（＝カード単位）でグループ化する。同じカードの複数エントリは1グループにまとめ、
+        // 中は元の順（テキスト順）で解決する
+        const groups: { key: string; label: string; frames: ResumeFrame[] }[] = []
+        for (const item of live) {
+            const key = ask.key(item)
+            const found = groups.find((g) => g.key === key)
+            if (found) found.frames.push(handlers.frame(item))
+            else groups.push({ key, label: ask.label(item), frames: [handlers.frame(item)] })
+        }
+        if (groups.length >= 2) {
+            // ⚠️ **積むだけにしないこと。** 再開スタックは act() の解決ループでしか消化されないので、
+            // 積んだだけでは呼び出し元が「何も起きなかった」と見えてしまう
+            // （pendingChoice が立たない＝中断として扱われず、誘発が放置される）。
+            // resumeTriggerBatch がこの場で聞く（＝pendingChoice を立てる）ので、既存の中断フローに乗る
+            resumeTriggerBatch(state, {
+                kind: "triggerBatch",
+                askPid: ask.pid,
+                groups: groups.map((g, i) => ({ label: `${i + 1}. ${g.label}`, frames: g.frames })),
+            })
+            return
+        }
+    }
     for (let i = 0; i < items.length; i++) {
         const item = items[i]
         if (item === undefined) continue
@@ -333,6 +367,45 @@ export function resolveInOrder<T>(
             return
         }
     }
+}
+
+// 誘発バッチの再開：残りが2件以上ならターンプレイヤーに解決順を聞き、
+// 選ばれた1件を解決フレームとして積む。残りはまたバッチとして積み直すので、
+// **1件解決するごとに聞き直す**（docs/design/TIMING_CHART.md §0-3）。
+// ここでは効果を直接解決しない（resolveAction を呼ばずフレームを積むだけ）。
+export function resumeTriggerBatch(
+    state: GameState,
+    frame: Extract<ResumeFrame, { kind: "triggerBatch" }>,
+): void {
+    const groups = [...frame.groups]
+    if (groups.length === 0) return
+    let index = 0
+    if (groups.length >= 2) {
+        const pick = state.triggerOrderPick
+        if (pick === undefined) {
+            // まだ聞いていない：このバッチをそのまま積み直してから聞く
+            pushResumeFrames(state, [frame])
+            suspend(state, {
+                pid: frame.askPid,
+                kind: "option",
+                prompt: "同時に発揮する効果があります。どれから解決しますか？",
+                candidates: [],
+                options: groups.map((g) => g.label),
+                optional: false, // 解決順は必ず決める（スキップさせない）
+                triggerOrder: { count: groups.length },
+                action: { type: "noop" },
+                selfInstanceId: null,
+            })
+            return
+        }
+        delete state.triggerOrderPick
+        index = pick < groups.length ? pick : 0
+    }
+    const picked = groups.splice(index, 1)[0]
+    if (picked === undefined) return
+    // 選ばれたグループ（中は元の順） → その後に残りのバッチ、の順で積む
+    const rest: ResumeFrame[] = groups.length > 0 ? [{ kind: "triggerBatch", askPid: frame.askPid, groups }] : []
+    pushResumeFrames(state, [...picked.frames, ...rest])
 }
 
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）

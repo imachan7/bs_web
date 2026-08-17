@@ -550,6 +550,30 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ⚠️ **`audit:semantics`（S1〜S8）はこの層を見ていない。** データと効果文しか突き合わせないので、
 「ハンドラ実装が対象を勝手に選んでいる」は死角。S9 軸の案は PROCEDURES_AUDIT §6。
 
+### 2026-08-17 その4：同時発揮の解決順をターンプレイヤーが決めるようにした（Q1 決着）
+
+棚卸し（§その3）で見つけた「文書にあるのに実装が従っていない規則」を実装した。
+
+- **誘発（`step` / `fieldEvent` / `battleWon`）でも解決順を聞く**。粒度の決着は
+  **[TIMING_CHART.md](./docs/design/TIMING_CHART.md) §0「実装状況」**（1行として移してある）:
+  **別のカード同士なら聞く／同じカードの複数エントリと同名カード2枚は聞かない**
+- 器は `GameState.resolveInOrder` の `askOrder` と `ResumeFrame` の `triggerBatch`。
+  破壊の `destroyOrder` と同じ形（pick を state に記録してバッチの再開へ戻す）
+- **UI側の追加実装は不要**（既存の `kind:"option"` 表示で受けられる）
+- 回帰テストは `scripts/smoke/part217.ts`
+
+⚠️ **踏んだ落とし穴**：再開スタックは `act()` の解決ループでしか消化されない。
+束を積むだけでは `pendingChoice` が立たず、呼び出し元から「何も起きなかった」ように見えて
+誘発が放置される（→ `resolveInOrder` はその場で `resumeTriggerBatch` を呼ぶ）。
+
+⚠️ **`scripts/coverage-effects.ts` は import 文の並びを文字列で持っている。**
+`GameEngine.ts` の import に1行足しただけで計測点が壊れて smoke が2件落ちた。
+import を触ったら `npm run smoke` の「計測点は全件健在」を確認する。
+
+**残りの質問（Q2〜Q4・Q6）は [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md) §5。**
+Q2（対戦者が選べていない57件）は**影響枚数の多い順に直す**方針でユーザー確認済み（2026-08-17）。
+次の着手先は `refreshSelf` 38枚 → `deckReveal` 12枚 → `destroyNexus` 11枚 → `lifeCrush` 10枚。
+
 ### 次にやること（この順）
 
 1. **PR #26 → #27 の順でマージする**（#27 の base は #26）

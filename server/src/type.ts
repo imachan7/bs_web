@@ -1776,6 +1776,14 @@ export interface PendingChoice {
         instanceId: string
         slots: ("destroy" | "fushi")[] // PendingChoice.options と同順
     }
+    triggerOrder?: {
+        // 同時に発揮する**誘発**のうち「どれから解決するか」の選択待ち。destroyOrder と同じく
+        // **action は解決しない**。選ぶのは常にターンプレイヤーで、選ばれた番号は
+        // GameState.triggerOrderPick に記録され、誘発バッチ（ResumeFrame の triggerBatch）が
+        // その1件を取り出して解決し、残りが2件以上ならまた聞く。
+        // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
+        count: number // 候補の件数（PendingChoice.options と同順）
+    }
     destroyOrder?: {
         // 同時に破壊される複数体のうち「**どの体から破壊処理をするか**」の選択待ち。
         // reviveConfirm と同じく **action は解決しない**。選ぶのは常にターンプレイヤーで、
@@ -1858,9 +1866,19 @@ export type ResumeFrame =
           // 「〜できる」（optional）の誘発の残りを積むときに入れる。再開時は**発動確認から始める**。
           // 入れないと2枚目以降が確認なしで自動発動してしまう（同名ネクサスを並べたときに出る）
           confirmPrompt?: string
+          // 解決の直前に出すログ（ステップ誘発の「〜の効果が発動した」を再開経路でも残すため）
+          logText?: string
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）
+      }
+    | {
+          kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
+          // そのたびにターンプレイヤーへ解決順を聞く（docs/design/TIMING_CHART.md §0-3）
+          askPid: PlayerId // 解決順を決める側（＝ターンプレイヤー）
+          // **グループは「カード単位」**。同じカードの複数エントリは「ドロー後、〜する」のように
+          // テキストで順序が決まっているので、まとめて1つの選択肢として扱い、中は元の順で解決する
+          groups: { label: string; frames: ResumeFrame[] }[]
       }
     | {
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
@@ -2029,6 +2047,9 @@ export interface GameState {
     // 破壊バッチ（destroySpiritsFrom）が再開時に読み取り、その個体を残りの先頭へ入れ替えて消す。
     // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）
     destroyOrderPick?: string
+    // 直前の「どの誘発から解決するか」（PendingChoice.triggerOrder）でターンプレイヤーが選んだ番号。
+    // 誘発バッチ（ResumeFrame の triggerBatch）が再開時に読み取り、読んだら消す
+    triggerOrderPick?: number
     // 直前の「破壊とその同時発揮の効果、どちらを先に解決するか」（PendingChoice.destroyEffectOrder）で
     // ターンプレイヤーが選んだ側。destroySpiritsFrom が読み取って解決順を組み立て、読んだら消す
     destroyEffectOrderPick?: "destroy" | "fushi"

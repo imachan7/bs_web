@@ -17,6 +17,7 @@ import {
     noteHandleActionEntry,
     pushResumeFrames,
     suspend,
+    resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
@@ -1108,6 +1109,18 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 同時に発揮する誘発のうち「どれから解決するか」（ターンプレイヤーが決める）。
+    // action は解決せず、選ばれた番号を記録して誘発バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
+    if (pending.triggerOrder) {
+        const options = pending.options ?? []
+        if (option === undefined) return "どの効果から解決するか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0 || index >= pending.triggerOrder.count) return "選択できない候補です"
+        state.pendingChoice = null
+        state.triggerOrderPick = index
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
     // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
     if (pending.destroyOrder) {
@@ -1338,6 +1351,12 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             resumeBattleResolution(state, frame)
             continue
         }
+        if (frame.kind === "triggerBatch") {
+            resumeTriggerBatch(state, frame)
+            continue
+        }
+        // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
+        if (frame.logText !== undefined) log(state, frame.logText)
         const frameSelf = frame.selfInstanceId
             ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
             : null
