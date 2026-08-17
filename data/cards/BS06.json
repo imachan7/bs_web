@@ -3168,7 +3168,8 @@
      3
     ],
     "turn": "own",
-    "protectCost": 2
+    "protectCost": 2,
+    "optional": true
    },
    {
     "id": "BS06-056-e3",
