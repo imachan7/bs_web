@@ -414,6 +414,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

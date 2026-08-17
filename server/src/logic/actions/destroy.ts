@@ -16,6 +16,7 @@ import {
     fireTrigger,
     findSpiritAny,
     isResisted,
+    askPayToNegateIfNeeded,
     resistanceAgainst,
     matchesFamilyFilter,
     notifyNexusDeployed,
@@ -116,7 +117,11 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 return
             }
             // 対象指定なので scope は "targeted"（「相手の効果の対象にならない」がここでは効く）
-            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "destroy", "targeted"))
+            const destroyAttempt = attemptOf(ctx, "destroy", "targeted")
+            // 「手札を破棄することで効果を受けない」は**払うかを守る側に聞いてから**判定する
+            // （BS08竜騎集う円卓Lv2。聞いたら中断し、応答後にこのアクションが解決し直される）
+            if (askPayToNegateIfNeeded(state, found.pid, found.inst, destroyAttempt, action, self, sourceName)) return
+            const resisted = resistanceAgainst(state, found.pid, found.inst, destroyAttempt)
             if (resisted) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 return
