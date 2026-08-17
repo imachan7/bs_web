@@ -1213,6 +1213,14 @@ function setTargetRedirect(
     )
 }
 
+// この発生源の絞り込みが「〜にできる」＝任意か（optional:true）。
+// 任意のものだけ、絞り込む前に持ち主へ確認を出す。強制（optional 未指定）なら確認せず自動で絞り込む
+function isRedirectOptional(inst: CardInstance): boolean {
+    return getCard(inst.cardId).effects.some(
+        (e) => e.kind === "magicTargetRedirect" && e.optional === true,
+    )
+}
+
 // magicTargetRedirect の発生源を探す（実際に絞り込むかは呼び出し側が決める）。
 // resolveMagic の事前確認（このマジックで絞り込みが起こりうるか）と setMagicRedirect が共用する
 function findMagicRedirectSource(
@@ -1469,7 +1477,7 @@ export function resolveMagic(
     delete state.magicRedirectDecision
     if (state.interactiveTargets) {
         const redirectSource = findMagicRedirectSourceForCard(state, owner, card, timing, targetInstanceId)
-        if (redirectSource) {
+        if (redirectSource && isRedirectOptional(redirectSource)) {
             suspend(state, {
                 pid: opponentOf(owner),
                 kind: "option",

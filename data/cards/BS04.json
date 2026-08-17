@@ -3126,7 +3126,8 @@
     "levels": [
      2
     ],
-    "turn": "opponent"
+    "turn": "opponent",
+    "optional": true
    }
   ]
  },

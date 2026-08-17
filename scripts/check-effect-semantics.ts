@@ -228,14 +228,14 @@ function hasOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 }
 
 // 等価表現: type.ts を確認すると `optional?` フィールドを持てる kind は
-// triggered/step/battleWon/fieldEvent/reviveOnDestroy/deckMillNegate の6種だけで、
-// constraint・keyword・levelAs・familyGrant・magicTargetRedirect・reductionGrant・
+// triggered/step/battleWon/fieldEvent/reviveOnDestroy/deckMillNegate/magicTargetRedirect の7種だけで、
+// constraint・keyword・levelAs・familyGrant・reductionGrant・
 // magicFreeGrant・constraintGrant・colorAs・alsoCostGrant 等の「発生源が場にある間ずっと有効な
 // 継続的な権限付与」は構造上 optional を持てない（「〜できる」は"許可"を表す定型文で、
 // 効果解決のたびに選ぶ任意発揮ではない）。これらの kind しか無いカードに「できる。」があっても
 // 実装側に対応するフィールドが存在しえないため、S3 の対象から外す
 // （実測: 166件中ほぼ全部がこのカテゴリで、キーワード定義の頻度ベース除外だけでは拾いきれなかった）
-const OPTIONAL_CAPABLE_KINDS = new Set(["triggered", "step", "battleWon", "fieldEvent", "reviveOnDestroy", "deckMillNegate", "magic"])
+const OPTIONAL_CAPABLE_KINDS = new Set(["triggered", "step", "battleWon", "fieldEvent", "reviveOnDestroy", "deckMillNegate", "magic", "magicTargetRedirect"])
 
 function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
     return effects.some((e) => {
