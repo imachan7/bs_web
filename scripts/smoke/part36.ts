@@ -1,10 +1,10 @@
-// smoke パート36（BS04第四弾基盤エンジン: 新キーワード【転召】・ダブルシンボルのライフダメージ・制限カード）
+// smoke パート36（BS04第四弾基盤エンジン: 新キーワード【転召】・ダブルシンボルのライフダメージ・禁止/制限の適用ポリシー）
 // 収録セクション:
 //   - 【転召】（trash）: 候補1体でコアがすべてトラッシュへ、維持コア割れで消滅
 //   - 【転召】: 候補0体は不発（召喚自体は成立）
 //   - 【転召】（void）: 候補1体でコアが消滅（トラッシュにもリザーブにも移らない）
 //   - ダブルシンボル: symbol2つのアタッカーの被ブロックなしライフダメージは2
-//   - limitCount: 同名上限を3枚未満に絞る制限カードの検証
+//   - 禁止・制限の適用ポリシー（deckPolicy）: 制限は適用せず、禁止はケルル・ベロスのみ
 import {
     assert,
     act,
@@ -115,9 +115,21 @@ console.log("=== ダブルシンボル: symbol2つのアタッカーの被ブロ
     assert(s.players.p2.life === lifeBefore - 2, "シンボル2つぶんライフが2減る")
 }
 
-console.log("=== limitCount: 制限カードを2枚入れたデッキは validateDeckCards で拒否される ===")
+console.log("=== 禁止・制限の適用ポリシー: 制限カードは適用せず、禁止はケルル・ベロスのみ ===")
 {
-    const error = validateDeckCards({ "BS04-082": 2 })
-    assert(error !== null, "限度枚数(1)を超えると拒否される")
-    assert(!!error && error.includes("1枚"), `エラーメッセージに上限枚数(1)が含まれる（実際: ${error}）`)
+    // 公式の制限リストは適用しない（server/src/logic/deckPolicy.ts）。
+    // BS04-082 侵されざる聖域はデータ上 limitCount:1 だが、通常どおり3枚まで入る
+    const three = validateDeckCards({ "BS04-082": 3 })
+    assert(
+        !!three && !three.includes("同名"),
+        `制限カードでも3枚は同名上限で弾かれない（実際: ${three}）`,
+    )
+    const four = validateDeckCards({ "BS04-082": 4 })
+    assert(!!four && four.includes("3枚"), `4枚目は通常の同名上限(3)で弾かれる（実際: ${four}）`)
+    assert(getCard("BS04-082").limitCount === undefined, "配布されるカードデータからも制限が外れている")
+
+    // 禁止はケルル・ベロスだけ適用する
+    const banned = validateDeckCards({ "BS02-063": 1 })
+    assert(!!banned && banned.includes("禁止"), `冥犬ケルル・ベロスは禁止カードとして弾かれる（実際: ${banned}）`)
+    assert(getCard("SD02-014").limited === false, "魔法監視塔は禁止として適用しない")
 }
