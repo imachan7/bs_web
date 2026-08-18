@@ -28,6 +28,7 @@ import { loadAllCards } from "../../../data/loadCards"
 // 呼ぶために必要
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 import { setCardLookup } from "../../../shared/cardDb"
+import { applyDeckPolicy } from "./deckPolicy"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
 import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
@@ -35,8 +36,10 @@ export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
 
-// 弾ごとに分割された data/cards/BS0N.json をまとめて読む（data/loadCards.ts 参照）
-export const ALL_CARDS: CardData[] = loadAllCards()
+// 弾ごとに分割された data/cards/BS0N.json をまとめて読む（data/loadCards.ts 参照）。
+// 読み込んだ時点で禁止・制限の適用ポリシー（deckPolicy.ts）を通す。データ側の
+// limited / limitCount は Wiki 由来の事実なので消さず、実際に効かせるかはあちらで決める
+export const ALL_CARDS: CardData[] = loadAllCards().map(applyDeckPolicy)
 
 export const CARD_DB: Map<string, CardData> = new Map(
     ALL_CARDS.map((c) => [c.cardId, c]),
