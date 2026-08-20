@@ -7,6 +7,7 @@
 //   - ラルバをLv2で召喚したとき、召喚時効果の解決時点で自身が白として数えられている
 import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
 import { countSymbols } from "../../shared/rules"
+import { ownFieldSymbolColors } from "../../shared/cost"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
 
 const CASTLE = "BS04-X16" // 機動要塞キャッスル・ゴレム（青／シンボル青1／Lv2は6コア）
@@ -127,4 +128,21 @@ console.log("=== ラルバ：Lv2で召喚した時点で、自身が白として
         !!larva && larva.cores === getCard(LARVA).levels[1]!.cores + 1,
         `Lv2 の自身も白として数えられ、コアが1個増える（実際: ${larva?.cores} / 期待: ${getCard(LARVA).levels[1]!.cores + 1}）`,
     )
+}
+
+console.log("=== ownFieldSymbolColors：シンボルの色の種類数も同じ規則で数える ===")
+{
+    const s = createGame("field-symbol-colors", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
+    runTurnStart(s)
+    const larva = createInstance(LARVA, s.turn, 2) // Lv2＝白としても扱う（シンボルは緑1つ）
+    s.players.p1.field.spirits.push(larva)
+    refreshLevelAsOverrides(s)
+    const colors = ownFieldSymbolColors(s, "p1")
+    assert(colors.has("green"), "元の緑シンボルの色を数える")
+    assert(colors.has("white"), "「白としても扱う」で得た色も、シンボルの色として数える")
+    assert(colors.size === 2, `色の種類数は2（実際: ${colors.size}）`)
+
+    // 青ネクサスを足すと3色になる（ネクサスのシンボルも数える）
+    s.players.p1.field.nexuses.push(createInstance(BLUE_NEXUS, s.turn, 1))
+    assert(ownFieldSymbolColors(s, "p1").size === 3, "ネクサスのシンボルの色も数える")
 }

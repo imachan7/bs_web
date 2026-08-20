@@ -359,7 +359,7 @@ export type EffectCounter =
     | { ownNameIncludes: string }
     | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット」）
     | { ownColor: Color } // 自分のフィールドの指定色スピリット数
-    | { ownColorSymbols: Color } // 自分のフィールドのスピリットが持つ指定色シンボルの合計数（BS04機動要塞キャッスル・ゴレム＝青シンボル）
+    | { ownColorSymbols: Color } // 自分のフィールドの指定色シンボルの合計数（BS04機動要塞キャッスル・ゴレム＝青シンボル）。**スピリットとネクサスの両方**を数える（2026-08-20 修正。以前はスピリットだけを見ていた）。数え方は shared/rules.countSymbols に一本化してあり、symbolFix による固定・バウンス待機の除外・「◯色としても扱う」で得た色も見る
     | { ownKeyword: Keyword } // 自分のフィールドで指定キーワードを持つスピリット数（静的・一時付与・継続付与すべて考慮。spiritHasKeywordで判定。BS05双剣虎ジェン・フー：【神速】持ち1体につき）
     | { ownNexusColor: Color } // 自分のフィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー：青のネクサス1つにつき）
     | { enemyCost: { max?: number; min?: number } } // 持ち主から見た相手フィールドの、コスト条件を満たすスピリット数（instMatchesCostFilterで判定＝付与コストも見る。BS07バジリザード：コスト3以下の相手1体につき）
