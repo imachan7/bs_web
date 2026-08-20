@@ -30,19 +30,27 @@ console.log("=== deckReveal：公開ゾーン経由で選んでもデッキが�
     s.interactiveTargets = true
     const src = createInstance("BS01-067", s.turn, 1) // スワロウアイヴィー（デッキ上5枚を公開）
     s.players.p1.field.spirits.push(src)
-    // ⚠️ デッキの**先頭にスピリットを1枚持ってくる**。
+    // ⚠️ デッキの**先頭にスピリットを2枚持ってくる**（2026-08-20 修正）。
     // createGame の seed は名前だけで、実際のシャッフルは Math.random（GameState.ts の shuffle）。
-    // つまりデッキ順は実行のたびに変わり、上5枚にスピリットが1枚も無いと
-    // pickType:"spirit" の候補が0件になってこのテストの前提が崩れる（間欠的に落ちていた）。
-    // 総数を変えないよう、デッキ内のスピリットを1枚だけ先頭へ移す
+    // つまりデッキ順は実行のたびに変わる。
+    // **公開ゾーンに乗るのは候補が2枚以上のときだけ**（deckRevealHandler は候補1枚なら選択を挟まず
+    // 自動で手札に加えるので state.revealedCards が立たない）。1枚しか保証しないと
+    // 上5枚のスピリットが1枚のときに落ちる——実測で10回に1回の頻度で落ちていた。
+    // 総数を変えないよう、デッキ内のスピリットを2枚だけ先頭へ移す
     {
         const deck = s.players.p1.deck
-        const idx = deck.findIndex((id) => getCard(id).type === "spirit")
-        assert(idx >= 0, "デッキにスピリットが1枚はある（テストの前提）")
-        if (idx > 0) {
-            const [sp] = deck.splice(idx, 1)
-            if (sp !== undefined) deck.unshift(sp)
+        for (const slot of [1, 0]) {
+            const idx = deck.findIndex((id, i) => i >= slot && getCard(id).type === "spirit")
+            assert(idx >= 0, "デッキにスピリットが2枚はある（テストの前提）")
+            if (idx > slot) {
+                const [sp] = deck.splice(idx, 1)
+                if (sp !== undefined) deck.splice(slot, 0, sp)
+            }
         }
+        assert(
+            s.players.p1.deck.slice(0, 5).filter((id) => getCard(id).type === "spirit").length >= 2,
+            "デッキ上5枚にスピリットが2枚以上ある（選択待ちが立つ前提）",
+        )
     }
     const totalBefore = totalCards(s)
     const deckBefore = s.players.p1.deck.length

@@ -26,8 +26,13 @@ npm run dev     # サーバーとクライアントを同時起動
 
 ## ドキュメント
 
+**このリポジトリを保守・拡張するなら [docs/guide/](./docs/guide/README.md) から読む**（目的別の索引）。
+
+- [docs/guide/](./docs/guide/README.md) — 保守の手引き（コードの地図・カード追加・効果実装・日々の保守）
 - [data.md](./data.md) — データ構造・設計方針の仕様書
 - [SPEC.md](./SPEC.md) — 実装状況・カード/効果の対応・今後の課題（開発メモ）
+- [docs/design/](./docs/design/) — ゲームの手順・解決順の一次資料（実装前に読む）
+- [docs/ops/](./docs/ops/) — デプロイ・インフラ
 
 ## ステータス
 

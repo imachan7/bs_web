@@ -83,6 +83,8 @@ function totalCards(s: GameState): number {
         n += p.field.spirits.length + p.field.nexuses.length
     }
     n += s.revealedCards?.cardIds.length ?? 0
+    // 【転召】の対象選択で中断中の召喚は、カードが手札から出てフィールドにもまだ無い（RESUME_STACK.md §6）
+    n += s.summoningInstanceId !== undefined ? 1 : 0
     return n
 }
 

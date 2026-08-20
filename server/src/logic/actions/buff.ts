@@ -380,18 +380,21 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
 
 const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
-        // 巨神機トールLv1-3：familyFilter一致・self以外・回復状態の自分のスピリット1体
+        // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体
         // （実効BP最大を自動選択＝バフ量を最大化する簡略化）を疲労させ、self自身をその実効BP分だけBP+する。
-        // 「〜することで」の任意コストは自動発動で簡略化
+        // 「〜することで」の任意コストは自動発動で簡略化。
+        // **発生源自身も候補に含む**（2026-08-20 ユーザー確認）。効果文が「系統：「武装」を持つ
+        // 自分のスピリット1体を疲労させることで」であって「このスピリット以外の」と書いていないため
+        // （SEMANTICS_AUDIT.md §3.8）。BS06-X24 鎧神機ヴァルハランスは自身が「武装」持ちなので、
+        // 回復状態でアタックしている間は自分を疲労させてBPを倍にできる。
+        // なお『このスピリットのアタック時』に発火する場合、通常 self はアタック宣言で既に疲労しており
+        // !s.isRested で自然に候補から外れる（【神速】等で回復状態のままなら候補になる）
         if (!self) {
             log(state, `${sourceName}：バフ対象がいなかった。`)
             return
         }
         const candidates = state.players[owner].field.spirits.filter(
-            (s) =>
-                !s.isRested &&
-                s.instanceId !== self.instanceId &&
-                matchesFamilyFilter(state, owner, s, action.familyFilter),
+            (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.familyFilter),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)

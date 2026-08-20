@@ -70,6 +70,7 @@ import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
+    effectiveCost,
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
@@ -1077,6 +1078,14 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
+    // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
+    // refreshLevelAsOverrides は handleAction の事後フックでしか走らないため、
+    // 召喚直後は「場に出たばかりの個体が自分に掛けている継続効果」がまだ反映されていない。
+    // BS09-023要塞蟲ラルバをLv2で召喚すると『召喚時』「自分の白のスピリット2体」に
+    // **自分自身が数えられない**（Lv2 の colorAs で白としても扱われるはずが未反映）。
+    // ここに置けば doSummon・入れ替え召喚・効果による召喚の全経路が一度に揃う（この関数が唯一の合流点）。
+    // refreshLevelAsOverrides は冒頭で継続分を delete して組み直す冪等な関数なので、重ねて呼んでも安全
+    refreshLevelAsOverrides(state)
     const player = state.players[pid]
     // 転召でコアが尽きて消滅していれば、もう何もしない
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
@@ -1338,7 +1347,10 @@ export function resolveTensho(
         requestChoice(
             state,
             ownerPid,
-            `【転召】コアを${dest === "void" ? "ボイドに置く" : "トラッシュに置く"}自分のスピリットを選択`,
+            // 選択待ちの間、召喚するカードは手札からもフィールドからも見えない
+            // （手順どおり「転召 → 召喚完了」の順で解決するため）。何を召喚しているのかが
+            // 対戦者に分かるよう、選択の見出しにカード名を入れる（2026-08-20）
+            `【転召】${getCard(spirit.cardId).name}：コアを${dest === "void" ? "ボイドに置く" : "トラッシュに置く"}自分のスピリットを選択`,
             candidates.map((s) => s.instanceId),
             false,
             { type: "tenshoCoreDump", dest },
@@ -1389,9 +1401,31 @@ function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: CardIns
 // dumpAllCoresTenshoが唯一の解決点なので、呼び出し側（自動/interactive選択のいずれの経路）から
 // 「実際に転召が確定した」タイミングでちょうど1回ずつ呼ぶ
 export function fireTenshoEvent(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
-    fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, {
+    const info = {
         families: [...getCard(inst.cardId).family],
         names: [getCard(inst.cardId).name],
+    }
+    // 召喚の一部としての【転召】では、召喚されたスピリットはまだ場に出ていない
+    // （手順は「コストを支払う → 転召 → 維持コアを置く → 召喚完了」。RESUME_STACK.md §6）。
+    // ここで発火すると、**召喚されたカード自身が持つ『転召したとき』を拾えない**
+    // （BS08-009関将龍皇ドラグロン等6枚。効果文では『召喚時』ブロックの一部として書かれている）。
+    // そこで場に出た時点まで保留する（GameEngine.placeSummonedSpirit が発火させる）
+    if (state.summoningInstanceId !== undefined) {
+        state.pendingTenshoEvent = { pid: ownerPid, ...info }
+        return
+    }
+    fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, info)
+}
+
+// 保留していた『転召したとき』を、召喚されたスピリットが場に出てから発火する。
+// 保留が無ければ何もしない（召喚以外の経路の【転召】は fireTenshoEvent がその場で発火している）
+export function flushPendingTenshoEvent(state: GameState): void {
+    const pending = state.pendingTenshoEvent
+    if (!pending) return
+    delete state.pendingTenshoEvent
+    fireFieldEventTriggers(state, pending.pid, "ownTensho", undefined, undefined, undefined, undefined, {
+        families: pending.families,
+        names: pending.names,
     })
 }
 
@@ -2257,6 +2291,7 @@ export function summonFreeFromHandIndex(
     sourceName: string,
     handIndex: number,
     skipTensho?: true,
+    opts?: { payCost?: true; skipOnSummon?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2266,17 +2301,22 @@ export function summonFreeFromHandIndex(
     }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
-    if (player.reserve < maintain) {
+    // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
+    // 支払い元はリザーブのみ＝フィールドのコアからは払えない簡略化。BS08帝竜騎サイクル）
+    const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
+    if (player.reserve < maintain + cost) {
         log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.hand.splice(handIndex, 1)
-    player.reserve -= maintain
+    player.reserve -= maintain + cost
+    player.trashCores += cost
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+        `${player.name}は${sourceName}の効果で、${card.name}を` +
+            (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
             (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
@@ -2290,6 +2330,13 @@ export function summonFreeFromHandIndex(
     // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
     //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
     // summonSequence として積み直して選択の解決後に合流する
+    // skipOnSummon 指定時は召喚時効果も「召喚されたとき」の誘発も発揮させない。
+    // 効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ
+    // （BS08帝竜騎サイクル6枚）。既定では発揮する（2026-08-17 修正）
+    if (opts?.skipOnSummon) {
+        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
+        return
+    }
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
@@ -2592,13 +2639,13 @@ export function countEffectCounter(
             instHasColor(n, counter.ownNexusColor),
         ).length
     }
-    // { ownColorSymbols: Color }：自分フィールドのスピリットが持つ指定色シンボルの合計数
+    // { ownColorSymbols: Color }：自分フィールドの指定色シンボルの合計数。
+    // **ネクサスのシンボルも数える**（2026-08-20 修正。以前は field.spirits だけを見ていたため
+    // BS04-X16機動要塞キャッスル・ゴレム「自分の青シンボル1つにつき」がネクサス分を取りこぼしていた）。
+    // 軽減計算と同じ countSymbols に寄せることで、symbolFix によるシンボル固定・バウンス待機の除外・
+    // 付与色（colorAs / tempColors）の扱いもまとめて揃う
     if ("ownColorSymbols" in counter) {
-        return state.players[owner].field.spirits.reduce(
-            (sum, s) =>
-                sum + getCard(s.cardId).symbol.filter((c) => c === counter.ownColorSymbols).length,
-            0,
-        )
+        return countSymbols(state.players[owner], [counter.ownColorSymbols])
     }
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）

@@ -467,7 +467,17 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
             // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
             if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+            // payCost：通常の召喚コストを支払う効果では、リザーブで払えないカードは最初から候補にしない
+            // （選ばせてから「払えなかった」で不発にすると、ターンに1回の権利だけ失う）
+            if (action.payCost && player.reserve < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+                return false
+            }
             return true
+        }
+        // summonFreeFromHandIndex へ渡す追加指定（コストを支払う／召喚時効果を発揮させない）
+        const summonOpts = {
+            ...(action.payCost ? { payCost: action.payCost } : {}),
+            ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
@@ -489,7 +499,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 if (bestIdx === -1) break
                 const maintain = minLevelCores(getCard(player.hand[bestIdx]!))
                 if (player.reserve < maintain) break
-                summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho)
+                summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho, summonOpts)
                 summonedCount++
                 if (state.winner) return
             }
@@ -604,7 +614,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
         }
         if (chosenCardIndex !== undefined) {
-            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho)
+            summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
             return
         }
         if (state.interactiveTargets) {
@@ -642,7 +652,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
             return
         }
-        summonFreeFromHandIndex(state, owner, sourceName, bestIndex, action.skipTensho)
+        summonFreeFromHandIndex(state, owner, sourceName, bestIndex, action.skipTensho, summonOpts)
         return
 }
 

@@ -47,7 +47,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores: number): Return
     return inst
 }
 
-console.log("=== パート179：【転召】中に誘発が中断したら、対象の消滅は選択の後 ===")
+console.log("=== パート179：【転召】の解決順（対象の消滅 → 召喚完了 → 召喚時効果） ===")
 
 {
     const dragron = CARDS.find((c) =>
@@ -87,16 +87,25 @@ console.log("=== パート179：【転召】中に誘発が中断したら、対
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, `${dragron.name}を召喚（【転召】の犠牲は${sacrifice.name}）`)
 
-    // ここが本題：誘発（相手の手札破棄）の選択待ちが立っており、
-    // **その時点では犠牲スピリットはまだ場に残っていて消滅していない**
+    // ここが本題：誘発（相手の手札破棄）の選択待ちが立っている。
+    //
+    // ⚠️ 2026-08-20 に発火のタイミングを変えた。ドラグロンのこの効果は効果文では
+    // 『このスピリットの召喚時』ブロックの中に「さらに」で繋がって書かれている
+    // （＝召喚時効果の一部で、「系統：竜人で【転召】したとき」はその条件）。
+    // 手順（RESUME_STACK.md §6）は「コストを支払う → 転召 → 対象の消滅 → 召喚完了 → 召喚時効果」なので、
+    // **この誘発が立つ時点では、転召の対象はすでに消滅していて、本体は場に出ている**。
+    // 以前は本体を先に場へ出してから転召を解決していたため、この誘発が転召の解決中に立ち、
+    // 「犠牲がまだ場に残っている」状態だった
     assert(s.pendingChoice !== null, "『転召が解決したとき』の誘発で選択待ちが立つ")
     assert(
-        s.players.p1.field.spirits.some((sp) => sp.instanceId === victim.instanceId),
-        "選択待ちの間、転召の対象はまだ場に残っている（消滅は誘発の解決後）",
+        !s.players.p1.field.spirits.some((sp) => sp.instanceId === victim.instanceId),
+        "この時点で転召の対象は消滅済み（転召→消滅→召喚完了→召喚時効果の順）",
     )
-    assert(victim.cores > 0, "選択待ちの間、転召の対象のコアはまだ外されていない")
+    assert(
+        s.players.p1.field.spirits.some((sp) => sp.cardId === dragron.cardId),
+        "召喚した本体はすでに場に出ている",
+    )
 
-    // 選択に応答すると、そこで初めてコアが外れて維持コア割れで消滅する
     const chosen = s.pendingChoice?.cardIndices?.[0] ?? -1
     assert(chosen >= 0, "選択待ちはカード選択")
     // ドラグロンの効果文は「**自分は**相手の手札すべてを見て、その中のスピリットカード1枚を破棄する」。
@@ -108,7 +117,7 @@ console.log("=== パート179：【転召】中に誘発が中断したら、対
     assert(s.pendingChoice === null, "選択の解決後、選択待ちは残らない")
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === victim.instanceId),
-        "選択の解決後、転召の対象が維持コア割れで消滅している",
+        "転召の対象は維持コア割れで消滅したまま",
     )
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === dragron.cardId),

@@ -274,7 +274,15 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
     const colors = new Set<Color>()
     const all = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
     for (const inst of all) {
-        for (const sym of card(inst.cardId).symbol) colors.add(sym)
+        // countSymbols と同じ規則で数える（2026-08-20 に揃えた）:
+        // バウンス待機中は数えない／symbolFix で固定されたシンボルを優先する／
+        // 「◯色としても扱う」で得た色は、そのシンボルの色としても数える（元の色も残る）
+        if (inst.pendingBounce) continue
+        const symbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        if (symbols.length === 0) continue
+        for (const sym of symbols) colors.add(sym)
+        for (const c of inst.tempColors) colors.add(c)
+        for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
     }
     return colors
 }

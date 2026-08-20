@@ -3159,7 +3159,8 @@
     ],
     "action": {
      "type": "voidCoreToOther",
-     "count": 1
+     "count": 1,
+     "excludeSelf": true
     },
     "optional": false
    }

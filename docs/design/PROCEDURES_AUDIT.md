@@ -65,6 +65,11 @@ grep -rl "<手順の語>" docs/design/*.md SPEC.md
 | 「〜の効果で〜されたとき」の発生源の追跡 | [EFFECT_SOURCE_CONTEXT.md](./EFFECT_SOURCE_CONTEXT.md) |
 | 誰が誘発効果を出しているか（A/B分類） | [TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md) |
 | 効果の解釈の点検（判定済みの一覧・確定した一般則） | [SEMANTICS_AUDIT.md](./SEMANTICS_AUDIT.md) |
+| **『自分の◯◯ステップ』が自動発揮か任意発動か**（`step` と `activated` の使い分け） | SEMANTICS_AUDIT.md §3.6 |
+| **効果による召喚でコストを支払うか**（「コストを支払わずに」の有無） | SEMANTICS_AUDIT.md §3.7 |
+| **「自分の◯◯のスピリット」に自分自身が含まれるか** | SEMANTICS_AUDIT.md §3.8 |
+| **フィールドのシンボルの数え方**（ネクサス込み・付与色の扱い） | SEMANTICS_AUDIT.md §3.9 |
+| **継続効果がいつから有効になるか**（召喚時効果との前後） | SEMANTICS_AUDIT.md §3.10 |
 | ステップ進行・先攻1ターン目の例外・フラッシュ優先権・コスト支払い | SPEC.md §2「ルール」 |
 | 未実装機構の先行設計（ブレイヴ／アルティメット／ソウルコア／バースト） | BRAVE / ULTIMATE / SOULCORE / BURST.md |
 

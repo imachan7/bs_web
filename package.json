@@ -23,7 +23,8 @@
     "coverage:effects": "tsx scripts/coverage-effects.ts",
     "access:stats": "tsx scripts/access-stats.ts",
     "fuzz": "tsx scripts/fuzz.ts",
-    "audit:semantics": "tsx scripts/check-effect-semantics.ts"
+    "audit:semantics": "tsx scripts/check-effect-semantics.ts",
+    "audit:shared": "tsx scripts/audit-shared-actions.ts"
   },
   "engines": {
     "node": ">=20"

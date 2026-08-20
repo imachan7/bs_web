@@ -50,6 +50,7 @@ import {
     fireBattleWonTriggers,
     fireExhaustedTriggers,
     fireSummonSequence,
+    flushPendingTenshoEvent,
     fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
@@ -388,6 +389,36 @@ function doBattleSwapSummon(
     return null
 }
 
+// 【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す。
+// 手順の「4. カードに維持コストを置く → 5. 召喚完了。その後、召喚時効果」に当たる
+// （docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は
+// ResumeFrame "placeSummon" から呼び直される
+function placeSummonedSpirit(
+    state: GameState,
+    pid: PlayerId,
+    inst: CardInstance,
+    reserveDelta: number,
+    logText: string,
+    cardName: string,
+): void {
+    const player = state.players[pid]
+    player.reserve -= reserveDelta
+    player.field.spirits.push(inst)
+    delete state.summoningInstanceId
+    log(state, logText)
+    emitEvent(state, { type: "summon", pid, cardName })
+    // 保留していた『転召したとき』を、場に出てから発火する（召喚されたカード自身の分を拾うため）
+    flushPendingTenshoEvent(state)
+    if (state.pendingChoice) {
+        // 『転召したとき』の誘発が選択待ちを立てた。召喚時効果は解決してから
+        pushResumeFrames(state, [
+            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+        ])
+        return
+    }
+    if (!state.winner) fireSummonSequence(state, pid, inst)
+}
+
 function doSummon(
     state: GameState,
     pid: PlayerId,
@@ -441,24 +472,30 @@ function doSummon(
     }
     // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
     const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain)
-    player.reserve -= maintain - placedFromField
+    // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
+    // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
     const inst = createInstance(cardId, state.turn, maintain)
-    player.field.spirits.push(inst)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
-    log(state, `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`)
-    emitEvent(state, { type: "summon", pid, cardName: card.name })
+    const logText = `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
+    const reserveDelta = maintain - placedFromField
 
-    // 【転召】を先に解決する：対象を選び、その上のコアすべてをdestへ置く（多くの場合そこで消滅する）。
-    // **召喚時効果はこの後**（2026-08-13 修正。以前は逆順で、犠牲が消える前に召喚時効果が出ていた）
+    // 【転召】は「コストを支払う → **転召** → 維持コアを置く → 召喚完了」の順に解決する
+    // （docs/design/RESUME_STACK.md §6。2026-08-13 ユーザー確認の手順）。
+    // つまりこの時点でスピリットはまだ場に出ていない。summoningInstanceId が立っている間は
+    // 『転召したとき』の誘発が保留され、場に出た時点で発火する（fireTenshoEvent / flushPendingTenshoEvent）。
+    // **召喚時効果は場に出た後**（2026-08-13 修正。以前は犠牲が消える前に召喚時効果が出ていた）
+    state.summoningInstanceId = inst.instanceId
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
-        // 転召の対象選択で中断した。選択の解決後に続きへ合流させる（queue は同一解決内の残り処理を積む場所）
-        pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
-    } else {
-        fireSummonSequence(state, pid, inst)
+        // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける
+        pushResumeFrames(state, [
+            { kind: "placeSummon", pid, inst, reserveDelta, logText, cardName: card.name },
+        ])
+        return null
     }
+    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
@@ -972,8 +1009,11 @@ function doActivateAbility(
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
 
-    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）
-    if ("exhaustSelf" in effect.cost) {
+    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）。
+    // cost 省略時は追加コストなし（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけの効果）
+    if (effect.cost === undefined) {
+        log(state, `${player.name}の${getCard(inst.cardId).name}の効果を発動した。`)
+    } else if ("exhaustSelf" in effect.cost) {
         exhaustSpirit(state, pid, inst)
         log(
             state,
@@ -987,6 +1027,12 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
         )
+    }
+
+    // 「ターンに1回」の消費を、**コスト支払い後・効果解決前**に記録する。
+    // 効果の解決中に中断（pendingChoice）が入ってもこのターンの再発動を防ぐため
+    if (effect.oncePerTurn) {
+        inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
     }
 
     resolveAction(state, pid, inst, effect.action)
@@ -1316,6 +1362,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
     while (!state.pendingChoice && !state.winner && state.resumeStack.length > 0) {
         const frame = state.resumeStack.shift()
         if (!frame) continue
+        if (frame.kind === "placeSummon") {
+            // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
+            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName)
+            continue
+        }
         if (frame.kind === "turnStart") {
             // 中断していたターン開始処理を続きのステップから再開する
             // （百識の谷Lv1のドローステップ破棄選択など）

@@ -279,9 +279,15 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
+        // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
+        // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
+        // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
+        const grantedColors = [...inst.tempColors, ...(inst.colorsAsContinuous ?? [])]
+        const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
-            if (colors.includes(sym)) {
+            if (colors.includes(sym) || grantedMatches) {
                 count++
                 matched = true
             }
@@ -1668,25 +1674,41 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
 }
 
 // 起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
-// フラッシュ中・優先権保持・（condition が要求するなら）self がバトル当事者・コスト支払い可能を満たす必要がある。
+// タイミング・（condition が要求するなら）self がバトル当事者・「ターンに1回」の残り・コスト支払い可能を
+// すべて満たす必要がある。
 // バトル当事者であることは condition:"selfInBattle" のときだけの条件で、
 // 発動タイミングがバトル中（timing:"flashBattle"）であること自体とは別（BS07桜の妖精オウカは
-// バトルに参加していなくてもアタック中の味方をBP+できる）
+// バトルに参加していなくてもアタック中の味方をBP+できる）。
+//
+// ⚠️ **RuleValidator.validateActivateAbility と同じ条件をここで判定する**。
+// UIのボタン表示はこちら、サーバーの受理はあちらなので、片方だけ直すと
+// 「ボタンが出るのにサーバーが弾く」ズレが出る（過去に実際に起きている）
 export function activatableAbility(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
 ): { effectId: string; costLabel: string } | null {
-    if (!board.battle || !board.isFlashTiming) return null
-    if (board.priorityPlayer !== pid) return null
+    // バトル中のフラッシュ窓（優先権が要る）と、自分のメインステップ（バトル外）の2つがありうる
+    const inBattleFlash = board.battle !== null && board.isFlashTiming && board.priorityPlayer === pid
+    const inOwnMain = board.battle === null && board.turnPlayer === pid && board.phase === "main"
+    if (!inBattleFlash && !inOwnMain) return null
     const inBattle =
-        board.battle.attackerInstanceId === inst.instanceId ||
-        board.battle.blockerInstanceId === inst.instanceId
+        board.battle !== null &&
+        (board.battle.attackerInstanceId === inst.instanceId ||
+            board.battle.blockerInstanceId === inst.instanceId)
     const level = currentLevel(inst).level
     for (const e of card(inst.cardId).effects) {
         if (e.kind !== "activated") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
+        // 発動可能タイミング（validateActivateAbility と同じ切り分け）
+        if (e.timing === "flashBattle" && !inBattleFlash) continue
+        if (e.timing === "flash" && !inBattleFlash && !inOwnMain) continue
+        if (e.timing === "main" && !inOwnMain) continue
         if (e.condition === "selfInBattle" && !inBattle) continue
+        // 「ターンに1回」：発生源1体につきターン1回
+        if (e.oncePerTurn && inst.activatedUsedTurn?.[e.id] === board.turn) continue
+        // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
+        if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {
             if (inst.isRested) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }

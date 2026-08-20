@@ -457,22 +457,23 @@ const voidCoreToSelfPerBofuCountHandler: ActionHandler<"voidCoreToSelfPerBofuCou
 
 const voidCoreToOtherHandler: ActionHandler<"voidCoreToOther"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ボイドからコアを、self以外の自分のスピリットのうち実効BP最大の1体に置く
+        // ボイドからコアを、自分のスピリットのうち実効BP最大の1体に置く。
+        // **発生源自身も対象に含む**（2026-08-20 修正）。効果文が「自分の◯◯のスピリット」なら
+        // 自分自身も「自分のスピリット」なので含まれる。除外するのは「このスピリット以外の」と
+        // 明記があるカードだけ（excludeSelf。BS01-066スタッグローブ）
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
         }
-        // colorFilter（BS09-020ヤミヤンマ＝白のスピリット）：指定色を持つ自分のスピリットのみ対象
+        // colorFilter（BS09-020ヤミヤンマ＝白のスピリット）：指定色を持つ自分のスピリットのみ対象。
+        // instHasColor なので colorAs（「白のスピリットとしても扱う」）による付与色も拾う
         const candidates = state.players[owner].field.spirits.filter(
             (s) =>
-                s.instanceId !== self.instanceId &&
+                (!action.excludeSelf || s.instanceId !== self.instanceId) &&
                 (action.colorFilter === undefined || instHasColor(s, action.colorFilter)),
         )
         if (candidates.length === 0) {
-            log(
-                state,
-                `${sourceName}：このスピリット以外に対象の自分のスピリットがいなかった。`,
-            )
+            log(state, `${sourceName}：対象の自分のスピリットがいなかった。`)
             return
         }
         // targets（BS09-023要塞蟲ラルバ＝白2体）：実効BP上位から重複なくその体数へ置く

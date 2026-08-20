@@ -678,11 +678,9 @@ export function fireStepTriggers(
                     // ハートレス・ティンLv2：自分のフィールドの指定色シンボルが count 個以上、かつ
                     // noAttacksThisTurn 指定時はこのターンまだ1度もアタックが行われていないときのみ発火
                     const { color, count } = effect.condition.ownSymbolColorAtLeast
-                    const symbols = instances.reduce(
-                        (sum, i) => sum + getCard(i.cardId).symbol.filter((c) => c === color).length,
-                        0,
-                    )
-                    if (symbols < count) continue
+                    // シンボルの数え方は countSymbols に一本化する（2026-08-20）。
+                    // symbolFix による固定・バウンス待機の除外・「◯色としても扱う」で得た色も見る
+                    if (countSymbols(player, [color]) < count) continue
                     if (effect.condition.noAttacksThisTurn && state.attacksThisTurn > 0) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownColorTotalAtLeast" in effect.condition) {
@@ -1978,13 +1976,9 @@ function runMagicActions(
             } else {
                 // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
                 const minColors = effect.condition.ownFieldSymbolColorsAtLeast
-                const colors = new Set<Color>()
-                for (const s of [
-                    ...state.players[owner].field.spirits,
-                    ...state.players[owner].field.nexuses,
-                ]) {
-                    for (const c of getCard(s.cardId).symbol) colors.add(c)
-                }
+                // 数え方は shared/cost.ts の ownFieldSymbolColors に一本化する（2026-08-20。
+                // symbolFix・バウンス待機・付与色の扱いを軽減計算と揃えるため）
+                const colors = ownFieldSymbolColors(state, owner)
                 if (colors.size < minColors) {
                     log(
                         state,
