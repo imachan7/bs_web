@@ -134,6 +134,44 @@ console.log("=== 帝竜騎：アタックステップでは発動できない ==
     assert(s.players.p1.hand.includes(ZABURUGAN), "召喚もされない")
 }
 
+console.log("=== 帝竜騎サイクル6枚すべてが同じように発動できる ===")
+{
+    // 効果文が同一の6枚。プラチナム以外はここでしか通らないので、
+    // 「データは書いたが一度も発火していない」（npm run coverage:effects）を防ぐ
+    const CYCLE: [string, string][] = [
+        ["BS08-006", "雷帝竜騎レイブリッツ"],
+        ["BS08-015", "闇帝竜騎サブナ・ルーク"],
+        ["BS08-024", "陸帝竜騎ベスピニアー"],
+        ["BS08-034", "空帝竜騎プラチナム"],
+        ["BS08-043", "光帝竜騎アルカナジョーカー"],
+        ["BS08-052", "海帝竜騎ヴァン・ソロミュー"],
+    ]
+    for (const [cardId, name] of CYCLE) {
+        const s = createGame(`teiryuki-${cardId}`, { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "purple" })
+        runTurnStart(s)
+        s.turnPlayer = "p1"
+        s.phase = "main"
+        s.players.p1.reserve = 30
+        const inst = createInstance(cardId, s.turn, getCard(cardId).levels[0]!.cores)
+        s.players.p1.field.spirits.push(inst)
+        s.players.p1.field.spirits.push(createInstance(SACRIFICE, s.turn, 3))
+        s.players.p1.hand = [ZABURUGAN]
+        const reserveBefore = s.players.p1.reserve
+
+        const error = act(s, "p1", {
+            type: "activateAbility",
+            instanceId: inst.instanceId,
+            effectId: `${cardId}-e1`,
+        })
+        assert(error === null, `${name}の効果を発動できる（実際: ${error}）`)
+        assert(
+            s.players.p1.field.spirits.some((sp) => sp.cardId === ZABURUGAN),
+            `${name}：【転召】持ちが召喚される`,
+        )
+        assert(s.players.p1.reserve < reserveBefore, `${name}：召喚コストを支払っている`)
+    }
+}
+
 console.log("=== 帝竜騎：リザーブが足りなければ候補にならない ===")
 {
     const { s, platinum } = setup("teiryuki-poor")
