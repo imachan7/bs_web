@@ -138,7 +138,7 @@ export type EffectAction =
     | { type: "protectBlockerCoresThisBattle" } // このバトルの間、**このスピリットをブロックしているスピリット上のコアは効果で取り除けない**ようにする（GameState.battle.blockerCoresProtected を立てる。バトル終了で自然に消える。BS09-027密林の勇者皇ヴォルザLv2-3）
     | { type: "coreRemoveSelf"; count: number } // このスピリット（self）のコアcount個を持ち主のリザーブへ（selfがnullならno-op）
     | { type: "selfBuffPer"; counter: EffectCounter; amountPer: number } // このスピリット自身を「カウント値×amountPer」だけBP+（ターン終了時まで。selfがnull/カウント0はno-op）
-    | { type: "voidCoreToOther"; count: number; colorFilter?: Color; targets?: number } // colorFilter指定時はその色を持つ自分のスピリットのみ対象（instHasColorで判定。BS09-020ヤミヤンマ＝白）。targets指定時はその体数へcount個ずつ置く（実効BP上位から重複なく。BS09-023要塞蟲ラルバ＝白2体）。// ボイドからコアcount個を、self以外の自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）
+    | { type: "voidCoreToOther"; count: number; colorFilter?: Color; targets?: number; excludeSelf?: true } // colorFilter指定時はその色を持つ自分のスピリットのみ対象（instHasColorで判定＝colorAs/tempColorsの付与色も見る。BS09-020ヤミヤンマ＝白）。targets指定時はその体数へcount個ずつ置く（実効BP上位から重複なく。BS09-023要塞蟲ラルバ＝白2体）。// ボイドからコアcount個を、自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）。// excludeSelf指定時は**発生源自身を対象から外す**（効果文に「このスピリット以外の」と明記があるものだけ。BS01-066スタッグローブ）。既定は自身も対象＝「自分の◯◯のスピリット」に自分自身が含まれる（2026-08-20 修正。アクション名の Other はスタッグローブ由来で、ヤミヤンマ／ラルバには除外の記載が無いのに引き継がれていた）
     | { type: "fireOwnDestroyTriggers" } // 発生源の持ち主のスピリットすべての『このスピリットの破壊時』効果を、**破壊させずに**発揮させる（フィールドから取り除かない。発揮順はフィールドの並び順。BS07女教皇リル・サキュバス）
     | { type: "coreSqueezeAll" } // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ（1個未満で維持コア割れになる場合は消滅処理を適用）
     | { type: "endAttackStepAfterBattle" } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op。サイレントウォール／SD02-003 天使デュナミス＝コスト2以下をブロックしたとき）

@@ -1078,6 +1078,14 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
+    // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
+    // refreshLevelAsOverrides は handleAction の事後フックでしか走らないため、
+    // 召喚直後は「場に出たばかりの個体が自分に掛けている継続効果」がまだ反映されていない。
+    // BS09-023要塞蟲ラルバをLv2で召喚すると『召喚時』「自分の白のスピリット2体」に
+    // **自分自身が数えられない**（Lv2 の colorAs で白としても扱われるはずが未反映）。
+    // ここに置けば doSummon・入れ替え召喚・効果による召喚の全経路が一度に揃う（この関数が唯一の合流点）。
+    // refreshLevelAsOverrides は冒頭で継続分を delete して組み直す冪等な関数なので、重ねて呼んでも安全
+    refreshLevelAsOverrides(state)
     const player = state.players[pid]
     // 転召でコアが尽きて消滅していれば、もう何もしない
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
@@ -2606,13 +2614,13 @@ export function countEffectCounter(
             instHasColor(n, counter.ownNexusColor),
         ).length
     }
-    // { ownColorSymbols: Color }：自分フィールドのスピリットが持つ指定色シンボルの合計数
+    // { ownColorSymbols: Color }：自分フィールドの指定色シンボルの合計数。
+    // **ネクサスのシンボルも数える**（2026-08-20 修正。以前は field.spirits だけを見ていたため
+    // BS04-X16機動要塞キャッスル・ゴレム「自分の青シンボル1つにつき」がネクサス分を取りこぼしていた）。
+    // 軽減計算と同じ countSymbols に寄せることで、symbolFix によるシンボル固定・バウンス待機の除外・
+    // 付与色（colorAs / tempColors）の扱いもまとめて揃う
     if ("ownColorSymbols" in counter) {
-        return state.players[owner].field.spirits.reduce(
-            (sum, s) =>
-                sum + getCard(s.cardId).symbol.filter((c) => c === counter.ownColorSymbols).length,
-            0,
-        )
+        return countSymbols(state.players[owner], [counter.ownColorSymbols])
     }
     // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）

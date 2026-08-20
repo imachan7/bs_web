@@ -279,9 +279,15 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
+        // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
+        // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
+        // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
+        const grantedColors = [...inst.tempColors, ...(inst.colorsAsContinuous ?? [])]
+        const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
-            if (colors.includes(sym)) {
+            if (colors.includes(sym) || grantedMatches) {
                 count++
                 matched = true
             }
