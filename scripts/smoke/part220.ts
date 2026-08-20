@@ -5,7 +5,7 @@
 //   - voidCoreToOther は**発生源自身も対象に含む**（BS09-023要塞蟲ラルバ）。
 //     excludeSelf を持つカードだけ自身を外す（BS01-066スタッグローブ）
 //   - ラルバをLv2で召喚したとき、召喚時効果の解決時点で自身が白として数えられている
-import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveBp, getCard, resolveAction, runTurnStart } from "./helpers"
 import { countSymbols } from "../../shared/rules"
 import { ownFieldSymbolColors } from "../../shared/cost"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
@@ -145,4 +145,24 @@ console.log("=== ownFieldSymbolColors：シンボルの色の種類数も同じ�
     // 青ネクサスを足すと3色になる（ネクサスのシンボルも数える）
     s.players.p1.field.nexuses.push(createInstance(BLUE_NEXUS, s.turn, 1))
     assert(ownFieldSymbolColors(s, "p1").size === 3, "ネクサスのシンボルの色も数える")
+}
+
+console.log("=== selfBuffByExhaustFamily：発生源自身も疲労させる対象に含む ===")
+{
+    // BS06-X24 鎧神機ヴァルハランス（系統：武装・戦騎）：
+    // 「系統：「武装」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する」
+    // 効果文に「このスピリット以外の」が無いので、自身が「武装」持ちなら自分を選べる（2026-08-20 ユーザー確認）
+    const s = createGame("self-exhaust-buff", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
+    runTurnStart(s)
+    const valhalans = createInstance("BS06-X24", s.turn, 3) // Lv2
+    s.players.p1.field.spirits.push(valhalans)
+    const bpBefore = effectiveBp(s, "p1", valhalans)
+    assert(!valhalans.isRested, "まだ回復状態（アタック宣言前）")
+
+    resolveAction(s, "p1", valhalans, { type: "selfBuffByExhaustFamily", familyFilter: "武装" })
+    assert(valhalans.isRested, "自分自身を疲労させた")
+    assert(
+        effectiveBp(s, "p1", valhalans) === bpBefore * 2,
+        `自身のBPぶん上がる（実際: ${effectiveBp(s, "p1", valhalans)} / 期待: ${bpBefore * 2}）`,
+    )
 }
