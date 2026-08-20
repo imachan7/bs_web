@@ -975,7 +975,8 @@ function fieldCardEl(
             badge.title = "クリックしてコアの移動元を選ぶ"
             el.appendChild(badge)
         }
-        // 起動能力（フラッシュ中のバトルでコストを払って任意発動）：バッジのクリックで発動
+        // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
+        // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
         const activatable = activatableAbility(view, view.you, inst)
         if (activatable) {
             const badge = document.createElement("button")

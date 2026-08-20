@@ -70,6 +70,7 @@ import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 export type { KeywordInfo }
 import {
+    effectiveCost,
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
@@ -2257,6 +2258,7 @@ export function summonFreeFromHandIndex(
     sourceName: string,
     handIndex: number,
     skipTensho?: true,
+    opts?: { payCost?: true; skipOnSummon?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2266,17 +2268,22 @@ export function summonFreeFromHandIndex(
     }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
-    if (player.reserve < maintain) {
+    // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
+    // 支払い元はリザーブのみ＝フィールドのコアからは払えない簡略化。BS08帝竜騎サイクル）
+    const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
+    if (player.reserve < maintain + cost) {
         log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.hand.splice(handIndex, 1)
-    player.reserve -= maintain
+    player.reserve -= maintain + cost
+    player.trashCores += cost
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +
+        `${player.name}は${sourceName}の効果で、${card.name}を` +
+            (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
             (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
@@ -2290,6 +2297,13 @@ export function summonFreeFromHandIndex(
     // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
     //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
     // summonSequence として積み直して選択の解決後に合流する
+    // skipOnSummon 指定時は召喚時効果も「召喚されたとき」の誘発も発揮させない。
+    // 効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ
+    // （BS08帝竜騎サイクル6枚）。既定では発揮する（2026-08-17 修正）
+    if (opts?.skipOnSummon) {
+        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
+        return
+    }
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {

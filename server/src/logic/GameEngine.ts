@@ -972,8 +972,11 @@ function doActivateAbility(
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
 
-    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）
-    if ("exhaustSelf" in effect.cost) {
+    // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）。
+    // cost 省略時は追加コストなし（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけの効果）
+    if (effect.cost === undefined) {
+        log(state, `${player.name}の${getCard(inst.cardId).name}の効果を発動した。`)
+    } else if ("exhaustSelf" in effect.cost) {
         exhaustSpirit(state, pid, inst)
         log(
             state,
@@ -987,6 +990,12 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
         )
+    }
+
+    // 「ターンに1回」の消費を、**コスト支払い後・効果解決前**に記録する。
+    // 効果の解決中に中断（pendingChoice）が入ってもこのターンの再発動を防ぐため
+    if (effect.oncePerTurn) {
+        inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
     }
 
     resolveAction(state, pid, inst, effect.action)

@@ -196,7 +196,7 @@ export type EffectAction =
     | { type: "sacrificeNexusThenWipeEnemyNexusCores" } // 自分のネクサス1つ（コア数最小、同数は配列先頭）を破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く（自分のネクサスが無い/破壊耐性で不発なら何もしない。プレイヤー選択の簡略化。サクリファイス）
     | { type: "levelOverrideOpponentNexuses"; level: number; costReserveToVoid?: number } // 相手の全ネクサスの levelOverrideThisTurn を level に設定（このターンの間）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから適用する（「できる」の任意発動は自動発動で簡略化。皇帝アンプルール）
     | { type: "treatOwnNexusesAsSpiritsThisTurn"; minCores?: number; cost: number; family: string[]; levels: LevelDef[] } // 自分のネクサス（minCores個以上のコアが置かれているもの。省略時1）を、このターンの間スピリットとして扱う（BS03ゴーレムクラフト）。field.nexuses から field.spirits へ**同じインスタンスのまま**移し、CardInstance.asSpiritThisTurn に cost/family/levels の上書きを載せる。ターン終了時に PhaseManager.endTurn が生き残りを field.nexuses へ戻す（破壊された個体は既に場を離れているので戻らず、ネクサスカードがトラッシュに残る）
-    | { type: "summonFromHandFree"; costSacrificeChosen?: true; colorFilter?: Color; sameFamilyAsSelf?: boolean; familyFilter?: FamilyFilter; costFilter?: number | { max?: number; min?: number }; nameIncludes?: string; maxCostFromOwnTrashCores?: true; costDestroyOwnFamily?: FamilyFilter; costDestroyOwnNexus?: true; count?: number; keywordFilter?: Keyword; skipTensho?: true } // maxCostFromOwnTrashCores指定時は「自分のトラッシュにあるコアの数以下のコスト」が上限になる（BS02ディバインウィンド）。costDestroyOwnFamily指定時は指定系統の自分のスピリット1体（コスト最小、同コストはフィールド先頭）を破壊することがコストで、破壊できなければ不発（BS02キャストオフ）。costDestroyOwnNexus指定時は自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコストで、破壊できるネクサスがなければ不発（BS06リクラメーション）。// 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通／familyFilter=指定系統一致。配列＝OR）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド。familyFilterはBS05火龍王ボルケノス＝系統「竜人」限定で、selfの系統全部とはOR判定にしたくない場合に使う）。costFilter指定時はコストが完全一致するもののみ（BS05シーサーズ＝コスト2）。nameIncludes指定時はカード名にこの文字列を含むもののみ（BS05ペンタン帝国）。count指定時は「count枚まで」の複数体召喚（プレイヤー選択の決定的簡略化：コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切り。この場合interactiveTargetsでも選択式にせず自動選択のみ。BS06アルカナキング・カール＝4枚まで）。keywordFilter指定時はこのキーワードエントリを静的に持つカードのみ対象（hasKeywordで判定。summonFromTrashFreeと同型）。skipTensho指定時は召喚後の【転召】解決そのものをスキップする（既定は「コストを支払わない召喚でも転召は必ず行う」だが、この効果は転召を発揮したものとして扱う旨の記載があるため例外。BS08雷帝竜騎レイブリッツ：手札の【転召】持ちを【転召】させずに召喚できる）
+    | { type: "summonFromHandFree"; costSacrificeChosen?: true; colorFilter?: Color; sameFamilyAsSelf?: boolean; familyFilter?: FamilyFilter; costFilter?: number | { max?: number; min?: number }; nameIncludes?: string; maxCostFromOwnTrashCores?: true; costDestroyOwnFamily?: FamilyFilter; costDestroyOwnNexus?: true; count?: number; keywordFilter?: Keyword; skipTensho?: true; payCost?: true; skipOnSummon?: true } // payCost指定時は**通常の召喚コストを支払う**（effectiveCostで軽減後コストを算出し、維持コア＋コストをリザーブから支払う。払えなければ不発）。アクション名の Free は既定の挙動を指すもので、payCost はその例外（BS08帝竜騎サイクル6枚＝「【転召】させずに召喚できる」だけでコスト免除の記載が無い）。// skipOnSummon指定時は召喚時効果と「召喚されたとき」の誘発を発揮させない（効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ。既定では発揮する＝2026-08-17修正）。// maxCostFromOwnTrashCores指定時は「自分のトラッシュにあるコアの数以下のコスト」が上限になる（BS02ディバインウィンド）。costDestroyOwnFamily指定時は指定系統の自分のスピリット1体（コスト最小、同コストはフィールド先頭）を破壊することがコストで、破壊できなければ不発（BS02キャストオフ）。costDestroyOwnNexus指定時は自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコストで、破壊できるネクサスがなければ不発（BS06リクラメーション）。// 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通／familyFilter=指定系統一致。配列＝OR）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド。familyFilterはBS05火龍王ボルケノス＝系統「竜人」限定で、selfの系統全部とはOR判定にしたくない場合に使う）。costFilter指定時はコストが完全一致するもののみ（BS05シーサーズ＝コスト2）。nameIncludes指定時はカード名にこの文字列を含むもののみ（BS05ペンタン帝国）。count指定時は「count枚まで」の複数体召喚（プレイヤー選択の決定的簡略化：コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切り。この場合interactiveTargetsでも選択式にせず自動選択のみ。BS06アルカナキング・カール＝4枚まで）。keywordFilter指定時はこのキーワードエントリを静的に持つカードのみ対象（hasKeywordで判定。summonFromTrashFreeと同型）。skipTensho指定時は召喚後の【転召】解決そのものをスキップする（既定は「コストを支払わない召喚でも転召は必ず行う」だが、この効果は転召を発揮したものとして扱う旨の記載があるため例外。BS08雷帝竜騎レイブリッツ：手札の【転召】持ちを【転召】させずに召喚できる）
     | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
     | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
     | { type: "levelOverrideTarget"; level: number; colorFilter?: Color; requireLevelExists?: boolean } // 対象（targetInstanceId）のlevelOverrideThisTurnをlevelに設定する（このターンの間。花の子リップ）。colorFilter/requireLevelExists指定時は、対象が指定色でない／そのレベルをカードに持たない場合は不発（BS04マッシブアップ＝Lv3を持つ青のスピリット）
@@ -650,6 +650,10 @@ export type EffectDef =
     | {
           id: string
           kind: "step"
+          // ⚠️ **これはステップ開始時に自動で発揮する**（timing:"end" 指定時のみ終了時）。
+          // 効果文が『自分のメインステップ』でも「ステップ開始時」の指定が無いもの
+          // （＝プレイヤーが任意のタイミングで使うもの）は kind:"activated" timing:"main" を使う。
+          // BS04-065機織のハーフェレシテは「ステップ開始時」の明記があるのでこちらで正しい
           step: Phase // 発火するステップ
           turn: "own" | "opponent" | "both" // own=このインスタンスの持ち主がturnPlayerの時、opponent=持ち主が非turnPlayerの時、both=常に
           timing?: "end" // 指定時は「そのステップの終了時」に発火する（省略時＝ステップ開始時＝従来どおり）。いまは attack のみ発火点があり、PhaseManager.endTurn がエンドステップへ移る直前に呼ぶ（BS02紫水晶の森Lv2＝「ステップ終了時」）
@@ -1051,11 +1055,17 @@ export type EffectDef =
     | {
           id: string
           kind: "activated"
-          timing: "flashBattle" | "flash" // 発動可能タイミング。flashBattle＝フラッシュ中のバトルのみ／flash＝フラッシュで使えるタイミング全般（バトル外も含む。BS08機人フィアラル）
+          timing: "flashBattle" | "flash" | "main" // 発動可能タイミング。flashBattle＝フラッシュ中のバトルのみ／flash＝フラッシュで使えるタイミング全般（バトル外も含む。BS08機人フィアラル）／
+          // main＝**自分のメインステップ中の任意のタイミング**（バトル中は不可。フラッシュ優先権も見ない）。
+          // 『自分のメインステップ』としか書かれておらず「ステップ開始時」の指定が無い効果はこちら。
+          // kind:"step" step:"main" は**ステップ開始時に自動で発揮する**ので別物（BS04-065機織のハーフェレシテ＝「ステップ開始時」の明記あり）
           levels: number[] | null
           // 発動コスト。reserveToTrash=リザーブからトラッシュへ置くコア数／
-          // exhaustSelf=このスピリット自身を疲労させる（既に疲労していれば発動不可。BS07桜の妖精オウカ）
-          cost: { reserveToTrash: number } | { exhaustSelf: true }
+          // exhaustSelf=このスピリット自身を疲労させる（既に疲労していれば発動不可。BS07桜の妖精オウカ）。
+          // **省略時は追加コストなし**（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけでコストの記載が無い）
+          cost?: { reserveToTrash: number } | { exhaustSelf: true }
+          oncePerTurn?: true // 「ターンに1回」。**発生源のスピリット1体につき**ターン1回（同名が2体いればそれぞれ1回使える）。
+          // 消費は CardInstance.activatedUsedTurn に effectId ごとのターン番号で記録する（BS08帝竜騎サイクル6枚）
           condition?: "selfInBattle" // 発動条件（self が現在のバトルの当事者＝attacker/blocker）
           action: EffectAction // 発動時の効果
       }
@@ -1564,6 +1574,7 @@ export interface CardInstance {
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     unblockableOnceThisTurn?: boolean // 「ターンに1回、相手のスピリットにブロックされない」印。canBlock が参照し、次のバトル終了時（clearBattle）に消える。ターン終了でもリセットする（BS04強者統べる大地Lv2）
     countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // このターンの間、pid の効果が「スピリットの数を数える」ときこの個体を count 体分として数える（ターン終了でリセット。BS05スリーカード）。sourceTypes は数える側の発生源種別の限定（印を付けた action からそのまま写す）
+    activatedUsedTurn?: Record<string, number> // kind:"activated" の oncePerTurn 用。effectId -> 最後に発動したターン番号（state.turn と一致する間は再発動できない。BS08帝竜騎サイクル）
     magicNegateUsedTurn?: number // kind:"magicNegate" の oncePerTurn 用。この個体が最後にマジックを無効にしたターン番号（state.turn と一致する間は再使用できない。BS02鏡の回廊Lv2）
     reviveOnDestroyUsedTurn?: number // kind:"reviveOnDestroy" の oncePerTurn 用。この発生源が最後に復活を成立させたターン番号（magicNegateUsedTurnと同型。BS06暴かれた墓石Lv2）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）

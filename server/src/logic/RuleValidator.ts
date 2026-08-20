@@ -594,6 +594,12 @@ export function validateActivateAbility(
         if (!state.isFlashTiming || !state.battle) {
             return "フラッシュタイミングではありません"
         }
+    } else if (effect.timing === "main") {
+        // 『自分のメインステップ』：自分のターンのメインステップ中なら、任意のタイミングで発動できる。
+        // バトル中（フラッシュ）は対象外で、フラッシュ優先権も見ない（下の優先権チェックを飛ばす）
+        const mainTiming = checkMainTiming(state, pid)
+        if (mainTiming) return mainTiming
+        if (state.pendingChoice) return "他の効果の解決中です"
     } else if (effect.timing === "flash") {
         // flashBattleと異なり、バトル外（自分のメインステップ）でも発動できる（BS08機人フィアラル）。
         // このエンジンにはバトル外の「フラッシュ優先権」窓が無いため、自分のメインステップを
@@ -615,13 +621,23 @@ export function validateActivateAbility(
             return "このスピリットはバトルに参加していません"
         }
     }
-    // フラッシュ優先権（手札のカードではなくスピリットの能力なので lockFlash は適用しない）
-    if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-    // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない
-    if ("exhaustSelf" in effect.cost) {
-        if (inst.isRested) return "すでに疲労しています"
-    } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
-        return "コアが足りません"
+    // フラッシュ優先権（手札のカードではなくスピリットの能力なので lockFlash は適用しない）。
+    // timing:"main" はフラッシュの窓ではないので優先権を見ない
+    if (effect.timing !== "main" && pid !== state.priorityPlayer) {
+        return "現在フラッシュの優先権がありません"
+    }
+    // 「ターンに1回」：発生源1体につきターン1回（同名が2体いればそれぞれ1回使える）
+    if (effect.oncePerTurn && inst.activatedUsedTurn?.[effectId] === state.turn) {
+        return "この効果はこのターンすでに使いました"
+    }
+    // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない。
+    // cost 省略時は追加コストなし（BS08帝竜騎サイクル）
+    if (effect.cost !== undefined) {
+        if ("exhaustSelf" in effect.cost) {
+            if (inst.isRested) return "すでに疲労しています"
+        } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
+            return "コアが足りません"
+        }
     }
     return null
 }

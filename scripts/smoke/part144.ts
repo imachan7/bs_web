@@ -349,12 +349,14 @@ console.log("=== BS08太陽石の神殿：reviveOnDestroy.cost.ownLifeOneToVoid 
     assert(s.players.p1.life === lifeBefore - 1, "対照実験：ライフはさらに減らない")
 }
 
-console.log("=== BS08雷帝竜騎レイブリッツ：summonFromHandFree.keywordFilter+skipTensho ===")
+console.log("=== BS08雷帝竜騎レイブリッツ：activated(timing:main)＋keywordFilter+skipTensho ===")
 {
+    // 2026-08-20：kind:"step"（ステップ開始時に自動発動）から kind:"activated" timing:"main"
+    // （メインステップ中の任意発動）へ変更。コストも通常どおり支払う（詳細な検証は part219）
     const bolt = findByEffect(
         (e) =>
-            e["kind"] === "step" &&
-            e["step"] === "main" &&
+            e["kind"] === "activated" &&
+            e["timing"] === "main" &&
             (e["action"] as Record<string, unknown> | undefined)?.["skipTensho"] === true,
     )
     const entry = entryOf(bolt, (e) => (e["action"] as Record<string, unknown> | undefined)?.["skipTensho"] === true)
@@ -366,17 +368,27 @@ console.log("=== BS08雷帝竜騎レイブリッツ：summonFromHandFree.keyword
     const bystander = CARDS.find((c) => c.type === "spirit" && c.cardId !== tenshoCard.cardId && (c.cost ?? 0) >= minCost)!
 
     const s = base("bolt-skiptensho")
-    put(s, "p1", bolt.cardId, coresFor(bolt, level))
+    const boltInst = put(s, "p1", bolt.cardId, coresFor(bolt, level))
     const untouched = put(s, "p1", bystander.cardId, coresFor(bystander, 1))
     const coresBefore = untouched.cores
     s.players.p1.hand = [tenshoCard.cardId]
     s.phase = "main"
+    s.turnPlayer = "p1"
+    s.players.p1.reserve = 30
+    const reserveBefore = s.players.p1.reserve
+    // ステップ開始時には発動しない（任意発動になった）
     fireStepTriggers(s, "main")
+    assert(s.players.p1.hand.length === 1, "メインステップの開始では自動発動しない")
+    assert(
+        act(s, "p1", { type: "activateAbility", instanceId: boltInst.instanceId, effectId: String(entry["id"]) }) === null,
+        `${bolt.name}の効果をメインステップ中に発動できる`,
+    )
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === tenshoCard.cardId),
-        `${tenshoCard.name}をコストを支払わず召喚できる`,
+        `${tenshoCard.name}を召喚できる`,
     )
     assert(s.players.p1.hand.length === 0, "手札から使用される")
+    assert(s.players.p1.reserve < reserveBefore, "召喚コストを支払っている（コストを支払わない召喚ではない）")
     assert(untouched.cores === coresBefore, "【転召】させずに召喚するため、他の自分のスピリットは犠牲にならない")
 }
 

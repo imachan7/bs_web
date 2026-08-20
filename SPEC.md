@@ -684,10 +684,16 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | 経路 | 召喚時効果 | 【転召】 |
 | :-- | :-- | :-- |
 | 通常召喚（`doSummon`） | 発揮する | 行う |
-| `summonFromHandFree`（トレントン／ディバインウィンド／天使長ソフィア 等） | 発揮しない | **行う** |
-| `summonFromTrashFree`（妖狐キュービック） | 発揮しない | **行う** |
+| `summonFromHandFree`（トレントン／ディバインウィンド／天使長ソフィア 等） | **発揮する**（2026-08-17 修正） | **行う** |
+| `summonFromTrashFree`（妖狐キュービック） | **発揮する**（2026-08-17 修正） | **行う** |
 | `summonRepeatFromHand`（天使長セラフィー／兵隊アントマン） | 発揮しない | **行う** |
 | `revealAndSummonKeyword`（トランスマイグレーション） | 発揮する | **行わない**（「発揮したものとして」の明記があるため） |
+
+**例外は効果文に明記があるカードだけ**（2026-08-20）。`summonFromHandFree` の
+`skipTensho`（「【転召】させずに召喚できる」）と `skipOnSummon`（「ただし、『このスピリットの召喚時』効果は
+発揮されない」）は、その但し書きを持つカードにだけ付ける。BS08帝竜騎サイクル6枚が両方を持つ。
+同じく `payCost: true` は「コストを支払わずに」の記載が**無い**カード用で、通常の召喚コストを支払う
+（アクション名の Free は既定の挙動を指すだけなので、名前ではなく効果文に従う）。
 
 検証は smoke part114（一般側）と part113（例外側）。
 
@@ -841,11 +847,21 @@ BS04 の未実装カードが要求した2つの軸。いずれも `TargetFilter
 
 ### 起動能力（kind: "activated"）
 
-`{ kind: "activated", timing: "flashBattle", levels, cost: { reserveToTrash }, condition?, action }`。
-プレイヤーがコストを払って任意発動する能力の汎用の器。GameAction `activateAbility{instanceId, effectId}` で発動、
-`validateActivateAbility`（タイミング・条件 selfInBattle・優先権・コスト）→ `doActivateAbility`（コスト支払い→
-resolveAction→passFlashPriority）。個別効果は `action` に載せるだけ。クライアントは「起動」バッジUI（覚醒バッジ踏襲）。
-グラン・ドルバルカン（コア1個で endBattle）。
+`{ kind: "activated", timing, levels, cost?, oncePerTurn?, condition?, action }`。
+プレイヤーが任意のタイミングで発動する能力の汎用の器。GameAction `activateAbility{instanceId, effectId}` で発動、
+`validateActivateAbility`（タイミング・条件 selfInBattle・優先権・「ターンに1回」・コスト）→ `doActivateAbility`
+（コスト支払い→消費の記録→resolveAction→passFlashPriority）。個別効果は `action` に載せるだけ。
+クライアントは「起動」バッジUI（覚醒バッジ踏襲）。グラン・ドルバルカン（コア1個で endBattle）。
+
+- `timing`: `flashBattle`＝フラッシュ中のバトルのみ／`flash`＝フラッシュ全般（バトル外＝自分のメインステップも含む）／
+  **`main`＝自分のメインステップ中の任意のタイミング**（バトル中は不可。フラッシュ優先権も見ない。2026-08-20 追加）
+- `cost` は**省略できる**（追加コスト無し）。省略時は発動するだけで効果が解決される
+- `oncePerTurn`: 「ターンに1回」。**発生源1体につき**ターン1回（同名が2体いればそれぞれ1回）。
+  消費は `CardInstance.activatedUsedTurn`（effectId → ターン番号）に記録する
+- ⚠️ **発動可否の判定は2か所にある**：サーバーの `validateActivateAbility` と、UIのボタン表示を決める
+  `shared/rules.activatableAbility`。片方だけ直すと「ボタンが出るのにサーバーが弾く」ズレになる（過去に発生）
+- 『自分のメインステップ』でも効果文に「ステップ開始時」と書いてあるものは `kind:"step"` が正しい。
+  使い分けは `docs/design/SEMANTICS_AUDIT.md` §3.6
 
 ### コア配置修飾（kind: "coreBonus"）
 

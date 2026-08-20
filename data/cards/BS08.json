@@ -324,19 +324,20 @@
   "effects": [
    {
     "id": "BS08-006-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2
     ],
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
-    },
-    "optional": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
+    }
    },
    {
     "id": "BS08-006-e2",
@@ -902,19 +903,20 @@
   "effects": [
    {
     "id": "BS08-015-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2,
      3
     ],
-    "optional": true,
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    },
    {
@@ -1498,18 +1500,19 @@
   "effects": [
    {
     "id": "BS08-024-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2
     ],
-    "optional": true,
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    },
    {
@@ -2178,19 +2181,20 @@
   "effects": [
    {
     "id": "BS08-034-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2,
      3
     ],
-    "optional": true,
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    },
    {
@@ -2815,19 +2819,20 @@
   "effects": [
    {
     "id": "BS08-043-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2,
      3
     ],
-    "optional": true,
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    },
    {
@@ -3414,18 +3419,19 @@
   "effects": [
    {
     "id": "BS08-052-e1",
-    "kind": "step",
-    "step": "main",
-    "turn": "own",
+    "kind": "activated",
+    "timing": "main",
     "levels": [
      1,
      2
     ],
-    "optional": true,
+    "oncePerTurn": true,
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    },
    {
