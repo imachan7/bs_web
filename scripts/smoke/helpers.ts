@@ -176,6 +176,10 @@ function countCards(state: GameState): number {
     }
     // 公開ゾーンは解決中だけ存在する一時領域。ここに滞留したぶんも数に入れる
     total += state.revealedCards?.cardIds.length ?? 0
+    // 召喚の途中（【転召】の対象選択で中断中）は、召喚するカードが手札から出ていて
+    // フィールドにもまだ無い。この1枚も数に入れる（RESUME_STACK.md §6 の手順どおりに
+    // 「コストを支払う → 転召 → 維持コアを置く → 召喚完了」と進めるため。2026-08-20）
+    total += state.summoningInstanceId !== undefined ? 1 : 0
     return total
 }
 

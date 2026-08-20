@@ -1894,6 +1894,19 @@ export type ResumeFrame =
           groups: { label: string; frames: ResumeFrame[] }[]
       }
     | {
+          // 【転召】の対象選択で中断した召喚の続き。
+          // 手順（docs/design/RESUME_STACK.md §6）は
+          // 「コストを支払う → 転召 → 維持コアを置く → 召喚完了 → 召喚時効果」なので、
+          // 転召が選択待ちになった時点で**スピリットはまだ場に出ていない**。
+          // 選択が解決したらここで場に出し、召喚時効果へ進む（2026-08-20）
+          kind: "placeSummon"
+          pid: PlayerId
+          inst: CardInstance // まだ場に出していないインスタンス（維持コアは載っている）
+          reserveDelta: number // 場に出すときリザーブから引く数（フィールドのコアで賄えた分を差し引いた残り）
+          logText: string // 「〜を召喚した」のログ（場に出た時点で出す）
+          cardName: string // クライアント演出用イベントに載せる名前
+      }
+    | {
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
           // ステップ誘発が選択待ちを立てたときに、次のステップ番号を積む
           step: number
@@ -2066,6 +2079,14 @@ export interface GameState {
     // 直前の「破壊とその同時発揮の効果、どちらを先に解決するか」（PendingChoice.destroyEffectOrder）で
     // ターンプレイヤーが選んだ側。destroySpiritsFrom が読み取って解決順を組み立て、読んだら消す
     destroyEffectOrderPick?: "destroy" | "fushi"
+    // 召喚の途中で、**まだ場に出していない**スピリットの instanceId（2026-08-20）。
+    // 【転召】は「召喚コスト支払い後・維持コアを置く前」に解決するため、その間だけ立つ。
+    // これが立っている間は『転召したとき』の誘発を保留する（下の pendingTenshoEvent）
+    summoningInstanceId?: string
+    // 保留した『転召したとき』（fieldEvent "ownTensho"）。召喚されたスピリットが場に出た時点で発火する。
+    // 保留しないと、召喚されたカード自身が持つこの誘発（BS08-009関将龍皇ドラグロン等6枚。
+    // 効果文では『召喚時』ブロックの一部）を拾えない
+    pendingTenshoEvent?: { pid: PlayerId; families: string[]; names: string[] }
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

@@ -1347,7 +1347,10 @@ export function resolveTensho(
         requestChoice(
             state,
             ownerPid,
-            `【転召】コアを${dest === "void" ? "ボイドに置く" : "トラッシュに置く"}自分のスピリットを選択`,
+            // 選択待ちの間、召喚するカードは手札からもフィールドからも見えない
+            // （手順どおり「転召 → 召喚完了」の順で解決するため）。何を召喚しているのかが
+            // 対戦者に分かるよう、選択の見出しにカード名を入れる（2026-08-20）
+            `【転召】${getCard(spirit.cardId).name}：コアを${dest === "void" ? "ボイドに置く" : "トラッシュに置く"}自分のスピリットを選択`,
             candidates.map((s) => s.instanceId),
             false,
             { type: "tenshoCoreDump", dest },
@@ -1398,9 +1401,31 @@ function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: CardIns
 // dumpAllCoresTenshoが唯一の解決点なので、呼び出し側（自動/interactive選択のいずれの経路）から
 // 「実際に転召が確定した」タイミングでちょうど1回ずつ呼ぶ
 export function fireTenshoEvent(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
-    fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, {
+    const info = {
         families: [...getCard(inst.cardId).family],
         names: [getCard(inst.cardId).name],
+    }
+    // 召喚の一部としての【転召】では、召喚されたスピリットはまだ場に出ていない
+    // （手順は「コストを支払う → 転召 → 維持コアを置く → 召喚完了」。RESUME_STACK.md §6）。
+    // ここで発火すると、**召喚されたカード自身が持つ『転召したとき』を拾えない**
+    // （BS08-009関将龍皇ドラグロン等6枚。効果文では『召喚時』ブロックの一部として書かれている）。
+    // そこで場に出た時点まで保留する（GameEngine.placeSummonedSpirit が発火させる）
+    if (state.summoningInstanceId !== undefined) {
+        state.pendingTenshoEvent = { pid: ownerPid, ...info }
+        return
+    }
+    fireFieldEventTriggers(state, ownerPid, "ownTensho", undefined, undefined, undefined, undefined, info)
+}
+
+// 保留していた『転召したとき』を、召喚されたスピリットが場に出てから発火する。
+// 保留が無ければ何もしない（召喚以外の経路の【転召】は fireTenshoEvent がその場で発火している）
+export function flushPendingTenshoEvent(state: GameState): void {
+    const pending = state.pendingTenshoEvent
+    if (!pending) return
+    delete state.pendingTenshoEvent
+    fireFieldEventTriggers(state, pending.pid, "ownTensho", undefined, undefined, undefined, undefined, {
+        families: pending.families,
+        names: pending.names,
     })
 }
 
