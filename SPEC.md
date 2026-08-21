@@ -1142,6 +1142,21 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 手札クリック → 対象スピリットクリックの2段階UIで送信する。
 `RuleValidator` は指定された対象がフィールドに実在するかを検証する。
 
+**対象選択はサーバー側（pendingChoice）へ一本化する**（2026-08-21 利用者確定）。
+クライアントが先に対象を選ぶ形は「どちら側か」しか見ておらず、効果の条件（`filter`）・
+対象の体数（`count`）・**選ぶのが相手かどうか**（`chooserIsTarget`）が反映されないため、
+27枚で食い違いが出ていた。移行の受け口として `GameEngine.usableMagicTarget` が
+
+- 効果の `filter` を満たさない対象
+- `count` が2以上＝**複数体が対象**なのに1体しか渡されていない場合（体数を表すアクションのみ。
+  `COUNT_IS_BODIES` のホワイトリストで判定する。`coreCharge` のコア個数や
+  `countAsMultipleThisTurn` の「◯体分として数える」と混同しないため）
+- `chooserIsTarget`＝**選ぶのは相手**の効果
+
+を捨て、対象未指定として解決へ進める（＝サーバーが候補を出して選ばせる）。
+`anySide`（自分か相手のどちらでも選べる）だけはクライアント側の制限でサーバーに届かないため、
+ここでは救済できない。検証は smoke part223。
+
 ### 効果実装漏れの解消で足した器（2026-08-07）
 
 `docs/design/EFFECT_GAPS_PLAYBOOK.md` の残件を片付けるために追加したもの。
