@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -990,6 +990,23 @@ function resolveLifeDamage(state: GameState): void {
 }
 
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
+// 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
+// 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
+function revertActivatedUse(inst: CardInstance, effectId: string): void {
+    if (!inst.activatedUsedTurn) return
+    const rest = { ...inst.activatedUsedTurn }
+    delete rest[effectId]
+    inst.activatedUsedTurn = rest
+}
+
+// 選択を「やめた」ときに、起動能力の「ターンに1回」を巻き戻す（PendingChoice.revertActivated）
+function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): void {
+    const r = pending.revertActivated
+    if (!r) return
+    const inst = findInstanceAnywhere(state, r.instanceId)
+    if (inst) revertActivatedUse(inst, r.effectId)
+}
+
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
 // 個別の効果は effect.action に載っており、この関数はコスト支払いと発動の枠組みのみを担う。
 function doActivateAbility(
@@ -1035,7 +1052,21 @@ function doActivateAbility(
         inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
     }
 
+    // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
+    // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
+    const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
+    delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
     resolveAction(state, pid, inst, effect.action)
+    if (effect.oncePerTurn && cancelable) {
+        if (state.activationFizzled) {
+            // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
+            revertActivatedUse(inst, effectId)
+        } else if (state.pendingChoice) {
+            // 選択待ちに入った：**やめたら**戻す（doResolveChoice が見る）
+            state.pendingChoice.revertActivated = { instanceId, effectId }
+        }
+    }
+    delete state.activationFizzled
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
     if (state.battle) passFlashPriority(state, pid)
     return null
@@ -1315,6 +1346,8 @@ function doResolveChoice(
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
             resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
         } else {
+            // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
+            revertActivatedIfSkipped(state, pending)
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
