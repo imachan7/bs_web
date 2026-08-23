@@ -81,6 +81,54 @@ function expectJoinError(name: string, options: JoinOptions): Promise<string> {
     })
 }
 
+// join を送らずに接続だけする。ランダムマッチ・AI戦は join とは別の入口を使うため、
+// 「接続してから好きなイベントを送り、返ってくるイベントを待つ」形が要る
+interface OpenClient {
+    socket: Socket
+    nextState: (timeoutMs?: number) => Promise<GameView>
+    once: <T>(event: string, timeoutMs?: number) => Promise<T>
+}
+
+function open(name: string): OpenClient {
+    const socket = io(URL, { transports: ["websocket"] })
+    const stateQueue: GameView[] = []
+    let waiter: ((v: GameView) => void) | null = null
+    socket.on("state", (v: GameView) => {
+        if (waiter) {
+            const w = waiter
+            waiter = null
+            w(v)
+        } else {
+            stateQueue.push(v)
+        }
+    })
+    socket.on("errorMessage", (msg: string) => console.log(`  （${name}: エラー → ${msg}）`))
+    return {
+        socket,
+        nextState: (timeoutMs = 8000) =>
+            new Promise<GameView>((resolve, reject) => {
+                const queued = stateQueue.shift()
+                if (queued) {
+                    resolve(queued)
+                    return
+                }
+                const timer = setTimeout(() => reject(new Error(`${name}: state が届きませんでした`)), timeoutMs)
+                waiter = (v) => {
+                    clearTimeout(timer)
+                    resolve(v)
+                }
+            }),
+        once: <T,>(event: string, timeoutMs = 8000) =>
+            new Promise<T>((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error(`${name}: ${event} が届きませんでした`)), timeoutMs)
+                socket.once(event, (payload: T) => {
+                    clearTimeout(timer)
+                    resolve(payload)
+                })
+            }),
+    }
+}
+
 let failed = 0
 function assert(cond: boolean, label: string): void {
     if (cond) console.log(`  ✅ ${label}`)
@@ -245,6 +293,116 @@ async function main(): Promise<void> {
 
         d1.socket.disconnect()
         d2.socket.disconnect()
+    }
+
+    // ── ランダムマッチ（合言葉を決めずに、待っている2人を突き合わせる）────────────
+    console.log("=== ランダムマッチ ===")
+    {
+        const a = open("待ち子")
+        a.socket.emit("randomMatch", { name: "待ち子", deck: "red" })
+        const queued = await a.once<{ waiting: number }>("matchQueued")
+        assert(queued.waiting === 1, "1人目は待機列に並ぶ（待ち人数1）")
+
+        const b = open("来た郎")
+        // マッチは2人目の送信と同時に成立するので、待ち受けを**送信前に**登録しておく
+        const aFound = a.once<{ roomId: string }>("matchFound")
+        const bFound = b.once<{ roomId: string }>("matchFound")
+        b.socket.emit("randomMatch", { name: "来た郎", deck: "blue" })
+        const [fa, fb] = await Promise.all([aFound, bFound])
+        assert(fa.roomId === fb.roomId, "2人が同じルームでマッチする")
+        assert(fa.roomId.startsWith("match-"), `ルームIDは自動生成される（${fa.roomId}）`)
+
+        const [va, vb] = await Promise.all([a.nextState(), b.nextState()])
+        assert(va.you === "p1" && vb.you === "p2", "先に待っていた側がp1に座る")
+        assert(va.phase === "main" && va.turn === 1, "マッチ成立でそのまま対戦が始まる")
+        assert(va.players.p2.name === "来た郎", "相手の名前が届く")
+        a.socket.disconnect()
+        b.socket.disconnect()
+    }
+
+    console.log("=== ランダムマッチの取り消し ===")
+    {
+        const c = open("やめ子")
+        c.socket.emit("randomMatch", { name: "やめ子", deck: "green" })
+        await c.once("matchQueued")
+        const cancelled = c.once("matchCancelled")
+        c.socket.emit("cancelRandomMatch")
+        await cancelled
+        assert(true, "待機を取り消せる")
+
+        // 取り消した人は列に残らない：次に並んだ人は「待ち人数1」になる（マッチしてしまわない）
+        const d = open("次の人")
+        d.socket.emit("randomMatch", { name: "次の人", deck: "white" })
+        const q = await d.once<{ waiting: number }>("matchQueued")
+        assert(q.waiting === 1, "取り消した人は列に残らない")
+        c.socket.disconnect()
+        d.socket.disconnect()
+    }
+
+    // ── AI戦（相手を待たずに1人で始める。AI はサーバー側で指す）────────────────
+    console.log("=== AI戦 ===")
+    {
+        const c = open("ひとり太郎")
+        c.socket.emit("startAi", {
+            name: "ひとり太郎",
+            deck: "red",
+            aiDeck: "purple",
+            aiName: "AI紫",
+        })
+        const joined = await c.once<{ playerId: PlayerId; roomId: string }>("joined")
+        assert(joined.playerId === "p1", "AI戦では自分がp1に座る")
+        assert(joined.roomId.startsWith("ai-"), `AI戦のルームIDは ai- で始まる（${joined.roomId}）`)
+
+        const v = await c.nextState()
+        assert(v.phase === "main" && v.turnPlayer === "p1", "相手を待たずにそのまま対戦が始まる")
+        assert(v.players.p2.name === "AI紫", "指定した名前でAIが座る")
+
+        // ターンを渡すと AI が指し始める。AI はアタックまでしてくるので、
+        // こちら側も応答しないと止まる（フラッシュはパス、アタックはライフで受ける）。
+        // 同じ局面へ二重に送らないよう、局面の署名を見て1回だけ応答する
+        c.socket.emit("action", { type: "endTurn" })
+        let view = await c.nextState()
+        let guard = 0
+        let lastSignature = ""
+        let attackedByAi = false
+        while (!(view.turnPlayer === "p1" && view.turn >= 3 && !view.battle) && guard < 400) {
+            guard++
+            const signature = [
+                view.turn,
+                view.phase,
+                view.isFlashTiming,
+                view.battle?.attackerInstanceId ?? "-",
+                view.battle?.blockerInstanceId ?? "-",
+                view.pendingChoice?.prompt ?? "-",
+            ].join("/")
+            if (signature !== lastSignature) {
+                lastSignature = signature
+                if (view.pendingChoice?.pid === "p1") {
+                    // 選択待ちは候補の先頭を選ぶ（選べなければスキップ）
+                    const first = view.pendingChoice.candidates[0]
+                    c.socket.emit(
+                        "action",
+                        first ? { type: "resolveChoice", instanceId: first } : { type: "resolveChoice" },
+                    )
+                } else if (view.battle) {
+                    attackedByAi = true
+                    if (view.isFlashTiming && view.priorityPlayer === "p1") {
+                        c.socket.emit("action", { type: "pass" })
+                    } else if (!view.battle.blockerInstanceId) {
+                        c.socket.emit("action", { type: "takeLife" })
+                    }
+                }
+            }
+            view = await c.nextState()
+        }
+        assert(view.turnPlayer === "p1" && view.turn >= 3, `AIが指し終えて自分の手番に戻る（ターン${view.turn}）`)
+        assert(
+            view.players.p2.field.spirits.length > 0,
+            `AIが実際に盤面を作っている（AIのスピリット${view.players.p2.field.spirits.length}体）`,
+        )
+        assert(attackedByAi, "AIがアタックを仕掛けてくる")
+        assert(view.players.p1.hand !== null && view.players.p2.hand === null, "AIの手札は見えない")
+        c.socket.disconnect()
     }
 
     console.log("")
