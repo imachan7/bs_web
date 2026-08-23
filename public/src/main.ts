@@ -18,7 +18,7 @@ import {
     hideWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, sokuPayableInstanceIds } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { canBattleSwapSummon } from "../../shared/summon"
 
@@ -40,6 +40,25 @@ let lastErrorText: string = ""
 
 function send(action: GameAction): void {
     socket.emit("action", action)
+}
+
+// スピリット／ネクサスからコアを1個取り除く。
+// 自分のスピリットが**維持コア（Lv1）を下回る**ときは、消滅することを断ってから送る
+// （コアをリザーブへ引き上げて他の召喚や別のスピリットへ回すために、あえて退かせる操作。
+// 2026-08-23 ユーザー要望）。ネクサスは Lv1 が0コアなのでこの確認は出ない
+function sendCoreRemove(instanceId: string): void {
+    const inst = view?.players[view.you].field.spirits.find((s) => s.instanceId === instanceId)
+    if (inst && inst.cores - 1 < instMinLevelCores(inst)) {
+        const name = master(inst.cardId).name
+        const ok = window.confirm(
+            `${name}のコアを取り除くと維持コア（Lv1）を下回るため、${name}は消滅します。\n` +
+                `残っているコアはリザーブに戻ります。\n\nよろしいですか？`,
+        )
+        if (!ok) return
+        send({ type: "moveCore", instanceId, direction: "remove", confirmDeplete: true })
+        return
+    }
+    send({ type: "moveCore", instanceId, direction: "remove" })
 }
 
 function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
@@ -246,6 +265,17 @@ function submitPaying(): void {
     const paySources: PaySource[] = Object.entries(pay.assigned).map(
         ([id, count]) => ({ instanceId: id, count }),
     )
+    // 選択待ちの解決として支払う場合（「コストを支払って召喚できる」起動効果）は
+    // summon ではなく resolveChoice を送る
+    if (pay.forChoiceCardIndex !== undefined) {
+        send({
+            type: "resolveChoice",
+            cardIndex: pay.forChoiceCardIndex,
+            ...(paySources.length > 0 ? { paySources } : {}),
+        })
+        ui.paying = null
+        return
+    }
     sendPlay(
         card.type,
         pay.handIndex,
@@ -327,7 +357,35 @@ function tryResolveCardChoice(handIndex: number): boolean {
     if (view.pendingChoice.pid !== view.you) return false
     if (view.pendingChoice.kind !== "card" || view.pendingChoice.cardZone !== "hand") return false
     if (!(view.pendingChoice.cardIndices ?? []).includes(handIndex)) return false
+    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル）で、リザーブだけでは
+    // 払えないときは支払いモードへ入る（フィールドのコアの割り当てを決めてから送る）
+    if (startChoicePaying(handIndex)) return true
     send({ type: "resolveChoice", cardIndex: handIndex })
+    return true
+}
+
+// 選択待ちで選んだカードの召喚コストがリザーブだけでは足りないとき、通常の召喚と同じ
+// 支払いモードを開始する（開始したら true）。フィールドのコアでも足りないカードは
+// そもそもサーバーが候補に入れないので、ここでは不足＝フィールドから払う場面とみなす
+function startChoicePaying(handIndex: number): boolean {
+    if (!view || !view.pendingChoice) return false
+    // 既にこの選択の支払い中なら、手札クリックでは何もしない（割り当てをリセットさせない）
+    if (ui.paying?.forChoiceCardIndex !== undefined) return true
+    const action = view.pendingChoice.action as { type?: string; payCost?: true } | undefined
+    if (action?.type !== "summonFromHandFree" || !action.payCost) return false
+    const cardId = view.players[view.you].hand?.[handIndex]
+    if (cardId === undefined) return false
+    const card = master(cardId)
+    const need = effectiveCost(view, view.you, card) + minLevelCores(card)
+    if (view.players[view.you].reserve >= need) return false
+    ui.paying = {
+        handIndex,
+        forChoiceCardIndex: handIndex,
+        assigned: {},
+        discardHandIndices: [],
+        millPay: 0,
+    }
+    rerender()
     return true
 }
 
@@ -845,8 +903,10 @@ async function init(): Promise<void> {
         if (coreBtn) {
             const direction = String(coreBtn.dataset.core)
             const instanceId = String(coreBtn.dataset.instanceId)
-            if (direction === "add" || direction === "remove") {
+            if (direction === "add") {
                 send({ type: "moveCore", instanceId, direction })
+            } else if (direction === "remove") {
+                sendCoreRemove(instanceId)
             } else if (direction.startsWith("set-")) {
                 const targetCores = parseInt(direction.split("-")[1] || "0", 10)
                 const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)
@@ -878,8 +938,10 @@ async function init(): Promise<void> {
         if (coreBtn) {
             const direction = String(coreBtn.dataset.core)
             const instanceId = String(coreBtn.dataset.instanceId)
-            if (direction === "add" || direction === "remove") {
+            if (direction === "add") {
                 send({ type: "moveCore", instanceId, direction })
+            } else if (direction === "remove") {
+                sendCoreRemove(instanceId)
             } else if (direction.startsWith("set-")) {
                 const targetCores = parseInt(direction.split("-")[1] || "0", 10)
                 const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)

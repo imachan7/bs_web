@@ -2190,7 +2190,7 @@ export type GameAction =
     | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string; discardHandIndices?: number[] } // discardHandIndices指定時は、その手札を破棄して**1枚につきコスト1**を支払う（BS08ビクティム）。省略時は従来どおり「コアで足りない分を自動で手札破棄に回す」（非対話・旧クライアント互換） // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは通常どおり必要。発動可否は shared/rules.ts の canBattleSwapSummon で判定できる。BS07ブラックカラカロッサム）
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[]; millPay?: number } // millPay指定時は、その数だけデッキを上から破棄して**1枚につきコスト1**を支払う（BS04栄光の表彰台）。省略時は従来どおり「コアで足りない分を自動でデッキ破棄に回す」 // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
-    | { type: "moveCore"; instanceId: string; direction: "add" | "remove" }
+    | { type: "moveCore"; instanceId: string; direction: "add" | "remove"; confirmDeplete?: true } // confirmDeplete指定時は、維持コア（Lv1）を下回るコアの取り除きを許可し、そのスピリットを消滅させる（コアを他へ回すために自分のスピリットをあえて退かせる操作。クライアントが確認を取ってから送る。2026-08-23 ユーザー要望）
     | {
           type: "awaken" // 覚醒：fromInstanceId のコアを instanceId へ移す
           instanceId: string
@@ -2200,7 +2200,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
-    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）
+    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number; paySources?: PaySource[] } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）。// paySources指定時は、選んだカードの召喚コストをフィールドのコアからも支払う（「コストを支払って召喚できる」起動効果＝summonFromHandFreeのpayCost。通常の召喚と同じ支払いUIから送られる。2026-08-23）
     | { type: "setPayToNegate"; enabled: boolean } // ⚠️ **廃止予定・効果は無い**（2026-08-17。効果ごとに聞く形へ移した）。UI からトグルが消えたら PlayerState.payToNegate ごと削除する。// 「手札を破棄して効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針を切り替える。
     // 効果の判定自体は装甲と同じ同期の述語なので、**その場で聞くのではなく、あらかじめ盤面の状態にしておく**（PlayerState.payToNegate）。
     // 手順の外側の操作なので、自分のターンでなくても選択待ち中でも受け付ける。既定は true（従来どおり払って防ぐ）

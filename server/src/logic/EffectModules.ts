@@ -25,6 +25,7 @@ import type {
     GameState,
     GlobalConstraintDef,
     Keyword,
+    PaySource,
     Phase,
     PlayerId,
     ResolvedTargetFilter,
@@ -39,6 +40,8 @@ import {
     currentLevel,
     draw,
     findInstanceAnywhere,
+    findNexus,
+    findSpirit,
     getCard,
     log,
     instMinLevelCores,
@@ -2285,13 +2288,68 @@ export function tryInteractiveCardChoice(
 // summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
 // 維持コアのみリザーブから払ってフィールドへ配置する（onSummon効果は発揮させない）。
 // プレイヤー選択（chosenCardIndex）・自動選択（コスト最大）どちらの経路からも呼ぶ
+// コストと「召喚/配置したカードの上に置くコア」をまとめて支払う。
+//
+// paySources（自分のフィールドのスピリット/ネクサス上のコア）から取ったぶんは、
+// **先にコストへ充当し、余りを置くコアへ回す**。コスト充当分はトラッシュへ行き、
+// 置くコアに回った分はそのままカードの上へ置かれる（＝トラッシュを経由しない）。
+// 不足分はリザーブから支払う。
+// 戻り値は「置くコアのうちフィールドから賄えた数」で、呼び出し側はリザーブから引く数を
+// maintain - placedFromField にする。
+// 支払い後、維持コア（Lv1）を下回った支払い元スピリットは消滅する。
+export function payCost(
+    state: GameState,
+    pid: PlayerId,
+    cost: number,
+    paySources?: PaySource[],
+    maintain = 0,
+): number {
+    const player = state.players[pid]
+    let takenFromField = 0
+    if (paySources && paySources.length > 0) {
+        for (const src of paySources) {
+            const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
+            if (!inst) continue
+            const paid = Math.min(src.count, inst.cores)
+            inst.cores -= paid
+            takenFromField += paid
+        }
+    }
+    // フィールドから取ったコアはコスト優先で充当し、余りを置くコアへ（上限は maintain）
+    const costFromField = Math.min(takenFromField, cost)
+    const placedFromField = Math.min(takenFromField - costFromField, maintain)
+    // コスト充当分（フィールド由来＋リザーブ由来）はトラッシュへ
+    const costFromReserve = cost - costFromField
+    player.reserve -= costFromReserve
+    player.trashCores += costFromField + costFromReserve
+    // 置くコアに回りきらなかった余剰はリザーブへ戻す（validate 側で弾いているので通常は0）
+    const surplus = takenFromField - costFromField - placedFromField
+    if (surplus > 0) player.reserve += surplus
+    if (takenFromField > 0) {
+        const placedNote = placedFromField > 0 ? `（うち${placedFromField}個は置くコアに充当）` : ""
+        log(state, `${player.name}はフィールドのコア${takenFromField}個を含めて支払った。${placedNote}`)
+    }
+    // 全支払い完了後、支払い元スピリットが維持コア（Lv1）を下回っていたら消滅させる
+    // （ここは意図的に findSpirit のみを検索する。ネクサスは維持コアの概念がなく
+    //   自然に消滅対象から外れるため、findNexus を併用しないこと）
+    if (paySources) {
+        for (const src of paySources) {
+            const inst = findSpirit(player, src.instanceId)
+            if (inst && inst.cores < instMinLevelCores(inst)) {
+                destroySpirit(state, pid, inst.instanceId, "deplete")
+            }
+        }
+    }
+    return placedFromField
+}
+
 export function summonFreeFromHandIndex(
     state: GameState,
     owner: PlayerId,
     sourceName: string,
     handIndex: number,
     skipTensho?: true,
-    opts?: { payCost?: true; skipOnSummon?: true },
+    opts?: { payCost?: true; skipOnSummon?: true; paySources?: PaySource[] },
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2302,15 +2360,20 @@ export function summonFreeFromHandIndex(
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
-    // 支払い元はリザーブのみ＝フィールドのコアからは払えない簡略化。BS08帝竜騎サイクル）
+    // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
+    // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
+    // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
     const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
-    if (player.reserve < maintain + cost) {
-        log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+    const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
+    if (player.reserve + fromField < maintain + cost) {
+        log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.hand.splice(handIndex, 1)
-    player.reserve -= maintain + cost
-    player.trashCores += cost
+    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
+    // 支払い元が維持コア割れしたらそこで消滅する）
+    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     log(
@@ -2744,6 +2807,7 @@ export function resolveAction(
     chosenOption?: string,
     chosenCardIndex?: number,
     sourceCardId?: string,
+    paySources?: PaySource[],
 ): void {
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
@@ -2777,6 +2841,7 @@ export function resolveAction(
         targetInstanceId,
         chosenOption,
         chosenCardIndex,
+        paySources,
         resolve: (next, opts) =>
             resolveAction(
                 state,
