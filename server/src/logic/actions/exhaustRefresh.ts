@@ -433,9 +433,9 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
 }
 
 const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName, destroyContext , srcType } = ctx
-        // 巨神機トールLv3：「〜することで」の任意コストは自動発動で簡略化。
-        // 犠牲はfamilyFilter一致・self以外から実効BP最小を自動選択する（犠牲を最小化する簡略化）
+    const { state, owner, self, sourceName, destroyContext , srcType, targetInstanceId } = ctx
+        // 巨神機トールLv3。**何を犠牲にするかはプレイヤーが選ぶ**（COST_MODEL.md §2）。
+        // 非対話は従来どおり実効BP最小＝犠牲を最小化する簡略化
         if (!self) {
             log(state, `${sourceName}：回復対象がいなかった。`)
             return
@@ -447,24 +447,52 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
             log(state, `${sourceName}：破壊できる対象がいなかったため発動しなかった。`)
             return
         }
-        const target = candidates.reduce((worst, s) =>
-            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
-        )
-        const name = getCard(target.cardId).name
-        destroySpirit(state, owner, target.instanceId, "destroy", destroyContext)
-        if (!self.isRested) {
-            log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+        const applyTo = (target: CardInstance): void => {
+            const name = getCard(target.cardId).name
+            destroySpirit(state, owner, target.instanceId, "destroy", destroyContext)
+            if (!self.isRested) {
+                log(state, `${name}は破壊されたが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+                return
+            }
+            refreshSpirit(state, owner, self, srcType)
+            log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
+        }
+        // 犠牲を選び終えて再入した経路（sacrificeChosen が無い targetInstanceId は誘発のイベント対象）
+        if (action.sacrificeChosen && targetInstanceId !== undefined) {
+            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+            if (!chosen) {
+                log(state, `${sourceName}：破壊できる対象がいなかったため発動しなかった。`)
+                return
+            }
+            applyTo(chosen)
             return
         }
-        refreshSpirit(state, owner, self, srcType)
-        log(state, `${name}は破壊され、${getCard(self.cardId).name}は回復した。`)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとして破壊するスピリットを選んでください`,
+                candidates,
+                { ...action, sacrificeChosen: true },
+                null,
+            )
+        ) {
+            return
+        }
+        applyTo(
+            candidates.reduce((worst, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+            ),
+        )
         return
 }
 
-// BS08勇者フェニックスペンタンLv2-3：「〜することで」の任意コストは自動発動で簡略化（refreshSelfByDestroyFamilyの
-// 「破壊」を「デッキの一番上に戻す」に差し替えた版）。犠牲はnameIncludes一致・self以外から実効BP最小を自動選択する
+// BS08勇者フェニックスペンタンLv2-3（refreshSelfByDestroyFamilyの「破壊」を「デッキの一番上に戻す」に
+// 差し替えた版）。**何を犠牲にするかはプレイヤーが選ぶ**（COST_MODEL.md §2）。
+// 非対話は従来どおり実効BP最小＝犠牲を最小化する簡略化
 const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByReturnToDeckTopName"> = (ctx, action) => {
-    const { state, owner, self, sourceName , srcType } = ctx
+    const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
         if (!self) {
             log(state, `${sourceName}：回復対象がいなかった。`)
             return
@@ -476,17 +504,44 @@ const refreshSelfByReturnToDeckTopNameHandler: ActionHandler<"refreshSelfByRetur
             log(state, `${sourceName}：デッキの上に戻せる対象がいなかったため発動しなかった。`)
             return
         }
-        const target = candidates.reduce((worst, s) =>
-            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
-        )
-        const name = getCard(target.cardId).name
-        returnSpiritToDeckTop(state, owner, target, sourceName)
-        if (!self.isRested) {
-            log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+        const applyTo = (target: CardInstance): void => {
+            const name = getCard(target.cardId).name
+            returnSpiritToDeckTop(state, owner, target, sourceName)
+            if (!self.isRested) {
+                log(state, `${name}はデッキの上に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+                return
+            }
+            refreshSpirit(state, owner, self, srcType)
+            log(state, `${name}はデッキの上に戻り、${getCard(self.cardId).name}は回復した。`)
+        }
+        // 犠牲を選び終えて再入した経路（sacrificeChosen が無い targetInstanceId は誘発のイベント対象）
+        if (action.sacrificeChosen && targetInstanceId !== undefined) {
+            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+            if (!chosen) {
+                log(state, `${sourceName}：デッキの上に戻せる対象がいなかったため発動しなかった。`)
+                return
+            }
+            applyTo(chosen)
             return
         }
-        refreshSpirit(state, owner, self, srcType)
-        log(state, `${name}はデッキの上に戻り、${getCard(self.cardId).name}は回復した。`)
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとしてデッキの上に戻すスピリットを選んでください`,
+                candidates,
+                { ...action, sacrificeChosen: true },
+                null,
+            )
+        ) {
+            return
+        }
+        applyTo(
+            candidates.reduce((worst, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+            ),
+        )
         return
 }
 

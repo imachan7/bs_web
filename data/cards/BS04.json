@@ -1342,7 +1342,7 @@
     "action": {
      "type": "coreRemovePerHandDiscard"
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -3478,7 +3478,8 @@
     ],
     "action": {
      "type": "reviveLastDestroyedNexus"
-    }
+    },
+    "optional": true
    }
   ]
  },

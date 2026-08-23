@@ -3007,7 +3007,7 @@
      "type": "refreshSelfByReturnToDeckTopName",
      "nameIncludes": "ペンタン"
     },
-    "optional": false
+    "optional": true
    },
    {
     "id": "BS08-045-e3",
