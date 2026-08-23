@@ -49,8 +49,10 @@ jobs:
         run: npm run smoke:quiet
 
       - name: E2Eテスト（サーバー起動 → 疎通確認）
+        # BS_AI_DELAY_MS=0：AI戦の検証で、AIが1手ごとに450ms待つのを止める
+        # （実対戦では人間が目で追えるよう間を空けているが、CIでは待つ意味がない）
         run: |
-          PORT=3100 npx tsx server/src/index.ts &
+          BS_AI_DELAY_MS=0 PORT=3100 npx tsx server/src/index.ts &
           SERVER_PID=$!
           # サーバー起動待ち（/health が 200 を返すまで待機）
           for i in $(seq 1 30); do
