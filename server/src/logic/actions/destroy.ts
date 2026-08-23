@@ -347,27 +347,56 @@ const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyT
 
 // マインドフレア：相手のフィールドに同じカード名のスピリットが2体以上いるとき、
 // カード名1つにつき1体だけ残して残りを破壊する。残すのはフィールドの先頭側（決定的簡略化）
-const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ctx) => {
-    const { state, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-    const seen = new Set<string>()
-    const doomed: string[] = []
+const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    // カード名ごとにまとめる（2体以上いる名前だけが対象）
+    const groups = new Map<string, CardInstance[]>()
     for (const s of state.players[opp].field.spirits) {
         const name = getCard(s.cardId).name
-        if (!seen.has(name)) {
-            seen.add(name)
-            continue // 各カード名の先頭1体は残す
-        }
-        if (isResisted(state, opp, s, attemptOf(ctx, "destroy", "area"))) {
-            continue
-        }
-        doomed.push(s.instanceId)
+        groups.set(name, [...(groups.get(name) ?? []), s])
     }
-    if (doomed.length === 0) {
+    const dupGroups = [...groups.values()].filter((list) => list.length >= 2)
+    if (dupGroups.length === 0) {
         log(state, `${sourceName}：同じカード名のスピリットが2体以上いなかった。`)
         return
     }
+    // **どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に
+    // 主語が無いので発生源の持ち主。2026-08-24）。重複する名前が複数あれば1つずつ聞く。
+    // choosing が付いているときだけ targetInstanceId を選択結果として読む
+    // （素の targetInstanceId は誘発が渡すイベント対象）
+    const kept = [...(action.keptIds ?? [])]
+    if (action.choosing && targetInstanceId !== undefined) kept.push(targetInstanceId)
+    for (const list of dupGroups) {
+        if (list.some((s) => kept.includes(s.instanceId))) continue // この名前は決定済み
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：${getCard(list[0]!.cardId).name}のうち残す1体を選んでください`,
+                list,
+                { ...action, choosing: true, keptIds: kept },
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話（テスト・自動解決）は従来どおりフィールドの先頭側を残す
+        kept.push(list[0]!.instanceId)
+    }
+    const doomed: string[] = []
+    for (const list of dupGroups) {
+        for (const s of list) {
+            if (kept.includes(s.instanceId)) continue
+            if (isResisted(state, opp, s, attemptOf(ctx, "destroy", "area"))) continue
+            doomed.push(s.instanceId)
+        }
+    }
+    if (doomed.length === 0) {
+        log(state, `${sourceName}：破壊できるスピリットがいなかった。`)
+        return
+    }
     destroyTargetsBatch(state, opp, doomed.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
-    void self
 }
 
 // タイダルタイド：自分のネクサスをすべて破壊し（「好きなだけ」の決定的簡略化）、

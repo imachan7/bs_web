@@ -1882,8 +1882,8 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
 
 // 天使スローン：相手のスピリット2体（実効BP上位2体＝プレイヤー指定の決定的簡略化）の上のコアをすべて入れ替える。
 // 入れ替えで維持コア（Lv1）を下回った側は消滅する（コアが0個だった個体と入れ替えたとき）
-const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx) => {
-    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     // 装甲・マジック効果耐性で効果を受けない個体は対象から外す（他のコア操作アクションと同じ扱い）
     const candidates = state.players[opp].field.spirits.filter(
         (s) =>
@@ -1893,34 +1893,89 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx) => {
         log(state, `${sourceName}：相手のスピリットが2体未満で入れ替えられなかった。`)
         return
     }
+    const swap = (a: CardInstance, b: CardInstance): void => {
+        const beforeA = a.cores
+        const beforeB = b.cores
+        if (beforeA === beforeB) {
+            log(state, `${sourceName}：${getCard(a.cardId).name}と${getCard(b.cardId).name}のコアは同数だった。`)
+            return
+        }
+        a.cores = beforeB
+        b.cores = beforeA
+        log(
+            state,
+            `${sourceName}：${getCard(a.cardId).name}（${beforeA}個→${beforeB}個）と${getCard(b.cardId).name}（${beforeB}個→${beforeA}個）のコアを入れ替えた。`,
+        )
+        // コアが減った側は「効果でコアを取り除かれた」扱いの誘発と、維持コア割れの消滅を処理する
+        for (const [inst, before] of [
+            [a, beforeA],
+            [b, beforeB],
+        ] as const) {
+            if (inst.cores >= before) continue
+            checkExhaustOnCoreChange(state, opp, inst, { viaEffect: true, isRemoval: true })
+            if (inst.cores < instMinLevelCores(inst)) {
+                destroySpirit(state, opp, inst.instanceId, "deplete")
+            }
+            notifySpiritCoresRemovedByOpponent(state, opp, 1)
+        }
+    }
+    // 効果文は「相手のスピリット2体を**指定する**」なので、2体とも持ち主が選ぶ（2026-08-24）。
+    // choosing が付いているときだけ targetInstanceId を選択結果として読む
+    // （素の targetInstanceId は誘発が渡すイベント対象。part230 の refreshOne で踏んだのと同じ罠）
+    if (action.choosing && targetInstanceId !== undefined) {
+        const picked = candidates.find((s) => s.instanceId === targetInstanceId)
+        if (!picked) {
+            log(state, `${sourceName}：指定されたスピリットがいなかった。`)
+            return
+        }
+        if (action.firstChosen === undefined) {
+            // 1体目が決まった。残りから2体目を選ばせる
+            const rest = candidates.filter((s) => s.instanceId !== picked.instanceId)
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：コアを入れ替える2体目を選んでください`,
+                    rest,
+                    { ...action, firstChosen: picked.instanceId },
+                    null,
+                )
+            ) {
+                return
+            }
+            // 残りが1体だけなら聞かずに確定する
+            const only = rest[0]
+            if (only) swap(picked, only)
+            return
+        }
+        const first = candidates.find((s) => s.instanceId === action.firstChosen)
+        if (!first) {
+            log(state, `${sourceName}：指定されたスピリットがいなかった。`)
+            return
+        }
+        swap(first, picked)
+        return
+    }
+    if (
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コアを入れ替える1体目を選んでください`,
+            candidates,
+            { ...action, choosing: true },
+            null,
+        )
+    ) {
+        return
+    }
+    // 非対話（テスト・自動解決）は従来どおり実効BP上位2体
     const sorted = [...candidates].sort((x, y) => effectiveBp(state, opp, y) - effectiveBp(state, opp, x))
     const a = sorted[0]
     const b = sorted[1]
     if (!a || !b) return
-    const beforeA = a.cores
-    const beforeB = b.cores
-    if (beforeA === beforeB) {
-        log(state, `${sourceName}：${getCard(a.cardId).name}と${getCard(b.cardId).name}のコアは同数だった。`)
-        return
-    }
-    a.cores = beforeB
-    b.cores = beforeA
-    log(
-        state,
-        `${sourceName}：${getCard(a.cardId).name}（${beforeA}個→${beforeB}個）と${getCard(b.cardId).name}（${beforeB}個→${beforeA}個）のコアを入れ替えた。（対象2体は実効BP上位＝簡略化）`,
-    )
-    // コアが減った側は「効果でコアを取り除かれた」扱いの誘発と、維持コア割れの消滅を処理する
-    for (const [inst, before] of [
-        [a, beforeA],
-        [b, beforeB],
-    ] as const) {
-        if (inst.cores >= before) continue
-        checkExhaustOnCoreChange(state, opp, inst, { viaEffect: true, isRemoval: true })
-        if (inst.cores < instMinLevelCores(inst)) {
-            destroySpirit(state, opp, inst.instanceId, "deplete")
-        }
-        notifySpiritCoresRemovedByOpponent(state, opp, 1)
-    }
+    swap(a, b)
 }
 
 // セブンスクリムゾン：BPminBp以上の自分のスピリット1体（BP最大）のコアすべてをボイドへ置くことをコストに、
