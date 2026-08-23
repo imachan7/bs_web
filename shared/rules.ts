@@ -221,12 +221,30 @@ export function instColors(inst: CardInstance): Color[] {
 // BP には tempBpBuff と battleBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）。
 // 両者の違いは寿命だけ：tempBpBuff はターン終了まで、battleBpBuff は clearBattle まで
 export function currentLevel(inst: CardInstance): { level: number; bp: number } {
+    return levelOf(inst, true)
+}
+
+// 「見た目・他のカードから見えるレベル」。**効果の発揮判定にだけ効く置き換え**
+// （levelAsEffectsOnly。BS03ウッド・ゴレム「相手のネクサスすべてのLv2効果は発揮されない」）を無視する。
+//
+// ウッド・ゴレムは「Lv2効果を発揮させない」だけで、相手のネクサスをLv1にするわけではない。
+// currentLevel（＝効果の発揮判定が通る道）に置き換えを載せると、**画面のレベル表示や
+// 「Lv1のネクサスを破壊する」（BS03バスターランス）の判定にまで当たってしまう**。
+// **他のカードから見えるレベルを読む処理はこちらを使うこと**（対象の絞り込み・表示）。
+// 自分の効果を発揮するかどうかの判定は currentLevel のままでよい
+export function displayLevel(inst: CardInstance): { level: number; bp: number } {
+    return levelOf(inst, false)
+}
+
+function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: number } {
     const buff = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
     // asSpiritThisTurn（このターンだけスピリットとして扱われているネクサス。BS03ゴーレムクラフト）が
     // 載っていれば、カード静的な levels ではなく上書きされた levels で判定する。
     // ネクサスのLv1コア数は全カード0のため、これが無いとコア0でもLv1のまま消滅しない
     const levels = instLevels(inst)
-    const override = inst.levelOverrideThisTurn ?? inst.levelAsContinuous
+    // 効果の発揮判定にだけ効く置き換えは、他から見えるレベル（forEffects=false）では無視する
+    const continuous = inst.levelAsEffectsOnly && !forEffects ? undefined : inst.levelAsContinuous
+    const override = inst.levelOverrideThisTurn ?? continuous
     if (override !== undefined) {
         const lv = levels.find((l) => l.level === override)
         if (lv) {

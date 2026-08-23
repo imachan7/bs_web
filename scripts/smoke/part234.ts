@@ -19,11 +19,15 @@ import {
     fireStepTriggers,
     getCard,
     handleAction,
+    currentLevel,
     minLevelCores,
+    refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    viewFor,
 } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
+import { displayLevel } from "../../shared/rules"
 
 interface CardRow {
     cardId: string
@@ -31,6 +35,8 @@ interface CardRow {
     type?: string
     cost?: number
     family?: string[]
+    levels?: { level?: number; cores?: number }[]
+    effects?: { levels?: unknown }[]
 }
 const CARDS = loadAllCards() as unknown as CardRow[]
 import type { GameState, PlayerId } from "./helpers"
@@ -300,4 +306,65 @@ console.log("=== 常闇の聖堂Lv1：コアが足りなければ召喚できな
         "コアが足りないので召喚されない（無償召喚だった頃は召喚できていた）",
     )
     assert(s.players.p1.trashCards.includes(yazoku.cardId), "対象はトラッシュに残る")
+}
+
+console.log("=== ウッド・ゴレムLv2：Lv2効果は止めるが、レベルそのものは下がらない ===")
+{
+    // 効果文は「相手のネクサスすべての**Lv2効果は発揮されない**」。
+    // 「Lv1として扱う」で代用していたため、画面のレベル表示も1になり、
+    // 「Lv1のネクサスを破壊する」（BS03バスターランス）にも当たっていた
+    const GOLEM = "BS03-085"
+    assert(getCard(GOLEM).name === "ウッド・ゴレム", "BS03-085 はウッド・ゴレム")
+    // 相手に置くネクサス：Lv2エントリを持ち、Lv2で2コア以上になるもの
+    const nexusCard = CARDS.find(
+        (c) =>
+            c.type === "nexus" &&
+            (c.levels ?? []).some((l) => l.level === 2 && (l.cores ?? 0) >= 1) &&
+            (c.effects ?? []).some((e) => Array.isArray(e.levels) && e.levels.includes(2) && !e.levels.includes(1)),
+    )!
+    const lv2Cores = (nexusCard.levels ?? []).find((l) => l.level === 2)!.cores ?? 1
+
+    const s = setup("woodgolem", false)
+    const golemLv2Cores = getCard(GOLEM).levels.find((l) => l.level === 2)!.cores
+    const golem = createInstance(GOLEM, s.turn, golemLv2Cores)
+    s.players.p1.field.spirits.push(golem)
+    const nexus = createInstance(nexusCard.cardId, s.turn, lv2Cores)
+    s.players.p2.field.nexuses.push(nexus)
+    refreshLevelAsOverrides(s)
+
+    assert(currentLevel(golem).level === 2, `ウッド・ゴレム自身はLv2（実際は${currentLevel(golem).level}）`)
+    // 効果の発揮判定ではLv1扱い（＝相手ネクサスのLv2効果は出ない）
+    assert(currentLevel(nexus).level === 1, "効果の発揮判定ではLv1として扱う")
+    // 表示・他カードから見えるレベルは実レベルのまま
+    assert(
+        displayLevel(nexus).level === 2,
+        `見えるレベルはLv2のまま（実際は${displayLevel(nexus).level}）`,
+    )
+
+    // 「Lv1のネクサスを破壊する」には当たらない
+    // 画面に渡すビューでも実レベルが出る（効果判定専用の置き換えはビューに載せない）
+    const viewedNexus = viewFor(s, "p2").players.p2.field.nexuses[0]!
+    assert(currentLevel(viewedNexus).level === 2, "ビュー越しに見てもLv2（画面のレベル表示が下がらない）")
+
+    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, levelFilter: [1] })
+    assert(
+        s.players.p2.field.nexuses.length === 1,
+        "Lv1限定のネクサス破壊では壊れない（Lv2として見えている）",
+    )
+    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, levelFilter: [2] })
+    assert(s.players.p2.field.nexuses.length === 0, "Lv2限定なら壊れる")
+}
+
+console.log("=== ウッド・ゴレム：発生源がいなくなれば置き換えも消える ===")
+{
+    const nexusCard = CARDS.find(
+        (c) => c.type === "nexus" && (c.levels ?? []).some((l) => l.level === 2 && (l.cores ?? 0) >= 1),
+    )!
+    const lv2Cores = (nexusCard.levels ?? []).find((l) => l.level === 2)!.cores ?? 1
+    const s = setup("woodgolem-gone", false)
+    const nexus = createInstance(nexusCard.cardId, s.turn, lv2Cores)
+    s.players.p2.field.nexuses.push(nexus)
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(nexus).level === 2, "ウッド・ゴレムがいなければ効果判定でもLv2")
+    assert(nexus.levelAsEffectsOnly === undefined, "目印も残らない")
 }

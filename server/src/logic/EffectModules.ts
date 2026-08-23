@@ -1762,6 +1762,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.levelAsEffectsOnly
             delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
@@ -2003,10 +2004,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {
-                    // 発生源の持ち主の相手の全ネクサス（ウッド・ゴレム：相手ネクサスのLv2効果を無効化する
-                    // 簡略化としてLv1扱いにする。ネクサスのレベル表示も1になる）
+                    // 発生源の持ち主の相手の全ネクサス（ウッド・ゴレム）。
+                    // effectsOnly 指定時は**効果の発揮判定にだけ効く**置き換えなので、
+                    // 表示や「Lv1のネクサスを破壊する」の判定には当たらない（displayLevel が無視する）
                     for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
+                        if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
                     // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ

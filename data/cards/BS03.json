@@ -4470,7 +4470,8 @@
     "treatAs": 1,
     "sourceLevels": [
      2
-    ]
+    ],
+    "effectsOnly": true
    }
   ]
  },

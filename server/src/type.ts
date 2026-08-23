@@ -1236,6 +1236,10 @@ export type EffectDef =
           // target: "opponentBlockersOfOwnKeyword" では「**このキーワードを持つ自分のスピリット**をブロックしている相手」を指す
           // （SD02-005 天使ヘルヴィムLv2-3＝【光芒】を持つ自分のスピリットをブロックしている相手すべてはLv1として扱う）
           familyFilter?: FamilyFilter // target: "ownSpiritsByFamily" 用（BS06マッスルチャージ：闘神）
+          effectsOnly?: true // この置き換えを**効果の発揮判定にだけ**効かせる（CardInstance.levelAsEffectsOnly）。
+          // 表示や他のカードから見えるレベル（displayLevel）はこの置き換えを無視する。
+          // 効果文が「Lv◯として扱う」ではなく「**Lv◯効果は発揮されない**」と書いているカード用
+          // （BS03ウッド・ゴレム：相手のネクサスすべてのLv2効果は発揮されない）
           summonedThisTurnOnly?: true // target: "ownSpiritsVanilla" 用：対象の summonedTurn が現在のターンのときのみ（「召喚されたターンの間」。BS04心臓破りの巨大坂Lv2）
           phase?: Phase // 指定時、state.phaseが一致するときのみ有効
           turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効（BS06マンティゴア：opponent＝『相手のアタックステップ』）
@@ -1612,6 +1616,9 @@ export interface CardInstance {
     symbolsOverrideContinuous?: Color[] // 継続的な「シンボルを◯個に固定する」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（kind:"symbolFix"）。instanceSymbolCount / countSymbols が、カード静的なsymbolの代わりにこちらを見る（BS08海底に眠りし古代都市）
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
+    levelAsEffectsOnly?: true // levelAsContinuous による置き換えが**効果の発揮判定にだけ効く**目印（kind:"levelAs" の effectsOnly）。
+    // 立っていると shared/rules.ts の displayLevel（表示・他カードから見えるレベル）はこの置き換えを無視する。
+    // BS03ウッド・ゴレム「相手のネクサスすべてのLv2効果は発揮されない」＝Lv1にするわけではない
     lentChoiceColor?: Color // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ色。仮想発生源にのみ載り、kind:"levelAs" の target:"allSpiritsByChosenColor" が読む（BS02-111スピリットイリュージョン）
     lentBuffTargetId?: string // 同じマジックの**直前の効果でBP増加した相手**のinstanceId。仮想発生源にのみ載り、
     // kind:"battleWon" の winnerIsLentBuffTarget が読む。効果文が「**そのスピリットが**、BPを比べ〜したとき」と
