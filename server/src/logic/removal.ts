@@ -1561,11 +1561,20 @@ const bounceSourceNames = new Map<string, string>()
 // 移動を先に全部済ませてから誘発するのが要点（Wiki：待機中の「戻るとき」効果は割り込まない）。
 // 1体戻すごとに誘発していると、その誘発が2体目以降の対象を変えてしまう
 // （例：紅玉の火山弾＝地竜が手札に戻ったとき相手1体を破壊、とまとめ戻しの組み合わせ）
-export function flushBounces(state: GameState): void {
+//
+// order（instanceId の列）を渡すと**その順に移す**。「好きな順番でデッキの下に戻す」
+// （BS06颶風高原Lv2）のように、プレイヤーが決めた順番がデッキの並びに出る効果で使う。
+// 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
+export function flushBounces(state: GameState, order?: string[]): void {
     const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[] = []
+    const rank = (inst: CardInstance): number => {
+        if (!order) return 0
+        const i = order.indexOf(inst.instanceId)
+        return i === -1 ? order.length : i
+    }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = state.players[pid]
-        for (const inst of [...player.field.spirits]) {
+        for (const inst of [...player.field.spirits].sort((a, b) => rank(a) - rank(b))) {
             const pb = inst.pendingBounce
             if (!pb) continue
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
