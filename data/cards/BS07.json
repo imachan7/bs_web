@@ -3720,7 +3720,8 @@
      "familyFilter": "夜族",
      "costFilter": {
       "max": 3
-     }
+     },
+     "payCost": true
     }
    },
    {

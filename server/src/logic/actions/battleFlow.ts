@@ -790,7 +790,23 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             // カード静的な名前で判定する
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
+            // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
+            // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
+            if (action.payCost) {
+                const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
+                    (sum, i) => sum + i.cores,
+                    0,
+                )
+                if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+                    return false
+                }
+            }
             return true
+        }
+        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定）
+        const trashSummonOpts = {
+            ...(action.payCost ? { payCost: action.payCost } : {}),
+            ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
         }
         // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
         // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
@@ -836,7 +852,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             return
         }
         if (chosenCardIndex !== undefined) {
-            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex)
+            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
             return
         }
         if (state.interactiveTargets) {
@@ -874,7 +890,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             log(state, `${sourceName}：トラッシュに対象のスピリットがなかった。`)
             return
         }
-        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex)
+        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex, trashSummonOpts)
         return
 }
 

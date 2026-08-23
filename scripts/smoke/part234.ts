@@ -9,7 +9,30 @@
 //
 // どれも非対話（テスト・自動解決）では従来の自動選択を残す。
 // 選択の応答は handleAction を直接呼ぶ（helpers.act は対話モードで先に消化してしまうため）
-import { act, assert, createGame, createInstance, declareBlock, getCard, handleAction, resolveAction, runTurnStart } from "./helpers"
+import {
+    act,
+    assert,
+    createGame,
+    createInstance,
+    declareBlock,
+    effectiveCost,
+    fireStepTriggers,
+    getCard,
+    handleAction,
+    minLevelCores,
+    resolveAction,
+    runTurnStart,
+} from "./helpers"
+import { loadAllCards } from "../../data/loadCards"
+
+interface CardRow {
+    cardId: string
+    name: string
+    type?: string
+    cost?: number
+    family?: string[]
+}
+const CARDS = loadAllCards() as unknown as CardRow[]
 import type { GameState, PlayerId } from "./helpers"
 
 const BIG = "BS01-004" // ドラグノ偵察兵：Lv1 BP2000
@@ -226,4 +249,55 @@ console.log("=== ニードルショット：BP増加した1体が勝てば従来
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
     const watcherInst = s.players.p2.field.spirits.find((x) => x.instanceId === watcher)
     assert(watcherInst?.isRested === true, "BP増加した個体が勝ったので相手1体が疲労する")
+}
+
+console.log("=== 常闇の聖堂Lv1：エンドステップの召喚はコストを支払う ===")
+{
+    // 効果文は「自分のフィールドのコアを**コストとして使うことで**、トラッシュの『夜族』
+    // （コスト3以下）1枚を召喚できる」。コストを一切払わない召喚になっていたのを直した
+    // （2026-08-24 ユーザー確認：コストは通常どおり必要で、支払い元にフィールドのコアも使える）
+    const cathedral = "BS07-058"
+    assert(getCard(cathedral).name === "常闇の聖堂", "BS07-058 は常闇の聖堂")
+    const yazoku = CARDS.find(
+        (c) => c.type === "spirit" && (c.family ?? []).includes("夜族") && (c.cost ?? 99) <= 3 && (c.cost ?? 0) >= 1,
+    )!
+    const maintain = minLevelCores(getCard(yazoku.cardId))
+
+    const s = setup("cathedral-pay", false)
+    const nexus = createInstance(cathedral, s.turn, 0) // Lv1
+    s.players.p1.field.nexuses.push(nexus)
+    s.players.p1.trashCards.push(yazoku.cardId)
+    // 軽減シンボルが効くので、支払う額は effectiveCost で見る（盤面を組んでから測る）
+    const cost = effectiveCost(s, "p1", getCard(yazoku.cardId))
+    s.players.p1.reserve = cost + maintain
+    s.phase = "end"
+    fireStepTriggers(s, "end")
+    assert(
+        s.players.p1.field.spirits.some((sp) => sp.cardId === yazoku.cardId),
+        `${yazoku.name}がトラッシュから召喚される`,
+    )
+    assert(s.players.p1.reserve === 0, `コスト${cost}＋維持コア${maintain}を支払う（残り${s.players.p1.reserve}）`)
+    assert(s.players.p1.trashCores === cost, `支払ったコストぶんはトラッシュへ（実際は${s.players.p1.trashCores}）`)
+}
+
+console.log("=== 常闇の聖堂Lv1：コアが足りなければ召喚できない ===")
+{
+    const yazoku = CARDS.find(
+        (c) => c.type === "spirit" && (c.family ?? []).includes("夜族") && (c.cost ?? 99) <= 3 && (c.cost ?? 0) >= 1,
+    )!
+    const maintain = minLevelCores(getCard(yazoku.cardId))
+
+    const s = setup("cathedral-poor", false)
+    const nexus = createInstance("BS07-058", s.turn, 0)
+    s.players.p1.field.nexuses.push(nexus)
+    s.players.p1.trashCards.push(yazoku.cardId)
+    const cost = effectiveCost(s, "p1", getCard(yazoku.cardId))
+    s.players.p1.reserve = cost + maintain - 1 // 1個足りない
+    s.phase = "end"
+    fireStepTriggers(s, "end")
+    assert(
+        s.players.p1.field.spirits.length === 0,
+        "コアが足りないので召喚されない（無償召喚だった頃は召喚できていた）",
+    )
+    assert(s.players.p1.trashCards.includes(yazoku.cardId), "対象はトラッシュに残る")
 }
