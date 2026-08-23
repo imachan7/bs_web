@@ -424,6 +424,7 @@ export function clearBattle(state: GameState): void {
         }
     }
     state.battle = null
+    delete state.battleAttackerRef
     // 「このバトルの間ブロックできない」の印もここで切れる（BS09-042妖精騎士ピーター）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) delete inst.cantBlockThisBattle
