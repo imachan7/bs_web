@@ -1169,7 +1169,7 @@ counter: ownReserve / ownNexuses / allNexuses / ownExhausted / {ownFamily}。
 （`anySide` かつ対話時のみ。非対話は従来どおり自分の場から自動選択）。
 なお `bpBuff` の型に `anySide` が無く、**ストロングドローのデータに書かれていたのに無視されていた**。
 同文（陣営を書いていない「スピリット1体をBP+」）のダークコフィンのフラッシュ側は
-`anySide` 自体が抜けていたので足した。検証は smoke part226。
+`anySide` 自体が抜けていたので足した。検証は smoke part229。
 
 ### 効果実装漏れの解消で足した器（2026-08-07）
 
