@@ -5842,7 +5842,8 @@
     "timing": "flash",
     "action": {
      "type": "bpBuff",
-     "amount": 4000
+     "amount": 4000,
+     "anySide": true
     }
    }
   ]

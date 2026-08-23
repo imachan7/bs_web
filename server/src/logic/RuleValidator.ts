@@ -532,6 +532,7 @@ export function validateMoveCore(
     pid: PlayerId,
     instanceId: string,
     direction: "add" | "remove",
+    confirmDeplete?: true,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -545,7 +546,10 @@ export function validateMoveCore(
     } else {
         if (inst.cores < 1) return "コアが置かれていません"
         const need = instMinLevelCores(inst)
-        if (inst.cores - 1 < need) {
+        // confirmDeplete：維持コア割れを承知のうえで取り除く（doMoveCore がそのスピリットを消滅させる）。
+        // コアを他のスピリットや召喚コストへ回すために、自分のスピリットをあえて退かせる操作
+        // （2026-08-23 ユーザー要望。クライアントが確認を取ってからこのフラグを立てる）
+        if (inst.cores - 1 < need && !confirmDeplete) {
             return "維持コア（Lv1）を下回るためコアを取り除けません"
         }
     }

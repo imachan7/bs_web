@@ -355,7 +355,7 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
 }
 
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
-    const { state, owner, self, sourceName , srcType } = ctx
+    const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
         // 絞り込みは共通の TargetFilter に一本化（keyword/color/vanilla/family/excludeSelf の5軸。
         // 旧フィールドは normalizeFilter が畳み込むためデータは無変更）
         const filter = normalizeFilter(ctx, action)
@@ -376,6 +376,38 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
+        // 選択の解決：選ばれた1体だけ回復する（count 指定の残りは resume スタックが持っている）。
+        // **chosenByPlayer が付いているときだけ** targetInstanceId を回復対象として読む。
+        // 素の targetInstanceId は誘発が渡すイベント対象（BS03ベル・ダンディアの onBlock なら
+        // 相手のアタッカー）なので、これを回復対象と誤読すると候補外で不発になる
+        if (action.chosenByPlayer && targetInstanceId !== undefined) {
+            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+            if (!chosen) {
+                log(state, `${sourceName}の回復：対象がいなかった。`)
+                return
+            }
+            refreshSpirit(state, owner, chosen, srcType)
+            log(state, `${getCard(chosen.cardId).name}は回復した。`)
+            return
+        }
+        // 実対戦では**どれを回復させるかはプレイヤーが選ぶ**（2026-08-23）。
+        // count 指定は1体ぶんずつ選ばせ、残りを resume スタックへ積んで繰り返す（exhaust と同じ形）。
+        // 候補が1体しかないときは tryInteractiveTargetChoice が false を返し、下の自動選択に落ちる
+        const { count: _count, ...single } = action
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：回復させるスピリットを選んでください`,
+                candidates,
+                { ...single, chosenByPlayer: true },
+                action.count !== undefined && action.count > 1 ? { ...action, count: action.count - 1 } : null,
+            )
+        ) {
+            return
+        }
+        // 以下は非対話（テスト・自動解決）と、候補が1体しかないときの経路。
         // count指定時はその体数まで回復する（実効BP最大から順に。cantAttackThisTurn は付与しない。
         // BS09-033槍戦騎ガウト＝黄3体／BS09-X37終焉の騎神ラグナ・ロック＝コスト8以下3体）
         if (action.count !== undefined) {

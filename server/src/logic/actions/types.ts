@@ -10,6 +10,7 @@ import type {
     DestroyContext,
     EffectAction,
     GameState,
+    PaySource,
     PlayerId,
 } from "../../type"
 
@@ -27,6 +28,12 @@ export interface ActionCtx {
     targetInstanceId: string | undefined
     chosenOption: string | undefined
     chosenCardIndex: number | undefined
+    // 選択の解決時にクライアントが添えてきたコアの支払い元（自分のフィールドのスピリット/ネクサス）。
+    // 「コストを支払って召喚する」起動効果（summonFromHandFree の payCost）でだけ使う。
+    // 通常の召喚と同じく、リザーブで足りないぶんをフィールドのコアから払うための指定
+    // （2026-08-23 追加。それまではリザーブからしか払えず、盤面のコアで払えるカードが
+    // 候補にすら出なかった＝利用者報告）
+    paySources: PaySource[] | undefined
     // 効果解決中の再入（同一アクションの繰り返し・別アクションへの委譲）に使う。
     // 旧実装の `resolveAction(state, owner, self, action, ...)` の置き換え。
     // **self だけは省略時に呼び出し元の self を引き継ぎ**（旧実装が常に self を渡していたため）、
