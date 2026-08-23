@@ -37,6 +37,8 @@ const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directe
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
+// joined の種別を区別する（"room" = 合言葉ルーム、"random" / "ai" = 即対戦）
+let joinMode: "room" | "random" | "ai" = "room"
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -291,7 +293,9 @@ function toggleDiscardPay(handIndex: number): void {
 // ---- サーバーからのイベント ----
 
 socket.on("joined", () => {
-    showWaiting()
+    if (joinMode === "room") {
+        showWaiting()
+    }
 })
 
 socket.on("joinCancelled", () => {
@@ -829,6 +833,7 @@ async function init(): Promise<void> {
         const roomId =
             (byId("room-input") as HTMLInputElement).value.trim() || "room1"
         const deck = (byId("deck-select") as HTMLSelectElement).value
+        joinMode = "room"
         if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
             // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
             const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
@@ -848,6 +853,7 @@ async function init(): Promise<void> {
         const name =
             (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
         const deck = (byId("deck-select") as HTMLSelectElement).value
+        joinMode = "random"
         if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
             const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
             const deckCards = customDecks.get(deckName)
@@ -902,11 +908,19 @@ async function init(): Promise<void> {
         }
 
         // AIの表示名をデッキ名から生成する
-        const oppLabel = oppDeck.startsWith(CUSTOM_DECK_PREFIX)
-            ? `AI（${oppDeck.slice(CUSTOM_DECK_PREFIX.length)}）`
-            : `AI（${DECK_RECIPES[oppDeck]?.label?.replace(/デッキ（.*/, "") ?? oppDeck}）`
+        let oppLabel = "AI"
+        if (oppDeck.startsWith(CUSTOM_DECK_PREFIX)) {
+            oppLabel = `AI（${oppDeck.slice(CUSTOM_DECK_PREFIX.length)}）`
+        } else {
+            const recipeLabel = DECK_RECIPES[oppDeck]?.label
+            const colorMatch = recipeLabel?.match(/^(.+?)デッキ/)
+            if (colorMatch) {
+                oppLabel = `AI（${colorMatch[1]}）`
+            }
+        }
         payload.aiName = oppLabel
 
+        joinMode = "ai"
         socket.emit("startAi", payload)
     })
 
