@@ -449,6 +449,14 @@ io.on("connection", (socket: Socket) => {
             }
 
             const { room, playerId } = result
+            // ランダムマッチで待っている最中に合言葉ルームへ座ったら、待機は取り消す。
+            // **両方に居させると壊れる**：後からマッチが成立すると同じ socket が2つのルームに座り、
+            // findBySocket が返すルームが不定になって action がどちらの対戦に届くか分からなくなる。
+            // 席の確保に成功したここで外す（デッキ不正などで参加に失敗したときは待機を続けさせる）
+            if (matchQueue.remove(socket.id)) {
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+            }
             socket.join(roomId)
             socket.emit("joined", { playerId, roomId })
 

@@ -339,6 +339,29 @@ async function main(): Promise<void> {
         d.socket.disconnect()
     }
 
+    console.log("=== 待機中に別の入口へ移ったら待機は取り消される ===")
+    {
+        // ランダムマッチで待ちながら合言葉ルームにも座れてしまうと、後からマッチが成立したときに
+        // 同じ socket が2つのルームに座り、action がどちらの対戦に届くか分からなくなる
+        const e = open("しびれ切れ子")
+        e.socket.emit("randomMatch", { name: "しびれ切れ子", deck: "red" })
+        await e.once("matchQueued")
+        const cancelledByJoin = e.once("matchCancelled")
+        e.socket.emit("join", { roomId: "e2e-queue-then-join", name: "しびれ切れ子", deck: "red" })
+        const joined = await e.once<{ playerId: PlayerId }>("joined")
+        await cancelledByJoin
+        assert(joined.playerId === "p1", "待機中でも合言葉ルームには座れる")
+        assert(true, "合言葉ルームに座った時点で待機は取り消される")
+
+        // 待機列が空になっているので、次に並んだ人は「待ち人数1」になる（幽霊が残っていない）
+        const f = open("次の人")
+        f.socket.emit("randomMatch", { name: "次の人", deck: "blue" })
+        const q = await f.once<{ waiting: number }>("matchQueued")
+        assert(q.waiting === 1, "合言葉ルームへ移った人は待機列に残らない")
+        e.socket.disconnect()
+        f.socket.disconnect()
+    }
+
     // ── AI戦（相手を待たずに1人で始める。AI はサーバー側で指す）────────────────
     console.log("=== AI戦 ===")
     {
