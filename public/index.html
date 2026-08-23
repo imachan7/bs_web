@@ -34,6 +34,34 @@
             <a id="deck-builder-link" href="/deck.html">デッキ構築（デッキビルダーを開く）</a>
         </div>
         <p id="waiting-message" class="hidden">相手の参加を待っています…</p>
+
+        <!-- ランダムマッチ -->
+        <div class="lobby-section">
+            <h2 class="lobby-section-title">ランダムマッチ</h2>
+            <p class="lobby-section-desc">合言葉なしで、待っている相手と自動でマッチングします</p>
+            <button id="random-match-btn">ランダムマッチで対戦</button>
+            <div id="random-match-status" class="hidden">
+                <p id="random-match-waiting" class="match-waiting-text">マッチング待機中…（<span id="random-match-count">0</span>人待ち）</p>
+                <button id="random-match-cancel" class="cancel-btn">待機をやめる</button>
+            </div>
+        </div>
+
+        <!-- AI対戦 -->
+        <div class="lobby-section">
+            <h2 class="lobby-section-title">AIと対戦</h2>
+            <p class="lobby-section-desc">相手を待たずにAIとすぐに対戦できます</p>
+            <div class="ai-deck-row">
+                <label class="ai-deck-label">
+                    自分のデッキ
+                    <select id="ai-my-deck-select"></select>
+                </label>
+                <label class="ai-deck-label">
+                    AIのデッキ
+                    <select id="ai-opp-deck-select"></select>
+                </label>
+            </div>
+            <button id="start-ai-btn">AIと対戦する</button>
+        </div>
         
         <!-- お知らせ（Gitコミット履歴から自動取得） -->
         <div class="lobby-announcements">
