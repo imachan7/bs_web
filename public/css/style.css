@@ -810,6 +810,11 @@ button:active {
     box-shadow: 0 0 0 2px var(--danger), 0 0 12px rgba(239, 68, 68, 0.4);
 }
 
+/* トグル選択（予算内で好きなだけ破壊する）で選択済みのもの。候補の赤枠と区別する */
+.card.targetable.choice-selected {
+    box-shadow: 0 0 0 3px var(--success), 0 0 16px rgba(16, 185, 129, 0.6);
+}
+
 .card.awaken-target {
     box-shadow: 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6);
 }
@@ -1103,6 +1108,7 @@ button:active {
 /* 状態バッジの上書き（トークン用） */
 .spirit-zone .card.usable { box-shadow: inset 0 0 0 2px var(--warning), 0 0 16px rgba(245, 158, 11, 0.6); }
 .spirit-zone .card.targetable { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.spirit-zone .card.targetable.choice-selected { border-color: var(--success); box-shadow: 0 0 14px var(--success); }
 .spirit-zone .card.attacker-mark { border-color: var(--danger); box-shadow: 0 0 12px var(--danger); }
 .nexus-zone .card.usable::after { background: linear-gradient(145deg, var(--warning), #20232c); }
 .nexus-zone .card.targetable::after { background: linear-gradient(145deg, var(--danger), #20232c); }

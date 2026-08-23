@@ -1,8 +1,8 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, currentLevel, draw, getCard, instMinLevelCores, log, minLevelCores, pushResumeFrames } from "../GameState"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
+import { createInstance, currentLevel, draw, getCard, instMinLevelCores, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesPids,
@@ -714,6 +714,83 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
 }
 
 
+// 「予算の範囲で**好きなだけ**破壊する」のトグル選択（2026-08-24 ユーザー確定）。
+// クリックで選択、もう一度クリックで選択解除。選んだ合計は prompt に出し、「これで破壊する」で確定する。
+//
+// 「好きなだけ」は途中でやめられる効果なので、選び終わりの合図が要る。
+// **選択済みも候補に残す**（＝もう一度押すと外れる）ことでトグルにし、スキップボタンを
+// 「中止」ではなく「確定」として使う（PendingChoice.resolveOnSkip / skipLabel）。
+// 破壊は従来どおり選び切ってから destroyTargetsBatch へまとめる（復活の確認で中断しても
+// バッチが続きを回せるため）。
+//
+// 選択の途中経過は action.choosing / action.chosenIds で持ち回る（cards.jsonには書かない）。
+// **choosing が付いているときだけ targetInstanceId を選択結果として読む**
+// （素の targetInstanceId は誘発が渡すイベント対象。part230 の refreshOne で踏んだ罠）。
+//
+// 戻り値 false は「トグル選択に載せなかった」＝呼び出し側が従来の自動選択を続ける合図
+type BudgetDestroyAction =
+    | Extract<EffectAction, { type: "destroyByCostBudget" }>
+    | Extract<EffectAction, { type: "destroyByBpBudget" }>
+
+function budgetToggleDestroy(
+    ctx: ActionCtx,
+    action: BudgetDestroyAction,
+    budget: number,
+    unitLabel: string, // 「コスト」／「BP」
+    weightOf: (s: CardInstance) => number,
+): boolean {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
+    if (!action.choosing && !state.interactiveTargets) return false
+
+    const onField = (id: string): CardInstance | undefined =>
+        state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
+    let chosen = [...(action.chosenIds ?? [])]
+    if (action.choosing && targetInstanceId !== undefined) {
+        chosen = chosen.includes(targetInstanceId)
+            ? chosen.filter((id) => id !== targetInstanceId)
+            : [...chosen, targetInstanceId]
+    }
+    chosen = chosen.filter((id) => onField(id) !== undefined) // 解決中に居なくなった個体は落とす
+    const used = chosen.reduce((sum, id) => sum + weightOf(onField(id)!), 0)
+    const left = budget - used
+
+    // スキップ（＝「これで破壊する」）で戻ってきたときだけ、聞き直さずに確定する
+    if (!(action.choosing && targetInstanceId === undefined)) {
+        // 選べるのは「選択済み（＝解除できる）」と「残り予算に収まる未選択」
+        const candidates = pickEnemyCandidates(
+            state,
+            opp,
+            Infinity,
+            (sp) => chosen.includes(sp.instanceId) || weightOf(sp) <= left,
+            srcColors,
+            srcType,
+        )
+        if (candidates.length > 0) {
+            suspend(state, {
+                pid: owner,
+                kind: "target",
+                prompt: `${sourceName}：破壊するスピリットを選んでください（${unitLabel}合計 ${used}／${budget}。選んだものをもう一度押すと外れます）`,
+                candidates: candidates.map((sp) => sp.instanceId),
+                selectedIds: chosen,
+                skipLabel: chosen.length > 0 ? `これで破壊する（${chosen.length}体）` : "破壊しない",
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...action, choosing: true as const, chosenIds: chosen },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return true
+        }
+    }
+    if (chosen.length === 0) {
+        log(state, `${sourceName}：破壊できる対象がいなかった。`)
+        return true
+    }
+    const names = chosen.map((id) => getCard(onField(id)!.cardId).name)
+    destroyTargetsBatch(state, owner, chosen.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    log(state, `${sourceName}：${unitLabel}合計${budget}まで「${names.join("、")}」を破壊した。`)
+    return true
+}
+
 // BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
 // destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
 const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
@@ -721,6 +798,8 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
         // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）
         let remaining = action.budgetFromSelfBp && self ? effectiveBp(state, owner, self) : (action.budget ?? 0)
         const budgetForLog = remaining
+        // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
+        if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp))) return
         let destroyedCount = 0
         const destroyedNames: string[] = []
         // **先に選び切ってから、まとめて破壊する**。貪欲な選び方（残り予算内でBP最大から）は
@@ -869,8 +948,10 @@ const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ct
 
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
     const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
-        // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する
-        // （プレイヤー選択の決定的簡略化：残り予算内でコスト最大のものから貪欲に選ぶ。同コストは実効BP最大を優先）
+        // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する。
+        // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲＝残り予算内でコスト最大から。
+        // 同コストは実効BP最大を優先）
+        if (budgetToggleDestroy(ctx, action, action.budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
         let remaining = action.budget
         let destroyedCount = 0
         const destroyedNames: string[] = []

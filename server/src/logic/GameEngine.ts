@@ -1421,6 +1421,10 @@ function doResolveChoice(
 
     if (instanceId !== undefined) {
         resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId)
+    } else if (pending.resolveOnSkip) {
+        // 「選び終わったら後処理がある」効果（予算内で好きなだけ破壊するトグル選択）。
+        // スキップ＝「これで確定」の合図なので、対象なしで action をもう一度解決させる
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
     } else {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }

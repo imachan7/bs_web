@@ -457,6 +457,8 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-attack-player", ui.directedAttack !== null)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
+    // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
+    $("btn-skip-choice").textContent = myPendingChoice?.skipLabel ?? "選ばない"
     // kind:"option"の選択肢ボタンを描画する（myPendingChoiceが自分宛かつoption式のときのみ）。
     // kind:"card"かつcardZone:"trash"のときも同じボタンUIでカード名を並べる
     // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
@@ -886,6 +888,11 @@ function fieldCardEl(
     if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
+            // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
+            // 候補のまま残っているので、もう一度押すと選択が外れる
+            if (view.pendingChoice.selectedIds?.includes(inst.instanceId)) {
+                el.classList.add("choice-selected")
+            }
         }
         return el
     }

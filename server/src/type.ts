@@ -310,10 +310,10 @@ export type EffectAction =
           extraReserveCostPerSummon?: number
       } // 自分の手札にある条件（familyFilter・costFilterはカード静的判定）を満たすスピリットカードを、リザーブが続く限り好きなだけ召喚する（プレイヤー選択の決定的簡略化：1体あたりの必要リザーブが小さいものから貪欲に選び、召喚数を最大化する）。いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない（BS04-057天使長セラフィー＝mode:"free"／BS02-030兵隊アントマン＝mode:"paid"）
     | { type: "destroyThenMillByCost"; filter?: TargetFilter } // 相手のスピリット1体（filterで絞り込み。非対話時は実効BP最大を自動選択）を破壊し、破壊したスピリットのコストと同じ枚数だけ相手のデッキを上から破棄する（BS07巨人大帝アレクサンダー）
-    | { type: "destroyByBpBudget"; budget?: number; budgetFromSelfBp?: true } // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する（destroyByCostBudgetのBP版。選び方も同じ貪欲＝残り予算内でBP最大から。BS07剣龍皇エクス・キャリバス：BP合計6000まで）。budgetFromSelfBp指定時はbudgetを無視し、selfの実効BPを予算にする（BS08太陽石の神殿：破壊したスピリット＝勝利したアタッカーのBPまで）
+    | { type: "destroyByBpBudget"; budget?: number; budgetFromSelfBp?: true; choosing?: true; chosenIds?: string[] } // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する（BS07剣龍皇エクス・キャリバス：BP合計6000まで）。budgetFromSelfBp指定時はbudgetを無視し、selfの実効BPを予算にする（BS08太陽石の神殿：破壊したスピリット＝勝利したアタッカーのBPまで）。// choosing / chosenIds は**トグル選択の途中経過を持ち回る内部専用フィールド**（cards.jsonには書かない）。destroyByCostBudget と同じ仕組み（budgetToggleDestroy）
     | { type: "destroyPer"; counter: EffectCounter; filter?: TargetFilter } // カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する（filterで絞り込み。0ならログのみ。BS08魔帝龍騎ダーク・クリムゾン＝系統「龍帝」を持つ自分のスピリット1体につき）
     | { type: "destroyDownToOwnCount" } // 相手のスピリットを、その数が自分のフィールドのスピリット数と同じになるまで破壊する（相手のほうが少ない/同数なら不発。BS08ジャッジメントフレア）。// 効果文が「**相手は**、相手のスピリットを〜破壊する」なので**破壊する側（相手）が1体ずつ選ぶ**（CHOOSER_RULES.md。解決は発生源の持ち主の効果＝PendingChoice.actorPid）。非対話では相手が選ぶであろう実効BP最小から破壊する。残り体数は毎回「相手の体数−自分の体数」で数え直すので、action に持ち回る内部フィールドは要らない
-    | { type: "destroyByCostBudget"; budget: number } // 相手スピリットを、コスト合計がbudgetを超えない範囲で好きなだけ破壊する（プレイヤー選択の決定的簡略化：残り予算内でコスト最大のものから貪欲に選ぶ。同コストは実効BP最大を優先）。BS05-X19聖皇ジークフリーデン：[龍皇ジークフリード]/[要塞皇オーディーン]で【転召】したときの上限8への切替は、転召対象の記録が必要になるため簡略化しbudget=5固定とする
+    | { type: "destroyByCostBudget"; budget: number; choosing?: true; chosenIds?: string[] } // 相手スピリットを、コスト合計がbudgetを超えない範囲で好きなだけ破壊する。// 対話モードでは**トグル式で選ばせる**（クリックで選択／もう一度クリックで解除。合計は prompt に出し、「これで破壊する」で確定。2026-08-24 ユーザー確定）。choosing / chosenIds はその途中経過を持ち回る内部専用フィールドで、cards.jsonには書かない。非対話（テスト・自動解決）は残り予算内でコスト最大から貪欲に選ぶ（同コストは実効BP最大）。BS05-X19聖皇ジークフリーデン：[龍皇ジークフリード]/[要塞皇オーディーン]で【転召】したときの上限8への切替は、転召対象の記録が必要になるため簡略化しbudget=5固定とする
     | { type: "selfBuffByExhaustFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外・回復状態の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最大＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**疲労させるスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByDestroyFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）を破壊し、このスピリット自身を回復させる（該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**破壊するスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByReturnToDeckTopName"; nameIncludes: string; sacrificeChosen?: true } // nameIncludes一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）をデッキの一番上に戻し、このスピリット自身を回復させる（refreshSelfByDestroyFamilyの「破壊」を「デッキの上に戻す」に差し替えた版。該当なしはno-op。BS08勇者フェニックスペンタン）。// sacrificeChosen は**デッキの上に戻すスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
@@ -1735,7 +1735,12 @@ export interface PendingChoice {
     cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
     // （cardZone:"reveal" のときは GameState.revealedCards.cardIds のインデックス）
     optional: boolean // true ならスキップ（選ばない）可
-    resolveOnSkip?: true // kind:"card" 限定：スキップされたときも action を（cardIndex なしで）解決する。
+    selectedIds?: string[] // kind:"target" のトグル選択で「いま選ばれている」候補（クライアントが選択済みとして描く）。
+    // 候補（candidates）には選択済みのものも入れておき、もう一度クリックすると選択が外れる。
+    // 相手視点ではマスクする（maskPendingChoiceForOpponent）
+    skipLabel?: string // 「選ばない」ボタンの文言の差し替え。トグル選択の「これで破壊する」のように、
+    // スキップが**中止ではなく確定**を意味するときに使う（未指定なら「選ばない」）
+    resolveOnSkip?: true // kind:"card" / kind:"target"：スキップされたときも action を（選択なしで）解決する。
     // 「手札を好きなだけ破棄する」のように、**選び終わってから後処理がある**効果で使う。
     // 既定（未指定）はスキップ＝何もせず終了（従来どおり。BS08堕天使ミカファール）
     confirm?: true // 「〜できる」効果の発動確認（kind:"option" 限定）。選択肢は1つだけで、
