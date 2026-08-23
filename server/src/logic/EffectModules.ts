@@ -2444,6 +2444,34 @@ export function applyMagicBuffBonus(
     }
 }
 
+// bpBuff / bpBuffPer の「対象になれるか」の判定。
+// minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
+// nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」。配列＝OR。BS08ダークパワー）・
+// attackingOnly（BS07桜の妖精オウカ＝アタックしているスピリット）・
+// familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
+// どれも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する。
+// anySide の候補列挙（actions/buff.ts）からも呼ぶため export している
+export function bpBuffTargetPasses(
+    state: GameState,
+    owner: PlayerId,
+    inst: CardInstance,
+    minSymbols?: number,
+    keywordFilter?: Keyword,
+    nameContains?: string | string[],
+    attackingOnly?: boolean,
+    familyFilter?: FamilyFilter,
+): boolean {
+    if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
+    if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
+    if (nameContains !== undefined) {
+        const names = Array.isArray(nameContains) ? nameContains : [nameContains]
+        if (!names.some((n) => cardNameContains(inst, n))) return false
+    }
+    if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
+    if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
+    return true
+}
+
 // bpBuff / bpBuffPer 共通の対象選択：
 // 対象指定があれば両プレイヤーから検索、なければバトル中の自分スピリット優先、
 // いなければ自分フィールドの先頭スピリット
@@ -2460,22 +2488,8 @@ export function pickBpBuffTarget(
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
 ): CardInstance | null {
-    // minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
-    // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」。配列＝OR。BS08ダークパワー）・
-    // attackingOnly（BS07桜の妖精オウカ＝アタックしているスピリット）・
-    // familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
-    // どれも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する
-    const passes = (inst: CardInstance): boolean => {
-        if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
-        if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
-        if (nameContains !== undefined) {
-            const names = Array.isArray(nameContains) ? nameContains : [nameContains]
-            if (!names.some((n) => cardNameContains(inst, n))) return false
-        }
-        if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
-        if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
-        return true
-    }
+    const passes = (inst: CardInstance): boolean =>
+        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter)
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null

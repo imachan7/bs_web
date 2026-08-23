@@ -182,6 +182,10 @@ export function magicTargetSide(
         (e) => e.kind === "magic" && e.timing === timing,
     )
     if (!effect || effect.kind !== "magic") return null
+    // anySide（陣営を書いていない「スピリット1体を〜」。フレイムダンス／ダークコフィン等8枚）は
+    // **対象を先取りしない**。ここは片側しか選ばせられず、選べるはずの側が選べなくなるため、
+    // サーバー側の pendingChoice へ委ねる（対象選択はサーバーへ一本化する方針。2026-08-21 利用者確定）
+    if ((effect.action as { anySide?: true }).anySide) return null
     if (
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
