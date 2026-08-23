@@ -15,6 +15,49 @@ const SAMPLE_SPIRIT = (
     loadAllCards() as unknown as { cardId: string; type?: string; effects?: unknown[] }[]
 ).find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!.cardId
 
+// AI戦の検証に使うデッキ。**コスト1以下のスピリットだけ**で40枚を組む。
+//
+// ⚠️ ここを既存のレシピ（purple 等）に戻さないこと。紫デッキは「ターン2のリザーブ4個で
+// 軽減なしでも出せるスピリット」が15枚しかなく、**手札5枚に1枚も来ない確率が8%**ある。
+// その8%を引くとAIは召喚もアタックもできず、「AIが盤面を作っている」の検証が
+// AIの不具合ではなく手札事故で落ちる（2026-08-23 に CI が実際にこれで落ちた）。
+//
+// カードは実データから決定的に選ぶ（cardId の直書きは過去にIDがズレた事故があるため）。
+// デッキ検証を通すために、同名3枚まで・合計40枚ちょうど・禁止カードなしを満たす
+function buildLowCostAiDeck(): Record<string, number> {
+    const all = loadAllCards() as unknown as {
+        cardId: string
+        name: string
+        type?: string
+        cost: number
+        limited?: boolean
+    }[]
+    const seenNames = new Set<string>()
+    const pool = all
+        .filter((c) => c.type === "spirit" && c.cost <= 1 && c.limited !== true)
+        .sort((a, b) => a.cardId.localeCompare(b.cardId))
+        // 同名カードは1種類に絞る（枚数制限は cardId ではなく**名前**で合算されるため）
+        .filter((c) => {
+            if (seenNames.has(c.name)) return false
+            seenNames.add(c.name)
+            return true
+        })
+    const deck: Record<string, number> = {}
+    let total = 0
+    for (const card of pool) {
+        if (total >= 40) break
+        const count = Math.min(3, 40 - total)
+        deck[card.cardId] = count
+        total += count
+    }
+    if (total !== 40) {
+        throw new Error(`AI検証用デッキを40枚組めません（コスト1以下のスピリットが${pool.length}種類）`)
+    }
+    return deck
+}
+
+const AI_TEST_DECK = buildLowCostAiDeck()
+
 // join に渡す任意ペイロード（deck / deckCards のどちらかを指定する）
 interface JoinOptions {
     roomId?: string
@@ -366,10 +409,11 @@ async function main(): Promise<void> {
     console.log("=== AI戦 ===")
     {
         const c = open("ひとり太郎")
+        // AI には低コスト確定のデッキを渡す（手札事故でテストが落ちないように。AI_TEST_DECK の注記を参照）
         c.socket.emit("startAi", {
             name: "ひとり太郎",
             deck: "red",
-            aiDeck: "purple",
+            aiDeckCards: AI_TEST_DECK,
             aiName: "AI紫",
         })
         const joined = await c.once<{ playerId: PlayerId; roomId: string }>("joined")

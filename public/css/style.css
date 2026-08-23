@@ -134,6 +134,86 @@ button:active {
     color: #555;
 }
 
+/* ---- ランダムマッチ・AI対戦セクション ---- */
+.lobby-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #333;
+}
+
+.lobby-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+}
+
+.lobby-section-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+}
+
+.lobby-section button {
+    width: 100%;
+}
+
+.match-waiting-text {
+    color: var(--warning);
+    font-size: 14px;
+    margin: 8px 0;
+    animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.cancel-btn {
+    background: #8b2030;
+    width: 100%;
+}
+
+.cancel-btn:hover {
+    background: #a52838;
+}
+
+.ai-deck-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ai-deck-label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.ai-deck-label select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #14161b;
+    color: var(--text-main);
+    font-size: 14px;
+    transition: border-color 0.2s;
+    width: 100%;
+}
+
+.ai-deck-label select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.ai-deck-label select option:disabled {
+    color: #555;
+}
+
 /* ---- ステータスバー ---- */
 #status-bar {
     display: flex;
