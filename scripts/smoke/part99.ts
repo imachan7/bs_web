@@ -61,12 +61,17 @@ console.log("=== 宣言後はフラッシュ②が開かないため、攻撃側
     )
 }
 
-console.log("=== フラッシュ①中にアタッカーが破壊されていたら、ライフで受けてもダメージは発生しない ===")
+console.log("=== フラッシュ①中にアタッカーが破壊されたら、その場でバトルが終了する ===")
 {
+    // ⚠️ **この節は 2026-08-23 に期待値を書き換えた**。
+    // 以前はここで「パス → パス → ライフで受ける」を通し、
+    // 「ライフで受けてもダメージは発生しない」ことだけを確かめていた。
+    // それは当時の実装の写しで、**アタッカーが居ないのに防御側が選択を迫られる**という
+    // 誤った手順を仕様として固定してしまっていた（利用者report → 2026-08-23 ユーザー確認）。
+    // 正しくは、アタックしていたスピリットが場を離れた時点でそのアタックは終了する。
     const { s, atk } = setup("takelife-attacker-destroyed")
     s.players.p2.hand[0] = "BS01-121" // フレイムダンス: フラッシュ destroy（maxBp4000・anySide）コスト5
     const lifeBefore = s.players.p2.life
-    const reserveBefore = s.players.p2.reserve
 
     // フラッシュ①中に防御側がアタッカーを破壊する
     assert(
@@ -79,12 +84,12 @@ console.log("=== フラッシュ①中にアタッカーが破壊されていた
     )
     // フレイムダンスのコスト5を支払った後のリザーブを基準にする（コスト支払いはこの検証の対象外）
     const reserveAfterMagic = s.players.p2.reserve
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（マジック使用で優先権が移る）")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側もパス（フラッシュ①終了）")
-    assert(act(s, "p2", { type: "takeLife" }) === null, "p2: ライフで受ける")
-    assert(s.players.p2.life === lifeBefore, "アタッカー不在のためライフダメージは発生しない")
+
+    assert(s.battle === null, "アタッカーが場を離れた時点でバトルが終了する")
+    assert(!s.isFlashTiming, "フラッシュタイミングも閉じる")
+    assert(act(s, "p2", { type: "takeLife" }) !== null, "ライフで受ける宣言はできない（バトルが無い）")
+    assert(s.players.p2.life === lifeBefore, "ライフダメージは発生しない")
     assert(s.players.p2.reserve === reserveAfterMagic, "ライフダメージ解決によるリザーブ増減は発生しない")
-    assert(s.battle === null, "バトルは終了する")
     assert(s.winner === null, "勝敗はまだ決まらない")
 }
 

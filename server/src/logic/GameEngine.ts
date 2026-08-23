@@ -133,9 +133,48 @@ export function handleAction(
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
     requestPendingReviveConfirm(state)
+    // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
+    endBattleIfAttackerLeftField(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
     checkNoMutationAfterSuspend(state)
     return result
+}
+
+// アタックしていたスピリットが場から居なくなっていたら、バトルを終了する。
+//
+// フラッシュタイミングでアタッカーをマジックで破壊しても、以前はバトルが残ったままで、
+// **アタッカーが居ないのに防御側が「ブロックする／ライフで受ける」を選ばされていた**
+// （2026-08-23 利用者報告。ライフダメージ自体は doTakeLife のガードで防がれていた）。
+//
+// ⚠️ 判定は「破壊されたか」ではなく「**場にいないか**」で行う（2026-08-23 ユーザー確認）:
+//   破壊されてもフィールドに残る効果（BS07-016 冥勇士デスカラビア等）で盤面に残ったなら
+//   **アタックは継続する**。破壊待機状態（＞６の途中でまだ場にいる）も同じ理由で継続し、
+//   確定して場を離れた次の handleAction でここに掛かる。
+//
+// ブロック宣言後は resolveBattle が終了まで面倒を見るので、ここでは触らない
+// （途中で割り込むと＞５〜＞７の順序を壊す）。ブロック前だけを扱う。
+function endBattleIfAttackerLeftField(state: GameState): void {
+    const battle = state.battle
+    if (!battle || state.winner || state.pendingChoice) return
+    if (battle.blockerInstanceId) return
+    // 「場にいるか」は**両者のフィールドを見て**判定する。実対戦のアタッカーは必ず
+    // ターンプレイヤー側だが、ターンプレイヤーの場だけを見ると、盤面を手で組んだ
+    // テスト（フラッシュ窓を作るためだけに battle を作るもの）でアタッカーが
+    // 相手側に置かれている場合に、生きている個体を見落としてバトルを畳んでしまう
+    const attackerPid = state.turnPlayer
+    const attackerAlive =
+        findSpirit(state.players.p1, battle.attackerInstanceId) ??
+        findSpirit(state.players.p2, battle.attackerInstanceId)
+    if (attackerAlive) return
+
+    log(state, "アタックしていたスピリットが場を離れたため、バトルは終了した。")
+    // ＞７：バトル終了時。ブロック前なので生存しているバトル参加者はおらず、
+    // 発揮されうるのはアタッカーの【光芒】だけ（2026-08-23 ユーザー確認）。
+    // 場を離れた個体の cardId・コア数は控えておいた実体参照から読む
+    resolveKoboOnBattleEnd(state, attackerPid, state.battleAttackerRef)
+    clearBattle(state)
+    // アタックステップの途中なので、フラッシュタイミングも閉じる
+    state.isFlashTiming = false
 }
 
 // 保留していた復活の確認を1件だけ pendingChoice として立てる。
@@ -802,6 +841,8 @@ function doAttack(
         flashLockedPlayer: null,
         directed: targetSpiritInstanceId !== undefined,
     }
+    // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
+    state.battleAttackerRef = inst
     state.isFlashTiming = true
     state.priorityPlayer = opponentOf(pid)
     if (targetSpiritInstanceId !== undefined) {
