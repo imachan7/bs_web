@@ -4668,7 +4668,8 @@
     "action": {
      "type": "exhaust",
      "count": 1
-    }
+    },
+    "winnerIsLentBuffTarget": true
    }
   ]
  },

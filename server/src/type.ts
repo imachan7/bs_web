@@ -844,6 +844,7 @@ export type EffectDef =
           winnerKeywordFilter?: Keyword | Keyword[] // 勝利したスピリットがこのキーワードを持つときのみ発火（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定。BS03熾烈極める最前線Lv2＝覚醒持ち）。
           // **配列＝OR**（SD01-027 溶岩の大瀑布「【覚醒】/【激突】を持つ自分のスピリットが…」）。
           // ⚠️ OR をエントリ2つに分けて書かないこと。両方を持つスピリット（X004 龍星神ジーク・メテオヴルム）で**二重に発火する**
+          winnerIsLentBuffTarget?: true // 勝利したスピリットが、**同じマジックの直前の効果でBP増加した1体**のときのみ発火（CardInstance.lentBuffTargetId と照合）。効果文が「〜をBP+2000する。**そのスピリットが**、BPを比べ〜」と前の文を指しているカード用（BS07ニードルショット）。lentOnly とセットで使う
           selfOnly?: true // 発生源自身が勝利したときのみ発火（『このスピリットのバトル時』。同名の別個体では発火しない。BS01要塞龍ギガLv2）
           firstAttackOfTurn?: true // そのターンの最初のアタックで勝利したときのみ発火（GameState.attacksThisTurn === 1。triggered.condition／fieldEvent.conditionの同名軸と同じ判定。BS08太陽石の神殿）
           optional?: true // 「〜できる」＝任意。interactiveTargets では発動確認を出す（step/triggered の optional と同じ扱い。BS01要塞龍ギガLv2）
@@ -1610,6 +1611,9 @@ export interface CardInstance {
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
     lentChoiceColor?: Color // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ色。仮想発生源にのみ載り、kind:"levelAs" の target:"allSpiritsByChosenColor" が読む（BS02-111スピリットイリュージョン）
+    lentBuffTargetId?: string // 同じマジックの**直前の効果でBP増加した相手**のinstanceId。仮想発生源にのみ載り、
+    // kind:"battleWon" の winnerIsLentBuffTarget が読む。効果文が「**そのスピリットが**、BPを比べ〜したとき」と
+    // 前の文を指しているカード用（BS07ニードルショット）。GameState.lastBpBuffTargetId 経由で受け取る
     lentKeepPid?: PlayerId // 封印された魔導書Lv1（bothSidesTargetRedirect）が「対象を片側のみに変更する」を選んだときの**残る側**。
     // 仮想発生源にのみ載り、lentChoiceColor と同じく kind:"levelAs" の target:"allSpiritsByChosenColor" が読む。
     // **貸与した時点の答えをターン中ずっと保持する**（継続効果なので、マジックの解決が終わった後も絞り込みが効く。
@@ -2061,6 +2065,10 @@ export interface GameState {
     // resolveMagic が読んですぐ消す）。**oncePerBattle の無償化の枠を消費させない**ために使う
     // （払って使ったのだから、1枚きりの枠は残る。BS07大天使イスフィール）
     magicFreeDeclined?: boolean
+    // 直前に bpBuff が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
+    // 前の文を指しているカードで、後ろの文を対象1体に限定するために使う（BS07ニードルショット）。
+    // 直後の lendSelfThisBattle が仮想発生源の lentBuffTargetId へ写して、そこから battleWon が読む
+    lastBpBuffTargetId?: string
     // いま解決中の効果の発生源（resolveAction が handler を呼ぶ間だけ立ち、抜けるときに元へ戻す）。
     // 「**相手の〈色〉のスピリット/ネクサス/マジックの効果で**〜されたとき」を判定するために使う
     // （fieldEvent.sourceColorFilter）。ドローステップのドローやコアステップのコア置きのような

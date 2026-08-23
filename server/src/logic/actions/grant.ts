@@ -840,7 +840,11 @@ const exhaustSelfThenLendThisTurnHandler: ActionHandler<"exhaustSelfThenLendThis
 // これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
 const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => {
     const { state, owner, sourceCardId } = ctx
-    if (!pushVirtualSource(state, owner, sourceCardId, "battle")) return
+    const virtual = pushVirtualSource(state, owner, sourceCardId, "battle")
+    if (!virtual) return
+    // 同じマジックの直前の効果でBP増加した1体を写しておく（「そのスピリットが〜したとき」の限定に使う。
+    // kind:"battleWon" の winnerIsLentBuffTarget が読む。BS07ニードルショット）
+    if (state.lastBpBuffTargetId !== undefined) virtual.lentBuffTargetId = state.lastBpBuffTargetId
     log(
         state,
         `${getCard(sourceCardId!).name}：このバトルの間、自分の仮想発生源としてこの効果を貸し出した。`,

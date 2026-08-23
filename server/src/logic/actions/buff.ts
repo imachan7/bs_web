@@ -91,6 +91,9 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 「そのスピリットが」の控えは**このBP増加の結果**でなければならない。
+        // 対象がいなくて不発だったときに前のカードの控えが残らないよう、入口で消す
+        delete state.lastBpBuffTargetId
         // anySide（SD02ストロングドロー／BS01ダークコフィンのフラッシュ＝陣営を書いていない「スピリット1体をBP+」）：
         // 自分/相手どちらのスピリットも対象にできる。クライアントは anySide のマジックの対象を先取りしない
         // （renderer.ts の magicTargetSide が null を返す）ので、ここで両陣営から選ばせる。
@@ -145,6 +148,9 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
             return
         }
+        // 「〜をBP+2000する。**そのスピリットが**〜」と後ろの文が前の文を指すカード用に、
+        // 増加させた対象を控えておく（直後の lendSelfThisBattle が仮想発生源へ写す。BS07ニードルショット）
+        state.lastBpBuffTargetId = target.instanceId
         // scope:"battle"（BS07ニードルショット「このバトルの間」）だけ積む先と寿命が変わる。
         // 既定（無指定）は従来どおりターン終了時まで
         const battleScope = action.scope === "battle"

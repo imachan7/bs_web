@@ -539,6 +539,11 @@ export function fireBattleWonTriggers(
             if (effect.winnerMinCores !== undefined && winnerInst.cores < effect.winnerMinCores) {
                 continue
             }
+            // BS07ニードルショット：「**そのスピリットが**、BPを比べ〜」＝直前の文でBP増加した1体に限る。
+            // 貸与のときに仮想発生源へ写した lentBuffTargetId と照合する
+            if (effect.winnerIsLentBuffTarget && inst.lentBuffTargetId !== winnerInst.instanceId) {
+                continue
+            }
             // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
             // 配列＝OR（どれか1つ持っていれば発火する。1回だけ）
             if (effect.winnerKeywordFilter !== undefined) {

@@ -9,11 +9,12 @@
 //
 // どれも非対話（テスト・自動解決）では従来の自動選択を残す。
 // 選択の応答は handleAction を直接呼ぶ（helpers.act は対話モードで先に消化してしまうため）
-import { assert, createGame, createInstance, getCard, handleAction, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, getCard, handleAction, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const BIG = "BS01-004" // ドラグノ偵察兵：Lv1 BP2000
 const SMALL = "BS01-001" // ゴラドン：Lv1 BP1000
+const KENJU = "BS04-027" // アリゲイド：系統「剣獣」Lv1 BP3000
 
 function setup(name: string, interactive: boolean): GameState {
     const s = createGame(name, { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
@@ -167,4 +168,62 @@ console.log("=== 颶風高原Lv2：非対話では従来どおり記録順 ===")
     const deck = s.players.p2.deck
     assert(deck[deck.length - 2] === BIG, "記録順（a が先）で戻る")
     assert(deck[deck.length - 1] === SMALL, "同上（b が後）")
+}
+
+console.log("=== ニードルショット：疲労させるのは「そのスピリット」＝BP増加した1体が勝ったときだけ ===")
+{
+    // 効果文は「系統：剣獣の自分のスピリット1体をBP+2000する。**そのスピリットが**、BPを比べ
+    // 相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる」。
+    // 剣獣を2体並べ、**バトルに出ていない側**へBP増加を当てると、勝っても疲労は起きない
+    const s = setup("needle-that-spirit", true)
+    s.players.p1.reserve = 20
+    const attacker = put(s, "p1", KENJU, 1) // アリゲイド（剣獣）Lv1 BP3000
+    const bench = put(s, "p1", KENJU, 1) // 場にいるだけの剣獣（BP増加はこちらに当てる）
+    const blocker = put(s, "p2", "BS02-014", 1) // ファンタズマ Lv1 BP2000＝一方的に負ける
+    const watcher = put(s, "p2", "BS02-014", 1) // 疲労させられる側
+    s.players.p1.hand = ["BS07-074"]
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    // マジックの対象はクライアントが castMagic に添えて送る（実対戦と同じ経路）
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: bench }) === null,
+        "バトルに出ていない剣獣を対象にニードルショットを使用",
+    )
+
+    assert(declareBlock(s, "p2", blocker) === null, "p2がブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
+    assert(
+        s.players.p2.field.spirits.every((x) => x.instanceId !== blocker),
+        "アタッカーはBP比較で相手だけを破壊している（＝battleWon の他の条件は成立）",
+    )
+    const watcherInst = s.players.p2.field.spirits.find((x) => x.instanceId === watcher)
+    assert(watcherInst?.isRested !== true, "BP増加した個体が勝っていないので疲労させない")
+}
+
+console.log("=== ニードルショット：BP増加した1体が勝てば従来どおり疲労させる ===")
+{
+    const s = setup("needle-that-spirit-hit", true)
+    s.players.p1.reserve = 20
+    const attacker = put(s, "p1", KENJU, 1)
+    put(s, "p1", KENJU, 1) // もう1体の剣獣（今度はこちらを選ばない）
+    const blocker = put(s, "p2", "BS02-014", 1)
+    const watcher = put(s, "p2", "BS02-014", 1)
+    s.players.p1.hand = ["BS07-074"]
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: attacker }) === null,
+        "アタッカーを対象にニードルショットを使用",
+    )
+
+    assert(declareBlock(s, "p2", blocker) === null, "p2がブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス→バトル解決")
+    const watcherInst = s.players.p2.field.spirits.find((x) => x.instanceId === watcher)
+    assert(watcherInst?.isRested === true, "BP増加した個体が勝ったので相手1体が疲労する")
 }
