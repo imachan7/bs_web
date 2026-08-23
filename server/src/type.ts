@@ -296,7 +296,7 @@ export type EffectAction =
     | { type: "bothSidesCoreToVoid"; count: number } // 両プレイヤーが各自のスピリット+ネクサスから、コアの多い個体から順に合計count個をボイドへ置く（1体で足りなければ次にコアが多い個体へ繰り越す。維持コア割れの消滅処理はスピリットのみ＝ネクサスは消滅しない。BS04インフェルノアイズ）
     | { type: "blockTriggersAsAttackAllThisTurn" } // このターンの間、両陣営のスピリットすべての『このスピリットのブロック時』効果を『このスピリットのアタック時』に発揮させる（ブロック時には発揮されなくなる＝移し替え。attackTriggersAsBlockThisTurnの逆方向・全体版。GameState.blockTriggersAsAttackThisTurnをfireTriggerが参照。BS01アタックシフト）
     | { type: "voidCoreToOwnTrash"; count: number } // ボイドからコアcount個を直接、持ち主のトラッシュに置く（returnNexusToHandのvoidCoreToOwnTrashIfOpponentと同じ処理をEffectModules.voidCoreToOwnTrashへ共通化。BS03ブリッツ＝【粉砕】持ちのアタック時にeffectGrantで継続付与）
-    | { type: "alsoCostBuff"; amount: number } // 自分のスピリット1体（targetInstanceId優先、フォールバックはpickOwnKeywordTargetと同じ＝バトル中の自分スピリット→自分フィールド先頭）を、このターンの間「実コスト+amount」の値もコストとして扱う（CardInstance.tempAlsoCosts、ターン終了でリセット。instAllCostsが読む。元のコストも残るため、コスト以下を参照する効果は引き続き元のコストでも反応する簡略化。BS08グロウアップ）
+    | { type: "costBuffThisTurn"; amount: number } // 自分のスピリット1体（targetInstanceId優先、フォールバックはpickOwnKeywordTargetと同じ＝バトル中の自分スピリット→自分フィールド先頭）のコストを、このターンの間 amount だけ増減する（CardInstance.tempCostDelta、ターン終了でリセット。shared/rules.ts の instCostDelta → instBaseCost が読むので、コストを見る判定すべてに効く）。**置き換えであって追加ではない**：元のコストは残らないので「コスト3以下を破壊」は+3後のコストで判定される（BS08グロウアップ）。今後のブレイヴの合体コスト加算も instCostDelta に項を足す形で乗せること
     | { type: "colorChoiceLendThisTurn"; sourceCardId?: string } // 全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに載せてこのターンの間貸し出す（kind:"levelAs" target:"allSpiritsByChosenColor"のlentOnlyエントリが読む。familyGrantのfamilyFromChoiceと同形。マジックのselfは常にnullで選択再開時にresolveActionのsourceCardId引数が失われるため、sourceCardIdをaction自身に載せて2段階目へ引き継ぐ内部専用フィールド（cards.jsonには{"type":"colorChoiceLendThisTurn"}のみを書く）。BS02-111スピリットイリュージョン）
     | { type: "refreshAllByKeyword"; keyword: Keyword; side?: "own"; keywordCount?: number } // keywordCount指定時は、そのキーワードエントリの count が一致するものだけを対象にする（【暴風：1】と【暴風：2】を区別する。静的なkeywordエントリのみ見るため、付与された暴風は対象外＝簡略化。BS07突風侯爵コカトリーフLv2）。// 指定キーワードを持つスピリットすべて（修飾なし＝両陣営が対象）を回復させる。refreshAllByCostと同様cantAttackThisTurnは付与しない（BS03-X09蛮騎士ハーキュリー：【神速】持ちすべて）。side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
     | { type: "millThenDestroySameCost" } // 自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の相手のスピリットすべてを破壊する（デッキが0枚なら不発。BS09-084ドラゴニックハウル）
@@ -1580,6 +1580,8 @@ export interface CardInstance {
     reviveOnDestroyUsedTurn?: number // kind:"reviveOnDestroy" の oncePerTurn 用。この発生源が最後に復活を成立させたターン番号（magicNegateUsedTurnと同型。BS06暴かれた墓石Lv2）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
+    tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
+    // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
     // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
     // 破壊時の誘発を解決し終えてトラッシュに置かれるまでの間だけ立つ。

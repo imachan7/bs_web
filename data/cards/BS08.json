@@ -5078,7 +5078,7 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "alsoCostBuff",
+     "type": "costBuffThisTurn",
      "amount": 3
     }
    },
