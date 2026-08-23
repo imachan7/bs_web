@@ -11,6 +11,7 @@
 // カバレッジの穴を埋めるついでに、めったに触られないカードのクラッシュを拾う網になる。
 import {
     assert,
+    autoPickTarget,
     createGame,
     createInstance,
     currentLevel,
@@ -147,7 +148,7 @@ function drain(s: GameState): boolean {
         if (!s.pendingChoice || s.winner) return true
         const pending = s.pendingChoice
         const response: Record<string, unknown> = { type: "resolveChoice" }
-        if (pending.kind === "target") response["instanceId"] = pending.candidates[0]
+        if (pending.kind === "target") response["instanceId"] = autoPickTarget(pending)
         else if (pending.kind === "option") response["option"] = pending.options?.[0]
         else response["cardIndex"] = pending.cardIndices?.[0]
         const before = pending

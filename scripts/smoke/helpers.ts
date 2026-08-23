@@ -100,6 +100,17 @@ function createGame(...args: Parameters<typeof engineCreateGame>): GameState {
 
 // 立っている pendingChoice に「候補の先頭」で自動応答し、解消するまで繰り返す。
 // 先頭を選ぶのは、スキップより多くの解決経路を通すため（スキップだと非対話時と同じ道になりやすい）。
+// 自動応答が kind:"target" の選択待ちへ返す候補。
+//
+// トグル選択（PendingChoice.selectedIds。予算内で好きなだけ破壊する）は
+// **選択済みも候補に残る**ため、candidates[0] をそのまま押すと選択と解除を往復して終わらない。
+// まだ選んでいないものを1つずつ足していき、足せるものが無くなったらスキップ＝確定させる
+export function autoPickTarget(pending: { candidates: string[]; selectedIds?: string[] }): string | undefined {
+    const selected = pending.selectedIds
+    if (selected) return pending.candidates.find((id) => !selected.includes(id))
+    return pending.candidates[0]
+}
+
 function drainPendingChoices(state: GameState, label: string): void {
     let n = 0
     while (state.pendingChoice && !state.winner) {
@@ -112,7 +123,7 @@ function drainPendingChoices(state: GameState, label: string): void {
         const pending = state.pendingChoice
         const response: GameAction = { type: "resolveChoice" }
         if (pending.kind === "target") {
-            const first = pending.candidates[0]
+            const first = autoPickTarget(pending)
             if (first !== undefined) response.instanceId = first
         } else if (pending.kind === "option") {
             // confirm:true は選択肢1つの発動確認。ラベルは渡さない仕様だが、
