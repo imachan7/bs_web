@@ -622,6 +622,29 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             for (let i = 0; i < player.hand.length; i++) {
                 if (matchesCardId(player.hand[i]!)) indices.push(i)
             }
+            // cancelable（起動能力から使う効果）：**候補が1枚でも必ず聞き、やめられる**。
+            // 起動ボタンを押してから手札を見て「やっぱりやめる」ができるようにするため
+            // （やめたときに「ターンに1回」を戻すのは doActivateAbility / doResolveChoice の担当）。
+            // 候補が0枚なら発揮できないので、消費を巻き戻すフラグを立てて終わる
+            if (action.cancelable) {
+                if (indices.length === 0) {
+                    state.activationFizzled = true
+                    log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
+                    return
+                }
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：召喚するスピリットを選んでください`,
+                    "hand",
+                    indices,
+                    true,
+                    action,
+                    self,
+                    true,
+                )
+                return
+            }
             if (indices.length >= 2) {
                 requestCardChoice(
                     state,

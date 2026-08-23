@@ -111,6 +111,24 @@ const resisted = resistanceAgainst(state, found.pid, found.inst, attempt)
 
 例：BS08竜騎集う円卓Lv2（相手のスピリットの効果の対象になるたび、手札1枚を破棄して受けない）
 
+### 選択を「やめられる」ようにするとき（2026-08-21 ユーザー確定）
+
+**起動能力（`kind:"activated"`）から出した選択をやめたら、「そもそも効果を発揮しなかった」扱いにする。**
+「ターンに1回」（`oncePerTurn`）も消費せず、同じターンにもう一度起動できる。
+起動ボタンを押してから対象を見て「やっぱりやめる」ができないと、対象を確かめる手段が無いため。
+
+**適用範囲は `timing:"main"` の起動能力だけ**（＝BS08帝竜騎サイクル6枚。追加コストが無いので巻き戻しが要らない）。
+バトル中のコア払い・疲労を伴う起動能力は**現状のまま**（やめてもコストは戻らない）。
+
+実装の道筋（3点セット）:
+
+1. アクションに `cancelable` を書く（いまは `summonFromHandFree` のみ）。ハンドラは
+   **候補が1枚でも必ず聞き**（`alwaysAsk`）、`optional: true` で出す
+2. `doActivateAbility` が解決後に `PendingChoice.revertActivated = { instanceId, effectId }` を載せ、
+   `doResolveChoice` が**選ばなかったとき**に消費を巻き戻す
+3. 候補が0枚でその場で終わった場合は、ハンドラが `GameState.activationFizzled` を立て、
+   `doActivateAbility` が同じく巻き戻す（起動しても何も起きないなら消費しない）
+
 ## 4. まだ中断点が無く、今後困りそうなところ
 
 | 場所 | 何が書けないか | 今の回避策 |

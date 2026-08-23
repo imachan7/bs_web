@@ -187,10 +187,25 @@ export function validateSummon(
     // 以前は召喚を通したうえで「対象がいなかった」とログするだけで、犠牲なしに出せてしまっていた。
     // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
     const tensho = tenshoSpecOf(card, level ?? 1)
-    if (tensho && tenshoCandidates(state, pid, tensho.minCost).length === 0) {
-        return tensho.minCost > 0
-            ? `【転召】でコアを置く、コスト${tensho.minCost}以上の自分のスピリットがいません`
-            : "【転召】でコアを置く自分のスピリットがいません"
+    if (tensho) {
+        const candidates = tenshoCandidates(state, pid, tensho.minCost)
+        if (candidates.length === 0) {
+            return tensho.minCost > 0
+                ? `【転召】でコアを置く、コスト${tensho.minCost}以上の自分のスピリットがいません`
+                : "【転召】でコアを置く自分のスピリットがいません"
+        }
+        // **支払いで消えるスピリットは、支払い後には場にいない**（2026-08-21 利用者報告）。
+        // 【転召】は召喚コストの支払い**後**に解決するので、フィールドのコアを支払い元にして
+        // 候補が維持コアを割ると、対象がいないまま召喚が成立してしまっていた
+        // （payCost が支払い後に維持コア割れを "deplete" で消滅させる。判定はそこと同じ式）
+        const paidBy = new Map<string, number>()
+        for (const src of paySources ?? []) paidBy.set(src.instanceId, src.count)
+        const survivors = candidates.filter(
+            (s) => s.cores - (paidBy.get(s.instanceId) ?? 0) >= instMinLevelCores(s),
+        )
+        if (survivors.length === 0) {
+            return "その支払いでは、【転召】でコアを置く自分のスピリットがいなくなります"
+        }
     }
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
     // BS08ビクティム：召喚コストの一部・全部を手札破棄で支払える（置くコアは対象外）。
