@@ -2736,7 +2736,8 @@
     "action": {
      "type": "reviveLastDestroyedNexus",
      "coreCost": 1
-    }
+    },
+    "optional": true
    }
   ]
  },

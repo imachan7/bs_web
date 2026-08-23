@@ -22,6 +22,7 @@ import {
     requestCardChoice,
     requestChoice,
     spiritHasFamily,
+    tryInteractiveTargetChoice,
     spiritHasKeyword,
 } from "../EffectModules"
 import { instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
@@ -417,10 +418,11 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
 }
 
 const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
-        // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体
-        // （実効BP最大を自動選択＝バフ量を最大化する簡略化）を疲労させ、self自身をその実効BP分だけBP+する。
-        // 「〜することで」の任意コストは自動発動で簡略化。
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体を疲労させ、
+        // self自身をその実効BP分だけBP+する。
+        // **どれを疲労させるかはプレイヤーが選ぶ**（2026-08-23 ユーザー要望。COST_MODEL.md §2
+        // 「何を犠牲にするかは候補2つ以上なら選ばせる」）。非対話は従来どおり実効BP最大＝バフ量を最大化。
         // **発生源自身も候補に含む**（2026-08-20 ユーザー確認）。効果文が「系統：「武装」を持つ
         // 自分のスピリット1体を疲労させることで」であって「このスピリット以外の」と書いていないため
         // （SEMANTICS_AUDIT.md §3.8）。BS06-X24 鎧神機ヴァルハランスは自身が「武装」持ちなので、
@@ -438,15 +440,43 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
             log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
             return
         }
-        const target = candidates.reduce((best, s) =>
-            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-        )
-        const amount = effectiveBp(state, owner, target)
-        exhaustSpirit(state, owner, target)
-        self.tempBpBuff += amount
-        log(
-            state,
-            `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+        const applyTo = (target: CardInstance): void => {
+            const amount = effectiveBp(state, owner, target)
+            exhaustSpirit(state, owner, target)
+            self.tempBpBuff += amount
+            log(
+                state,
+                `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
+            )
+        }
+        // 犠牲を選び終えて再入した経路。sacrificeChosen が無い targetInstanceId は
+        // 誘発が渡すイベント対象なので、犠牲と取り違えないようフラグで区別する
+        if (action.sacrificeChosen && targetInstanceId !== undefined) {
+            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+            if (!chosen) {
+                log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
+                return
+            }
+            applyTo(chosen)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとして疲労させるスピリットを選んでください`,
+                candidates,
+                { ...action, sacrificeChosen: true },
+                null,
+            )
+        ) {
+            return
+        }
+        applyTo(
+            candidates.reduce((best, s) =>
+                effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+            ),
         )
         return
 }
