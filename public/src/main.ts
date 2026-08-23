@@ -37,6 +37,8 @@ const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directe
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
+// joined の種別を区別する（"room" = 合言葉ルーム、"random" / "ai" = 即対戦）
+let joinMode: "room" | "random" | "ai" = "room"
 
 function send(action: GameAction): void {
     socket.emit("action", action)
@@ -321,11 +323,45 @@ function toggleDiscardPay(handIndex: number): void {
 // ---- サーバーからのイベント ----
 
 socket.on("joined", () => {
-    showWaiting()
+    if (joinMode === "room") {
+        showWaiting()
+    }
 })
 
 socket.on("joinCancelled", () => {
     hideWaiting()
+})
+
+// ---- ランダムマッチのイベント ----
+
+socket.on("matchQueued", (payload: { waiting: number }) => {
+    // ボタンを隠して待機状態を表示する
+    const btn = document.getElementById("random-match-btn")
+    const status = document.getElementById("random-match-status")
+    const count = document.getElementById("random-match-count")
+    if (btn) btn.classList.add("hidden")
+    if (status) status.classList.remove("hidden")
+    if (count) count.textContent = String(payload.waiting)
+})
+
+socket.on("matchWaiting", (payload: { waiting: number }) => {
+    const count = document.getElementById("random-match-count")
+    if (count) count.textContent = String(payload.waiting)
+})
+
+socket.on("matchCancelled", () => {
+    const btn = document.getElementById("random-match-btn")
+    const status = document.getElementById("random-match-status")
+    if (btn) btn.classList.remove("hidden")
+    if (status) status.classList.add("hidden")
+})
+
+socket.on("matchFound", () => {
+    showToast("対戦相手が見つかりました")
+    const btn = document.getElementById("random-match-btn")
+    const status = document.getElementById("random-match-status")
+    if (btn) btn.classList.remove("hidden")
+    if (status) status.classList.add("hidden")
 })
 
 socket.on("state", (v: GameView) => {
@@ -676,8 +712,8 @@ function loadSavedDecks(): SavedDeck[] {
 }
 
 // deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
-function populateBuiltinDecks(): void {
-    const select = byId("deck-select") as HTMLSelectElement
+function populateBuiltinDecks(selectId = "deck-select"): void {
+    const select = byId(selectId) as HTMLSelectElement
     for (const [key, recipe] of Object.entries(DECK_RECIPES)) {
         const option = document.createElement("option")
         option.value = key
@@ -686,8 +722,8 @@ function populateBuiltinDecks(): void {
     }
 }
 
-function populateCustomDecks(): void {
-    const select = byId("deck-select") as HTMLSelectElement
+function populateCustomDecks(selectId = "deck-select"): void {
+    const select = byId(selectId) as HTMLSelectElement
     // 既存のカスタムデッキをクリア
     const options = Array.from(select.options)
     for (const opt of options) {
@@ -695,10 +731,14 @@ function populateCustomDecks(): void {
             select.removeChild(opt)
         }
     }
-    customDecks.clear()
+    if (selectId === "deck-select") {
+        customDecks.clear()
+    }
 
     for (const saved of loadSavedDecks()) {
-        customDecks.set(saved.name, saved.cards)
+        if (selectId === "deck-select") {
+            customDecks.set(saved.name, saved.cards)
+        }
         let total = 0
         for (const count of Object.values(saved.cards)) total += count
 
@@ -714,9 +754,20 @@ function populateCustomDecks(): void {
     }
 }
 
+// ロビー・AI対戦用の全デッキセレクトを一括で構築する
+const ALL_DECK_SELECT_IDS = ["deck-select", "ai-my-deck-select", "ai-opp-deck-select"]
+
+function populateAllBuiltinDecks(): void {
+    for (const id of ALL_DECK_SELECT_IDS) populateBuiltinDecks(id)
+}
+
+function populateAllCustomDecks(): void {
+    for (const id of ALL_DECK_SELECT_IDS) populateCustomDecks(id)
+}
+
 window.addEventListener("storage", (e) => {
     if (e.key === DECK_STORAGE_KEY) {
-        populateCustomDecks()
+        populateAllCustomDecks()
     }
 })
 
@@ -827,8 +878,8 @@ async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
-    populateBuiltinDecks()
-    populateCustomDecks()
+    populateAllBuiltinDecks()
+    populateAllCustomDecks()
     setupEffectTooltip()
 
     // お知らせ（Gitコミット履歴）を非同期で取得・表示
@@ -840,6 +891,7 @@ async function init(): Promise<void> {
         const roomId =
             (byId("room-input") as HTMLInputElement).value.trim() || "room1"
         const deck = (byId("deck-select") as HTMLSelectElement).value
+        joinMode = "room"
         if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
             // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
             const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
@@ -852,6 +904,82 @@ async function init(): Promise<void> {
         } else {
             socket.emit("join", { roomId, name, deck })
         }
+    })
+
+    // ---- ランダムマッチ ----
+    byId("random-match-btn").addEventListener("click", () => {
+        const name =
+            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+        const deck = (byId("deck-select") as HTMLSelectElement).value
+        joinMode = "random"
+        if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
+            const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
+            const deckCards = customDecks.get(deckName)
+            if (!deckCards) {
+                showToast(`カスタムデッキが見つかりません: ${deckName}`)
+                return
+            }
+            socket.emit("randomMatch", { name, deckCards })
+        } else {
+            socket.emit("randomMatch", { name, deck })
+        }
+    })
+
+    byId("random-match-cancel").addEventListener("click", () => {
+        socket.emit("cancelRandomMatch")
+    })
+
+    // ---- AI対戦 ----
+    byId("start-ai-btn").addEventListener("click", () => {
+        const name =
+            (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+        const myDeck = (byId("ai-my-deck-select") as HTMLSelectElement).value
+        const oppDeck = (byId("ai-opp-deck-select") as HTMLSelectElement).value
+
+        // AI対戦のペイロードを組み立てる
+        const payload: Record<string, unknown> = { name }
+
+        // 自分のデッキ
+        if (myDeck.startsWith(CUSTOM_DECK_PREFIX)) {
+            const deckName = myDeck.slice(CUSTOM_DECK_PREFIX.length)
+            const deckCards = customDecks.get(deckName)
+            if (!deckCards) {
+                showToast(`カスタムデッキが見つかりません: ${deckName}`)
+                return
+            }
+            payload.deckCards = deckCards
+        } else {
+            payload.deck = myDeck
+        }
+
+        // AIのデッキ
+        if (oppDeck.startsWith(CUSTOM_DECK_PREFIX)) {
+            const deckName = oppDeck.slice(CUSTOM_DECK_PREFIX.length)
+            const deckCards = customDecks.get(deckName)
+            if (!deckCards) {
+                showToast(`カスタムデッキが見つかりません: ${deckName}`)
+                return
+            }
+            payload.aiDeckCards = deckCards
+        } else {
+            payload.aiDeck = oppDeck
+        }
+
+        // AIの表示名をデッキ名から生成する
+        let oppLabel = "AI"
+        if (oppDeck.startsWith(CUSTOM_DECK_PREFIX)) {
+            oppLabel = `AI（${oppDeck.slice(CUSTOM_DECK_PREFIX.length)}）`
+        } else {
+            const recipeLabel = DECK_RECIPES[oppDeck]?.label
+            const colorMatch = recipeLabel?.match(/^(.+?)デッキ/)
+            if (colorMatch) {
+                oppLabel = `AI（${colorMatch[1]}）`
+            }
+        }
+        payload.aiName = oppLabel
+
+        joinMode = "ai"
+        socket.emit("startAi", payload)
     })
 
     byId("btn-return-lobby").addEventListener("click", () => {

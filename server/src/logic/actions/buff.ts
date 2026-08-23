@@ -6,6 +6,7 @@ import { currentLevel, getCard, log } from "../GameState"
 import {
     applyMagicBuffBonus,
     bofuCountFor,
+    bpBuffTargetPasses,
     countEffectCounter,
     effectActiveAtLevel,
     effectiveBp,
@@ -15,6 +16,7 @@ import {
     matchesFamilyFilter,
     findSpiritAny,
     pickAnySideByBp,
+    pickAnySideCandidates,
     pickBpBuffTarget,
     pickEnemyByBp,
     requestCardChoice,
@@ -88,6 +90,42 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // anySide（SD02ストロングドロー／BS01ダークコフィンのフラッシュ＝陣営を書いていない「スピリット1体をBP+」）：
+        // 自分/相手どちらのスピリットも対象にできる。クライアントは anySide のマジックの対象を先取りしない
+        // （renderer.ts の magicTargetSide が null を返す）ので、ここで両陣営から選ばせる。
+        // 非対話（smoke）では従来どおり pickBpBuffTarget の自動選択＝自分の場から選ぶ
+        // （BP増加は自分に使うのが自然なため。テストの決定性のための簡略化）
+        if (targetInstanceId === undefined && action.anySide && state.interactiveTargets) {
+            const candidates = pickAnySideCandidates(
+                state,
+                owner,
+                (s) =>
+                    bpBuffTargetPasses(
+                        state,
+                        owner,
+                        s,
+                        action.filter?.minSymbols,
+                        action.filter?.keyword,
+                        action.filter?.nameContains,
+                        action.filter?.attackingOnly,
+                        action.filter?.family,
+                    ),
+                srcColors,
+                srcType,
+            )
+            if (candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：BPを増加するスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
         // 対象1体の経路は matchesTarget を通らないため、この経路が扱える軸を filter から取り出して渡す
         // （minSymbols＝ライトニングバリスタ等／nameContains＝BS07ウィリアンスラッシュ「勇者」／
         //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」／
