@@ -336,7 +336,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {
@@ -916,7 +917,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {
@@ -1512,7 +1514,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {
@@ -2194,7 +2197,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {
@@ -2832,7 +2836,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {
@@ -3431,7 +3436,8 @@
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
-     "skipOnSummon": true
+     "skipOnSummon": true,
+     "cancelable": true
     }
    },
    {

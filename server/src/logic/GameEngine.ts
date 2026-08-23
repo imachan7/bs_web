@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -22,7 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
-import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -543,6 +543,56 @@ function doSetNexus(
 // 無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 export const MAGIC_FREE_OPTIONS = ["コストを支払わずに使用する", "コストを支払って使用する"]
 
+// count が「対象の**体数**」を表すアクション。ここに挙げたものだけを
+// 「複数体が対象なのに1体しか渡されていない」の判定にかける。
+// **ホワイトリストにしてある**のは、同じ count でも意味が違うアクションが混ざっているため:
+// コアの個数（coreCharge＝BS01アウェイクンはコア3個までを1体に置く）や、
+// 「何体分として数えるか」（countAsMultipleThisTurn＝BS05スリーカードは1体を3体分に数える）を
+// 体数と読み違えると、正しく渡された対象まで捨ててしまう
+const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "returnToHand", "returnToDeckTop"])
+
+// クライアントが**先に選んだ対象**をそのまま使ってよいかを見る（2026-08-21 利用者確定）。
+//
+// マジックだけは「クライアントが対象を選んでから castMagic を送る」作りになっており、
+// 送られる対象が効果の条件を満たしているとは限らない。対象選択はサーバー側（pendingChoice）へ
+// 一本化するのが本筋だが、クライアントが追いつくまでの間、ここで受け口を絞って壊れないようにする:
+//
+//   - 効果の filter を満たさない対象 → 捨てる（従来は「対象条件を満たさない」でマジックだけ消費されていた）
+//   - count が2以上＝**複数体が対象** → 捨てる（1体だけ渡されると残りの体数ぶんが失われる）
+//   - chooserIsTarget＝**選ぶのは相手** → 捨てる（使用者が選ぶと相手の選択権を奪う）
+//
+// 捨てたときは「対象未指定」として解決へ進むので、サーバー側が正しい候補を出して選ばせる。
+// なお anySide（自分か相手のどちらでも選べる）は、片側しか選べないのがクライアント側の制限で、
+// サーバーには届かないため、ここでは救済できない（UI側の修正が要る）
+function usableMagicTarget(
+    state: GameState,
+    cardId: string,
+    timing: "main" | "flash",
+    targetInstanceId: string | undefined,
+): string | undefined {
+    if (targetInstanceId === undefined) return undefined
+    const effect = getCard(cardId).effects.find((e) => e.kind === "magic" && e.timing === timing)
+    if (!effect || effect.kind !== "magic") return targetInstanceId
+    const action = effect.action as EffectAction & {
+        count?: number
+        chooserIsTarget?: true
+        filter?: Record<string, unknown>
+    }
+    if (action.chooserIsTarget) return undefined
+    if (typeof action.count === "number" && action.count > 1 && COUNT_IS_BODIES.has(action.type)) {
+        return undefined
+    }
+    if (action.filter === undefined) return targetInstanceId
+    const found = findInstanceAnywhere(state, targetInstanceId)
+    if (!found) return targetInstanceId // 見つからない対象は validateCastMagic 側の判定に任せる
+    const ownerPid = state.players.p1.field.spirits.some((sp) => sp.instanceId === targetInstanceId)
+        ? "p1"
+        : "p2"
+    // filter は self 相対の軸（"selfBp" 等）を持たない前提（マジックには発生源スピリットがいない）。
+    // 判定できない軸が来た場合も matchesTarget が false を返すので、捨てる側に倒れる
+    return matchesTarget(state, ownerPid, found, action.filter as never) ? targetInstanceId : undefined
+}
+
 function doCastMagic(
     state: GameState,
     pid: PlayerId,
@@ -619,13 +669,15 @@ function doCastMagic(
     // 記録すると自分自身を読んでしまい、後で（無条件に）書き換えるとマジックミラー側の記録を潰してしまう
     const beforeLastMagicCast = state.lastMagicCast
     if (state.battle) {
-        resolveMagic(state, pid, cardId, "flash", targetInstanceId)
+        // クライアントが先に選んだ対象は、効果の条件に合うものだけ採用する（usableMagicTarget）
+        const target = usableMagicTarget(state, cardId, "flash", targetInstanceId)
+        resolveMagic(state, pid, cardId, "flash", target)
         if (state.lastMagicCast === beforeLastMagicCast) {
             state.lastMagicCast = {
                 pid,
                 cardId,
                 timing: "flash",
-                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+                ...(target !== undefined ? { targetInstanceId: target } : {}),
             }
         }
         // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
@@ -635,13 +687,14 @@ function doCastMagic(
             (e) => e.kind === "magic" && e.timing === "main",
         )
         const timing = hasMain ? "main" : "flash"
-        resolveMagic(state, pid, cardId, timing, targetInstanceId)
+        const target = usableMagicTarget(state, cardId, timing, targetInstanceId)
+        resolveMagic(state, pid, cardId, timing, target)
         if (state.lastMagicCast === beforeLastMagicCast) {
             state.lastMagicCast = {
                 pid,
                 cardId,
                 timing,
-                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+                ...(target !== undefined ? { targetInstanceId: target } : {}),
             }
         }
     }
@@ -990,6 +1043,23 @@ function resolveLifeDamage(state: GameState): void {
 }
 
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
+// 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
+// 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
+function revertActivatedUse(inst: CardInstance, effectId: string): void {
+    if (!inst.activatedUsedTurn) return
+    const rest = { ...inst.activatedUsedTurn }
+    delete rest[effectId]
+    inst.activatedUsedTurn = rest
+}
+
+// 選択を「やめた」ときに、起動能力の「ターンに1回」を巻き戻す（PendingChoice.revertActivated）
+function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): void {
+    const r = pending.revertActivated
+    if (!r) return
+    const inst = findInstanceAnywhere(state, r.instanceId)
+    if (inst) revertActivatedUse(inst, r.effectId)
+}
+
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
 // 個別の効果は effect.action に載っており、この関数はコスト支払いと発動の枠組みのみを担う。
 function doActivateAbility(
@@ -1035,7 +1105,21 @@ function doActivateAbility(
         inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
     }
 
+    // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
+    // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
+    const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
+    delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
     resolveAction(state, pid, inst, effect.action)
+    if (effect.oncePerTurn && cancelable) {
+        if (state.activationFizzled) {
+            // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
+            revertActivatedUse(inst, effectId)
+        } else if (state.pendingChoice) {
+            // 選択待ちに入った：**やめたら**戻す（doResolveChoice が見る）
+            state.pendingChoice.revertActivated = { instanceId, effectId }
+        }
+    }
+    delete state.activationFizzled
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
     if (state.battle) passFlashPriority(state, pid)
     return null
@@ -1315,6 +1399,8 @@ function doResolveChoice(
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
             resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
         } else {
+            // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
+            revertActivatedIfSkipped(state, pending)
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
