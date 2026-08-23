@@ -1,4 +1,5 @@
 // 対戦ルーム生成・参加・破棄の管理
+import { randomUUID } from "node:crypto"
 import type { DeckSpec, GameState, PlayerId } from "./type"
 
 export interface RoomPlayer {
@@ -6,16 +7,46 @@ export interface RoomPlayer {
     name: string
     deck: DeckSpec // デッキレシピ名（"red" 等）またはカスタムデッキのカードリスト
     connected: boolean
+    isAi?: true // AI が座っている席（socketId は実在しないダミー）。切断判定から除外する
 }
 
 export interface Room {
     roomId: string
     players: Partial<Record<PlayerId, RoomPlayer>>
     game: GameState | null
+    ai?: { pid: PlayerId } // AI戦のとき、AI が座っている席。無ければ人間同士の対戦
 }
 
 export class RoomManager {
     private rooms = new Map<string, Room>()
+
+    // 自動生成のルームID（ランダムマッチ・AI戦）。合言葉ルームと衝突しないよう接頭辞を付ける
+    newRoomId(prefix: "match" | "ai"): string {
+        return `${prefix}-${randomUUID().slice(0, 8)}`
+    }
+
+    // AI戦のルームを作る。人間が p1、AI が p2 に座る。
+    // AI の席には実在しない socketId を入れる（配信先として使われても誰にも届かないだけで害はない）
+    createAiRoom(
+        socketId: string,
+        name: string,
+        deck: DeckSpec,
+        aiName: string,
+        aiDeck: DeckSpec,
+    ): { room: Room; playerId: PlayerId } {
+        const roomId = this.newRoomId("ai")
+        const room: Room = {
+            roomId,
+            players: {
+                p1: { socketId, name, deck, connected: true },
+                p2: { socketId: `ai:${roomId}`, name: aiName, deck: aiDeck, connected: true, isAi: true },
+            },
+            game: null,
+            ai: { pid: "p2" },
+        }
+        this.rooms.set(roomId, room)
+        return { room, playerId: "p1" }
+    }
 
     // 現在のルーム数を返す（ヘルスチェック用）
     get roomCount(): number {
@@ -97,10 +128,61 @@ export class RoomManager {
         const player = room.players[playerId]
         if (player) player.connected = false
 
-        const anyConnected = (["p1", "p2"] as const).some(
-            (pid) => room.players[pid]?.connected,
-        )
-        if (!anyConnected) this.rooms.delete(room.roomId)
+        // AI の席は常に connected なので、これを数えるとAI戦のルームが永久に残る。
+        // 「人間が誰も残っていなければ破棄する」で数える
+        const anyHumanConnected = (["p1", "p2"] as const).some((pid) => {
+            const p = room.players[pid]
+            return p?.connected === true && p.isAi !== true
+        })
+        if (!anyHumanConnected) this.rooms.delete(room.roomId)
         return found
+    }
+}
+
+// ---- ランダムマッチの待機キュー ----
+// 合言葉を決めずに「先に待っていた2人」を突き合わせる。順番待ちだけを持ち、
+// レーティングや条件指定は扱わない（2026-08-23 ユーザー判断）
+export interface MatchQueueEntry {
+    socketId: string
+    name: string
+    deck: DeckSpec
+    queuedAt: number
+}
+
+export class MatchQueue {
+    private entries: MatchQueueEntry[] = []
+
+    get size(): number {
+        return this.entries.length
+    }
+
+    has(socketId: string): boolean {
+        return this.entries.some((e) => e.socketId === socketId)
+    }
+
+    // 待機列に加える。すでに並んでいれば二重には入れない
+    add(entry: Omit<MatchQueueEntry, "queuedAt">): void {
+        if (this.has(entry.socketId)) return
+        this.entries.push({ ...entry, queuedAt: Date.now() })
+    }
+
+    // 待機列から外す。外したら true（キャンセル・切断の両方から呼ぶ）
+    remove(socketId: string): boolean {
+        const before = this.entries.length
+        this.entries = this.entries.filter((e) => e.socketId !== socketId)
+        return this.entries.length !== before
+    }
+
+    // 先頭2人を取り出す。2人揃っていなければ null（列は変えない）
+    takePair(): [MatchQueueEntry, MatchQueueEntry] | null {
+        if (this.entries.length < 2) return null
+        const first = this.entries.shift()!
+        const second = this.entries.shift()!
+        return [first, second]
+    }
+
+    // 待機中の socketId 一覧（待ち人数の配信先）
+    socketIds(): string[] {
+        return this.entries.map((e) => e.socketId)
     }
 }

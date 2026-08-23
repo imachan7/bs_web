@@ -5,7 +5,8 @@ import * as path from "node:path"
 import express from "express"
 import { Server, type Socket } from "socket.io"
 import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
-import { RoomManager, type Room } from "./roomManager"
+import { MatchQueue, RoomManager, type Room } from "./roomManager"
+import { pumpAi } from "./ai/runner"
 import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
 import { runTurnStart } from "./logic/PhaseManager"
 import { handleAction } from "./logic/GameEngine"
@@ -24,6 +25,7 @@ app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 const server = http.createServer(app)
 const io = new Server(server)
 const roomManager = new RoomManager()
+const matchQueue = new MatchQueue()
 
 // Azure App Service 等のヘルスチェック用エンドポイント
 app.get("/health", (_req, res) => {
@@ -318,7 +320,8 @@ app.post("/api/debug/setup", express.json({ limit: "256kb" }), (req, res) => {
     res.json({ ok: true })
 })
 
-// 両プレイヤーへそれぞれの視点の状態を送信する
+// 両プレイヤーへそれぞれの視点の状態を送信する。
+// AI戦のルームなら、配信のあとに AI が打てる手を打ち切るまで進める（1手ごとに再びここへ戻る）
 function broadcastState(room: Room): void {
     if (!room.game) return
     for (const pid of ["p1", "p2"] as const) {
@@ -326,6 +329,84 @@ function broadcastState(room: Room): void {
         if (player?.connected) {
             io.to(player.socketId).emit("state", viewFor(room.game, pid))
         }
+    }
+    if (room.ai) {
+        // 二重起動は pumpAi 側が防ぐ（同じ GameState で走っている間は何もせず戻る）
+        pumpAi(room.game, room.ai.pid, {
+            isActive: () => roomManager.getRoom(room.roomId) !== null,
+            onStateChanged: () => broadcastState(room),
+            onGiveUp: (message) => console.warn(`[AI] ${room.roomId}: ${message}`),
+        })
+    }
+}
+
+// 2人そろったルームで対戦を開始する。合言葉ルーム・ランダムマッチ・AI戦の共通処理
+function startGame(room: Room): void {
+    const p1 = room.players.p1
+    const p2 = room.players.p2
+    if (!p1 || !p2 || room.game) return
+    room.game = createGame(
+        room.roomId,
+        { p1: p1.name, p2: p2.name },
+        { p1: p1.deck, p2: p2.deck },
+    )
+    // 実対戦は誘発効果の対象をプレイヤーに選ばせる（smokeは既定falseのまま自動選択）。
+    // AI戦でも true にする：AI 側の選択待ちは AI が自分で resolveChoice に答える
+    room.game.interactiveTargets = true
+    runTurnStart(room.game)
+    broadcastState(room)
+}
+
+// join / randomMatch / startAi が受け取るデッキ指定を DeckSpec に解決する。
+// deckCards（カスタムデッキ）が指定されていれば deck キーより優先する
+function resolveDeckSpec(deck: unknown, deckCards: unknown): { deck: DeckSpec } | { error: string } {
+    if (deckCards !== undefined && deckCards !== null && typeof deckCards === "object" && !Array.isArray(deckCards)) {
+        const deckError = validateDeckCards(deckCards as Record<string, number>)
+        if (deckError) return { error: `デッキが不正です: ${deckError}` }
+        return { deck: deckCards as DeckSpec }
+    }
+    const name = String(deck || "red")
+    if (!DECK_RECIPES[name]) return { error: "不明なデッキです" }
+    return { deck: name }
+}
+
+// 待機中の全員へ現在の待ち人数を配信する
+function broadcastQueueSize(): void {
+    const waiting = matchQueue.size
+    for (const socketId of matchQueue.socketIds()) {
+        io.to(socketId).emit("matchWaiting", { waiting })
+    }
+}
+
+// 待機列の先頭2人でルームを作って対戦を始める。
+// 取り出した相手がすでに切断していた場合は、その人だけ捨ててもう一方を列の先頭へ戻す
+function tryMatch(): void {
+    for (;;) {
+        const pair = matchQueue.takePair()
+        if (!pair) return
+        const sockets = pair.map((entry) => io.sockets.sockets.get(entry.socketId))
+        const aliveIndex = sockets.map((s, i) => (s ? i : -1)).filter((i) => i >= 0)
+        if (aliveIndex.length < 2) {
+            // 生き残っている側だけ列へ戻して、次のマッチを待たせる
+            for (const i of aliveIndex) matchQueue.add(pair[i]!)
+            broadcastQueueSize()
+            if (aliveIndex.length === 0) continue
+            return
+        }
+        const roomId = roomManager.newRoomId("match")
+        pair.forEach((entry, i) => {
+            const socket = sockets[i]
+            if (!socket) return
+            const result = roomManager.join(roomId, entry.socketId, entry.name, entry.deck)
+            if (!("room" in result)) return
+            socket.join(roomId)
+            socket.emit("matchFound", { roomId })
+            socket.emit("joined", { playerId: result.playerId, roomId })
+        })
+        broadcastQueueSize()
+        const room = roomManager.getRoom(roomId)
+        if (room) startGame(room)
+        return
     }
 }
 
@@ -346,28 +427,12 @@ io.on("connection", (socket: Socket) => {
                 roomId,
             )
 
-            // deckCards（カスタムデッキ）が指定されていれば deck キーより優先する
-            let deckSpec: DeckSpec
-            if (
-                payload.deckCards !== undefined &&
-                payload.deckCards !== null &&
-                typeof payload.deckCards === "object" &&
-                !Array.isArray(payload.deckCards)
-            ) {
-                const deckError = validateDeckCards(payload.deckCards)
-                if (deckError) {
-                    socket.emit("errorMessage", `デッキが不正です: ${deckError}`)
-                    return
-                }
-                deckSpec = payload.deckCards
-            } else {
-                const deck = String(payload.deck || "red")
-                if (!DECK_RECIPES[deck]) {
-                    socket.emit("errorMessage", "不明なデッキです")
-                    return
-                }
-                deckSpec = deck
+            const resolved = resolveDeckSpec(payload.deck, payload.deckCards)
+            if ("error" in resolved) {
+                socket.emit("errorMessage", resolved.error)
+                return
             }
+            const deckSpec: DeckSpec = resolved.deck
 
             const result = roomManager.join(roomId, socket.id, name, deckSpec)
             if ("error" in result) {
@@ -384,23 +449,112 @@ io.on("connection", (socket: Socket) => {
             }
 
             const { room, playerId } = result
+            // ランダムマッチで待っている最中に合言葉ルームへ座ったら、待機は取り消す。
+            // **両方に居させると壊れる**：後からマッチが成立すると同じ socket が2つのルームに座り、
+            // findBySocket が返すルームが不定になって action がどちらの対戦に届くか分からなくなる。
+            // 席の確保に成功したここで外す（デッキ不正などで参加に失敗したときは待機を続けさせる）
+            if (matchQueue.remove(socket.id)) {
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+            }
             socket.join(roomId)
             socket.emit("joined", { playerId, roomId })
 
             // 2人そろったらゲーム開始
-            const p1 = room.players.p1
-            const p2 = room.players.p2
-            if (p1 && p2 && !room.game) {
-                room.game = createGame(
-                    room.roomId,
-                    { p1: p1.name, p2: p2.name },
-                    { p1: p1.deck, p2: p2.deck },
-                )
-                // 実対戦は誘発効果の対象をプレイヤーに選ばせる（smokeは既定falseのまま自動選択）
-                room.game.interactiveTargets = true
-                runTurnStart(room.game)
-                broadcastState(room)
+            startGame(room)
+        },
+    )
+
+    // ---- ランダムマッチ ----
+    // 合言葉を決めずに待機列へ並び、先に待っていた2人から順に対戦が始まる。
+    // 「対戦ルームに入る」と同じく**2回目の送信は取り消し**として扱う（join のトグルと揃える）
+    socket.on(
+        "randomMatch",
+        (payload: { name?: string; deck?: string; deckCards?: Record<string, number> }) => {
+            if (matchQueue.has(socket.id)) {
+                matchQueue.remove(socket.id)
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+                return
             }
+            if (roomManager.findBySocket(socket.id)) {
+                socket.emit("errorMessage", "すでに対戦に参加しています")
+                return
+            }
+            const resolved = resolveDeckSpec(payload?.deck, payload?.deckCards)
+            if ("error" in resolved) {
+                socket.emit("errorMessage", resolved.error)
+                return
+            }
+            const name = String(payload?.name || "プレイヤー")
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                "（ランダムマッチ）",
+            )
+            matchQueue.add({ socketId: socket.id, name, deck: resolved.deck })
+            socket.emit("matchQueued", { waiting: matchQueue.size })
+            broadcastQueueSize()
+            tryMatch()
+        },
+    )
+
+    // 待機の取り消し（画面の「やめる」から。二重送信のトグルとは別に明示の口を用意する）
+    socket.on("cancelRandomMatch", () => {
+        if (!matchQueue.remove(socket.id)) return
+        socket.emit("matchCancelled", {})
+        broadcastQueueSize()
+    })
+
+    // ---- AI戦 ----
+    // 自分のデッキと**AIのデッキ**の両方を指定して、その場で1人用の対戦を始める。
+    // AI は p2 に座り、人間が1手打つたびにサーバー側で打ち返す（server/src/ai/）
+    socket.on(
+        "startAi",
+        (payload: {
+            name?: string
+            deck?: string
+            deckCards?: Record<string, number>
+            aiName?: string
+            aiDeck?: string
+            aiDeckCards?: Record<string, number>
+        }) => {
+            if (roomManager.findBySocket(socket.id)) {
+                socket.emit("errorMessage", "すでに対戦に参加しています")
+                return
+            }
+            // ランダムマッチを待っている最中に AI戦を選んだら、待機は取り消す
+            if (matchQueue.remove(socket.id)) {
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+            }
+            const mine = resolveDeckSpec(payload?.deck, payload?.deckCards)
+            if ("error" in mine) {
+                socket.emit("errorMessage", mine.error)
+                return
+            }
+            const theirs = resolveDeckSpec(payload?.aiDeck, payload?.aiDeckCards)
+            if ("error" in theirs) {
+                socket.emit("errorMessage", `AIの${theirs.error}`)
+                return
+            }
+            const name = String(payload?.name || "プレイヤー")
+            const aiName = String(payload?.aiName || "AI").slice(0, 20)
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                "（AI戦）",
+            )
+            const { room, playerId } = roomManager.createAiRoom(
+                socket.id,
+                name,
+                mine.deck,
+                aiName,
+                theirs.deck,
+            )
+            socket.join(room.roomId)
+            socket.emit("joined", { playerId, roomId: room.roomId })
+            startGame(room)
         },
     )
 
@@ -419,6 +573,8 @@ io.on("connection", (socket: Socket) => {
     })
 
     socket.on("disconnect", () => {
+        // 待機列に並んだまま閉じられた場合は列から外す（幽霊が先頭に残るとマッチが1回空振りする）
+        if (matchQueue.remove(socket.id)) broadcastQueueSize()
         const found = roomManager.leave(socket.id)
         if (found) {
             const other: PlayerId = found.playerId === "p1" ? "p2" : "p1"

@@ -1601,6 +1601,46 @@ BS03-036 神鳥ピーゴッドは対応済み。**残り11枚は未着手**:
 
 ---
 
+## 5.6 対戦の入口（合言葉ルーム・ランダムマッチ・AI戦）
+
+対戦の始め方が3つある。**どれもゲーム開始後は同じ**（`startGame` が `createGame` →
+`interactiveTargets = true` → `runTurnStart` → 配信）で、違うのは席が埋まるまでの経路だけ。
+
+| 入口 | socket イベント | 席の決まり方 |
+| :-- | :-- | :-- |
+| 合言葉ルーム | `join` | 同じ `roomId` に来た2人。空席へ p1 → p2 の順 |
+| ランダムマッチ | `randomMatch` | 待機列の先頭2人。先に待っていた側が p1 |
+| AI戦 | `startAi` | 人間が p1、AI が p2（相手を待たない） |
+
+### ランダムマッチ（`MatchQueue`。server/src/roomManager.ts）
+
+順番待ちだけを持つ。レーティング・条件指定は扱わない（2026-08-23 ユーザー判断）。
+
+- `randomMatch { name, deck | deckCards }` → `matchQueued { waiting }`。
+  **2回目の送信は取り消し**（`join` のトグルと同じ思想）→ `matchCancelled`
+- 明示の取り消しは `cancelRandomMatch` → `matchCancelled`
+- 待機中の全員へ `matchWaiting { waiting }`（待ち人数の表示用）
+- 2人揃うと自動生成の `match-xxxxxxxx` ルームで開始 → 両者へ `matchFound { roomId }` → `joined`
+- 取り出した相手がすでに切断していたら、その人だけ捨てて生き残りを列の先頭へ戻す
+- 切断時は列から外す（幽霊が先頭に残るとマッチが1回空振りするため）
+
+### AI戦
+
+- `startAi { name, deck | deckCards, aiName, aiDeck | aiDeckCards }` → `joined { playerId: "p1", roomId }`。
+  **相手デッキも対戦者が選ぶ**（2026-08-23 ユーザー判断）
+- AI の席（p2）は `RoomPlayer.isAi` を持ち、`socketId` は実在しないダミー。
+  **`leave` の破棄判定は「人間が誰も残っていないか」で数える**（AIは常に connected のため）
+- AI は `broadcastState` の末尾から駆動する。1手打つたびに配信して戻ってくるので、
+  人間側の画面では AI の手が1手ずつ流れる
+- 中身は `server/src/ai/`。設計・点数表・限界は **[docs/design/AI_OPPONENT.md](./docs/design/AI_OPPONENT.md)**
+
+### UI
+
+ロビーの導線（「ランダムマッチ」「AIと対戦」ボタン、待ち人数の表示、AI相手のデッキ選択）は
+**UI担当の担当**。サーバー側は上記のイベントを受けるところまでで、`public/` は変更していない。
+
+---
+
 ## 6. テスト
 
 | コマンド | 内容 |
