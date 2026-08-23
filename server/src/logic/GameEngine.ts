@@ -69,6 +69,7 @@ import {
     instColors,
     millDeck,
     notifyNexusDeployed,
+    payCost,
     refreshLevelAsOverrides,
     sweepLevelCostDepletion,
     resolveAction,
@@ -255,7 +256,7 @@ function dispatchAction(
                 action.fromTegamoto,
             )
         case "moveCore":
-            return doMoveCore(state, pid, action.instanceId, action.direction)
+            return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete)
         case "awaken":
             return doAwaken(state, pid, action.instanceId, action.fromInstanceId, action.count)
         case "attack":
@@ -269,7 +270,7 @@ function dispatchAction(
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
         case "resolveChoice":
-            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex)
+            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex, action.paySources)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
@@ -285,61 +286,6 @@ function dispatchAction(
         }
         // "surrender" は冒頭で処理済みのため、ここでは型から除外されている
     }
-}
-
-// コストと「召喚/配置したカードの上に置くコア」をまとめて支払う。
-//
-// paySources（自分のフィールドのスピリット/ネクサス上のコア）から取ったぶんは、
-// **先にコストへ充当し、余りを置くコアへ回す**。コスト充当分はトラッシュへ行き、
-// 置くコアに回った分はそのままカードの上へ置かれる（＝トラッシュを経由しない）。
-// 不足分はリザーブから支払う。
-// 戻り値は「置くコアのうちフィールドから賄えた数」で、呼び出し側はリザーブから引く数を
-// maintain - placedFromField にする。
-// 支払い後、維持コア（Lv1）を下回った支払い元スピリットは消滅する。
-function payCost(
-    state: GameState,
-    pid: PlayerId,
-    cost: number,
-    paySources?: PaySource[],
-    maintain = 0,
-): number {
-    const player = state.players[pid]
-    let takenFromField = 0
-    if (paySources && paySources.length > 0) {
-        for (const src of paySources) {
-            const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
-            if (!inst) continue
-            const paid = Math.min(src.count, inst.cores)
-            inst.cores -= paid
-            takenFromField += paid
-        }
-    }
-    // フィールドから取ったコアはコスト優先で充当し、余りを置くコアへ（上限は maintain）
-    const costFromField = Math.min(takenFromField, cost)
-    const placedFromField = Math.min(takenFromField - costFromField, maintain)
-    // コスト充当分（フィールド由来＋リザーブ由来）はトラッシュへ
-    const costFromReserve = cost - costFromField
-    player.reserve -= costFromReserve
-    player.trashCores += costFromField + costFromReserve
-    // 置くコアに回りきらなかった余剰はリザーブへ戻す（validate 側で弾いているので通常は0）
-    const surplus = takenFromField - costFromField - placedFromField
-    if (surplus > 0) player.reserve += surplus
-    if (takenFromField > 0) {
-        const placedNote = placedFromField > 0 ? `（うち${placedFromField}個は置くコアに充当）` : ""
-        log(state, `${player.name}はフィールドのコア${takenFromField}個を含めて支払った。${placedNote}`)
-    }
-    // 全支払い完了後、支払い元スピリットが維持コア（Lv1）を下回っていたら消滅させる
-    // （ここは意図的に findSpirit のみを検索する。ネクサスは維持コアの概念がなく
-    //   自然に消滅対象から外れるため、findNexus を併用しないこと）
-    if (paySources) {
-        for (const src of paySources) {
-            const inst = findSpirit(player, src.instanceId)
-            if (inst && inst.cores < instMinLevelCores(inst)) {
-                destroySpirit(state, pid, inst.instanceId, "deplete")
-            }
-        }
-    }
-    return placedFromField
 }
 
 // バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
@@ -746,8 +692,9 @@ function doMoveCore(
     pid: PlayerId,
     instanceId: string,
     direction: "add" | "remove",
+    confirmDeplete?: true,
 ): string | null {
-    const error = validateMoveCore(state, pid, instanceId, direction)
+    const error = validateMoveCore(state, pid, instanceId, direction, confirmDeplete)
     if (error) return error
 
     const player = state.players[pid]
@@ -764,6 +711,17 @@ function doMoveCore(
     } else {
         inst.cores -= 1
         player.reserve += 1
+        // 維持コア（Lv1）を下回ったら消滅する（confirmDeplete で承知のうえ取り除いた場合のみここへ来る。
+        // 残ったコアは destroySpirit がリザーブへ戻す）。**疲労の誘発より先に消滅させる**：
+        // 場を離れたスピリットが「コアを取り除かれて疲労した」ことにならないように
+        if (spirit && spirit.cores < instMinLevelCores(spirit)) {
+            log(
+                state,
+                `${player.name}は${getCard(spirit.cardId).name}のコアを取り除いた。維持コアを下回ったため消滅した。`,
+            )
+            destroySpirit(state, pid, spirit.instanceId, "deplete")
+            return null
+        }
         // 「コアを置く、または取り除くと疲労する」（BS01ルビーの太陽Lv2）。
         // onRemove を持たない既存の効果（夢魔の寝所／魔影街）はここでは反応しない
         if (spirit) checkExhaustOnCoreChange(state, pid, spirit, { viaEffect: false, isRemoval: true })
@@ -1176,6 +1134,9 @@ function doResolveChoice(
     instanceId?: string,
     option?: string,
     cardIndex?: number,
+    // 「コストを支払って召喚できる」起動効果（summonFromHandFree の payCost）で、
+    // リザーブの不足分をフィールドのコアから払うための指定。通常の召喚と同じ支払いUIから届く
+    paySources?: PaySource[],
 ): string | null {
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
@@ -1434,7 +1395,7 @@ function doResolveChoice(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex, undefined, paySources)
         } else if (pending.resolveOnSkip) {
             // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる

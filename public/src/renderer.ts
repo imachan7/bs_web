@@ -182,6 +182,10 @@ export function magicTargetSide(
         (e) => e.kind === "magic" && e.timing === timing,
     )
     if (!effect || effect.kind !== "magic") return null
+    // anySide（陣営を書いていない「スピリット1体を〜」。フレイムダンス／ダークコフィン等8枚）は
+    // **対象を先取りしない**。ここは片側しか選ばせられず、選べるはずの側が選べなくなるため、
+    // サーバー側の pendingChoice へ委ねる（対象選択はサーバーへ一本化する方針。2026-08-21 利用者確定）
+    if ((effect.action as { anySide?: true }).anySide) return null
     if (
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
@@ -225,6 +229,11 @@ export function activatableAbility(
 // 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 export interface PayingState {
     handIndex: number
+    // 選択待ち（pendingChoice）の解決として送る場合の手札インデックス。
+    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summonFromHandFree の payCost）で、
+    // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
+    // 立っているときは summon ではなく resolveChoice を送る（2026-08-23）
+    forChoiceCardIndex?: number
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
@@ -507,7 +516,9 @@ export function render(view: GameView, ui: UiState): void {
     } else {
         show("choice-options", false)
     }
-    if (myPendingChoice) {
+    // 選択待ちの解決として支払い中（起動効果の召喚コストをフィールドのコアから払う）のときは、
+    // 選択待ちの文言ではなく支払いの案内を優先して出す（2026-08-23）
+    if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
         $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
     } else if (oppPendingChoice) {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
@@ -869,8 +880,10 @@ function fieldCardEl(
         el.classList.add("attacker-mark")
     }
 
-    // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する
-    if (view.pendingChoice && view.pendingChoice.pid === view.you) {
+    // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
+    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
+    // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
+    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
         }
@@ -922,8 +935,9 @@ function fieldCardEl(
     if (isMine) {
         // 選択待ち中（自分・相手いずれか宛）は自分側の操作UIをすべて抑止する
         // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
-        // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）
-        if (view.pendingChoice) {
+        // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
+        // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
+        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
             return el
         }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う
