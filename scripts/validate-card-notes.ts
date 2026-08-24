@@ -77,6 +77,28 @@ for (const card of cards) {
     }
 }
 
+// お知らせ（data/announcements.json）が JSON として壊れていないか。
+// **本番でだけ効く壊れ方**をするので検査に入れてある：GET /api/changelog が実行時に読むだけなので、
+// typecheck も smoke も素通りし、トップ画面の「お知らせ」欄だけが空になる。
+// 実際 2026-08-24 に、2つのPRが同じ位置へ行を足したマージで entries が1つに潰れて壊れた
+const annPath = path.resolve(__dirname, "../data/announcements.json")
+try {
+    const ann = JSON.parse(fs.readFileSync(annPath, "utf-8")) as { entries?: { date?: string; category?: string; text?: string }[] }
+    const entries = ann.entries
+    if (!Array.isArray(entries)) {
+        add("announcements", "entries が配列ではありません")
+    } else {
+        const CATEGORIES = ["fix", "ui", "new", "info", "update"]
+        for (const [i, e] of entries.entries()) {
+            if (typeof e.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) add("announcements", `${i}件目: date が YYYY-MM-DD ではありません`)
+            if (typeof e.category !== "string" || !CATEGORIES.includes(e.category)) add("announcements", `${i}件目: category が不正です（${String(e.category)}）`)
+            if (typeof e.text !== "string" || e.text.trim() === "") add("announcements", `${i}件目: text が空です`)
+        }
+    }
+} catch (e) {
+    add("announcements", `JSONとして読めません: ${(e as Error).message}`)
+}
+
 const counts = STATUSES.map((s) => `${s}=${Object.values(notesFile.notes).filter((n) => n.status === s).length}`)
 console.log(`  注意書き: ${Object.keys(notesFile.notes).length}件（${counts.join(" / ")}）`)
 
