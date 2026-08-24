@@ -213,12 +213,14 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
     const reserve = view.players[view.you].reserve
 
-    // 栄光の表彰台Lv1：ネクサスの配置コストは、コアで足りない分をデッキ破棄で払える。
-    // サーバーが不足分を自動でデッキ破棄に回すので、ここでは「払えるか」の判定だけ揃える
+    // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。
+    // **コア払いとの併用はできない**ので全額（＝実効コスト）払えるときだけ選択肢になる
     // （判定を揃えないと、サーバーが受け付ける配置をクライアントが支払いモードに入れてしまう）
     const millPayable =
-        card.type === "nexus" && canPayNexusCostByMill(view, view.you)
-            ? Math.min(cost, view.players[view.you].deckCount)
+        card.type === "nexus" &&
+        canPayNexusCostByMill(view, view.you) &&
+        view.players[view.you].deckCount >= cost
+            ? cost
             : 0
 
     // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
@@ -229,7 +231,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
             : 0
 
     // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
-    // 「すべて、または一部を」払えるカードなので、どこまで代替で払うかはプレイヤーが選ぶ
+    // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
     // （そのまま確定すれば従来どおり全額コア払いになる）
     const altAvailable = millPayable > 0 || handDiscardPayable > 0
     if (!altAvailable && reserve >= cost + maintain) {
@@ -291,13 +293,14 @@ function submitPaying(): void {
     ui.paying = null
 }
 
-// 支払いモード中に、代替コストの支払い量を1つ増減する。
-// 手札破棄（ビクティム）は「どの手札か」を選ぶので、増やす操作は手札クリック側で行う
+// 支払いモード中に、代替コストの支払い量を変える。
+// 手札破棄（ビクティム）は「すべて、または一部」なので1枚ずつ増減し、どの手札かは手札クリック側で選ぶ。
+// デッキ破棄（栄光の表彰台）は**コア払いと併用できない**ので、全額払う／払わないのトグル（delta は見ない）
 function changeAltPay(delta: number): void {
     if (!view || !ui.paying) return
     const alt = payingAltPay(view, ui.paying)
     if (alt.kind === "mill") {
-        ui.paying.millPay = Math.max(0, Math.min(alt.max, ui.paying.millPay + delta))
+        ui.paying.millPay = ui.paying.millPay > 0 ? 0 : alt.max
     } else if (alt.kind === "handDiscard" && delta < 0) {
         ui.paying.discardHandIndices.pop()
     }
@@ -1133,11 +1136,12 @@ async function init(): Promise<void> {
         submitPaying()
         rerender()
     })
-    // デッキ破棄での支払い枚数の増減（栄光の表彰台）。ボタンは支払いバナー内に描画される
+    // 代替コストの操作（手札破棄の減量＝dec／デッキ破棄の切り替え＝toggle）。
+    // ボタンは支払いバナー内に描画される
     byId("targeting-info").addEventListener("click", (e) => {
         const btn = closestData(e, "data-altpay")
         if (!btn) return
-        changeAltPay(String(btn.dataset.altpay) === "inc" ? 1 : -1)
+        changeAltPay(String(btn.dataset.altpay) === "dec" ? -1 : 1)
     })
     byId("btn-cancel-target").addEventListener("click", () => {
         ui.targeting = null
