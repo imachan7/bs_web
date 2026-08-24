@@ -8,7 +8,7 @@
 //   aura.condition{opponentHandAtLeast}（BS08ブラックウガルルムLv2）／
 //   triggered.condition{opponentHandAtLeast}（BS08ボクルガー）／
 //   kind"symbolFix"（BS08海底に眠りし古代都市Lv2）／
-//   action"alsoCostBuff"（BS08グロウアップ）／
+//   action"costBuffThisTurn"（BS08グロウアップ）／
 //   action"destroyAll".voidCoreToSelfPerDestroyed（X003D極帝龍騎ジーク・クリムゾン）／
 //   kind"funsaiBonus".amountPerSymbolColor（BS08神造巨兵オリハルコン・ゴレム）／
 //   action"deckReveal".countPer{ownNexuses}（BS08古将ドグウ・ゴレム）／
@@ -20,6 +20,7 @@ import {
     createInstance,
     draw,
     effectiveBp,
+    endTurn,
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
@@ -34,7 +35,7 @@ import {
     resolveFunsai,
 } from "../../server/src/logic/EffectModules"
 import { validateSummon } from "../../server/src/logic/RuleValidator"
-import { countSymbols, instanceSymbolCount, instHasCost } from "../../shared/rules"
+import { countSymbols, instanceSymbolCount, instBaseCost, instHasCost, instMatchesCostFilter } from "../../shared/rules"
 import type { Color, EffectAction } from "../../server/src/type"
 
 interface CardRow {
@@ -260,10 +261,10 @@ console.log("=== BS08海底に眠りし古代都市Lv2：kind symbolFix（シン
     assert(instanceSymbolCount(inst) === 1, "発生源が離れると固定は解除される")
 }
 
-console.log("=== BS08グロウアップ：action alsoCostBuff（このターンの間コスト+N としても扱う） ===")
+console.log("=== BS08グロウアップ：action costBuffThisTurn（このターンの間コスト+N。置き換え） ===")
 {
-    const growup = findByEffect((e) => actionOf(e)?.["type"] === "alsoCostBuff")
-    const entry = entryOf(growup, (e) => actionOf(e)?.["type"] === "alsoCostBuff")
+    const growup = findByEffect((e) => actionOf(e)?.["type"] === "costBuffThisTurn")
+    const entry = entryOf(growup, (e) => actionOf(e)?.["type"] === "costBuffThisTurn")
     const amount = Number(actionOf(entry)["amount"])
 
     // 実カードを手札からメインで使用する（resolveAction を直接叩くと、カードデータ側の
@@ -276,8 +277,29 @@ console.log("=== BS08グロウアップ：action alsoCostBuff（このターン�
         act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null,
         `${growup.name}をメインで使用`,
     )
-    assert(instHasCost(target, baseCost + amount), `コスト${baseCost + amount}としても扱われる`)
-    assert(instHasCost(target, baseCost), "元のコストも残る（“としても”なので置換ではない）")
+    assert(instHasCost(target, baseCost + amount), `コスト${baseCost + amount}になる`)
+    // **「〜としても扱う」ではなく増減**。元のコストは残らないので、
+    // 相手の「コスト◯以下を破壊」のような効果はもう届かない（2026-08-24 ユーザー確認）
+    assert(!instHasCost(target, baseCost), "元のコストは残らない（置き換え）")
+    assert(instBaseCost(target) === baseCost + amount, "instBaseCost も増減後の値を返す")
+    assert(
+        !instMatchesCostFilter(target, { max: baseCost }),
+        "コスト範囲の判定も増減後で見る（元のコスト以下には当たらない）",
+    )
+}
+
+console.log("=== BS08グロウアップ：コストの増減はターン終了でリセットされる ===")
+{
+    const growup = findByEffect((e) => actionOf(e)?.["type"] === "costBuffThisTurn")
+    const amount = Number(actionOf(entryOf(growup, (e) => actionOf(e)?.["type"] === "costBuffThisTurn"))["amount"])
+    const s = base("grow-up-reset")
+    const target = put(s, "p1", VANILLA.cardId, coresFor(VANILLA, 1))
+    const baseCost = VANILLA.cost ?? 0
+    s.players.p1.hand.push(growup.cardId)
+    assert(act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null, "使用")
+    assert(instBaseCost(target) === baseCost + amount, "このターンは増減後")
+    endTurn(s)
+    assert(instBaseCost(target) === baseCost, `ターンが終われば元のコストに戻る（実際は${instBaseCost(target)}）`)
 }
 
 console.log("=== X003D極帝龍騎ジーク・クリムゾン：destroyAll.voidCoreToSelfPerDestroyed（破壊数ぶん自身にコア） ===")

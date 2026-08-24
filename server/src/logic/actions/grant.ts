@@ -16,7 +16,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -39,21 +39,21 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
         return
 }
 
-// BS08グロウアップ：自分のスピリット1体を、このターンの間「実コスト+amount」の値もコストとして扱う
-// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget。元のコストも残るため厳密には
-// 「コスト以下」を参照する効果は元のコストでも引き続き反応する簡略化。CardInstance.tempAlsoCosts）
-const alsoCostBuffHandler: ActionHandler<"alsoCostBuff"> = (ctx, action) => {
+// BS08グロウアップ：自分のスピリット1体のコストを、このターンの間 amount だけ増減する
+// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget）。
+// **増減であって追加ではない**ので、元のコストは残らない（+3したスピリットは
+// 相手の「コスト3以下を破壊」にもう当たらない）。読み口は instCostDelta → instBaseCost の1本
+const costBuffThisTurnHandler: ActionHandler<"costBuffThisTurn"> = (ctx, action) => {
     const { state, owner, sourceName, targetInstanceId } = ctx
     const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
     if (!target) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
-    const baseCost = getCard(target.cardId).cost
-    target.tempAlsoCosts.push(baseCost + action.amount)
+    target.tempCostDelta = (target.tempCostDelta ?? 0) + action.amount
     log(
         state,
-        `${getCard(target.cardId).name}は、このターンの間コスト${baseCost + action.amount}としても扱われる。`,
+        `${getCard(target.cardId).name}は、このターンの間コスト${instBaseCost(target)}になる。（コスト${action.amount >= 0 ? "+" : ""}${action.amount}）`,
     )
     return
 }
@@ -840,7 +840,11 @@ const exhaustSelfThenLendThisTurnHandler: ActionHandler<"exhaustSelfThenLendThis
 // これらのカードはいずれもフラッシュ限定なのでバトル中にしか撃てない
 const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => {
     const { state, owner, sourceCardId } = ctx
-    if (!pushVirtualSource(state, owner, sourceCardId, "battle")) return
+    const virtual = pushVirtualSource(state, owner, sourceCardId, "battle")
+    if (!virtual) return
+    // 同じマジックの直前の効果でBP増加した1体を写しておく（「そのスピリットが〜したとき」の限定に使う。
+    // kind:"battleWon" の winnerIsLentBuffTarget が読む。BS07ニードルショット）
+    if (state.lastBpBuffTargetId !== undefined) virtual.lentBuffTargetId = state.lastBpBuffTargetId
     log(
         state,
         `${getCard(sourceCardId!).name}：このバトルの間、自分の仮想発生源としてこの効果を貸し出した。`,
@@ -961,7 +965,7 @@ const handlers = {
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
-    alsoCostBuff: alsoCostBuffHandler,
+    costBuffThisTurn: costBuffThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -3,7 +3,7 @@
 // 新設した機構:
 //   - action "markUnblockableThisTurn" ＋ CardInstance.unblockableOnceThisTurn
 //     （「ターンに1回ブロックされない」印。canBlock が参照し、clearBattle で使い切る）
-//   - action "discardBothHands"（お互いが手札からcount枚を破棄。破棄カードは末尾から＝簡略化）
+//   - action "discardBothHands"（お互いが手札からcount枚を破棄。破棄カードは各自が選ぶ→part234。非対話では末尾から）
 //   - kind:"battleBpAsLevel"（バトルのBP比較のときだけ別レベルのBPを使う。EffectModules.battleBp）
 // 実装したカード:
 //   - BS04-081 強者統べる大地 Lv2（BP10000以上の自分のスピリット1体はターンに1回ブロックされない）
@@ -18,6 +18,7 @@ import {
     declareBlock,
     destroySpirit,
     getCard,
+    handleAction,
     runTurnStart,
     takeLifeAndResolve,
 } from "./helpers"
@@ -138,6 +139,12 @@ console.log("=== BS04-X14 魔界七将パンデミウム Lv3：このスピリ�
     const p2Before = s.players.p2.hand.length
 
     destroySpirit(s, "p1", pande.instanceId, "destroy")
+    // 対話モードでは各自が破棄するカードを選ぶ（part234）。消化してから枚数を数える
+    let guard = 0
+    while (s.pendingChoice && guard++ < 20) {
+        const pending = s.pendingChoice
+        handleAction(s, pending.pid, { type: "resolveChoice", cardIndex: pending.cardIndices?.[0] ?? 0 })
+    }
     assert(
         s.players.p1.hand.length === p1Before - 5,
         `自分は手札5枚を破棄する（実際: ${String(p1Before - s.players.p1.hand.length)}枚）`,
