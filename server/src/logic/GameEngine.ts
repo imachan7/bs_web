@@ -506,12 +506,12 @@ function doSetNexus(
     // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
 
-    // 栄光の表彰台Lv1：コアで足りない分の配置コストをデッキ破棄で支払う
+    // 栄光の表彰台Lv1：配置コストをデッキ破棄で支払う（コア払いとの併用はできないので全額かゼロ）
     // （validateSetNexus と同じ関数で枚数を出すので、検証と実行がズレない）
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
     if (millPaid > 0) {
         millDeck(state, pid, millPaid)
-        log(state, `${player.name}は配置コストのうち${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
+        log(state, `${player.name}は配置コスト${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
     }
     // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
     const placedFromField = payCost(state, pid, cost - millPaid, paySources, maintain)

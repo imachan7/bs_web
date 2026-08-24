@@ -297,27 +297,32 @@ export function validateSetNexus(
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
     const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
-    // 栄光の表彰台Lv1：配置コストの一部・全部を「コスト1につきデッキ1枚破棄」で払える（置くコアは不可）
+    // 栄光の表彰台Lv1：配置コストを「コスト1につきデッキ1枚破棄」で払える（置くコアは不可）。
+    // **コア払いとの併用はできない**ので、配置の時点でどちらか一方に決める（millPay は 0 か実効コスト）
     if (millPay !== undefined && millPay > 0 && !canPayNexusCostByMill(state, pid)) {
         return "デッキの破棄でコストを支払える効果がありません"
     }
-    if (millPay !== undefined && millPay > cost) return "コストを超えてデッキを破棄することはできません"
+    if (millPay !== undefined && millPay > 0 && millPay !== cost) {
+        return `配置コストはコアとデッキ破棄のどちらか一方で支払います（デッキで払うなら${cost}枚）`
+    }
     if (millPay !== undefined && millPay > player.deck.length) return "デッキの残り枚数が足りません"
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
     const payError = validatePaySources(state, pid, cost + maintain - millPaid, paySources)
     if (payError) {
-        return payError === "コアが足りません"
-            ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
-            : payError
+        // 配置コストをデッキ破棄で払う場合、コアで要るのは置くコアだけ
+        const label = millPaid > 0 ? "置くコア" : "コスト+置くコア"
+        return payError === "コアが足りません" ? `コアが足りません（${label}で${cost + maintain - millPaid}個必要）` : payError
     }
     return null
 }
 
-// ネクサスの配置コストのうち、デッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
-// **プレイヤーが枚数を選んだ場合（millPay）はそれを使い**、選ばれていなければ
-// 「コアで足りない分だけ」を自動で回す（非対話・旧クライアント互換のフォールバック）。
-// 上限は「配置コスト（置くコアは対象外）」と「デッキの残り枚数」の小さい方。
+// ネクサスの配置コストをデッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
+// **コア払いとの併用はできない**（2026-08-24 ユーザー確認）。返る値は 0（全額コア）か
+// cost（全額デッキ破棄）のどちらかで、その中間はない。置くコアは常にコア払い。
+// millPay が渡っていれば「デッキで払う／払わない」の意思表示として使い、
+// 渡っていなければ「コアで足りるならコア、足りなければ全額デッキ」を自動で選ぶ
+// （AI・旧クライアント向けのフォールバック）。
 // validateSetNexus と doSetNexus が同じ値を出すよう、必ずこの関数を通すこと
 export function nexusMillPayAmount(
     state: GameState,
@@ -325,18 +330,16 @@ export function nexusMillPayAmount(
     cost: number,
     maintain: number,
     paySources: PaySource[] | undefined,
-    // プレイヤーが選んだ枚数（GameAction.setNexus.millPay）。
-    // 渡っていればその枚数を採用し、渡っていなければ「コアで足りない分」を自動で回す
+    // プレイヤーが選んだ支払い方法（GameAction.setNexus.millPay）。0＝コアで払う／cost＝デッキで払う
     millPay?: number,
 ): number {
     if (!canPayNexusCostByMill(state, pid)) return 0
     const player = state.players[pid]
-    const cap = Math.min(cost, player.deck.length)
-    if (millPay !== undefined) return Math.min(Math.max(0, millPay), cap)
+    if (cost > player.deck.length) return 0 // 全額は払えない＝デッキ破棄という選択肢自体がない
+    if (millPay !== undefined) return millPay > 0 ? cost : 0
     const fromSources = (paySources ?? []).reduce((sum, s) => sum + Math.max(0, s.count), 0)
     const available = player.reserve + fromSources
-    const shortfall = Math.max(0, cost + maintain - available)
-    return Math.min(shortfall, cap)
+    return available < cost + maintain ? cost : 0
 }
 
 // スピリットの召喚コストのうち、手札破棄で支払う枚数を決める（BS08ビクティム）。
