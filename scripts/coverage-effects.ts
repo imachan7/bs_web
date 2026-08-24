@@ -88,6 +88,52 @@ const MEASURED_CONTINUOUS_KINDS = new Set([
     "exhaustImmunityGrant", // isExhaustImmune の true 判定
     "triggerSuppression", // isTriggerSuppressed の true 判定
     "alsoCostGrant", // instHasCost / instMatchesCostFilter が alsoCostsContinuous でマッチした時点（読む側で計測）
+    // ここから 2026-08-24 追加。それまで「未計測の kind」として発火を測れていなかった層
+    "familySuppression", // isFamilySuppressed の true 判定
+    "bpBuffSuppression", // isBpBuffSuppressed の true 判定
+    "sokuPaySourceGrant", // sokuPayableInstanceIds が支払い元を許可した時点
+    "nexusEffectsDisabled", // areNexusEffectsDisabled の true 判定
+    "handKeywordGrant", // hasHandKeywordGrant の true 判定
+    "countAsMultiple", // countSpiritsWeighted が N 体分として数えた時点
+    "constraintSuppression", // activeConstraints が制約を取り除く時点
+    "awakenFromReserve", // canAwakenFromReserve の true 判定
+    "vanillaAsGrant", // treatedAsVanillaContinuous の代入点
+    "levelCostMod", // levelCostBonusContinuous の加算点
+    "spiritEffectsDisabledGrant", // effectsDisabledContinuous の代入点
+    "nameAsGrant", // namesAsContinuous の追加点
+    "symbolFix", // symbolsOverrideContinuous の代入点
+    "magicNegate", // payMagicNegate（無効化のコストを実際に払った時点）
+    "magicTargetRedirect", // setTargetRedirect が絞り込みを立てた時点
+    "bothSidesTargetRedirect", // 発生源として確定した時点
+    "battleBpAsLevel", // バトルのBP比較で別レベルのBPを返した時点
+    "destroyedCoresToTrash", // destroyedCoresGoToTrash の true 判定
+    "onMilledFromDeck", // 破棄されたカード自身の効果が発揮された時点
+    "millCapBonus", // millCapBonusFor の加算点
+    "bofuCountBonus", // bofuCountBonusTotal の加算点
+    "kyoshuOnBlock", // hasKyoshuOnBlock の true 判定
+    "bofuOnBlock", // hasBofuOnBlock の true 判定
+    "bofuChooserSelf", // hasBofuChooserSelf の true 判定
+    "lifeDamageMillGuard", // 実際にデッキを1枚削って守りに入った時点
+    "summonedExhaustGrant", // hasSummonedExhaustGrant の true 判定
+    "koboOnBlock", // hasKoboOnBlock の true 判定
+    "blockTriggersAsAttackGrant", // hasBlockTriggersAsAttack の true 判定
+    "attackTriggersAsBlockGrant", // hasAttackTriggersAsBlock の true 判定
+    "targetNegateByHandDiscard", // 手札を破棄して効果を防いだ時点
+    "milledMagicToTegamoto", // 破棄されたマジックを手元へ移した時点
+    "deckMillNegate", // 無効化できる発生源として確定した時点
+    "coreReturnBonus", // coreReturnBonusFor の加算点
+    "freeSummonFromHandOnDiscardedByOpponent", // 条件を満たして召喚へ進んだ時点
+    "freeSummonFromHandOnLifeDamaged", // 条件を満たして召喚へ進んだ時点
+    "jugekiCoreToVoid", // 【呪撃】でコアをボイドへ置いた時点
+    "magicNegatePayByNexusGrant", // ネクサスでの肩代わりを許可した時点
+    "magicNegateTurnOverrideGrant", // 発揮タイミングを置き換えた時点
+    "magicRepeatGrant", // もう一度発揮させる発生源として確定した時点
+    "flashLockWhileAttackingFamily", // フラッシュ封印が成立した時点
+    "nexusCostMillPay", // デッキ破棄での支払いが可能と判定した時点
+    "summonCostHandDiscardPay", // 手札破棄での支払いが可能と判定した時点
+    "jugekiOnBlockReplace", // hasJugekiOnBlockReplace の true 判定
+    "tenshoSelfCostBonus", // 【転召】のコストへ加算した時点（自身版・ownAll版の2経路）
+    "battleSwapSummon", // 入れ替え召喚が成立した時点
 ])
 
 type Measurability = "action" | "continuous" | "unmeasured"
@@ -397,6 +443,149 @@ const __covEid = (e: unknown): string =>
         `                const { colorFromChosen: _flag, ...rest } = c
                 __covRec2("cont\\t" + __covEid(effect))
                 granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
+    )
+    // familySuppression: 系統を「持たない」と判定して true を返す時点（BS03暗礁海域Lv1）
+    patch(
+        f,
+        `                if (effect.kind !== "familySuppression") continue
+                if (effect.lentOnly && !isVirtualSource(source)) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue`,
+        `                if (effect.kind !== "familySuppression") continue
+                if (effect.lentOnly && !isVirtualSource(source)) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                __covRec2("cont\\t" + __covEid(effect))`,
+    )
+    // bpBuffSuppression: 「BPを+する効果は発揮されない」と判定する時点（BS04古代闘技場Lv1）
+    patch(
+        f,
+        `            if (effect.kind !== "bpBuffSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+            return true`,
+        `            if (effect.kind !== "bpBuffSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
+    // sokuPaySourceGrant: 【神速】召喚の支払い元としてフィールドを許可する時点
+    patch(
+        f,
+        `            if (effect.kind !== "sokuPaySourceGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue`,
+        `            if (effect.kind !== "sokuPaySourceGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            __covRec2("cont\\t" + __covEid(effect))`,
+    )
+    // nexusEffectsDisabled: 相手のネクサスの効果を止めると判定した時点（BS05ネクサスブロケイド）
+    patch(
+        f,
+        `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return true`,
+        `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
+    // handKeywordGrant: 手札のカードにキーワードを与えていると判定した時点（BS02緑芽吹く原野Lv2）
+    patch(
+        f,
+        `            if (effect.kind !== "handKeywordGrant") continue
+            if (effect.keyword !== keyword) continue`,
+        `            if (effect.kind !== "handKeywordGrant") continue
+            if (effect.keyword !== keyword) continue
+            __covRec2("cont\\t" + __covEid(effect))`,
+    )
+    // countAsMultiple: 「数えるとき N 体分」を実際に適用した時点（BS05シーサーズLv2）
+    patch(
+        f,
+        `            if (effect.kind !== "countAsMultiple") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            if (!typeAllowed(effect.sourceTypes)) continue
+            weight = Math.max(weight, effect.count)`,
+        `            if (effect.kind !== "countAsMultiple") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
+            if (!typeAllowed(effect.sourceTypes)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            weight = Math.max(weight, effect.count)`,
+    )
+    // constraintSuppression: 制約を発揮させないと判定した時点（BS04獣使いドヴェルグ）
+    patch(
+        f,
+        `            if (effect.kind !== "constraintSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            if (effect.nameContains !== undefined && !cardNameContains(inst, effect.nameContains)) continue
+            suppressed.add(effect.constraintType)`,
+        `            if (effect.kind !== "constraintSuppression") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            if (effect.nameContains !== undefined && !cardNameContains(inst, effect.nameContains)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            suppressed.add(effect.constraintType)`,
+    )
+    // awakenFromReserve: 【覚醒】の移動元にリザーブを許可した時点（BS05合成恐竜ディノゾール）
+    patch(
+        f,
+        `            if (effect.kind !== "awakenFromReserve") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true`,
+        `            if (effect.kind !== "awakenFromReserve") continue
+            if (effectActiveAtLevel(effect.levels, level)) {
+                __covRec2("cont\\t" + __covEid(effect))
+                return true
+            }`,
+    )
+    // flashLockWhileAttackingFamily（BS07ウィリアンスラッシュ）：フラッシュ封印が成立した時点
+    patch(
+        f,
+        `            if (effect.kind !== "flashLockWhileAttackingFamily") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true`,
+        `            if (effect.kind !== "flashLockWhileAttackingFamily") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
+                __covRec2("cont\\t" + __covEid(effect))
+                return true
+            }`,
+    )
+    // nexusCostMillPay（BS04栄光の表彰台Lv1）：デッキ破棄での支払いが可能と判定した時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `            if (effect.kind !== "nexusCostMillPay") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue`,
+        `            if (effect.kind !== "nexusCostMillPay") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRec2C("cont\\t" + __covEid2C(effect))`,
+    )
+    // summonCostHandDiscardPay（BS08ビクティム）：手札破棄での支払いが可能と判定した時点
+    patch(
+        f.replace("rules.ts", "cost.ts"),
+        `            if (effect.kind !== "summonCostHandDiscardPay") continue
+            return true`,
+        `            if (effect.kind !== "summonCostHandDiscardPay") continue
+            __covRec2C("cont\\t" + __covEid2C(effect))
+            return true`,
     )
     // keyword「装甲」: hasArmorAgainst の静的判定が true を返す時点
     // （.some() の中は effect を取り出せないため、cid+keyword+level から専用ヘルパーで引き直す）
@@ -957,6 +1146,408 @@ process.on("exit", () => {
             `                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                 exhaustSpirit(state, affectedPid, affectedInst)
                 return`,
+        )
+
+        // (5a-2) refreshLevelAsOverrides が再構築する継続付与のうち、2026-07-30 の拡張後に
+        //     追加された kind（2026-08-24 に計測点を追加）。levelAs と同じく「対象へ実際に
+        //     書き込む時点」に置く（対象が0体なら記録されない＝「効いていない」と分かる）
+        // vanillaAsGrant（BS04スイッチヒッター）
+        patch(
+            em,
+            `                        spirit.treatedAsVanillaContinuous = true`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.treatedAsVanillaContinuous = true`,
+        )
+        // levelCostMod（BS09蛇凰神バァラルLv2-3）
+        patch(
+            em,
+            `                        spirit.levelCostBonusContinuous =
+                            (spirit.levelCostBonusContinuous ?? 0) + effect.amount`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.levelCostBonusContinuous =
+                            (spirit.levelCostBonusContinuous ?? 0) + effect.amount`,
+        )
+        // spiritEffectsDisabledGrant（BS07ルナースラッシュ）
+        patch(
+            em,
+            `                        spirit.effectsDisabledContinuous = true`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.effectsDisabledContinuous = true`,
+        )
+        // nameAsGrant（アルカナプリンス・オベロLv2ほか）
+        patch(
+            em,
+            `                        if (!spirit.namesAsContinuous.includes(effect.nameIncludes)) {`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        if (!spirit.namesAsContinuous.includes(effect.nameIncludes)) {`,
+        )
+        // symbolFix（BS08海底に眠りし古代都市Lv2ほか）
+        patch(
+            em,
+            `                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+        )
+
+        // (5a-3) triggers.ts の継続 kind（2026-08-24 に計測点を追加）
+        // magicNegate: **実際に無効化のコストを払った時点**（候補に挙がっただけでは記録しない）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `    const { pid, inst, effect } = found`,
+            `    const { pid, inst, effect } = found
+    __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+        )
+        // magicTargetRedirect: 絞り込みを実際に立てた時点（「〜にできる」を断ったときは通らない）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `    state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }`,
+            `    __covRecord("cont\\t" + String(((getCard(found.cardId).effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "magicTargetRedirect")?.["__eid"]) ?? "?"))
+    state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }`,
+        )
+        // bothSidesTargetRedirect: 発生源として確定した時点（封印された魔導書Lv1）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `                if (effect.kind !== "bothSidesTargetRedirect") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+                return { pid: ownerPid, inst: source }`,
+            `                if (effect.kind !== "bothSidesTargetRedirect") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                return { pid: ownerPid, inst: source }`,
+        )
+        // battleBpAsLevel: バトルのBP比較で実際に別レベルのBPを返した時点（BS03果て無き地平線Lv1）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            if (!from || !use) continue
+            return base + (use.bp - from.bp)`,
+            `            if (!from || !use) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return base + (use.bp - from.bp)`,
+        )
+
+        // (5a-4) EffectModules.ts の残り継続 kind（2026-08-24 に計測点を追加）
+        // destroyedCoresToTrash（BS01古龍の縄張り）
+        patch(
+            em,
+            `                if (effect.kind !== "destroyedCoresToTrash") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                return true`,
+            `                if (effect.kind !== "destroyedCoresToTrash") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                return true`,
+        )
+        // onMilledFromDeck（BS08鳳翼の聖剣ほか）：破棄されたカード自身の効果が実際に発揮された時点
+        patch(
+            em,
+            `            player.trashCards.splice(idx, 1)
+            const name = getCard(cardId).name`,
+            `            player.trashCards.splice(idx, 1)
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            const name = getCard(cardId).name`,
+        )
+        // millCapBonus（BS06マキシマムブレイク）：破棄枚数の上限に実際に加算した時点
+        patch(
+            em,
+            `            if (effect.kind !== "millCapBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount`,
+            `            if (effect.kind !== "millCapBonus") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            total += effect.amount`,
+        )
+
+        // bofuCountBonus（BS08ゲラン准将Lv2）
+        patch(
+            em,
+            `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount`,
+            `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            total += effect.amount`,
+        )
+        // kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）
+        patch(
+            em,
+            `            if (effect.kind !== "kyoshuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            return true`,
+            `            if (effect.kind !== "kyoshuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return true`,
+        )
+        // bofuOnBlock（BS07大風車の丘Lv2）
+        patch(
+            em,
+            `            if (effect.kind !== "bofuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            return true`,
+            `            if (effect.kind !== "bofuOnBlock") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return true`,
+        )
+        // bofuChooserSelf（BS07ワールウィンド）
+        patch(
+            em,
+            `            if (effect.kind !== "bofuChooserSelf") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true`,
+            `            if (effect.kind !== "bofuChooserSelf") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return true`,
+        )
+        // lifeDamageMillGuard（BS07六花の司書長サーガ）：実際にデッキを1枚削った時点
+        patch(
+            em,
+            `            const cardId = player.deck.shift()
+            if (cardId === undefined) {`,
+            `            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            const cardId = player.deck.shift()
+            if (cardId === undefined) {`,
+        )
+
+        // summonedExhaustGrant（BS06天使長ファニム）
+        patch(
+            em,
+            `            if (effect.kind !== "summonedExhaustGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition?.selfRested && !source.isRested) continue
+            return true`,
+            `            if (effect.kind !== "summonedExhaustGrant") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.condition?.selfRested && !source.isRested) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return true`,
+        )
+        // koboOnBlock（BS03星降る巡礼地Lv2）
+        patch(
+            em,
+            `            if (effect.kind !== "koboOnBlock") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true`,
+            `            if (effect.kind !== "koboOnBlock") continue
+            if (effectActiveAtLevel(effect.levels, level)) {
+                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                return true
+            }`,
+        )
+        // blockTriggersAsAttackGrant（BS07大械獣ギガ・テリウム）
+        patch(
+            em,
+            `            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) {
+                continue
+            }
+            return true`,
+            `            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) {
+                continue
+            }
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return true`,
+        )
+        // attackTriggersAsBlockGrant（BS04ドラグノ近衛兵）
+        patch(
+            em,
+            `                if (
+                    effect.familyFilter &&
+                    !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)
+                ) {
+                    continue
+                }`,
+            `                if (
+                    effect.familyFilter &&
+                    !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)
+                ) {
+                    continue
+                }
+                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+        )
+
+        // targetNegateByHandDiscard（BS08竜騎集う円卓Lv2）：実際に手札を破棄して効果を防いだ時点
+        patch(
+            em,
+            `            const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)`,
+            `            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)`,
+        )
+        // milledMagicToTegamoto（BS06混迷する魔法実験場Lv2）：手元へ実際に移した時点。
+        // 発生源の判定が .some() の中なので、有効な発生源から __eid を引き直す
+        patch(
+            em,
+            `        player.tegamoto.push(cardId)
+        player.tegamotoPlayable.push(cardId)`,
+            `        __covRecord("cont\\t" + String(effectSources(state, pid).flatMap((s) => getCard(s.cardId).effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "milledMagicToTegamoto")?.["__eid"] ?? "?"))
+        player.tegamoto.push(cardId)
+        player.tegamotoPlayable.push(cardId)`,
+        )
+        // deckMillNegate（BS08鳳翼の聖剣Lv2）：無効化できる発生源として確定した時点
+        patch(
+            em,
+            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            return { source, effect }`,
+            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return { source, effect }`,
+        )
+
+        // coreReturnBonus（BS02チャウーLv2）：リザーブへ戻るコアに実際に加算した時点
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `                if (e.kind !== "coreReturnBonus") continue
+                if (!effectActiveAtLevel(e.levels, level)) continue
+                bonus += e.amount`,
+            `                if (e.kind !== "coreReturnBonus") continue
+                if (!effectActiveAtLevel(e.levels, level)) continue
+                __covRecord("cont\\t" + String((e as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                bonus += e.amount`,
+        )
+        // freeSummonFromHandOnDiscardedByOpponent（BS09忍者サルトベ）：条件を満たして召喚に進む時点
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `    const index = player.trashCards.lastIndexOf(cardId)
+    if (index === -1) return false`,
+            `    const index = player.trashCards.lastIndexOf(cardId)
+    if (index === -1) return false
+    __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+        )
+        // freeSummonFromHandOnLifeDamaged（BS08猫娘アニー／BS09巨獣皇スミドロード）
+        patch(
+            path.join(tree, "server/src/logic/removal.ts"),
+            `        // 維持コアを置けないなら召喚できないので、確認自体を出さない
+        if (player.reserve < minLevelCores(getCard(cardId))) continue`,
+            `        // 維持コアを置けないなら召喚できないので、確認自体を出さない
+        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+        )
+        // jugekiCoreToVoid（BS04魔影街Lv1）：実際にコアをボイドへ置いた時点
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            const removed = Math.min(effect.count, victim.cores)
+            if (removed === 0) continue
+            victim.cores -= removed`,
+            `            const removed = Math.min(effect.count, victim.cores)
+            if (removed === 0) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            victim.cores -= removed`,
+        )
+        // magicNegatePayByNexusGrant（BS09ノルンの泉）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            if (effect.kind !== "magicNegatePayByNexusGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            granted = true`,
+            `            if (effect.kind !== "magicNegatePayByNexusGrant") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            granted = true`,
+        )
+        // magicNegateTurnOverrideGrant（BS09アイスバーグ）
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            if (effect.kind !== "magicNegateTurnOverrideGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return effect.turn`,
+            `            if (effect.kind !== "magicNegateTurnOverrideGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return effect.turn`,
+        )
+        // magicRepeatGrant（BS07大天使イスフィール）：もう一度発揮させる発生源として確定した時点
+        patch(
+            path.join(tree, "server/src/logic/triggers.ts"),
+            `            if (effect.oncePerBattle) {
+                if (!state.battle) continue // バトル外では消費を記録できないので成立させない
+                if ((state.battle.oncePerBattleMagicRepeatUsed ?? []).includes(source.instanceId)) continue
+            }
+            return source`,
+            `            if (effect.oncePerBattle) {
+                if (!state.battle) continue // バトル外では消費を記録できないので成立させない
+                if ((state.battle.oncePerBattleMagicRepeatUsed ?? []).includes(source.instanceId)) continue
+            }
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            return source`,
+        )
+
+        // jugekiOnBlockReplace（BS06カウンターカース）
+        patch(
+            em,
+            `            if (effect.kind !== "jugekiOnBlockReplace") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effectActiveAtLevel(effect.levels, level)) return true`,
+            `            if (effect.kind !== "jugekiOnBlockReplace") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effectActiveAtLevel(effect.levels, level)) {
+                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                return true
+            }`,
+        )
+        // tenshoSelfCostBonus（BS08冥機グングニル／赤き砂の座）：【転召】のコストに実際に加算した時点。
+        // 自身のエントリ版（①）と ownAll 版（②）の2経路があるので両方に置く
+        patch(
+            em,
+            `        if (effect.kind !== "tenshoSelfCostBonus") continue
+        if (effect.target === "ownAll") continue // 自身のエントリでも ownAll 版は②で数える
+        if (!effectActiveAtLevel(effect.levels, instLevel)) continue
+        bonus += effect.amount`,
+            `        if (effect.kind !== "tenshoSelfCostBonus") continue
+        if (effect.target === "ownAll") continue // 自身のエントリでも ownAll 版は②で数える
+        if (!effectActiveAtLevel(effect.levels, instLevel)) continue
+        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+        bonus += effect.amount`,
+        )
+        patch(
+            em,
+            `            if (effect.kind !== "tenshoSelfCostBonus") continue
+            if (effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
+            bonus += effect.amount`,
+            `            if (effect.kind !== "tenshoSelfCostBonus") continue
+            if (effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
+            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            bonus += effect.amount`,
+        )
+        // battleSwapSummon（BS07ブラックカラカロッサム）：入れ替え召喚が実際に成立した時点。
+        // 判定は shared/summon.ts だが記録器を持たないので、実行側（GameEngine）に置く
+        patch(
+            path.join(tree, "server/src/logic/GameEngine.ts"),
+            `    const cost = effectiveCost(state, pid, card)
+    returnSpiritToHand(state, pid, substitute)`,
+            `    __covRecord("cont\\t" + String(((card.effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "battleSwapSummon")?.["__eid"]) ?? "?"))
+    const cost = effectiveCost(state, pid, card)
+    returnSpiritToHand(state, pid, substitute)`,
         )
 
         // (5b) RuleValidator.ts: 強制ブロック・激突・スピリット数上限・神速召喚（keyword「神速」）
