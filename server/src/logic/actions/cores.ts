@@ -27,6 +27,7 @@ import {
     pickEnemyCandidates,
     placeCoresOnSpirit,
     canTakeCoresFrom,
+    coreFloorFor,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -531,23 +532,18 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
         // コアを1個だけ残し超過分を持ち主のリザーブ（dest:"trash"ならトラッシュ）へ置く（両陣営共通の適用処理）
         const toTrash = action.dest === "trash"
         const applySqueeze = (pid: PlayerId, target: CardInstance): void => {
-            const player = state.players[pid]
             const excess = target.cores - 1
-            if (excess > 0) {
-                target.cores = 1
-                if (toTrash) player.trashCores += excess
-                else player.reserve += excess
-                log(
-                    state,
-                    `${getCard(target.cardId).name}のコアを1個だけ残し、超過分${excess}個を${player.name}の${toTrash ? "トラッシュ" : "リザーブ"}に置いた。`,
-                )
-                // 相手側のスピリットが対象になった場合のみ「相手の効果でコアが取り除かれた」通知（極光の大地）
-                if (pid !== owner) notifySpiritCoresRemovedByOpponent(state, pid, 1)
-            } else {
+            if (excess <= 0) {
                 log(state, `${getCard(target.cardId).name}はコアが1個以下のため変化しなかった。`)
+                return
             }
-            if (target.cores < instMinLevelCores(target)) {
-                destroySpirit(state, pid, target.instanceId, "deplete")
+            // removeCores(ToTrash) を通すことで、コア下限（BS08聖なる柱状彫刻）・バトル中のコア保護
+            // （BS05茨の決戦地Lv1）・維持コア割れの消滅・極光の大地への通知がまとめて効く
+            const removed = toTrash
+                ? removeCoresToTrash(state, pid, target, excess, owner)
+                : removeCores(state, pid, target, excess, owner)
+            if (removed === 0) {
+                log(state, `${getCard(target.cardId).name}のコアは取り除けなかった。`)
             }
         }
         // anySide（BS03ウィークネス）：自分/相手どちらのスピリットも対象にできる。
@@ -1871,8 +1867,14 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         log(state, `${sourceName}：同じフィールドに移し先がいなかった。`)
         return
     }
-    const moved = inst.cores - 1
-    inst.cores = 1
+    // コア下限（BS08聖なる柱状彫刻）は移動にも効くので、残す数は「1個」と下限の大きい方
+    const keep = Math.max(1, coreFloorFor(state, inst, pid))
+    const moved = inst.cores - keep
+    if (moved <= 0) {
+        log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは下限より少なくできない。`)
+        return
+    }
+    inst.cores = keep
     dest.cores += moved
     log(
         state,
@@ -1898,6 +1900,12 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
         const beforeB = b.cores
         if (beforeA === beforeB) {
             log(state, `${sourceName}：${getCard(a.cardId).name}と${getCard(b.cardId).name}のコアは同数だった。`)
+            return
+        }
+        // コア下限（BS08聖なる柱状彫刻）は入れ替えにも効く。入れ替えは同時に起きる1つの動きなので、
+        // どちらかが下限を割るなら**入れ替え自体を行わない**（片側だけ動かすとコアが増減してしまう）
+        if (beforeB < coreFloorFor(state, a, opp) || beforeA < coreFloorFor(state, b, opp)) {
+            log(state, `${sourceName}：コアの下限を下回るため入れ替えられなかった。`)
             return
         }
         a.cores = beforeB

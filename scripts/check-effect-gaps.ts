@@ -185,7 +185,11 @@ function analyzeKeywords(text: string): {
                 /^によって/.test(after.slice(jpName.length + 2).trim()) ||
                 // 「〜で」パターン（【粉砕】で相手のデッキを破棄するとき等）
                 /^で[相自]/.test(after.slice(jpName.length + 2).trim()) ||
-                /^の効果は/.test(after.slice(jpName.length + 2).trim())
+                /^の効果は/.test(after.slice(jpName.length + 2).trim()) ||
+                // 「【粉砕】以外の〜」（BS08鳳翼の聖剣Lv2）。**除外の参照**であって自身は持たない。
+                // 下の「Lv行の直後の【粉砕】【呪撃】【光芒】は自身が持つ」に先に当たってしまうため、
+                // 参照側の判定にここで入れておく（2026-08-24）
+                /^以外/.test(after.slice(jpName.length + 2).trim())
 
             // 「自身が持つ」パターン
             const isSelf =
@@ -459,8 +463,13 @@ if (checkMode) {
     // 対象レベルの不一致はベースラインを持たず、**常にゼロ**を維持する（誤検出は
     // LEVEL_MISMATCH_VERIFIED に理由つきで登録する。溜めると本物の見落としが埋もれる）
     const levelMismatches = gaps.filter((g) => g.category === "level_mismatch")
+    // キーワード実装漏れも**常にゼロ**を維持する（2026-08-24 に検査対象へ入れた）。
+    // それまで --check はこのカテゴリを見ておらず、レポート（gaps:report）にしか出なかったため、
+    // 「テキストに【キーワード】があるのに effects に無い」が定型の検証をすり抜けていた。
+    // 誤検出なら判定側（isRef のパターン）を直す
+    const keywordGaps = gaps.filter((g) => g.category === "keyword_missing")
 
-    if (added.length === 0 && resolved.length === 0 && levelMismatches.length === 0) {
+    if (added.length === 0 && resolved.length === 0 && levelMismatches.length === 0 && keywordGaps.length === 0) {
         console.log(
             `効果実装漏れチェック：新しいギャップはありません（既知 ${Object.keys(baseline.known).length} 件）✅`,
         )
@@ -485,6 +494,16 @@ if (checkMode) {
         }
         console.error("")
         console.error("   npx tsx scripts/check-effect-gaps.ts --update-baseline を実行してベースラインを縮めてください。")
+    }
+    if (keywordGaps.length > 0) {
+        console.error("")
+        console.error("❌ テキストにあるキーワードが effects に書かれていないカードがあります:")
+        for (const g of keywordGaps) {
+            console.error(`   ${g.cardId} ${g.name}：${g.detail}`)
+        }
+        console.error("")
+        console.error("   kind:\"keyword\" のエントリを足すか、他カードへの参照の誤検出なら")
+        console.error("   scripts/check-effect-gaps.ts の isRef のパターンを直してください。")
     }
     if (levelMismatches.length > 0) {
         console.error("")
