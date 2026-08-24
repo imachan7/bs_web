@@ -104,6 +104,10 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 `validate:gaps` が「**書かれていない効果**」を静的に探すのに対し、これは
 「**書かれているのに一度も発火していない効果エントリ**」を実測で洗い出す。
+
+**2026-08-24 に全 kind へ計測点を入れ、未計測0件・実行率100%（1694件）にした。**
+「継続効果（未計測の kind）」が0でなくなったら、その kind に計測点が無い＝
+その効果は発火したか分からない状態なので、`scripts/coverage-effects.ts` に差し込み先を足すこと。
 カードデータを大量に足した直後は「データは書いたが smoke が一度も通していない」経路が積み上がるため、
 ここでしか見つからない層がある（実績: `returnSelfToHand` の実行実績0、【激突】と turnStartResumeStep の実バグ）。
 実行実績0の行が出たら smoke の穴なので、テストを足して潰す。
