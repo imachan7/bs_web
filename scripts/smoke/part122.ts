@@ -10,8 +10,12 @@
 //   置くコア（維持コア）はこの方法では払えない＝配置コストのみが対象。
 // 実装したカード:
 //   - BS04-088 栄光の表彰台 Lv1（自分のメインステップ、ネクサスの配置コストをデッキ破棄で支払える）
-import { act, assert, createGame, createInstance, currentLevel, effectiveCost, getCard, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, currentLevel, effectiveCost, getCard, runTurnStart, viewFor } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
+// クライアントの支払いUIがサーバーと同じ選択肢を出すかを見る（ズレると「UIで選べるのに弾かれる」）
+import { payingAltPay, setCardDb } from "../../public/src/renderer"
+import { setCardLookup } from "../../shared/cardDb"
+import { loadAllCards } from "../../data/loadCards"
 
 function putNexus(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)
@@ -202,4 +206,32 @@ console.log("=== BS04-088 栄光の表彰台 Lv2：配置のたびにボイド�
     putNexus(s, "p1", "BS04-088", 3) // Lv2
     assert(act(s, "p1", { type: "setNexus", handIndex: 0 }) === null, "配置できる")
     assert(s.players.p1.reserve === 1, `配置後にボイドからコア1個がリザーブへ（実際: ${String(s.players.p1.reserve)}個）`)
+}
+
+console.log("=== BS04-088 栄光の表彰台：クライアントの支払いUIもサーバーと同じ二択になる ===")
+{
+    const probe = setup("t122-podium-8-probe", "BS03-113", 0)
+    putNexus(probe, "p1", "BS04-088", 0)
+    const cost = effectiveCost(probe, "p1", getCard("BS03-113"))
+
+    const s = setup("t122-podium-8", "BS03-113", cost)
+    putNexus(s, "p1", "BS04-088", 0)
+    // クライアントのカード辞書を入れる（共有ルール層の参照先が master へ差し替わるので、この節の最後に戻す）
+    setCardDb(loadAllCards())
+    const paying = { handIndex: 0, assigned: {}, discardHandIndices: [], millPay: 0 }
+    const alt = payingAltPay(viewFor(s, "p1"), paying)
+    assert(alt.kind === "mill", `デッキ破棄が選択肢に出る（実際: ${String(alt.kind)}）`)
+    assert(alt.max === cost, `選べるのは全額（${String(cost)}枚）だけ（実際: ${String(alt.max)}）`)
+
+    // デッキが実効コストに足りなければ全額払えない＝選択肢ごと出さない（サーバーも弾く）
+    const few = setup("t122-podium-8b", "BS03-113", cost)
+    putNexus(few, "p1", "BS04-088", 0)
+    few.players.p1.deck = few.players.p1.deck.slice(0, cost - 1)
+    const altFew = payingAltPay(viewFor(few, "p1"), paying)
+    assert(altFew.kind === null, `デッキが足りなければ選択肢に出ない（実際: ${String(altFew.kind)}）`)
+    setCardLookup(getCard) // 共有ルール層の参照先をサーバー側へ戻す（以降のパートに影響させない）
+    assert(
+        act(few, "p1", { type: "setNexus", handIndex: 0, millPay: cost }) !== null,
+        "サーバーも全額デッキ払いを弾く（デッキ不足）",
+    )
 }

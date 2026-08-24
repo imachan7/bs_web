@@ -266,7 +266,10 @@ export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
         return { kind: "handDiscard", used: paying.discardHandIndices.length, max }
     }
     if (card.type === "nexus" && canPayNexusCostByMill(view, view.you)) {
-        return { kind: "mill", used: paying.millPay, max: Math.min(cost, player.deckCount) }
+        // 配置コストは**コア払いと併用できない**ので、選べるのは「全額デッキ破棄」か「使わない」の二択。
+        // デッキが実効コストに足りなければ全額払えない＝この支払い方法自体が使えない
+        if (player.deckCount < cost) return { kind: null, used: 0, max: 0 }
+        return { kind: "mill", used: paying.millPay, max: cost }
     }
     return { kind: null, used: 0, max: 0 }
 }
@@ -533,10 +536,12 @@ export function render(view: GameView, ui: UiState): void {
             $("targeting-info").textContent =
                 `${base}／🗑 手札を破棄してコストに充てられます（${alt.used}/${alt.max}枚）。手札をクリックして選んでください`
         } else if (alt.kind === "mill") {
-            // デッキ破棄は上から順なので「何枚払うか」だけを選ぶ
+            // 配置コストはコアかデッキ破棄のどちらか一方（併用不可）なので、枚数ではなく方法を選ぶ
+            const on = alt.used > 0
             $("targeting-info").innerHTML =
-                `${base}／📚 デッキ破棄でコストに充てられます: ` +
-                `<button data-altpay="dec">−</button> <b>${alt.used}</b> / ${alt.max} 枚 <button data-altpay="inc">＋</button>`
+                `${base}／📚 配置コストの払い方: ` +
+                `<button data-altpay="toggle">${on ? "☑" : "☐"} デッキを上から${alt.max}枚破棄して払う</button>` +
+                (on ? "（コアは置くコアぶんだけ必要です）" : "")
         } else {
             $("targeting-info").textContent = base
         }
