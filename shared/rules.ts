@@ -395,6 +395,7 @@ export function continuousKeywordGrantCount(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "keywordGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (
@@ -1211,6 +1212,7 @@ export function activeConstraintsWithSource(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与

@@ -1254,6 +1254,7 @@ function tryReviveOnDestroy(
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "reviveOnDestroy") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (forced && effect.id !== forced.effectId) continue
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue

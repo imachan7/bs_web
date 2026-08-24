@@ -1227,6 +1227,7 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "battleBpAsLevel") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             // 相手側の発生源は side:"both" のエントリだけが効く
             if (sourcePid !== pid && effect.side !== "both") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue

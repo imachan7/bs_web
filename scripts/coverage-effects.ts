@@ -1309,18 +1309,26 @@ process.on("exit", () => {
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true`,
         )
-        // bofuChooserSelf（BS07ワールウィンド）
+        // bofuChooserSelf（BS07ワールウィンド／BS09緑翼の大樹Lv2）
         patch(
             em,
-            `            if (effect.kind !== "bofuChooserSelf") continue
-            if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            return true`,
-            `            if (effect.kind !== "bofuChooserSelf") continue
-            if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            `            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            return true
+        }
+    }
+    return false
+}
+
+// 召喚が済んだ後にまとめて走る処理`,
+            `            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            return true`,
+            return true
+        }
+    }
+    return false
+}
+
+// 召喚が済んだ後にまとめて走る処理`,
         )
         // lifeDamageMillGuard（BS07六花の司書長サーガ）：実際にデッキを1枚削った時点
         patch(

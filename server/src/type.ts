@@ -679,6 +679,7 @@ export type EffectDef =
           kind: "aura"
           levels: number[] | null // オーラ発生源のレベル条件
           aura: AuraDef
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった（判定は aura.lentOnly と同じ）
       }
     | {
           id: string
@@ -819,6 +820,7 @@ export type EffectDef =
           side?: "both" // 指定時は持ち主だけでなく**両陣営**のスピリットが対象（BS09-073オンザエッジ＝「スピリットすべては」）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           keywordFilter?: Keyword // 指定時はこのキーワードを持つスピリットのみ対象（spiritHasKeywordで判定。BS06神葉樹の森Lv2＝【神速】持ちのLv1のみ）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
       }
     | {
           id: string
@@ -1106,6 +1108,7 @@ export type EffectDef =
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊／無法者の荒野／深緑の樹海／子供部屋 午前0時）
           levels: number[] | null
           scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           optional?: true // 効果文が「〜できる」＝任意のとき指定する。実対戦（interactiveTargets）では
           // **破壊をいったん見送って場に残したまま**保留し、アクションが一段落した安全な地点で持ち主に確認する
           // （GameState.pendingReviveConfirms → PendingChoice.reviveConfirm）。承認でコスト支払い＋復活が確定し、
@@ -1161,6 +1164,7 @@ export type EffectDef =
           target: "ownAll"
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ（BS06冥府の深淵：冥主/無魔）
           colorFilter?: Color // 指定時はこの色を持つスピリットのみ（instHasColorで判定。familyFilterとはAND条件。BS03バッチ）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05黄道の虚空Lv2：転召持ちに光芒を付与）
           colors?: Color[] // keyword:"armor"用：付与する装甲の対象色。EffectModules.refreshLevelAsOverridesがCardInstance.armorColorsGrantedへ毎回再計算して反映し、
           // hasArmorAgainstがそれを見る（既存のtempKeywords装甲colorsと同じ判定経路。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）
@@ -1378,6 +1382,7 @@ export type EffectDef =
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ（BS06計画された場外乱闘：闘神）
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05シンクロニシティ：覚醒持ちに指定アタックを付与）
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ（reviveOnDestroy.vanillaFilterと同型。BS05ポテンシャルパワー）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ（instanceSymbolCountで判定＝ダブルハートの追加シンボルも見る。BS05最古龍の顎Lv2：シンボル2つ以上）
           nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ（cardNameContainsで判定＝「〜として扱う」付与名も見る。BS05天焦がす大聖火Lv2：「巨人」）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
@@ -1442,6 +1447,7 @@ export type EffectDef =
           // exhaust ハンドラが hasBofuChooserSelf を見て chooserIsTarget を無効化する（BS07ワールウィンド）
           levels: number[] | null
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効
+          phase?: Phase // 指定時はこのステップでのみ有効（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかったためステップ限定が効いていなかった
       }
     | {
           id: string

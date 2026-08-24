@@ -1066,6 +1066,9 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
             if (effect.kind !== "bofuChooserSelf") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // phase（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。
+            // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             return true
         }
     }
