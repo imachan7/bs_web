@@ -22,7 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
-import { AWAKEN_FROM_RESERVE, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -1598,7 +1598,8 @@ function resolveBattle(state: GameState): void {
     const attackerColors = instColors(attacker)
     const attackerCosts = instAllCosts(attacker)
     const blockerCosts = instAllCosts(blocker)
-    const matched = activeConstraints(state, defenderPid, blocker).filter((c) => {
+    // 発生源つきで取るのは、「ターンに1回」を**ネクサス1枚ごと**に数えるため（下記）
+    const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(({ constraint: c }) => {
         if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
         // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
         if (c.type === "noRestWhenBlockingWithoutKeyword") {
@@ -1609,15 +1610,19 @@ function resolveBattle(state: GameState): void {
         const max = c.maxCost
         return max !== undefined && attackerCosts.some((a) => a <= max)
     })
-    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：このターン既に使っていたら、
-    // その制約は数に入れない。回数制限の無い制約が同時にあるならそちらが働くので消費もしない
-    const isOnce = (c: (typeof matched)[number]): boolean =>
-        c.type === "noRestWhenBlockingWithoutKeyword" && c.oncePerTurn === true
-    const used = state.players[defenderPid].noRestWhenBlockingUsedThisTurn === true
-    const usable = matched.filter((c) => !(isOnce(c) && used))
+    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：**発生源1つにつき1回**数える
+    // （同名ネクサスを2枚置けば2回使える。灼熱の谷と同じ「2枚あれば2回」の考え方。2026-08-24）。
+    // このターン既に使った発生源の制約は数に入れない。回数制限の無い制約が同時にあるなら
+    // そちらが働くので消費もしない
+    const isOnce = (e: (typeof matched)[number]): boolean =>
+        e.constraint.type === "noRestWhenBlockingWithoutKeyword" && e.constraint.oncePerTurn === true
+    const usedIds = state.players[defenderPid].noRestWhenBlockingUsedThisTurn ?? []
+    const usable = matched.filter((e) => !(isOnce(e) && usedIds.includes(e.sourceInstanceId)))
     const skipRest = usable.length > 0
     if (skipRest && usable.every(isOnce)) {
-        state.players[defenderPid].noRestWhenBlockingUsedThisTurn = true
+        // 消費するのは1つだけ（複数枚あっても、このブロックで使うのは1枚ぶん）
+        const consumed = usable[0]
+        if (consumed) state.players[defenderPid].noRestWhenBlockingUsedThisTurn = [...usedIds, consumed.sourceInstanceId]
         log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
     }
     if (!skipRest) exhaustSpirit(state, defenderPid, blocker)

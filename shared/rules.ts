@@ -1148,11 +1148,28 @@ export function instMatchesCostFilter(
 // ---- 制約・免疫 ----
 
 // 指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
+// 制約と、それを出している発生源の instanceId の組。
+// 「ターンに1回」を**発生源ごと**に数える処理（BS07ブリシンガメンの首飾りLv2）が必要とする。
+// 同名ネクサスを2枚置けば2回使えるのが正しいので、どの1枚が出した制約かを区別できないといけない
+export interface ConstraintWithSource {
+    constraint: ConstraintDef
+    sourceInstanceId: string
+}
+
+// 制約だけが要る呼び出し（大多数）はこちら。判定の本体は activeConstraintsWithSource に1本化してある
 export function activeConstraints(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
 ): ConstraintDef[] {
+    return activeConstraintsWithSource(board, pid, inst).map((e) => e.constraint)
+}
+
+export function activeConstraintsWithSource(
+    board: Board,
+    pid: PlayerId,
+    inst: CardInstance,
+): ConstraintWithSource[] {
     // 「持つ効果すべては発揮されない」を受けている個体は制約を1つも出さない
     // （自前の kind:"constraint" だけでなく、他の発生源からの継続付与 constraintGrant も含めて打ち切る。
     //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
@@ -1188,7 +1205,7 @@ export function activeConstraints(
         })
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
-    const granted: ConstraintDef[] = []
+    const granted: ConstraintWithSource[] = []
     const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
@@ -1224,10 +1241,10 @@ export function activeConstraints(
                 const chosen = source.lentChoiceColor
                 if (chosen === undefined) continue
                 const { colorFromChosen: _flag, ...rest } = c
-                granted.push({ ...rest, colorFilter: chosen })
+                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })
                 continue
             }
-            granted.push(effect.constraint)
+            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
     }
     // constraintSuppression（BS04獣使いドヴェルグ）：持ち主のフィールドの発生源が、対象スピリットの
@@ -1245,9 +1262,13 @@ export function activeConstraints(
             suppressed.add(effect.constraintType)
         }
     }
-    const all = [...own, ...granted]
+    // 自分自身が持つ制約（kind:"constraint"）の発生源はその個体自身
+    const all: ConstraintWithSource[] = [
+        ...own.map((c) => ({ constraint: c, sourceInstanceId: inst.instanceId })),
+        ...granted,
+    ]
     if (suppressed.size === 0) return all
-    return all.filter((c) => !suppressed.has(c.type))
+    return all.filter((e) => !suppressed.has(e.constraint.type))
 }
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。

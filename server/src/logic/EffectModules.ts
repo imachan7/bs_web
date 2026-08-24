@@ -3093,6 +3093,7 @@ export {
     fireBounceTriggers,
     markBounce,
     canTakeCoresFrom,
+    coreFloorFor,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,

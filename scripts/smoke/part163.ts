@@ -89,7 +89,7 @@ console.log("=== BS07-062 ブリシンガメンの首飾りLv2：疲労しない
     console.log("--- 1回目のブロック：疲労しない ---")
     resolveBlockedBattle(s, attacker1, blocker1)
     assert(restedOf(blocker1) === false, "1体目のブロッカーは疲労していない")
-    assert(s.players.p2.noRestWhenBlockingUsedThisTurn === true, "「ターンに1回」を消費した記録が立つ")
+    assert((s.players.p2.noRestWhenBlockingUsedThisTurn ?? []).length === 1, "「ターンに1回」を消費した記録が発生源1つぶん立つ")
 
     console.log("--- 2回目のブロック：今度は疲労する ---")
     resolveBlockedBattle(s, attacker2, blocker2)
@@ -97,11 +97,41 @@ console.log("=== BS07-062 ブリシンガメンの首飾りLv2：疲労しない
 
     console.log("--- 次のターンにはまた1回使える ---")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1ターン終了")
-    assert(s.players.p2.noRestWhenBlockingUsedThisTurn === false, "ターン終了で消費記録がリセットされる")
+    assert((s.players.p2.noRestWhenBlockingUsedThisTurn ?? []).length === 0, "ターン終了で消費記録がリセットされる")
     assert(act(s, "p2", { type: "endTurn" }) === null, "p2ターン終了")
     // p1の2ターン目。p1のリフレッシュでアタッカーが回復している
     const attacker3 = putSpirit(s, "p1", "BS02-014", 1)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     resolveBlockedBattle(s, attacker3, blocker1)
     assert(restedOf(blocker1) === false, "新しいターンでは再び疲労しない")
+}
+
+console.log("=== BS07-062 ブリシンガメンの首飾り：2枚置けば2回使える（ネクサス1枚につきターンに1回。2026-08-24） ===")
+{
+    const s = createGame("bs07-062-two", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "white" })
+    runTurnStart(s)
+    // 防御側（p2）にネクサスLv2を**2枚**と、ブロッカー3体
+    putNexus(s, "p2", "BS07-062", 2)
+    putNexus(s, "p2", "BS07-062", 2)
+    const blocker1 = putSpirit(s, "p2", "BS01-031", 1)
+    const blocker2 = putSpirit(s, "p2", "BS01-031", 1)
+    const blocker3 = putSpirit(s, "p2", "BS01-031", 1)
+    const attacker1 = putSpirit(s, "p1", "BS02-014", 1)
+    const attacker2 = putSpirit(s, "p1", "BS02-014", 1)
+    const attacker3 = putSpirit(s, "p1", "BS02-014", 1)
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+
+    const restedOf = (id: string): boolean =>
+        s.players.p2.field.spirits.find((x) => x.instanceId === id)?.isRested === true
+
+    resolveBlockedBattle(s, attacker1, blocker1)
+    assert(restedOf(blocker1) === false, "1回目は疲労しない（1枚目のぶん）")
+    resolveBlockedBattle(s, attacker2, blocker2)
+    assert(restedOf(blocker2) === false, "2回目も疲労しない（2枚目のぶん）")
+    assert(
+        (s.players.p2.noRestWhenBlockingUsedThisTurn ?? []).length === 2,
+        `消費した発生源が2つ記録される（実際: ${String((s.players.p2.noRestWhenBlockingUsedThisTurn ?? []).length)}件）`,
+    )
+    resolveBlockedBattle(s, attacker3, blocker3)
+    assert(restedOf(blocker3) === true, "3回目は疲労する（2枚ぶんを使い切っている）")
 }

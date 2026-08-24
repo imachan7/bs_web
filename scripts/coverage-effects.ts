@@ -384,19 +384,19 @@ const __covEid = (e: unknown): string =>
     // constraintGrant: activeConstraints が付与制約を合成する時点
     patch(
         f,
-        `            granted.push(effect.constraint)`,
+        `            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })`,
         `            __covRec2("cont\\t" + __covEid(effect))
-            granted.push(effect.constraint)`,
+            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })`,
     )
     // constraintGrant（colorFromChosen）: 「指定した色」を解決して積む分岐は**別の push** を通るため、
     // 上の計測点を迂回する（BS09-081 サマーソルトターンが動作しているのに「未実行」と出ていた。2026-08-16）
     patch(
         f,
         `                const { colorFromChosen: _flag, ...rest } = c
-                granted.push({ ...rest, colorFilter: chosen })`,
+                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
         `                const { colorFromChosen: _flag, ...rest } = c
                 __covRec2("cont\\t" + __covEid(effect))
-                granted.push({ ...rest, colorFilter: chosen })`,
+                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
     )
     // keyword「装甲」: hasArmorAgainst の静的判定が true を返す時点
     // （.some() の中は effect を取り出せないため、cid+keyword+level から専用ヘルパーで引き直す）

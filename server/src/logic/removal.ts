@@ -1808,10 +1808,11 @@ export function removeCoresToVoid(
 // globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
 // そのカードのコスト（Lv1コスト）を下回るまで取り除けない。ネクサスは対象外（カードに「コスト」はあるが
 // 効果文は「スピリットすべて」なのでtype==="spirit"のみに適用）。
-// **簡略化**：removeCores/removeCoresToTrash/removeCoresToVoid（単体除去の共通処理）だけが尊重する。
-// coreSqueezeAll/One・bothSidesCoreToTrash/Void・moveCoresLeavingOne・swapOpponentCores等、
-// .coresを直接書き換える範囲効果はこの下限を見ない（data/card-notes.jsonに明記）
-function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId): number {
+// **コアの動かし方を問わず効く**（2026-08-24 ユーザー確認）。「少なくならない」は結果の状態を縛る
+// 書き方なので、取り除く効果だけでなく**移動・入れ替え**でも下回れない。
+// 取り除く系は removeCores/removeCoresToTrash/removeCoresToVoid が、
+// 移動・入れ替え系（moveCoresLeavingOne／swapOpponentCores）は各ハンドラがこの関数を直接見る。
+export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId): number {
     if (getCard(inst.cardId).type !== "spirit") return 0
     // ownOnly（BS09-059翡翠の社Lv2）は発生源の持ち主のスピリットだけを守るので、
     // 「どちらの発生源から来た制約か」を見る必要がある
