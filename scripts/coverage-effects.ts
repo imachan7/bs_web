@@ -1195,10 +1195,23 @@ function report(
     console.log(`効果エントリ 総数 ${entries.length}件`)
     const notFiredAction = summarize("  action を持つ効果", actionEntries, firedEids)
     const notFiredCont = summarize("  継続効果（計測対応済み）", contEntries, firedEids)
-    console.log(
-        `  継続効果（未計測の kind）: ${unmeasured.length}件 ` +
-            `※ 2026-07-30時点で全kindに計測点を追加済みのため通常0件。0でなければ新しいkindが追加されている`,
-    )
+    // 未計測＝計測点が無いので「発火したか分からない」層。
+    // 2026-07-30 時点では0件だったが、その後に追加された kind には計測点が付いていない。
+    // **数だけでは何が見えていないのか分からない**ので kind 別に出す（2026-08-24）
+    console.log(`  継続効果（未計測の kind）: ${unmeasured.length}件 ※ 計測点が無く、発火したか分からない層`)
+    if (unmeasured.length > 0) {
+        const kinds = new Map<string, string[]>()
+        for (const e of unmeasured) {
+            const list = kinds.get(e.kind) ?? []
+            if (list.length < 2) list.push(`${e.cardId} ${e.cardName}`)
+            kinds.set(e.kind, list)
+        }
+        const sorted = [...kinds.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+        console.log(`    （${sorted.length}種）計測点を足せば、この層も「書いたが一度も発火していない」を検出できる:`)
+        for (const [kind, sample] of sorted) {
+            console.log(`      ${kind.padEnd(34)} 例: ${sample.join(" / ")}`)
+        }
+    }
 
     // 未適用の内訳（kind 別）。どの層が薄いのかを一目で見るため
     const byKind = (list: EffectEntry[]): string => {
