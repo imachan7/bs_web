@@ -12,6 +12,7 @@ import {
     destroySpirit,
     drawDoubleMultiplier,
     findSpiritAny,
+    payCost,
     fireSummonTrigger,
     isResisted,
     millCapBonusFor,
@@ -1132,12 +1133,20 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
             }
             const card = getCard(cardId)
             const cost = effectiveCost(state, owner, card)
-            if (player.reserve < cost) {
+            // 支払い元はリザーブ＋**フィールドのスピリット/ネクサス上のコア**（手札から使うときと同じ。
+            // 2026-08-24 ユーザー確認。以前はリザーブ限定で、かつ支払ったコアがトラッシュへ行かず消えていた）
+            const fromField = (ctx.paySources ?? []).reduce((sum, src) => {
+                const inst =
+                    player.field.spirits.find((i) => i.instanceId === src.instanceId) ??
+                    player.field.nexuses.find((i) => i.instanceId === src.instanceId)
+                return sum + Math.min(Math.max(0, src.count), inst?.cores ?? 0)
+            }, 0)
+            if (player.reserve + fromField < cost) {
                 log(state, `${sourceName}：${card.name}のコストを支払えないため発動しなかった。`)
                 return
             }
             player.trashCards.splice(idx, 1)
-            player.reserve -= cost
+            payCost(state, owner, cost, ctx.paySources)
             player.trashCards.push(cardId)
             log(state, `${player.name}はトラッシュの${card.name}を手札にあるときと同様に使用した。（コスト${cost}）`)
             state.magicUsedThisTurn[owner] = (state.magicUsedThisTurn[owner] ?? 0) + 1
@@ -1173,6 +1182,9 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
                 true,
                 action,
                 self,
+                // 候補が1枚でも必ず聞く。「使用できる」＝任意なので断れる必要があり、
+                // さらに**支払い元（フィールドのコア）を選ぶ機会**がここでしか作れない（2026-08-24）
+                true,
             )
             return
         }

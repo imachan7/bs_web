@@ -151,8 +151,7 @@ export function payableFieldCores(view: GameView, cardId: string): number {
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
-    const hand = view.players[view.you].hand
-    const cardId = hand?.[paying.handIndex]
+    const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
     const cost = effectiveCost(view, view.you, card)
@@ -234,6 +233,10 @@ export interface PayingState {
     // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
     // 立っているときは summon ではなく resolveChoice を送る（2026-08-23）
     forChoiceCardIndex?: number
+    // 選択待ちの解決として支払うとき、選んだカードがどのゾーンにあるか（既定は手札）。
+    // "trash" のときは handIndex を trashCards の添字として読む
+    // （BS07常闇の聖堂＝トラッシュから召喚／BS08-X33ミカファール＝トラッシュのマジックを使用。2026-08-24）
+    choiceZone?: "hand" | "trash"
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
@@ -254,9 +257,17 @@ export interface AltPayInfo {
 // 支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
 // （RuleValidator.summonHandDiscardPayAmount / nexusMillPayAmount。ズレると
 //  「UIで選べるのにサーバーが弾く」形の食い違いになる）
+// 支払い中のカードを取り出す（選択待ちの解決ならトラッシュを見ることもある）。
+// **payingAltPay と payingRemaining は必ずこれを通す**（ゾーンの読み違いで別のカードを見ないように）
+export function payingCardId(view: GameView, paying: PayingState): string | undefined {
+    const player = view.players[view.you]
+    if (paying.choiceZone === "trash") return player.trashCards[paying.handIndex]
+    return player.hand?.[paying.handIndex]
+}
+
 export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
     const player = view.players[view.you]
-    const cardId = player.hand?.[paying.handIndex]
+    const cardId = payingCardId(view, paying)
     if (cardId === undefined) return { kind: null, used: 0, max: 0 }
     const card = master(cardId)
     const cost = effectiveCost(view, view.you, card)

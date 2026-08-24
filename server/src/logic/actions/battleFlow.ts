@@ -860,16 +860,20 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             for (let i = 0; i < player.trashCards.length; i++) {
                 if (matchesCardId(player.trashCards[i]!)) indices.push(i)
             }
-            if (indices.length >= 2) {
+            // payCost（BS07常闇の聖堂＝「コストとして使うことで〜召喚できる」）は
+            // **候補が1枚でも必ず聞く**。「できる」＝任意なので断れる必要があり、
+            // さらに支払い元（フィールドのコア）を選ぶ機会がここでしか作れない（2026-08-24）
+            if (indices.length >= 2 || action.payCost) {
                 requestCardChoice(
                     state,
                     owner,
                     `${sourceName}：召喚するスピリットを選んでください`,
                     "trash",
                     indices,
-                    false,
+                    action.payCost === true,
                     action,
                     self,
+                    action.payCost === true,
                 )
                 return
             }

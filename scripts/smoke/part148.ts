@@ -19,6 +19,7 @@ import {
     currentLevel,
     declareBlock,
     destroySpirit,
+    effectiveCost,
     getCard,
     refreshLevelAsOverrides,
     resolveAction,
@@ -373,4 +374,56 @@ console.log("=== BS08勇者フェニックスペンタン／堕天使ミカフ�
     // 支払い額はカード静的なコストではなく**軽減後**（自分の黄シンボルぶん減る）
     assert(s.players.p1.reserve < reserveBefore, "『アタック時』の誘発としてトラッシュのマジックを使用する")
     assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
+}
+
+console.log("=== BS08-X33 ミカファール：トラッシュのマジックのコストは、フィールドのコアでも払える（2026-08-24） ===")
+{
+    // 以前はリザーブ限定で、さらに支払ったコアがトラッシュへ行かず**消えていた**
+    const s = base("mikafael-paysources")
+    s.interactiveTargets = true
+    const target = put(s, "p1", "BS01-005", 3) // キャッツアイの対象（フィールド先頭）
+    const mika = put(s, "p1", "BS08-X33", 2) // Lv2：トラッシュのマジックを使用できる
+    const donor = put(s, "p1", "BS01-005", 6) // 支払い元にするスピリット
+    s.players.p1.trashCards.push("BS08-079") // キャッツアイ（黄のマジック）
+    const cost = effectiveCost(s, "p1", getCard("BS08-079"))
+    assert(cost > 0, `軽減後コストが0より大きい（実際: ${String(cost)}）`)
+    s.players.p1.reserve = 0 // リザーブは空。フィールドのコアでしか払えない
+    const trashCoresBefore = s.players.p1.trashCores
+
+    fireTrigger(s, "p1", mika, "onAttack")
+    assert(s.pendingChoice?.kind === "card", "トラッシュから使うマジックの選択待ちが立つ")
+    const idx = (s.pendingChoice?.cardIndices ?? [])[0]
+    assert(idx !== undefined, "候補にキャッツアイがある")
+    assert(
+        act(s, "p1", {
+            type: "resolveChoice",
+            cardIndex: idx as number,
+            paySources: [{ instanceId: donor.instanceId, count: cost }],
+        }) === null,
+        "フィールドのコアを支払い元に指定して使用できる",
+    )
+    assert(donor.cores === 6 - cost, `支払い元からコスト${String(cost)}個ぶん減る（実際: ${String(donor.cores)}個）`)
+    assert(s.players.p1.reserve === 0, `リザーブは使われない（実際: ${String(s.players.p1.reserve)}個）`)
+    assert(
+        s.players.p1.trashCores === trashCoresBefore + cost,
+        `支払ったコアはトラッシュへ（実際: ${String(s.players.p1.trashCores - trashCoresBefore)}個）`,
+    )
+    assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
+}
+
+console.log("=== BS08-X33 ミカファール：リザーブから払ったコアもトラッシュへ置かれる ===")
+{
+    const s = base("mikafael-reserve-to-trash")
+    put(s, "p1", "BS01-005", 3)
+    const mika = put(s, "p1", "BS08-X33", 2)
+    s.players.p1.trashCards.push("BS08-079")
+    const cost = effectiveCost(s, "p1", getCard("BS08-079"))
+    const reserveBefore = s.players.p1.reserve
+    const trashCoresBefore = s.players.p1.trashCores
+    fireTrigger(s, "p1", mika, "onAttack")
+    assert(s.players.p1.reserve === reserveBefore - cost, `リザーブがコスト${String(cost)}個ぶん減る`)
+    assert(
+        s.players.p1.trashCores === trashCoresBefore + cost,
+        `減ったコアはトラッシュへ（実際: ${String(s.players.p1.trashCores - trashCoresBefore)}個）`,
+    )
 }

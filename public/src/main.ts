@@ -403,23 +403,34 @@ function tryResolveCardChoice(handIndex: number): boolean {
     return true
 }
 
-// 選択待ちで選んだカードの召喚コストがリザーブだけでは足りないとき、通常の召喚と同じ
+// 選択待ちで選んだカードのコストがリザーブだけでは足りないとき、通常の召喚と同じ
 // 支払いモードを開始する（開始したら true）。フィールドのコアでも足りないカードは
-// そもそもサーバーが候補に入れないので、ここでは不足＝フィールドから払う場面とみなす
-function startChoicePaying(handIndex: number): boolean {
+// そもそもサーバーが候補に入れないので、ここでは不足＝フィールドから払う場面とみなす。
+// 対象は「コストを支払う」3種：
+//   summonFromHandFree.payCost   手札から召喚（BS08帝竜騎サイクル）
+//   summonFromTrashFree.payCost  トラッシュから召喚（BS07常闇の聖堂）
+//   castMagicFromTrashByColor    トラッシュのマジックを使用（BS08-X33ミカファール）
+function startChoicePaying(cardIndex: number): boolean {
     if (!view || !view.pendingChoice) return false
-    // 既にこの選択の支払い中なら、手札クリックでは何もしない（割り当てをリセットさせない）
+    // 既にこの選択の支払い中なら、クリックでは何もしない（割り当てをリセットさせない）
     if (ui.paying?.forChoiceCardIndex !== undefined) return true
     const action = view.pendingChoice.action as { type?: string; payCost?: true } | undefined
-    if (action?.type !== "summonFromHandFree" || !action.payCost) return false
-    const cardId = view.players[view.you].hand?.[handIndex]
+    const zone = view.pendingChoice.cardZone === "trash" ? "trash" : "hand"
+    const paysCost =
+        action?.type === "castMagicFromTrashByColor" ||
+        ((action?.type === "summonFromHandFree" || action?.type === "summonFromTrashFree") && action.payCost === true)
+    if (!paysCost) return false
+    const player = view.players[view.you]
+    const cardId = zone === "trash" ? player.trashCards[cardIndex] : player.hand?.[cardIndex]
     if (cardId === undefined) return false
     const card = master(cardId)
-    const need = effectiveCost(view, view.you, card) + minLevelCores(card)
-    if (view.players[view.you].reserve >= need) return false
+    // マジックには「置くコア」が無いのでコストだけ
+    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : minLevelCores(card))
+    if (player.reserve >= need) return false
     ui.paying = {
-        handIndex,
-        forChoiceCardIndex: handIndex,
+        handIndex: cardIndex,
+        forChoiceCardIndex: cardIndex,
+        ...(zone === "trash" ? { choiceZone: zone } : {}),
         assigned: {},
         discardHandIndices: [],
         millPay: 0,
@@ -1163,7 +1174,11 @@ async function init(): Promise<void> {
         }
         const cardEl = closestData(e, "data-card-index")
         if (cardEl) {
-            send({ type: "resolveChoice", cardIndex: Number(cardEl.dataset.cardIndex) })
+            const cardIndex = Number(cardEl.dataset.cardIndex)
+            // トラッシュから召喚・使用する効果でリザーブが足りないときは、
+            // 通常の召喚と同じ支払いモードへ入ってフィールドのコアを割り当ててもらう
+            if (startChoicePaying(cardIndex)) return
+            send({ type: "resolveChoice", cardIndex })
             return
         }
         const levelEl = closestData(e, "data-summon-level")
