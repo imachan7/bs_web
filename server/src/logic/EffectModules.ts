@@ -1762,6 +1762,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.levelAsEffectsOnly
             delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
@@ -2003,10 +2004,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {
-                    // 発生源の持ち主の相手の全ネクサス（ウッド・ゴレム：相手ネクサスのLv2効果を無効化する
-                    // 簡略化としてLv1扱いにする。ネクサスのレベル表示も1になる）
+                    // 発生源の持ち主の相手の全ネクサス（ウッド・ゴレム）。
+                    // effectsOnly 指定時は**効果の発揮判定にだけ効く**置き換えなので、
+                    // 表示や「Lv1のネクサスを破壊する」の判定には当たらない（displayLevel が無視する）
                     for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
+                        if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
                     // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ
@@ -2415,6 +2418,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
+    opts?: { payCost?: true; paySources?: PaySource[] },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -2424,17 +2428,25 @@ export function summonFreeFromTrashIndex(
     }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
-    if (player.reserve < maintain) {
-        log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
+    // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
+    // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
+    // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
+    const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
+    const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
+    if (player.reserve + fromField < maintain + cost) {
+        log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(trashIndex, 1)
-    player.reserve -= maintain
+    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）
+    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     log(
         state,
-        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}をコストを支払わずに召喚した。`,
+        `${player.name}は${sourceName}の効果で、トラッシュから${card.name}を` +
+            (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。"),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）

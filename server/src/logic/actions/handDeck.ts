@@ -1846,31 +1846,67 @@ const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ct
 }
 
 // BS06颶風高原Lv2：このバトル中に自分の【暴風】で疲労させた相手のスピリットすべてをデッキの下へ。
-// 戻す順番は選べず記録順（プレイヤー選択の決定的簡略化）
-const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhaustedToDeckBottom"> = (ctx) => {
-    const { state, owner, sourceName, srcColors, srcType } = ctx
+// 効果文どおり**戻す順番は持ち主（発揮した側）が選ぶ**（2026-08-24。それまでは記録順の簡略化）。
+// orderedIds に選んだ順を積んで再入し、選び終わってからまとめて戻す
+const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhaustedToDeckBottom"> = (ctx, action) => {
+    const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
         const records = state.bofuExhaustedThisBattle
         if (records.length === 0) {
             log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
             return
         }
-        let returned = 0
+        const ordered = action.orderedIds ?? []
+        // まだ順番を決めていない対象を集める。耐性の判定とログは**1周目だけ**行う
+        //（判定結果は途中で変わらないので、選ぶたびに同じログを出さない）
+        const firstPass = action.orderedIds === undefined
+        const remaining: { pid: PlayerId; inst: CardInstance }[] = []
         for (const rec of [...records]) {
             if (rec.pid === owner) continue // 自分側が疲労した記録は対象外（「相手のスピリット」）
+            if (ordered.includes(rec.instanceId)) continue
             const inst = state.players[rec.pid].field.spirits.find((sp) => sp.instanceId === rec.instanceId)
             if (!inst) continue // 既に場から居ない個体は飛ばす
             // **対象を記録から引いているので、他のハンドラのように候補選びの中で耐性を弾けない**。
             // 相手側スピリットへの範囲効果として、returnAllToHand と同じ耐性判定をここで行う
             const resisted = resistanceAgainst(state, rec.pid, inst, attemptOf(ctx, "bounce", "area"))
             if (resisted) {
-                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                if (firstPass) {
+                    log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                }
                 continue
             }
-            markBounce(state, rec.pid, inst, "deckBottom", sourceName)
+            remaining.push({ pid: rec.pid, inst })
+        }
+        // 選択から戻ってきた：選ばれた1体を順番の末尾に積んで、残りを聞き直す
+        if (targetInstanceId !== undefined && remaining.some((r) => r.inst.instanceId === targetInstanceId)) {
+            ctx.resolve(
+                { ...action, orderedIds: [...ordered, targetInstanceId] },
+                { sourceColors: srcColors, sourceType: srcType },
+            )
+            return
+        }
+        // 2体以上残っているうちは順番を聞く（1体なら聞くまでもない）
+        if (state.interactiveTargets && remaining.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：デッキの下に戻す順番を選んでください（残り${remaining.length}体）`,
+                remaining.map((r) => r.inst.instanceId),
+                false,
+                { ...action, orderedIds: ordered },
+                self,
+            )
+            return
+        }
+        const finalOrder = [...ordered, ...remaining.map((r) => r.inst.instanceId)]
+        let returned = 0
+        for (const id of finalOrder) {
+            const found = findSpiritAny(state, id)
+            if (!found) continue
+            markBounce(state, found.pid, found.inst, "deckBottom", sourceName)
             returned += 1
         }
-        // 全部を待機させてから一度に戻す
-        flushBounces(state)
+        // 全部を待機させてから、選ばれた順に一度に戻す
+        flushBounces(state, finalOrder)
         if (returned === 0) {
             log(state, `${sourceName}：デッキの下に戻せるスピリットがいなかった。`)
         }
@@ -1880,12 +1916,33 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ぶんの処理を count 回繰り返す。
-        // 戻す順番は選べず、毎回その時点の実効BP最大から（プレイヤー選択の決定的簡略化）
+        // 選ばれた順に一番上へ積むので、**最後に選んだものがデッキの一番上**になる
+        //（＝「好きな順番で戻す」を1体ずつの選択で表現している）。
+        // ⚠️ 選択で中断したら残りの体数を再開スタックへ積むこと。積まないと1体戻したところで
+        // ループが終わり、**3体のはずが1体しか戻らない**（2026-08-24 修正）
         if (action.count !== undefined && action.count > 1 && targetInstanceId === undefined) {
             const { count: _n, ...single } = action
             for (let i = 0; i < action.count; i++) {
                 ctx.resolve(single, { sourceColors: srcColors, sourceType: srcType })
-                if (state.pendingChoice || state.winner) return
+                if (state.winner) return
+                if (state.pendingChoice) {
+                    const rest = action.count - i - 1
+                    if (rest > 0) {
+                        pushResumeFrames(state, [
+                            {
+                                kind: "action",
+                                selfInstanceId: self ? self.instanceId : null,
+                                action: { ...single, count: rest },
+                                // chooserIsTarget では選択者が相手なので、再開を駆動する側から
+                                // owner を逆算できない。実行者を明示しておく
+                                actorPid: owner,
+                                ...(srcColors ? { sourceColors: srcColors } : {}),
+                                ...(srcType ? { sourceType: srcType } : {}),
+                            },
+                        ])
+                    }
+                    return
+                }
             }
             return
         }

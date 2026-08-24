@@ -550,6 +550,16 @@ export function findInstanceAnywhere(
 
 // ---- クライアントへ送る公開ビュー ----
 
+// ビューへ渡す1個体。**効果の発揮判定にだけ効くレベル置き換え**（levelAsEffectsOnly。
+// BS03ウッド・ゴレム「相手のネクサスすべてのLv2効果は発揮されない」）はここで落とす。
+// 効果を発揮するかどうかを決めるのはサーバーだけなので、クライアントへ渡す必要がなく、
+// 渡すと画面のレベル表示が実際より低く出る（shared/rules.ts の displayLevel と同じ考え方）
+function forView(inst: CardInstance): CardInstance {
+    if (!inst.levelAsEffectsOnly) return { ...inst }
+    const { levelAsContinuous: _lv, levelAsEffectsOnly: _flag, ...rest } = inst
+    return rest
+}
+
 function playerView(player: PlayerState, isSelf: boolean): PlayerView {
     return {
         id: player.id,
@@ -563,8 +573,8 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         trashCards: [...player.trashCards],
         tegamoto: [...player.tegamoto],
         field: {
-            spirits: player.field.spirits.map((s) => ({ ...s })),
-            nexuses: player.field.nexuses.map((n) => ({ ...n })),
+            spirits: player.field.spirits.map(forView),
+            nexuses: player.field.nexuses.map(forView),
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),

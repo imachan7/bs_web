@@ -159,6 +159,7 @@ export function endTurn(state: GameState): void {
             delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
+            delete inst.tempCostDelta
             inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn

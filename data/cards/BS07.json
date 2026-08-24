@@ -3720,7 +3720,8 @@
      "familyFilter": "夜族",
      "costFilter": {
       "max": 3
-     }
+     },
+     "payCost": true
     }
    },
    {
@@ -4668,7 +4669,8 @@
     "action": {
      "type": "exhaust",
      "count": 1
-    }
+    },
+    "winnerIsLentBuffTarget": true
    }
   ]
  },

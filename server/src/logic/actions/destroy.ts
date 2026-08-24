@@ -31,7 +31,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -677,9 +677,12 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
     const { state, owner, opp, sourceName, srcType } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
-        // levelFilter指定時はcurrentLevelがこれに含まれるネクサスのみ対象（BS03バスターランス＝Lv1のみ）
+        // levelFilter指定時はこれに含まれるレベルのネクサスのみ対象（BS03バスターランス＝Lv1のみ）。
+        // **他のカードから見えるレベル（displayLevel）で判定する**：ウッド・ゴレムの
+        // 「相手のネクサスすべてのLv2効果は発揮されない」は効果の発揮判定にだけ効く置き換えなので、
+        // それでLv1に見えるようになったネクサスをバスターランスが破壊できてはいけない
         const matchesLevel = (n: CardInstance) =>
-            action.levelFilter === undefined || action.levelFilter.includes(currentLevel(n).level)
+            action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)
         let destroyed = 0
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）

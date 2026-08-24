@@ -1,8 +1,8 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance } from "../../type"
-import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf } from "../GameState"
+import type { CardInstance, EffectAction } from "../../type"
+import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
     bothSidesPids,
     countEffectCounter,
@@ -19,6 +19,7 @@ import {
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
+    resolveAction,
     resolveKoboOnBattleEnd,
     resolveTensho,
     summonFreeFromHandIndex,
@@ -789,7 +790,23 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             // カード静的な名前で判定する
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
+            // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
+            // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
+            if (action.payCost) {
+                const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
+                    (sum, i) => sum + i.cores,
+                    0,
+                )
+                if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+                    return false
+                }
+            }
             return true
+        }
+        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定）
+        const trashSummonOpts = {
+            ...(action.payCost ? { payCost: action.payCost } : {}),
+            ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
         }
         // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
         // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
@@ -835,7 +852,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             return
         }
         if (chosenCardIndex !== undefined) {
-            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex)
+            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
             return
         }
         if (state.interactiveTargets) {
@@ -873,7 +890,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             log(state, `${sourceName}：トラッシュに対象のスピリットがなかった。`)
             return
         }
-        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex)
+        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex, trashSummonOpts)
         return
 }
 
@@ -1024,26 +1041,30 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 }
 
 // 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
-// 破棄するカードは手札の末尾から＝各自が選ぶ処理の決定的簡略化
+// **破棄するカードは各自が自分で選ぶ**（2026-08-24。それまでは手札の末尾からの決定的簡略化だった）。
+// 1人ぶんの破棄は discardSelfChoose に委譲する（1枚ずつ選ばせる／非対話では末尾から）。
+// 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
-    const { state, owner, sourceName, srcType } = ctx
+    const { state, owner, self, srcType } = ctx
     if (action.count <= 0) return
     const pids = bothSidesPids(state, srcType)
+    const discardOne: EffectAction = { type: "discardSelfChoose", count: action.count }
     for (const pid of [owner, opponentOf(owner)]) {
         if (!pids.includes(pid)) continue
-        const player = state.players[pid]
-        const discarded = Math.min(action.count, player.hand.length)
-        for (let i = 0; i < discarded; i++) {
-            const cardId = player.hand.pop()
-            if (cardId === undefined) break
-            player.trashCards.push(cardId)
+        // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
+        // 外側から積むので、自分の残り枚数のフレーム（内側）より後に実行される
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [
+                {
+                    kind: "action",
+                    selfInstanceId: self ? self.instanceId : null,
+                    action: discardOne,
+                    actorPid: pid,
+                },
+            ])
+            return
         }
-        log(
-            state,
-            discarded === 0
-                ? `${sourceName}：${player.name}の手札がなかった。`
-                : `${sourceName}：${player.name}は手札${discarded}枚を破棄した。（破棄するカードは簡略化）`,
-        )
+        resolveAction(state, pid, self, discardOne)
     }
 }
 
