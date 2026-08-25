@@ -108,6 +108,8 @@ import {
     effectActiveOn,
     isOnFieldAnyZone,
     instIsCombined,
+    bravesOf,
+    hostsOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -271,13 +273,16 @@ export function fireTrigger(
             : movedToAttack && event === "onAttack"
               ? ["onAttack", "onBlock"]
               : [event]
-    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
+    // src は**その効果エントリを持っているカードの個体**。ホスト自身のこともあれば、
+    // 合体しているブレイヴのこともある（下の entries を参照）。
+    // レベル判定と【合体時】のゲートは src で行う（ブレイヴは合体状態のレベル表を引く）
+    const matches = (effect: EffectDef, src: CardInstance = selfInstance): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
         // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
-        if (!effectActiveOn(selfInstance, effect, level)) return false
+        if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
@@ -398,17 +403,31 @@ export function fireTrigger(
         ...tempGranted,
     ]
 
-    const effects = card.effects
-    for (let i = 0; i < effects.length; i++) {
-        const effect = effects[i]
-        if (!effect || !matches(effect)) continue
+    // ⚠️ **合体しているブレイヴの誘発効果もここで発火させる**（docs/design/BRAVE.md §4）。
+    // 継続効果は effectSources が拾うが、**誘発は個体ごとの fireTrigger を通る**ため、
+    // ここで合流させないと【合体時】の『アタック時』『バトル時』などが一度も発火しない
+    // （2026-08-25 に実カードで発覚。coverage:effects が「一度も適用されていない」と報告した）。
+    //
+    // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
+    // 合体スピリット＝ホスト側の個体を指す（refreshSelf・selfBuff などが正しく当たる）。
+    // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
+    const entries: { effect: EffectDef; src: CardInstance }[] = [
+        ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
+        ...bravesOf(state.players[owner], selfInstance).flatMap((b) =>
+            getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
+        ),
+    ]
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        const effect = entry?.effect
+        if (!entry || !effect || !matches(effect, entry.src)) continue
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
         if (effect.optional && state.interactiveTargets) {
             requestActivationConfirm(
                 state,
                 owner,
-                `${card.name}の効果を発動しますか？`,
+                `${getCard(entry.src.cardId).name}の効果を発動しますか？`,
                 effect.action,
                 selfInstance,
             )
@@ -416,16 +435,17 @@ export function fireTrigger(
             // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
             // （2026-08-14 ユーザー確認。BS09-038スズランの妖精ティンカ／BS05-040スノーホワイトの
             //  効果文どおり「スピリット/マジックの効果」が対象）。ネクサスの効果は対象外
-            const redirecting = card.type === "spirit"
+            // ブレイヴの効果も「合体スピリット＝スピリットの効果」として扱う（BRAVE.md §12.1）
+            const redirecting = card.type === "spirit" || entry.src !== selfInstance
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
-            const remaining = effects.slice(i + 1).filter(matches)
+            const remaining = entries.slice(i + 1).filter((x) => matches(x.effect, x.src))
             pushResumeFrames(state, [
-                ...remaining.map((e) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: e.action })),
+                ...remaining.map((x) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: (x.effect as Extract<EffectDef, { kind: "triggered" }>).action })),
                 ...grantedActions.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
             ])
             return
@@ -1066,7 +1086,10 @@ export function fireFieldEventTriggers(
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
         const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
         if (effect.selfMode === "source") {
-            return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+            // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
+            // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）
+            const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+            return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
         }
         if (selfOverride) {
             // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、

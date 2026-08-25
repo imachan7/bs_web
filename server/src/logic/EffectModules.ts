@@ -929,14 +929,18 @@ function bofuCountBonusFor(state: GameState, ownerPid: PlayerId): number {
 // このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 // 暴風を持たない（base=0）スピリットにはボーナスを加算しない。GameEngine.resolveBattleの
 // hasBofuOnBlock分岐と、action:"bpBuffAllByBofuCount"の両方から参照する（BS08ゲラン准将／スナイピングブラスト）
+// 【暴風】はホスト自身だけでなく、合体しているブレイヴの keyword エントリも見る
+// （BS10千刀鳥カクレイン：ホストのカードには【暴風】が無く、ブレイヴ側にのみ書かれている）
 export function bofuCountFor(state: GameState, ownerPid: PlayerId, inst: CardInstance): number {
-    const level = currentLevel(inst).level
     let base = 0
-    for (const effect of getCard(inst.cardId).effects) {
-        if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
-        base = effect.count ?? 1
-        break
+    for (const src of [inst, ...bravesOf(state.players[ownerPid], inst)]) {
+        const level = currentLevel(src).level
+        for (const effect of getCard(src.cardId).effects) {
+            if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            base = effect.count ?? 1
+            break
+        }
     }
     if (base === 0) return 0
     return base + bofuCountBonusFor(state, ownerPid)

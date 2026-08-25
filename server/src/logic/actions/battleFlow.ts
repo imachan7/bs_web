@@ -43,10 +43,11 @@ const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
 }
 
 // BS10-065 ヘッジボルグ：BPを比べ相手のスピリットだけを破壊したとき、そのスピリット上のコアすべてはボイドへ。
-// **破壊待機中（コアがまだ乗っている）**に呼ばれる前提なので、コアを0にすれば
-// commitPendingDestruction がリザーブへ戻す分が消える＝そのままボイド行きになる
+// トリガーは onBattleWin なので、この時点で通常は破壊が確定済み（＞６でコアはすでにリザーブへ移動している）。
+// その場合は lastBattleDestroyedCores 分をリザーブから差し引く＝ボイド行きにする。
+// 「フィールドに残る」等で破壊を免れ、まだ場にいる場合はそのままコアを0にする
 const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (ctx) => {
-    const { state, sourceName } = ctx
+    const { state, opp, sourceName } = ctx
     const id = state.lastBattleDestroyedInstanceId
     if (id === undefined) {
         log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいない。`)
@@ -60,6 +61,10 @@ const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (
         inst.cores = 0
         return
     }
+    const cores = Math.min(state.lastBattleDestroyedCores, state.players[opp].reserve)
+    if (cores === 0) return
+    state.players[opp].reserve -= cores
+    log(state, `${sourceName}：破壊されたスピリット上のコア${cores}個はリザーブへ戻らずボイドに置かれた。`)
 }
 
 // BS10-072 セイバーシャーク：このターンの間、**自分の**スピリットすべての『ブロック時』効果を『アタック時』へ移す

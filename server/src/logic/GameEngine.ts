@@ -1775,6 +1775,8 @@ function resolveBattle(state: GameState): void {
         // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
         state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
     } else if (outcome === "blockerWins") {
+        // 破壊直前のアタッカーのコア数も同様に記録する（BS10ヘッジボルグ：role制限なしでattacker/blocker両方から発火する）
+        state.lastBattleDestroyedCores = attacker.cores
         state.lastBattleDestroyedInstanceId = attacker.instanceId
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
