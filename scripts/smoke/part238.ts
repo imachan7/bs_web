@@ -5,9 +5,9 @@
 // 合体条件はホストの実データ（系統・コスト・名前）から組み立てる＝ハードコードしない。
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { CARD_DB } from "../../server/src/logic/GameState"
+import { ALL_CARDS, CARD_DB } from "../../server/src/logic/GameState"
 import { destroySpirit, returnSpiritToHand, flushBounces, detachBravesOnLeave } from "../../server/src/logic/removal"
-import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources, instIsCombined, spiritHasKeyword } from "../../shared/rules"
+import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources, instIsCombined, spiritHasKeyword, matchesTarget } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 
 const HOST = "BS01-001" // ゴラドン（赤・コスト0・系統「爬獣」・Lv1=1コア）
@@ -383,4 +383,56 @@ console.log("=== §M 【合体時】：ブレイヴ側のキーワードと誘�
     const combined = s.players.p1.field.combinedBraves[0]!
     assert(spiritHasKeyword(s, "p1", combined, "clash"),
         "合体中のブレイヴは【合体時】【激突】を持つ")
+}
+
+// ---- BS10 の絞り込み軸（BRAVE.md）----
+console.log("=== §N 対象の絞り込み：合体スピリット／合体していない／スピリット状態のブレイヴ ===")
+{
+    const s = base()
+    const host = putHost(s, "p1")        // これから合体させる
+    const plain = putHost(s, "p1")       // 合体しない普通のスピリット
+    // スピリット状態のブレイヴ（合体せず場に出ているブレイヴ）
+    const alone = createInstance(BRAVE, s.turn, getCard(BRAVE).levels[0]!.cores)
+    s.players.p1.field.spirits.push(alone)
+    s.players.p1.hand = [BRAVE]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    refreshLevelAsOverrides(s)
+
+    const match = (inst: ReturnType<typeof createInstance>, f: Parameters<typeof matchesTarget>[3]) =>
+        matchesTarget(s, "p1", inst, f)
+
+    assert(match(host, { combined: true }), "合体スピリットは combined:true に当たる")
+    assert(!match(plain, { combined: true }), "合体していないスピリットは当たらない")
+    assert(!match(alone, { combined: true }), "スピリット状態のブレイヴも合体していないので当たらない")
+
+    assert(match(plain, { combined: false }), "combined:false は合体していないスピリットに当たる")
+    assert(match(alone, { combined: false }), "スピリット状態のブレイヴにも当たる")
+    assert(!match(host, { combined: false }), "合体スピリットには当たらない")
+
+    assert(match(alone, { braveInSpiritState: true }), "スピリット状態のブレイヴだけに当たる")
+    assert(!match(plain, { braveInSpiritState: true }), "普通のスピリットには当たらない")
+    assert(!match(host, { braveInSpiritState: true }), "合体スピリット（ホストはスピリット）にも当たらない")
+}
+
+console.log("=== §O 合体条件「効果の記述を持たない」 ===")
+{
+    const VANILLA_COND = makeBrave("TEST-BRAVE-VANILLA", { braveCondition: { vanilla: true } }).cardId
+    const s = base()
+    // ゴラドン（BS01-001）は効果テキストが空＝バニラ
+    const vanillaHost = putHost(s, "p1")
+    assert(getCard(HOST).effect === "", `テスト前提: ${HOST} は効果の記述を持たない`)
+    assert(matchesBraveCondition(s, "p1", vanillaHost, VANILLA_COND), "バニラのスピリットには合体できる")
+
+    // 効果を持つスピリットを1枚引いてくる（カードデータから機械的に選ぶ）
+    const withEffect = ALL_CARDS.find((c) => c.type === "spirit" && c.effect !== "" && c.levels.length > 0)!
+    const inst = createInstance(withEffect.cardId, s.turn, withEffect.levels[0]!.cores)
+    s.players.p1.field.spirits.push(inst)
+    refreshLevelAsOverrides(s)
+    assert(!matchesBraveCondition(s, "p1", inst, VANILLA_COND),
+        `効果を持つスピリット（${withEffect.name}）には合体できない`)
+
+    // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る
+    inst.treatedAsVanillaContinuous = true
+    assert(matchesBraveCondition(s, "p1", inst, VANILLA_COND),
+        "「バニラとしても扱う」を受けていれば合体できる（instIsVanilla を通している）")
 }

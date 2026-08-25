@@ -347,7 +347,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 const keys = Object.keys(t as Record<string, unknown>)
                 if (keys.length === 0) add(id, "braveCondition の項が空")
                 for (const k of keys) {
-                    if (!["family", "minCost", "cardName"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                    if (!["family", "minCost", "cardName", "vanilla"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
                 }
             }
         } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {

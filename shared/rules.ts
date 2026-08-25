@@ -398,6 +398,9 @@ export function matchesBraveCondition(
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
         if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
+        // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
+        // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す
+        if (t.vanilla === true && !instIsVanilla(host)) return false
         return true
     })
 }
@@ -1258,6 +1261,12 @@ export function matchesTarget(
     // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
+    // 合体しているか（BS10。docs/design/BRAVE.md）。true=合体スピリット／false=合体していない
+    if (filter.combined !== undefined && instIsCombined(inst) !== filter.combined) return false
+    // スピリット状態のブレイヴ＝カード種別がブレイヴで、合体していない個体。
+    // 合体中のブレイヴは field.combinedBraves にいて field.spirits の走査に入らないので、
+    // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく
+    if (filter.braveInSpiritState === true && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
