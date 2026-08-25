@@ -548,13 +548,18 @@ export function spiritHasKeyword(
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
     // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
-    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため
+    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため。
+    // **合体しているブレイヴのキーワードもホスト側でここに合流させる**（合体スピリットは1体として
+    // 振る舞う。bravesOf(inst) は inst がホストでないとき空配列を返すので安全）
+    const cards = [inst, ...bravesOf(board.players[ownerPid], inst)]
     if (
-        card(inst.cardId).effects.some(
-            (e) =>
-                e.kind === "keyword" &&
-                keywordMatches(e.keyword, keyword) &&
-                (e.whileCombined !== true || instIsCombined(inst)),
+        cards.some((src) =>
+            card(src.cardId).effects.some(
+                (e) =>
+                    e.kind === "keyword" &&
+                    keywordMatches(e.keyword, keyword) &&
+                    (e.whileCombined !== true || instIsCombined(inst)),
+            ),
         )
     ) {
         return true
@@ -1402,11 +1407,16 @@ export function activeConstraintsWithSource(
     //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
     if (instEffectsSuppressed(inst)) return []
     const level = currentLevel(inst).level
-    const own = card(inst.cardId)
-        .effects.filter(
-            (e) => e.kind === "constraint" && effectActiveOn(inst, e, level),
+    // 合体しているブレイヴの constraint も、ホストが出す制約としてここに合流させる
+    // （合体スピリットは1体として振る舞う。BS10バズーカ・アームズ：canBlockUnblockable）
+    const own = [inst, ...bravesOf(board.players[pid], inst)]
+        .flatMap((src) =>
+            card(src.cardId)
+                .effects.filter(
+                    (e) => e.kind === "constraint" && effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level),
+                )
+                .map((e) => (e as { constraint: ConstraintDef }).constraint),
         )
-        .map((e) => (e as { constraint: ConstraintDef }).constraint)
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
         // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
         .filter((c) => {

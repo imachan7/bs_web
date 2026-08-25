@@ -1825,6 +1825,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 // （§12 の5。上がるのはホストのLvコストだけ）
                 brave.braveCombined = true
                 brave.coresOverride = host.coresOverride ?? host.cores
+                // ブレイヴが持つ静的【装甲】もホストへ反映する（hasArmorAgainstはstateを受け取らない
+                // 純粋述語で、ホストのカード自身しか見ないため。BS10フェンリルキャノンType-B）
+                const braveLevel = currentLevel(brave).level
+                for (const effect of getCard(brave.cardId).effects) {
+                    if (effect.kind !== "keyword" || effect.keyword !== "armor") continue
+                    if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
+                    if (!host.armorColorsGranted) host.armorColorsGranted = []
+                    for (const c of effect.colors ?? []) {
+                        if (!host.armorColorsGranted.includes(c)) host.armorColorsGranted.push(c)
+                    }
+                }
             }
         }
     }

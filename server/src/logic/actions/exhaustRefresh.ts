@@ -23,7 +23,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -235,6 +235,18 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
         }
         log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
         return
+}
+
+// BS10-074 きぐるみクマッター：相手のネクサスすべてを疲労させる
+const exhaustAllOpponentNexusesHandler: ActionHandler<"exhaustAllOpponentNexuses"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+    let count = 0
+    for (const n of state.players[opp].field.nexuses) {
+        if (n.isRested) continue
+        n.isRested = true
+        count++
+    }
+    log(state, `${sourceName}：相手のネクサス${count}個を疲労させた。`)
 }
 
 const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, action) => {
@@ -715,11 +727,16 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
         log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
         return
     }
-    const level = currentLevel(self).level
-    const entry = getCard(self.cardId).effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, level),
-    )
-    const staticLimit = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    // 【強襲】はホスト自身だけでなく、合体しているブレイヴの keyword エントリも見る
+    // （BS10バズーカ・アームズ：ホストのカードには【強襲】が無く、ブレイヴ側にのみ書かれている）
+    let staticLimit = 0
+    for (const src of [self, ...bravesOf(state.players[owner], self)]) {
+        const srcLevel = currentLevel(src).level
+        const entry = getCard(src.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, srcLevel),
+        )
+        if (entry && entry.kind === "keyword") staticLimit = Math.max(staticLimit, entry.count ?? 1)
+    }
     // 継続付与された【強襲】（kind:"keywordGrant"。BS08キマイラアサルト）も上限として見る。
     // 静的な【強襲】と両方持つことは通常無いが、念のため大きい方を採用する
     const grantedLimit = continuousKeywordGrantCount(state, owner, self, "kyoshu")
@@ -875,6 +892,7 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
 const handlers = {
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
+    exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
     exhaustAllByLevel: exhaustAllByLevelHandler,
     exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
