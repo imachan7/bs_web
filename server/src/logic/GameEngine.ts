@@ -22,7 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -81,6 +81,7 @@ import {
     fireBounceTriggers,
     flushBounces,
     requestActivationConfirm,
+    refreshSpirit,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -761,6 +762,15 @@ function doMoveCore(
     return null
 }
 
+// 【超覚醒】：この効果でコアを置いたとき、そのスピリットは回復する（BS10-X01 幻羅星龍ガイ・アスラ）。
+// 【覚醒】との違いはここだけなので、コアを移した直後に1回だけ呼ぶ
+function refreshOnSuperAwaken(state: GameState, pid: PlayerId, target: CardInstance): void {
+    if (!target.isRested) return
+    if (!hasSuperAwaken(state, pid, target)) return
+    refreshSpirit(state, pid, target)
+    log(state, `【超覚醒】${getCard(target.cardId).name}は回復した。`)
+}
+
 function doAwaken(
     state: GameState,
     pid: PlayerId,
@@ -784,6 +794,7 @@ function doAwaken(
             state,
             `【覚醒】${player.name}はリザーブから${getCard(target.cardId).name}へコア${count}個を移した。`,
         )
+        refreshOnSuperAwaken(state, pid, target)
         passFlashPriority(state, pid)
         return null
     }
@@ -798,6 +809,7 @@ function doAwaken(
         state,
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
+    refreshOnSuperAwaken(state, pid, target)
     // 移動元が維持コア（Lv1）を下回ったら消滅
     if (from.cores < instMinLevelCores(from)) {
         destroySpirit(state, pid, from.instanceId, "deplete")

@@ -27,7 +27,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -84,6 +84,8 @@ function validatePaySources(
         if (!inst) return "支払い元が見つかりません"
         if (src.count < 1) return "支払うコア数が不正です"
         if (src.count > inst.cores) return "支払い元のコアが足りません"
+        // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**
+        if (coresCantBeRemoved(state, pid, inst)) return "そのカードのコアは支払いに使えません"
         total += src.count
     }
     if (total > need) return "必要数を超えてコアを支払うことはできません"
@@ -572,6 +574,8 @@ export function validateMoveCore(
         if (player.reserve < 1) return "リザーブにコアがありません"
     } else {
         if (inst.cores < 1) return "コアが置かれていません"
+        // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**（constraint:"coresCantBeRemoved"。2026-08-25 ユーザー確認）
+        if (coresCantBeRemoved(state, pid, inst)) return "このカードのコアは取り除けません"
         const need = instMinLevelCores(inst)
         // confirmDeplete：維持コア割れを承知のうえで取り除く（doMoveCore がそのスピリットを消滅させる）。
         // コアを他のスピリットや召喚コストへ回すために、自分のスピリットをあえて退かせる操作
@@ -615,6 +619,8 @@ export function validateAwaken(
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "コアの移動元スピリットが見つかりません"
     if (from.cores < count) return "移動元のコアが足りません"
+    // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**
+    if (coresCantBeRemoved(state, pid, from)) return "そのスピリットのコアは取り除けません"
     return null
 }
 

@@ -38,6 +38,7 @@ export interface KeywordInfo {
 export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     soku: { id: "soku", label: "神速" },
     awaken: { id: "awaken", label: "覚醒" },
+    superAwaken: { id: "superAwaken", label: "超覚醒" },
     clash: { id: "clash", label: "激突" },
     armor: { id: "armor", label: "装甲" },
     jugeki: { id: "jugeki", label: "呪撃" },
@@ -49,6 +50,16 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kyoshu: { id: "kyoshu", label: "強襲" },
     hyoheki: { id: "hyoheki", label: "氷壁" },
     fushi: { id: "fushi", label: "不死" },
+}
+
+// キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
+// 【超覚醒】は【覚醒】を含む（効果文が「覚醒」を含む以上、参照されるべき。2026-08-25 ユーザー確認）。
+// 逆向きには効かない（「【超覚醒】を持つ〜」は【覚醒】だけの個体を拾わない）
+const KEYWORD_INCLUDES: Partial<Record<Keyword, Keyword[]>> = {
+    awaken: ["superAwaken"],
+}
+function keywordMatches(has: Keyword, asked: Keyword): boolean {
+    return has === asked || (KEYWORD_INCLUDES[asked]?.includes(has) ?? false)
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
@@ -500,13 +511,13 @@ export function spiritHasKeyword(
         card(inst.cardId).effects.some(
             (e) =>
                 e.kind === "keyword" &&
-                e.keyword === keyword &&
+                keywordMatches(e.keyword, keyword) &&
                 (e.whileCombined !== true || instIsCombined(inst)),
         )
     ) {
         return true
     }
-    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
 
@@ -752,6 +763,7 @@ export type ResistanceCategory =
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
     | "exhaustImmune" // 相手の効果で疲労しない（exhaustImmunityGrant）
+    | "coresLocked" // このスピリットのコアは取り除けない（constraint:"coresCantBeRemoved"）。**お互いに効く**
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
@@ -807,6 +819,11 @@ export function boardResistanceAgainst(
         hasGlobalConstraint(board, "battlingEffectImmune")
     ) {
         return { category: "battlingImmune", label: "バトル中の効果免疫" }
+    }
+    // 「お互い、このスピリットのコアを取り除けない」（BS10-X01 幻羅星龍ガイ・アスラ）。
+    // **自分の効果も止める**ので、下の「相手の効果」限定より前で判定する
+    if (attempt.op === "coreRemove" && coresCantBeRemoved(board, targetOwnerPid, target)) {
+        return { category: "coresLocked", label: "コアを取り除けない" }
     }
     // ここから下はすべて「相手の効果」限定
     if (attempt.actorPid === targetOwnerPid) return null
@@ -1876,13 +1893,28 @@ export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean 
     return false
 }
 
+// この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。
+// 【覚醒】との違いはこの1点だけなので、判定もここに閉じる
+export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return spiritHasKeyword(board, ownerPid, inst, "superAwaken")
+}
+
+// このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
+// **効果でもプレイヤーの操作でも取り除けない**ので、耐性の判定表と、
+// コアが動くプレイヤー操作の入口（moveCore / 支払い元 / 【覚醒】の移動元）から呼ぶ
+export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
+}
+
 export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     const level = currentLevel(inst).level
+    // 【超覚醒】は【覚醒】を含む（KEYWORD_INCLUDES）。コアを集める操作自体は同じで、
+    // 違うのは「置いたとき回復する」の1点だけ（GameEngine.doAwaken が見る）
     const staticAwaken = card(inst.cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, level),
+        (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
-    return inst.tempKeywords.some((k) => k.keyword === "awaken")
+    return inst.tempKeywords.some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 

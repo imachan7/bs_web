@@ -1813,13 +1813,23 @@ export function refreshLevelAsOverrides(state: GameState): void {
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
     // 対象ごとに異なりうるため、発生源でなく対象カードのlevelsを参照する）。
     // "coresScaled" はコア数で換算する（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）
-    const resolveTreatAs = (treatAs: number | "max" | "coresScaled", inst: CardInstance): number => {
+    const resolveTreatAs = (
+        treatAs: number | "max" | "coresScaled" | { plus: number },
+        inst: CardInstance,
+    ): number => {
         const maxLevel = () => getCard(inst.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
         if (treatAs === "max") return maxLevel()
         if (treatAs === "coresScaled") {
             if (inst.cores >= 3) return maxLevel()
             if (inst.cores === 2) return 2
             return 1
+        }
+        if (typeof treatAs === "object") {
+            // 相対シフト（「Lvを1つ上のものとして扱う」）。**いまのレベル**を起点にする。
+            // 起点は素の currentLevel（この関数は refreshLevelAsOverrides の中で呼ばれ、
+            // levelAsContinuous を消したあとなので、コア数から求まる本来のレベルになっている）。
+            // そのカードの最高Lvで頭打ち（レベル表に無い値を入れると置き換えが黙って無視される）
+            return Math.min(maxLevel(), currentLevel(inst).level + treatAs.plus)
         }
         return treatAs
     }
