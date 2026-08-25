@@ -3,10 +3,10 @@
 // coverage:effects が「場に出ているのに一度も適用されていない」と報告した残り11件のうち、
 // keyword経由のもの（armor/clash/kyoshu/bofu-e1/seimei-e1）を除いた6件を潰す。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, declareBlock, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { effectSources } from "../../shared/rules"
+import { effectSources, hasArmorAgainst } from "../../shared/rules"
 import { effectiveCost } from "../../shared/cost"
 
 const BRAVES = ALL_CARDS.filter((c) => c.cardId.startsWith("BS10-") && c.type === "brave")
@@ -132,4 +132,39 @@ console.log("=== §L エンジェドール：【合体時】合体アタック�
     act(s, "p1", { type: "pass" })
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === enemy.instanceId),
         "Lv比較でLvの低い相手（Lv1）が破壊される（BP比較なら逆に相手が勝つはずの組み合わせ）")
+}
+
+console.log("=== §M 砲凰竜フェニック・キャノン：【合体時】【激突】アタック時、相手は可能ならブロックする ===")
+{
+    const s = game("bs10-phenix")
+    const { host } = combine(s, "p1", "砲凰竜フェニック・キャノン")
+    weakEnemy(s, "p2") // ブロック可能な相手（合体していない・cantBlockでない）
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体スピリットでアタック")
+    act(s, "p2", { type: "pass" })
+    const err = takeLifeAndResolve(s, "p2")
+    assert(err !== null, `【激突】によりライフで受けられない（ブロック可能な相手がいるため。エラー: ${err}）`)
+}
+
+console.log("=== §N フェンリルキャノンType-B：【合体時】【装甲：赤/紫】相手の赤/紫の効果を受けない ===")
+{
+    const s = game("bs10-fenrilb")
+    const { host } = combine(s, "p1", "フェンリルキャノンType-B")
+    assert(hasArmorAgainst(host, ["red"]), "赤の効果を受けない")
+    assert(hasArmorAgainst(host, ["purple"]), "紫の効果を受けない")
+    assert(!hasArmorAgainst(host, ["green"]), "緑の効果は装甲の対象外なので受ける")
+}
+
+console.log("=== §O バズーカ・アームズ：【合体時】【強襲：1】ネクサスを疲労させることで回復できる ===")
+{
+    const s = game("bs10-bazooka")
+    const { host } = combine(s, "p1", "バズーカ・アームズ")
+    const nexusCard = ALL_CARDS.find((c) => c.type === "nexus")!
+    const nexus = createInstance(nexusCard.cardId, s.turn, nexusCard.levels[0]!.cores)
+    s.players.p1.field.nexuses.push(nexus)
+    refreshLevelAsOverrides(s)
+    host.isRested = true
+    resolveAction(s, "p1", host, { type: "refreshSelfByExhaustNexus" })
+    assert(nexus.isRested, "ネクサスが疲労した")
+    assert(!host.isRested, "【強襲】でhostが回復した")
 }

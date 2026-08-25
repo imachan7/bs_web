@@ -1039,12 +1039,14 @@
       },
       {
         "id": "BS10-076-e3",
-        "kind": "constraint",
+        "kind": "triggered",
+        "trigger": "onAttack",
         "levels": null,
         "whileCombined": true,
-        "constraint": {
-          "type": "canBlockUnblockable"
-        }
+        "action": {
+          "type": "refreshSelfByExhaustNexus"
+        },
+        "optional": true
       }
     ]
   },
