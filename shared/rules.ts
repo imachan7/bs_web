@@ -117,6 +117,15 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
+        // **合体中のブレイヴ**（BRAVE.md §4）。これで aura / constraint / keywordGrant / fieldEvent /
+        // reviveOnDestroy / mustBlockGrant など走査すべてが【合体中】効果に対応する。
+        // ⚠️ ホストが「持つ効果すべては発揮されない」を受けていたら、**合体中ブレイヴの効果も止まる**
+        // （2026-08-25 ユーザー確認。§12 の1。合体スピリットは1体なので、その1体の効果が止まる）
+        ...player.field.combinedBraves.filter(
+            (b) =>
+                !instEffectsSuppressed(b) &&
+                hostsOf(player, b).some((h) => !instEffectsSuppressed(h)),
+        ),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
     ]
@@ -318,8 +327,13 @@ export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
 export function braveBpBonus(player: BoardPlayer, host: CardInstance): number {
     let total = 0
     for (const brave of bravesOf(player, host)) {
-        const level = braveLevelOf(host, brave)
-        const lv = card(brave.cardId).braveLevels?.find((l) => l.level === level)
+        // braveCombined が載っていれば currentLevel が合体状態のレベル表を引く（instLevels）。
+        // まだ載っていない（refreshLevelAsOverrides 前）ときのために braveLevelOf でも引けるようにしておく
+        if (brave.braveCombined === true) {
+            total += currentLevel(brave).bp
+            continue
+        }
+        const lv = card(brave.cardId).braveLevels?.find((l) => l.level === braveLevelOf(host, brave))
         if (lv !== undefined) total += lv.bp
     }
     return total
@@ -328,7 +342,10 @@ export function braveBpBonus(player: BoardPlayer, host: CardInstance): number {
 // スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
 // 合体状態の braveLevels ではなく通常の levels を引く
 export function braveKeepCores(brave: CardInstance): number {
-    return instMinLevelCores(brave)
+    // ⚠️ instMinLevelCores を通さないこと。合体中のブレイヴには braveCombined が載っていて、
+    // instLevels が**合体状態**のレベル表（Lv1=0コア）を返すため、必要コアが常に0になってしまう
+    // （2026-08-25 に実際に踏んだ）。ここが見たいのは**スピリット状態**のLv1維持コスト
+    return minLevelCoresOf(card(brave.cardId).levels)
 }
 
 // このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
@@ -356,7 +373,12 @@ export function matchesBraveCondition(
 // （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
 // **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
 export function instLevels(inst: CardInstance): LevelDef[] {
-    const levels = inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    // 合体中のブレイヴは**合体状態のレベル表**を引く（BRAVE.md §4。Lv1は0コアなので
+    // コアを持たなくても Lv1 が成立する）。判定に使うコア数は coresOverride に写した**ホストのコア数**
+    const levels =
+        inst.braveCombined === true
+            ? (card(inst.cardId).braveLevels ?? card(inst.cardId).levels)
+            : (inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
     // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
     // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
     const bonus = inst.levelCostBonusContinuous ?? 0

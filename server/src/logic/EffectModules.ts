@@ -1764,6 +1764,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
         for (const inst of [
             ...state.players[pid].field.spirits,
             ...state.players[pid].field.nexuses,
+            ...state.players[pid].field.combinedBraves,
         ]) {
             delete inst.levelAsContinuous
             delete inst.levelAsEffectsOnly
@@ -1776,6 +1777,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
+            // 合体中のブレイヴ側の目印。coresOverride は**ここでしか使っていない**ときだけ消す
+            // （クロスシザースのネクサスコア数リンクは field.nexuses に載るので混ざらない）
+            if (inst.braveCombined === true) {
+                delete inst.braveCombined
+                delete inst.coresOverride
+            }
         }
     }
     // 合体しているブレイヴがホストへ足すぶんを組み直す（docs/design/BRAVE.md §3）。
@@ -1794,6 +1801,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 composite.symbols.push(...master.symbol)
             }
             host.braveComposite = composite
+            for (const brave of braves) {
+                // 合体状態のレベル表を引かせる目印と、判定に使うコア数（＝ホストのコア数）。
+                // ⚠️ ホストの levelCostBonusContinuous（バァラル型「Lvコスト+N」）は**写さない**
+                // （§12 の5。上がるのはホストのLvコストだけ）
+                brave.braveCombined = true
+                brave.coresOverride = host.coresOverride ?? host.cores
+            }
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：

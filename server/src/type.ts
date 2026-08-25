@@ -1686,6 +1686,13 @@ export interface CardInstance {
     noRefreshTargetInstanceId?: string // このスピリットが「回復できない」と指定した**相手**スピリットのinstanceId（action:"markNoRefreshTarget"）。
     // このスピリット自身が疲労状態でフィールドにいる間だけ効く（EffectModules.isRefreshBlockedByMark が判定。スクルディア）。
     // 疲労し直すたびに上書きされる。指定先が場を離れても残るが、instanceId が一致しなくなるだけで無害
+    braveCombined?: true
+    // **合体中のブレイヴ側**に載る目印（docs/design/BRAVE.md §4）。
+    // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築し、あわせて coresOverride に
+    // **ホストのコア数**を写す。この2つで shared/rules の instLevels が合体状態のレベル表
+    // （CardData.braveLevels）を返し、currentLevel がホストのコア数で正しいレベルを出す。
+    // ⚠️ ここを素の levels のままにすると、合体中のブレイヴはコア0なので **Lv0 になり、
+    // 【合体中】効果が無言で発火しない**（TURN_EFFECT_SOURCES.md §3.3 と同型の事故）
     braveComposite?: { cost: number; colors: Color[]; symbols: Color[] }
     // **合体しているブレイヴがホストへ足すぶん**（docs/design/BRAVE.md §3）。
     // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築する（他の継続上書きと同じ扱い）。

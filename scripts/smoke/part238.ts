@@ -7,7 +7,7 @@ import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrid
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
 import { destroySpirit, returnSpiritToHand, flushBounces } from "../../server/src/logic/removal"
-import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp } from "../../shared/rules"
+import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 
 const HOST = "BS01-001" // ゴラドン（赤・コスト0・系統「爬獣」・Lv1=1コア）
@@ -268,4 +268,50 @@ console.log("=== §J 分離したら合成は消える ===")
     assert(brave.braveComposite === undefined, "分離したブレイヴ自身は合成値を持たない")
     assert(instBaseCost(brave) === getCard(BRAVE).cost, "スピリット状態のコストは自分のコストだけ")
     assert(instColors(brave).join() === getCard(BRAVE).colors.join(), "色も自分の色だけ（混色でなくなる）")
+}
+
+// ---- 段階4：【合体中】効果は effectSources に相乗りする（BRAVE.md §4） ----
+console.log("=== §K 合体中ブレイヴが効果の発生源になる（レベル判定はホストのコア数で引く） ===")
+{
+    // 【合体中】Lv2で「自分のスピリットすべてBP+2000」を持つテスト用ブレイヴ
+    const AURA = makeBrave("TEST-BRAVE-AURA", {
+        effects: [{ id: "TEST-BRAVE-AURA-e1", kind: "aura", levels: [2], aura: { type: "bp", target: "ownAll", amount: 2000 } }],
+    } as never).cardId
+
+    const s = base()
+    const host = putHost(s, "p1", 1)
+    const ally = createInstance(HOST, s.turn, 1)
+    s.players.p1.field.spirits.push(ally)
+    s.players.p1.hand = [AURA]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    const brave = s.players.p1.field.combinedBraves[0]!
+
+    // ⚠️ 合体中のブレイヴはコアを持たないので、素の levels を引くと Lv0 になって効果が無言で消える
+    assert(brave.braveCombined === true, "合体中の目印が載っている")
+    assert(currentLevel(brave).level === 1, "ホストのコア1個 → 合体状態Lv1（コア0でも Lv0 にならない）")
+    const allyBase = getCard(HOST).levels[0]!.bp
+    assert(effectiveBp(s, "p1", ally) === allyBase, "Lv1ではオーラが発揮されない（levels:[2] のため）")
+
+    host.cores = 3
+    refreshLevelAsOverrides(s)
+    assert(currentLevel(brave).level === 2, "ホストのコアを3個にすると合体状態Lv2")
+    assert(effectSources(s, "p1").some((x) => x.instanceId === brave.instanceId),
+        "合体中ブレイヴが effectSources に含まれる")
+    assert(effectiveBp(s, "p1", ally) === allyBase + 2000, "【合体中】Lv2のオーラが味方に効く")
+
+    // ⚠️ ホストが「持つ効果すべては発揮されない」を受けたら、合体中ブレイヴの効果も止まる（§12 の1）
+    host.effectsDisabledContinuous = true
+    assert(!effectSources(s, "p1").some((x) => x.instanceId === brave.instanceId),
+        "ホストの効果が止まっていれば、合体中ブレイヴも発生源から外れる")
+    assert(effectiveBp(s, "p1", ally) === allyBase, "オーラも止まる")
+    delete host.effectsDisabledContinuous
+
+    // 分離したら合体状態の目印が外れ、スピリット状態のレベル表に戻る
+    s.players.p1.reserve = getCard(AURA).levels[0]!.cores
+    destroySpirit(s, "p1", host.instanceId, "destroy")
+    refreshLevelAsOverrides(s)
+    const separated = s.players.p1.field.spirits.find((sp) => sp.cardId === AURA)!
+    assert(separated.braveCombined === undefined, "分離したら合体中の目印が外れる")
+    assert(separated.coresOverride === undefined, "ホストのコア数の写しも消える")
+    assert(currentLevel(separated).level === 1, "スピリット状態のレベル表で判定される")
 }
