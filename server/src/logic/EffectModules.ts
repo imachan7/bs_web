@@ -119,6 +119,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    effectSourceTypeOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -2843,7 +2844,7 @@ export function resolveAction(
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
-    const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
+    const srcType = sourceType ?? (self ? effectSourceTypeOf(getCard(self.cardId).type) : undefined)
     const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する

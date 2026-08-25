@@ -22,7 +22,7 @@ import { loadAllCards } from "../data/loadCards"
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
-const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
+const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 
 // TriggerEvent（server/src/type.ts）に対応する誘発イベント名。
 // cards.json は型検査対象外のため、trigger 名の改名・削除がここで検出されないと
@@ -318,7 +318,40 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                     prevCores = lv.cores
                 }
             }
-            if (c.symbol.length === 0) add(id, `${c.type} なのに symbol が空`)
+            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）
+            if (c.symbol.length === 0 && c.type !== "brave") add(id, `${c.type} なのに symbol が空`)
+        }
+
+        // --- ブレイヴ（docs/design/BRAVE.md §9）---
+        if (c.type === "brave") {
+            if (!Array.isArray(c.braveLevels) || c.braveLevels.length === 0) {
+                add(id, "brave なのに braveLevels（合体状態のレベル表）が無い")
+            } else {
+                // 合体中のブレイヴはコアを持たない（コアはホスト側に集約される）。
+                // Lv1 の cores が 0 でないと currentLevel が Lv0 に落ち、【合体中】効果が無言で発火しなくなる
+                const lv1 = c.braveLevels.find((lv: { level: number }) => lv.level === 1)
+                if (!lv1) add(id, "braveLevels に Lv1 が無い")
+                else if (lv1.cores !== 0) add(id, `braveLevels の Lv1 の cores が 0 でない（${lv1.cores}）`)
+                let prevLevel = 0
+                let prevCores = -1
+                for (const lv of c.braveLevels) {
+                    if (lv.level <= prevLevel) add(id, `braveLevels の level が昇順でない（${lv.level}）`)
+                    if (lv.cores < prevCores) add(id, `braveLevels の cores が昇順でない（Lv${lv.level}=${lv.cores}）`)
+                    prevLevel = lv.level
+                    prevCores = lv.cores
+                }
+            }
+            const terms = c.braveCondition === undefined ? [] : Array.isArray(c.braveCondition) ? c.braveCondition : [c.braveCondition]
+            if (terms.length === 0) add(id, "brave なのに braveCondition（合体条件）が無い")
+            for (const t of terms) {
+                const keys = Object.keys(t as Record<string, unknown>)
+                if (keys.length === 0) add(id, "braveCondition の項が空")
+                for (const k of keys) {
+                    if (!["family", "minCost", "cardName"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                }
+            }
+        } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {
+            add(id, `type が ${String(c.type)} なのに braveLevels/braveCondition を持つ`)
         }
 
         // --- 効果 ---

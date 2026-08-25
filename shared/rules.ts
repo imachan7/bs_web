@@ -15,6 +15,7 @@ import type {
     CardData,
     CardInstance,
     CardType,
+    EffectSourceType,
     Color,
     FamilyFilter,
     Keyword,
@@ -209,6 +210,13 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 // （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+// カード種別を「効果の発生源の種別」へ落とす。**ブレイヴはスピリット扱い**
+// （単体で場に出たブレイヴはスピリットそのもの。合体中の【合体中】効果も合体スピリット＝1体のスピリットの効果）。
+// ここを通さずに CardData.type をそのまま渡すと、"brave" が sourceTypes:["spirit"] の絞り込みをすり抜ける
+export function effectSourceTypeOf(type: CardType): EffectSourceType {
+    return type === "brave" ? "spirit" : type
+}
+
 export function instColors(inst: CardInstance): Color[] {
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)

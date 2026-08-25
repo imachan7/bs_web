@@ -105,6 +105,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    effectSourceTypeOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1065,7 +1066,7 @@ export function fireFieldEventTriggers(
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),
-                srcType: getCard(inst.cardId).type,
+                srcType: effectSourceTypeOf(getCard(inst.cardId).type),
             }
         }
         return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }

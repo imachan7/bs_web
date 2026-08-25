@@ -26,7 +26,9 @@ export interface BoardPlayer {
     hand: string[] | null
     handCount?: number // 手札の枚数（内容は隠匿されても枚数は公開情報。GameView.PlayerViewは常に持つ。サーバーのPlayerStateは持たないため未指定=hand.lengthから求める（handSizeOfを使うこと。BS08ブラックウガルルムLv2）
     tegamoto: string[]
-    field: { spirits: CardInstance[]; nexuses: CardInstance[] }
+    // combinedBraves は合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3）。
+    // **spirits/nexuses と違いフィールド走査の対象ではない**。効果発生源としてだけ読む（effectSources）
+    field: { spirits: CardInstance[]; nexuses: CardInstance[]; combinedBraves: CardInstance[] }
     turnVirtualInstances: CardInstance[] // このターンの間だけ有効な仮想の効果発生源（マジックが貸した継続効果）。effectSources() が参照する
     battleVirtualInstances: CardInstance[] // 上のバトル限定版（lendSelfThisBattle）。同じく effectSources() が参照し、clearBattle で消える
 }

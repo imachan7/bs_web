@@ -166,7 +166,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         trashCards: [],
         tegamoto: [],
         tegamotoPlayable: [],
-        field: { spirits: [], nexuses: [] },
+        field: { spirits: [], nexuses: [], combinedBraves: [] },
         turnVirtualInstances: [],
         battleVirtualInstances: [],
     }
@@ -575,6 +575,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         field: {
             spirits: player.field.spirits.map(forView),
             nexuses: player.field.nexuses.map(forView),
+            combinedBraves: player.field.combinedBraves.map(forView),
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),

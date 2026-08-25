@@ -11,7 +11,14 @@ export type Phase =
     | "end"
 
 export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
-export type CardType = "spirit" | "nexus" | "magic"
+// ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
+// 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
+export type CardType = "spirit" | "nexus" | "magic" | "brave"
+
+// **効果の発生源の種別**。装甲・マジック効果耐性・「相手の◯のスピリットの効果では破壊されない」などが読む。
+// ブレイヴは単体で場に出ても合体中でも**スピリットとして扱われる**ため、ここに "brave" は入らない
+// （docs/design/BRAVE.md §1.1）。CardType からの変換は shared/rules.ts の effectSourceTypeOf を通すこと
+export type EffectSourceType = "spirit" | "nexus" | "magic"
 
 // デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 export type DeckSpec = string | Record<string, number>
@@ -22,6 +29,15 @@ export interface LevelDef {
     cores: number
     bp: number
 }
+
+// ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。
+// TargetFilter と軸が似ているが「対象は合体先スピリット1体」で意味が違うため共用しない
+export interface BraveConditionTerm {
+    family?: string // 系統
+    minCost?: number // コスト◯以上
+    cardName?: string // カード名指定
+}
+export type BraveCondition = BraveConditionTerm | BraveConditionTerm[]
 
 // コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 export interface PaySource {
@@ -1568,6 +1584,10 @@ export interface CardData {
     limitCount?: number // 制限カード（同名の最大投入数。3枚未満に制限する場合のみ指定。省略時は通常の3枚まで）
     effect: string // 表示用テキスト（原文）
     effects: EffectDef[] // 構造化された効果（未対応の効果は含まれない）
+    // ---- type === "brave" のときだけ持つ（docs/design/BRAVE.md §2.2）----
+    braveLevels?: LevelDef[] // 合体状態のレベル表。bp は「合体時BP+」の加算値、cores は**合体スピリット上の**コア数で判定する。
+    // Lv1 の cores は 0（合体中のブレイヴはコアを持たないため。これで currentLevel が Lv0 に落ちない）
+    braveCondition?: BraveCondition // 合体条件（満たすスピリットにのみ合体できる）
 }
 
 // 盤面インスタンス（可変）。data.md 6.2 に対応
@@ -1664,6 +1684,10 @@ export interface CardInstance {
     noRefreshTargetInstanceId?: string // このスピリットが「回復できない」と指定した**相手**スピリットのinstanceId（action:"markNoRefreshTarget"）。
     // このスピリット自身が疲労状態でフィールドにいる間だけ効く（EffectModules.isRefreshBlockedByMark が判定。スクルディア）。
     // 疲労し直すたびに上書きされる。指定先が場を離れても残るが、instanceId が一致しなくなるだけで無害
+    braveRefs?: { slot: "left" | "right" | "single"; instanceId: string }[]
+    // **合体しているブレイヴへの参照**（ホスト側に載る。docs/design/BRAVE.md §2.3）。実体は field.combinedBraves にあり、
+    // ここは instanceId で指すだけ。通常のブレイヴは slot:"single" の1本。異魔神ブレイヴ（1枚がスピリット2体に合体）は
+    // **実体1つ・参照2本**になるので、入れ子（host.braves）にせず参照方式にしてある（§11.2）
 }
 
 // プレイヤーの状態
@@ -1686,6 +1710,9 @@ export interface PlayerState {
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]
+        combinedBraves: CardInstance[] // 合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3・§2.4）。
+        // **フィールド走査の対象に入れない**（spirits に置くと合体スピリットが2体に数えられ、
+        // シンボルの二重計上・destroyAll の二重ヒット・コア0での維持コア割れ消滅が起きる）
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 手札のカードに一時付与されたキーワード（grantKeywordToHandCard。ターン終了でリセット。ビートプリースト）
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。
@@ -1916,7 +1943,7 @@ export type ResumeFrame =
           logText?: string
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
-          sourceType?: CardType // 発生源の種別（同上）
+          sourceType?: EffectSourceType // 発生源の種別（同上）
       }
     | {
           kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
@@ -2188,6 +2215,7 @@ export interface PlayerView {
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]
+        combinedBraves: CardInstance[] // 公開情報のため自分/相手とも常に配信する（合体表示に要る）
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 自分のみ。相手は常に省略（手札内容に紐づくため）
     payToNegate?: boolean // 自分のみ。「手札を破棄して効果を受けない」を払う方針か（UIのトグル表示用。未指定は true 扱い）
