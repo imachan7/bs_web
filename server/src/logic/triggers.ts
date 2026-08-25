@@ -106,6 +106,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     effectActiveOn,
+    isOnFieldAnyZone,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -610,11 +611,9 @@ function confirmPromptIfOptional(
 // 発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 // 「集めてから解決する」形では、先に解決した効果で発生源が破壊されうるので都度確かめる
 function isStillOnField(state: GameState, pid: PlayerId, instanceId: string): boolean {
-    const player = state.players[pid]
-    return (
-        player.field.spirits.some((x) => x.instanceId === instanceId) ||
-        player.field.nexuses.some((x) => x.instanceId === instanceId)
-    )
+    // 合体中のブレイヴも「場にいる」（効果の発生源になる。BRAVE.md §2.3）。
+    // ここを spirits/nexuses だけにすると、【合体時】の fieldEvent が丸ごと飛ばされる
+    return isOnFieldAnyZone(state.players[pid], instanceId)
 }
 
 // ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する

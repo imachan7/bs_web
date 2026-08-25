@@ -495,6 +495,20 @@ export function isSpiritOnField(board: Board, pid: PlayerId, instanceId: string)
     return board.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
 }
 
+// この個体が**まだ場にいるか**（スピリット／ネクサス／**合体中のブレイヴ**）。
+// ⚠️ 合体中のブレイヴは field.spirits の走査には入らないが、カードとしては場に存在し、
+// 効果の発生源にもなる（docs/design/BRAVE.md §2.3）。
+// 「場を離れたら発火させない」種類の判定は**必ずこれを通すこと**：
+// field.spirits だけを見ると、合体中のブレイヴの効果が丸ごと無言で消える
+// （2026-08-25 に fireSummonSequence と fireFieldEventTriggers で実際に踏んだ）
+export function isOnFieldAnyZone(player: BoardPlayer, instanceId: string): boolean {
+    return (
+        player.field.spirits.some((x) => x.instanceId === instanceId) ||
+        player.field.nexuses.some((x) => x.instanceId === instanceId) ||
+        player.field.combinedBraves.some((x) => x.instanceId === instanceId)
+    )
+}
+
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
 
 // 状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。

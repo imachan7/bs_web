@@ -1,0 +1,642 @@
+[
+  {
+    "cardId": "BS10-061",
+    "name": "剣鎧竜バスター・ドラゴン",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "機竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリットすべてをBP+2000する。\n合体条件：効果の記述を持たない\n【合体時】『このスピリットの合体アタック時』\nBP合計3000まで相手のスピリットを好きなだけ破壊する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-061-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "bpBuffAll",
+          "amount": 2000
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-061-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "destroyByBpBudget",
+          "budget": 3000
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-062",
+    "name": "砲凰竜フェニック・キャノン",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機竜",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nBP4000以下の相手のスピリット2体を破壊する。\nまたは、BP4000以下の相手のスピリット1体と相手のネクサス1つを破壊する。\n合体条件：コスト3以上\n【合体時】【激突】『このスピリットのアタック時』\n相手は可能ならスピリットでブロックする。\nただし、アルティメットでブロックしてもよい。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 3
+    },
+    "effects": [
+      {
+        "id": "BS10-062-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "スピリット2体",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "count": 2,
+                  "filter": {
+                    "maxBp": 4000
+                  }
+                }
+              ]
+            },
+            {
+              "label": "スピリット1体とネクサス1つ",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "count": 1,
+                  "filter": {
+                    "maxBp": 4000
+                  }
+                },
+                {
+                  "type": "destroyNexus",
+                  "count": 1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS10-062-e2",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": null,
+        "whileCombined": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-063",
+    "name": "飛槍獣バリ・スター",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "皇獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\nBPを比べ相手のスピリットだけを破壊したとき、そのスピリットと同じ系統を持つ相手のスピリットすべてを破壊する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS10-063-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "destroyAll",
+          "filter": {
+            "sameFamilyAsBattleLoser": true
+          }
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-064",
+    "name": "骸戦車ゲパルバート",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分はデッキから1枚ドローする。\n合体条件：効果の記述を持たない\n【合体時】『このスピリットのアタック時』\n疲労状態の相手のスピリット1体を破壊する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-064-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "draw",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-064-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "rested": true
+          }
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-067",
+    "name": "からくり犬シバ",
+    "type": "brave",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "樹魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nボイドからコア1個を自分のリザーブに置く。\n合体条件：効果の記述を持たない\n【合体時】『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-067-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "coreGain",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-067-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "refreshSelf"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-068",
+    "name": "ビーム・ビートル",
+    "type": "brave",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "purple"
+    ],
+    "family": [
+      "殻虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\n相手のスピリット1体を疲労させる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS10-068-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-069",
+    "name": "千刀鳥カクレイン",
+    "type": "brave",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "green",
+      "green",
+      "white",
+      "white"
+    ],
+    "family": [
+      "爪鳥",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】【暴風：2】『このスピリットの合体アタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット2体を疲労させる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS10-069-e1",
+        "kind": "keyword",
+        "keyword": "bofu",
+        "count": 2,
+        "levels": null,
+        "whileCombined": true
+      },
+      {
+        "id": "BS10-069-e2",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "exhaust",
+          "count": 2,
+          "chooserIsTarget": true,
+          "excludeTarget": true,
+          "countFromBofu": true
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-071",
+    "name": "フェンリルキャノンType-B",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "green"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】【装甲：赤/紫】\nこのスピリットは、相手の赤/紫のスピリット/ネクサス/マジックの効果を受けない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS10-071-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": null,
+        "whileCombined": true,
+        "colors": [
+          "red",
+          "purple"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-075",
+    "name": "オニユリン",
+    "type": "brave",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "楽族"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】【聖命】『このスピリットの合体アタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS10-075-e1",
+        "kind": "keyword",
+        "keyword": "seimei",
+        "levels": null,
+        "whileCombined": true
+      },
+      {
+        "id": "BS10-075-e2",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-078",
+    "name": "聖鎧獣アメミード",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】『自分のアタックステップ』\nこのスピリットは最高Lvとして扱う。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS10-078-e1",
+        "kind": "levelAs",
+        "levels": null,
+        "whileCombined": true,
+        "target": "self",
+        "treatAs": "max",
+        "phase": "attack",
+        "turn": "own"
+      }
+    ]
+  }
+]

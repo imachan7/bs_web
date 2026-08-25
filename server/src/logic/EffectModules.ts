@@ -121,6 +121,8 @@ import {
     spiritHasKeyword,
     bravesOf,
     isEndStepLocked,
+    instIsCombined,
+    isOnFieldAnyZone,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1100,9 +1102,15 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // refreshLevelAsOverrides は冒頭で継続分を delete して組み直す冪等な関数なので、重ねて呼んでも安全
     refreshLevelAsOverrides(state)
     const player = state.players[pid]
-    // 転召でコアが尽きて消滅していれば、もう何もしない
-    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
+    // 転召でコアが尽きて消滅していれば、もう何もしない。
+    // ⚠️ **ダイレクトブレイヴは field.combinedBraves に入る**ので、spirits だけを見ると
+    // ここで打ち切られて『このブレイヴの召喚時』効果が丸ごと発火しない（2026-08-25 に実際に踏んだ）
+    if (!isOnFieldAnyZone(player, inst.instanceId)) return
     fireSummonTrigger(state, pid, inst)
+    // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
+    // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
+    // 合体した状態で出たブレイヴは対象にならない（合体スピリットは既に場にいたものが状態を変えただけ）。
+    // 単体でスピリットとして召喚されたブレイヴは field.spirits に入るので、そちらは対象になる
     const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
     if (!state.winner && stillOnField()) {
         // 【不死】による召喚も「召喚」なのでこのイベントを起こす。byFushi は
@@ -2014,6 +2022,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind !== "levelAs") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
+                // 【合体時】：発生源が合体しているときだけ（BS10-078 聖鎧獣アメミード）
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
                 if (
                     effect.sourceMinLevel !== undefined &&
                     rawLevel(source) < effect.sourceMinLevel
