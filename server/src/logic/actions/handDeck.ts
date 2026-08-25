@@ -10,6 +10,7 @@ import {
     resistanceAgainst,
     countEffectCounter,
     destroySpirit,
+    detachBravesOnLeave,
     drawDoubleMultiplier,
     findSpiritAny,
     payCost,
@@ -2026,6 +2027,7 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
         if (self.pendingDestruction) {
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
+                detachBravesOnLeave(state, owner, self) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
                 player.field.spirits.splice(fieldIdx, 1)
                 player.reserve += self.cores
             }

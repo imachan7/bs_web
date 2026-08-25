@@ -82,6 +82,8 @@ import {
     checkAuraCondition,
     costCantAct,
     countAuraCounter,
+    braveKeepCores,
+    bravesOf,
     countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
@@ -197,6 +199,52 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
         }
     }
     return false
+}
+
+// ---- ブレイヴの分離（docs/design/BRAVE.md §6）----
+
+// **ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**
+// 場を離れる経路は破壊だけではない（維持コア割れの消滅・手札へ戻る・デッキへ戻る・
+// ターン終了でネクサスに戻る）。**入口ごとに書くと必ずどれかを忘れる**ので、
+// `field.spirits` から個体を抜くすべての箇所がこれを通る（§6.1.1）。
+//
+// 残すには「自分のフィールド/リザーブから **Lv1の維持コスト以上のコア**を置く」必要がある（§1.4）。
+// **非対話（テスト・AI）ではリザーブから払えるなら自動で残す。**
+// プレイヤーに置き方を選ばせる対話版は段階5（`PayingState` の3つ目の起点が要る。§6.3）。
+export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
+    const player = state.players[ownerPid]
+    const braves = bravesOf(player, host)
+    if (braves.length === 0) return
+    // 先に参照を切る。異魔神ブレイヴ（実体1つ・参照2本）は、
+    // **もう片方のホストがまだ生きていれば合体したまま**にする
+    delete host.braveRefs
+    const wasAttacker = state.battle?.attackerInstanceId === host.instanceId
+    const wasBlocker = state.battle?.blockerInstanceId === host.instanceId
+    for (const brave of braves) {
+        if (player.field.spirits.some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
+            continue // まだ別のホストと合体している
+        }
+        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+        if (at !== -1) player.field.combinedBraves.splice(at, 1)
+        const name = getCard(brave.cardId).name
+        const need = braveKeepCores(brave)
+        if (player.reserve < need) {
+            // 残せない → **合体元と同時にトラッシュへ**（§1.4）。合体中のコアは0なので戻すコアは無い
+            player.trashCards.push(brave.cardId)
+            log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
+            continue
+        }
+        player.reserve -= need
+        brave.cores = need
+        // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
+        brave.isRested = host.isRested
+        player.field.spirits.push(brave)
+        log(state, `${player.name}の${name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
+        // アタック中なら、ブレイヴがそのままバトルを引き継ぐ（§6.2 の5）。
+        // **アタック宣言はやり直さない**＝アタック時効果は再発揮しない（2026-08-25 ユーザー確認。§12 の7）
+        if (state.battle && wasAttacker) state.battle.attackerInstanceId = brave.instanceId
+        else if (state.battle && wasBlocker) state.battle.blockerInstanceId = brave.instanceId
+    }
 }
 
 // ---- スピリット／ネクサスの除去 ----
@@ -375,6 +423,7 @@ export function commitPendingDestruction(
         delete inst.pendingDestruction
         return
     }
+    detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
@@ -1166,6 +1215,7 @@ function tryReviveOnDestroy(
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
         if ("toHand" in revived) {
+            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
@@ -1580,6 +1630,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
             if (!pb) continue
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1）
             player.field.spirits.splice(index, 1)
             player.reserve += inst.cores
             delete inst.pendingBounce

@@ -398,8 +398,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | --: | :-- | :-- |
 | ~~0~~ | ~~【激突】の動作確認~~ | **解消済み（§8）** |
 | ~~1~~ | **完了（2026-08-25）**。`CardType` に `"brave"` を追加。`field.combinedBraves` / `CardInstance.braveRefs` / `CardData.braveLevels` / `braveCondition` を追加。**まだ合体はできない** | 既存が無変更で通る |
-| 2 | 合体・分離のエンジン処理（`doSummon` の分岐・場を離れる4経路の共通入口・疲労合成） | 合体/分離の smoke |
-| 3 | BP・シンボル・**コスト**の合成（§3 の4関数） | BP表示・ライフダメージ・軽減・コスト判定の smoke |
+| ~~2~~ | **完了（2026-08-25）**。合体・分離のエンジン処理（`doSummon` の分岐・場を離れる**5経路**の共通入口・疲労合成） | `scripts/smoke/part238.ts` |
+| 3 | BP・シンボル・**コスト**・**色**の合成（§3 の5関数） | BP表示・ライフダメージ・軽減・コスト判定・装甲の smoke |
 | 4 | `effectSources()` に合体中ブレイヴを含める＋合体状態のレベル判定（§4） | 【合体中】効果の smoke＋**計測点の追加** |
 | 5 | 分離のコア支払いUI（§6.3）※ `PayingState` の拡張は UI担当と形を合意 | 対話モードの smoke |
 | 6 | 実カードの構造化（**先に BS10 の取り込みが要る**） | カードごとの smoke |

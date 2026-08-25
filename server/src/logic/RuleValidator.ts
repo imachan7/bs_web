@@ -27,7 +27,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, instColors } from "../../../shared/rules"
+import { boardResistanceAgainst, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -104,12 +104,27 @@ export function validateSummon(
     level?: number,
     substituteInstanceId?: string,
     discardHandIndices?: number[],
+    // 指定時は**ダイレクトブレイヴ**（合体先のスピリットを選んで、合体した状態で召喚する）。
+    // docs/design/BRAVE.md §5。省略時、ブレイヴは**スピリットとして**通常どおり召喚される（§1.1）
+    braveTargetInstanceId?: string,
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
-    if (card.type !== "spirit") return "スピリットカードではありません"
+    // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
+    if (card.type !== "spirit" && card.type !== "brave") return "スピリットカードではありません"
+
+    // ダイレクトブレイヴの追加検証（§5.3）
+    if (braveTargetInstanceId !== undefined) {
+        if (card.type !== "brave") return "ブレイヴカードではありません"
+        const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
+        if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
+        if ((host.braveRefs ?? []).length > 0) return "そのスピリットには既にブレイヴが合体しています"
+        if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
+        // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
+        if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"
+    }
 
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
     // 手札に戻すことを**追加コスト**として、フラッシュで疲労状態の召喚を行う。
@@ -156,7 +171,8 @@ export function validateSummon(
 
     // フィールドのスピリット数上限（旋風渦巻く渓谷＝5体以上召喚できない）。
     // 効果文が『お互いのメインステップ』のため、メインステップの通常召喚のみを制限する（神速召喚は対象外）
-    if (!flashSummon && state.phase === "main") {
+    // ダイレクトブレイヴは合体するだけでスピリットの**体数が増えない**ので、上限の対象外
+    if (!flashSummon && state.phase === "main" && braveTargetInstanceId === undefined) {
         const cap = maxSpiritsOnField(state)
         if (cap !== null && player.field.spirits.length >= cap) {
             return `効果により、スピリットは${cap}体までしか召喚できません`
@@ -180,9 +196,12 @@ export function validateSummon(
     }
 
     const cost = effectiveCost(state, pid, card)
-    // レベル指定時はそのレベルのコア数を置く（省略時はLv1）
-    const placeError = validateSummonLevel(card, level)
-    if (placeError) return placeError
+    // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
+    // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
+    if (braveTargetInstanceId === undefined) {
+        const placeError = validateSummonLevel(card, level)
+        if (placeError) return placeError
+    }
     // 【転召】：コアを置く対象になる自分のスピリットがいなければ召喚できない（2026-08-13 修正）。
     // 以前は召喚を通したうえで「対象がいなかった」とログするだけで、犠牲なしに出せてしまっていた。
     // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
@@ -207,7 +226,12 @@ export function validateSummon(
             return "その支払いでは、【転召】でコアを置く自分のスピリットがいなくなります"
         }
     }
-    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    const maintain =
+        braveTargetInstanceId !== undefined
+            ? 0 // ダイレクトブレイヴは維持コアを置かない
+            : level === undefined
+              ? minLevelCores(card)
+              : (coresForLevel(card, level) ?? 0)
     // BS08ビクティム：召喚コストの一部・全部を手札破棄で支払える（置くコアは対象外）。
     // doSummon と同じ関数で枚数を出すので、検証と実行がズレない
     const discardError = validateSummonHandDiscard(state, pid, handIndex, cost, discardHandIndices)

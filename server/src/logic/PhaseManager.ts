@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, getCard, log, pushResumeFrames } from "./GameState"
-import { activeConstraints, coreStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -179,6 +179,7 @@ export function endTurn(state: GameState): void {
         for (const inst of [...field.spirits]) {
             if (inst.asSpiritThisTurn === undefined) continue
             delete inst.asSpiritThisTurn
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             field.spirits.splice(field.spirits.indexOf(inst), 1)
             field.nexuses.push(inst)
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)

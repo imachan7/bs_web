@@ -262,6 +262,74 @@ function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: 
     return { level: result.level, bp: result.bp + (result.level > 0 ? buff : 0) }
 }
 
+// ---- ブレイヴ（docs/design/BRAVE.md §2.3）----
+//
+// 合体中のブレイヴの実体は `field.combinedBraves` にあり、ホストは `braveRefs` で参照する。
+// **参照の解決を各所に散らさないため、必ずこの3つを通すこと。**
+
+// ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
+export function bravesOf(player: BoardPlayer, host: CardInstance): CardInstance[] {
+    const refs = host.braveRefs
+    if (refs === undefined || refs.length === 0) return []
+    const found: CardInstance[] = []
+    for (const r of refs) {
+        const b = player.field.combinedBraves.find((x) => x.instanceId === r.instanceId)
+        if (b !== undefined && !found.includes(b)) found.push(b)
+    }
+    return found
+}
+
+// ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
+export function hostsOf(player: BoardPlayer, brave: CardInstance): CardInstance[] {
+    return player.field.spirits.filter((s) =>
+        (s.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId),
+    )
+}
+
+// 合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
+// ブレイヴの `braveLevels` で引く。合体状態の Lv1 は 0 コアなので、コア0でも Lv1 になる。
+//
+// ⚠️ ホストの `levelCostBonusContinuous`（バァラル型「Lvコストを+N」）は**足さない**
+// （2026-08-25 ユーザー確認。BRAVE.md §12 の5。上がるのはホストのLvコストだけ）。
+// そのため instLevels ではなくカード静的な braveLevels を直接引く
+export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
+    const levels = card(brave.cardId).braveLevels
+    if (levels === undefined || levels.length === 0) return 0
+    const coreCount = host.coresOverride ?? host.cores
+    let level = 0
+    for (const lv of levels) {
+        if (coreCount >= lv.cores && lv.level > level) level = lv.level
+    }
+    return level
+}
+
+// スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
+// 合体状態の braveLevels ではなく通常の levels を引く
+export function braveKeepCores(brave: CardInstance): number {
+    return instMinLevelCores(brave)
+}
+
+// このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
+// 条件の配列は OR（効果文の読点区切り）。ホスト側の「既にブレイヴが付いている」判定は
+// 呼び出し側（RuleValidator）が見る
+export function matchesBraveCondition(
+    board: Board,
+    hostOwnerPid: PlayerId,
+    host: CardInstance,
+    braveCardId: string,
+): boolean {
+    const cond = card(braveCardId).braveCondition
+    if (cond === undefined) return false
+    const terms = Array.isArray(cond) ? cond : [cond]
+    if (terms.length === 0) return false
+    return terms.some((t) => {
+        if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
+        if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
+        if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
+        return true
+    })
+}
+
 // このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う
 // （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
 // **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
