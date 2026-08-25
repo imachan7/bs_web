@@ -3,7 +3,7 @@
 // coverage:effects が「場に出ているのに一度も適用されていない」と報告した残り11件のうち、
 // keyword経由のもの（armor/clash/kyoshu/bofu-e1/seimei-e1）を除いた6件を潰す。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, declareBlock, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, takeLifeAndResolve } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, getCard, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { effectSources, hasArmorAgainst } from "../../shared/rules"
@@ -163,8 +163,10 @@ console.log("=== §O バズーカ・アームズ：【合体時】【強襲：1�
     const nexus = createInstance(nexusCard.cardId, s.turn, nexusCard.levels[0]!.cores)
     s.players.p1.field.nexuses.push(nexus)
     refreshLevelAsOverrides(s)
-    host.isRested = true
-    resolveAction(s, "p1", host, { type: "refreshSelfByExhaustNexus" })
+    // アタック宣言でhostは疲労するので、そのまま『合体アタック時』の【強襲】発動を確認できる
+    // （疲労付与はonAttackトリガーより前。GameEngine.doAttack）
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体スピリットでアタック")
     assert(nexus.isRested, "ネクサスが疲労した")
     assert(!host.isRested, "【強襲】でhostが回復した")
 }
