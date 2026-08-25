@@ -105,6 +105,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    effectActiveOn,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -269,7 +270,10 @@ export function fireTrigger(
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
-        if (!effectActiveAtLevel(effect.levels, level)) return false
+        // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
+        // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
+        // 2026-08-25 ユーザー確認）
+        if (!effectActiveOn(selfInstance, effect, level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
@@ -861,7 +865,7 @@ export function fireFieldEventTriggers(
             if (effect.event !== event) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!effectActiveOn(inst, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
             if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue

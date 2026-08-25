@@ -73,6 +73,28 @@ export function effectActiveAtLevel(levels: number[] | null, level: number): boo
     return levels === null || levels.includes(level)
 }
 
+// このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
+// ホスト側のスピリット（ブレイヴを参照している）と、合体中のブレイヴ自身の両方で true。
+// **盤面を見ない純粋な述語**なので、どの層からでも呼べる
+export function instIsCombined(inst: CardInstance): boolean {
+    return (inst.braveRefs?.length ?? 0) > 0 || inst.braveCombined === true
+}
+
+// 効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
+//
+// ⚠️ `whileCombined` を宣言しているのは **keyword / triggered / aura / constraint / fieldEvent** の5 kind だけ
+// （server/src/type.ts）。他の kind に書くと validate:cards の「型宣言の無いキー」検査が落ちるので、
+// **ゲートを実装していない kind に 【合体時】 が無言で素通りすることはない**。
+// 新しい kind に【合体時】が要るようになったら、型宣言と走査の両方を足すこと
+export function effectActiveOn(
+    inst: CardInstance,
+    effect: { levels: number[] | null; whileCombined?: true },
+    level: number,
+): boolean {
+    if (!effectActiveAtLevel(effect.levels, level)) return false
+    return effect.whileCombined !== true || instIsCombined(inst)
+}
+
 // カードに効果の記述を持たない（バニラ）か
 export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
@@ -472,7 +494,18 @@ export function spiritHasKeyword(
     // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
-    if (hasKeyword(inst.cardId, keyword)) return true
+    // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
+    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため
+    if (
+        card(inst.cardId).effects.some(
+            (e) =>
+                e.kind === "keyword" &&
+                e.keyword === keyword &&
+                (e.whileCombined !== true || instIsCombined(inst)),
+        )
+    ) {
+        return true
+    }
     if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
@@ -1157,6 +1190,8 @@ export function effectiveBp(
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
+                // 【合体時】：発生源が合体しているときだけ発揮する
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
                 // lentOnly：仮想発生源（マジックが lendSelfThisTurn で貸した効果）からのみ有効。
                 // 実在するスピリット/ネクサスがたまたま同じ効果エントリを持っていても恒久化させない
                 if (effect.aura.lentOnly && !isVirtualSource(source)) continue
@@ -1304,7 +1339,7 @@ export function activeConstraintsWithSource(
     const level = currentLevel(inst).level
     const own = card(inst.cardId)
         .effects.filter(
-            (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
+            (e) => e.kind === "constraint" && effectActiveOn(inst, e, level),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
@@ -1432,7 +1467,7 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
-            effectActiveAtLevel(e.levels, level) &&
+            effectActiveOn(inst, e, level) &&
             (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
     if (staticArmor) return true

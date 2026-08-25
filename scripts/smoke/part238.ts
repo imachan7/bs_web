@@ -6,8 +6,8 @@
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
-import { destroySpirit, returnSpiritToHand, flushBounces } from "../../server/src/logic/removal"
-import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources } from "../../shared/rules"
+import { destroySpirit, returnSpiritToHand, flushBounces, detachBravesOnLeave } from "../../server/src/logic/removal"
+import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources, instIsCombined, spiritHasKeyword } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 
 const HOST = "BS01-001" // ゴラドン（赤・コスト0・系統「爬獣」・Lv1=1コア）
@@ -314,4 +314,73 @@ console.log("=== §K 合体中ブレイヴが効果の発生源になる（レ�
     assert(separated.braveCombined === undefined, "分離したら合体中の目印が外れる")
     assert(separated.coresOverride === undefined, "ホストのコア数の写しも消える")
     assert(currentLevel(separated).level === 1, "スピリット状態のレベル表で判定される")
+}
+
+// ---- 【合体時】のゲート（BRAVE.md §12.3。2026-08-25 ユーザー確認） ----
+//
+// BS10 の実データでは【合体時】効果が**ブレイヴ側にもホストのスピリット側にもある**。
+// 発生源はどちらも既に effectSources にいるので、必要なのは
+// 「合体しているときだけ発揮する」という発揮条件（whileCombined）。
+//
+// 『このスピリットの**合体アタック時**』も同じ形で表す
+// （＝ブレイヴが付いているときだけ発揮する『アタック時』）。
+console.log("=== §L 【合体時】：ホストのスピリットが持つ効果は、合体しているときだけ発揮する ===")
+{
+    // 合体しているときだけ味方をBP+2000する、というホスト側の効果を持つテスト用スピリット
+    const HOSTCARD = "TEST-HOST-COMBINED"
+    CARD_DB.set(HOSTCARD, {
+        ...getCard(HOST), cardId: HOSTCARD, name: "テストホスト（合体時オーラ）",
+        effects: [{ id: `${HOSTCARD}-e1`, kind: "aura", levels: null, whileCombined: true, aura: { type: "bp", target: "ownAll", amount: 2000 } }],
+    } as never)
+
+    const s = base()
+    const host = createInstance(HOSTCARD, s.turn, 1)
+    s.players.p1.field.spirits.push(host)
+    const ally = createInstance(HOST, s.turn, 1)
+    s.players.p1.field.spirits.push(ally)
+    refreshLevelAsOverrides(s)
+
+    const allyBase = getCard(HOST).levels[0]!.bp
+    assert(!instIsCombined(host), "まだ合体していない")
+    assert(effectiveBp(s, "p1", ally) === allyBase, "合体していないので【合体時】のオーラは発揮されない")
+
+    s.players.p1.hand = [BRAVE]
+    assert(act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId }) === null,
+        "ブレイヴを合体させる")
+    assert(instIsCombined(host), "合体した")
+    assert(effectiveBp(s, "p1", ally) === allyBase + 2000, "合体したので【合体時】のオーラが発揮される")
+
+    // 分離したら止まる
+    s.players.p1.reserve = getCard(BRAVE).levels[0]!.cores
+    const brave = s.players.p1.field.combinedBraves[0]!
+    detachBravesOnLeave(s, "p1", host)
+    refreshLevelAsOverrides(s)
+    assert(!instIsCombined(host), "分離した")
+    assert(effectiveBp(s, "p1", ally) === allyBase, "分離したら【合体時】のオーラは止まる")
+    assert(brave.cardId === BRAVE, "ブレイヴは場に残っている（前提）")
+}
+
+console.log("=== §M 【合体時】：ブレイヴ側のキーワードと誘発も、合体しているときだけ ===")
+{
+    // 【合体時】【激突】を持つテスト用ブレイヴ（BS10-062 と同じ形）
+    const KW = makeBrave("TEST-BRAVE-KW", {
+        effects: [{ id: "TEST-BRAVE-KW-e1", kind: "keyword", keyword: "clash", levels: null, whileCombined: true }],
+    } as never).cardId
+
+    const s = base()
+    const host = putHost(s, "p1")
+    // まずスピリット状態で場に出す（＝合体していないブレイヴ）
+    const alone = createInstance(KW, s.turn, getCard(KW).levels[0]!.cores)
+    s.players.p1.field.spirits.push(alone)
+    refreshLevelAsOverrides(s)
+    assert(!spiritHasKeyword(s, "p1", alone, "clash"),
+        "スピリット状態のブレイヴは【合体時】【激突】を持たない")
+
+    // 合体させる
+    s.players.p1.hand = [KW]
+    assert(act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId }) === null,
+        "同じカードを合体させる")
+    const combined = s.players.p1.field.combinedBraves[0]!
+    assert(spiritHasKeyword(s, "p1", combined, "clash"),
+        "合体中のブレイヴは【合体時】【激突】を持つ")
 }

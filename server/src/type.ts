@@ -610,6 +610,10 @@ export type EffectDef =
           kind: "keyword"
           keyword: Keyword
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           colors?: Color[] // 装甲用: この色の相手効果を受けない
           colorsFrom?: "opponentFieldSymbols" // 装甲用: colorsの代わりに、持ち主から見た相手フィールドのシンボル色を毎回算出して使う（【装甲：∞】。EffectModules.refreshLevelAsOverridesがarmorColorsGrantedへ都度再構築する。BS06鎧神機ヴァルハランス）
           count?: number // 暴風用: 指定数（【暴風：2】＝2体）。表示と、同じカードの誘発エントリの体数を読み合わせるために持つ
@@ -623,6 +627,10 @@ export type EffectDef =
           kind: "triggered"
           trigger: TriggerEvent
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           action: EffectAction
           optional: boolean // 「〜できる」= 任意。interactiveTargets（実対戦）では発動確認の
           // pendingChoice（kind:"option" / confirm:true）を出し、選ばなければ発動しない。
@@ -696,6 +704,10 @@ export type EffectDef =
           id: string
           kind: "aura"
           levels: number[] | null // オーラ発生源のレベル条件
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           aura: AuraDef
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった（判定は aura.lentOnly と同じ）
       }
@@ -703,6 +715,10 @@ export type EffectDef =
           id: string
           kind: "constraint"
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           constraint: ConstraintDef
       }
     | {
@@ -876,6 +892,10 @@ export type EffectDef =
           kind: "fieldEvent"
           event: FieldEvent
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           action: EffectAction
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           excludePhase?: Phase // 指定時はこのステップでは発火しない（phaseと排他。BS08ダークアンキラーザウルス＝「ドローステップ以外で相手がドローしたとき」）
