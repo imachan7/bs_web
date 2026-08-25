@@ -1124,6 +1124,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
+            // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
+            vanilla: instIsVanilla(inst),
         })
     }
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
@@ -2065,6 +2067,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // BS08ダークチュンポポLv2：自分のスピリットの体数が相手より少ない間だけ有効
                         const oppCount = state.players[opponentOf(pid)].field.spirits.length
                         if (player.field.spirits.length >= oppCount) continue
+                    } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
+                        // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
+                        if (!player.field.spirits.some((s) => instIsCombined(s))) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit

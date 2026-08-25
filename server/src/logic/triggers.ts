@@ -702,7 +702,10 @@ export function fireStepTriggers(
                 if (drawPhase === "afterDraw" && effect.beforeDraw === true) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
+                if (!effectActiveOn(inst, effect, level)) continue
+                // 「ターンに1回」（BS10-008：この効果自身が追加のエンドステップを生むため、無いと無限ループになる）
+                if (effect.oncePerTurn === true && inst.stepUsedTurn?.[effect.id] === state.turn) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
                 if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
@@ -775,6 +778,10 @@ export function fireStepTriggers(
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
         skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
         resolve: (e) => {
+            // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
+            if (e.effect.oncePerTurn === true) {
+                e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
+            }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
                 requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)

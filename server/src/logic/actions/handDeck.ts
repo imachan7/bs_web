@@ -916,8 +916,13 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
         const colorOk = (cardId: string): boolean =>
             action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
+        // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）
+        const typeOk = (cardId: string): boolean => {
+            const t = getCard(cardId).type
+            return t === "spirit" || (action.includeBraves === true && t === "brave")
+        }
         const isRecoverable = (cardId: string): boolean =>
-            getCard(cardId).type === "spirit" && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId)
+            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする

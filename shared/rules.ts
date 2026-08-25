@@ -1120,6 +1120,11 @@ export function auraAppliesTo(
         if (aura.phaseTurn.turn === "own" && sourcePid !== board.turnPlayer) return false
         if (aura.phaseTurn.turn === "opponent" && sourcePid === board.turnPlayer) return false
     }
+    // turn はフェーズを問わない版（『自分のターン』のようにステップ不問の継続効果。target を問わず適用。BS10-079そびえる机山群Lv1）
+    if (aura.turn) {
+        if (aura.turn === "own" && sourcePid !== board.turnPlayer) return false
+        if (aura.turn === "opponent" && sourcePid === board.turnPlayer) return false
+    }
     // バトル中かどうかの3つも target を問わず適用する（phaseTurn と同じ理由）。
     // かつては target:"self" の早期リターンより後にあり、**self では黙って無視されていた**
     // （2026-08-16 に SD02-009 獣将軍クジャルタで判明。当時の該当カードはこの1枚だけ）
@@ -1147,6 +1152,10 @@ export function auraAppliesTo(
     if (sourcePid !== targetOwnerPid) return false
     if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
     if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
+        return false
+    }
+    // combinedFilter（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）
+    if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
         return false
     }
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
@@ -1867,6 +1876,8 @@ function hasImmunityAgainst(
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // keywordFilter（BS09-055転生の谷Lv2＝【転召】持ち）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
+            // combinedFilter（BS10-079そびえる机山群Lv2＝合体スピリットのみ）
+            if (effect.combinedFilter === true && !instIsCombined(inst)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
