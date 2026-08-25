@@ -54,7 +54,7 @@ USER_AGENT = "bs-web-card-importer/1.0 (+https://github.com/imachan7/bs_web)"
 REQUEST_INTERVAL_SEC = 3  # ページ間の待ち時間（縮めないこと。docstring「取得先への配慮」参照）
 DEFAULT_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "staging", ".cache")
 COLOR_MAP = {"赤": "red", "紫": "purple", "緑": "green", "白": "white", "黄": "yellow", "青": "blue"}
-TYPE_MAP = {"スピリット": "spirit", "ネクサス": "nexus", "マジック": "magic"}
+TYPE_MAP = {"スピリット": "spirit", "ネクサス": "nexus", "マジック": "magic", "ブレイヴ": "brave"}
 
 
 def fetch_page(card_set, refer, page, rowid, cache_dir):
@@ -129,6 +129,18 @@ def parse_levels(line):
     return levels
 
 
+def parse_brave_levels(line):
+    """ブレイヴの合体状態のレベル表。
+    『<1>Lv1 2000 <0>合体+2000』の **後半**（合体+N）を取る。
+    BS10 の18枚はいずれも1段だけだが、複数段が来ても順に Lv1, Lv2, ... として並べる
+    （表記に Lv 番号が無いため、出現順がレベル。cores の昇順であることは
+    scripts/validate-cards.ts が別途検査する）"""
+    levels = []
+    for cores, bp in re.findall(r"<(\d+)>合体\+(\d+)", line):
+        levels.append({"level": len(levels) + 1, "cores": int(cores), "bp": int(bp)})
+    return levels
+
+
 def parse_row(row_html):
     """カード1件分の <li> を CardData 互換の dict にする"""
     card_id = row_html.split("</span>", 1)[0].strip()
@@ -172,12 +184,18 @@ def parse_row(row_html):
     cost, reduction, colors, family = parse_cost_line(lines[1], bracket_colors)
 
     levels = []
+    brave_levels = []
     effect_start = 2
     if card_type != "magic":
         levels = parse_levels(lines[2])
         if not levels:
             raise ValueError(f"レベル表記を解釈できない: {card_id} {lines[2]!r}")
         effect_start = 3
+        if card_type == "brave":
+            # ブレイヴはレベル表を2つ持つ（スピリット状態／合体状態。docs/design/BRAVE.md §1.6）
+            brave_levels = parse_brave_levels(lines[2])
+            if not brave_levels:
+                raise ValueError(f"合体状態のレベル表記を解釈できない: {card_id} {lines[2]!r}")
 
     effect = "\n".join(lines[effect_start:])
     notes = type_line + tail + bracket
@@ -199,6 +217,14 @@ def parse_row(row_html):
         "limited": limited,
         "effect": effect,
     }
+    if brave_levels:
+        card["braveLevels"] = brave_levels
+        # 合体条件は効果テキストの中の1行（『合体条件：コスト3以上』『合体条件：効果の記述を持たない』）。
+        # **構造化（braveCondition）はここではやらない**：軸の決め方が解釈を含むため、
+        # effects と同じく投入後の人手の作業にする。原文は effect にそのまま残る
+        cond = [l for l in lines[effect_start:] if l.startswith("合体条件：")]
+        if cond:
+            card["braveConditionText"] = cond[0].split("：", 1)[1]
     if limit_m:
         card["limitCount"] = int(limit_m.group(1))
     return card
