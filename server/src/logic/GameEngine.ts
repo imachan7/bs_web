@@ -401,6 +401,9 @@ function placeSummonedSpirit(
         host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: inst.instanceId }]
         // 合体時の疲労合成：**どちらかが疲労状態なら合体スピリットは疲労状態**（§1.3）
         host.isRested = host.isRested || inst.isRested
+        // ブレイヴが足すコスト・色・シンボル（braveComposite）をここで組み直す。
+        // handleAction の末尾でも走るが、**このあとに出る召喚時効果がコストや色を読む**ので先に反映する
+        refreshLevelAsOverrides(state)
     } else {
         player.field.spirits.push(inst)
     }

@@ -119,6 +119,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    bravesOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1774,6 +1775,25 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.alsoCostsContinuous
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
+            delete inst.braveComposite
+        }
+    }
+    // 合体しているブレイヴがホストへ足すぶんを組み直す（docs/design/BRAVE.md §3）。
+    // **レベルに依らない値だけ**（コスト・色・シンボル）。「合体時BP+」はホストのコア数で変わるので
+    // ここには入れず、shared/rules.ts の effectiveBp が都度引く
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const host of player.field.spirits) {
+            const braves = bravesOf(player, host)
+            if (braves.length === 0) continue
+            const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[] }
+            for (const brave of braves) {
+                const master = getCard(brave.cardId)
+                composite.cost += master.cost
+                for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
+                composite.symbols.push(...master.symbol)
+            }
+            host.braveComposite = composite
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：

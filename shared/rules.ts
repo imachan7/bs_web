@@ -166,7 +166,10 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 // いまは「このターンの間」の増減（tempCostDelta）だけだが、今後のブレイヴ（合体中はコストが加算される）の
 // ような継続の増減もここへ足すこと。個別の判定側に足し算を散らさない
 export function instCostDelta(inst: CardInstance): number {
-    return inst.tempCostDelta ?? 0
+    // 合体しているブレイヴのコストが加算される（BRAVE.md §1.1・§3.1）。
+    // instBaseCost が唯一のコスト算出口なので、ここに1項足せば
+    // 「コスト◯以下を破壊」「同じコストの相手を疲労」などコストを見る判定すべてに一度で効く
+    return (inst.tempCostDelta ?? 0) + (inst.braveComposite?.cost ?? 0)
 }
 
 // このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
@@ -213,6 +216,13 @@ export function instColors(inst: CardInstance): Color[] {
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+    // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
+    // （BRAVE.md §12.2。2026-08-25 ユーザー確認）。装甲・軽減・「相手の〈色〉のスピリット」の
+    // 絞り込みはすべてこの合成後の色で行う。
+    // ⚠️ **colorsAsContinuous には入れないこと**。あちらは「◯色としても扱う」で、
+    // countSymbols が「その色のシンボルとしても数える」ために読む枠。ブレイヴの色を混ぜると
+    // ホストのシンボルまでブレイヴの色として数えられ、混色軽減バグと同じ二重計上になる
+    for (const c of inst.braveComposite?.colors ?? []) colors.add(c)
     return [...colors]
 }
 
@@ -303,6 +313,18 @@ export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
     return level
 }
 
+// 合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
+// braveComposite（レベルに依らない値のキャッシュ）には入れず、ここで都度引く
+export function braveBpBonus(player: BoardPlayer, host: CardInstance): number {
+    let total = 0
+    for (const brave of bravesOf(player, host)) {
+        const level = braveLevelOf(host, brave)
+        const lv = card(brave.cardId).braveLevels?.find((l) => l.level === level)
+        if (lv !== undefined) total += lv.bp
+    }
+    return total
+}
+
 // スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
 // 合体状態の braveLevels ではなく通常の levels を引く
 export function braveKeepCores(brave: CardInstance): number {
@@ -358,9 +380,13 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
     // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
     if (inst.symbolsOverrideContinuous) {
+        // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
+        // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
         return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0)
     }
-    return card(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
+    // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
+    // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0)
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
@@ -374,7 +400,12 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         // 破壊待機中は使えるので、そこだけ扱いが違う
         if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
-        const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
+        const cardSymbols =
+            inst.symbolsOverrideContinuous ??
+            (inst.braveComposite === undefined
+                ? card(inst.cardId).symbol
+                : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
@@ -1094,7 +1125,8 @@ export function effectiveBp(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): number {
-    let total = currentLevel(inst).bp
+    // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
+    let total = currentLevel(inst).bp + braveBpBonus(board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）

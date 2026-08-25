@@ -1686,6 +1686,12 @@ export interface CardInstance {
     noRefreshTargetInstanceId?: string // このスピリットが「回復できない」と指定した**相手**スピリットのinstanceId（action:"markNoRefreshTarget"）。
     // このスピリット自身が疲労状態でフィールドにいる間だけ効く（EffectModules.isRefreshBlockedByMark が判定。スクルディア）。
     // 疲労し直すたびに上書きされる。指定先が場を離れても残るが、instanceId が一致しなくなるだけで無害
+    braveComposite?: { cost: number; colors: Color[]; symbols: Color[] }
+    // **合体しているブレイヴがホストへ足すぶん**（docs/design/BRAVE.md §3）。
+    // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築する（他の継続上書きと同じ扱い）。
+    // ここに入るのは**レベルに依らない値だけ**：コスト・色・シンボル。
+    // 「合体時BP+」はホストのコア数で変わる（合体状態のレベル表を引く）ので**ここには入れない**。
+    // BP は shared/rules.ts の effectiveBp が board から実体を引いてその場で足す
     braveRefs?: { slot: "left" | "right" | "single"; instanceId: string }[]
     // **合体しているブレイヴへの参照**（ホスト側に載る。docs/design/BRAVE.md §2.3）。実体は field.combinedBraves にあり、
     // ここは instanceId で指すだけ。通常のブレイヴは slot:"single" の1本。異魔神ブレイヴ（1枚がスピリット2体に合体）は

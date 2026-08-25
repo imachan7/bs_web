@@ -7,7 +7,7 @@ import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrid
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
 import { destroySpirit, returnSpiritToHand, flushBounces } from "../../server/src/logic/removal"
-import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition } from "../../shared/rules"
+import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 
 const HOST = "BS01-001" // ゴラドン（赤・コスト0・系統「爬獣」・Lv1=1コア）
@@ -192,4 +192,80 @@ console.log("=== §G アタック中に分離したら、ブレイヴがアタ�
     assert(s.battle?.attackerInstanceId === brave!.instanceId, "アタッカーがブレイヴに差し替わる（アタックは継続）")
     // 合体スピリットはアタックで疲労していたので、その状態を引き継ぐ（§1.3）
     assert(brave!.isRested === true, "アタックで疲労した状態をそのまま引き継ぐ")
+}
+
+// ---- 段階3：BP・シンボル・コスト・色の合成（BRAVE.md §3） ----
+console.log("=== §H 合成：コスト・色・シンボル・BP ===")
+{
+    const s = base()
+    const host = putHost(s, "p1", 1)
+    const hostMaster = getCard(HOST)
+    s.players.p1.hand = [BRAVE]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    const braveMaster = getCard(BRAVE)
+
+    // コスト：合体元にブレイヴのコストが**追加される**（§1.1）
+    assert(instBaseCost(host) === hostMaster.cost + braveMaster.cost,
+        `コストが合成される（${hostMaster.cost}+${braveMaster.cost}=${instBaseCost(host)}）`)
+
+    // 色：混色扱いになる（§12.2）
+    const colors = instColors(host)
+    for (const c of [...hostMaster.colors, ...braveMaster.colors]) {
+        assert(colors.includes(c), `合体スピリットは${c}を持つ（混色扱い）`)
+    }
+
+    // シンボル：**合計数ではなく色の内訳で**見る（混色軽減バグと同じ場所）
+    assert(instanceSymbolCount(host) === hostMaster.symbol.length + braveMaster.symbol.length,
+        "シンボル数が合成される（ライフダメージに効く）")
+    for (const c of hostMaster.symbol) {
+        assert(countSymbols(s.players.p1, [c]) >= 1, `軽減：ホストの${c}シンボルを数える`)
+    }
+    for (const c of braveMaster.symbol) {
+        assert(countSymbols(s.players.p1, [c]) >= 1, `軽減：ブレイヴの${c}シンボルを数える`)
+    }
+    // ⚠️ 二重計上していないこと（色ごとに、持っている数ちょうど）
+    assert(countSymbols(s.players.p1, ["red"]) === hostMaster.symbol.filter((c) => c === "red").length,
+        "赤シンボルを二重に数えていない")
+    assert(countSymbols(s.players.p1, ["blue"]) === braveMaster.symbol.filter((c) => c === "blue").length,
+        "青シンボルを二重に数えていない")
+
+    // BP：合体時BP+ が加算される。**ホストのコア数で合体状態のレベルが変わる**
+    const hostBp = hostMaster.levels[0]!.bp
+    assert(braveLevelOf(host, s.players.p1.field.combinedBraves[0]!) === 1, "前提：合体状態Lv1")
+    assert(effectiveBp(s, "p1", host) === hostBp + braveMaster.braveLevels![0]!.bp,
+        `BPが合成される（${hostBp}+${braveMaster.braveLevels![0]!.bp}）`)
+    // コアを3個にすると、ホストがLv2・ブレイヴも合体状態Lv2になる
+    host.cores = 3
+    refreshLevelAsOverrides(s)
+    assert(effectiveBp(s, "p1", host) === hostMaster.levels[1]!.bp + braveMaster.braveLevels![1]!.bp,
+        "コアを増やすとホストもブレイヴもレベルが上がってBPが増える")
+}
+
+console.log("=== §I シンボル固定を受けたら固定が勝つ（ブレイヴのシンボルも含めて固定値。§12 の3） ===")
+{
+    const s = base()
+    const host = putHost(s, "p1", 1)
+    s.players.p1.hand = [BRAVE]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    // kind:"symbolFix" と同じ形で、青2つに固定されている状態を作る
+    host.symbolsOverrideContinuous = ["blue", "blue"]
+    assert(instanceSymbolCount(host) === 2, "固定値そのもの（ブレイヴぶんを足さない）")
+    assert(countSymbols(s.players.p1, ["blue"]) === 2, "軽減も固定値で数える")
+    assert(countSymbols(s.players.p1, ["red"]) === 0, "赤シンボルのブレイヴ／ホストでも固定色が勝つ")
+}
+
+console.log("=== §J 分離したら合成は消える ===")
+{
+    const s = base()
+    const host = putHost(s, "p1", 1)
+    s.players.p1.hand = [BRAVE]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    assert(host.braveComposite !== undefined, "合体中は合成値が載っている")
+    s.players.p1.reserve = getCard(BRAVE).levels[0]!.cores
+    destroySpirit(s, "p1", host.instanceId, "destroy")
+    refreshLevelAsOverrides(s)
+    const brave = s.players.p1.field.spirits.find((sp) => sp.cardId === BRAVE)!
+    assert(brave.braveComposite === undefined, "分離したブレイヴ自身は合成値を持たない")
+    assert(instBaseCost(brave) === getCard(BRAVE).cost, "スピリット状態のコストは自分のコストだけ")
+    assert(instColors(brave).join() === getCard(BRAVE).colors.join(), "色も自分の色だけ（混色でなくなる）")
 }
