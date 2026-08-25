@@ -629,6 +629,9 @@ export function continuousKeywordGrantCount(
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // braveInSpiritState（BS10-083魔星輝く古戦場Lv2）：スピリット状態のブレイヴのみ
+            // （TargetFilter.braveInSpiritStateと同じ判定＝カード種別がブレイヴで合体していない個体）
+            if (effect.braveInSpiritState && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) continue
             // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
             // 実効BPで見るので、BPバフで届いた個体にも付く
             if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue

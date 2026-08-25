@@ -849,6 +849,10 @@ export function fireFieldEventTriggers(
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
         byOpponentEffect?: boolean
+        // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
+        bySpiritEffect?: boolean
+        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）
+        sourceInstanceId?: string
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
@@ -948,6 +952,8 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            // 「相手のスピリットの効果で破壊されたとき」（BS10-012アントイーター/BS10-014闇騎士マリス）
+            if (effect.byOpponentSpiritEffectOnly && !eventInfo?.bySpiritEffect) continue
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
             // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
             if (
@@ -1091,7 +1097,13 @@ export function fireFieldEventTriggers(
         // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
         // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
-        const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
+        // byOpponentSpiritEffectOnly：対象をイベント対象ではなく「その効果を発揮したスピリット」にする
+        // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
+        const actionTargetId = effect.byOpponentSpiritEffectOnly
+            ? eventInfo?.sourceInstanceId
+            : effect.ignoreEventTarget
+              ? undefined
+              : targetInstanceId
         if (effect.selfMode === "source") {
             // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
             // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）

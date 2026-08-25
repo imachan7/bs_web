@@ -2819,10 +2819,12 @@ export function countEffectCounter(
     if ("ownColorSymbols" in counter) {
         return countSymbols(state.players[owner], [counter.ownColorSymbols])
     }
-    // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
+    // { ownFamily: string | string[] }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）。
+    // 配列＝いずれかの系統でOR（BS10-X02双魚賊神ピスケガレオン：「光導」/「星魂」）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
+    const wantedFamilies = Array.isArray(counter.ownFamily) ? counter.ownFamily : [counter.ownFamily]
     return state.players[owner].field.spirits.filter((s) =>
-        spiritHasFamily(state, owner, s, counter.ownFamily),
+        wantedFamilies.some((f) => spiritHasFamily(state, owner, s, f)),
     ).length
 }
 
@@ -2932,6 +2934,8 @@ export function resolveAction(
         ...(srcType !== undefined ? { sourceType: srcType } : {}),
         // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
         ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+        // 発生源インスタンス（「その効果を発揮したスピリット」を対象にする軸用。BS10-012アントイーター/BS10-014闇騎士マリス）
+        ...(self ? { sourceInstanceId: self.instanceId } : {}),
     }
 
     // アクション本体は server/src/logic/actions/ のドメイン別モジュールに分割されている。

@@ -829,11 +829,19 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
             `${sourceName}：このスピリット以外のすべてのスピリット上からコアを1個ずつ持ち主のリザーブに置いた。`,
         )
         if (destroyed > 0) {
-            self.cores += destroyed
-            log(
-                state,
-                `${sourceName}：この効果で${destroyed}体が消滅したため、ボイドからコア${destroyed}個を自身の上に置いた。`,
-            )
+            if (action.rewardDraw) {
+                draw(state, owner, destroyed)
+                log(
+                    state,
+                    `${sourceName}：この効果で${destroyed}体が消滅したため、自分はデッキから${destroyed}枚ドローした。`,
+                )
+            } else {
+                self.cores += destroyed
+                log(
+                    state,
+                    `${sourceName}：この効果で${destroyed}体が消滅したため、ボイドからコア${destroyed}個を自身の上に置いた。`,
+                )
+            }
         }
         return
 }
@@ -1408,6 +1416,23 @@ const opponentCoresToTrashHandler: ActionHandler<"opponentCoresToTrash"> = (ctx,
         const moved = action.count - remaining
         log(state, `${sourceName}：${target.name}のコア${moved}個をトラッシュに置いた。`)
         return
+}
+
+// 「このスピリットが相手のスピリットの効果で破壊されたとき、その効果を発揮したスピリット上のコアすべてを
+// 相手のトラッシュに置く」（BS10-012アントイーター/BS10-014闇騎士マリス）。
+// targetInstanceIdは fieldEvent.byOpponentSpiritEffectOnly が渡す「自分を破壊した相手のスピリット」
+const destroyerCoresToTrashHandler: ActionHandler<"destroyerCoresToTrash"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        if (targetInstanceId === undefined) {
+            log(state, `${sourceName}：破壊した相手のスピリットが見つからなかった。`)
+            return
+        }
+        const found = findSpiritAny(state, targetInstanceId)
+        if (!found || found.inst.cores === 0) {
+            log(state, `${sourceName}：破壊した相手のスピリットが見つからなかった。`)
+            return
+        }
+        removeCoresToTrash(state, found.pid, found.inst, found.inst.cores, owner)
 }
 
 const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSpirit"> = (ctx, action) => {
@@ -2088,6 +2113,7 @@ const handlers = {
     coreToTrashAllByCost: coreToTrashAllByCostHandler,
     coreRemovePerHandDiscard: coreRemovePerHandDiscardHandler,
     opponentCoresToTrash: opponentCoresToTrashHandler,
+    destroyerCoresToTrash: destroyerCoresToTrashHandler,
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
     voidCoreToOwnTrash: voidCoreToOwnTrashHandler,

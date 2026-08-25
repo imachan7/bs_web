@@ -35,7 +35,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isVanillaCard, matchesTarget } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -395,6 +395,59 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
         player.trashCards.push(cardId)
         log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
     }
+}
+
+// 「自分の手札discardCount枚を破棄することで、自分はデッキからdrawCount枚ドローする」
+// （BS10-019土星神龍クロノ・ボロス）。COST_MODEL.md §1：コストと効果の両方が完全に解決できる
+// ときだけ発揮できる＝手札がdiscardCount枚未満なら不発（部分的に破棄しない）。
+// discardCountは「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入）
+const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残り／ドローは remainingAction 側が処理する）
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+        return
+    }
+    // ①コストを完全に払えるときだけ発揮できる（COST_MODEL.md §1）
+    if (player.hand.length < action.discardCount) {
+        log(state, `${sourceName}：手札が${action.discardCount}枚に満たないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        const indices = player.hand.map((_, i) => i)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとして破棄するカードを選んでください（残り${action.discardCount}枚）`,
+                "hand",
+                indices,
+                { type: "costDiscardHandThenDraw", discardCount: 1, drawCount: action.drawCount },
+                action.discardCount > 1
+                    ? { type: "costDiscardHandThenDraw", discardCount: action.discardCount - 1, drawCount: action.drawCount }
+                    : { type: "draw", count: action.drawCount },
+            )
+        ) {
+            return
+        }
+    }
+    // 決定的自動選択：手札末尾から discardCount 枚を破棄してからドロー
+    for (let i = 0; i < action.discardCount; i++) {
+        const cardId = player.hand.pop()
+        if (cardId === undefined) break
+        player.trashCards.push(cardId)
+    }
+    draw(state, owner, action.drawCount)
+    log(state, `${sourceName}：手札${action.discardCount}枚を破棄し、自分はデッキから${action.drawCount}枚ドローした。`)
 }
 
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
@@ -916,13 +969,19 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
         const colorOk = (cardId: string): boolean =>
             action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
-        // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）
+        // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）。
+        // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
         const typeOk = (cardId: string): boolean => {
             const t = getCard(cardId).type
+            if (action.bravesOnly) return t === "brave"
             return t === "spirit" || (action.includeBraves === true && t === "brave")
         }
+        // vanillaFilter（BS10-082六分儀天文台：「効果の記述を持たないスピリットカード」）：
+        // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
+        const vanillaOk = (cardId: string): boolean =>
+            action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
         const isRecoverable = (cardId: string): boolean =>
-            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId)
+            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -2257,6 +2316,7 @@ const handlers = {
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
+    costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,

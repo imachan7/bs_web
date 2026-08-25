@@ -202,10 +202,15 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     state,
                     owner,
                     self,
-                    `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
+                    action.chooserIsTarget
+                        ? `${sourceName}：破壊する自分のスピリットを選んでください`
+                        : `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
                     { ...actionForChoice, count: 1 },
                     resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
+                    // chooserIsTarget（BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」）：
+                    // 破壊される側（相手＝opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
+                    action.chooserIsTarget ? opp : undefined,
                 )
             ) {
                 return

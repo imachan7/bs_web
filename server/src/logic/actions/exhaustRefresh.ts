@@ -249,6 +249,34 @@ const exhaustAllOpponentNexusesHandler: ActionHandler<"exhaustAllOpponentNexuses
     log(state, `${sourceName}：相手のネクサス${count}個を疲労させた。`)
 }
 
+// 「相手のスピリット/ネクサス合計count個までを疲労させる」（BS10-018エル・クラーケン）。
+// 決定的簡略化：スピリットを実効BP最大から優先して疲労させ（既存の疲労耐性・装甲を尊重）、
+// 残った枠をネクサスへ場の並び順で充てる（ネクサスに耐性判定は無い）
+const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexusesUpTo"> = (ctx, action) => {
+    const { state, owner, opp, srcColors, srcType, sourceName } = ctx
+    let remaining = action.count
+    let exhausted = 0
+    while (remaining > 0) {
+        const target = pickEnemyByBp(state, opp, Infinity, (sp) => !sp.isRested, srcColors, srcType, "exhaust")
+        if (!target) break
+        exhaustSpirit(state, opp, target)
+        exhausted++
+        remaining--
+    }
+    for (const n of state.players[opp].field.nexuses) {
+        if (remaining <= 0) break
+        if (n.isRested) continue
+        n.isRested = true
+        exhausted++
+        remaining--
+    }
+    if (exhausted === 0) {
+        log(state, `${sourceName}：疲労させる対象がいなかった。`)
+        return
+    }
+    log(state, `${sourceName}：相手のスピリット/ネクサス合計${exhausted}個を疲労させた。`)
+}
+
 const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）。
@@ -893,6 +921,7 @@ const handlers = {
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
+    exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
     exhaustAllByLevel: exhaustAllByLevelHandler,
     exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,

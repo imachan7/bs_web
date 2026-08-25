@@ -862,6 +862,11 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
             // カード静的な名前で判定する
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+            // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
+            // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
+            if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
+                return false
+            }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
             // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
@@ -1123,9 +1128,18 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 // 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
     const { state, owner, self, srcType } = ctx
-    if (action.count <= 0) return
+    // countCounter指定時はcountを無視しEffectCounterの値を破棄枚数として使う
+    // （BS10-X02双魚賊神ピスケガレオン：系統「光導」/「星魂」を持つ自分のスピリット数）
+    const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+    if (count <= 0) {
+        if (action.countCounter !== undefined) {
+            const { sourceName } = ctx
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+        }
+        return
+    }
     const pids = bothSidesPids(state, srcType)
-    const discardOne: EffectAction = { type: "discardSelfChoose", count: action.count }
+    const discardOne: EffectAction = { type: "discardSelfChoose", count }
     for (const pid of [owner, opponentOf(owner)]) {
         if (!pids.includes(pid)) continue
         // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
