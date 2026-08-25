@@ -40,7 +40,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -1504,6 +1504,12 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
+        // 「お互い、ボイド/リザーブからライフにコアを置けない」（BS10-108 ルナティックシール）。
+        // このハンドラの置き元はボイドかリザーブのみ（スピリット上のコアから置く経路は別ハンドラ）
+        if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
+            log(state, `${sourceName}：効果により、ボイド/リザーブからライフにコアを置けなかった。`)
+            return
+        }
         // upTo（BS09-X35超神星龍ジークヴルム・ノヴァ）：「ライフが5になるように」不足分だけ置く。
         // すでにその数以上なら何も置かない。ボイドから置くので必ず届く
         if (action.upTo !== undefined) {

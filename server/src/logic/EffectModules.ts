@@ -120,6 +120,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     bravesOf,
+    isEndStepLocked,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -602,6 +603,11 @@ export function millDeck(
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
     options?: { skipNegate?: true },
 ): number {
+    // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
+    if (isEndStepLocked(state, "deckMill")) {
+        log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
+        return 0
+    }
     let effectiveCount = count
     const byOpponent = actorPid !== undefined && actorPid !== pid
     // 「自分のデッキは破棄されない」（BS06ディスコンティニュー／BS08鳳翼の聖剣）。

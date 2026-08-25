@@ -7,6 +7,7 @@
 import type {
     BattleState,
     CardInstance,
+    EndStepLock,
     GameState,
     GameView,
     Phase,
@@ -41,6 +42,7 @@ export interface Board {
     isFlashTiming: boolean
     priorityPlayer: PlayerId
     turnConstraints: TurnConstraintDef[]
+    endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。両陣営に効く
     magicUsedThisTurn: Record<PlayerId, number>
     ignoreUnblockableThisTurn: PlayerId[]
     players: Record<PlayerId, BoardPlayer>

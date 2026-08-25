@@ -7,9 +7,10 @@
 //
 // 対象カード（BS10-X01 幻羅星龍ガイ・アスラ／BS10-094 未完成の古代戦艦：竜骨）は
 // まだ data/cards に入っていないので、テスト用の合成カードで確かめる。
-import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
+import { millDeck } from "../../server/src/logic/EffectModules"
 import { validateMoveCore, validateAwaken } from "../../server/src/logic/RuleValidator"
 import { boardResistanceAgainst, canAwaken, coresCantBeRemoved, currentLevel, spiritHasKeyword } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
@@ -120,4 +121,60 @@ console.log("=== §C Lvの相対シフト（「Lvを1つ上のものとして扱
     const maxLevel = baseCard.levels.reduce((m, l) => Math.max(m, l.level), 0)
     assert(currentLevel(lv2).level === maxLevel,
         `最高Lv（Lv${maxLevel}）の個体は頭打ち＝そのまま（レベル表に無い値を入れると置き換えが無言で消えるため）`)
+}
+
+console.log("=== §D 追加アタックステップ（BS10-008 火星神龍アレス・ドラグーン） ===")
+{
+    const s = game()
+    // 先攻1ターン目はアタック禁止なので、2ターン目以降で見る
+    act(s, "p1", { type: "endTurn" })
+    act(s, "p2", { type: "endTurn" })
+    assert(s.turnPlayer === "p1" && s.phase === "main", "p1 のメインステップに戻った")
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
+    assert(s.phase === "attack", "アタックステップにいる")
+    // このステップの途中で「もう1回ずつ行う」が発揮された状況を作る
+    s.extraAttackStepPending = true
+    const turnBefore = s.turn
+    assert(act(s, "p1", { type: "endTurn" }) === null, "ターンを終了しようとする")
+    assert(s.turnPlayer === "p1", "ターンプレイヤーは交代しない")
+    assert(s.turn === turnBefore, "ターン番号も進まない")
+    assert(s.phase === "attack", "アタックステップに戻っている")
+    assert(s.extraAttackStepPending === undefined, "フラグは1回使ったら消える（何度も戻らない）")
+
+    // 2回目のターン終了では普通に終わる
+    assert(act(s, "p1", { type: "endTurn" }) === null, "もう一度ターンを終了する")
+    assert(s.turnPlayer === "p2", "今度はターンプレイヤーが交代する")
+}
+
+console.log("=== §E エンドステップを数える封印（BS10-108 ルナティックシール） ===")
+{
+    const s = game()
+    s.endStepLocks.push({ pid: "p1", remaining: 3, cardId: BASE_SPIRIT, locks: ["attackStep", "deckMill", "lifeChargeFromVoidOrReserve"] })
+
+    // ① アタックステップに入れない（両陣営）
+    assert(act(s, "p1", { type: "nextPhase" }) !== null, "封印中はアタックステップに入れない")
+    // ② デッキは破棄されない（自分の効果でも）
+    const deckBefore = s.players.p1.deck.length
+    assert(millDeck(s, "p1", 3) === 0, "封印中はデッキが破棄されない")
+    assert(s.players.p1.deck.length === deckBefore, "デッキの枚数が変わらない")
+    // ③ ボイド/リザーブからライフにコアを置けない
+    const lifeBefore = s.players.p1.life
+    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "void" })
+    assert(s.players.p1.life === lifeBefore, "封印中はボイドからライフにコアを置けない")
+
+    // ④ **発揮した側のエンドステップだけ**数える
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1 がターンを終了（1回目）")
+    assert(s.endStepLocks[0]?.remaining === 2, "p1 のエンドステップで1減る（残り2）")
+    assert(act(s, "p2", { type: "endTurn" }) === null, "p2 がターンを終了")
+    assert(s.endStepLocks[0]?.remaining === 2, "相手のエンドステップでは減らない")
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1 がターンを終了（2回目）")
+    assert(s.endStepLocks[0]?.remaining === 1, "残り1")
+    act(s, "p2", { type: "endTurn" })
+    assert(act(s, "p1", { type: "endTurn" }) === null, "p1 がターンを終了（3回目）")
+    assert(s.endStepLocks.length === 0, "3回数え終わったら封印が解ける")
+
+    // 解けたらアタックできる
+    act(s, "p2", { type: "endTurn" })
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "封印が解ければアタックステップに入れる")
 }

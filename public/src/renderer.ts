@@ -47,10 +47,18 @@ import {
     handSizeOf,
     type DirectAttackFilter,
     boardResistanceAgainst,
+    isEndStepLocked,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
+
+// エンドステップを数える封印（ルナティックシール）の表示ラベル
+const LOCK_LABELS: Record<string, string> = {
+    attackStep: "アタックステップ不可",
+    deckMill: "デッキ破棄されない",
+    lifeChargeFromVoidOrReserve: "ボイド/リザーブからライフにコアを置けない",
+}
 
 let DB = new Map<string, CardData>()
 
@@ -418,6 +426,20 @@ export function render(view: GameView, ui: UiState): void {
         ($("chk-pay-to-negate") as HTMLInputElement).checked = view.players[you].payToNegate ?? true
     }
 
+    // エンドステップを数える封印（ルナティックシール）。カードは「デッキの横にコアを置く」と書くが、
+    // 置かれたコアは以後どこからも参照されないので、**カウンターとして数だけ出す**
+    const locks = view.endStepLocks ?? []
+    show("end-step-lock", locks.length > 0)
+    if (locks.length > 0) {
+        $("end-step-lock").textContent = locks
+            .map(l => {
+                const whose = l.pid === you ? "自分" : "相手"
+                const what = l.locks.map(k => LOCK_LABELS[k] ?? k).join("・")
+                return `🔒 ${master(l.cardId).name}：${whose}のエンドステップ残り${l.remaining}回（${what}）`
+            })
+            .join(" / ")
+    }
+
     $("turn-info").textContent = `ターン${view.turn}（${myTurn ? "あなた" : "相手"}）`
     document.querySelectorAll(".phase-step").forEach(el => {
         el.classList.remove("active")
@@ -451,7 +473,8 @@ export function render(view: GameView, ui: UiState): void {
     const oppPendingChoice =
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
-    show("btn-attack-phase", myMainFree && !pendingChoiceActive)
+    // 「お互い、アタックステップは行えず」（ルナティックシール）。サーバーも同じ判定で弾く
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep"))
     show(
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,

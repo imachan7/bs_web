@@ -1902,6 +1902,15 @@ export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInsta
 // このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
 // **効果でもプレイヤーの操作でも取り除けない**ので、耐性の判定表と、
 // コアが動くプレイヤー操作の入口（moveCore / 支払い元 / 【覚醒】の移動元）から呼ぶ
+// エンドステップを数える封印（BS10-108 ルナティックシール）が、いま指定の制限をかけているか。
+// **両陣営に効く**（誰が発揮したかを問わない）。クライアントもこれを読んでボタンを落とす
+export function isEndStepLocked(
+    board: Board,
+    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve",
+): boolean {
+    return board.endStepLocks.some((l) => l.remaining > 0 && l.locks.includes(lock))
+}
+
 export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
 }

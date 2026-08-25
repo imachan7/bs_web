@@ -194,6 +194,7 @@ export function createGame(
         winner: null,
         endAttackStepAfterBattle: false,
         turnConstraints: [],
+        endStepLocks: [],
         triggerSuppressionThisTurn: [],
         attacksThisTurn: 0,
         ignoreUnblockableThisTurn: [],
@@ -621,6 +622,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
         ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],
         pendingChoice: state.pendingChoice

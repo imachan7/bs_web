@@ -42,6 +42,39 @@ const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
         return
 }
 
+// BS10-108 ルナティックシール：発揮した側のエンドステップを turns 回数えるまで、両陣営に制限をかける。
+// カードは「ボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」と書くが、
+// **置かれたコアは以後どこからも参照されない**ので、実体のコアではなくカウンターとして持つ
+// （2026-08-25 ユーザー確認）。remaining がそのままデッキの横のコア数で、画面にもこれを出す
+const endStepLockHandler: ActionHandler<"endStepLock"> = (ctx, action) => {
+    const { state, owner, self, sourceName, sourceCardId } = ctx
+    if (action.turns < 1) return
+    state.endStepLocks.push({
+        pid: owner,
+        remaining: action.turns,
+        cardId: sourceCardId ?? self?.cardId ?? "",
+        locks: [...action.locks],
+    })
+    log(state, `${sourceName}：${state.players[owner].name}のエンドステップを${action.turns}回行うまで、お互いに制限がかかる。`)
+}
+
+// BS10-008 火星神龍アレス・ドラグーン：アタックステップとエンドステップを順番にもう1回ずつ行う。
+// フラグを立てるだけで、実際に戻すのは PhaseManager.endTurn（エンドステップの誘発を解決した直後）。
+// **自分のターンでなければ何もしない**（「自分のターン終了時」の効果なので、他の経路から呼ばれても暴発させない）
+const extraAttackStepHandler: ActionHandler<"extraAttackStep"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (owner !== state.turnPlayer) {
+        log(state, `${sourceName}：自分のターンではないため、アタックステップは追加されない。`)
+        return
+    }
+    if (state.extraAttackStepPending === true) {
+        log(state, `${sourceName}：すでにアタックステップの追加が予約されている。`)
+        return
+    }
+    state.extraAttackStepPending = true
+    log(state, `${sourceName}：アタックステップとエンドステップを、順番にもう1回ずつ行う。`)
+}
+
 const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 妖機妃ソール：破壊時に相手ターンのアタックステップを終了させる（onlyOpponentTurn）。
@@ -1079,6 +1112,8 @@ const handlers = {
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
+    endStepLock: endStepLockHandler,
+    extraAttackStep: extraAttackStepHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
