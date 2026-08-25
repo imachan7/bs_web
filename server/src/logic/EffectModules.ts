@@ -119,6 +119,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    bravesOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -543,7 +544,7 @@ export function refreshSpirit(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
 ): void {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
@@ -596,7 +597,7 @@ export function millDeck(
     pid: PlayerId,
     count: number,
     actorPid?: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
     // skipNegate: kind:"deckMillNegate" の確認で「無効にしない」が選ばれたあとの破棄。
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
     options?: { skipNegate?: true },
@@ -713,7 +714,7 @@ export function consumeSummonHandDiscardPay(state: GameState, pid: PlayerId): vo
 function findDeckMillNegate(
     state: GameState,
     pid: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
 ): { source: CardInstance; effect: Extract<EffectDef, { kind: "deckMillNegate" }> } | null {
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
@@ -744,7 +745,7 @@ function trySuspendDeckMillNegate(
     pid: PlayerId,
     count: number,
     actorPid: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
 ): boolean {
     if (count <= 0 || state.winner) return false
     // すでに別の選択待ちがあるならここでは中断できない。破棄を止めてしまうと
@@ -836,7 +837,7 @@ function resolveMilledFromDeck(
     state: GameState,
     pid: PlayerId,
     milled: string[],
-    cause?: { sourceType?: "spirit" | "nexus" | "magic" },
+    cause?: { sourceType?: CardType },
 ): void {
     const player = state.players[pid]
     for (const cardId of milled) {
@@ -1066,6 +1067,9 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
             if (effect.kind !== "bofuChooserSelf") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // phase（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。
+            // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             return true
         }
     }
@@ -1760,6 +1764,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
         for (const inst of [
             ...state.players[pid].field.spirits,
             ...state.players[pid].field.nexuses,
+            ...state.players[pid].field.combinedBraves,
         ]) {
             delete inst.levelAsContinuous
             delete inst.levelAsEffectsOnly
@@ -1771,18 +1776,60 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.alsoCostsContinuous
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
+            delete inst.braveComposite
+            // 合体中のブレイヴ側の目印。coresOverride は**ここでしか使っていない**ときだけ消す
+            // （クロスシザースのネクサスコア数リンクは field.nexuses に載るので混ざらない）
+            if (inst.braveCombined === true) {
+                delete inst.braveCombined
+                delete inst.coresOverride
+            }
+        }
+    }
+    // 合体しているブレイヴがホストへ足すぶんを組み直す（docs/design/BRAVE.md §3）。
+    // **レベルに依らない値だけ**（コスト・色・シンボル）。「合体時BP+」はホストのコア数で変わるので
+    // ここには入れず、shared/rules.ts の effectiveBp が都度引く
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const host of player.field.spirits) {
+            const braves = bravesOf(player, host)
+            if (braves.length === 0) continue
+            const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[] }
+            for (const brave of braves) {
+                const master = getCard(brave.cardId)
+                composite.cost += master.cost
+                for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
+                composite.symbols.push(...master.symbol)
+            }
+            host.braveComposite = composite
+            for (const brave of braves) {
+                // 合体状態のレベル表を引かせる目印と、判定に使うコア数（＝ホストのコア数）。
+                // ⚠️ ホストの levelCostBonusContinuous（バァラル型「Lvコスト+N」）は**写さない**
+                // （§12 の5。上がるのはホストのLvコストだけ）
+                brave.braveCombined = true
+                brave.coresOverride = host.coresOverride ?? host.cores
+            }
         }
     }
     // treatAs "max" は対象インスタンス自身のカードが持つ最高Lvに解決する（斬竜刀のガイ／崩壊する戦線：
     // 対象ごとに異なりうるため、発生源でなく対象カードのlevelsを参照する）。
     // "coresScaled" はコア数で換算する（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）
-    const resolveTreatAs = (treatAs: number | "max" | "coresScaled", inst: CardInstance): number => {
+    const resolveTreatAs = (
+        treatAs: number | "max" | "coresScaled" | { plus: number },
+        inst: CardInstance,
+    ): number => {
         const maxLevel = () => getCard(inst.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
         if (treatAs === "max") return maxLevel()
         if (treatAs === "coresScaled") {
             if (inst.cores >= 3) return maxLevel()
             if (inst.cores === 2) return 2
             return 1
+        }
+        if (typeof treatAs === "object") {
+            // 相対シフト（「Lvを1つ上のものとして扱う」）。**いまのレベル**を起点にする。
+            // 起点は素の currentLevel（この関数は refreshLevelAsOverrides の中で呼ばれ、
+            // levelAsContinuous を消したあとなので、コア数から求まる本来のレベルになっている）。
+            // そのカードの最高Lvで頭打ち（レベル表に無い値を入れると置き換えが黙って無視される）
+            return Math.min(maxLevel(), currentLevel(inst).level + treatAs.plus)
         }
         return treatAs
     }
@@ -2113,7 +2160,7 @@ export function pickEnemyCandidates(
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const attempt: EffectAttempt = {
@@ -2146,7 +2193,7 @@ export function pickAnySideCandidates(
     owner: PlayerId,
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const opp = opponentOf(owner)
@@ -2167,7 +2214,7 @@ export function pickAnySideByBp(
     maxBp: number,
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): { pid: PlayerId; inst: CardInstance } | null {
     const opp = opponentOf(owner)
@@ -2207,7 +2254,7 @@ export function pickEnemyByBp(
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance | null {
     const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
@@ -2481,7 +2528,7 @@ export function findSpiritAny(
 export function applyMagicBuffBonus(
     state: GameState,
     target: CardInstance,
-    srcType?: "spirit" | "nexus" | "magic",
+    srcType?: CardType,
     srcColors?: Color[],
 ): void {
     if (srcType !== "magic") return
@@ -2829,7 +2876,7 @@ export function resolveAction(
     action: EffectAction,
     targetInstanceId?: string,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     chosenOption?: string,
     chosenCardIndex?: number,
     sourceCardId?: string,
@@ -3074,6 +3121,7 @@ export {
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
+    detachBravesOnLeave,
     destroySpiritsFrom,
     destroyTargetsBatch,
     applyDestroyBatchAfter,

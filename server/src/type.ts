@@ -11,7 +11,16 @@ export type Phase =
     | "end"
 
 export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
-export type CardType = "spirit" | "nexus" | "magic"
+// ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
+// 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
+export type CardType = "spirit" | "nexus" | "magic" | "brave"
+
+// **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
+// ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
+// 【装甲：色】の効果文は「相手の**スピリット/ネクサス/マジック**の効果を受けない」でブレイヴを列挙していないため、
+// **ブレイヴ自身の効果（単体で場に出たブレイヴの召喚時など）は装甲では防げない**（防げるのは【重装甲】だけ）。
+// 丸めると装甲が過剰に効く。一方、合体中にブレイヴがホストへ付与している効果の発生源は
+// **合体スピリット＝スピリット**なので、そちらは装甲で防げる
 
 // デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 export type DeckSpec = string | Record<string, number>
@@ -22,6 +31,15 @@ export interface LevelDef {
     cores: number
     bp: number
 }
+
+// ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。
+// TargetFilter と軸が似ているが「対象は合体先スピリット1体」で意味が違うため共用しない
+export interface BraveConditionTerm {
+    family?: string // 系統
+    minCost?: number // コスト◯以上
+    cardName?: string // カード名指定
+}
+export type BraveCondition = BraveConditionTerm | BraveConditionTerm[]
 
 // コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 export interface PaySource {
@@ -420,6 +438,10 @@ export type FieldEvent =
 export type Keyword =
     | "soku" // 神速：手札からフラッシュタイミングで召喚できる
     | "awaken" // 覚醒：フラッシュタイミングで自分のスピリットのコアを集められる
+    | "superAwaken" // 超覚醒：【覚醒】＋**コアを置いたとき、このスピリットは回復する**（BS10-X01 幻羅星龍ガイ・アスラ）。
+    // ⚠️ **【覚醒】とは別枠のキーワードにする**（2026-08-25 ユーザー確認）。将来「【超覚醒】を持つ〜」を
+    // 参照する効果が出うるため。ただし「【覚醒】を持つ〜」の参照には**【超覚醒】も引っかかる**
+    // （shared/rules.ts の KEYWORD_INCLUDES）
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
     | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
@@ -523,6 +545,12 @@ export type ConstraintDef =
     | { type: "noRestWhenBlockingWithoutKeyword"; keyword: Keyword; oncePerTurn?: true } // このスピリットが、指定キーワードを**持たない**相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor/Cost の兄弟。BS07ブリシンガメンの首飾りLv2＝【転召】を持たない相手）。
     // oncePerTurn 指定時は「ターンに1回」に制限する（消費した**発生源**を PlayerState.noRestWhenBlockingUsedThisTurn に記録。ネクサス1枚につき1回なので、同名を2枚置けば2回使える。2026-08-24）
     | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
+    | { type: "coresCantBeRemoved" } // **お互い、このスピリットのコアを取り除けない**（BS10-X01 幻羅星龍ガイ・アスラ）。
+    // 2026-08-25 ユーザー確認で「文字どおり。効果でもプレイヤーによる操作でも取り除けない」。
+    // ⚠️ **自分の効果・自分の操作も止める**ので、`boardResistanceAgainst` の「ここから下は相手の効果限定」
+    // より**前**で判定する（battlingEffectImmune と同じ位置）。
+    // プレイヤー操作は3入口で止める：コアの手動移動（moveCore）・コストの支払い元（validatePaySources）・
+    // 【覚醒】の移動元（validateAwaken）
     | { type: "tenshoCoreSubstitute"; mode?: "rest" | "returnToHand" } // このスピリットが【転召】の対象になったとき、疲労していなければ、疲労することでコアすべてを指定場所に置いたものとして扱う（実際にはコアを失わない代替。dumpAllCoresTenshoが判定する。BS05の竜使い6枚）。
     // mode:"returnToHand" 指定時は、疲労の代わりに**このスピリットを手札に戻す**ことで同じ扱いにする
     // （SD02-009 獣将軍クジャルタ）。手札に戻る＝通常のバウンスなので**上のコアはリザーブへ行く**
@@ -542,7 +570,7 @@ export type GlobalConstraintDef =
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
-    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: ("spirit" | "nexus" | "magic")[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
+    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
     // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
     // どちらかを指定した場合は DestroyContext が要り、発生源が不明なときは**守らない**側に倒す（colors と同じ方針）。
     // 「相手の」を明示している効果なので、指定時は sourcePid が持ち主と異なることも求める
@@ -579,7 +607,7 @@ export type GlobalConstraintDef =
 // 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
-    sourceType?: "spirit" | "nexus" | "magic"
+    sourceType?: CardType
     sourceColors?: Color[] // 破壊を引き起こした効果の発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
     battle?: { attackerColors: Color[]; attackerLevel?: number; attackerBp?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル・実効BP（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }
@@ -592,6 +620,10 @@ export type EffectDef =
           kind: "keyword"
           keyword: Keyword
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           colors?: Color[] // 装甲用: この色の相手効果を受けない
           colorsFrom?: "opponentFieldSymbols" // 装甲用: colorsの代わりに、持ち主から見た相手フィールドのシンボル色を毎回算出して使う（【装甲：∞】。EffectModules.refreshLevelAsOverridesがarmorColorsGrantedへ都度再構築する。BS06鎧神機ヴァルハランス）
           count?: number // 暴風用: 指定数（【暴風：2】＝2体）。表示と、同じカードの誘発エントリの体数を読み合わせるために持つ
@@ -605,6 +637,10 @@ export type EffectDef =
           kind: "triggered"
           trigger: TriggerEvent
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           action: EffectAction
           optional: boolean // 「〜できる」= 任意。interactiveTargets（実対戦）では発動確認の
           // pendingChoice（kind:"option" / confirm:true）を出し、選ばなければ発動しない。
@@ -678,12 +714,21 @@ export type EffectDef =
           id: string
           kind: "aura"
           levels: number[] | null // オーラ発生源のレベル条件
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           aura: AuraDef
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった（判定は aura.lentOnly と同じ）
       }
     | {
           id: string
           kind: "constraint"
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           constraint: ConstraintDef
       }
     | {
@@ -819,6 +864,7 @@ export type EffectDef =
           side?: "both" // 指定時は持ち主だけでなく**両陣営**のスピリットが対象（BS09-073オンザエッジ＝「スピリットすべては」）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           keywordFilter?: Keyword // 指定時はこのキーワードを持つスピリットのみ対象（spiritHasKeywordで判定。BS06神葉樹の森Lv2＝【神速】持ちのLv1のみ）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
       }
     | {
           id: string
@@ -856,6 +902,10 @@ export type EffectDef =
           kind: "fieldEvent"
           event: FieldEvent
           levels: number[] | null
+          whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
+          // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
+          // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           action: EffectAction
           phase?: Phase // 指定時はこのステップでのみ発火（例: 侵食されゆく銀世界Lv2＝相手のアタックステップ限定）
           excludePhase?: Phase // 指定時はこのステップでは発火しない（phaseと排他。BS08ダークアンキラーザウルス＝「ドローステップ以外で相手がドローしたとき」）
@@ -1106,6 +1156,7 @@ export type EffectDef =
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊／無法者の荒野／深緑の樹海／子供部屋 午前0時）
           levels: number[] | null
           scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           optional?: true // 効果文が「〜できる」＝任意のとき指定する。実対戦（interactiveTargets）では
           // **破壊をいったん見送って場に残したまま**保留し、アクションが一段落した安全な地点で持ち主に確認する
           // （GameState.pendingReviveConfirms → PendingChoice.reviveConfirm）。承認でコスト支払い＋復活が確定し、
@@ -1161,6 +1212,7 @@ export type EffectDef =
           target: "ownAll"
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ（BS06冥府の深淵：冥主/無魔）
           colorFilter?: Color // 指定時はこの色を持つスピリットのみ（instHasColorで判定。familyFilterとはAND条件。BS03バッチ）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05黄道の虚空Lv2：転召持ちに光芒を付与）
           colors?: Color[] // keyword:"armor"用：付与する装甲の対象色。EffectModules.refreshLevelAsOverridesがCardInstance.armorColorsGrantedへ毎回再計算して反映し、
           // hasArmorAgainstがそれを見る（既存のtempKeywords装甲colorsと同じ判定経路。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）
@@ -1231,7 +1283,14 @@ export type EffectDef =
           kind: "levelAs" // 継続的な「Lv◯として扱う」置換（EffectModules.refreshLevelAsOverridesが毎回再計算する。ナイフ投げのジャグリーン／トパーズの流星）
           levels: null
           target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsByKeyword" | "ownSpiritsByFamily" | "ownSpiritsVanilla" | "opponentSpiritsAll" | "allSpiritsByChosenColor" | "opponentBlockersOfOwnKeyword" // ownSpiritsByKeyword=keywordFilterのキーワードエントリを静的に持つ持ち主のスピリットすべて（レベル不問。斬竜刀のガイ／崩壊する戦線）／ownSpiritsByFamily=familyFilterの系統（配列＝OR。matchesFamilyFilterで判定）を持つ持ち主のスピリットすべて（BS06マッスルチャージ：闘神）／ownSpiritsVanilla=カードに効果の記述を持たない（バニラ）持ち主のスピリットすべて（サファイアの城壁）／opponentNexusesAll=発生源の持ち主の相手の全ネクサス（ウッド・ゴレム）／opponentSpiritsAll=発生源の持ち主の相手の全スピリット（BS03フォーカード／BS04ジャッジメントライツ）／allSpiritsByChosenColor=両陣営の、貸与時に選ばれた色（CardInstance.lentChoiceColor）を持つスピリットすべて（BS02-111スピリットイリュージョン）
-          treatAs: number | "max" | "coresScaled" // 扱うレベル。"max"=対象カード自身が持つ最高Lv（card.levelsのlevel最大値。対象ごとに算出）／"coresScaled"=対象のコア数で換算（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）
+          treatAs: number | "max" | "coresScaled" | { plus: number } // 扱うレベル。
+          // 数値=そのレベル固定／"max"=対象カード自身が持つ最高Lv（card.levelsのlevel最大値。対象ごとに算出）／
+          // "coresScaled"=対象のコア数で換算（1個→Lv1、2個→Lv2、3個以上→"max"と同じ。サファイアの城壁）／
+          // **{ plus: N }=いまのレベルから相対的にN上げる**（BS10-094 未完成の古代戦艦：竜骨Lv2
+          // 「Lvを1つ上のものとして扱う」。2026-08-25 ユーザー確認で「文字どおり」）。
+          // ⚠️ 相対シフトは**そのカードが持つ最高Lvで頭打ち**にする：Lv1-Lv2 のカードが Lv2 のとき
+          // 「1つ上」は Lv3 になるが、そのレベル定義が無いと levelOf が置き換えを黙って無視して
+          // **効果が無言で消える**（レベル表に無い override はフォールバックされる仕様のため）
           keywordFilter?: Keyword // target: "ownSpiritsByKeyword" 用。
           // target: "opponentBlockersOfOwnKeyword" では「**このキーワードを持つ自分のスピリット**をブロックしている相手」を指す
           // （SD02-005 天使ヘルヴィムLv2-3＝【光芒】を持つ自分のスピリットをブロックしている相手すべてはLv1として扱う）
@@ -1378,6 +1437,7 @@ export type EffectDef =
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ（BS06計画された場外乱闘：闘神）
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05シンクロニシティ：覚醒持ちに指定アタックを付与）
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ（reviveOnDestroy.vanillaFilterと同型。BS05ポテンシャルパワー）
+          lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ（instanceSymbolCountで判定＝ダブルハートの追加シンボルも見る。BS05最古龍の顎Lv2：シンボル2つ以上）
           nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ（cardNameContainsで判定＝「〜として扱う」付与名も見る。BS05天焦がす大聖火Lv2：「巨人」）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件のときのみ有効
@@ -1442,6 +1502,7 @@ export type EffectDef =
           // exhaust ハンドラが hasBofuChooserSelf を見て chooserIsTarget を無効化する（BS07ワールウィンド）
           levels: number[] | null
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効
+          phase?: Phase // 指定時はこのステップでのみ有効（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかったためステップ限定が効いていなかった
       }
     | {
           id: string
@@ -1562,6 +1623,10 @@ export interface CardData {
     limitCount?: number // 制限カード（同名の最大投入数。3枚未満に制限する場合のみ指定。省略時は通常の3枚まで）
     effect: string // 表示用テキスト（原文）
     effects: EffectDef[] // 構造化された効果（未対応の効果は含まれない）
+    // ---- type === "brave" のときだけ持つ（docs/design/BRAVE.md §2.2）----
+    braveLevels?: LevelDef[] // 合体状態のレベル表。bp は「合体時BP+」の加算値、cores は**合体スピリット上の**コア数で判定する。
+    // Lv1 の cores は 0（合体中のブレイヴはコアを持たないため。これで currentLevel が Lv0 に落ちない）
+    braveCondition?: BraveCondition // 合体条件（満たすスピリットにのみ合体できる）
 }
 
 // 盤面インスタンス（可変）。data.md 6.2 に対応
@@ -1658,6 +1723,23 @@ export interface CardInstance {
     noRefreshTargetInstanceId?: string // このスピリットが「回復できない」と指定した**相手**スピリットのinstanceId（action:"markNoRefreshTarget"）。
     // このスピリット自身が疲労状態でフィールドにいる間だけ効く（EffectModules.isRefreshBlockedByMark が判定。スクルディア）。
     // 疲労し直すたびに上書きされる。指定先が場を離れても残るが、instanceId が一致しなくなるだけで無害
+    braveCombined?: true
+    // **合体中のブレイヴ側**に載る目印（docs/design/BRAVE.md §4）。
+    // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築し、あわせて coresOverride に
+    // **ホストのコア数**を写す。この2つで shared/rules の instLevels が合体状態のレベル表
+    // （CardData.braveLevels）を返し、currentLevel がホストのコア数で正しいレベルを出す。
+    // ⚠️ ここを素の levels のままにすると、合体中のブレイヴはコア0なので **Lv0 になり、
+    // 【合体中】効果が無言で発火しない**（TURN_EFFECT_SOURCES.md §3.3 と同型の事故）
+    braveComposite?: { cost: number; colors: Color[]; symbols: Color[] }
+    // **合体しているブレイヴがホストへ足すぶん**（docs/design/BRAVE.md §3）。
+    // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築する（他の継続上書きと同じ扱い）。
+    // ここに入るのは**レベルに依らない値だけ**：コスト・色・シンボル。
+    // 「合体時BP+」はホストのコア数で変わる（合体状態のレベル表を引く）ので**ここには入れない**。
+    // BP は shared/rules.ts の effectiveBp が board から実体を引いてその場で足す
+    braveRefs?: { slot: "left" | "right" | "single"; instanceId: string }[]
+    // **合体しているブレイヴへの参照**（ホスト側に載る。docs/design/BRAVE.md §2.3）。実体は field.combinedBraves にあり、
+    // ここは instanceId で指すだけ。通常のブレイヴは slot:"single" の1本。異魔神ブレイヴ（1枚がスピリット2体に合体）は
+    // **実体1つ・参照2本**になるので、入れ子（host.braves）にせず参照方式にしてある（§11.2）
 }
 
 // プレイヤーの状態
@@ -1680,6 +1762,9 @@ export interface PlayerState {
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]
+        combinedBraves: CardInstance[] // 合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3・§2.4）。
+        // **フィールド走査の対象に入れない**（spirits に置くと合体スピリットが2体に数えられ、
+        // シンボルの二重計上・destroyAll の二重ヒット・コア0での維持コア割れ消滅が起きる）
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 手札のカードに一時付与されたキーワード（grantKeywordToHandCard。ターン終了でリセット。ビートプリースト）
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。
@@ -1830,7 +1915,7 @@ export interface PendingChoice {
         effectId: string
         count: number
         actorPid: PlayerId
-        sourceType?: "spirit" | "nexus" | "magic"
+        sourceType?: CardType
     }
     magicRedirect?: {
         // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
@@ -1932,6 +2017,7 @@ export type ResumeFrame =
           reserveDelta: number // 場に出すときリザーブから引く数（フィールドのコアで賄えた分を差し引いた残り）
           logText: string // 「〜を召喚した」のログ（場に出た時点で出す）
           cardName: string // クライアント演出用イベントに載せる名前
+          braveTargetInstanceId?: string // ダイレクトブレイヴのとき、合体先スピリットの instanceId（BRAVE.md §5.2）
       }
     | {
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
@@ -2083,7 +2169,7 @@ export interface GameState {
     // （fieldEvent.sourceColorFilter）。ドローステップのドローやコアステップのコア置きのような
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
-    currentEffectSource?: { pid: PlayerId; type?: "spirit" | "nexus" | "magic"; colors?: Color[] }
+    currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[] }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
@@ -2182,6 +2268,7 @@ export interface PlayerView {
     field: {
         spirits: CardInstance[]
         nexuses: CardInstance[]
+        combinedBraves: CardInstance[] // 公開情報のため自分/相手とも常に配信する（合体表示に要る）
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 自分のみ。相手は常に省略（手札内容に紐づくため）
     payToNegate?: boolean // 自分のみ。「手札を破棄して効果を受けない」を払う方針か（UIのトグル表示用。未指定は true 扱い）
@@ -2213,7 +2300,7 @@ export interface GameView {
 // ---- クライアント → サーバーのアクション ----
 
 export type GameAction =
-    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string; discardHandIndices?: number[] } // discardHandIndices指定時は、その手札を破棄して**1枚につきコスト1**を支払う（BS08ビクティム）。省略時は従来どおり「コアで足りない分を自動で手札破棄に回す」（非対話・旧クライアント互換） // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは通常どおり必要。発動可否は shared/rules.ts の canBattleSwapSummon で判定できる。BS07ブラックカラカロッサム）
+    | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string; discardHandIndices?: number[]; braveTargetInstanceId?: string } // braveTargetInstanceId指定時は**ダイレクトブレイヴ**＝そのスピリットに合体した状態でブレイヴを召喚する（維持コアを置かない。docs/design/BRAVE.md §5）。省略時、ブレイヴは単体のスピリットとして召喚される // discardHandIndices指定時は、その手札を破棄して**1枚につきコスト1**を支払う（BS08ビクティム）。省略時は従来どおり「コアで足りない分を自動で手札破棄に回す」（非対話・旧クライアント互換） // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは通常どおり必要。発動可否は shared/rules.ts の canBattleSwapSummon で判定できる。BS07ブラックカラカロッサム）
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[]; millPay?: number } // millPayは配置コストの支払い方法の選択（BS04栄光の表彰台）。0＝コアで払う／実効コストと同じ値＝その枚数だけデッキを上から破棄して払う。**中間の枚数は不可**（併用できない）。省略時は「コアで足りるならコア、足りなければ全額デッキ破棄」 // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
     | { type: "moveCore"; instanceId: string; direction: "add" | "remove"; confirmDeplete?: true } // confirmDeplete指定時は、維持コア（Lv1）を下回るコアの取り除きを許可し、そのスピリットを消滅させる（コアを他へ回すために自分のスピリットをあえて退かせる操作。クライアントが確認を取ってから送る。2026-08-23 ユーザー要望）

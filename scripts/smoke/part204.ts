@@ -8,7 +8,7 @@
 //   - 014 魔法監視塔 Lv2 は、無効にしたら**必ず**デッキの下へ戻る
 import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { effectiveCost } from "../../shared/cost"
+import { effectiveCost, hasMagicRestriction } from "../../shared/cost"
 import { instHasCost } from "../../shared/rules"
 import { dumpAllCoresTensho } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
@@ -238,28 +238,30 @@ console.log("--- SD02-011 獣皇子バハムンド：相手の手札のマジッ
     assert(!s.players.p2.hand.includes(magic.cardId), "破棄されたのはマジックカード")
 }
 {
+    // 効果文は『**自分の**アタックステップ』＝バハムンドの持ち主（p1）のアタックステップ限定。
+    // 2026-08-24 まではデータが phaseTurn（実装が読まないキー）で書かれていて限定が効かず、
+    // **メインステップでも常時**掛かっていた（このテストもその状態を固定していた）
     const s = base("bahamund-lock")
-    s.phase = "attack"
     put(s, "p1", BAHAMUND, coresFor(BAHAMUND, 2))
-    // 相手（p2）のトラッシュに赤のマジックを置くと、赤のマジックが使えなくなる
     const redMagic = CARDS.find((c) => c.type === "magic" && (c.colors ?? []).includes("red"))!
-    const otherMagic = CARDS.find(
-        (c) => c.type === "magic" && !(c.colors ?? []).includes("red"),
-    )!
     s.players.p2.trashCards.push(redMagic.cardId)
-    s.players.p2.hand = [redMagic.cardId, otherMagic.cardId]
-    s.players.p2.reserve = 20
-    s.turnPlayer = "p2"
-    const lockedError = act(s, "p2", { type: "castMagic", handIndex: 0 })
+    s.turnPlayer = "p1"
+
+    s.phase = "attack"
     assert(
-        lockedError !== null && lockedError.includes("トラッシュ"),
-        `トラッシュと同じ色のマジックは使用できない（${lockedError}）`,
+        hasMagicRestriction(s, "p2", "trashColorLockOpponent"),
+        "持ち主のアタックステップでは、相手はトラッシュと同じ色のマジックを使えない",
     )
-    // 対照実験：違う色は**この制限では**止まらない（ステップ違いなど別の理由で弾かれるのは想定内）
-    const otherError = act(s, "p2", { type: "castMagic", handIndex: 1 })
+    s.phase = "main"
     assert(
-        otherError === null || !otherError.includes("トラッシュ"),
-        `違う色のマジックは色の制限では止まらない（${otherError}）`,
+        !hasMagicRestriction(s, "p2", "trashColorLockOpponent"),
+        "メインステップには掛からない（『自分のアタックステップ』限定）",
+    )
+    s.phase = "attack"
+    s.turnPlayer = "p2"
+    assert(
+        !hasMagicRestriction(s, "p2", "trashColorLockOpponent"),
+        "相手のアタックステップにも掛からない（turn:own）",
     )
 }
 

@@ -183,7 +183,11 @@ function countCards(state: GameState): number {
             p.trashCards.length +
             p.tegamoto.length +
             p.field.spirits.length +
-            p.field.nexuses.length
+            p.field.nexuses.length +
+            // 合体中のブレイヴ（docs/design/BRAVE.md §2.3）。**フィールド走査の対象ではないが、
+            // カードとしては場に存在する**ので保存則には数える。数え忘れると
+            // 「合体するたびに1枚消えた」と誤検出される（2026-08-25 に実際に出た）
+            p.field.combinedBraves.length
     }
     // 公開ゾーンは解決中だけ存在する一時領域。ここに滞留したぶんも数に入れる
     total += state.revealedCards?.cardIds.length ?? 0
@@ -205,7 +209,7 @@ function checkCoreSanity(state: GameState): string | null {
         ] as [string, number][]) {
             if (!Number.isInteger(v) || v < 0) return `${pid}の${name}が不正: ${v}`
         }
-        for (const inst of [...p.field.spirits, ...p.field.nexuses]) {
+        for (const inst of [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves]) {
             if (!Number.isInteger(inst.cores) || inst.cores < 0) {
                 return `${pid}の${inst.instanceId}のコアが不正: ${inst.cores}`
             }

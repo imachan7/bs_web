@@ -22,7 +22,7 @@ import { loadAllCards } from "../data/loadCards"
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
-const VALID_TYPES = new Set(["spirit", "nexus", "magic"])
+const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 
 // TriggerEvent（server/src/type.ts）に対応する誘発イベント名。
 // cards.json は型検査対象外のため、trigger 名の改名・削除がここで検出されないと
@@ -318,7 +318,40 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                     prevCores = lv.cores
                 }
             }
-            if (c.symbol.length === 0) add(id, `${c.type} なのに symbol が空`)
+            // ブレイヴは「シンボル：なし」が実在する（BS10-062 砲凰竜フェニック・キャノン。BRAVE.md §1.5）
+            if (c.symbol.length === 0 && c.type !== "brave") add(id, `${c.type} なのに symbol が空`)
+        }
+
+        // --- ブレイヴ（docs/design/BRAVE.md §9）---
+        if (c.type === "brave") {
+            if (!Array.isArray(c.braveLevels) || c.braveLevels.length === 0) {
+                add(id, "brave なのに braveLevels（合体状態のレベル表）が無い")
+            } else {
+                // 合体中のブレイヴはコアを持たない（コアはホスト側に集約される）。
+                // Lv1 の cores が 0 でないと currentLevel が Lv0 に落ち、【合体中】効果が無言で発火しなくなる
+                const lv1 = c.braveLevels.find((lv: { level: number }) => lv.level === 1)
+                if (!lv1) add(id, "braveLevels に Lv1 が無い")
+                else if (lv1.cores !== 0) add(id, `braveLevels の Lv1 の cores が 0 でない（${lv1.cores}）`)
+                let prevLevel = 0
+                let prevCores = -1
+                for (const lv of c.braveLevels) {
+                    if (lv.level <= prevLevel) add(id, `braveLevels の level が昇順でない（${lv.level}）`)
+                    if (lv.cores < prevCores) add(id, `braveLevels の cores が昇順でない（Lv${lv.level}=${lv.cores}）`)
+                    prevLevel = lv.level
+                    prevCores = lv.cores
+                }
+            }
+            const terms = c.braveCondition === undefined ? [] : Array.isArray(c.braveCondition) ? c.braveCondition : [c.braveCondition]
+            if (terms.length === 0) add(id, "brave なのに braveCondition（合体条件）が無い")
+            for (const t of terms) {
+                const keys = Object.keys(t as Record<string, unknown>)
+                if (keys.length === 0) add(id, "braveCondition の項が空")
+                for (const k of keys) {
+                    if (!["family", "minCost", "cardName"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                }
+            }
+        } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {
+            add(id, `type が ${String(c.type)} なのに braveLevels/braveCondition を持つ`)
         }
 
         // --- 効果 ---
@@ -437,9 +470,56 @@ export function findUnusedActions(cards: CardData[]): string[] {
 }
 
 // 単体実行時のエントリポイント
+// 効果エントリの**トップレベルのキー**が、その kind の型（server/src/type.ts の EffectDef）に
+// 宣言されているかを検査する。
+//
+// **なぜ必要か**: カードデータは型検査の外にあるので、型に無いキーを書いても誰も気づかない。
+// 実装はそのキーを読まないため、書いた条件が**無言で消える**。実際に2件見つかった（2026-08-24）:
+//   - BS09-060 緑翼の大樹Lv2  bofuChooserSelf に "phase" → ステップ限定が効かず常時発揮
+//   - SD02-011 獣皇子バハムンド magicRestriction に "phaseTurn"（正しくは phase + turn）
+//     → 『自分のアタックステップ』限定が効かず常時発揮（テストもその状態を固定していた）
+// type.ts を正として読むので、型を直せば検査も自動で追随する（陳腐化しない）。
+export function findUndeclaredEffectKeys(cards: CardData[]): { cardId: string; message: string }[] {
+    const typeSrc = fs.readFileSync(path.resolve(__dirname, "../server/src/type.ts"), "utf-8")
+    const start = typeSrc.indexOf("export type EffectDef =")
+    const end = typeSrc.indexOf("export interface CardData", start)
+    if (start === -1 || end === -1) {
+        return [{ cardId: "(全体)", message: "type.ts の EffectDef を読み取れませんでした（検査を追随させてください）" }]
+    }
+    const declared = new Map<string, Set<string>>()
+    for (const block of typeSrc.slice(start, end).split("\n    | {")) {
+        const kindLine = /kind:\s*("[^"]+"(?:\s*\|\s*"[^"]+")*)/.exec(block)
+        if (!kindLine?.[1]) continue
+        const keys = new Set<string>()
+        for (const m of block.matchAll(/^\s{6,}(\w+)\??:/gm)) if (m[1]) keys.add(m[1])
+        for (const k of kindLine[1].matchAll(/"([^"]+)"/g)) {
+            if (k[1]) declared.set(k[1], new Set([...(declared.get(k[1]) ?? []), ...keys]))
+        }
+    }
+    const issues: { cardId: string; message: string }[] = []
+    for (const card of cards) {
+        for (const effect of (card.effects ?? []) as unknown as Record<string, unknown>[]) {
+            const kind = String(effect["kind"] ?? "")
+            const keys = declared.get(kind)
+            if (!keys) continue // 未知の kind は既存の検査が拾う
+            for (const key of Object.keys(effect)) {
+                if (key === "id" || key === "kind") continue
+                if (keys.has(key)) continue
+                issues.push({
+                    cardId: card.cardId,
+                    message: `${card.name}: kind:"${kind}" に型宣言の無いキー "${key}" がある（実装は読まないので、この指定は無言で消える）`,
+                })
+            }
+        }
+    }
+    return issues
+}
+
 function main(): void {
     const cards = loadAllCards()
     const issues = validateCards(cards)
+
+    issues.push(...findUndeclaredEffectKeys(cards))
 
     for (const a of findUnusedActions(cards)) {
         issues.push({

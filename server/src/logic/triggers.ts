@@ -105,6 +105,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    effectActiveOn,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -269,7 +270,10 @@ export function fireTrigger(
     const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
-        if (!effectActiveAtLevel(effect.levels, level)) return false
+        // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
+        // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
+        // 2026-08-25 ユーザー確認）
+        if (!effectActiveOn(selfInstance, effect, level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
@@ -861,7 +865,7 @@ export function fireFieldEventTriggers(
             if (effect.event !== event) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!effectActiveOn(inst, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
             if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue
@@ -1188,7 +1192,7 @@ export function findBothSidesRedirectSource(
 // （非対話・魔導書が無い・「変更しない」を選んだ）は null を返して素通しさせる
 export function bothSidesRedirectKeepPid(
     state: GameState,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourceType: CardType | undefined,
 ): PlayerId | null {
     if (sourceType !== "magic") return null
     const decision = state.magicSideDecision
@@ -1202,7 +1206,7 @@ export function bothSidesRedirectKeepPid(
 // （「ネクサス1つ」を対象にする anySide があるため。BS03メビウスリング）
 export function applyBothSidesRedirectToCandidates(
     state: GameState,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourceType: CardType | undefined,
     candidates: CardInstance[],
 ): CardInstance[] {
     const keepPid = bothSidesRedirectKeepPid(state, sourceType)
@@ -1227,6 +1231,7 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "battleBpAsLevel") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             // 相手側の発生源は side:"both" のエントリだけが効く
             if (sourcePid !== pid && effect.side !== "both") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue

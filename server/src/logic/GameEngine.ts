@@ -22,7 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -81,6 +81,7 @@ import {
     fireBounceTriggers,
     flushBounces,
     requestActivationConfirm,
+    refreshSpirit,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -243,7 +244,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
@@ -385,10 +386,28 @@ function placeSummonedSpirit(
     reserveDelta: number,
     logText: string,
     cardName: string,
+    // ダイレクトブレイヴ：合体先スピリットの instanceId（docs/design/BRAVE.md §5.2）。
+    // 指定時、実体は field.spirits ではなく **field.combinedBraves** へ入り、
+    // ホストが braveRefs で参照する（参照方式。§2.3）
+    braveTargetInstanceId?: string,
 ): void {
     const player = state.players[pid]
     player.reserve -= reserveDelta
-    player.field.spirits.push(inst)
+    const host =
+        braveTargetInstanceId === undefined
+            ? undefined
+            : player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
+    if (host !== undefined) {
+        player.field.combinedBraves.push(inst)
+        host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: inst.instanceId }]
+        // 合体時の疲労合成：**どちらかが疲労状態なら合体スピリットは疲労状態**（§1.3）
+        host.isRested = host.isRested || inst.isRested
+        // ブレイヴが足すコスト・色・シンボル（braveComposite）をここで組み直す。
+        // handleAction の末尾でも走るが、**このあとに出る召喚時効果がコストや色を読む**ので先に反映する
+        refreshLevelAsOverrides(state)
+    } else {
+        player.field.spirits.push(inst)
+    }
     delete state.summoningInstanceId
     log(state, logText)
     emitEvent(state, { type: "summon", pid, cardName })
@@ -412,8 +431,9 @@ function doSummon(
     level?: number,
     substituteInstanceId?: string,
     discardHandIndices?: number[],
+    braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId)
     if (error) return error
 
     const player = state.players[pid]
@@ -431,7 +451,13 @@ function doSummon(
     const cost = effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
-    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
+    // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
+    const maintain =
+        braveTargetInstanceId !== undefined
+            ? 0
+            : level === undefined
+              ? minLevelCores(card)
+              : (coresForLevel(card, level) ?? minLevelCores(card))
 
     // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払う
     // （validateSummon と同じ関数で枚数を出すので、検証と実行がズレない）
@@ -463,7 +489,11 @@ function doSummon(
     const inst = createInstance(cardId, state.turn, maintain)
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
-    const logText = `${player.name}は${flashNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
+    const braveNote =
+        braveTargetInstanceId === undefined
+            ? ""
+            : `${getCard(player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
+    const logText = `${player.name}は${flashNote}${braveNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
     const reserveDelta = maintain - placedFromField
 
     // 【転召】は「コストを支払う → **転召** → 維持コアを置く → 召喚完了」の順に解決する
@@ -476,11 +506,14 @@ function doSummon(
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける
         pushResumeFrames(state, [
-            { kind: "placeSummon", pid, inst, reserveDelta, logText, cardName: card.name },
+            {
+                kind: "placeSummon", pid, inst, reserveDelta, logText, cardName: card.name,
+                ...(braveTargetInstanceId !== undefined ? { braveTargetInstanceId } : {}),
+            },
         ])
         return null
     }
-    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name)
+    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
@@ -729,6 +762,15 @@ function doMoveCore(
     return null
 }
 
+// 【超覚醒】：この効果でコアを置いたとき、そのスピリットは回復する（BS10-X01 幻羅星龍ガイ・アスラ）。
+// 【覚醒】との違いはここだけなので、コアを移した直後に1回だけ呼ぶ
+function refreshOnSuperAwaken(state: GameState, pid: PlayerId, target: CardInstance): void {
+    if (!target.isRested) return
+    if (!hasSuperAwaken(state, pid, target)) return
+    refreshSpirit(state, pid, target)
+    log(state, `【超覚醒】${getCard(target.cardId).name}は回復した。`)
+}
+
 function doAwaken(
     state: GameState,
     pid: PlayerId,
@@ -752,6 +794,7 @@ function doAwaken(
             state,
             `【覚醒】${player.name}はリザーブから${getCard(target.cardId).name}へコア${count}個を移した。`,
         )
+        refreshOnSuperAwaken(state, pid, target)
         passFlashPriority(state, pid)
         return null
     }
@@ -766,6 +809,7 @@ function doAwaken(
         state,
         `【覚醒】${player.name}は${getCard(from.cardId).name}から${getCard(target.cardId).name}へコア${count}個を移した。`,
     )
+    refreshOnSuperAwaken(state, pid, target)
     // 移動元が維持コア（Lv1）を下回ったら消滅
     if (from.cores < instMinLevelCores(from)) {
         destroySpirit(state, pid, from.instanceId, "deplete")
@@ -1456,7 +1500,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (!frame) continue
         if (frame.kind === "placeSummon") {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
-            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName)
+            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId)
             continue
         }
         if (frame.kind === "turnStart") {

@@ -14,6 +14,7 @@ const TYPE_LABELS: Record<CardType, string> = {
     spirit: "スピリット",
     nexus: "ネクサス",
     magic: "マジック",
+    brave: "ブレイヴ",
 }
 
 // フィルタ用のコスト帯（チップの data-cost と同じ並び）

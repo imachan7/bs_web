@@ -1,7 +1,16 @@
 # 設計: バースト（伏せ札と条件発動）
 
-- 作成: 2026-07-26
+- 作成: 2026-07-26 ／ **見直し: 2026-08-24（実装着手前のコードとの突き合わせ）**
 - **この文書は設計のみ。実装は未着手**
+
+## ⚠️ 2026-08-24 の見直しで変わった点（本文はこれに従って書き換えてある）
+
+| # | 変更 | 理由 |
+| --: | :-- | :-- |
+| 1 | **バースト効果は `CardData.burst` ではなく `effects[]` の1エントリ（`kind:"burst"`）にする** | `CardData` の直下に置くと、**効果の検査・実行時カバレッジの両方から外れる**。どちらも `card.effects` を走査するため（§3.1） |
+| 2 | §2 の「⚠️ 小改修が要る」3行のうち**2行は解消済み** | `fieldEvent.subjectSide`（2026-08-16 追加）で「相手による」「相手の」がそのまま書ける |
+| 3 | 任意発動は `requestActivationConfirm` を使う | 「〜できる」の確認は既に共通機構がある。独自に option choice を組み立てない（§5.2） |
+| 4 | 「バースト効果を持たないカードのセット＝敗北」の簡略化は**ユーザー確認事項に格上げ** | ルールの簡略化なので勝手に決めない（§10） |
 - 出典: [バトスピ Wiki「バースト」](https://batspi.com/index.php?%E3%83%90%E3%83%BC%E3%82%B9%E3%83%88)
 - 関連: [BRAVE.md](./BRAVE.md)、[TURN_EFFECT_SOURCES.md](./TURN_EFFECT_SOURCES.md)、[SPEC.md](../../SPEC.md)
 
@@ -79,44 +88,65 @@
 
 これが本設計の最大の発見。**トリガー機構を新規に作る必要はない。**
 
-| バーストの発動条件 | 既存の `FieldEvent` | 状態 |
+**2026-08-24 の再確認：⚠️ が3行から1行に減った。** `fieldEvent` に
+`subjectSide`（イベントの主体がどちら側か。2026-08-16 追加）と `sourceColorFilter` が入り、
+「相手による」「相手の」を**そのまま書けるようになっている**。
+
+| バーストの発動条件 | 既存の `FieldEvent` | 状態（2026-08-24 時点） |
 | :-- | :-- | :-- |
 | 【自分のライフ減少後】 | `ownLifeDamaged` | ✅ そのまま |
-| 【相手による自分のスピリット破壊後】 | `ownSpiritDestroyed` | ⚠️ 「相手による」の限定が要る（`ownSpiritCoresRemovedByOpponent` の `actorPid` 伝播が前例） |
-| 【相手のスピリットのアタック後】 | `anySpiritAttacked` | ⚠️ 「相手の」の限定が要る（`turn` 条件で近似可） |
+| 【相手による自分のスピリット破壊後】 | `ownSpiritDestroyed` + `subjectSide` | ✅ **解消済み**（`subjectSide:"opponent"`） |
+| 【相手のスピリットのアタック後】 | `anySpiritAttacked` + `subjectSide` | ✅ **解消済み**（`turn` での近似は不要になった） |
 | 【相手の効果によって相手の手札が増えた後】 | `opponentHandAdded` | ✅ そのまま |
-| 【相手の『召喚時』発揮後】/【相手の効果による召喚後】 | `ownSpiritSummoned` の相手版 | ⚠️ 相手側の召喚を見る版が要る |
+| 【相手の『召喚時』発揮後】/【相手の効果による召喚後】 | `ownSpiritSummoned` の相手版 | ⚠️ **相手側の召喚を見るイベントが無い**（唯一の新規） |
 | 【自分か相手の《封印》後】 | — | ❌ 《封印》が未実装（該当弾が来てから） |
 | 【相手の【神技】発揮後】 | — | ❌ 【神技】が未実装（同上） |
 
-**つまり主要な条件は既存機構の小改修で足ります。** 新規に必要なのは
-「相手による」の限定と、相手側の召喚を見るイベントだけです。
+**新規に要るのは「相手側の召喚を見るイベント」1つだけ。**
+「相手の**効果によって**」の側は `currentEffectSource`（[EFFECT_SOURCE_CONTEXT.md](./EFFECT_SOURCE_CONTEXT.md)）が
+既にあり、`sourceColorFilter` が同じ仕組みで動いているので流用できる。
 
 ---
 
 ## 3. データモデル
 
-### 3.1 `CardData` の追加（新しい `CardType` は作らない）
+### 3.1 効果の置き場（**2026-08-24 変更：`effects[]` の1エントリにする**）
 
 バーストカードは**スピリット/マジック/ネクサスのまま**、バースト効果を追加で持つ。
+**`CardType` を増やさない**のがポイント。ブレイヴ（`BRAVE.md`）は「スピリットとして場に出る」ため
+タイプ追加が要ったが、バーストは**既存カードが持つ追加の効果**にすぎない。
+
+当初案は `CardData.burst?` というトップレベルのプロパティだったが、**これは採らない**。
+
+> ⚠️ **`card.effects` の外に効果を置くと、検査の網から丸ごと外れる。**
+> `npm run validate:gaps`（効果の実装漏れ）も `npm run coverage:effects`（実行時カバレッジ）も
+> **`card.effects` を走査する**。カバレッジの計測は `effects[]` の各エントリに `__eid` を刻む方式なので、
+> 外に置いた効果は**由来が辿れず、発火したかどうかを測れない**。
+> 2026-08-24 に「計測点が無い kind は発火を測れない」層を潰したばかりで、ここで新しい死角を作るのは筋が悪い。
+
+したがって `EffectDef` のユニオンに1つ足す。**形は既存の `fieldEvent` とほぼ同じ**にする。
 
 ```ts
-burst?: {
-    condition: BurstCondition        // 発動条件
-    action: EffectAction             // 発動時の効果
-    summonSelf?: boolean             // true ならカード自身をコスト不要で召喚する（スピリットバースト）
-}
-
-export interface BurstCondition {
-    event: FieldEvent                // 既存のイベント種別を流用する
-    byOpponent?: boolean             // 「相手による」限定
-    // 将来: minEventCount など既存 fieldEvent の絞り込みを流用する
-}
+| {
+      id: string
+      kind: "burst"          // バーストエリアから条件発動する。発生源は場ではなくバーストエリア
+      event: FieldEvent      // 発動条件。既存のイベント種別をそのまま使う
+      subjectSide?: "own" | "opponent"  // 「相手による」限定（fieldEvent と同じ軸を流用）
+      turn?: "own" | "opponent"
+      phase?: Phase
+      action: EffectAction   // 発動時の効果
+      summonSelf?: true      // カード自身をコストを支払わずに召喚する（スピリットバースト）
+  }
 ```
 
-> **`CardType` を増やさない**のがポイント。ブレイヴ（`BRAVE.md`）は「スピリットとして場に出る」ため
-> タイプ追加が要ったが、バーストは**既存カードが持つ追加プロパティ**にすぎない。
-> `type === "spirit"` の分岐33箇所に影響しない。
+こうすると次がすべてタダで付いてくる。
+
+| 仕組み | 効果 |
+| :-- | :-- |
+| `validate:cards` の kind 検査 | `VALID_KINDS` に `"burst"` を足すだけ |
+| `findUndeclaredEffectKeys`（2026-08-24 追加） | バースト用のキーを型に宣言し忘れたら落ちる |
+| `validate:gaps` | テキストの見出し数とエントリ数の突き合わせに自然に乗る |
+| `coverage:effects` | `action` を持つ効果として自動で計測される（**追加の計測点も不要**） |
 
 ### 3.2 `PlayerState` の追加
 
@@ -134,8 +164,8 @@ burst: string | null   // 自分のみ。相手は null（伏せているため�
 burstSet: boolean      // 両者に見える（「伏せてあるか否か」は公開情報）
 ```
 
-`viewFor` → `playerView(player, isOwner)` で `isOwner` が false のとき `burst: null` にする。
-**`hand: string[] | null` と同じ形**なので、既存のマスク実装をそのまま踏襲できる。
+`viewFor`（`server/src/logic/GameState.ts`）は現在 `hand: isSelf ? [...player.hand] : null` ＋
+`handCount` という形でマスクしている（2026-08-24 に確認）。**バーストもこの形をそのまま踏襲する。**
 
 > ⚠️ ここを間違えると**相手の伏せカードが見える**という致命的な情報漏洩になる。
 > `viewFor` のテストを必ず書くこと（既存の手札マスクのテストが手本になる）。
@@ -171,12 +201,21 @@ burstSet: boolean      // 両者に見える（「伏せてあるか否か」は
 > **バーストは `effectSources()` には入れない。** バーストは継続効果を出さず、
 > 条件発動する誘発でしかないため、常時走査の対象に混ぜると無駄が大きく、意味も違う。
 
-### 5.2 任意発動
+### 5.2 任意発動（2026-08-24 見直し）
 
-「任意で発動を宣言」なので `pendingChoice` の `kind: "option"`（はい/いいえ）を使う。
+「任意で発動を宣言」＝**「〜できる」の確認**なので、**既にある共通機構をそのまま使う**。
 
-- 既存の `grantColorChoice` などが `kind: "option"` の前例
-- **`optional: true` のスキップと同じ扱いにはしない**。「発動するか」を明示的に聞く
+```ts
+requestActivationConfirm(state, pid, `${cardName}のバーストを発動しますか？`, action, self)
+```
+
+`requestActivationConfirm`（`server/src/logic/EffectModules.ts`）は
+`kind:"option"` の確認を出し、承認されたときだけ action を解決する。
+効果文が「〜できる」の14枚が既にこれを通っている（2026-08-15 に一般則として確定）。
+**独自に option choice を組み立てないこと**（プロンプトの体裁と非対話時の既定挙動が揃わなくなる）。
+
+- 非対話（`interactiveTargets === false`）では**従来どおり自動で発動**する。
+  ここを忘れると既存 smoke が落ちる（[INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) §5 の手順3）
 
 ### 5.3 タイミング
 
@@ -184,6 +223,12 @@ burstSet: boolean      // 両者に見える（「伏せてあるか否か」は
 
 つまり**イベントの解決が終わってから**発火する。`fireFieldEventTriggers` を
 イベント処理の末尾で呼ぶ既存の設計と一致しているので、そのまま乗る。
+
+> **2026-08-24 追記**：`fireFieldEventTriggers` は現在、**複数の誘発を1つずつ解決し、
+> 選択待ちで中断したら残りを再開スタックへ積む**形になっている
+> （[RESUME_STACK.md](./RESUME_STACK.md) §9。2026-08-17 に取りこぼしを修正した箇所）。
+> バーストの確認はまさに中断を挟むので、**その並びに素直に足せば再開も効く**。
+> 逆に、独自のループを別に書くと同じ取りこぼしを再発明することになる。
 
 ### 5.4 同時発動
 
@@ -228,22 +273,38 @@ burstSet: boolean      // 両者に見える（「伏せてあるか否か」は
 
 ## 8. 移行手順（段階式）
 
-各段で `npm run typecheck && npm run smoke:quiet && npm run validate:cards` が緑であること。
+各段の完了条件は、いまの定型1行に合わせる（2026-08-24 更新）:
+
+```
+npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
+```
 
 | 段 | 内容 | 検証 |
 | --: | :-- | :-- |
 | 1 | `PlayerState.burst` / `burstSetThisTurn` / `PlayerView` のマスクを追加。**まだセットも発動もできない** | **`viewFor` が相手のバーストを隠すテスト**（最優先） |
 | 2 | `setBurst` アクション（ターン1回・メインステップ・セットし直し） | セット可否の smoke |
-| 3 | `CardData.burst` と発動（`fireFieldEventTriggers` への相乗り＋任意発動の choice） | 発動条件ごとの smoke |
-| 4 | 「相手による」限定など、既存 `FieldEvent` の小改修（§2の⚠️行） | 各条件の smoke |
+| 3 | `kind:"burst"` の効果と発動（`fireFieldEventTriggers` への相乗り＋`requestActivationConfirm`） | 発動条件ごとの smoke（**対話・非対話の両方**） |
+| 4 | 相手側の召喚を見るイベントの追加（§2 の残り1行） | 各条件の smoke |
 | 5 | 除去（`discardOpponentBurst`） | smoke |
-| 6 | 実カードの構造化 | カードごとの smoke |
-| 7 | クライアント（ライフ上のバーストエリア表示・伏せ札の裏面・セット操作）※ Gemini 担当 | 目視 |
+| 6 | 実カードの構造化（**先に該当弾の取り込みが要る**） | カードごとの smoke |
+| 7 | クライアント（ライフ上のバーストエリア表示・伏せ札の裏面・セット操作） | 目視 |
+
+> **段6の前提**：バーストを持つカードはプールに1枚も無い（BS01〜BS09＋SDのみ）。
+> 段1〜5 は**テスト用の合成カード**で進める。
 
 **`validate-cards.ts` に追加すべき検査**:
-- `burst.condition.event` が既存の `FieldEvent` に存在すること
-- `burst.action.type` が `ACTION_HANDLERS` に登録されていること（既存の検査が自動で効く）
+- `VALID_KINDS` に `"burst"` を足す（**忘れると全バーストカードが「未知の kind」で落ちる**）
+- `event` が既存の `FieldEvent` に存在すること（`fieldEvent` の既存検査と同じ実装を共有する）
+- `action.type` が `ACTION_HANDLERS` に登録されていること（**既存の検査が自動で効く**）
 - `summonSelf: true` はスピリット/ネクサスのカードにのみ許すこと
+
+**⚠️ 2026-08-24 に入った検査との噛み合わせ**:
+
+| 検査 | バーストで気をつけること |
+| :-- | :-- |
+| `findUndeclaredEffectKeys`（validate:cards） | `kind:"burst"` のキーは `server/src/type.ts` に必ず宣言する。宣言の無いキーは実装が読まず**無言で消える**（2026-08-24 に実バグ2件） |
+| `coverage:effects` | `effects[]` に置く限り `action` 持ちとして自動計測される（§3.1）。**もし `CardData` 直下に置くと計測できない** |
+| `validate:gaps` のキーワード検査 | バーストカードのテキストにキーワードがあれば `effects` に書く。常にゼロを維持する検査 |
 
 ---
 

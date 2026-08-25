@@ -38,6 +38,7 @@ export interface KeywordInfo {
 export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     soku: { id: "soku", label: "神速" },
     awaken: { id: "awaken", label: "覚醒" },
+    superAwaken: { id: "superAwaken", label: "超覚醒" },
     clash: { id: "clash", label: "激突" },
     armor: { id: "armor", label: "装甲" },
     jugeki: { id: "jugeki", label: "呪撃" },
@@ -49,6 +50,16 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kyoshu: { id: "kyoshu", label: "強襲" },
     hyoheki: { id: "hyoheki", label: "氷壁" },
     fushi: { id: "fushi", label: "不死" },
+}
+
+// キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
+// 【超覚醒】は【覚醒】を含む（効果文が「覚醒」を含む以上、参照されるべき。2026-08-25 ユーザー確認）。
+// 逆向きには効かない（「【超覚醒】を持つ〜」は【覚醒】だけの個体を拾わない）
+const KEYWORD_INCLUDES: Partial<Record<Keyword, Keyword[]>> = {
+    awaken: ["superAwaken"],
+}
+function keywordMatches(has: Keyword, asked: Keyword): boolean {
+    return has === asked || (KEYWORD_INCLUDES[asked]?.includes(has) ?? false)
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
@@ -71,6 +82,28 @@ export function instHasTriggerEffect(inst: CardInstance, trigger: TriggerEvent):
 // 効果の levels 指定が現在のレベルで有効か（null = レベル不問）
 export function effectActiveAtLevel(levels: number[] | null, level: number): boolean {
     return levels === null || levels.includes(level)
+}
+
+// このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
+// ホスト側のスピリット（ブレイヴを参照している）と、合体中のブレイヴ自身の両方で true。
+// **盤面を見ない純粋な述語**なので、どの層からでも呼べる
+export function instIsCombined(inst: CardInstance): boolean {
+    return (inst.braveRefs?.length ?? 0) > 0 || inst.braveCombined === true
+}
+
+// 効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
+//
+// ⚠️ `whileCombined` を宣言しているのは **keyword / triggered / aura / constraint / fieldEvent** の5 kind だけ
+// （server/src/type.ts）。他の kind に書くと validate:cards の「型宣言の無いキー」検査が落ちるので、
+// **ゲートを実装していない kind に 【合体時】 が無言で素通りすることはない**。
+// 新しい kind に【合体時】が要るようになったら、型宣言と走査の両方を足すこと
+export function effectActiveOn(
+    inst: CardInstance,
+    effect: { levels: number[] | null; whileCombined?: true },
+    level: number,
+): boolean {
+    if (!effectActiveAtLevel(effect.levels, level)) return false
+    return effect.whileCombined !== true || instIsCombined(inst)
 }
 
 // カードに効果の記述を持たない（バニラ）か
@@ -117,6 +150,15 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
         // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
         ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
+        // **合体中のブレイヴ**（BRAVE.md §4）。これで aura / constraint / keywordGrant / fieldEvent /
+        // reviveOnDestroy / mustBlockGrant など走査すべてが【合体中】効果に対応する。
+        // ⚠️ ホストが「持つ効果すべては発揮されない」を受けていたら、**合体中ブレイヴの効果も止まる**
+        // （2026-08-25 ユーザー確認。§12 の1。合体スピリットは1体なので、その1体の効果が止まる）
+        ...player.field.combinedBraves.filter(
+            (b) =>
+                !instEffectsSuppressed(b) &&
+                hostsOf(player, b).some((h) => !instEffectsSuppressed(h)),
+        ),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
     ]
@@ -166,7 +208,10 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 // いまは「このターンの間」の増減（tempCostDelta）だけだが、今後のブレイヴ（合体中はコストが加算される）の
 // ような継続の増減もここへ足すこと。個別の判定側に足し算を散らさない
 export function instCostDelta(inst: CardInstance): number {
-    return inst.tempCostDelta ?? 0
+    // 合体しているブレイヴのコストが加算される（BRAVE.md §1.1・§3.1）。
+    // instBaseCost が唯一のコスト算出口なので、ここに1項足せば
+    // 「コスト◯以下を破壊」「同じコストの相手を疲労」などコストを見る判定すべてに一度で効く
+    return (inst.tempCostDelta ?? 0) + (inst.braveComposite?.cost ?? 0)
 }
 
 // このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
@@ -213,6 +258,13 @@ export function instColors(inst: CardInstance): Color[] {
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
+    // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
+    // （BRAVE.md §12.2。2026-08-25 ユーザー確認）。装甲・軽減・「相手の〈色〉のスピリット」の
+    // 絞り込みはすべてこの合成後の色で行う。
+    // ⚠️ **colorsAsContinuous には入れないこと**。あちらは「◯色としても扱う」で、
+    // countSymbols が「その色のシンボルとしても数える」ために読む枠。ブレイヴの色を混ぜると
+    // ホストのシンボルまでブレイヴの色として数えられ、混色軽減バグと同じ二重計上になる
+    for (const c of inst.braveComposite?.colors ?? []) colors.add(c)
     return [...colors]
 }
 
@@ -262,11 +314,104 @@ function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: 
     return { level: result.level, bp: result.bp + (result.level > 0 ? buff : 0) }
 }
 
+// ---- ブレイヴ（docs/design/BRAVE.md §2.3）----
+//
+// 合体中のブレイヴの実体は `field.combinedBraves` にあり、ホストは `braveRefs` で参照する。
+// **参照の解決を各所に散らさないため、必ずこの3つを通すこと。**
+
+// ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
+export function bravesOf(player: BoardPlayer, host: CardInstance): CardInstance[] {
+    const refs = host.braveRefs
+    if (refs === undefined || refs.length === 0) return []
+    const found: CardInstance[] = []
+    for (const r of refs) {
+        const b = player.field.combinedBraves.find((x) => x.instanceId === r.instanceId)
+        if (b !== undefined && !found.includes(b)) found.push(b)
+    }
+    return found
+}
+
+// ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
+export function hostsOf(player: BoardPlayer, brave: CardInstance): CardInstance[] {
+    return player.field.spirits.filter((s) =>
+        (s.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId),
+    )
+}
+
+// 合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
+// ブレイヴの `braveLevels` で引く。合体状態の Lv1 は 0 コアなので、コア0でも Lv1 になる。
+//
+// ⚠️ ホストの `levelCostBonusContinuous`（バァラル型「Lvコストを+N」）は**足さない**
+// （2026-08-25 ユーザー確認。BRAVE.md §12 の5。上がるのはホストのLvコストだけ）。
+// そのため instLevels ではなくカード静的な braveLevels を直接引く
+export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
+    const levels = card(brave.cardId).braveLevels
+    if (levels === undefined || levels.length === 0) return 0
+    const coreCount = host.coresOverride ?? host.cores
+    let level = 0
+    for (const lv of levels) {
+        if (coreCount >= lv.cores && lv.level > level) level = lv.level
+    }
+    return level
+}
+
+// 合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
+// braveComposite（レベルに依らない値のキャッシュ）には入れず、ここで都度引く
+export function braveBpBonus(player: BoardPlayer, host: CardInstance): number {
+    let total = 0
+    for (const brave of bravesOf(player, host)) {
+        // braveCombined が載っていれば currentLevel が合体状態のレベル表を引く（instLevels）。
+        // まだ載っていない（refreshLevelAsOverrides 前）ときのために braveLevelOf でも引けるようにしておく
+        if (brave.braveCombined === true) {
+            total += currentLevel(brave).bp
+            continue
+        }
+        const lv = card(brave.cardId).braveLevels?.find((l) => l.level === braveLevelOf(host, brave))
+        if (lv !== undefined) total += lv.bp
+    }
+    return total
+}
+
+// スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
+// 合体状態の braveLevels ではなく通常の levels を引く
+export function braveKeepCores(brave: CardInstance): number {
+    // ⚠️ instMinLevelCores を通さないこと。合体中のブレイヴには braveCombined が載っていて、
+    // instLevels が**合体状態**のレベル表（Lv1=0コア）を返すため、必要コアが常に0になってしまう
+    // （2026-08-25 に実際に踏んだ）。ここが見たいのは**スピリット状態**のLv1維持コスト
+    return minLevelCoresOf(card(brave.cardId).levels)
+}
+
+// このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
+// 条件の配列は OR（効果文の読点区切り）。ホスト側の「既にブレイヴが付いている」判定は
+// 呼び出し側（RuleValidator）が見る
+export function matchesBraveCondition(
+    board: Board,
+    hostOwnerPid: PlayerId,
+    host: CardInstance,
+    braveCardId: string,
+): boolean {
+    const cond = card(braveCardId).braveCondition
+    if (cond === undefined) return false
+    const terms = Array.isArray(cond) ? cond : [cond]
+    if (terms.length === 0) return false
+    return terms.some((t) => {
+        if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
+        if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
+        if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
+        return true
+    })
+}
+
 // このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う
 // （BS03ゴーレムクラフト＝Lv1コスト:1/Lv1BP:2000）。
 // **レベル・BP・維持コアをインスタンスから求める処理は必ずこれを経由すること**
 export function instLevels(inst: CardInstance): LevelDef[] {
-    const levels = inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels
+    // 合体中のブレイヴは**合体状態のレベル表**を引く（BRAVE.md §4。Lv1は0コアなので
+    // コアを持たなくても Lv1 が成立する）。判定に使うコア数は coresOverride に写した**ホストのコア数**
+    const levels =
+        inst.braveCombined === true
+            ? (card(inst.cardId).braveLevels ?? card(inst.cardId).levels)
+            : (inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
     // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
     // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
     const bonus = inst.levelCostBonusContinuous ?? 0
@@ -290,9 +435,13 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
     // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
     if (inst.symbolsOverrideContinuous) {
+        // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
+        // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
         return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0)
     }
-    return card(inst.cardId).symbol.length + (inst.tempExtraSymbols ?? 0)
+    // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
+    // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0)
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
@@ -306,7 +455,12 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         // 破壊待機中は使えるので、そこだけ扱いが違う
         if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
-        const cardSymbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
+        // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
+        const cardSymbols =
+            inst.symbolsOverrideContinuous ??
+            (inst.braveComposite === undefined
+                ? card(inst.cardId).symbol
+                : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
@@ -351,8 +505,19 @@ export function spiritHasKeyword(
     // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
-    if (hasKeyword(inst.cardId, keyword)) return true
-    if (inst.tempKeywords.some((k) => k.keyword === keyword)) return true
+    // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
+    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため
+    if (
+        card(inst.cardId).effects.some(
+            (e) =>
+                e.kind === "keyword" &&
+                keywordMatches(e.keyword, keyword) &&
+                (e.whileCombined !== true || instIsCombined(inst)),
+        )
+    ) {
+        return true
+    }
+    if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
 
@@ -395,6 +560,7 @@ export function continuousKeywordGrantCount(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "keywordGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (
@@ -597,6 +763,7 @@ export type ResistanceCategory =
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
     | "exhaustImmune" // 相手の効果で疲労しない（exhaustImmunityGrant）
+    | "coresLocked" // このスピリットのコアは取り除けない（constraint:"coresCantBeRemoved"）。**お互いに効く**
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
@@ -617,7 +784,7 @@ export interface EffectAttempt {
     // **「相手の効果の対象にならない」は範囲効果を防がない**ので、ここを間違えると挙動が変わる
     scope: "targeted" | "area"
     actorPid: PlayerId // この効果を行っている側。targetOwnerPid と同じなら「自分の効果」＝相手限定の耐性は効かない
-    sourceType?: "spirit" | "nexus" | "magic"
+    sourceType?: CardType
     sourceColors?: Color[] // 装甲の判定に必要。**渡さないと装甲を判定できない**（不明時は防がない側に倒す）
     // 「候補を数えているだけで、まだ適用しない」問い合わせ。**候補列挙（pickEnemy* / pickAnySide*）だけが立てる。**
     //
@@ -653,6 +820,11 @@ export function boardResistanceAgainst(
     ) {
         return { category: "battlingImmune", label: "バトル中の効果免疫" }
     }
+    // 「お互い、このスピリットのコアを取り除けない」（BS10-X01 幻羅星龍ガイ・アスラ）。
+    // **自分の効果も止める**ので、下の「相手の効果」限定より前で判定する
+    if (attempt.op === "coreRemove" && coresCantBeRemoved(board, targetOwnerPid, target)) {
+        return { category: "coresLocked", label: "コアを取り除けない" }
+    }
     // ここから下はすべて「相手の効果」限定
     if (attempt.actorPid === targetOwnerPid) return null
 
@@ -661,7 +833,11 @@ export function boardResistanceAgainst(
     const armorDisabled = board.turnConstraints.some(
         (c) => c.type === "armorDisabledForPid" && c.pid === targetOwnerPid,
     )
-    if (!armorDisabled && hasArmorAgainst(target, attempt.sourceColors)) {
+    // ⚠️ **ブレイヴの効果は【装甲】では防げない**（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
+    // 【装甲：色】の効果文は「指定された色の相手の**スピリット/ネクサス/マジック**の効果を受けない」で、
+    // ブレイヴを列挙していない。これを防ぐのは【重装甲】（ブレイヴ登場後のキーワード。プールに入ったら実装する）。
+    // なお**合体中**にブレイヴがホストへ付与している効果は、発生源が合体スピリット＝"spirit" で来るのでここで防がれる
+    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
     if (hasFullEffectImmunity(target, attempt.sourceType)) {
@@ -1021,7 +1197,8 @@ export function effectiveBp(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): number {
-    let total = currentLevel(inst).bp
+    // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
+    let total = currentLevel(inst).bp + braveBpBonus(board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
@@ -1030,6 +1207,8 @@ export function effectiveBp(
         for (const source of sources) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
+                // 【合体時】：発生源が合体しているときだけ発揮する
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
                 // lentOnly：仮想発生源（マジックが lendSelfThisTurn で貸した効果）からのみ有効。
                 // 実在するスピリット/ネクサスがたまたま同じ効果エントリを持っていても恒久化させない
                 if (effect.aura.lentOnly && !isVirtualSource(source)) continue
@@ -1177,7 +1356,7 @@ export function activeConstraintsWithSource(
     const level = currentLevel(inst).level
     const own = card(inst.cardId)
         .effects.filter(
-            (e) => e.kind === "constraint" && effectActiveAtLevel(e.levels, level),
+            (e) => e.kind === "constraint" && effectActiveOn(inst, e, level),
         )
         .map((e) => (e as { constraint: ConstraintDef }).constraint)
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
@@ -1211,6 +1390,7 @@ export function activeConstraintsWithSource(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
@@ -1283,7 +1463,7 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasFullEffectImmunity(
     inst: CardInstance,
-    srcType: "spirit" | "nexus" | "magic" | undefined,
+    srcType: CardType | undefined,
 ): boolean {
     if (srcType !== "spirit" && srcType !== "magic") return false
     const level = currentLevel(inst).level
@@ -1304,7 +1484,7 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
         (e) =>
             e.kind === "keyword" &&
             e.keyword === "armor" &&
-            effectActiveAtLevel(e.levels, level) &&
+            effectActiveOn(inst, e, level) &&
             (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
     if (staticArmor) return true
@@ -1713,13 +1893,28 @@ export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean 
     return false
 }
 
+// この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。
+// 【覚醒】との違いはこの1点だけなので、判定もここに閉じる
+export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return spiritHasKeyword(board, ownerPid, inst, "superAwaken")
+}
+
+// このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
+// **効果でもプレイヤーの操作でも取り除けない**ので、耐性の判定表と、
+// コアが動くプレイヤー操作の入口（moveCore / 支払い元 / 【覚醒】の移動元）から呼ぶ
+export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
+}
+
 export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     const level = currentLevel(inst).level
+    // 【超覚醒】は【覚醒】を含む（KEYWORD_INCLUDES）。コアを集める操作自体は同じで、
+    // 違うのは「置いたとき回復する」の1点だけ（GameEngine.doAwaken が見る）
     const staticAwaken = card(inst.cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, level),
+        (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
-    return inst.tempKeywords.some((k) => k.keyword === "awaken")
+    return inst.tempKeywords.some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 

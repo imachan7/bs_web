@@ -5,6 +5,7 @@
 // srcColors / srcType / destroyContext / targetInstanceId / chosenOption / chosenCardIndex）を
 // このコンテキストオブジェクト1個にまとめ、本体はそのまま移設できるようにしている。
 import type {
+    CardType,
     CardInstance,
     Color,
     DestroyContext,
@@ -21,7 +22,7 @@ export interface ActionCtx {
     self: CardInstance | null
     sourceName: string
     srcColors: Color[] | undefined
-    srcType: "spirit" | "nexus" | "magic" | undefined
+    srcType: CardType | undefined
     sourceCardId: string | undefined // 発生源のカードID。マジックはselfがnullのため、resolveMagicが使用中のカードのcardIdをここに入れる
     // （スピリット/ネクサス発生源はself.cardIdからのフォールバックで自動的に入る）。lendSelfThisTurn専用（TURN_EFFECT_SOURCES.md §3.3）
     destroyContext: DestroyContext
@@ -51,7 +52,7 @@ export interface ResolveOpts {
     self?: CardInstance | null | undefined
     targetInstanceId?: string | undefined
     sourceColors?: Color[] | undefined
-    sourceType?: "spirit" | "nexus" | "magic" | undefined
+    sourceType?: CardType | undefined
     chosenOption?: string | undefined
     chosenCardIndex?: number | undefined
 }
