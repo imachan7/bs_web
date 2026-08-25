@@ -161,3 +161,10 @@ chatbox/
 # 依存関係の可視化ツール（個人用）。出力の graph.html ごと追跡しない（2026-08-16 ユーザー判断）。
 # 実体は git 履歴の resume-stack ブランチに残っている
 tools/
+
+# Claude Code のローカル設定とワークツリー（.claude/worktrees/ は埋め込みリポジトリになる）。
+# 2026-08-25 に git add -A で誤って7個ぶん追跡しかけた
+.claude/
+
+# セッションログのエクスポート（/export の出力）
+conversation-*.txt
