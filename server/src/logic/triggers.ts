@@ -107,6 +107,7 @@ import {
     spiritHasKeyword,
     effectActiveOn,
     isOnFieldAnyZone,
+    instIsCombined,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -255,6 +256,8 @@ export function fireTrigger(
     const movedToAttack =
         state.blockTriggersAsAttackThisTurn === true ||
         selfInstance.blockTriggersAsAttackThisTurn === true ||
+        // このターンの間、**片側のプレイヤーの**スピリットすべてが対象（BS10-072 セイバーシャーク）
+        state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner) ||
         hasBlockTriggersAsAttack(state, owner, selfInstance)
     if (movedToBlock && event === "onAttack") {
         return
@@ -876,6 +879,13 @@ export function fireFieldEventTriggers(
             // subjectSide：**イベントの主体がどちら側か**で絞る（turn＝誰のターンか、とは別軸）。
             // 「**相手の**スピリットが疲労したとき」のように、any…系のイベントで
             // 主体の陣営だけを条件にしたいときに使う（SD01-028 呪われし神殿Lv2）
+            // subjectCombined：**イベントの主体が合体しているか**で絞る（BS10-070 鎧馬アルファズル）
+            if (
+                effect.subjectCombined !== undefined &&
+                (selfOverride === undefined || instIsCombined(selfOverride.inst) !== effect.subjectCombined)
+            ) {
+                continue
+            }
             if (effect.subjectSide === "own" && selfOverride?.pid !== pid) continue
             if (
                 effect.subjectSide === "opponent" &&

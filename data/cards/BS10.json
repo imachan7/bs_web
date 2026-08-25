@@ -283,6 +283,133 @@
     ]
   },
   {
+    "cardId": "BS10-065",
+    "name": "ヘッジボルグ",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple",
+      "green",
+      "green"
+    ],
+    "family": [
+      "魔影"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nBPを比べ相手のスピリットだけを破壊したとき、そのスピリット上のコアすべてはボイドに置かれる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS10-065-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "battleLoserCoresToVoid"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-066",
+    "name": "騎士王蛇ペンドラゴン",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "red",
+      "red"
+    ],
+    "family": [
+      "妖蛇",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n相手のスピリット1体のコア2個を相手のリザーブに置く。\nこの効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。\n合体条件：コスト3以上\n【合体時】『このスピリットのアタック時』\n相手の合体していないスピリットのコア1個を相手のリザーブに置く。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 3
+    },
+    "effects": [
+      {
+        "id": "BS10-066-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 2,
+          "drawIfEmptied": true
+        }
+      },
+      {
+        "id": "BS10-066-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "coreRemove",
+          "count": 1,
+          "filter": {
+            "combined": false
+          }
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
     "cardId": "BS10-067",
     "name": "からくり犬シバ",
     "type": "brave",
@@ -469,6 +596,71 @@
     ]
   },
   {
+    "cardId": "BS10-070",
+    "name": "鎧馬アルファズル",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n相手のスピリット1体を手札に戻す。\n合体条件：効果の記述を持たない\n【合体時】『相手のアタックステップ』\n合体していない相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-070-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "returnToHand",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-070-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": null,
+        "whileCombined": true,
+        "subjectSide": "opponent",
+        "subjectCombined": false,
+        "turn": "opponent",
+        "action": {
+          "type": "refreshSelf"
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS10-071",
     "name": "フェンリルキャノンType-B",
     "type": "brave",
@@ -518,6 +710,204 @@
           "red",
           "purple"
         ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-072",
+    "name": "セイバーシャーク",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "red",
+      "red"
+    ],
+    "family": [
+      "空魚",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリットすべての『このスピリットのブロック時』効果すべては、『このスピリットのアタック時』に発揮される。\n合体条件：コスト5以上\n【合体時】『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS10-072-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "blockTriggersAsAttackOwnThisTurn"
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-072-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "battleRole": "blocker",
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-073",
+    "name": "エンジェドール",
+    "type": "brave",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリットすべては、Lv2の相手のスピリットからブロックされない。\n合体条件：効果の記述を持たない\n【合体時】『このスピリットの合体アタック時』\nバトル解決時、BPのかわりにLvを比べ、Lvの低いスピリットが破壊される。\nLvが同じとき、お互いのスピリットが破壊される。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-073-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "grantUnblockableByLevelThisTurn",
+          "levels": [
+            2
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-073-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "battleCompareByLevel"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-074",
+    "name": "きぐるみクマッター",
+    "type": "brave",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "blue"
+    ],
+    "family": [
+      "戯狩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのバトル時』\n相手のネクサスすべてを疲労させる。\n疲労状態のネクサスすべての効果は発揮されない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS10-074-e1",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "exhaustAll",
+          "target": "opponentNexuses"
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-074-e2",
+        "kind": "globalConstraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "restedNexusEffectsDisabled"
+        }
       }
     ]
   },
@@ -582,6 +972,132 @@
           "from": "void"
         },
         "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-076",
+    "name": "バズーカ・アームズ",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分の手札にある青のネクサスカード1枚を、コストを支払わずに配置できる。\n合体条件：効果の記述を持たない\n【合体時】【強襲：1】『このスピリットの合体アタック時』\nこのスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveCondition": {
+      "vanilla": true
+    },
+    "effects": [
+      {
+        "id": "BS10-076-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "deployNexus",
+          "from": "hand",
+          "colors": [
+            "blue"
+          ]
+        },
+        "optional": true
+      },
+      {
+        "id": "BS10-076-e2",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": null,
+        "whileCombined": true
+      },
+      {
+        "id": "BS10-076-e3",
+        "kind": "constraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "canBlockUnblockable"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-077",
+    "name": "ギョクリューン",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "戦獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのバトル時』\n相手はマジックの効果を使用するとき、2コスト余分に支払わなければならない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS10-077-e1",
+        "kind": "globalConstraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "opponentMagicCostIncrease",
+          "amount": 2
+        }
       }
     ]
   },

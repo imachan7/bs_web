@@ -84,6 +84,14 @@ export function canBlock(
         if (attackerInst.unblockableOnceThisTurn) {
             return "このスピリットはこのターン1回だけブロックされません"
         }
+        // このターンの間、指定Lvの相手からブロックされない（BS10-073 エンジェドール＝Lv2）。
+        // アタッカーの持ち主にかかっているターン制約を見る
+        for (const c of board.turnConstraints) {
+            if (c.type !== "unblockableByLevelThisTurn" || c.pid !== attackerPid) continue
+            if (c.levels.includes(currentLevel(blockerInst).level)) {
+                return `このスピリットはLv${c.levels.join("/")}のスピリットにブロックされません`
+            }
+        }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {

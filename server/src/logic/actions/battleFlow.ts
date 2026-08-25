@@ -42,6 +42,41 @@ const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
         return
 }
 
+// BS10-065 ヘッジボルグ：BPを比べ相手のスピリットだけを破壊したとき、そのスピリット上のコアすべてはボイドへ。
+// **破壊待機中（コアがまだ乗っている）**に呼ばれる前提なので、コアを0にすれば
+// commitPendingDestruction がリザーブへ戻す分が消える＝そのままボイド行きになる
+const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (ctx) => {
+    const { state, sourceName } = ctx
+    const id = state.lastBattleDestroyedInstanceId
+    if (id === undefined) {
+        log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいない。`)
+        return
+    }
+    for (const pid of ["p1", "p2"] as const) {
+        const inst = state.players[pid].field.spirits.find((sp) => sp.instanceId === id)
+        if (!inst) continue
+        if (inst.cores === 0) return
+        log(state, `${sourceName}：${getCard(inst.cardId).name}の上のコア${inst.cores}個はボイドに置かれた。`)
+        inst.cores = 0
+        return
+    }
+}
+
+// BS10-072 セイバーシャーク：このターンの間、**自分の**スピリットすべての『ブロック時』効果を『アタック時』へ移す
+const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAttackOwnThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
+    state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+}
+
+// BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
+const grantUnblockableByLevelThisTurnHandler: ActionHandler<"grantUnblockableByLevelThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "unblockableByLevelThisTurn", pid: owner, levels: [...action.levels] })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットはLv${action.levels.join("/")}の相手のスピリットにブロックされない。`)
+}
+
 // BS10-108 ルナティックシール：発揮した側のエンドステップを turns 回数えるまで、両陣営に制限をかける。
 // カードは「ボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」と書くが、
 // **置かれたコアは以後どこからも参照されない**ので、実体のコアではなくカウンターとして持つ
@@ -1112,6 +1147,9 @@ const handlers = {
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
+    battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
+    blockTriggersAsAttackOwnThisTurn: blockTriggersAsAttackOwnThisTurnHandler,
+    grantUnblockableByLevelThisTurn: grantUnblockableByLevelThisTurnHandler,
     endStepLock: endStepLockHandler,
     extraAttackStep: extraAttackStepHandler,
     endAttackStep: endAttackStepHandler,

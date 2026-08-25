@@ -1633,6 +1633,7 @@ function resolveBattle(state: GameState): void {
     // 「BPを比べ相手のスピリットだけを破壊した」ときの破壊された側の色・系統
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
     state.lastBattleDestroyedColors = []
+    delete state.lastBattleDestroyedInstanceId
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
     state.lastBattleDestroyedCost = 0
@@ -1765,6 +1766,7 @@ function resolveBattle(state: GameState): void {
     if (outcome === "attackerWins") {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
+        state.lastBattleDestroyedInstanceId = blocker.instanceId
         state.lastBattleDestroyedLevel = blockerLevel
         state.lastBattleDestroyedColors = instColors(blocker)
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
@@ -1773,6 +1775,7 @@ function resolveBattle(state: GameState): void {
         // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
         state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
     } else if (outcome === "blockerWins") {
+        state.lastBattleDestroyedInstanceId = attacker.instanceId
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp

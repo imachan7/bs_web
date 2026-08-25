@@ -148,8 +148,13 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
         // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
-        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
-        ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
+        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す。
+        // さらに「**疲労状態の**ネクサスすべての効果は発揮されない」（BS10-074 きぐるみクマッター）は両陣営に効く
+        ...(nexusEffectsDisabledFor(board, pid)
+            ? []
+            : restedNexusEffectsDisabled(board)
+              ? player.field.nexuses.filter((n) => !n.isRested)
+              : player.field.nexuses),
         // **合体中のブレイヴ**（BRAVE.md §4）。これで aura / constraint / keywordGrant / fieldEvent /
         // reviveOnDestroy / mustBlockGrant など走査すべてが【合体中】効果に対応する。
         // ⚠️ ホストが「持つ効果すべては発揮されない」を受けていたら、**合体中ブレイヴの効果も止まる**
@@ -162,6 +167,26 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
     ]
+}
+
+// 「疲労状態のネクサスすべての効果は発揮されない」（globalConstraint。BS10-074 きぐるみクマッター）。
+// ⚠️ ここで effectSources を呼ぶと無限再帰するので、両陣営の配列を**直接**走査する
+// （nexusEffectsDisabledFor と同じ理由・同じ書き方）。
+// 判定する側のネクサスが疲労していれば、そのネクサス自身の効果も止まる（両陣営に効く常在効果なので一貫する）
+function restedNexusEffectsDisabled(board: Board): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = board.players[pid]
+        for (const source of [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves, ...p.turnVirtualInstances, ...p.battleVirtualInstances]) {
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "restedNexusEffectsDisabled") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
+                return true
+            }
+        }
+    }
+    return false
 }
 
 // pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か

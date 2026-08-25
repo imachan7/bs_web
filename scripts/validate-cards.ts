@@ -204,6 +204,7 @@ const VALID_FILTER_KEYS = new Set([
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
+    "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

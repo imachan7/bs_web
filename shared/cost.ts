@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword } from "./rules"
+import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -375,7 +375,35 @@ export function effectiveCost(
     }
     // SD02-013 転召の祭壇Lv1-2：相手フィールドの発生源が、条件を満たすスピリットカードの召喚に
     // 追加コストを課す（「1コスト余分に支払わなければならない」）。軽減の後に足す
-    return Math.max(base + costModTotal(board, pid, cardData) + opponentSummonCostIncrease(board, pid, cardData), 0)
+    return Math.max(
+        base +
+            costModTotal(board, pid, cardData) +
+            opponentSummonCostIncrease(board, pid, cardData) +
+            opponentMagicCostIncrease(board, pid, cardData),
+        0,
+    )
+}
+
+// globalConstraint "opponentMagicCostIncrease"：発生源の持ち主の**相手**が、マジックの効果を
+// 使用するときに増える追加コストの合計（BS10-077 ギョクリューン＝2コスト）。
+// opponentSummonCostIncrease のマジック版で、絞り込み条件は持たない
+function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: CardData): number {
+    if (cardData.type !== "magic") return 0
+    let total = 0
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        if (ownerPid === usingPid) continue
+        for (const source of effectSources(board, ownerPid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "opponentMagicCostIncrease") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
+                total += effect.constraint.amount
+            }
+        }
+    }
+    return total
 }
 
 // globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす

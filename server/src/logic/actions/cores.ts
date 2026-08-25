@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -120,6 +120,13 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
         } else {
             removeCores(state, found.pid, found.inst, removeCount, owner)
+        }
+        // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
+        // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
+        // 元から0だった場合は上の removeCount 計算で 0 になり、ここへ来る前に何も起きていない
+        if (action.drawIfEmptied === true && removeCount > 0 && found.inst.cores === 0) {
+            draw(state, owner, 1)
+            log(state, `${sourceName}：コアが0個になったので${state.players[owner].name}は1枚引いた。`)
         }
         return
 }
