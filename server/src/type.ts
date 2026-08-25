@@ -15,10 +15,12 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
 
-// **効果の発生源の種別**。装甲・マジック効果耐性・「相手の◯のスピリットの効果では破壊されない」などが読む。
-// ブレイヴは単体で場に出ても合体中でも**スピリットとして扱われる**ため、ここに "brave" は入らない
-// （docs/design/BRAVE.md §1.1）。CardType からの変換は shared/rules.ts の effectSourceTypeOf を通すこと
-export type EffectSourceType = "spirit" | "nexus" | "magic"
+// **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
+// ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
+// 【装甲：色】の効果文は「相手の**スピリット/ネクサス/マジック**の効果を受けない」でブレイヴを列挙していないため、
+// **ブレイヴ自身の効果（単体で場に出たブレイヴの召喚時など）は装甲では防げない**（防げるのは【重装甲】だけ）。
+// 丸めると装甲が過剰に効く。一方、合体中にブレイヴがホストへ付与している効果の発生源は
+// **合体スピリット＝スピリット**なので、そちらは装甲で防げる
 
 // デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 export type DeckSpec = string | Record<string, number>
@@ -558,7 +560,7 @@ export type GlobalConstraintDef =
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
-    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: ("spirit" | "nexus" | "magic")[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
+    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
     // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
     // どちらかを指定した場合は DestroyContext が要り、発生源が不明なときは**守らない**側に倒す（colors と同じ方針）。
     // 「相手の」を明示している効果なので、指定時は sourcePid が持ち主と異なることも求める
@@ -595,7 +597,7 @@ export type GlobalConstraintDef =
 // 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
-    sourceType?: "spirit" | "nexus" | "magic"
+    sourceType?: CardType
     sourceColors?: Color[] // 破壊を引き起こした効果の発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
     battle?: { attackerColors: Color[]; attackerLevel?: number; attackerBp?: number } // バトルによる破壊のときの「破壊した側（勝者）」の色・レベル・実効BP（装甲・reviveOnDestroy判定用。呼び出し側の命名は歴史的にattacker*だが、実際は勝者側の値を渡す）
 }
@@ -1863,7 +1865,7 @@ export interface PendingChoice {
         effectId: string
         count: number
         actorPid: PlayerId
-        sourceType?: "spirit" | "nexus" | "magic"
+        sourceType?: CardType
     }
     magicRedirect?: {
         // 対象の絞り込み（kind:"magicTargetRedirect"）の確認待ち。magicNegate と同じく **action は解決しない**。
@@ -1943,7 +1945,7 @@ export type ResumeFrame =
           logText?: string
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
-          sourceType?: EffectSourceType // 発生源の種別（同上）
+          sourceType?: CardType // 発生源の種別（同上）
       }
     | {
           kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
@@ -2116,7 +2118,7 @@ export interface GameState {
     // （fieldEvent.sourceColorFilter）。ドローステップのドローやコアステップのコア置きのような
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
-    currentEffectSource?: { pid: PlayerId; type?: "spirit" | "nexus" | "magic"; colors?: Color[] }
+    currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[] }
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主

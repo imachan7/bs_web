@@ -15,7 +15,6 @@ import type {
     CardData,
     CardInstance,
     CardType,
-    EffectSourceType,
     Color,
     FamilyFilter,
     Keyword,
@@ -210,13 +209,6 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 // （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
-// カード種別を「効果の発生源の種別」へ落とす。**ブレイヴはスピリット扱い**
-// （単体で場に出たブレイヴはスピリットそのもの。合体中の【合体中】効果も合体スピリット＝1体のスピリットの効果）。
-// ここを通さずに CardData.type をそのまま渡すと、"brave" が sourceTypes:["spirit"] の絞り込みをすり抜ける
-export function effectSourceTypeOf(type: CardType): EffectSourceType {
-    return type === "brave" ? "spirit" : type
-}
-
 export function instColors(inst: CardInstance): Color[] {
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)
@@ -626,7 +618,7 @@ export interface EffectAttempt {
     // **「相手の効果の対象にならない」は範囲効果を防がない**ので、ここを間違えると挙動が変わる
     scope: "targeted" | "area"
     actorPid: PlayerId // この効果を行っている側。targetOwnerPid と同じなら「自分の効果」＝相手限定の耐性は効かない
-    sourceType?: "spirit" | "nexus" | "magic"
+    sourceType?: CardType
     sourceColors?: Color[] // 装甲の判定に必要。**渡さないと装甲を判定できない**（不明時は防がない側に倒す）
     // 「候補を数えているだけで、まだ適用しない」問い合わせ。**候補列挙（pickEnemy* / pickAnySide*）だけが立てる。**
     //
@@ -670,7 +662,11 @@ export function boardResistanceAgainst(
     const armorDisabled = board.turnConstraints.some(
         (c) => c.type === "armorDisabledForPid" && c.pid === targetOwnerPid,
     )
-    if (!armorDisabled && hasArmorAgainst(target, attempt.sourceColors)) {
+    // ⚠️ **ブレイヴの効果は【装甲】では防げない**（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
+    // 【装甲：色】の効果文は「指定された色の相手の**スピリット/ネクサス/マジック**の効果を受けない」で、
+    // ブレイヴを列挙していない。これを防ぐのは【重装甲】（ブレイヴ登場後のキーワード。プールに入ったら実装する）。
+    // なお**合体中**にブレイヴがホストへ付与している効果は、発生源が合体スピリット＝"spirit" で来るのでここで防がれる
+    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
     if (hasFullEffectImmunity(target, attempt.sourceType)) {
@@ -1293,7 +1289,7 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasFullEffectImmunity(
     inst: CardInstance,
-    srcType: "spirit" | "nexus" | "magic" | undefined,
+    srcType: CardType | undefined,
 ): boolean {
     if (srcType !== "spirit" && srcType !== "magic") return false
     const level = currentLevel(inst).level

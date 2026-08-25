@@ -1,7 +1,8 @@
 // コア操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
+import type {
+    CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     fireFieldEventTriggers,
@@ -184,7 +185,7 @@ function applyCoreRemoveMultiTarget(
     found: CardInstance,
     action: Extract<EffectAction, { type: "coreRemoveMulti" }>,
     srcColors: Color[] | undefined,
-    srcType: "spirit" | "nexus" | "magic" | undefined,
+    srcType: CardType | undefined,
     owner: PlayerId,
     sourceName: string,
 ): void {

@@ -119,7 +119,6 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
-    effectSourceTypeOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -544,7 +543,7 @@ export function refreshSpirit(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
 ): void {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
@@ -597,7 +596,7 @@ export function millDeck(
     pid: PlayerId,
     count: number,
     actorPid?: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
     // skipNegate: kind:"deckMillNegate" の確認で「無効にしない」が選ばれたあとの破棄。
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
     options?: { skipNegate?: true },
@@ -714,7 +713,7 @@ export function consumeSummonHandDiscardPay(state: GameState, pid: PlayerId): vo
 function findDeckMillNegate(
     state: GameState,
     pid: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
 ): { source: CardInstance; effect: Extract<EffectDef, { kind: "deckMillNegate" }> } | null {
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
@@ -745,7 +744,7 @@ function trySuspendDeckMillNegate(
     pid: PlayerId,
     count: number,
     actorPid: PlayerId,
-    cause?: { sourceType?: "spirit" | "nexus" | "magic"; funsai?: true },
+    cause?: { sourceType?: CardType; funsai?: true },
 ): boolean {
     if (count <= 0 || state.winner) return false
     // すでに別の選択待ちがあるならここでは中断できない。破棄を止めてしまうと
@@ -837,7 +836,7 @@ function resolveMilledFromDeck(
     state: GameState,
     pid: PlayerId,
     milled: string[],
-    cause?: { sourceType?: "spirit" | "nexus" | "magic" },
+    cause?: { sourceType?: CardType },
 ): void {
     const player = state.players[pid]
     for (const cardId of milled) {
@@ -2117,7 +2116,7 @@ export function pickEnemyCandidates(
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const attempt: EffectAttempt = {
@@ -2150,7 +2149,7 @@ export function pickAnySideCandidates(
     owner: PlayerId,
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const opp = opponentOf(owner)
@@ -2171,7 +2170,7 @@ export function pickAnySideByBp(
     maxBp: number,
     matches: (s: CardInstance) => boolean,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): { pid: PlayerId; inst: CardInstance } | null {
     const opp = opponentOf(owner)
@@ -2211,7 +2210,7 @@ export function pickEnemyByBp(
     maxBp: number,
     extraPredicate: (s: CardInstance) => boolean = () => true,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
 ): CardInstance | null {
     const candidates = pickEnemyCandidates(state, targetPid, maxBp, extraPredicate, sourceColors, sourceType, op)
@@ -2485,7 +2484,7 @@ export function findSpiritAny(
 export function applyMagicBuffBonus(
     state: GameState,
     target: CardInstance,
-    srcType?: "spirit" | "nexus" | "magic",
+    srcType?: CardType,
     srcColors?: Color[],
 ): void {
     if (srcType !== "magic") return
@@ -2833,7 +2832,7 @@ export function resolveAction(
     action: EffectAction,
     targetInstanceId?: string,
     sourceColors?: Color[],
-    sourceType?: "spirit" | "nexus" | "magic",
+    sourceType?: CardType,
     chosenOption?: string,
     chosenCardIndex?: number,
     sourceCardId?: string,
@@ -2844,7 +2843,7 @@ export function resolveAction(
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
-    const srcType = sourceType ?? (self ? effectSourceTypeOf(getCard(self.cardId).type) : undefined)
+    const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
     const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する

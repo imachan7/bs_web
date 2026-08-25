@@ -105,7 +105,6 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
-    effectSourceTypeOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1066,7 +1065,7 @@ export function fireFieldEventTriggers(
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),
-                srcType: effectSourceTypeOf(getCard(inst.cardId).type),
+                srcType: getCard(inst.cardId).type,
             }
         }
         return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
@@ -1189,7 +1188,7 @@ export function findBothSidesRedirectSource(
 // （非対話・魔導書が無い・「変更しない」を選んだ）は null を返して素通しさせる
 export function bothSidesRedirectKeepPid(
     state: GameState,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourceType: CardType | undefined,
 ): PlayerId | null {
     if (sourceType !== "magic") return null
     const decision = state.magicSideDecision
@@ -1203,7 +1202,7 @@ export function bothSidesRedirectKeepPid(
 // （「ネクサス1つ」を対象にする anySide があるため。BS03メビウスリング）
 export function applyBothSidesRedirectToCandidates(
     state: GameState,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourceType: CardType | undefined,
     candidates: CardInstance[],
 ): CardInstance[] {
     const keepPid = bothSidesRedirectKeepPid(state, sourceType)

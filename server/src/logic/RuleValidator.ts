@@ -874,7 +874,7 @@ function blockForceResisted(
             op: "other",
             scope: "area",
             actorPid: forcedBy.pid,
-            sourceType: sourceCard.type as "spirit" | "nexus" | "magic",
+            sourceType: sourceCard.type,
             sourceColors: instColors(forcedBy.inst),
         }) !== null
     )

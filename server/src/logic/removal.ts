@@ -394,7 +394,7 @@ export function tryFreeSummonOnHandDiscard(
     state: GameState,
     targetPid: PlayerId,
     cardId: string,
-    sourceType: "spirit" | "nexus" | "magic" | undefined,
+    sourceType: CardType | undefined,
     sourcePid: PlayerId,
 ): boolean {
     // 「相手の**スピリット**の効果で」＝発生源がスピリットで、かつ破棄された側とは別のプレイヤー
@@ -1684,7 +1684,7 @@ export function canTakeCoresFrom(
     inst: CardInstance,
     actorPid: PlayerId,
     srcColors?: Color[],
-    srcType?: "spirit" | "nexus" | "magic",
+    srcType?: CardType,
 ): boolean {
     return !isResisted(state, ownerPid, inst, {
         op: "coreRemove",
