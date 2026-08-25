@@ -112,6 +112,15 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ここでしか見つからない層がある（実績: `returnSelfToHand` の実行実績0、【激突】と turnStartResumeStep の実バグ）。
 実行実績0の行が出たら smoke の穴なので、テストを足して潰す。
 
+**⚠️ 例外：ブレイヴ（合体スピリット）経由のキーワード／globalConstraintは、実際に動いていても
+「未実行」と出続けることがある**（2026-08-26発覚）。`scripts/coverage-effects.ts` の計測点の一部
+（【暴風】以外の【装甲】【聖命】等・`hasGlobalConstraint`の一部type）は `self.cardId`／`inst.cardId`
+を直接見る前提でパターン注入されており、ブレイヴが合体しているホスト経由では計測コードそのものを
+通らない設計になっている（実装側は正しく `bravesOf` で合流させてあり、動作自体は smoke/part241・242
+で確認済み）。「未実行」が出たら、まず smoke で実際に効果を発火させて確認し、それでも消えないなら
+計測ツール側の既知の限界と判断してよい（`scripts/coverage-effects.ts` の該当パッチを直すのは
+正規表現ベースのコード注入に触るため費用対効果が低く、通常は見送ってよい）。
+
 ## 重要な罠
 
 - **cardId のハードコード注意**: カードデータは Wiki 実データ由来で、過去に ID が全面的にズレた事故がある。cardId を書く箇所（デッキレシピ・テスト等）では必ず python3 等でカードデータをパースし、ID・名前・色の一致を機械検証する。名前の記憶や既存コメントを信用しない
