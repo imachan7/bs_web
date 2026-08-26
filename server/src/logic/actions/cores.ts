@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -40,7 +40,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -120,6 +120,13 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
         } else {
             removeCores(state, found.pid, found.inst, removeCount, owner)
+        }
+        // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
+        // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
+        // 元から0だった場合は上の removeCount 計算で 0 になり、ここへ来る前に何も起きていない
+        if (action.drawIfEmptied === true && removeCount > 0 && found.inst.cores === 0) {
+            draw(state, owner, 1)
+            log(state, `${sourceName}：コアが0個になったので${state.players[owner].name}は1枚引いた。`)
         }
         return
 }
@@ -822,11 +829,19 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
             `${sourceName}：このスピリット以外のすべてのスピリット上からコアを1個ずつ持ち主のリザーブに置いた。`,
         )
         if (destroyed > 0) {
-            self.cores += destroyed
-            log(
-                state,
-                `${sourceName}：この効果で${destroyed}体が消滅したため、ボイドからコア${destroyed}個を自身の上に置いた。`,
-            )
+            if (action.rewardDraw) {
+                draw(state, owner, destroyed)
+                log(
+                    state,
+                    `${sourceName}：この効果で${destroyed}体が消滅したため、自分はデッキから${destroyed}枚ドローした。`,
+                )
+            } else {
+                self.cores += destroyed
+                log(
+                    state,
+                    `${sourceName}：この効果で${destroyed}体が消滅したため、ボイドからコア${destroyed}個を自身の上に置いた。`,
+                )
+            }
         }
         return
 }
@@ -1403,6 +1418,23 @@ const opponentCoresToTrashHandler: ActionHandler<"opponentCoresToTrash"> = (ctx,
         return
 }
 
+// 「このスピリットが相手のスピリットの効果で破壊されたとき、その効果を発揮したスピリット上のコアすべてを
+// 相手のトラッシュに置く」（BS10-012アントイーター/BS10-014闇騎士マリス）。
+// targetInstanceIdは fieldEvent.byOpponentSpiritEffectOnly が渡す「自分を破壊した相手のスピリット」
+const destroyerCoresToTrashHandler: ActionHandler<"destroyerCoresToTrash"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+        if (targetInstanceId === undefined) {
+            log(state, `${sourceName}：破壊した相手のスピリットが見つからなかった。`)
+            return
+        }
+        const found = findSpiritAny(state, targetInstanceId)
+        if (!found || found.inst.cores === 0) {
+            log(state, `${sourceName}：破壊した相手のスピリットが見つからなかった。`)
+            return
+        }
+        removeCoresToTrash(state, found.pid, found.inst, found.inst.cores, owner)
+}
+
 const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSpirit"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 盾精ラングリーズ／神鳴る霊峰：破壊されたスピリットに乗っていたコアを、
@@ -1504,6 +1536,12 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
+        // 「お互い、ボイド/リザーブからライフにコアを置けない」（BS10-108 ルナティックシール）。
+        // このハンドラの置き元はボイドかリザーブのみ（スピリット上のコアから置く経路は別ハンドラ）
+        if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
+            log(state, `${sourceName}：効果により、ボイド/リザーブからライフにコアを置けなかった。`)
+            return
+        }
         // upTo（BS09-X35超神星龍ジークヴルム・ノヴァ）：「ライフが5になるように」不足分だけ置く。
         // すでにその数以上なら何も置かない。ボイドから置くので必ず届く
         if (action.upTo !== undefined) {
@@ -2075,6 +2113,7 @@ const handlers = {
     coreToTrashAllByCost: coreToTrashAllByCostHandler,
     coreRemovePerHandDiscard: coreRemovePerHandDiscardHandler,
     opponentCoresToTrash: opponentCoresToTrashHandler,
+    destroyerCoresToTrash: destroyerCoresToTrashHandler,
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
     voidCoreToOwnByKeyword: voidCoreToOwnByKeywordHandler,
     voidCoreToOwnTrash: voidCoreToOwnTrashHandler,

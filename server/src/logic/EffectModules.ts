@@ -120,6 +120,9 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     bravesOf,
+    isEndStepLocked,
+    instIsCombined,
+    isOnFieldAnyZone,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -602,6 +605,11 @@ export function millDeck(
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
     options?: { skipNegate?: true },
 ): number {
+    // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
+    if (isEndStepLocked(state, "deckMill")) {
+        log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
+        return 0
+    }
     let effectiveCount = count
     const byOpponent = actorPid !== undefined && actorPid !== pid
     // 「自分のデッキは破棄されない」（BS06ディスコンティニュー／BS08鳳翼の聖剣）。
@@ -921,14 +929,18 @@ function bofuCountBonusFor(state: GameState, ownerPid: PlayerId): number {
 // このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 // 暴風を持たない（base=0）スピリットにはボーナスを加算しない。GameEngine.resolveBattleの
 // hasBofuOnBlock分岐と、action:"bpBuffAllByBofuCount"の両方から参照する（BS08ゲラン准将／スナイピングブラスト）
+// 【暴風】はホスト自身だけでなく、合体しているブレイヴの keyword エントリも見る
+// （BS10千刀鳥カクレイン：ホストのカードには【暴風】が無く、ブレイヴ側にのみ書かれている）
 export function bofuCountFor(state: GameState, ownerPid: PlayerId, inst: CardInstance): number {
-    const level = currentLevel(inst).level
     let base = 0
-    for (const effect of getCard(inst.cardId).effects) {
-        if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
-        base = effect.count ?? 1
-        break
+    for (const src of [inst, ...bravesOf(state.players[ownerPid], inst)]) {
+        const level = currentLevel(src).level
+        for (const effect of getCard(src.cardId).effects) {
+            if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            base = effect.count ?? 1
+            break
+        }
     }
     if (base === 0) return 0
     return base + bofuCountBonusFor(state, ownerPid)
@@ -1094,9 +1106,15 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // refreshLevelAsOverrides は冒頭で継続分を delete して組み直す冪等な関数なので、重ねて呼んでも安全
     refreshLevelAsOverrides(state)
     const player = state.players[pid]
-    // 転召でコアが尽きて消滅していれば、もう何もしない
-    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
+    // 転召でコアが尽きて消滅していれば、もう何もしない。
+    // ⚠️ **ダイレクトブレイヴは field.combinedBraves に入る**ので、spirits だけを見ると
+    // ここで打ち切られて『このブレイヴの召喚時』効果が丸ごと発火しない（2026-08-25 に実際に踏んだ）
+    if (!isOnFieldAnyZone(player, inst.instanceId)) return
     fireSummonTrigger(state, pid, inst)
+    // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
+    // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
+    // 合体した状態で出たブレイヴは対象にならない（合体スピリットは既に場にいたものが状態を変えただけ）。
+    // 単体でスピリットとして召喚されたブレイヴは field.spirits に入るので、そちらは対象になる
     const stillOnField = (): boolean => player.field.spirits.some((s) => s.instanceId === inst.instanceId)
     if (!state.winner && stillOnField()) {
         // 【不死】による召喚も「召喚」なのでこのイベントを起こす。byFushi は
@@ -1106,6 +1124,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
+            // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
+            vanilla: instIsVanilla(inst),
         })
     }
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
@@ -1807,6 +1827,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 // （§12 の5。上がるのはホストのLvコストだけ）
                 brave.braveCombined = true
                 brave.coresOverride = host.coresOverride ?? host.cores
+                // ブレイヴが持つ静的【装甲】もホストへ反映する（hasArmorAgainstはstateを受け取らない
+                // 純粋述語で、ホストのカード自身しか見ないため。BS10フェンリルキャノンType-B）
+                const braveLevel = currentLevel(brave).level
+                for (const effect of getCard(brave.cardId).effects) {
+                    if (effect.kind !== "keyword" || effect.keyword !== "armor") continue
+                    if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
+                    if (!host.armorColorsGranted) host.armorColorsGranted = []
+                    for (const c of effect.colors ?? []) {
+                        if (!host.armorColorsGranted.includes(c)) host.armorColorsGranted.push(c)
+                    }
+                }
             }
         }
     }
@@ -2008,6 +2039,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind !== "levelAs") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
+                // 【合体時】：発生源が合体しているときだけ（BS10-078 聖鎧獣アメミード）
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
                 if (
                     effect.sourceMinLevel !== undefined &&
                     rawLevel(source) < effect.sourceMinLevel
@@ -2034,6 +2067,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // BS08ダークチュンポポLv2：自分のスピリットの体数が相手より少ない間だけ有効
                         const oppCount = state.players[opponentOf(pid)].field.spirits.length
                         if (player.field.spirits.length >= oppCount) continue
+                    } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
+                        // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
+                        if (!player.field.spirits.some((s) => instIsCombined(s))) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -2783,10 +2819,12 @@ export function countEffectCounter(
     if ("ownColorSymbols" in counter) {
         return countSymbols(state.players[owner], [counter.ownColorSymbols])
     }
-    // { ownFamily: string }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）
+    // { ownFamily: string | string[] }：自分のフィールドの指定系統スピリット数（familyGrant による付与も含む）。
+    // 配列＝いずれかの系統でOR（BS10-X02双魚賊神ピスケガレオン：「光導」/「星魂」）
     // （onDestroy等で発火する場合、selfはこの時点ですでにフィールドから除去済みのため含まれない）
+    const wantedFamilies = Array.isArray(counter.ownFamily) ? counter.ownFamily : [counter.ownFamily]
     return state.players[owner].field.spirits.filter((s) =>
-        spiritHasFamily(state, owner, s, counter.ownFamily),
+        wantedFamilies.some((f) => spiritHasFamily(state, owner, s, f)),
     ).length
 }
 
@@ -2896,6 +2934,8 @@ export function resolveAction(
         ...(srcType !== undefined ? { sourceType: srcType } : {}),
         // 発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
         ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+        // 発生源インスタンス（「その効果を発揮したスピリット」を対象にする軸用。BS10-012アントイーター/BS10-014闇騎士マリス）
+        ...(self ? { sourceInstanceId: self.instanceId } : {}),
     }
 
     // アクション本体は server/src/logic/actions/ のドメイン別モジュールに分割されている。

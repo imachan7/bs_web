@@ -812,8 +812,8 @@ process.on("exit", () => {
         const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
         patch(
             coresFile,
-            `import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
-            `import { coresForLevel, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
+            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
+            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
         )
         patch(
             coresFile,

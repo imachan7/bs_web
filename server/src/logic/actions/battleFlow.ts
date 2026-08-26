@@ -42,6 +42,79 @@ const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
         return
 }
 
+// BS10-065 ヘッジボルグ：BPを比べ相手のスピリットだけを破壊したとき、そのスピリット上のコアすべてはボイドへ。
+// トリガーは onBattleWin なので、この時点で通常は破壊が確定済み（＞６でコアはすでにリザーブへ移動している）。
+// その場合は lastBattleDestroyedCores 分をリザーブから差し引く＝ボイド行きにする。
+// 「フィールドに残る」等で破壊を免れ、まだ場にいる場合はそのままコアを0にする
+const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+    const id = state.lastBattleDestroyedInstanceId
+    if (id === undefined) {
+        log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいない。`)
+        return
+    }
+    for (const pid of ["p1", "p2"] as const) {
+        const inst = state.players[pid].field.spirits.find((sp) => sp.instanceId === id)
+        if (!inst) continue
+        if (inst.cores === 0) return
+        log(state, `${sourceName}：${getCard(inst.cardId).name}の上のコア${inst.cores}個はボイドに置かれた。`)
+        inst.cores = 0
+        return
+    }
+    const cores = Math.min(state.lastBattleDestroyedCores, state.players[opp].reserve)
+    if (cores === 0) return
+    state.players[opp].reserve -= cores
+    log(state, `${sourceName}：破壊されたスピリット上のコア${cores}個はリザーブへ戻らずボイドに置かれた。`)
+}
+
+// BS10-072 セイバーシャーク：このターンの間、**自分の**スピリットすべての『ブロック時』効果を『アタック時』へ移す
+const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAttackOwnThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
+    state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+}
+
+// BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
+const grantUnblockableByLevelThisTurnHandler: ActionHandler<"grantUnblockableByLevelThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "unblockableByLevelThisTurn", pid: owner, levels: [...action.levels] })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットはLv${action.levels.join("/")}の相手のスピリットにブロックされない。`)
+}
+
+// BS10-108 ルナティックシール：発揮した側のエンドステップを turns 回数えるまで、両陣営に制限をかける。
+// カードは「ボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」と書くが、
+// **置かれたコアは以後どこからも参照されない**ので、実体のコアではなくカウンターとして持つ
+// （2026-08-25 ユーザー確認）。remaining がそのままデッキの横のコア数で、画面にもこれを出す
+const endStepLockHandler: ActionHandler<"endStepLock"> = (ctx, action) => {
+    const { state, owner, self, sourceName, sourceCardId } = ctx
+    if (action.turns < 1) return
+    state.endStepLocks.push({
+        pid: owner,
+        remaining: action.turns,
+        cardId: sourceCardId ?? self?.cardId ?? "",
+        locks: [...action.locks],
+    })
+    log(state, `${sourceName}：${state.players[owner].name}のエンドステップを${action.turns}回行うまで、お互いに制限がかかる。`)
+}
+
+// BS10-008 火星神龍アレス・ドラグーン：アタックステップとエンドステップを順番にもう1回ずつ行う。
+// フラグを立てるだけで、実際に戻すのは PhaseManager.endTurn（エンドステップの誘発を解決した直後）。
+// **自分のターンでなければ何もしない**（「自分のターン終了時」の効果なので、他の経路から呼ばれても暴発させない）
+const extraAttackStepHandler: ActionHandler<"extraAttackStep"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    if (owner !== state.turnPlayer) {
+        log(state, `${sourceName}：自分のターンではないため、アタックステップは追加されない。`)
+        return
+    }
+    if (state.extraAttackStepPending === true) {
+        log(state, `${sourceName}：すでにアタックステップの追加が予約されている。`)
+        return
+    }
+    state.extraAttackStepPending = true
+    log(state, `${sourceName}：アタックステップとエンドステップを、順番にもう1回ずつ行う。`)
+}
+
 const endAttackStepHandler: ActionHandler<"endAttackStep"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 妖機妃ソール：破壊時に相手ターンのアタックステップを終了させる（onlyOpponentTurn）。
@@ -789,6 +862,11 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
             // カード静的な名前で判定する
             if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+            // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
+            // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
+            if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
+                return false
+            }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
             // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
@@ -1050,9 +1128,18 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 // 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
     const { state, owner, self, srcType } = ctx
-    if (action.count <= 0) return
+    // countCounter指定時はcountを無視しEffectCounterの値を破棄枚数として使う
+    // （BS10-X02双魚賊神ピスケガレオン：系統「光導」/「星魂」を持つ自分のスピリット数）
+    const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+    if (count <= 0) {
+        if (action.countCounter !== undefined) {
+            const { sourceName } = ctx
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+        }
+        return
+    }
     const pids = bothSidesPids(state, srcType)
-    const discardOne: EffectAction = { type: "discardSelfChoose", count: action.count }
+    const discardOne: EffectAction = { type: "discardSelfChoose", count }
     for (const pid of [owner, opponentOf(owner)]) {
         if (!pids.includes(pid)) continue
         // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
@@ -1079,6 +1166,11 @@ const handlers = {
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
+    battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
+    blockTriggersAsAttackOwnThisTurn: blockTriggersAsAttackOwnThisTurnHandler,
+    grantUnblockableByLevelThisTurn: grantUnblockableByLevelThisTurnHandler,
+    endStepLock: endStepLockHandler,
+    extraAttackStep: extraAttackStepHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,

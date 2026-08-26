@@ -106,6 +106,10 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     effectActiveOn,
+    isOnFieldAnyZone,
+    instIsCombined,
+    bravesOf,
+    hostsOf,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -254,6 +258,8 @@ export function fireTrigger(
     const movedToAttack =
         state.blockTriggersAsAttackThisTurn === true ||
         selfInstance.blockTriggersAsAttackThisTurn === true ||
+        // このターンの間、**片側のプレイヤーの**スピリットすべてが対象（BS10-072 セイバーシャーク）
+        state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner) ||
         hasBlockTriggersAsAttack(state, owner, selfInstance)
     if (movedToBlock && event === "onAttack") {
         return
@@ -267,13 +273,16 @@ export function fireTrigger(
             : movedToAttack && event === "onAttack"
               ? ["onAttack", "onBlock"]
               : [event]
-    const matches = (effect: EffectDef): effect is Extract<EffectDef, { kind: "triggered" }> => {
+    // src は**その効果エントリを持っているカードの個体**。ホスト自身のこともあれば、
+    // 合体しているブレイヴのこともある（下の entries を参照）。
+    // レベル判定と【合体時】のゲートは src で行う（ブレイヴは合体状態のレベル表を引く）
+    const matches = (effect: EffectDef, src: CardInstance = selfInstance): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
         // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
-        if (!effectActiveOn(selfInstance, effect, level)) return false
+        if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
@@ -394,17 +403,31 @@ export function fireTrigger(
         ...tempGranted,
     ]
 
-    const effects = card.effects
-    for (let i = 0; i < effects.length; i++) {
-        const effect = effects[i]
-        if (!effect || !matches(effect)) continue
+    // ⚠️ **合体しているブレイヴの誘発効果もここで発火させる**（docs/design/BRAVE.md §4）。
+    // 継続効果は effectSources が拾うが、**誘発は個体ごとの fireTrigger を通る**ため、
+    // ここで合流させないと【合体時】の『アタック時』『バトル時』などが一度も発火しない
+    // （2026-08-25 に実カードで発覚。coverage:effects が「一度も適用されていない」と報告した）。
+    //
+    // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
+    // 合体スピリット＝ホスト側の個体を指す（refreshSelf・selfBuff などが正しく当たる）。
+    // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
+    const entries: { effect: EffectDef; src: CardInstance }[] = [
+        ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
+        ...bravesOf(state.players[owner], selfInstance).flatMap((b) =>
+            getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
+        ),
+    ]
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        const effect = entry?.effect
+        if (!entry || !effect || !matches(effect, entry.src)) continue
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
         if (effect.optional && state.interactiveTargets) {
             requestActivationConfirm(
                 state,
                 owner,
-                `${card.name}の効果を発動しますか？`,
+                `${getCard(entry.src.cardId).name}の効果を発動しますか？`,
                 effect.action,
                 selfInstance,
             )
@@ -412,16 +435,17 @@ export function fireTrigger(
             // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
             // （2026-08-14 ユーザー確認。BS09-038スズランの妖精ティンカ／BS05-040スノーホワイトの
             //  効果文どおり「スピリット/マジックの効果」が対象）。ネクサスの効果は対象外
-            const redirecting = card.type === "spirit"
+            // ブレイヴの効果も「合体スピリット＝スピリットの効果」として扱う（BRAVE.md §12.1）
+            const redirecting = card.type === "spirit" || entry.src !== selfInstance
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
-            const remaining = effects.slice(i + 1).filter(matches)
+            const remaining = entries.slice(i + 1).filter((x) => matches(x.effect, x.src))
             pushResumeFrames(state, [
-                ...remaining.map((e) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: e.action })),
+                ...remaining.map((x) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: (x.effect as Extract<EffectDef, { kind: "triggered" }>).action })),
                 ...grantedActions.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
             ])
             return
@@ -610,11 +634,9 @@ function confirmPromptIfOptional(
 // 発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 // 「集めてから解決する」形では、先に解決した効果で発生源が破壊されうるので都度確かめる
 function isStillOnField(state: GameState, pid: PlayerId, instanceId: string): boolean {
-    const player = state.players[pid]
-    return (
-        player.field.spirits.some((x) => x.instanceId === instanceId) ||
-        player.field.nexuses.some((x) => x.instanceId === instanceId)
-    )
+    // 合体中のブレイヴも「場にいる」（効果の発生源になる。BRAVE.md §2.3）。
+    // ここを spirits/nexuses だけにすると、【合体時】の fieldEvent が丸ごと飛ばされる
+    return isOnFieldAnyZone(state.players[pid], instanceId)
 }
 
 // ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
@@ -680,7 +702,10 @@ export function fireStepTriggers(
                 if (drawPhase === "afterDraw" && effect.beforeDraw === true) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
+                if (!effectActiveOn(inst, effect, level)) continue
+                // 「ターンに1回」（BS10-008：この効果自身が追加のエンドステップを生むため、無いと無限ループになる）
+                if (effect.oncePerTurn === true && inst.stepUsedTurn?.[effect.id] === state.turn) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
                 if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
@@ -753,6 +778,10 @@ export function fireStepTriggers(
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）
         skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
         resolve: (e) => {
+            // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
+            if (e.effect.oncePerTurn === true) {
+                e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
+            }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
                 requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)
@@ -820,6 +849,10 @@ export function fireFieldEventTriggers(
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
         byOpponentEffect?: boolean
+        // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
+        bySpiritEffect?: boolean
+        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）
+        sourceInstanceId?: string
         families?: string[]
         magicCost?: number
         magicTiming?: "main" | "flash"
@@ -877,6 +910,13 @@ export function fireFieldEventTriggers(
             // subjectSide：**イベントの主体がどちら側か**で絞る（turn＝誰のターンか、とは別軸）。
             // 「**相手の**スピリットが疲労したとき」のように、any…系のイベントで
             // 主体の陣営だけを条件にしたいときに使う（SD01-028 呪われし神殿Lv2）
+            // subjectCombined：**イベントの主体が合体しているか**で絞る（BS10-070 鎧馬アルファズル）
+            if (
+                effect.subjectCombined !== undefined &&
+                (selfOverride === undefined || instIsCombined(selfOverride.inst) !== effect.subjectCombined)
+            ) {
+                continue
+            }
             if (effect.subjectSide === "own" && selfOverride?.pid !== pid) continue
             if (
                 effect.subjectSide === "opponent" &&
@@ -912,6 +952,8 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            // 「相手のスピリットの効果で破壊されたとき」（BS10-012アントイーター/BS10-014闇騎士マリス）
+            if (effect.byOpponentSpiritEffectOnly && !eventInfo?.bySpiritEffect) continue
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
             // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
             if (
@@ -1055,9 +1097,18 @@ export function fireFieldEventTriggers(
         // selfMode:"source" 指定時は、イベント対象ではなく発生源自身を self にする
         // （BS04鎧装獣ヘイズ・ルーン：相手のコスト1以下がアタックしたとき「このスピリットは回復する」）
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
-        const actionTargetId = effect.ignoreEventTarget ? undefined : targetInstanceId
+        // byOpponentSpiritEffectOnly：対象をイベント対象ではなく「その効果を発揮したスピリット」にする
+        // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
+        const actionTargetId = effect.byOpponentSpiritEffectOnly
+            ? eventInfo?.sourceInstanceId
+            : effect.ignoreEventTarget
+              ? undefined
+              : targetInstanceId
         if (effect.selfMode === "source") {
-            return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+            // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
+            // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）
+            const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+            return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
         }
         if (selfOverride) {
             // self はイベント対象（召喚されたスピリット等。filter の self 相対BPが参照する）だが、

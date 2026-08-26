@@ -204,6 +204,7 @@ const VALID_FILTER_KEYS = new Set([
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
+    "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
@@ -347,7 +348,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 const keys = Object.keys(t as Record<string, unknown>)
                 if (keys.length === 0) add(id, "braveCondition の項が空")
                 for (const k of keys) {
-                    if (!["family", "minCost", "cardName"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                    if (!["family", "minCost", "cardName", "vanilla"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
                 }
             }
         } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {
@@ -448,6 +449,10 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
+    // ⚠️ **先に仕組みだけ入れてある枠**。BS10 を data/cards へ入れて構造化したら、
+    // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）
+    ["extraAttackStep", "BS10-008 火星神龍アレス・ドラグーンが使う。BS10 は data/staging にあり data/cards 未投入のため、仕組みだけ先行（2026-08-25）"],
+    ["endStepLock", "BS10-108 ルナティックシールが使う。同上（2026-08-25）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

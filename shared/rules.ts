@@ -148,8 +148,13 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
         // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
-        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す
-        ...(nexusEffectsDisabledFor(board, pid) ? [] : player.field.nexuses),
+        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す。
+        // さらに「**疲労状態の**ネクサスすべての効果は発揮されない」（BS10-074 きぐるみクマッター）は両陣営に効く
+        ...(nexusEffectsDisabledFor(board, pid)
+            ? []
+            : restedNexusEffectsDisabled(board)
+              ? player.field.nexuses.filter((n) => !n.isRested)
+              : player.field.nexuses),
         // **合体中のブレイヴ**（BRAVE.md §4）。これで aura / constraint / keywordGrant / fieldEvent /
         // reviveOnDestroy / mustBlockGrant など走査すべてが【合体中】効果に対応する。
         // ⚠️ ホストが「持つ効果すべては発揮されない」を受けていたら、**合体中ブレイヴの効果も止まる**
@@ -162,6 +167,26 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
     ]
+}
+
+// 「疲労状態のネクサスすべての効果は発揮されない」（globalConstraint。BS10-074 きぐるみクマッター）。
+// ⚠️ ここで effectSources を呼ぶと無限再帰するので、両陣営の配列を**直接**走査する
+// （nexusEffectsDisabledFor と同じ理由・同じ書き方）。
+// 判定する側のネクサスが疲労していれば、そのネクサス自身の効果も止まる（両陣営に効く常在効果なので一貫する）
+function restedNexusEffectsDisabled(board: Board): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = board.players[pid]
+        for (const source of [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves, ...p.turnVirtualInstances, ...p.battleVirtualInstances]) {
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "restedNexusEffectsDisabled") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
+                return true
+            }
+        }
+    }
+    return false
 }
 
 // pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
@@ -398,6 +423,9 @@ export function matchesBraveCondition(
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
         if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
+        // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
+        // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す
+        if (t.vanilla === true && !instIsVanilla(host)) return false
         return true
     })
 }
@@ -492,6 +520,20 @@ export function isSpiritOnField(board: Board, pid: PlayerId, instanceId: string)
     return board.players[pid].field.spirits.some((s) => s.instanceId === instanceId)
 }
 
+// この個体が**まだ場にいるか**（スピリット／ネクサス／**合体中のブレイヴ**）。
+// ⚠️ 合体中のブレイヴは field.spirits の走査には入らないが、カードとしては場に存在し、
+// 効果の発生源にもなる（docs/design/BRAVE.md §2.3）。
+// 「場を離れたら発火させない」種類の判定は**必ずこれを通すこと**：
+// field.spirits だけを見ると、合体中のブレイヴの効果が丸ごと無言で消える
+// （2026-08-25 に fireSummonSequence と fireFieldEventTriggers で実際に踏んだ）
+export function isOnFieldAnyZone(player: BoardPlayer, instanceId: string): boolean {
+    return (
+        player.field.spirits.some((x) => x.instanceId === instanceId) ||
+        player.field.nexuses.some((x) => x.instanceId === instanceId) ||
+        player.field.combinedBraves.some((x) => x.instanceId === instanceId)
+    )
+}
+
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
 
 // 状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
@@ -506,13 +548,18 @@ export function spiritHasKeyword(
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
     // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
-    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため
+    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため。
+    // **合体しているブレイヴのキーワードもホスト側でここに合流させる**（合体スピリットは1体として
+    // 振る舞う。bravesOf(inst) は inst がホストでないとき空配列を返すので安全）
+    const cards = [inst, ...bravesOf(board.players[ownerPid], inst)]
     if (
-        card(inst.cardId).effects.some(
-            (e) =>
-                e.kind === "keyword" &&
-                keywordMatches(e.keyword, keyword) &&
-                (e.whileCombined !== true || instIsCombined(inst)),
+        cards.some((src) =>
+            card(src.cardId).effects.some(
+                (e) =>
+                    e.kind === "keyword" &&
+                    keywordMatches(e.keyword, keyword) &&
+                    (e.whileCombined !== true || instIsCombined(inst)),
+            ),
         )
     ) {
         return true
@@ -582,6 +629,9 @@ export function continuousKeywordGrantCount(
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // braveInSpiritState（BS10-083魔星輝く古戦場Lv2）：スピリット状態のブレイヴのみ
+            // （TargetFilter.braveInSpiritStateと同じ判定＝カード種別がブレイヴで合体していない個体）
+            if (effect.braveInSpiritState && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) continue
             // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
             // 実効BPで見るので、BPバフで届いた個体にも付く
             if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue
@@ -1073,6 +1123,11 @@ export function auraAppliesTo(
         if (aura.phaseTurn.turn === "own" && sourcePid !== board.turnPlayer) return false
         if (aura.phaseTurn.turn === "opponent" && sourcePid === board.turnPlayer) return false
     }
+    // turn はフェーズを問わない版（『自分のターン』のようにステップ不問の継続効果。target を問わず適用。BS10-079そびえる机山群Lv1）
+    if (aura.turn) {
+        if (aura.turn === "own" && sourcePid !== board.turnPlayer) return false
+        if (aura.turn === "opponent" && sourcePid === board.turnPlayer) return false
+    }
     // バトル中かどうかの3つも target を問わず適用する（phaseTurn と同じ理由）。
     // かつては target:"self" の早期リターンより後にあり、**self では黙って無視されていた**
     // （2026-08-16 に SD02-009 獣将軍クジャルタで判明。当時の該当カードはこの1枚だけ）
@@ -1100,6 +1155,10 @@ export function auraAppliesTo(
     if (sourcePid !== targetOwnerPid) return false
     if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
     if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
+        return false
+    }
+    // combinedFilter（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）
+    if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
         return false
     }
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
@@ -1258,6 +1317,12 @@ export function matchesTarget(
     // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
+    // 合体しているか（BS10。docs/design/BRAVE.md）。true=合体スピリット／false=合体していない
+    if (filter.combined !== undefined && instIsCombined(inst) !== filter.combined) return false
+    // スピリット状態のブレイヴ＝カード種別がブレイヴで、合体していない個体。
+    // 合体中のブレイヴは field.combinedBraves にいて field.spirits の走査に入らないので、
+    // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく
+    if (filter.braveInSpiritState === true && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
@@ -1354,11 +1419,16 @@ export function activeConstraintsWithSource(
     //  BS07ルナースラッシュ＝ブロックしてきた相手を無力化する用途なので、広く止める側に倒している）
     if (instEffectsSuppressed(inst)) return []
     const level = currentLevel(inst).level
-    const own = card(inst.cardId)
-        .effects.filter(
-            (e) => e.kind === "constraint" && effectActiveOn(inst, e, level),
+    // 合体しているブレイヴの constraint も、ホストが出す制約としてここに合流させる
+    // （合体スピリットは1体として振る舞う。BS10バズーカ・アームズ：canBlockUnblockable）
+    const own = [inst, ...bravesOf(board.players[pid], inst)]
+        .flatMap((src) =>
+            card(src.cardId)
+                .effects.filter(
+                    (e) => e.kind === "constraint" && effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level),
+                )
+                .map((e) => (e as { constraint: ConstraintDef }).constraint),
         )
-        .map((e) => (e as { constraint: ConstraintDef }).constraint)
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
         // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
         .filter((c) => {
@@ -1809,6 +1879,8 @@ function hasImmunityAgainst(
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // keywordFilter（BS09-055転生の谷Lv2＝【転召】持ち）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
+            // combinedFilter（BS10-079そびえる机山群Lv2＝合体スピリットのみ）
+            if (effect.combinedFilter === true && !instIsCombined(inst)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
@@ -1902,6 +1974,15 @@ export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInsta
 // このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
 // **効果でもプレイヤーの操作でも取り除けない**ので、耐性の判定表と、
 // コアが動くプレイヤー操作の入口（moveCore / 支払い元 / 【覚醒】の移動元）から呼ぶ
+// エンドステップを数える封印（BS10-108 ルナティックシール）が、いま指定の制限をかけているか。
+// **両陣営に効く**（誰が発揮したかを問わない）。クライアントもこれを読んでボタンを落とす
+export function isEndStepLocked(
+    board: Board,
+    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve",
+): boolean {
+    return board.endStepLocks.some((l) => l.remaining > 0 && l.locks.includes(lock))
+}
+
 export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
 }

@@ -22,7 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -276,6 +276,8 @@ function dispatchAction(
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
             if (state.battle) return "バトル中です"
+            // 「お互い、アタックステップは行えず」（BS10-108 ルナティックシール）
+            if (isEndStepLocked(state, "attackStep")) return "効果により、アタックステップは行えません"
             toAttackPhase(state)
             return null
         }
@@ -1631,6 +1633,7 @@ function resolveBattle(state: GameState): void {
     // 「BPを比べ相手のスピリットだけを破壊した」ときの破壊された側の色・系統
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
     state.lastBattleDestroyedColors = []
+    delete state.lastBattleDestroyedInstanceId
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
     state.lastBattleDestroyedCost = 0
@@ -1763,6 +1766,7 @@ function resolveBattle(state: GameState): void {
     if (outcome === "attackerWins") {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
+        state.lastBattleDestroyedInstanceId = blocker.instanceId
         state.lastBattleDestroyedLevel = blockerLevel
         state.lastBattleDestroyedColors = instColors(blocker)
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
@@ -1771,6 +1775,9 @@ function resolveBattle(state: GameState): void {
         // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
         state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
     } else if (outcome === "blockerWins") {
+        // 破壊直前のアタッカーのコア数も同様に記録する（BS10ヘッジボルグ：role制限なしでattacker/blocker両方から発火する）
+        state.lastBattleDestroyedCores = attacker.cores
+        state.lastBattleDestroyedInstanceId = attacker.instanceId
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp

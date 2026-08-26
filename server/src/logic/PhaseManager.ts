@@ -130,6 +130,33 @@ export function endTurn(state: GameState): void {
     fireStepTriggers(state, "end")
     if (state.winner) return
 
+    // エンドステップを数える封印（BS10-108 ルナティックシール）を1つ減らす。
+    // 「『自分のエンドステップ』に1個ずつボイドに置く」＝**発揮した側のエンドステップだけ**数える。
+    // 0 になった封印は解ける。**ターン終了の一時状態リセットの対象ではない**（複数ターンにまたがる）
+    if (state.endStepLocks.length > 0) {
+        for (const lock of state.endStepLocks) {
+            if (lock.pid !== state.turnPlayer) continue
+            lock.remaining -= 1
+            log(state, `${getCard(lock.cardId).name}：デッキの横のコアを1個ボイドに置いた。（残り${lock.remaining}個）`)
+        }
+        state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
+    }
+
+    // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
+    // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
+    // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances・turnConstraints 等）より**前**。
+    // 後ろに置くと、追加のアタックステップに入る前にこのターンの継続効果が消えてしまう。
+    // ターンプレイヤーは交代せず、アタックステップへ戻して return する
+    if (state.extraAttackStepPending === true) {
+        delete state.extraAttackStepPending
+        // 前のアタックステップで立った「バトル終了時に畳む」フラグは役目を終えているので落とす
+        // （残すと追加ステップの最初のバトルで即座に終了してしまう）
+        state.endAttackStepAfterBattle = false
+        log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
+        toAttackPhase(state)
+        return
+    }
+
     // 「エンドステップに自分のデッキの下に戻す」（BS05トランスマイグレーションで召喚した個体）。
     // エンドステップの誘発効果からは見えている状態にしたいので、fireStepTriggers の**後**に処理する。
     // 戻す処理中に配列が変わるのでスナップショットを取ってから回す

@@ -640,7 +640,7 @@ CLAUDE.md の「ゲームルールの解釈は、実装前に設計を示して�
 **「合体しているときだけ発揮する」という効果エントリ単位のゲート**。
 
 ```ts
-whileCombined?: true   // EffectDef の keyword / triggered / aura / constraint / fieldEvent にだけ宣言
+whileCombined?: true   // EffectDef の keyword / triggered / aura / constraint / fieldEvent / levelAs にだけ宣言
 ```
 
 判定は盤面を見ない純粋な述語で足りる（`shared/rules.ts`）:
@@ -650,7 +650,7 @@ instIsCombined(inst)  // braveRefs を持つホスト ‖ braveCombined が載�
 effectActiveOn(inst, effect, level)  // levels と whileCombined の両方を見る
 ```
 
-⚠️ **`whileCombined` を型宣言しているのは、ゲートを実装した5 kind だけ。**
+⚠️ **`whileCombined` を型宣言しているのは、ゲートを実装した6 kind だけ。**
 他の kind に書くと `validate:cards` の「型宣言の無いキー」検査が落ちるので、
 **ゲートを実装していない kind に【合体時】が無言で素通りすることはない**。
 新しい kind に要るようになったら、型宣言と走査の両方を足すこと。
