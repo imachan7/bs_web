@@ -25,7 +25,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, instMinLevelCores, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, matchesCostFilter } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -138,6 +138,15 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
         if (!state.battle) {
             log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
             return
+        }
+        // excludeCombined：アタッカー/ブロッカーのいずれかが合体スピリットなら不発（BS10-107サイレントロック）
+        if (action.excludeCombined) {
+            const attacker = state.battle.attackerInstanceId ? findSpiritAny(state, state.battle.attackerInstanceId) : null
+            const blocker = state.battle.blockerInstanceId ? findSpiritAny(state, state.battle.blockerInstanceId) : null
+            if ((attacker && instIsCombined(attacker.inst)) || (blocker && instIsCombined(blocker.inst))) {
+                log(state, `${sourceName}：合体しているスピリットのバトルのため発動しなかった。`)
+                return
+            }
         }
         state.endAttackStepAfterBattle = true
         log(

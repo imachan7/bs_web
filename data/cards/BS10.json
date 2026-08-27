@@ -3724,5 +3724,1015 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-031",
+    "name": "ジャンガリー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-032",
+    "name": "ガドファント",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 2,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nLv2【装甲：青】\nこのスピリットは、相手の青のスピリット/ネクサス/マジックの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS10-032-e1",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "selfBuff",
+          "amount": 3000
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-032-e2",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "blue"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-033",
+    "name": "ノーザンベアード",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "巨獣",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。",
+    "effects": [
+      {
+        "id": "BS10-033-e1",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-034",
+    "name": "鎧装獣キマイロン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "巨獣",
+      "甲獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【氷壁：赤/紫】『相手のターン』\n相手が赤/紫のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv1･Lv2『相手のアタックステップ』\n自分のライフが減ったとき、このスピリットは回復する。",
+    "effects": [
+      {
+        "id": "BS10-034-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS10-034-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "red",
+          "purple"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "BS10-034-e3",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "refreshSelf"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-035",
+    "name": "樹氷の女神エイル",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "氷姫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を手札に戻す。\nLv2\n系統：「星魂」を持つ自分のスピリットが破壊されたとき、ボイドからコア1個を自分のライフに置く。",
+    "effects": [
+      {
+        "id": "BS10-035-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "returnToHand",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-035-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2
+        ],
+        "familyFilter": "星魂",
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-036",
+    "name": "水晶魚クリスティール",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "空魚",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-037",
+    "name": "エンペラドール",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2\n系統：「機獣」を持つ自分のスピリットすべてに“【装甲：赤/青】このスピリットは、相手の赤/青のスピリット/ネクサス/マジックの効果を受けない”を与える。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+5000する。",
+    "effects": [
+      {
+        "id": "BS10-037-e1",
+        "kind": "keywordGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "keyword": "armor",
+        "target": "ownAll",
+        "familyFilter": "機獣",
+        "colors": [
+          "red",
+          "blue"
+        ]
+      },
+      {
+        "id": "BS10-037-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "selfBuff",
+          "amount": 5000
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-038",
+    "name": "黒槍機ボルヴェルグ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装",
+      "戦騎"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP4000以下のスピリットすべてを手札に戻す。",
+    "effects": [
+      {
+        "id": "BS10-038-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "returnAllToHand",
+          "side": "both",
+          "filter": {
+            "maxBp": 4000
+          }
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-039",
+    "name": "ビアンコ・ティーガー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-040",
+    "name": "空母鯨ホーゲール",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 7,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "空魚",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n系統：「空魚」を持つ自分のスピリット1体につき、このスピリットをBP+1000する。\nLv2･Lv3『相手のアタックステップ』\n系統：「空魚」を持つ自分のスピリットすべてをBP+3000する。",
+    "effects": [
+      {
+        "id": "BS10-040-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amountPer": 1000,
+          "counter": {
+            "ownFamily": "空魚"
+          }
+        }
+      },
+      {
+        "id": "BS10-040-e2",
+        "kind": "aura",
+        "levels": [
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": "空魚",
+          "amount": 3000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-088",
+    "name": "天貫く塔の城",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n効果の記述を持たない自分のスピリットがブロックしたとき、ボイドからコア1個をそのスピリット上に置く。\nLv2『相手のアタックステップ』\n相手のスピリットがアタックしたとき、効果の記述を持たない自分のスピリットすべては回復する。",
+    "effects": [
+      {
+        "id": "BS10-088-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDeclaredBlock",
+        "levels": [
+          1,
+          2
+        ],
+        "vanillaOnly": true,
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS10-088-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "subjectSide": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refreshAllOwnByFilter",
+          "filter": {
+            "vanilla": true
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-089",
+    "name": "月照す氷結湖",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のスタートステップ』\n相手のネクサス1つを手札に戻す。\nLv2『相手のターン』\nドローステップ以外で相手がドローしたとき、自分はデッキから1枚ドローできる。",
+    "effects": [
+      {
+        "id": "BS10-089-e1",
+        "kind": "step",
+        "step": "start",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "returnNexusToHand",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS10-089-e2",
+        "kind": "fieldEvent",
+        "event": "opponentDrew",
+        "levels": [
+          2
+        ],
+        "turn": "opponent",
+        "excludePhase": "draw",
+        "optional": true,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-090",
+    "name": "空中珊瑚礁",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のターン』\n自分のスピリットすべてをBP+1000する。\nLv2『自分のメインステップ』\n系統：「空魚」を持つ自分のスピリットが召喚されたとき、合体していない相手のスピリット1体を手札に戻す。",
+    "effects": [
+      {
+        "id": "BS10-090-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 1000,
+          "turn": "opponent"
+        }
+      },
+      {
+        "id": "BS10-090-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "turn": "own",
+        "familyFilter": "空魚",
+        "action": {
+          "type": "returnToHand",
+          "count": 1,
+          "filter": {
+            "combined": false
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-106",
+    "name": "プロテクトオーラ",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、自分のブロックしているスピリットすべてをBP+2000する。\nさらに、ブロックしている自分の合体スピリットすべてをBP+3000する。",
+    "effects": [
+      {
+        "id": "BS10-106-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS10-106-e2",
+        "kind": "aura",
+        "levels": null,
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "blockingOnly": true,
+          "amount": 2000,
+          "lentOnly": true
+        }
+      },
+      {
+        "id": "BS10-106-e3",
+        "kind": "aura",
+        "levels": null,
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "blockingOnly": true,
+          "amount": 3000,
+          "lentOnly": true,
+          "combinedFilter": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-107",
+    "name": "サイレントロック",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n合体していないスピリットのバトルが終了したとき、アタックステップを終了する。",
+    "effects": [
+      {
+        "id": "BS10-107-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "endAttackStepAfterBattle",
+          "excludeCombined": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-108",
+    "name": "ルナティックシール",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": true,
+    "effect": "トラッシュにあるこのマジックカードは、一切の効果を受けない。\nメイン：\n『自分のエンドステップ』を3回行うまで、お互い、アタックステップは行えず、デッキは破棄されず、ボイド/リザーブからライフにコアを置けない。\nこの効果発揮後、自分はボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く。\nこのコアは、この効果以外に使用することはできない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS10-108-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "endStepLock",
+          "turns": 3,
+          "locks": [
+            "attackStep",
+            "deckMill",
+            "lifeChargeFromVoidOrReserve"
+          ]
+        }
+      },
+      {
+        "id": "BS10-108-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 3000,
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-X04",
+    "name": "月光龍ストライク・ジークヴルム",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "神星",
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n相手のスピリットがアタックしたとき、このスピリットは回復する。\nLv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、そのスピリットよりBPの低い相手のスピリットすべてを手札に戻す。\n【合体時】Lv3『相手のアタックステップ』\nステップ開始時、合体していない相手のスピリット1体を指定する。\nそのスピリットは可能ならば必ずアタックする。",
+    "effects": [
+      {
+        "id": "BS10-X04-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "subjectSide": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refreshSelf"
+        }
+      },
+      {
+        "id": "BS10-X04-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "blocker",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "returnAllToHand",
+          "side": "opponent",
+          "filter": {
+            "lowerBpThanBattleLoser": true
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-X04-e3",
+        "kind": "step",
+        "step": "attack",
+        "turn": "opponent",
+        "whileCombined": true,
+        "levels": [
+          3
+        ],
+        "action": {
+          "type": "forceAttackThisTurn",
+          "side": "opponent",
+          "count": 1,
+          "excludeCombined": true
+        }
+      }
+    ]
   }
 ]

@@ -973,6 +973,22 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         state.battle = null
         return null
     }
+    // フィールドイベント誘発「自分のスピリットがブロックしたとき」（BS10-088天貫く塔の城）。
+    // self にはブロックしたスピリット自身（blocker）を渡す。vanillaOnly はこの self で判定する
+    if (blocker) {
+        fireFieldEventTriggers(
+            state,
+            pid,
+            "ownSpiritDeclaredBlock",
+            { pid, inst: blocker },
+            instColors(blocker),
+            state.battle.attackerInstanceId,
+        )
+    }
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
     if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
     if (state.winner) {

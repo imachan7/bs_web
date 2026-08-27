@@ -1,7 +1,7 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, Keyword, PlayerId } from "../../type"
+import type { CardInstance, Color, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     canExhaustNexus,
@@ -504,6 +504,30 @@ const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, a
         return
 }
 
+const refreshAllOwnByFilterHandler: ActionHandler<"refreshAllOwnByFilter"> = (ctx, action) => {
+    const { state, owner, sourceName , srcType } = ctx
+        // filterに一致する自分の疲労スピリットすべてを回復（refreshAllByKeywordと同様cantAttackThisTurnは付与しない。
+        // BS10-088天貫く塔の城Lv2：「効果の記述を持たない自分のスピリットすべて」＝filter.vanilla:true）
+        const allFilter = normalizeFilter(ctx, action)
+        if (allFilter === SELF_REQUIRED) {
+            log(state, `${sourceName}：回復対象がいなかった。`)
+            return
+        }
+        let count = 0
+        for (const s of state.players[owner].field.spirits) {
+            if (!s.isRested) continue
+            if (!matchesTarget(state, owner, s, allFilter, ctx.self?.instanceId)) continue
+            refreshSpirit(state, owner, s, srcType)
+            count++
+        }
+        if (count === 0) {
+            log(state, `${sourceName}：条件を満たす疲労スピリットがいなかった。`)
+            return
+        }
+        log(state, `${sourceName}：スピリット${count}体を回復した。`)
+        return
+}
+
 const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFamily"> = (ctx, action) => {
     const { state, owner, self, sourceName, destroyContext , srcType, targetInstanceId } = ctx
         // 巨神機トールLv3。**何を犠牲にするかはプレイヤーが選ぶ**（COST_MODEL.md §2）。
@@ -930,6 +954,7 @@ const handlers = {
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
     refreshSelfByReturnToDeckTopName: refreshSelfByReturnToDeckTopNameHandler,
     refreshAllOwn: refreshAllOwnHandler,
+    refreshAllOwnByFilter: refreshAllOwnByFilterHandler,
     refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
