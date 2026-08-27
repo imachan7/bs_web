@@ -3487,5 +3487,135 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-085",
+    "name": "浮遊する岩塊",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n効果の記述を持たない自分のスピリットがアタックしたとき、ボイドからコア1個をそのスピリット上に置く。\nLv2\n自分の手札にある効果の記述を持たないスピリットカードすべてに“【神速】手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで、フラッシュタイミングで召喚できる”という効果を与える。",
+    "effects": [
+      {
+        "id": "BS10-085-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "vanillaOnly": true,
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS10-085-e2",
+        "kind": "handKeywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "soku",
+        "cardType": "spirit",
+        "vanillaFilter": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-087",
+    "name": "戦場に息づく命",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のコアステップ』\nボイドからコアを自分のリザーブに置かないことで、自分はデッキから1枚ドローする。\nLv2『相手のアタックステップ』\n相手によって自分のライフが減ったとき、ボイドからコア1個ずつを、自分の合体スピリットすべてに置く。",
+    "effects": [
+      {
+        "id": "BS10-087-e1",
+        "kind": "step",
+        "step": "core",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "beforeStepAction": true,
+        "optional": true,
+        "action": {
+          "type": "draw",
+          "count": 1,
+          "costSkipCoreStep": true
+        }
+      },
+      {
+        "id": "BS10-087-e2",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "action": {
+          "type": "voidCoreToOwnByKeyword",
+          "count": 1,
+          "combinedFilter": true
+        }
+      }
+    ]
   }
 ]

@@ -18,22 +18,34 @@ function turnStartSegments(state: GameState): (() => void)[] {
             log(state, `―――― ターン${state.turn}：${player.name}のターン ――――`)
             fireStepTriggers(state, "start")
         },
-        // コアステップ：リザーブにコアを1個追加（coreStepBonus持ち＝ベル・ダンディア等で+amount）。
+        // コアステップ①：コアを置くより前に発火する効果（「コアを置かないことで〜する」）。
+        // ドローステップと同じ理由で区間を分けている（ここで選択待ちになると再開は次の区間＝コア置きから）。
         // 先攻1ターン目はコアステップ自体が存在しない（公式ルール）
         () => {
             state.phase = "core"
+            state.coreStepSkipped = false
+            if (state.turn === 1) return
+            fireStepTriggers(state, "core", undefined, "enter", "before")
+        },
+        // コアステップ②：コア置き本体（coreStepBonus持ち＝ベル・ダンディア等で+amount）と、
+        // コアを置いた後に発火する効果
+        () => {
             if (state.turn === 1) {
                 log(state, `先攻1ターン目のためコアステップなし。`)
                 return
             }
-            const coreStepBonus = coreStepBonusFor(state, pid)
-            player.reserve += 1 + coreStepBonus
-            if (coreStepBonus > 0) {
-                log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+            if (state.coreStepSkipped) {
+                log(state, `${player.name}は効果のコストとしてリザーブにコアを置かなかった。`)
             } else {
-                log(state, `${player.name}はリザーブにコアを1個置いた。`)
+                const coreStepBonus = coreStepBonusFor(state, pid)
+                player.reserve += 1 + coreStepBonus
+                if (coreStepBonus > 0) {
+                    log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+                } else {
+                    log(state, `${player.name}はリザーブにコアを1個置いた。`)
+                }
             }
-            fireStepTriggers(state, "core")
+            fireStepTriggers(state, "core", undefined, "enter", "after")
         },
         // ドローステップ①：ドローより前に発火する効果（「ドローしないことで〜する」）。
         // ここで選択待ちになると、再開は**次の区間＝ドロー**からになるので、
@@ -41,7 +53,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "draw"
             state.drawStepSkipped = false
-            fireStepTriggers(state, "draw", undefined, "enter", "beforeDraw")
+            fireStepTriggers(state, "draw", undefined, "enter", "before")
         },
         // ドローステップ②：ドロー本体（先攻1ターン目も通常通りドローする。公式ルール）と、
         // ドローの後に発火する効果（引いたカードを破棄の対象にできる百識の谷Lv1など）
@@ -52,7 +64,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 draw(state, pid, 1, true)
             }
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
-            fireStepTriggers(state, "draw", undefined, "enter", "afterDraw")
+            fireStepTriggers(state, "draw", undefined, "enter", "after")
         },
         // リフレッシュステップ：トラッシュのコアをリザーブに戻し、全回復
         () => {

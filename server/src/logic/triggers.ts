@@ -672,10 +672,11 @@ export function fireStepTriggers(
     step: Phase,
     refreshedInstanceIds?: Set<string>,
     timing: "enter" | "end" = "enter",
-    // ドローステップだけ、ドローの前後で2回に分けて呼ぶ（PhaseManager が区間を分けている）。
-    // "beforeDraw"＝ドロー自体を支払いに使う効果（step.beforeDraw）だけ、"afterDraw"＝それ以外。
+    // ドローステップとコアステップは、本体の動き（ドロー／リザーブへのコア置き）の前後で
+    // 2回に分けて呼ぶ（PhaseManager が区間を分けている）。
+    // "before"＝本体の動き自体を支払いに使う効果（step.beforeStepAction）だけ、"after"＝それ以外。
     // 省略時（他のステップ）は全部発火する
-    drawPhase: "beforeDraw" | "afterDraw" | "all" = "all",
+    subStep: "before" | "after" | "all" = "all",
 ): void {
     const order: PlayerId[] = [
         state.turnPlayer,
@@ -698,8 +699,8 @@ export function fireStepTriggers(
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue
                 if ((effect.timing ?? "enter") !== timing) continue
-                if (drawPhase === "beforeDraw" && effect.beforeDraw !== true) continue
-                if (drawPhase === "afterDraw" && effect.beforeDraw === true) continue
+                if (subStep === "before" && effect.beforeStepAction !== true) continue
+                if (subStep === "after" && effect.beforeStepAction === true) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
@@ -944,7 +945,13 @@ export function fireFieldEventTriggers(
                 if (!found) continue
                 if (!instHasColor(found.inst, effect.targetColorFilter)) continue
             }
-            if (effect.vanillaOnly && !eventInfo?.vanilla) continue
+            // vanillaOnly：破壊/召喚のように主体が既にフィールドを離れているイベントは
+            // 呼び出し側が eventInfo.vanilla を渡す。anySpiritAttacked のように主体が場に残る
+            // イベントは selfOverride の実体で判定する（継続付与の「バニラとしても扱う」も見る）
+            if (effect.vanillaOnly) {
+                const subjectIsVanilla = eventInfo?.vanilla ?? (selfOverride !== undefined && instIsVanilla(selfOverride.inst))
+                if (!subjectIsVanilla) continue
+            }
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない

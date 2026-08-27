@@ -3739,7 +3739,7 @@
      "familyFilter": "夜族",
      "costSkipDraw": true
     },
-    "beforeDraw": true
+    "beforeStepAction": true
    }
   ]
  },

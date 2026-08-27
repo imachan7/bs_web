@@ -40,7 +40,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -1518,10 +1518,15 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
 
 const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ
-        const targets = state.players[owner].field.spirits.filter((s) =>
-            spiritHasKeyword(state, owner, s, action.keyword),
-        )
+        // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ。
+        // combinedFilter指定時は合体スピリットに絞る（BS10-087戦場に息づく命Lv2＝自分の合体スピリットすべて）
+        const keyword = action.keyword
+        const targets = state.players[owner].field.spirits.filter((s) => {
+            if (keyword !== undefined && !spiritHasKeyword(state, owner, s, keyword)) return false
+            if (action.combinedFilter === true && !instIsCombined(s)) return false
+            return true
+        })
+        const label = keyword !== undefined ? `【${KEYWORDS[keyword].label}】を持つ` : "合体スピリット"
         if (targets.length === 0) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
@@ -1529,7 +1534,7 @@ const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (
         for (const t of targets) placeCoresOnSpirit(state, t, action.count, owner)
         log(
             state,
-            `${sourceName}：ボイドからコア${action.count}個ずつを【${KEYWORDS[action.keyword].label}】を持つ${targets.length}体の上に置いた。`,
+            `${sourceName}：ボイドからコア${action.count}個ずつを${label}${targets.length}体の上に置いた。`,
         )
         return
 }

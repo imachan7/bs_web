@@ -115,7 +115,7 @@ export interface ResolvedTargetFilter extends Omit<TargetFilter, "maxBp" | "minB
 // 効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
-    | { type: "draw"; count: number; side?: "own" | "both" } // 自分がデッキから引く（side:"both"指定時は自分→相手の順で両者が引く。省略時=own＝従来どおり自分のみ。BS03巨猫ブリンクス：お互いドロー）
+    | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true } // 自分がデッキから引く（side:"both"指定時は自分→相手の順で両者が引く。省略時=own＝従来どおり自分のみ。BS03巨猫ブリンクス：お互いドロー）。// costSkipCoreStep指定時は「ボイドからコアをリザーブに置かないことで」＝そのコアステップのコア置きを支払いに使う。GameState.coreStepSkipped を立ててから引く（step.beforeStepAction と対で使う。BS10-087戦場に息づく命）
     | { type: "destroyCostsEachOne"; costs: number[] } // 指定コスト**ごとに1体ずつ**相手のスピリットを破壊する（コスト3から1体・コスト4から1体＝計2体。片方しかいなければその1体だけ。2026-08-14 ユーザー確認。BS09-052フォレスト・ゴレム）
     | { type: "destroy"; filter?: TargetFilter; count: number; countPerOpponentTrashMagicColors?: boolean; anySide?: true; excludeTarget?: true; chooserIsTarget?: true }
     // chooserIsTarget指定時は、**破壊される側（相手）が対象を選ぶ**（実行は発生源の持ち主の効果として解決する。exhaust/returnToDeckTopのchooserIsTargetと同型。BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」） // 相手スピリットを破壊（絞り込みは filter。省略=BP不問、selfがnullで self 相対BP指定ならno-op）。countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュにあるマジックカードの色の種類数（重複除く）を対象数として使う（BS05超獣王ベヒードス）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ランスラプトル等：修飾なしの「スピリット」）。excludeTarget指定時はtargetInstanceIdを「破壊する対象」ではなく「**除外する**対象」として扱う（誘発が渡すイベント対象を避ける。exhaust.excludeTargetと同型。BS06計画された場外乱闘Lv2：ブロックしたスピリット以外を破壊）
@@ -244,7 +244,7 @@ export type EffectAction =
     | { type: "opponentCoresToTrash"; count: number; reserveAll?: true } // reserveAll指定時はcountを無視し、相手のリザーブにあるコア**すべて**をトラッシュへ置く（スピリット上のコアには触れない。BS09-017蛇凰神バァラルLv3）。// 相手のリザーブ→相手スピリット上の順にコアcount個を相手のトラッシュへ置く（BS04氷の女神フリッグ）
     | { type: "destroyerCoresToTrash" } // targetInstanceId（fieldEvent.byOpponentSpiritEffectOnly が渡す「自分を破壊した相手のスピリット」）上のコアすべてを、その持ち主のトラッシュへ置く。
     // targetInstanceIdが見つからなければ不発（ログのみ）。BS10-012アントイーター/BS10-014闇騎士マリス
-    | { type: "voidCoreToOwnByKeyword"; keyword: Keyword; count: number } // ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべての上に置く（BS04甲殻戦士ロングホーン＝神速）
+    | { type: "voidCoreToOwnByKeyword"; keyword?: Keyword; count: number; combinedFilter?: true } // ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべての上に置く（BS04甲殻戦士ロングホーン＝神速）。// combinedFilter指定時は合体スピリット（instIsCombinedがtrue）に絞る。keywordと併用でき、keywordを省略すれば合体スピリットすべてが対象（BS10-087戦場に息づく命Lv2）
     | { type: "reviveLastDestroyedNexus"; coreCost?: number; costFrom?: "ownFieldOrReserve" } // costFrom:"ownFieldOrReserve" 指定時は、コストを self 上ではなく**自分のフィールド/リザーブ**のコアから払う（リザーブ優先。SD02-014 魔法監視塔Lv1＝コア1個をトラッシュへ） // self上のコアをコストぶん自分のトラッシュに置くことで、直近に破壊された自分のネクサス（GameState.lastDestroyedNexus）をトラッシュから自分のフィールドへ戻す（coreCost省略時はself上のコアすべて＝BS04戦闘獣ジャッカー。指定時はその数だけ支払う。コア不足なら不発。BS05ブロンズ・ゴレム＝1個）
     | { type: "negateLifeDamageFromTarget" } // 対象（targetInstanceId＝相手スピリット1体）のアタックでは、このターン自分のライフが減らない（CardInstance.lifeDamageNegatedFor。BS04ミストカーテン）
     | { type: "coreToOpponentTrashChoice"; count: number; includeReserve?: true; spiritsOnly?: true; chooserIsTarget?: true } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）。// spiritsOnly指定時は候補をスピリットだけに絞る（「相手のスピリット**上の**コア1個」の効果文にはネクサスが含まれない。BS08ダークスカルデーモンLv2）。// chooserIsTarget指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア1個を〜置く」。解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。returnToDeckTop.chooserIsTargetと同型）
@@ -751,7 +751,7 @@ export type EffectDef =
           levels: number[] | null
           action: EffectAction
           optional?: true // 「〜できる」= 任意。triggered.optional と同じく、interactiveTargets では発動確認を出す（BS02皇帝アンプルール：リザーブのコアを払う任意コスト）
-          beforeDraw?: true // step:"draw" 限定：そのステップのドロー**より前**に発火する。「ドローしないことで〜する」＝ドロー自体を支払いに使う効果のために要る（BS07常闇の聖堂Lv2）。指定が無い step:"draw" は従来どおりドローの後（引いたカードを破棄の対象にできる百識の谷Lv1などが依存している）
+          beforeStepAction?: true // step:"draw" | "core" 限定：そのステップの**本体の動き**（ドロー／リザーブへのコア置き）より前に発火する。「ドローしないことで〜する」「コアを置かないことで〜する」＝本体の動き自体を支払いに使う効果のために要る（BS07常闇の聖堂Lv2／BS10-087戦場に息づく命）。指定が無い step:"draw" は従来どおりドローの後（引いたカードを破棄の対象にできる百識の谷Lv1などが依存している）。// 2026-08-27 に beforeDraw から改名。コアステップにも同じ規則が要るのに「ドローの前」という名前のままだと規則が2つに割れるため
           condition?:
               | "handNotGreaterThanOpponent" // 持ち主の手札枚数が相手以下（主無き古城Lv2）
               | "selfWasRefreshedThisStep" // 発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
@@ -907,6 +907,7 @@ export type EffectDef =
           levels: number[] | null
           keyword: Keyword
           familyFilter?: string // 指定時はカード静的な系統にこれを含むカードのみ
+          vanillaFilter?: true // 指定時はカードに効果の記述を持たない（バニラ）カードのみ（isVanillaCardで判定。手札のカードなので静的判定でよい。BS10-085浮遊する岩塊Lv2＝手札の効果の記述を持たないスピリットカードに【神速】）
           cardType?: CardType // 指定時はこの種別のカードのみ（省略時はスピリット）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
@@ -985,7 +986,7 @@ export type EffectDef =
           // イベント対象を**効果の対象にしない**とき用（SD01-029 蠢く地下墓地Lv2＝「相手のスピリット**1体**を疲労させる」は
           // ブロックした個体に限らないので、ブロッカーの instanceId を明示ターゲットとして渡してはいけない）
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
-          vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" 限定：破壊/召喚されたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／BS10-080炎の結晶石Lv2）
+          vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "anySpiritAttacked" 限定：破壊/召喚/アタックしたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／BS10-080炎の結晶石Lv2／BS10-085浮遊する岩塊）。// 破壊・召喚は主体が既にフィールドを離れているため呼び出し側の eventInfo.vanilla で、anySpiritAttacked は主体が場に残るため selfOverride の instIsVanilla で判定する（継続付与の「バニラとしても扱う」も見る）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
           // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
@@ -2303,7 +2304,8 @@ export interface GameState {
     activationFizzled?: true // 起動能力（kind:"activated"）の効果が、対象がいないなどで**何も起こさずに終わった**ことを示す一時フラグ。
     // 起動能力から使うアクション（いまは summonFromHandFree の cancelable 経路）が立て、doActivateAbility が
     // 「ターンに1回」の消費を巻き戻してから消す。立てっぱなしにしないよう、doActivateAbility が発動のたびに落とす
-    drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeDraw の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
+    drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeStepAction の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
+    coreStepSkipped: boolean // このターンのコアステップの「ボイドからリザーブへコアを置く」を、効果のコストとして放棄したか（BS10-087戦場に息づく命「ボイドからコアを自分のリザーブに置かないことで」）。drawStepSkipped と同型で、コア置きの前に発火する step.beforeStepAction の効果が立てる
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）
     eventSeq: number // GameEvent.seq の通し番号（クリアしてもリセットしない）

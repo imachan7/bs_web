@@ -711,6 +711,8 @@ export function hasHandKeywordGrant(
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (cardData.type !== (effect.cardType ?? "spirit")) continue
             if (effect.familyFilter !== undefined && !cardData.family.includes(effect.familyFilter)) continue
+            // vanillaFilter：手札のカードなので静的判定でよい（BS10-085浮遊する岩塊Lv2）
+            if (effect.vanillaFilter === true && !isVanillaCard(cardData)) continue
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
