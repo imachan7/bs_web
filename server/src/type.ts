@@ -494,6 +494,12 @@ export type Keyword =
 //    エントリが持つ（seimei/kyoshu は triggered の onLifeDealt / onAttack、
 //    hyoheki は kind:"magicNegate"（cost:{exhaustSelf:true}＋colors＋turn:"opponent"））。宣言があることで
 //    「【聖命】を持つ自分のスピリットすべて」のようなキーワード指定の絞り込みが効く
+// ⚠️ **上のコメントに書いた挙動が、そのままエンジンに実装されているとは限らない。** kobo / funsai / jugeki 等は
+//    エンジンが keyword エントリを直接読んで動く（例: EffectModules.ts が e.keyword === "kobo" を見る）が、
+//    宣言だけの4つ（bofu / seimei / kyoshu / hyoheki）は**対になるエントリを書かないと何も起きない**。
+//    キーワード持ちを実装するときは、まず `grep -rn '"<キーワード>"' server/src/logic` でエンジン側の実装を確認し、
+//    無ければ既存の同キーワード持ちカードのデータを1枚見て、その2件セットの書式を踏襲すること
+//    （2026-08-27、BS10-047 で「【聖命】は宣言1件でよい」と誤って指示した。既存9枚は例外なく onLifeDealt を持っていた）
 
 // 常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
 export type AuraCounter =

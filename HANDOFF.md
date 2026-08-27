@@ -20,17 +20,24 @@
 
 **BS10（十二神皇編 第1章）の投入。→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)**
 
-- 83 / 121枚 投入済み。**いま黄17枚に着手中**（→ 青17枚 → 保留分4枚）
+- **100 / 121枚 投入済み（黄17枚まで完了）。次は青17枚 → 保留分4枚**
 - 色1バッチごとに検証定型を通してコミットする（CLAUDE.md「コミット規律」）
 
-### 黄17枚の設計（2026-08-27 確定。ブランチ `worktree-bs10-yellow`）
+⚠️ **ブランチが2本に分かれている。** 黄の作業は `worktree-bs10-yellow`（12枚まで）と、
+そこから派生した `worktree-bs10-yellow-2b`（残り5枚＝011f980・ad3284c）にある。
+**先に進んでいるのは 2b のほう。** 分けたのは、元のワークツリーが別セッションにロックされていて
+入れなかったため。青に着手する前に 2b を親ブランチへ早送りして1本に戻すこと。
 
-**投入済み: 第1バッチ8枚（043/044/045/048/049/050/109/111）＋ 2a の4枚（041/042/091/093）。
-BS10 は 95 / 121枚。残りは 2b の5枚（046 / 047 / 092 / 110 / X05）。**
+### 黄17枚の設計（2026-08-27 確定。ブランチ `worktree-bs10-yellow`）※完了。青の着手時に消してよい
+
+**17枚すべて投入済み。BS10 は 100 / 121枚。**
 
 足した器: `AuraCounter.ownHand` / `discardBothHands.all` / `returnToDeckBottom` /
 `lifeImmuneThisTurn`（＋`TurnConstraintDef.lifeImmuneForPid`）/ `immuneToOpponentEffects.against` /
-`constraintGrant` の `costFilter`・`turn`・`combinedFilter`。
+`constraintGrant` の `costFilter`・`turn`・`combinedFilter` /
+`trashSymbolReduction`（トラッシュのシンボルでも軽減。092・X05）/ `millUntilMagicCastFree` /
+`battleCompareByCost` / `reviveOnDestroy.cost.handDiscardCardType` / `requirePrevAttackerCombined`
+（＋`GameState.lastAttackerCombinedPid`・`prevAttackerCombinedPid`）。
 
 ⚠️ **2a で `hasFullEffectImmunity` の既存の不具合を直した**（e413bd5）。`constraintGrant` で
 **範囲付与された効果免疫が効いていなかった**（自前の `kind:"constraint"` しか見ていなかった）。
@@ -39,31 +46,20 @@ BS10 は 95 / 121枚。残りは 2b の5枚（046 / 047 / 092 / 110 / X05）。*
 **効果テキストが空の3枚（044/045/048）はバニラで正しい。** BS10 は各色3枚ずつ計18枚のバニラを持ち、
 BS10-091 シャボンの湖畔が参照する「効果の記述を持たない」軸のために要る。
 
-**042 カラドリアスと 047 ルージュの1節目はキーワードの効果説明そのもの**なので
-（【光芒】【聖命】の type.ts 定義文と一致）、`kind:"keyword"` 1件だけでよく別エントリは要らない。
-
-#### 残り9枚。**新機構は7つだが、置き場所はすべて既存の点が使える**
-
-| 枚 | 要るもの | 既存のどこに乗るか |
-| :-- | :-- | :-- |
-| 041 ティン・ソルジャー | バトル終了時に自壊 | `trigger:"onBattleEnd"`（**既存**。コリスタル）＋自壊アクション |
-| 042 Lv2 | 相手1体をデッキの下へ | **新アクション**（汎用の「相手スピリットをデッキ下へ」が無い）。`keywordFilter:"kyoshu"` |
-| 091 Lv1 | バニラが破壊されたとき | `fieldEvent` に `vanillaFilter` を足す（`isVanillaCard` は**既存**。他3箇所で使用中） |
-| 091 Lv2 | コスト2は相手スピリットの効果を受けない | `immuneToOpponentEffects`（**既存**）を範囲付与＋`phase`/`turn` 限定 |
-| 092 Lv1・X05 | **トラッシュのシンボルでも軽減できる** | **新機構**（軽減元の拡張）。2枚で共有するのでまとめて実装する |
-| 092 Lv2 | 系統3種の召喚時にリザーブ→ライフ | `fieldEvent`(onSummon)＋`familyFilter`＋`lifeCharge`（**すべて既存**） |
-| 093 Lv1 | このターン、自分のライフは減らない | `CardInstance.lifeDamageNegatedFor`（**既存**の対象限定版）と同型のプレイヤー単位ターンフラグ |
-| 093 Lv2 | 合体スピリットはコスト5以下からブロックされない | `unblockableBy.maxCost`（**既存**）を範囲付与 |
-| 110 ノックアウト | BPのかわりにコストを比べる | `battleBpAsLevel`（**既存**）と同じ `resolveBattle` の BP 比較置換点に乗る |
-| 046 Lv1 | 破棄枚数ぶん、破壊待機から戻す | `reviveOnDestroy`（**既存**）の枚数連動版 |
-| 046 Lv2 | トラッシュの黄マジックを使用 | **新機構**。コストは通常どおり払い、使うのはフラッシュ効果 |
-| 047 Lv3 | 直前のアタックが合体スピリットなら | **新機構**（アタック順を1つ記憶）＋`markUnblockableThisTurn`（既存） |
-| X05 | マジックが出るまで破棄→フラッシュ効果をコストなしで発揮 | `millUntilFamilyToHand`（**既存**）の兄弟＋マジック効果の発揮 |
-
-**次にやること: 2b の5枚（046 / 047 / 092 / 110 / X05）。** 上の表の「要るもの／既存のどこに乗るか」が設計。
-092 と X05 は「トラッシュのシンボルでも軽減できる」を共有するのでまとめて実装する。
+**042 カラドリアスの1節目は【光芒】のキーワード宣言1件だけでよい。**
+ただし **047 ルージュの【聖命】は宣言だけでは何も起きない**（誤ってそう指示して訂正された）。
+理由と見分け方は `server/src/type.ts` の Keyword 定義の下のコメントに書いた。
 
 **解釈は4点ともユーザー確認済みで、手順書へ転記済み**（734deac。TIMING_CHART §1.5/§2・COST_MODEL §6）。
+
+#### 黄で分かった、次の色でも効くこと
+
+- **「新機構が要る」と見積もった7つのうち、実際に新規だったのは3つだけだった。**
+  設計の前に `grep` で既存の器を1回探すと、`compareByCores` の隣・`castMagicFromTrashByColor` のように
+  **そのまま使える点**が見つかる。青の設計でも、器を洗ってから枚数を見積もること
+- **委譲プロンプトの誤指示が計4件あり、いずれもサブエージェント側が既存実装を見て訂正した**（正しかった）。
+  誤りはすべて「既存の器の意味を、実装を読まずに推測した」ことが原因。
+  ピン留めするなら**行番号まで実際に開いて確認してから**書く
 
 ---
 
