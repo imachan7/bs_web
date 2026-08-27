@@ -507,6 +507,18 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
     return count
 }
 
+// 軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
+// フィールドと違い個体（CardInstance）ではなくカードIDの列なので、カード静的な symbol だけで数える
+export function countTrashSymbols(player: BoardPlayer, colors: Color[]): number {
+    let count = 0
+    for (const cardId of player.trashCards) {
+        for (const sym of card(cardId).symbol) {
+            if (colors.includes(sym)) count++
+        }
+    }
+    return count
+}
+
 // 手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
 // 無ければhand.length（サーバー内部のPlayerStateは常に実配列）にフォールバックする
 export function handSizeOf(player: BoardPlayer): number {

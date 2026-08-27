@@ -5380,5 +5380,136 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-092",
+    "name": "明星きらめく花園",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n自分の手札にある黄のスピリットカードすべては、自分のフィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも召喚コストを軽減できる。\nLv2『自分のメインステップ』\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットが召喚されたとき、自分のリザーブからコア1個を自分のライフに置く。",
+    "effects": [
+      {
+        "id": "BS10-092-e1",
+        "kind": "trashSymbolReduction",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "ownHand",
+        "cardType": "spirit",
+        "cardColor": "yellow"
+      },
+      {
+        "id": "BS10-092-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "turn": "own",
+        "familyFilter": [
+          "神星",
+          "光導",
+          "星魂"
+        ],
+        "action": {
+          "type": "lifeCharge",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-X05",
+    "name": "堕天神龍ヴィーナ・ルシファー",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 6,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "神星",
+      "導魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "手札にあるこのスピリットカードは、自分のフィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも召喚コストを軽減できる。\n【合体時】Lv3：フラッシュ『このスピリットの合体アタック時』\n自分の手札にあるスピリットカード1枚を破棄することで、自分のデッキを上から、マジックカードが出るまで破棄し、そのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する。",
+    "effects": [
+      {
+        "id": "BS10-X05-e1",
+        "kind": "trashSymbolReduction",
+        "levels": null,
+        "scope": "self"
+      },
+      {
+        "id": "BS10-X05-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "millUntilMagicCastFree",
+          "discardCardType": "spirit"
+        },
+        "optional": true
+      }
+    ]
   }
 ]

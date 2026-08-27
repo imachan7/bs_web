@@ -374,6 +374,7 @@ export type EffectAction =
     | { type: "grantEffectToTargetThisTurn"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; filter?: TargetFilter } // 自分のスピリット1体（targetInstanceId優先。フォールバックはfilter一致の中から実効BP最大。interactiveTargets時は複数候補ならrequestChoice）に、このターンの間だけ指定の誘発効果を直接付与する（CardInstance.tempGrantedTriggers、ターン終了でリセット。fireTriggerが静的effectsと同様に走査する。effectGrantと違い対象は1体・仮想発生源を要しない。BS08メテオストーム＝カード名に「ヴルム」と入っている自分のスピリット1体に『このスピリットのアタック時』効果を付与）
     | { type: "revealAndSummonAllByFamily"; count: number; familyFilter: FamilyFilter } // 自分のデッキ上からcount枚を公開し、その中の指定系統（配列＝OR）を持つスピリットカード**すべて**を、コストを支払わず、【転召】させずに召喚する（維持コアが足りない分は召喚できずトラッシュへ。revealAndSummonKeywordと異なり任意選択を挟まない範囲効果）。この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordは発揮する点と対照的）。系統不一致・召喚できなかったカードはすべてトラッシュへ破棄する（BS08魔帝龍騎ダーク・クリムゾン：上7枚から系統「龍帝」/「竜騎」すべて）
     | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない。BS08冥将アマイモン）
+    | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。selfBuffByHandDiscardと同型：interactiveTargets時はcard choiceで選ぶ、自動時は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない。BS10-X05堕天神龍ヴィーナ・ルシファー：discardCardType「spirit」）。// maxCount は**省略時は上限なし**（デッキが尽きるまで）。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる
     | { type: "costOwnSpiritCoresToTrashThenOpponent"; count: number; phase?: "own" | "opp"; remaining?: number } // phase/remaining は選択の再入をまたいで「いまどちら側のコアを何個置くところか」を持ち回る**内部専用フィールド**（cards.jsonには書かない）。// コアを取り除くスピリットは1個ずつ選ぶ：自分側は支払う本人が選び（COST_MODEL.md §2）、相手側は効果文が「**相手は**〜置く」なので相手が選ぶ（CHOOSER_RULES.md）。非対話ではどちらもコアの多い個体から（従来どおり）。// 自分のフィールドのスピリット上のコア合計がcount未満なら不発（ログのみ）。足りれば、自分のスピリットからコアの多い個体順に合計count個を自分のトラッシュへ置き（bothSidesCoreToTrashと同じ選び方）、続けて同じ処理を相手のスピリットに対しても行う（相手は必ず支払う。維持コア割れは消滅処理。BS08マインドブレイク：5個）
 
 // selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ定義（BS03バッチで統一）。
@@ -1342,6 +1343,14 @@ export type EffectDef =
           condition?:
               | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上（ペンタン）
               | { ownColorSpiritsAtLeast: { color: Color; count: number } } // 発生源の持ち主の指定色スピリットがcount体以上（ネクサスは数えない。BS04黒の妖精ティ・ターニャ）
+      }
+    | {
+          id: string
+          kind: "trashSymbolReduction" // 対象のカードは、フィールドのシンボルに加え自分のトラッシュにあるカードのシンボルでも召喚コストを軽減できる（BS10-092明星きらめく花園／BS10-X05堕天神龍ヴィーナ・ルシファー）
+          levels: number[] | null
+          scope: "self" | "ownHand" // self=手札にあるこのカード自身にだけ効く（X05）／ownHand=発生源の持ち主の手札のカードに効く（092＝ネクサス）
+          cardType?: CardType // scope:"ownHand" 用の絞り込み（092＝spirit）
+          cardColor?: Color // scope:"ownHand" 用の絞り込み（092＝yellow。cardHasColorで判定）
       }
     | {
           id: string

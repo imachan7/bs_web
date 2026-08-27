@@ -35,6 +35,7 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
+import { resolveMagicEffects } from "../triggers"
 import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isVanillaCard, matchesTarget } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -1526,6 +1527,83 @@ const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ct
     notifyHandGained(state, owner, 1)
 }
 
+// BS10-X05：手札の指定種別カード1枚を破棄することで（任意コスト。selfBuffByHandDiscardと同型）、
+// デッキを上からmaxCount枚を上限に、マジックカードが出るまでトラッシュへ破棄し、
+// 出たらそのマジックカードのフラッシュ効果をコストを支払わずに即時発揮する。
+// マジックはトラッシュに残したまま効果だけを発揮する（resolveMagicを通さない＝コスト・無効化・
+// 使用時誘発を挟まない。resolveMilledFromDeckのマジック分岐と同じ考え方）
+function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName: string, action: { maxCount?: number }): void {
+    const player = state.players[owner]
+    let found: string | undefined
+    let milled = 0
+    // maxCount 省略時は上限なし（デッキが尽きれば shift が undefined を返して止まる）
+    for (let i = 0; action.maxCount === undefined || i < action.maxCount; i++) {
+        const cardId = player.deck.shift()
+        if (cardId === undefined) break
+        player.trashCards.push(cardId)
+        milled++
+        if (getCard(cardId).type === "magic") {
+            found = cardId
+            break
+        }
+    }
+    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
+    if (found === undefined) {
+        log(state, `${sourceName}：マジックカードが出なかった。`)
+        return
+    }
+    log(state, `${sourceName}：${getCard(found).name}のフラッシュ効果をコストを支払わずに発揮した。`)
+    resolveMagicEffects(state, owner, found, "flash", undefined)
+}
+
+const CARD_TYPE_LABELS: Record<"spirit" | "nexus" | "magic", string> = {
+    spirit: "スピリット",
+    nexus: "ネクサス",
+    magic: "マジック",
+}
+
+const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    const typeLabel = CARD_TYPE_LABELS[action.discardCardType]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄した。`)
+        runMillUntilMagicCastFree(state, owner, sourceName, action)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => getCard(player.hand[i]!).type === action.discardCardType)
+    if (indices.length === 0) {
+        log(state, `${sourceName}：手札に${typeLabel}カードがなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：${typeLabel}カード1枚を破棄して発動できます（任意）`,
+            "hand",
+            indices,
+            true,
+            action,
+            self,
+        )
+        return
+    }
+    const idx = indices[indices.length - 1]!
+    const cardId = player.hand[idx]!
+    player.hand.splice(idx, 1)
+    player.trashCards.push(cardId)
+    log(state, `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄した。`)
+    runMillUntilMagicCastFree(state, owner, sourceName, action)
+}
+
 const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const raw = countEffectCounter(state, owner, self, action.counter, srcType)
@@ -2383,6 +2461,7 @@ const handlers = {
     millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
+    millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
     millPerLoserCost: millPerLoserCostHandler,
     returnToHand: returnToHandHandler,
