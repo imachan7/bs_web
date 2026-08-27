@@ -27,6 +27,7 @@ import {
 } from "../EffectModules"
 import { instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
 
 
 // スリーカード：対象スピリット1体に「このターンの間、使用者の効果では count 体分として数える」印を付ける。
@@ -91,6 +92,27 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // extraPerCoreToTrash の第2段（コア数を選び終わって戻ってきた経路）。
+        // boostTargetInstanceId が入っている＝amount の適用は済んでいるので、追加ぶんだけ乗せる
+        if (action.boostTargetInstanceId !== undefined) {
+            const boostTarget = findSpiritAny(state, action.boostTargetInstanceId)
+            const paid = Number(chosenOption ?? "0")
+            if (!boostTarget || !Number.isFinite(paid) || paid <= 0) return
+            const placed = payCoresFromFieldOrReserveToTrash(state, owner, paid)
+            if (placed <= 0) return
+            const extra = placed * (action.extraPerCoreToTrash ?? 0)
+            // 支払いで対象自身が消滅していることがある（コアを対象の上から取った場合）。その場合は加算しない
+            const stillThere = findSpiritAny(state, action.boostTargetInstanceId)
+            log(state, `${sourceName}：コア${placed}個を${state.players[owner].name}のトラッシュに置いた。`)
+            if (!stillThere) return
+            if (action.scope === "battle") {
+                stillThere.inst.battleBpBuff = (stillThere.inst.battleBpBuff ?? 0) + extra
+            } else {
+                stillThere.inst.tempBpBuff += extra
+            }
+            log(state, `${getCard(stillThere.inst.cardId).name}はさらにBP+${extra}。`)
+            return
+        }
         // 「そのスピリットが」の控えは**このBP増加の結果**でなければならない。
         // 対象がいなくて不発だったときに前のカードの控えが残らないよう、入口で消す
         delete state.lastBpBuffTargetId
@@ -180,6 +202,28 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             `${getCard(target.cardId).name}はBP+${action.amount}（${untilLabel}）。`,
         )
         applyMagicBuffBonus(state, target, srcType, srcColors)
+        // extraPerCoreToTrash（BS10-103グロウイングソード）：「さらに、自分のフィールド/リザーブのコアを
+        // 自分のトラッシュに好きなだけ置くことで、置いたコア1個につき、そのスピリットをBP+1000する」。
+        // 対話時は0〜払える総量の増減式（stepper）で選ばせる。非対話（テスト・AI）は0個に倒す
+        // ＝リザーブを勝手に捨てないための決定的簡略化
+        if (action.extraPerCoreToTrash !== undefined && state.interactiveTargets) {
+            const max = fieldOrReserveCores(state, owner)
+            if (max > 0) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：トラッシュに置くコアの数を選んでください（1個につきBP+${action.extraPerCoreToTrash}）`,
+                    [],
+                    true,
+                    { ...action, boostTargetInstanceId: target.instanceId },
+                    self,
+                    "option",
+                    Array.from({ length: max + 1 }, (_, i) => String(i)),
+                    undefined,
+                    true,
+                )
+            }
+        }
         return
 }
 

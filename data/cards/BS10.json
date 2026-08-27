@@ -3617,5 +3617,37 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-103",
+    "name": "グロウイングソード",
+    "type": "magic",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体をBP+3000する。\nさらに、自分のフィールド/リザーブのコアを自分のトラッシュに好きなだけ置くことで、置いたコア1個につき、そのスピリットをBP+1000する。",
+    "effects": [
+      {
+        "id": "BS10-103-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 3000,
+          "extraPerCoreToTrash": 1000
+        }
+      }
+    ]
   }
 ]

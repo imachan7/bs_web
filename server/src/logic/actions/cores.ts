@@ -752,6 +752,23 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
     return moved
 }
 
+// 「自分のフィールド/リザーブのコアを自分のトラッシュに置く」の共通処理。
+// **リザーブを優先**して場のスピリットを崩さない（SD02-014 魔法監視塔Lv1 と同じ方針）。
+// 実際に置けた数を返す。維持コア割れになったスピリットは消滅する（moveRichestSpiritCoresToTrash）
+export function payCoresFromFieldOrReserveToTrash(state: GameState, pid: PlayerId, count: number): number {
+    const player = state.players[pid]
+    const fromReserve = Math.min(count, player.reserve)
+    player.reserve -= fromReserve
+    player.trashCores += fromReserve
+    return fromReserve + moveRichestSpiritCoresToTrash(state, pid, count - fromReserve)
+}
+
+// 「自分のフィールド/リザーブ」から払えるコアの総量
+export function fieldOrReserveCores(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    return player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
+}
+
 // BS08マインドブレイク：「自分のスピリット上のコアcount個を自分のトラッシュに置くことで、
 // **相手は**、相手のスピリット上のコアcount個を相手のトラッシュに置く」。
 //
