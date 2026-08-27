@@ -1024,6 +1024,7 @@ export function countAuraCounter(
     countingSourceType?: CardType, // 数えている効果の発生源の種別（spiritCountWeight の限定に使う）
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
+    if (counter === "ownHand") return handSizeOf(board.players[sourcePid])
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
     if (counter === "allNexuses") {
         return (

@@ -1137,10 +1137,15 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 // 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
     const { state, owner, self, srcType } = ctx
+    // all指定時はcountを無視し、各自の手札すべて（枚数は各自バラバラ）を破棄する（BS10-111ハンドタイフーン）
     // countCounter指定時はcountを無視しEffectCounterの値を破棄枚数として使う
     // （BS10-X02双魚賊神ピスケガレオン：系統「光導」/「星魂」を持つ自分のスピリット数）
-    const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
-    if (count <= 0) {
+    const count = action.all
+        ? 0
+        : action.countCounter !== undefined
+          ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+          : action.count
+    if (!action.all && count <= 0) {
         if (action.countCounter !== undefined) {
             const { sourceName } = ctx
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
@@ -1148,9 +1153,11 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
         return
     }
     const pids = bothSidesPids(state, srcType)
-    const discardOne: EffectAction = { type: "discardSelfChoose", count }
     for (const pid of [owner, opponentOf(owner)]) {
         if (!pids.includes(pid)) continue
+        const thisCount = action.all ? state.players[pid].hand.length : count
+        if (thisCount <= 0) continue
+        const discardOne: EffectAction = { type: "discardSelfChoose", count: thisCount }
         // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
         // 外側から積むので、自分の残り枚数のフレーム（内側）より後に実行される
         if (state.pendingChoice) {
