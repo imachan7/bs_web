@@ -279,7 +279,9 @@ git に載せていた頃に起きたこと:
 
 - **smoke テストを丸読みさせない**。テスト本体は `scripts/smoke/part1〜N.ts` に分割済み
   （`scripts/smoke.ts` は各パートを import するランナー、共通ヘルパーは `scripts/smoke/helpers.ts`）。
-  テスト追加は「新しい partN+1.ts を作って smoke.ts に import を1行足す。書き方は既存パートの
+  テスト追加は「新しい partN+1.ts を作るだけでよい（**`smoke.ts` への import 追記は不要**。
+  ファイル名から自動で拾う）。番号は `git ls-tree HEAD scripts/smoke/` を数値順に見て決め、末尾に
+  `console.log("すべてのチェックに合格しました 🎉（partN）")` を書く。書き方は既存パートの
   冒頭50行程度を読んで踏襲」と指示する（既存パートの丸読みは不要）
 - **SPEC.md は必要な章だけ読ませる**。効果実装なら「SPEC.md の2章（アクション一覧）と3章（3層設計）だけ読む」で足りる。全読み・CHANGELOG は不要
 - スキーマ・対象カード・読むファイルを事前にピン留めし、探索（grep 探し回り）をさせない
