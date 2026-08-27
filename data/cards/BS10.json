@@ -5511,5 +5511,189 @@
         "optional": true
       }
     ]
+  },
+  {
+    "cardId": "BS10-046",
+    "name": "龍仙公主",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "導魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2\n自分のスピリットが破壊されたとき、自分の手札にあるマジックカードを好きなだけ破棄できる。\nその破棄したマジックカード1枚につき、破壊されたスピリット1体を疲労状態で自分のフィールドに戻す。\nLv2『このスピリットのアタック時』\n自分のトラッシュにある黄のマジックカード1枚を、手札にあるときと同様に使用できる。",
+    "effects": [
+      {
+        "id": "BS10-046-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "ownAll",
+        "optional": true,
+        "revived": {
+          "rested": true
+        },
+        "when": {},
+        "cost": {
+          "handDiscardOne": true,
+          "handDiscardCardType": "magic"
+        }
+      },
+      {
+        "id": "BS10-046-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "castMagicFromTrashByColor",
+          "colorFilter": "yellow"
+        },
+        "optional": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-047",
+    "name": "赤ずきん妖精ルージュ",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "楽族"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv3『このスピリットのアタック時』\n自分の合体スピリットの次にアタックしたとき、このスピリットはブロックされない。",
+    "effects": [
+      {
+        "id": "BS10-047-e1",
+        "kind": "keyword",
+        "keyword": "seimei",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS10-047-e2",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        },
+        "optional": false
+      },
+      {
+        "id": "BS10-047-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "condition": {
+          "requirePrevAttackerCombined": true
+        },
+        "action": {
+          "type": "markUnblockableThisTurn",
+          "minBp": 0,
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-110",
+    "name": "ノックアウト",
+    "type": "magic",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nバトル解決時、BPのかわりにコストを比べ、コストの低いスピリットが破壊される。\nコストが同じとき、お互いのスピリットが破壊される。",
+    "effects": [
+      {
+        "id": "BS10-110-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "battleCompareByCost"
+        }
+      }
+    ]
   }
 ]

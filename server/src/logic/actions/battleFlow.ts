@@ -252,6 +252,18 @@ const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx,
         return
 }
 
+const battleCompareByCostHandler: ActionHandler<"battleCompareByCost"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+        // ノックアウト：現在のバトルにフラグを立て、解決時にBPの代わりにコストを比較させる
+        if (!state.battle) {
+            log(state, `${sourceName}：バトル外のため不発。`)
+            return
+        }
+        state.battle.compareByCost = true
+        log(state, `${sourceName}：バトル解決時、BPの代わりにコストを比較する。`)
+        return
+}
+
 const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!state.battle) {
@@ -1197,6 +1209,7 @@ const handlers = {
     swapBattler: swapBattlerHandler,
     battleCompareByLevel: battleCompareByLevelHandler,
     battleCompareByCores: battleCompareByCoresHandler,
+    battleCompareByCost: battleCompareByCostHandler,
     lockFlash: lockFlashHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,

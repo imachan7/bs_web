@@ -273,6 +273,7 @@ export type EffectAction =
     // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化
     | { type: "battleCompareByLevel" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにLvを比較させる（バトル外は不発。エンジェルボイス）
     | { type: "battleCompareByCores" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにコアの数を比較させる（コア数が少ない方が破壊。同数ならお互い破壊＝battleCompareByLevelと同じ分岐に乗る。バトル外は不発。BS06イマジンフィールド）
+    | { type: "battleCompareByCost" } // 現在のバトル（state.battle）にフラグを立て、解決時にBPの代わりにカードのコスト（getCard(inst.cardId).cost）を比較させる（コストが低い方が破壊。同数ならお互い破壊＝battleCompareByLevelと同じ分岐に乗る。バトル外は不発。BS10-110ノックアウト）
     | { type: "revealDiscardRest" } // 公開ゾーン（GameState.revealedCards）に残っているカードをすべて持ち主のトラッシュへ置く（cards.jsonには書かない。revealAndSummonKeyword が選択待ちの queue に積み、**選んでもスキップしても**必ず後始末が走るようにする。BS05トランスマイグレーション）
     | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーン（GameState.revealedCards）の残りをデッキの下へ戻す。interactiveTargets 時は戻す順番を1枚ずつ選ばせる（スキップで残りを現在の順のまま戻す）。BS01-067 スワロウアイヴィー／BS03-142 サルベージ // toTop指定時はデッキの**上**へ戻す（先に選んだカードが上＝次に引くカード。BS06-107 セカンドサイト「好きな順番でデッキの上に戻す」） // placed は toTop の選択の再入をまたいで「すでに上へ戻した枚数」を持ち回る**内部専用フィールド**（cards.jsonには書かない）
     | { type: "grantColorThisTurn"; color: Color } // 自分のスピリット1体（targetInstanceId優先、なければバトル中→フィールド先頭）を、このターンの間その色としても扱う（tempColors。色を選ばせるgrantColorChoiceの固定色版。BS07メテオフォール＝青）
@@ -724,6 +725,7 @@ export type EffectDef =
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 発生源の持ち主のフィールドに、カード名にいずれかの文字列を含むスピリットが合計count体以上いるときのみ発火（cardNameContainsで判定。step.conditionの同名軸と同じ形。BS07マカロニペンタン＝[皇帝アンプルール]/[女帝ペンプレス]）
               | { battleLoserMaxCost: number } // onBattleWin 専用：直前のバトルで破壊した相手のコストがこれ以下のときのみ発火（GameState.lastBattleDestroyedCost。resolveBattle が onBattleWin の発火前に記録する。BS07天刃の勇者ヴォルザLv2＝コスト3以下だけを破壊したとき）
               | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火（サーバー内部のstate.players[opp].hand.lengthで判定。BS08ボクルガー：相手の手札6枚以上）
+              | { requirePrevAttackerCombined: true } // 直前のアタック宣言が、発生源の持ち主自身の合体スピリットによるものだったときのみ発火（state.prevAttackerCombinedPid === owner で判定。ターン開始でリセット。BS10-047赤ずきん妖精ルージュLv3＝「自分の合体スピリットの次にアタックしたとき」）
       }
     | {
           id: string
@@ -1263,6 +1265,7 @@ export type EffectDef =
               reserveOneToTrash?: boolean // 持ち主のリザーブのコア1個を持ち主のトラッシュへ（リザーブ0なら支払い不可＝不発。果て無き地平線）
               fieldOrReserveOneToTrash?: boolean // 持ち主のリザーブのコア1個（無ければ自分のフィールド＝スピリット/ネクサス、発生源自身を除く、からコア1個）を持ち主のトラッシュへ（どちらも無ければ支払い不可＝不発。BS04宝石虫スカラベール）
               handDiscardOne?: boolean // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
+              handDiscardCardType?: CardType // 指定時はhandDiscardOneが破棄する手札を末尾からその種別に絞って探す（該当が無ければ支払い不可＝不発）。省略時は従来どおり種別を問わず末尾1枚（BS10-046龍仙公主＝magic）
               millSelfOneMatching?: { color: Color; cardType: CardType } // 自分のデッキを上から1枚破棄し、そのカードが指定の色・種別に一致したときだけ成立（一致しなければ支払い不可＝不発。デッキが空でも不発。BS07冥勇士デスカラビア＝紫のスピリットカード）
               exhaustOwnFamilyOne?: FamilyFilter // 持ち主のフィールドの、この系統（配列＝OR）を持つ回復状態のスピリット1体（実効BP最小＝犠牲を最小化する簡略化。破壊される個体自身は除く）を疲労させる。該当なしなら支払い不可＝不発（BS07パオ・ペイール＝「想獣」）
               ownLifeOneToVoid?: boolean // 持ち主のライフのコア1個をボイドへ（リザーブへは戻らない）。ライフ0枚なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる（BS08太陽石の神殿）
@@ -1893,6 +1896,7 @@ export interface BattleState {
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
     compareByCores?: boolean // trueの場合、バトル解決時にBPの代わりに置かれているコアの数を比較する（BS06イマジンフィールド）
+    compareByCost?: boolean // trueの場合、バトル解決時にBPの代わりにカードのコスト（getCard(inst.cardId).cost）を比較する（BS10-110ノックアウト）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
     treatAsUnblockedIfLevelAtLeastBlocker?: true // アタッカーのLvがブロッカーのLv以上なら、BPを比べずに「ブロックされなかった」ものとして扱う
     // （挙動は treatAsUnblockedIfBlockerLevel1 と同じ。判定だけが違う。SD02-016 ウィングブーツ）
@@ -2249,6 +2253,8 @@ export interface GameState {
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。**ターン終了でリセットしない**
     triggerSuppressionThisTurn: { pid: PlayerId; trigger: TriggerEvent }[] // このターンの間、pid のスピリットの指定トリガーを発揮させない（ターン終了でリセット。ユーサネイジア）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
+    lastAttackerCombinedPid?: PlayerId // 直前のアタック宣言が合体スピリットによるものだったとき、そのアタッカーの持ち主（doAttackが宣言のたびに更新。それ以外はundefined）
+    prevAttackerCombinedPid?: PlayerId // 「1つ前」の lastAttackerCombinedPid（doAttackが次の宣言の直前にスライドさせる）。ターン開始でどちらもリセット（「次にアタックした」はターンをまたがない。BS10-047赤ずきん妖精ルージュLv3）
     ignoreUnblockableThisTurn: PlayerId[] // このターンの間、ここに含まれるプレイヤーのスピリットは「ブロックされない」効果を無視してブロックできる（ターン終了でリセット。BS04レッドウォール）
     blockTriggersAsAttackThisTurn: boolean // このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に発揮させる（ターン終了でリセット。fireTriggerが参照。BS01アタックシフト）
     lastDestroyedNexus: { pid: PlayerId; cardId: string } | null // 直近に破壊されたネクサス（destroyNexusが誘発の直前に記録）。reviveLastDestroyedNexus が参照する（BS04戦闘獣ジャッカー）

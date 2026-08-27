@@ -1154,6 +1154,22 @@ function tryReviveOnDestroy(
             return false
         }
         if (effect.cost?.handDiscardOne) {
+            const cardType = effect.cost.handDiscardCardType
+            if (cardType !== undefined) {
+                // BS10-046龍仙公主：手札の末尾から指定種別のカードを探して破棄する。
+                // 該当が無ければ支払い不可＝不発（指定なしの既存挙動＝末尾1枚は変えない）
+                let index = -1
+                for (let i = player.hand.length - 1; i >= 0; i--) {
+                    if (getCard(player.hand[i]!).type === cardType) {
+                        index = i
+                        break
+                    }
+                }
+                if (index === -1) return false
+                const cardId = player.hand.splice(index, 1)[0]!
+                player.trashCards.push(cardId)
+                return true
+            }
             // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
             if (player.hand.length === 0) return false
             const cardId = player.hand.pop()!

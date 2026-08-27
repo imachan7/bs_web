@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     activeConstraints,
@@ -837,6 +837,19 @@ function doAttack(
     const card = getCard(inst.cardId)
 
     inst.isRested = true
+    // BS10-047：『自分の合体スピリットの次にアタックしたとき』用に、直前のアタック宣言を1つだけ覚える。
+    // prev = 1つ前のアタッカーが合体スピリットだったときその持ち主／それ以外はundefined。
+    // state.battle を作る前に必ずスライドさせる（047自身のアタック時トリガーが読むのは「1つ前」なので順序が重要）
+    if (state.lastAttackerCombinedPid !== undefined) {
+        state.prevAttackerCombinedPid = state.lastAttackerCombinedPid
+    } else {
+        delete state.prevAttackerCombinedPid
+    }
+    if (instIsCombined(inst)) {
+        state.lastAttackerCombinedPid = pid
+    } else {
+        delete state.lastAttackerCombinedPid
+    }
     // 指定アタックの場合、blockerInstanceId を強制的に指定スピリットにセットする
     // （既存の「blockerInstanceId あり＝ブロック済み」ロジックにより、takeLife も他のブロックも
     // 自動的に拒否される。onBlock トリガーはブロック宣言ではないため発火させない）
@@ -1833,8 +1846,25 @@ function resolveBattle(state: GameState): void {
     if (compareByCores) {
         log(state, "バトル解決：BPの代わりにコアの数を比較する。")
     }
-    const attackerValue = compareByLevel ? currentLevel(attacker).level : compareByCores ? attacker.cores : attackerBp
-    const blockerValue = compareByLevel ? currentLevel(blocker).level : compareByCores ? blocker.cores : blockerBp
+    // ノックアウト：バトル解決時、BPの代わりにコストを比較する（コストが低い方が破壊される。同コストは相打ち）
+    const compareByCost = state.battle.compareByCost === true
+    if (compareByCost) {
+        log(state, "バトル解決：BPの代わりにコストを比較する。")
+    }
+    const attackerValue = compareByLevel
+        ? currentLevel(attacker).level
+        : compareByCores
+          ? attacker.cores
+          : compareByCost
+            ? getCard(attacker.cardId).cost
+            : attackerBp
+    const blockerValue = compareByLevel
+        ? currentLevel(blocker).level
+        : compareByCores
+          ? blocker.cores
+          : compareByCost
+            ? getCard(blocker.cardId).cost
+            : blockerBp
 
     // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
     // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
