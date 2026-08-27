@@ -333,6 +333,9 @@ export function fireTrigger(
                 ) {
                     return false
                 }
+            } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
+                // BS10-X03巨蟹武神キャンサードLv2：自分のフィールドに合体スピリットがいるときのみ発火
+                if (!state.players[owner].field.spirits.some((sp) => instIsCombined(sp))) return false
             } else if ("targetMinBp" in effect.condition) {
                 // 鍵鎚のヴァルグリンドLv2：ブロックしたスピリット（targetInstanceId）の実効BPがこれ以上のときのみ発火
                 if (targetInstanceId === undefined) return false

@@ -23,6 +23,22 @@ import {
     type DirectAttackFilter,
 } from "./rules"
 
+// このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
+// 通常は1。BS10-X03巨蟹武神キャンサードのように「スピリット2体でないとブロックできない」制約が
+// 効いている間は2以上を返す。複数ある場合はいちばん厳しい（多い）ものを採る
+export function blockRequiredCount(
+    board: Board,
+    attackerPid: PlayerId,
+    attackerInst: CardInstance | undefined,
+): number {
+    if (!attackerInst) return 1
+    let required = 1
+    for (const c of activeConstraints(board, attackerPid, attackerInst)) {
+        if (c.type === "blockRequiresCount" && c.count > required) required = c.count
+    }
+    return required
+}
+
 export function canBlock(
     board: Board,
     blockerPid: PlayerId,

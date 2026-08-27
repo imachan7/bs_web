@@ -573,6 +573,10 @@ export type ConstraintDef =
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
     | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFromChosen?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // maxBp指定時はブロッカーの実効BPがこれ以下ならブロックされない（BS07鋼翼魚オルカノンLv2＝BP4000以下）。maxCost指定時はブロッカーのコストがこれ以下ならブロックされない（costNot＝完全一致の否定とは別軸。instMatchesCostFilterで判定＝付与コストも見る。BS07聖なる命の泉Lv2）// nonVanilla指定時は「カードに効果の記述を持つ」スピリットにブロックされない（isVanillaCardの否定。BS05幻獣王リーンLv3）／requireOwnCostCountAtLeast指定時は、持ち主のフィールドに指定コストのスピリットがcount体以上いる間だけ有効（activeConstraintsが判定して外す。BS05幻獣王リーンLv3＝コスト2が3体以上） // requireOwnFieldColorNexus指定時は、持ち主のフィールドに指定色のネクサスがある間だけ有効（BS03鷹人ホークアイLv2＝紫のネクサス） // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない。costAtMostAttacker指定時はブロッカーのコストがこのアタッカーのコスト以下ならブロックされない（BS05ポテンシャルパワー：バニラのアタックは同コスト以下にブロックされない）。keywordFilterAbsent指定時はこのキーワードを持た**ない**スピリットにブロックされない（keywordFilterの否定版。BS08光帝竜騎アルカナジョーカーLv3＝【転召】を持たない相手）
+    | { type: "blockRequiresCount"; count: number } // このスピリットのアタックは、相手がスピリットをcount体そろえてブロック宣言しないとブロックできない（BS10-X03巨蟹武神キャンサード＝2体）。
+    // 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、アルティメットは未実装のため2体ブロックだけを見る。
+    // count体そろえられないときはブロックそのものができない。宣言は BattleState.pendingBlockerIds に貯まり、
+    // そろった時点で**アタック側**がどれとバトルするかを選ぶ（PendingChoice.blockBattlePick。「どれか1体とだけバトルする」）
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "protectOwnLifeByBpUpToSelf" } // ブロックされなかったアタッカーの実効BPが**この発生源自身の実効BP以下**のとき、そのアタックでは発生源の持ち主のライフは減らされない（片側のみ。ライフダメージ直前に activeConstraints から発生源ごとのBPを引き直して比較する。BS08空帝竜騎プラチナム）
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
@@ -699,6 +703,7 @@ export type EffectDef =
               | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（天使キュリオ）
               | { targetSameLevelAsSelf: true } // fireTriggerのtargetInstanceIdのスピリットのLvがselfのLvと同じときのみ発火（onBlocked用。剣竜ステゴラーサウルス）
               | { ownFieldHasKeyword: Keyword } // 発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火（一時/継続付与も考慮＝spiritHasKeyword。BS04クナノミ＝覚醒）
+              | { ownFieldHasCombinedSpirit: true } // 発生源の持ち主のフィールドに合体スピリット（ブレイヴが合体しているホスト）がいるときのみ発火（instIsCombinedで判定。BS10-X03巨蟹武神キャンサードLv2＝「自分の合体スピリットがいる間」）
               | { firstAttackOfTurn: true } // そのターンの最初のアタックのときのみ発火（GameState.attacksThisTurn === 1。BS04ダックル）
               | { lastFunsaiHasNexus: true } // 直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火（GameState.lastFunsai。BS04伝説巨人ジュード）
               | { lastFunsaiHasSpirit: true } // 直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。BS06爆砕巨人ダグラスLv2-3）
@@ -1860,7 +1865,11 @@ export interface PlayerState {
 // バトル（アタック〜解決まで）の状態
 export interface BattleState {
     attackerInstanceId: string
-    blockerInstanceId: string | null
+    blockerInstanceId: string | null // **実際にバトルするブロッカー**。複数体ブロック（blockRequiresCount）でも1体しか入らない
+    pendingBlockerIds?: string[] // 複数体ブロックで、必要数がそろうまで宣言を貯める場所（そろったら空にする）
+    extraBlockerIds?: string[] // 複数体ブロックで宣言はしたが**バトルはしない**ブロッカー。
+    // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
+    // （既存の処理に手を入れずに済ませるための形。BS10-X03巨蟹武神キャンサード）
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
@@ -1951,6 +1960,12 @@ export interface PendingChoice {
         effectId: string
         sourceInstanceId: string
         context?: DestroyContext
+    }
+    blockBattlePick?: {
+        // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
+        // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。
+        // 選ばれなかったブロッカーは BattleState.extraBlockerIds に入り、バトルには参加しない
+        blockerPid: PlayerId
     }
     fushiSummon?: {
         // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。

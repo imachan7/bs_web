@@ -3649,5 +3649,80 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-X03",
+    "name": "巨蟹武神キャンサード",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 6,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "光導",
+      "殻人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「光導」/「星魂」を持つ自分のスピリットがアタックしたとき、相手はブロックするならスピリット2体か、アルティメット1体でないとブロックできない。\nそのスピリットがブロックされたとき、どれか1体とだけバトルする。\nLv2『このスピリットのアタック時』\n自分の合体スピリットがいる間、このスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS10-X03-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "familyFilter": [
+          "光導",
+          "星魂"
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "constraint": {
+          "type": "blockRequiresCount",
+          "count": 2
+        }
+      },
+      {
+        "id": "BS10-X03-e2",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          2
+        ],
+        "condition": {
+          "ownFieldHasCombinedSpirit": true
+        },
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      }
+    ]
   }
 ]
