@@ -892,7 +892,7 @@ export function boardResistanceAgainst(
     if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
-    if (hasFullEffectImmunity(target, attempt.sourceType)) {
+    if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
         return { category: "fullImmune", label: "相手の効果を受けない" }
     }
     if (attempt.sourceType === "magic" && hasMagicImmunity(board, targetOwnerPid, target)) {
@@ -1487,6 +1487,13 @@ export function activeConstraintsWithSource(
                 if (turn === "own" && pid !== board.turnPlayer) continue
                 if (turn === "opponent" && pid === board.turnPlayer) continue
             }
+            // BS10-091シャボンの湖畔Lv2：コスト2のスピリットのみ（AuraDef.costFilterと同じ意味。付与コストも見る）
+            if (effect.costFilter !== undefined && !instHasCost(inst, effect.costFilter)) continue
+            // AuraDef.turnと同じ意味：フェーズを問わずturn条件のみで絞る（phaseTurnのphase必須版とは別軸）
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
+            if (effect.combinedFilter && !instIsCombined(inst)) continue
             // colorFromChosen（BS09-081サマーソルトターン）：「指定した色」を、貸与時に選ばれた色
             // （仮想発生源の lentChoiceColor）へ解決してから積む。色が選ばれていなければ付与しない
             const c = effect.constraint
@@ -1535,16 +1542,16 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasFullEffectImmunity(
+    board: Board,
+    pid: PlayerId,
     inst: CardInstance,
     srcType: CardType | undefined,
 ): boolean {
     if (srcType !== "spirit" && srcType !== "magic") return false
-    const level = currentLevel(inst).level
-    return card(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "immuneToOpponentEffects" &&
-            effectActiveAtLevel(e.levels, level),
+    // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
+    // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
+    return activeConstraints(board, pid, inst).some(
+        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || c.against === srcType),
     )
 }
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
@@ -1697,6 +1704,10 @@ export function lifeDamageLimit(
     if (attacker.lifeDamageNegatedFor === defenderPid) {
         return { max: 0, reason: "このアタックのライフダメージは打ち消されている" }
     }
+    // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（lifeCrushアクションも別途これを見る）
+    if (lifeImmuneThisTurn(board, defenderPid)) {
+        return { max: 0, reason: "このターンはライフが減らない" }
+    }
     // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
     if (noLifeDamageByCost(board, attacker)) {
         return { max: 0, reason: "コスト条件によりライフが減らない" }
@@ -1717,6 +1728,13 @@ export function lifeDamageLimit(
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
+}
+
+// このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らないか
+// （BS10-093時刻む花時計。TIMING_CHART.md §2「あらゆる原因を止める」）。
+// lifeDamageLimit（アタック経路）と lifeCrushハンドラ（効果経路）の両方から呼ぶ共通の入口
+export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
+    return board.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === pid)
 }
 
 export function lifeProtectedByCostThisTurn(

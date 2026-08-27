@@ -5142,5 +5142,243 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-041",
+    "name": "ティン・ソルジャー",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 0,
+    "reduction": [],
+    "family": [
+      "小玩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのバトル時』\nバトル終了時、このスピリットは破壊される。",
+    "effects": [
+      {
+        "id": "BS10-041-e1",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "destroySelf"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-042",
+    "name": "カラドリアス",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 2,
+    "reduction": [
+      "yellow"
+    ],
+    "family": [
+      "歌鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\nLv2『このスピリットの破壊時』\n【強襲】を持つ相手のスピリット1体をデッキの下に戻す。",
+    "effects": [
+      {
+        "id": "BS10-042-e1",
+        "kind": "keyword",
+        "keyword": "kobo",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS10-042-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "returnToDeckBottom",
+          "filter": {
+            "keyword": "kyoshu"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-091",
+    "name": "シャボンの湖畔",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n効果の記述を持たない自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\n自分のコスト2のスピリットすべては、相手のスピリットの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS10-091-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "vanillaOnly": true,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS10-091-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "costFilter": 2,
+        "turn": "opponent",
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": "spirit"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-093",
+    "name": "時刻む花時計",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n自分の黄のスピリットが相手のスピリットの効果で破壊されたとき、このターンの間、自分のライフは減らない。\nLv2『自分のアタックステップ』\n自分の合体スピリットすべては、相手のコスト5以下のスピリットからブロックされない。",
+    "effects": [
+      {
+        "id": "BS10-093-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "colorFilter": "yellow",
+        "byOpponentSpiritEffectOnly": true,
+        "action": {
+          "type": "lifeImmuneThisTurn"
+        }
+      },
+      {
+        "id": "BS10-093-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "combinedFilter": true,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "constraint": {
+          "type": "unblockableBy",
+          "maxCost": 5
+        }
+      }
+    ]
   }
 ]

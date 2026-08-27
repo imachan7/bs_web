@@ -25,7 +25,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -278,6 +278,11 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
 
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
+        if (lifeImmuneThisTurn(state, opp)) {
+            log(state, `${sourceName}：${state.players[opp].name}はこのターンライフが減らないため発動しなかった。`)
+            return
+        }
         // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
         // 足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」の任意コストは
         // 自動発動で簡略化。levelOverrideOpponentNexuses.costReserveToVoidと同じ方針）

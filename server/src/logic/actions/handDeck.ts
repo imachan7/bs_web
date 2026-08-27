@@ -2085,6 +2085,51 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         return
 }
 
+// 対象の相手スピリット1体を持ち主のデッキの下に戻す（returnToHandの単体版・bounce系。
+// returnToDeckTopと違いcount/anySide/chooserIsTargetは持たない。BS10-042カラドリアス＝【強襲】を持つ相手のスピリット1体）
+const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+        const filterOk = (pid: PlayerId, s: CardInstance): boolean =>
+            resolvedFilter === undefined ||
+            (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId))
+        if (targetInstanceId === undefined && state.interactiveTargets) {
+            const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
+            if (candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}のデッキ下戻し：対象を選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                    "target",
+                )
+                return
+            }
+        }
+        const found = targetInstanceId
+            ? findSpiritAny(state, targetInstanceId)
+            : (() => {
+                  const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
+                  return t ? { pid: opp, inst: t } : null
+              })()
+        if (!found) {
+            log(state, `${sourceName}のデッキ下戻し：対象がいなかった。`)
+            return
+        }
+        const deckBottomResisted = targetInstanceId
+            ? resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"))
+            : null
+        if (deckBottomResisted) {
+            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckBottomResisted.label}）。`)
+            return
+        }
+        returnSpiritToDeckBottom(state, found.pid, found.inst, sourceName)
+        return
+}
+
 const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
@@ -2343,6 +2388,7 @@ const handlers = {
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    returnToDeckBottom: returnToDeckBottomHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
     costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
