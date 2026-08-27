@@ -141,7 +141,7 @@ export type EffectAction =
     | { type: "selfCoreToOwnLife"; count: number } // このスピリット（self）の上のコアをcount個、自分のライフに置く（selfがnull／コアが足りなければ可能な分だけ。維持コア割れは消滅処理を通す。BS07ライフセービング）
     | { type: "lifeCharge"; count: number; from?: "reserve" | "void"; upTo?: number } // upTo指定時はcountを無視し、「ライフがこの数になるように」不足分だけ置く（すでにこの数以上なら何もしない。BS09-X35超神星龍ジークヴルム・ノヴァ＝ライフが5になるように）。// 自分のリザーブ（既定）から自分のライフへコアをcount個置く（不足なら可能な分だけ）。from:"void"指定時はボイドから置く＝リザーブを消費せず必ずcount個置ける（【聖命】。BS07）
     | { type: "refreshSelfByExhaustNexus" } // 自分の回復状態のネクサス1つを疲労させることで、このスピリットを回復する（【強襲】。ターン中の上限回数は self が持つ kind:"keyword" keyword:"kyoshu" の count から読む。疲労できるネクサスが無い／上限に達している／自身が回復状態なら不発）
-    | { type: "coreGain"; count: number } // ボイドから自分のリザーブへコアをcount個追加
+    | { type: "coreGain"; count: number; costDestroyOwnSpirit?: { minCost?: number }; costSacrificeChosen?: true } // ボイドから自分のリザーブへコアをcount個追加。costDestroyOwnSpirit指定時は、コストがminCost以上の自分のスピリット1体を破壊することがコスト（任意コスト。COST_MODEL.md）で、破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールド先頭）を機械的に選ぶ簡略化、interactiveTargets時は候補2体以上ならプレイヤーが選ぶ（costSacrificeChosenは選択の再入用の内部フラグ。cards.jsonには書かない。BS10-105ライフチャージ）
     | { type: "refreshAllOwn"; exemptFamily?: FamilyFilter; exemptKeyword?: Keyword } // exemptKeyword指定時は、そのキーワードを持つ個体には cantAttackThisTurn を付与しない（exemptFamily のキーワード版。spiritHasKeyword で判定。BS09-076エマージェンシー＝【転召】持ちはアタックできる）。// 自分の疲労スピリットをすべて回復。回復した個体はこのターン中アタック不可。exemptFamily指定時は指定系統（配列＝OR。matchesFamilyFilterで判定）を持つ個体には cantAttackThisTurn を付与しない（BS06キャバルリー＝系統「戦騎」を持たないスピリットのみアタック不可）
     | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
     | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）

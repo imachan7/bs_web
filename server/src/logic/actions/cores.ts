@@ -378,8 +378,45 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
 }
 
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceName, destroyContext, targetInstanceId } = ctx
         const player = state.players[owner]
+        // costDestroyOwnSpirit：コストがminCost以上の自分のスピリット1体を破壊することがコスト
+        // （BS10-105ライフチャージ）。「〜することで〜する」の任意コストは、破壊できる対象が
+        // いなければ不発（COST_MODEL.md §1）。何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2）
+        if (action.costDestroyOwnSpirit) {
+            const minCost = action.costDestroyOwnSpirit.minCost ?? 0
+            const candidates = player.field.spirits.filter((s) => getCard(s.cardId).cost >= minCost)
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+                for (const s of candidates) {
+                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+                }
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+        }
         player.reserve += action.count
         log(
             state,

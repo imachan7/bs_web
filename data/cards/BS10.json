@@ -2997,5 +2997,495 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-021",
+    "name": "モスピード",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "reduction": [
+      "green"
+    ],
+    "family": [
+      "怪虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nこのスピリットは紫のスピリットとしても扱う。",
+    "effects": [
+      {
+        "id": "BS10-021-e1",
+        "kind": "colorAs",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "purple"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-022",
+    "name": "ムシャゼミ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "殻虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-023",
+    "name": "ラッキーウィ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green"
+    ],
+    "family": [
+      "歌鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのバトル時』\nボイドからコア1個をこのスピリット上に置く。",
+    "effects": [
+      {
+        "id": "BS10-023-e1",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-024",
+    "name": "カモメーヴェ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "爪鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-025",
+    "name": "ヘラジグサ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "遊精",
+      "樹魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS10-025-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-026",
+    "name": "老兵ノーガン",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "爪鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS10-026-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS10-026-e2",
+        "kind": "keyword",
+        "keyword": "bofu",
+        "count": 1,
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS10-026-e3",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "chooserIsTarget": true,
+          "excludeTarget": true,
+          "countFromBofu": true
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-028",
+    "name": "マタンゴル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "樹魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "vanilla": true,
+    "effects": []
+  },
+  {
+    "cardId": "BS10-030",
+    "name": "将軍アントマン",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 7,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "殻人",
+      "怪虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2\n系統：「殻人」を持つ自分のスピリット1体につき、このスピリットをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS10-030-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amountPer": 2000,
+          "counter": {
+            "ownFamily": "殻人"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-104",
+    "name": "トライアングルトラップ",
+    "type": "magic",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のスピリット1体を疲労させる。\nまたは、コスト4以下の相手のスピリット3体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS10-104-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "相手のスピリット1体を疲労",
+              "actions": [
+                {
+                  "type": "exhaust",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "label": "コスト4以下の相手のスピリット3体を疲労",
+              "actions": [
+                {
+                  "type": "exhaust",
+                  "count": 3,
+                  "filter": {
+                    "cost": {
+                      "max": 4
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-105",
+    "name": "ライフチャージ",
+    "type": "magic",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nコスト3以上の自分のスピリット1体を破壊することで、ボイドからコア3個を自分のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS10-105-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "coreGain",
+          "count": 3,
+          "costDestroyOwnSpirit": {
+            "minCost": 3
+          }
+        }
+      }
+    ]
   }
 ]
