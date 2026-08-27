@@ -1410,6 +1410,17 @@ button:active {
     content: "💠 ";
 }
 
+/* ---- 増減式の選択（PendingChoice.stepper） ----
+   トラッシュに置くコアの数のように「どれを選ぶか」でなく個数だけを決めるものを、
+   ボタンの列ではなく −／＋ で選ばせる。候補が20個を超えることがあるため */
+#choice-options .stepper-value {
+    display: inline-block;
+    min-width: 4.5em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
 /* ---- ネクサスのコア移動ボタン ----
    ネクサスは clip-path で六角形に切り抜くため、カード要素の子に置いたボタンは
    まるごとクリップされて消える。ラッパー（.nexus-slot）の直下にカードと兄弟で置き、

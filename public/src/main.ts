@@ -33,7 +33,7 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, stepper: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -1164,11 +1164,23 @@ async function init(): Promise<void> {
         rerender()
     })
     byId("btn-skip-choice").addEventListener("click", () => {
+        ui.stepper = null
         send({ type: "resolveChoice" })
     })
     byId("choice-options").addEventListener("click", (e) => {
+        // 増減式の選択（PendingChoice.stepper）の −／＋。表示を1つ動かして描き直すだけで、
+        // サーバーへ送るのは「決定」を押したとき（data-option）だけ
+        const stepEl = closestData(e, "data-stepper")
+        if (stepEl) {
+            const max = (view?.pendingChoice?.options ?? []).length - 1
+            const next = (ui.stepper ?? 0) + (stepEl.dataset.stepper === "+" ? 1 : -1)
+            ui.stepper = Math.max(0, Math.min(max, next))
+            rerender()
+            return
+        }
         const optionEl = closestData(e, "data-option")
         if (optionEl) {
+            ui.stepper = null
             send({ type: "resolveChoice", option: String(optionEl.dataset.option) })
             return
         }

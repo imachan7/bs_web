@@ -304,6 +304,8 @@ export interface UiState {
     summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
     // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
     battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
+    // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
+    stepper: number | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
@@ -501,7 +503,30 @@ export function render(view: GameView, ui: UiState): void {
     // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
     const choiceOptionsEl = $("choice-options")
     choiceOptionsEl.innerHTML = ""
-    if (myPendingChoice && myPendingChoice.kind === "option") {
+    if (myPendingChoice && myPendingChoice.kind === "option" && myPendingChoice.stepper) {
+        // 増減式（PendingChoice.stepper）：ボタンを options の数だけ並べる代わりに −／＋ で数を決める。
+        // 「どれを選ぶか」に意味が無く候補数が多くなりうるもの（トラッシュに置くコアの数）に使う
+        const opts = myPendingChoice.options ?? []
+        const max = opts.length - 1
+        if (ui.stepper === null || ui.stepper > max) ui.stepper = 0
+        const value = ui.stepper
+        const minus = document.createElement("button")
+        minus.dataset.stepper = "-"
+        minus.textContent = "−"
+        minus.disabled = value <= 0
+        const readout = document.createElement("span")
+        readout.className = "stepper-value"
+        readout.textContent = `${String(value)} / ${String(max)}`
+        const plus = document.createElement("button")
+        plus.dataset.stepper = "+"
+        plus.textContent = "＋"
+        plus.disabled = value >= max
+        const confirm = document.createElement("button")
+        confirm.dataset.option = opts[value] ?? "0"
+        confirm.textContent = "決定"
+        choiceOptionsEl.append(minus, readout, plus, confirm)
+        show("choice-options", true)
+    } else if (myPendingChoice && myPendingChoice.kind === "option") {
         for (const opt of myPendingChoice.options ?? []) {
             const b = document.createElement("button")
             b.dataset.option = opt

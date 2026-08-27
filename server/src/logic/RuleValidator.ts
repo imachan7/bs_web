@@ -14,7 +14,7 @@ import {
 } from "./GameState"
 import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
 import { battleSwapSummonCheck } from "../../../shared/summon"
-import { canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
+import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
@@ -760,6 +760,11 @@ export function validateBlock(
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
+    // 複数体ブロック（blockRequiresCount。BS10-X03巨蟹武神キャンサード）：必要数がそろうまで
+    // 宣言を貯めるので、同じ個体を二度は選べない
+    if ((state.battle.pendingBlockerIds ?? []).includes(instanceId)) {
+        return "そのスピリットはすでにブロック宣言しています"
+    }
     // 疲労状態でのブロック可否（canBlockWhileRested。BS06計画された場外乱闘）はアタッカー情報が要るため、
     // 下のcanBlock呼び出し（共有実装）にまとめて判定させる（ここでは早期リターンしない）
     if (currentLevel(inst).level < 1) return "レベル1未満のためブロックできません"
@@ -784,7 +789,24 @@ export function validateBlock(
 
     // 制約判定（cantBlock / cantBlockLowerBp / unblockableBy）はクライアントの
     // ブロック可能ハイライトと同一の共有実装を使う
-    return canBlock(state, pid, inst, attackerPid, attacker)
+    const reason = canBlock(state, pid, inst, attackerPid, attacker)
+    if (reason) return reason
+    // 複数体ブロック：必要な体数をそろえられないならブロックそのものができない
+    // （1体だけ宣言して止まると「1体でブロックできた」ことになってしまう）
+    const required = blockRequiredCount(state, attackerPid, attacker)
+    if (required > 1) {
+        const declared = state.battle.pendingBlockerIds ?? []
+        const available = state.players[pid].field.spirits.filter(
+            (sp) =>
+                sp.instanceId === instanceId ||
+                declared.includes(sp.instanceId) ||
+                canBlock(state, pid, sp, attackerPid, attacker) === null,
+        ).length
+        if (available < required) {
+            return `ブロックするにはスピリット${String(required)}体が必要です`
+        }
+    }
+    return null
 }
 
 // このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
@@ -915,6 +937,11 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
     // ブロック宣言済みならライフでは受けられない
     if (state.battle.blockerInstanceId) return "すでにブロックしています"
+    // 複数体ブロック（blockRequiresCount）で1体目まで宣言した後は、宣言を撤回してライフで受けることはできない。
+    // 宣言の分割はエンジン側の都合であって、ルール上のブロック宣言は1回きりの決定だから
+    if ((state.battle.pendingBlockerIds ?? []).length > 0) {
+        return "ブロック宣言の途中です。残りのブロッカーを選んでください"
+    }
     // ライフで受ける宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える。
     // 優先権の有無に関わらず、フラッシュタイミング中は宣言できない
     if (state.isFlashTiming) {

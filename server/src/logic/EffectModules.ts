@@ -3035,6 +3035,8 @@ export function requestChoice(
     // 選ぶのが効果の持ち主ではない場合の選択者（「**相手は**〜する」。BS07ブリシンガメンの首飾り）。
     // 解決自体は発生源の持ち主の効果として行うため、actorPid に owner を残す（tryInteractiveTargetChoice と同じ形）
     chooserPid?: PlayerId,
+    // kind:"option" 限定：選択肢を −／＋ の増減表示で出す（BS10-103グロウイングソード）
+    stepper?: true,
 ): void {
     if (kind === "option") {
         // 選択肢固定式：意図的な選択を必要とするため候補が1件でも自動選択しない。
@@ -3050,6 +3052,7 @@ export function requestChoice(
             optional,
             action,
             selfInstanceId: self ? self.instanceId : null,
+            ...(stepper === true ? { stepper: true as const } : {}),
             ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
         })
         return

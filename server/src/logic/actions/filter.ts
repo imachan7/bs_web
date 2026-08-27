@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, sameCostAsEventTarget, sameCostAsSelf, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -78,6 +78,13 @@ export function normalizeFilter(
         const bp = ctx.state.lastBattleDestroyedBp
         if (bp === 0) return SELF_REQUIRED
         resolved.exactBp = bp
+    }
+    // 直前のバトルで破壊された側より実効BPが低い（BS10-X04月光龍ストライク・ジークヴルム Lv2）。
+    // 「未満」はmaxBp軸に無いため、-1して「以下」で表す（BPは常に1000刻みの整数）
+    if (lowerBpThanBattleLoser) {
+        const bp = ctx.state.lastBattleDestroyedBp
+        if (bp === 0) return SELF_REQUIRED
+        resolved.maxBp = bp - 1
     }
     // イベント対象として渡ってきたブロッカー（ctx.targetInstanceId）と同じコスト
     // （BS06計画された場外乱闘Lv2：ブロックしたスピリットと同じコストの、他の相手のスピリット）

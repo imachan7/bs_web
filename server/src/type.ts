@@ -86,6 +86,7 @@ export interface TargetFilter {
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
     sameFamilyAsBattleLoser?: true // 直前のバトルで破壊された側と同じ系統（normalizeFilter が state.lastBattleDestroyedFamilies を family 軸へ解決する。記録が無ければ対象なし。BS04ニーベルングリング）
     sameBpAsBattleLoser?: true // 直前のバトルで破壊された側と同じ実効BP（normalizeFilter が state.lastBattleDestroyedBp を exactBp 軸へ解決する。記録が無ければ対象なし。BS03熾烈極める最前線Lv2）
+    lowerBpThanBattleLoser?: true // 直前のバトルで破壊された側より実効BPが低い（normalizeFilter が state.lastBattleDestroyedBp-1 を maxBp 軸へ解決する＝厳密な未満。記録が無ければ対象なし。BS10-X04月光龍ストライク・ジークヴルム Lv2：「そのスピリットよりBPの低い」）
     sameCostAsSelf?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝召喚されたスピリット等）と同じコスト。normalizeFilter が cost 軸へ解決する。self がいなければ対象なし（BS09-060緑翼の大樹＝「そのスピリットと同じコストの相手」）
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
@@ -115,7 +116,7 @@ export interface ResolvedTargetFilter extends Omit<TargetFilter, "maxBp" | "minB
 // 効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
 // 新しい効果を足すときは「ここに型を追加」→「ハンドラを追加」の2手で完結する。
 export type EffectAction =
-    | { type: "draw"; count: number; side?: "own" | "both" } // 自分がデッキから引く（side:"both"指定時は自分→相手の順で両者が引く。省略時=own＝従来どおり自分のみ。BS03巨猫ブリンクス：お互いドロー）
+    | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true } // 自分がデッキから引く（side:"both"指定時は自分→相手の順で両者が引く。省略時=own＝従来どおり自分のみ。BS03巨猫ブリンクス：お互いドロー）。// costSkipCoreStep指定時は「ボイドからコアをリザーブに置かないことで」＝そのコアステップのコア置きを支払いに使う。GameState.coreStepSkipped を立ててから引く（step.beforeStepAction と対で使う。BS10-087戦場に息づく命）
     | { type: "destroyCostsEachOne"; costs: number[] } // 指定コスト**ごとに1体ずつ**相手のスピリットを破壊する（コスト3から1体・コスト4から1体＝計2体。片方しかいなければその1体だけ。2026-08-14 ユーザー確認。BS09-052フォレスト・ゴレム）
     | { type: "destroy"; filter?: TargetFilter; count: number; countPerOpponentTrashMagicColors?: boolean; anySide?: true; excludeTarget?: true; chooserIsTarget?: true }
     // chooserIsTarget指定時は、**破壊される側（相手）が対象を選ぶ**（実行は発生源の持ち主の効果として解決する。exhaust/returnToDeckTopのchooserIsTargetと同型。BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」） // 相手スピリットを破壊（絞り込みは filter。省略=BP不問、selfがnullで self 相対BP指定ならno-op）。countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュにあるマジックカードの色の種類数（重複除く）を対象数として使う（BS05超獣王ベヒードス）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ランスラプトル等：修飾なしの「スピリット」）。excludeTarget指定時はtargetInstanceIdを「破壊する対象」ではなく「**除外する**対象」として扱う（誘発が渡すイベント対象を避ける。exhaust.excludeTargetと同型。BS06計画された場外乱闘Lv2：ブロックしたスピリット以外を破壊）
@@ -126,7 +127,7 @@ export type EffectAction =
     | { type: "destroyNexus"; count: number; drawPerDestroyed?: number; discardOpponentPerDestroyed?: number; all?: boolean; side?: "opponent" | "both"; levelFilter?: number[] } // discardOpponentPerDestroyed指定時は、実際に破壊できたネクサス1つにつき相手の手札をその数だけ破棄させる（BS05鉄槌のオズワルドLv2） // 相手のネクサスを破壊（drawPerDestroyed指定時は実際に破壊できた数×ドロー）。all指定時はcountを無視し相手のネクサスすべてを破壊する（BS04風龍王フージャオス）。side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）。levelFilter指定時はcurrentLevelがこれに含まれるネクサスのみ対象（BS03バスターランス＝Lv1のみ）
     | { type: "returnSelfToHand" } // このスピリットを持ち主の手札に戻す
     | { type: "coreRemove"; count: number; dest?: "void"; anySide?: true; countCounter?: EffectCounter; leaveAtLeast?: number; filter?: TargetFilter; drawIfEmptied?: true } // drawIfEmptied指定時は、**この効果で**対象のコアが0個になったときに自分が1枚ドローする（BS10-066 騎士王蛇ペンドラゴン） // leaveAtLeast指定時は、対象のコアがこの数を下回らないところまでしか取り除かない（BS04王蛇の住処Lv2「この効果で相手のスピリット上のコアを0個にはできない」） // 対象スピリットのコアを持ち主のリザーブへ置く（dest:"void"指定時はリザーブでなくボイドへ＝消滅。BS04ヴェノムショット）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ポイズンシュート：修飾なしの「スピリット」）。countCounter指定時はcountを無視しEffectCounterの値を除去枚数として使う（0ならログのみ。BS03巨人王ランドルフ：【粉砕】で破棄した枚数ぶん）。filter指定時は対象自動選択・明示ターゲットの両方にTargetFilterの絞り込みを適用する（BS08倒逆ピラミッド群：BP5000以下）
-    | { type: "bpBuff"; filter?: TargetFilter; amount: number; amountFromSelfBp?: true; scope?: "battle"; anySide?: true } // 対象スピリット1体をBP+（既定はターン終了時まで。scope:"battle" 指定時はそのバトルの終了まで＝CardInstance.battleBpBuff に積む。効果テキストが「このバトルの間」と書いているカードだけに付ける。BS07ニードルショット）。filter.minSymbols 指定時、対象（targetInstanceId明示・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効（ライトニングバリスタ等）。amountFromSelfBp指定時はamountを無視し、**発生源自身の実効BP**を加算量として使う（selfがnullならno-op。BS08機人フィアラル：BP+(このスピリットのBP)）。anySide指定時は自分/相手どちらのスピリットも対象にできる（陣営を書いていない「スピリット1体をBP+」。interactiveTargets時はrequestChoiceで両陣営から選ばせ、非対話時は従来どおり自分の場から自動選択する。SD02ストロングドロー／BS01ダークコフィンのフラッシュ）
+    | { type: "bpBuff"; filter?: TargetFilter; amount: number; amountFromSelfBp?: true; scope?: "battle"; anySide?: true; extraPerCoreToTrash?: number; boostTargetInstanceId?: string } // 対象スピリット1体をBP+（既定はターン終了時まで。scope:"battle" 指定時はそのバトルの終了まで＝CardInstance.battleBpBuff に積む。効果テキストが「このバトルの間」と書いているカードだけに付ける。BS07ニードルショット）。filter.minSymbols 指定時、対象（targetInstanceId明示・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効（ライトニングバリスタ等）。amountFromSelfBp指定時はamountを無視し、**発生源自身の実効BP**を加算量として使う（selfがnullならno-op。BS08機人フィアラル：BP+(このスピリットのBP)）。anySide指定時は自分/相手どちらのスピリットも対象にできる（陣営を書いていない「スピリット1体をBP+」。interactiveTargets時はrequestChoiceで両陣営から選ばせ、非対話時は従来どおり自分の場から自動選択する。SD02ストロングドロー／BS01ダークコフィンのフラッシュ）。// extraPerCoreToTrash指定時は、amountを適用したあと「自分のフィールド/リザーブのコアを自分のトラッシュに好きなだけ置くことで、置いたコア1個につきその値ぶん追加でBP+」を続けて解決する（BS10-103グロウイングソード＝1個につき+1000）。interactiveTargets時は0〜（リザーブ+フィールドのコア）の**増減式の選択**（PendingChoice.stepper）を出し、非対話時は0個（追加なし）に倒す。コアはリザーブ優先で取る（payCoresFromFieldOrReserveToTrash）。// boostTargetInstanceId は選択の再入をまたいで「どのスピリットをBP+したか」を持ち回る**内部専用フィールド**（cards.jsonには書かない。これが入っているときは amount の適用は済んでいる）
     | { type: "exhaust"; filter?: TargetFilter; count: number; anySide?: true; excludeTarget?: true; chooserIsTarget?: true; countFromBofu?: true; bofuSourcePid?: PlayerId } // bofuSourcePid は【暴風】の持ち主を示す**内部専用フィールド**（cards.jsonには書かない）。countFromBofu を解決した時点で入れ、選択の再入をまたいで持ち回る。**owner では代用できない**：【暴風】は chooserIsTarget（疲労させられる側が対象を選ぶ）のため、再入後の owner は相手側に入れ替わる。exhaustSpirit が GameState.bofuExhaustedThisBattle への記録と "ownBofuExhausted" の発火に使う // 相手スピリットを疲労させる（絞り込みは filter。自動選択・明示ターゲット選択の両方に適用）。excludeTarget指定時はtargetInstanceIdを「疲労させる対象」ではなく「**除外する**対象」として扱う（誘発が渡すイベント対象を避ける。BS01甲精ディース：ブロックするスピリット以外を疲労させる） // chooserIsTarget指定時は、**疲労させられる側（相手）が対象を選ぶ**（実行は発生源の持ち主の効果として解決する。PendingChoice.actorPid。【暴風】＝「相手は、相手のスピリットを指定された体数疲労させる」） // countFromBofu指定時はcountを無視し、selfが持つ【暴風】の**実効**指定数（静的keywordのcount＋bofuCountBonusの加算。bofuCountFor）を使う。【暴風】の挙動を担うonBlockedエントリはカード側に固定値のcountを持つため、指定数を増やす継続効果（BS08ゲラン准将Lv2）を届けるにはここで解決し直す必要がある
     | { type: "drawPer"; counter: EffectCounter } // カウント値ぶん自分がドロー（0ならログのみ）
     | { type: "bpBuffPer"; counter: EffectCounter; amountPer: number; keywordFilter?: Keyword } // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）。keywordFilter指定時は、そのキーワードを持つ自分のスピリットのみ対象（静的・一時付与・継続付与を考慮。BS07ネクサスアタック＝【強襲】持ち）
@@ -141,7 +142,7 @@ export type EffectAction =
     | { type: "selfCoreToOwnLife"; count: number } // このスピリット（self）の上のコアをcount個、自分のライフに置く（selfがnull／コアが足りなければ可能な分だけ。維持コア割れは消滅処理を通す。BS07ライフセービング）
     | { type: "lifeCharge"; count: number; from?: "reserve" | "void"; upTo?: number } // upTo指定時はcountを無視し、「ライフがこの数になるように」不足分だけ置く（すでにこの数以上なら何もしない。BS09-X35超神星龍ジークヴルム・ノヴァ＝ライフが5になるように）。// 自分のリザーブ（既定）から自分のライフへコアをcount個置く（不足なら可能な分だけ）。from:"void"指定時はボイドから置く＝リザーブを消費せず必ずcount個置ける（【聖命】。BS07）
     | { type: "refreshSelfByExhaustNexus" } // 自分の回復状態のネクサス1つを疲労させることで、このスピリットを回復する（【強襲】。ターン中の上限回数は self が持つ kind:"keyword" keyword:"kyoshu" の count から読む。疲労できるネクサスが無い／上限に達している／自身が回復状態なら不発）
-    | { type: "coreGain"; count: number } // ボイドから自分のリザーブへコアをcount個追加
+    | { type: "coreGain"; count: number; costDestroyOwnSpirit?: { minCost?: number }; costSacrificeChosen?: true } // ボイドから自分のリザーブへコアをcount個追加。costDestroyOwnSpirit指定時は、コストがminCost以上の自分のスピリット1体を破壊することがコスト（任意コスト。COST_MODEL.md）で、破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールド先頭）を機械的に選ぶ簡略化、interactiveTargets時は候補2体以上ならプレイヤーが選ぶ（costSacrificeChosenは選択の再入用の内部フラグ。cards.jsonには書かない。BS10-105ライフチャージ）
     | { type: "refreshAllOwn"; exemptFamily?: FamilyFilter; exemptKeyword?: Keyword } // exemptKeyword指定時は、そのキーワードを持つ個体には cantAttackThisTurn を付与しない（exemptFamily のキーワード版。spiritHasKeyword で判定。BS09-076エマージェンシー＝【転召】持ちはアタックできる）。// 自分の疲労スピリットをすべて回復。回復した個体はこのターン中アタック不可。exemptFamily指定時は指定系統（配列＝OR。matchesFamilyFilterで判定）を持つ個体には cantAttackThisTurn を付与しない（BS06キャバルリー＝系統「戦騎」を持たないスピリットのみアタック不可）
     | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
     | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
@@ -169,7 +170,7 @@ export type EffectAction =
     | { type: "voidCoreToOther"; count: number; colorFilter?: Color; targets?: number; excludeSelf?: true } // colorFilter指定時はその色を持つ自分のスピリットのみ対象（instHasColorで判定＝colorAs/tempColorsの付与色も見る。BS09-020ヤミヤンマ＝白）。targets指定時はその体数へcount個ずつ置く（実効BP上位から重複なく。BS09-023要塞蟲ラルバ＝白2体）。// ボイドからコアcount個を、自分のスピリットのうち実効BP最大の1体に置く（候補がいなければno-op）。// excludeSelf指定時は**発生源自身を対象から外す**（効果文に「このスピリット以外の」と明記があるものだけ。BS01-066スタッグローブ）。既定は自身も対象＝「自分の◯◯のスピリット」に自分自身が含まれる（2026-08-20 修正。アクション名の Other はスタッグローブ由来で、ヤミヤンマ／ラルバには除外の記載が無いのに引き継がれていた）
     | { type: "fireOwnDestroyTriggers" } // 発生源の持ち主のスピリットすべての『このスピリットの破壊時』効果を、**破壊させずに**発揮させる（フィールドから取り除かない。発揮順はフィールドの並び順。BS07女教皇リル・サキュバス）
     | { type: "coreSqueezeAll" } // 両プレイヤーの全スピリットについて、コアを1個だけ残し超過分をその持ち主のリザーブへ（1個未満で維持コア割れになる場合は消滅処理を適用）
-    | { type: "endAttackStepAfterBattle" } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op。サイレントウォール／SD02-003 天使デュナミス＝コスト2以下をブロックしたとき）
+    | { type: "endAttackStepAfterBattle"; excludeCombined?: true } // バトル中のみ：このバトルが終了したときアタックステップを終了するフラグを立てる（バトル外はno-op。サイレントウォール／SD02-003 天使デュナミス＝コスト2以下をブロックしたとき）。excludeCombined指定時は、現在のバトルのアタッカー/ブロッカーのいずれかが合体スピリットなら不発にする（BS10-107サイレントロック：「合体していないスピリットのバトルが終了したとき」）
     | { type: "destroyBlockerAfterBattle"; costSelfCoresToTrash: number } // 発生源（ネクサス）上のコアを costSelfCoresToTrash 個そのトラッシュへ置くことで、
     // 現在のバトルのブロッカーを**バトル終了後**（＞７。【呪撃】と同じ位置）に破壊する予約を立てる（BattleState.endBattleDestroy）。
     // self は発生源自身（fieldEvent 側で selfMode:"source" を指定する）。コアが足りない／バトルがない／ブロッカーがいないときは不発（ログのみ）。
@@ -244,7 +245,7 @@ export type EffectAction =
     | { type: "opponentCoresToTrash"; count: number; reserveAll?: true } // reserveAll指定時はcountを無視し、相手のリザーブにあるコア**すべて**をトラッシュへ置く（スピリット上のコアには触れない。BS09-017蛇凰神バァラルLv3）。// 相手のリザーブ→相手スピリット上の順にコアcount個を相手のトラッシュへ置く（BS04氷の女神フリッグ）
     | { type: "destroyerCoresToTrash" } // targetInstanceId（fieldEvent.byOpponentSpiritEffectOnly が渡す「自分を破壊した相手のスピリット」）上のコアすべてを、その持ち主のトラッシュへ置く。
     // targetInstanceIdが見つからなければ不発（ログのみ）。BS10-012アントイーター/BS10-014闇騎士マリス
-    | { type: "voidCoreToOwnByKeyword"; keyword: Keyword; count: number } // ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべての上に置く（BS04甲殻戦士ロングホーン＝神速）
+    | { type: "voidCoreToOwnByKeyword"; keyword?: Keyword; count: number; combinedFilter?: true } // ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべての上に置く（BS04甲殻戦士ロングホーン＝神速）。// combinedFilter指定時は合体スピリット（instIsCombinedがtrue）に絞る。keywordと併用でき、keywordを省略すれば合体スピリットすべてが対象（BS10-087戦場に息づく命Lv2）
     | { type: "reviveLastDestroyedNexus"; coreCost?: number; costFrom?: "ownFieldOrReserve" } // costFrom:"ownFieldOrReserve" 指定時は、コストを self 上ではなく**自分のフィールド/リザーブ**のコアから払う（リザーブ優先。SD02-014 魔法監視塔Lv1＝コア1個をトラッシュへ） // self上のコアをコストぶん自分のトラッシュに置くことで、直近に破壊された自分のネクサス（GameState.lastDestroyedNexus）をトラッシュから自分のフィールドへ戻す（coreCost省略時はself上のコアすべて＝BS04戦闘獣ジャッカー。指定時はその数だけ支払う。コア不足なら不発。BS05ブロンズ・ゴレム＝1個）
     | { type: "negateLifeDamageFromTarget" } // 対象（targetInstanceId＝相手スピリット1体）のアタックでは、このターン自分のライフが減らない（CardInstance.lifeDamageNegatedFor。BS04ミストカーテン）
     | { type: "coreToOpponentTrashChoice"; count: number; includeReserve?: true; spiritsOnly?: true; chooserIsTarget?: true } // 相手のスピリット1体かネクサス1つを選び、コアcount個を相手のトラッシュへ置く（targetInstanceId省略時は候補を集めてpendingChoiceを要求し、指定時はその対象へ実行する。スピリットは維持コア割れで消滅、ネクサスは消滅させない。魔界侯爵コキュートス）。// spiritsOnly指定時は候補をスピリットだけに絞る（「相手のスピリット**上の**コア1個」の効果文にはネクサスが含まれない。BS08ダークスカルデーモンLv2）。// chooserIsTarget指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア1個を〜置く」。解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。returnToDeckTop.chooserIsTargetと同型）
@@ -342,6 +343,7 @@ export type EffectAction =
     | { type: "costBuffThisTurn"; amount: number } // 自分のスピリット1体（targetInstanceId優先、フォールバックはpickOwnKeywordTargetと同じ＝バトル中の自分スピリット→自分フィールド先頭）のコストを、このターンの間 amount だけ増減する（CardInstance.tempCostDelta、ターン終了でリセット。shared/rules.ts の instCostDelta → instBaseCost が読むので、コストを見る判定すべてに効く）。**置き換えであって追加ではない**：元のコストは残らないので「コスト3以下を破壊」は+3後のコストで判定される（BS08グロウアップ）。今後のブレイヴの合体コスト加算も instCostDelta に項を足す形で乗せること
     | { type: "colorChoiceLendThisTurn"; sourceCardId?: string } // 全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに載せてこのターンの間貸し出す（kind:"levelAs" target:"allSpiritsByChosenColor"のlentOnlyエントリが読む。familyGrantのfamilyFromChoiceと同形。マジックのselfは常にnullで選択再開時にresolveActionのsourceCardId引数が失われるため、sourceCardIdをaction自身に載せて2段階目へ引き継ぐ内部専用フィールド（cards.jsonには{"type":"colorChoiceLendThisTurn"}のみを書く）。BS02-111スピリットイリュージョン）
     | { type: "refreshAllByKeyword"; keyword: Keyword; side?: "own"; keywordCount?: number } // keywordCount指定時は、そのキーワードエントリの count が一致するものだけを対象にする（【暴風：1】と【暴風：2】を区別する。静的なkeywordエントリのみ見るため、付与された暴風は対象外＝簡略化。BS07突風侯爵コカトリーフLv2）。// 指定キーワードを持つスピリットすべて（修飾なし＝両陣営が対象）を回復させる。refreshAllByCostと同様cantAttackThisTurnは付与しない（BS03-X09蛮騎士ハーキュリー：【神速】持ちすべて）。side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
+    | { type: "refreshAllOwnByFilter"; filter: TargetFilter } // 自分の疲労スピリットのうちfilterに一致するものすべてを回復させる（refreshAllByKeywordと同様cantAttackThisTurnは付与しない）。BS10-088天貫く塔の城Lv2：「効果の記述を持たない自分のスピリットすべて」＝filter.vanilla:true
     | { type: "millThenDestroySameCost" } // 自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の相手のスピリットすべてを破壊する（デッキが0枚なら不発。BS09-084ドラゴニックハウル）
     | { type: "millPerLoserCost" } // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側のコストと同じ枚数だけ相手のデッキを上から破棄する（GameState.lastBattleDestroyedCost。記録が0＝まだ発生していないならログのみ。BS06名誉ある御前試合）
     | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（interactiveTargets時はトラッシュに該当マジックがある色からrequestChoiceで選択。候補1色以下・非対話時は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す（BS03-X11大天使ヴァリエル：緑/黄から1色）
@@ -363,7 +365,7 @@ export type EffectAction =
     | { type: "disableOwnArmorThisTurn" } // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）
     | { type: "capLifeDamageThisTurn"; max: number } // このターンの間、発生源の持ち主のライフは1回のアタックで max 個までしか減らない（GameState.turnConstraints に lifeDamageMaxForPid を積む。SD01-039 ブリザードウォール＝1しか減らない）
     | { type: "protectLifeByCostThisTurn"; costSacrificeChosen?: true; maxCost: number; costExhaustFamily?: FamilyFilter } // このターンの間、コストがmaxCost以下のスピリットのアタックでは**発生源の持ち主のライフだけ**が減らされない（GameState.turnConstraints に片側限定の制約を積む。両陣営に効く globalConstraint:"noLifeDamageByCost" の片側版）。costExhaustFamily指定時は、持ち主のフィールドの指定系統（配列＝OR）の回復状態スピリット1体（実効BP最小＝犠牲を最小化する簡略化）を疲労させることがコストで、該当がなければ不発（BS07秘密の花園Lv2＝「楽族」）
-    | { type: "forceAttackThisTurn"; side: "opponent"; maxCost?: number; count?: number } // このターンの間、相手のスピリットに「可能ならば必ずアタックする」を課す（GameState.turnConstraints に mustAttack を積む）。maxCost指定時はコストがこれ以下のものすべて（BS08アンブッシュブロッカー：コスト3以下）。count指定時は体数を絞って指定する（targetInstanceId優先、interactiveTargets時はpendingChoice、自動時は実効BP最大。BS08獣機合神セイ・ドリガン：相手のスピリット1体を指定）。**簡略化**：原文の「このステップの最初に」という順序指定は持たず、そのターン中アタックが強制されるだけ
+    | { type: "forceAttackThisTurn"; side: "opponent"; maxCost?: number; count?: number; excludeCombined?: true } // このターンの間、相手のスピリットに「可能ならば必ずアタックする」を課す（GameState.turnConstraints に mustAttack を積む）。maxCost指定時はコストがこれ以下のものすべて（BS08アンブッシュブロッカー：コスト3以下）。excludeCombined指定時は候補から合体スピリットを除く（BS10-X04月光龍ストライク・ジークヴルム：合体していない相手のスピリット1体を指定する）。count指定時は体数を絞って指定する（targetInstanceId優先、interactiveTargets時はpendingChoice、自動時は実効BP最大。BS08獣機合神セイ・ドリガン：相手のスピリット1体を指定）。**簡略化**：原文の「このステップの最初に」という順序指定は持たず、そのターン中アタックが強制されるだけ
     | { type: "grantCanBlockWhileRestedThisTurn"; familyFilter?: FamilyFilter } // このターンの間、自分のスピリット（familyFilter指定時はその系統＝配列OR）すべてに「疲労状態でもブロックできる」を与える（GameState.turnConstraints。constraint:"canBlockWhileRested"のターン付与版。BS08インフィニティシールド：機獣/武装）
     | { type: "coreDrainToLowerLevel" } // 相手のスピリット1体（targetInstanceId優先、非対話時は実効BP最大）の上のコアを、1つ下のLvに必要なコア数と同じになるまで相手のトラッシュへ置く。Lv1のスピリット（1つ下のLvが無い）は対象にしても何も起きない。装甲・マジック効果耐性はcoreRemoveと同じ経路で尊重する（BS06-096レベルドレイン）
     | { type: "grantEffectToTargetThisTurn"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; filter?: TargetFilter } // 自分のスピリット1体（targetInstanceId優先。フォールバックはfilter一致の中から実効BP最大。interactiveTargets時は複数候補ならrequestChoice）に、このターンの間だけ指定の誘発効果を直接付与する（CardInstance.tempGrantedTriggers、ターン終了でリセット。fireTriggerが静的effectsと同様に走査する。effectGrantと違い対象は1体・仮想発生源を要しない。BS08メテオストーム＝カード名に「ヴルム」と入っている自分のスピリット1体に『このスピリットのアタック時』効果を付与）
@@ -438,6 +440,7 @@ export type FieldEvent =
     | "ownNexusDestroyed" // 自分のネクサスが破壊されたとき、持ち主側のフィールドから発火（バウンス returnNexusToHand は対象外。シャークハンマー）
     | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
     | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
+    | "ownSpiritDeclaredBlock" // 自分のスピリットがブロックしたとき、持ち主のフィールド発生源から発火（self=ブロックしたスピリット自身。GameEngine.finishBlockDeclarationから発火。BS10-088天貫く塔の城）
     | "ownFunsaiMilled" // 自分のスピリットの【粉砕】が相手のデッキをトラッシュへ送ったとき（発火は粉砕解決ごとに1回。repeatPerCount指定時は実破棄枚数ぶんアクションを繰り返す）
     | "opponentHandAdded" // 持ち主から見て相手の手札にカードが加えられたとき（notifyHandGainedから発火。犬人マードック／英雄の喪失）
     | "ownSpiritCoresRemovedByOpponent" // 自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき（eventCount=影響を受けた自分のスピリット数。極光の大地）
@@ -573,6 +576,10 @@ export type ConstraintDef =
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
     | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFromChosen?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // maxBp指定時はブロッカーの実効BPがこれ以下ならブロックされない（BS07鋼翼魚オルカノンLv2＝BP4000以下）。maxCost指定時はブロッカーのコストがこれ以下ならブロックされない（costNot＝完全一致の否定とは別軸。instMatchesCostFilterで判定＝付与コストも見る。BS07聖なる命の泉Lv2）// nonVanilla指定時は「カードに効果の記述を持つ」スピリットにブロックされない（isVanillaCardの否定。BS05幻獣王リーンLv3）／requireOwnCostCountAtLeast指定時は、持ち主のフィールドに指定コストのスピリットがcount体以上いる間だけ有効（activeConstraintsが判定して外す。BS05幻獣王リーンLv3＝コスト2が3体以上） // requireOwnFieldColorNexus指定時は、持ち主のフィールドに指定色のネクサスがある間だけ有効（BS03鷹人ホークアイLv2＝紫のネクサス） // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない。costAtMostAttacker指定時はブロッカーのコストがこのアタッカーのコスト以下ならブロックされない（BS05ポテンシャルパワー：バニラのアタックは同コスト以下にブロックされない）。keywordFilterAbsent指定時はこのキーワードを持た**ない**スピリットにブロックされない（keywordFilterの否定版。BS08光帝竜騎アルカナジョーカーLv3＝【転召】を持たない相手）
+    | { type: "blockRequiresCount"; count: number } // このスピリットのアタックは、相手がスピリットをcount体そろえてブロック宣言しないとブロックできない（BS10-X03巨蟹武神キャンサード＝2体）。
+    // 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、アルティメットは未実装のため2体ブロックだけを見る。
+    // count体そろえられないときはブロックそのものができない。宣言は BattleState.pendingBlockerIds に貯まり、
+    // そろった時点で**アタック側**がどれとバトルするかを選ぶ（PendingChoice.blockBattlePick。「どれか1体とだけバトルする」）
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "protectOwnLifeByBpUpToSelf" } // ブロックされなかったアタッカーの実効BPが**この発生源自身の実効BP以下**のとき、そのアタックでは発生源の持ち主のライフは減らされない（片側のみ。ライフダメージ直前に activeConstraints から発生源ごとのBPを引き直して比較する。BS08空帝竜騎プラチナム）
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
@@ -699,6 +706,7 @@ export type EffectDef =
               | { ownFieldHasColorNexus: Color } // 発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火（天使キュリオ）
               | { targetSameLevelAsSelf: true } // fireTriggerのtargetInstanceIdのスピリットのLvがselfのLvと同じときのみ発火（onBlocked用。剣竜ステゴラーサウルス）
               | { ownFieldHasKeyword: Keyword } // 発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火（一時/継続付与も考慮＝spiritHasKeyword。BS04クナノミ＝覚醒）
+              | { ownFieldHasCombinedSpirit: true } // 発生源の持ち主のフィールドに合体スピリット（ブレイヴが合体しているホスト）がいるときのみ発火（instIsCombinedで判定。BS10-X03巨蟹武神キャンサードLv2＝「自分の合体スピリットがいる間」）
               | { firstAttackOfTurn: true } // そのターンの最初のアタックのときのみ発火（GameState.attacksThisTurn === 1。BS04ダックル）
               | { lastFunsaiHasNexus: true } // 直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火（GameState.lastFunsai。BS04伝説巨人ジュード）
               | { lastFunsaiHasSpirit: true } // 直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。BS06爆砕巨人ダグラスLv2-3）
@@ -751,7 +759,7 @@ export type EffectDef =
           levels: number[] | null
           action: EffectAction
           optional?: true // 「〜できる」= 任意。triggered.optional と同じく、interactiveTargets では発動確認を出す（BS02皇帝アンプルール：リザーブのコアを払う任意コスト）
-          beforeDraw?: true // step:"draw" 限定：そのステップのドロー**より前**に発火する。「ドローしないことで〜する」＝ドロー自体を支払いに使う効果のために要る（BS07常闇の聖堂Lv2）。指定が無い step:"draw" は従来どおりドローの後（引いたカードを破棄の対象にできる百識の谷Lv1などが依存している）
+          beforeStepAction?: true // step:"draw" | "core" 限定：そのステップの**本体の動き**（ドロー／リザーブへのコア置き）より前に発火する。「ドローしないことで〜する」「コアを置かないことで〜する」＝本体の動き自体を支払いに使う効果のために要る（BS07常闇の聖堂Lv2／BS10-087戦場に息づく命）。指定が無い step:"draw" は従来どおりドローの後（引いたカードを破棄の対象にできる百識の谷Lv1などが依存している）。// 2026-08-27 に beforeDraw から改名。コアステップにも同じ規則が要るのに「ドローの前」という名前のままだと規則が2つに割れるため
           condition?:
               | "handNotGreaterThanOpponent" // 持ち主の手札枚数が相手以下（主無き古城Lv2）
               | "selfWasRefreshedThisStep" // 発生源自身がこのリフレッシュステップで回復した場合のみ（PhaseManagerが渡すrefreshedInstanceIdsで判定。魔界侯爵コキュートス）
@@ -907,6 +915,7 @@ export type EffectDef =
           levels: number[] | null
           keyword: Keyword
           familyFilter?: string // 指定時はカード静的な系統にこれを含むカードのみ
+          vanillaFilter?: true // 指定時はカードに効果の記述を持たない（バニラ）カードのみ（isVanillaCardで判定。手札のカードなので静的判定でよい。BS10-085浮遊する岩塊Lv2＝手札の効果の記述を持たないスピリットカードに【神速】）
           cardType?: CardType // 指定時はこの種別のカードのみ（省略時はスピリット）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
@@ -985,7 +994,7 @@ export type EffectDef =
           // イベント対象を**効果の対象にしない**とき用（SD01-029 蠢く地下墓地Lv2＝「相手のスピリット**1体**を疲労させる」は
           // ブロックした個体に限らないので、ブロッカーの instanceId を明示ターゲットとして渡してはいけない）
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
-          vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" 限定：破壊/召喚されたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／BS10-080炎の結晶石Lv2）
+          vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "anySpiritAttacked" | "ownSpiritDeclaredBlock" 限定：破壊/召喚/アタック/ブロックしたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／BS10-080炎の結晶石Lv2／BS10-085浮遊する岩塊／BS10-088天貫く塔の城）。// 破壊・召喚は主体が既にフィールドを離れているため呼び出し側の eventInfo.vanilla で、anySpiritAttacked / ownSpiritDeclaredBlock は主体が場に残るため selfOverride の instIsVanilla で判定する（継続付与の「バニラとしても扱う」も見る）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
           // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
@@ -1859,7 +1868,11 @@ export interface PlayerState {
 // バトル（アタック〜解決まで）の状態
 export interface BattleState {
     attackerInstanceId: string
-    blockerInstanceId: string | null
+    blockerInstanceId: string | null // **実際にバトルするブロッカー**。複数体ブロック（blockRequiresCount）でも1体しか入らない
+    pendingBlockerIds?: string[] // 複数体ブロックで、必要数がそろうまで宣言を貯める場所（そろったら空にする）
+    extraBlockerIds?: string[] // 複数体ブロックで宣言はしたが**バトルはしない**ブロッカー。
+    // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
+    // （既存の処理に手を入れずに済ませるための形。BS10-X03巨蟹武神キャンサード）
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
@@ -1908,6 +1921,10 @@ export interface PendingChoice {
     // 相手視点ではマスクする（maskPendingChoiceForOpponent）
     skipLabel?: string // 「選ばない」ボタンの文言の差し替え。トグル選択の「これで破壊する」のように、
     // スキップが**中止ではなく確定**を意味するときに使う（未指定なら「選ばない」）
+    stepper?: true // kind:"option" 限定：選択肢を**ボタンの列ではなく −／＋ の増減表示**で選ばせる
+    // （options は "0"〜"N" のような数値ラベルの昇順で渡す）。個数を決めるだけで「どれを選ぶか」に
+    // 意味が無く、候補数が多くなりうるものに使う（BS10-103グロウイングソード＝トラッシュに置くコアの数）。
+    // 送られてくる値は従来どおり options のラベルそのものなので、サーバー側の解決は kind:"option" のまま
     resolveOnSkip?: true // kind:"card" / kind:"target"：スキップされたときも action を（選択なしで）解決する。
     // 「手札を好きなだけ破棄する」のように、**選び終わってから後処理がある**効果で使う。
     // 既定（未指定）はスキップ＝何もせず終了（従来どおり。BS08堕天使ミカファール）
@@ -1946,6 +1963,12 @@ export interface PendingChoice {
         effectId: string
         sourceInstanceId: string
         context?: DestroyContext
+    }
+    blockBattlePick?: {
+        // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
+        // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。
+        // 選ばれなかったブロッカーは BattleState.extraBlockerIds に入り、バトルには参加しない
+        blockerPid: PlayerId
     }
     fushiSummon?: {
         // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。
@@ -2303,7 +2326,8 @@ export interface GameState {
     activationFizzled?: true // 起動能力（kind:"activated"）の効果が、対象がいないなどで**何も起こさずに終わった**ことを示す一時フラグ。
     // 起動能力から使うアクション（いまは summonFromHandFree の cancelable 経路）が立て、doActivateAbility が
     // 「ターンに1回」の消費を巻き戻してから消す。立てっぱなしにしないよう、doActivateAbility が発動のたびに落とす
-    drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeDraw の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
+    drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeStepAction の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
+    coreStepSkipped: boolean // このターンのコアステップの「ボイドからリザーブへコアを置く」を、効果のコストとして放棄したか（BS10-087戦場に息づく命「ボイドからコアを自分のリザーブに置かないことで」）。drawStepSkipped と同型で、コア置きの前に発火する step.beforeStepAction の効果が立てる
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）
     events: GameEvent[] // クライアント演出用の一時イベント列（handleAction冒頭でクリア）
     eventSeq: number // GameEvent.seq の通し番号（クリアしてもリセットしない）

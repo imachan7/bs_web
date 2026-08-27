@@ -16,7 +16,7 @@ import {
     requestChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -644,7 +644,8 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
             return
         }
         const count = action.count ?? 1
-        const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+        const combinedOk = (s: CardInstance) => !action.excludeCombined || !instIsCombined(s)
+        const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
         if (
             tryInteractiveTargetChoice(
                 state,
@@ -665,7 +666,7 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
                 state,
                 opp,
                 Infinity,
-                (s) => !chosenIds.has(s.instanceId),
+                (s) => !chosenIds.has(s.instanceId) && combinedOk(s),
                 srcColors,
                 srcType,
             )

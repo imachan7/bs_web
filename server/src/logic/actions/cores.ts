@@ -40,7 +40,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -378,8 +378,45 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
 }
 
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceName, destroyContext, targetInstanceId } = ctx
         const player = state.players[owner]
+        // costDestroyOwnSpirit：コストがminCost以上の自分のスピリット1体を破壊することがコスト
+        // （BS10-105ライフチャージ）。「〜することで〜する」の任意コストは、破壊できる対象が
+        // いなければ不発（COST_MODEL.md §1）。何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2）
+        if (action.costDestroyOwnSpirit) {
+            const minCost = action.costDestroyOwnSpirit.minCost ?? 0
+            const candidates = player.field.spirits.filter((s) => getCard(s.cardId).cost >= minCost)
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+                for (const s of candidates) {
+                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+                }
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+        }
         player.reserve += action.count
         log(
             state,
@@ -713,6 +750,23 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
         }
     }
     return moved
+}
+
+// 「自分のフィールド/リザーブのコアを自分のトラッシュに置く」の共通処理。
+// **リザーブを優先**して場のスピリットを崩さない（SD02-014 魔法監視塔Lv1 と同じ方針）。
+// 実際に置けた数を返す。維持コア割れになったスピリットは消滅する（moveRichestSpiritCoresToTrash）
+export function payCoresFromFieldOrReserveToTrash(state: GameState, pid: PlayerId, count: number): number {
+    const player = state.players[pid]
+    const fromReserve = Math.min(count, player.reserve)
+    player.reserve -= fromReserve
+    player.trashCores += fromReserve
+    return fromReserve + moveRichestSpiritCoresToTrash(state, pid, count - fromReserve)
+}
+
+// 「自分のフィールド/リザーブ」から払えるコアの総量
+export function fieldOrReserveCores(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    return player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
 }
 
 // BS08マインドブレイク：「自分のスピリット上のコアcount個を自分のトラッシュに置くことで、
@@ -1481,10 +1535,15 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
 
 const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ
-        const targets = state.players[owner].field.spirits.filter((s) =>
-            spiritHasKeyword(state, owner, s, action.keyword),
-        )
+        // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ。
+        // combinedFilter指定時は合体スピリットに絞る（BS10-087戦場に息づく命Lv2＝自分の合体スピリットすべて）
+        const keyword = action.keyword
+        const targets = state.players[owner].field.spirits.filter((s) => {
+            if (keyword !== undefined && !spiritHasKeyword(state, owner, s, keyword)) return false
+            if (action.combinedFilter === true && !instIsCombined(s)) return false
+            return true
+        })
+        const label = keyword !== undefined ? `【${KEYWORDS[keyword].label}】を持つ` : "合体スピリット"
         if (targets.length === 0) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
@@ -1492,7 +1551,7 @@ const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (
         for (const t of targets) placeCoresOnSpirit(state, t, action.count, owner)
         log(
             state,
-            `${sourceName}：ボイドからコア${action.count}個ずつを【${KEYWORDS[action.keyword].label}】を持つ${targets.length}体の上に置いた。`,
+            `${sourceName}：ボイドからコア${action.count}個ずつを${label}${targets.length}体の上に置いた。`,
         )
         return
 }

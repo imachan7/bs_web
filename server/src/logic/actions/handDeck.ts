@@ -46,6 +46,10 @@ const noopHandler: ActionHandler<"noop"> = () => {
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costSkipCoreStep：「ボイドからコアを自分のリザーブに置かないことで」＝そのコアステップの
+        // コア置きを支払いに使う（step.beforeStepAction と対。BS10-087戦場に息づく命）。
+        // コア置き区間がこのフラグを見て置かずに進む
+        if (action.costSkipCoreStep === true) state.coreStepSkipped = true
         // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
         // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {

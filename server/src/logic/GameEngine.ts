@@ -22,6 +22,7 @@ import {
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
+import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
@@ -911,12 +912,79 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
 
+    // 複数体ブロック（blockRequiresCount。BS10-X03巨蟹武神キャンサード＝スピリット2体）：
+    // 必要数がそろうまでは宣言を貯めるだけで、誘発もフラッシュの再オープンもしない
+    const attackerPidForCount = opponentOf(pid)
+    const attackerForCount = findSpirit(state.players[attackerPidForCount], state.battle.attackerInstanceId)
+    const required = blockRequiredCount(state, attackerPidForCount, attackerForCount)
+    if (required > 1) {
+        const declared = [...(state.battle.pendingBlockerIds ?? []), instanceId]
+        const name = (id: string) => {
+            const sp = findSpirit(state.players[pid], id)
+            return sp ? getCard(sp.cardId).name : "スピリット"
+        }
+        if (declared.length < required) {
+            state.battle.pendingBlockerIds = declared
+            log(state, `${state.players[pid].name}の${name(instanceId)}がブロック宣言（あと${String(required - declared.length)}体）。`)
+            return null
+        }
+        delete state.battle.pendingBlockerIds
+        log(state, `${state.players[pid].name}は${declared.map(name).join("・")}の${String(declared.length)}体でブロックした！`)
+        // 「そのスピリットがブロックされたとき、どれか1体とだけバトルする」＝
+        // 効果文に「相手は」が無く主語がアタッカー側なので、**アタック側**がバトル相手を選ぶ
+        // （docs/design/CHOOSER_RULES.md。2026-08-27 ユーザー確認）
+        if (state.interactiveTargets) {
+            state.pendingChoice = {
+                pid: attackerPidForCount,
+                kind: "target",
+                prompt: "どのブロッカーとバトルするか選んでください",
+                candidates: declared,
+                optional: false,
+                action: { type: "noop" },
+                selfInstanceId: state.battle.attackerInstanceId,
+                blockBattlePick: { blockerPid: pid },
+            }
+            return null
+        }
+        // 非対話（テスト・AI）：アタッカーが勝ちやすい方＝実効BPが最も低いブロッカーを選ぶ
+        const picked = [...declared]
+            .map((id) => ({ id, inst: findSpirit(state.players[pid], id) }))
+            .filter((x) => x.inst !== undefined)
+            .sort((a, b) => effectiveBp(state, pid, a.inst!) - effectiveBp(state, pid, b.inst!))[0]
+        const battlingId = picked?.id ?? declared[0]!
+        state.battle.extraBlockerIds = declared.filter((id) => id !== battlingId)
+        return finishBlockDeclaration(state, pid, battlingId)
+    }
+
+    return finishBlockDeclaration(state, pid, instanceId)
+}
+
+// ブロック宣言が確定したあとの処理（誘発の発火とフラッシュの再オープン）。
+// 通常のブロックはそのまま、複数体ブロックは「どれとバトルするか」が決まってから呼ばれる
+function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
+    if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
     if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
+    // フィールドイベント誘発「自分のスピリットがブロックしたとき」（BS10-088天貫く塔の城）。
+    // self にはブロックしたスピリット自身（blocker）を渡す。vanillaOnly はこの self で判定する
+    if (blocker) {
+        fireFieldEventTriggers(
+            state,
+            pid,
+            "ownSpiritDeclaredBlock",
+            { pid, inst: blocker },
+            instColors(blocker),
+            state.battle.attackerInstanceId,
+        )
+    }
     if (state.winner) {
         state.battle = null
         return null
@@ -1202,6 +1270,21 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 複数体ブロック（blockRequiresCount）で、アタック側がバトル相手を選ぶ待ち。action は解決しない
+    // （BS10-X03巨蟹武神キャンサード：「どれか1体とだけバトルする」）
+    if (pending.blockBattlePick) {
+        if (instanceId === undefined || !pending.candidates.includes(instanceId)) {
+            return "選択できない対象です"
+        }
+        const blockerPid = pending.blockBattlePick.blockerPid
+        state.pendingChoice = null
+        if (!state.battle) return null
+        state.battle.extraBlockerIds = pending.candidates.filter((id) => id !== instanceId)
+        finishBlockDeclaration(state, blockerPid, instanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

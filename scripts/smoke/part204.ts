@@ -377,6 +377,28 @@ console.log("--- SD02-014 魔法監視塔：ネクサスを戻す／マジック
     assert(s.players.p1.reserve === reserveBefore - 1, "コストはリザーブから優先して払う")
 }
 {
+    // リザーブが空なら場のスピリットから払う経路（既存テストはリザーブ経路しか通していなかった）。
+    // 維持コア割れになったスピリットは消滅する
+    const otherNexus = CARDS.find((c) => c.type === "nexus" && c.cardId !== TOWER.cardId)!
+    const filler = CARDS.find((c) => c.type === "spirit" && (c.effects?.length ?? 0) === 0 && (c.levels?.length ?? 0) > 0)!
+    const s = base("tower-revive-field")
+    putNexus(s, "p1", TOWER, coresFor(TOWER, 1))
+    const victim = putNexus(s, "p1", otherNexus, 2)
+    const payer = put(s, "p1", filler, 1) // Lv1のコア1個ちょうど＝1個取られると維持コア割れ
+    s.players.p1.reserve = 0
+    const trashBefore = s.players.p1.trashCores
+    destroyNexus(s, "p1", victim.instanceId, { sourcePid: "p2", sourceType: "spirit" })
+    assert(
+        s.players.p1.field.nexuses.some((n) => n.instanceId === victim.instanceId && !n.pendingDestruction),
+        "リザーブが空でも、場のコアで払ってネクサスは残る",
+    )
+    assert(s.players.p1.trashCores >= trashBefore + 1, "払ったコアはトラッシュへ")
+    assert(
+        !s.players.p1.field.spirits.some((sp) => sp.instanceId === payer.instanceId),
+        "コアを払って維持コア割れになったスピリットは消滅する",
+    )
+}
+{
     const s = base("tower-negate")
     s.turnPlayer = "p2"
     const tower = putNexus(s, "p1", TOWER, coresFor(TOWER, 2))
