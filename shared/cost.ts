@@ -298,11 +298,24 @@ export function costSetOverride(
     cardData: CardData,
 ): number | undefined {
     let result: number | undefined
+    // BS10-059：手札にあるこのスピリットカード自身の効果（scope:"self"）。effectSourcesでは拾えないため
+    // cardData.effects を直接見る（hasTrashSymbolReductionと同じ形）
+    for (const effect of cardData.effects) {
+        if (effect.kind !== "costMod" || effect.mode !== "set" || effect.scope !== "self") continue
+        if (effect.condition?.ownNexusAtLeast !== undefined) {
+            if (board.players[pid].field.nexuses.length < effect.condition.ownNexusAtLeast) continue
+        }
+        if (result === undefined || effect.setTo < result) result = effect.setTo
+    }
     const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "costMod" || effect.mode !== "set") continue
+            // scope:"self" は「手札にあるこのカード自身」の効果なので、上の cardData.effects の枝だけが扱う。
+            // ここで除外しないと、そのカードが**場に出たとたん**（BS10-059は絞り込みを持たないため）
+            // あらゆるカードのコストを置換してしまう
+            if (effect.scope === "self") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.familyFilter !== undefined) {
                 const wanted = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]

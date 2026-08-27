@@ -148,21 +148,30 @@ function checkLentEffects(
     }
 }
 
-// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード）の検査。
+// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード／BS10-059フォート・ゴレム）の検査。
 //
-// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition を見るが、
-// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter だけ。
+// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition:{ownFamilyCountAtLeast} を見るが、
+// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter と、
+// scope:"self" のときだけの condition:{ownNexusAtLeast} だけ。
 // 同じ kind に両方のフィールドが同居できる型なので、置換に加算側のフィルタを書くと
 // **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
 // 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
 // 書いた瞬間に発現するため、データ側で落とす。
-const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn", "condition"] as const
+const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn"] as const
 
 function checkCostSetEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
-    for (const e of c.effects as { id?: string; kind?: string; mode?: string; amount?: unknown; setTo?: unknown }[]) {
+    for (const e of c.effects as {
+        id?: string
+        kind?: string
+        mode?: string
+        amount?: unknown
+        setTo?: unknown
+        scope?: unknown
+        condition?: unknown
+    }[]) {
         if (e.kind !== "costMod" || e.mode !== "set") continue
         for (const field of COST_SET_UNSUPPORTED) {
             if (field in e) {
@@ -171,6 +180,18 @@ function checkCostSetEffects(
                     `costMod mode:"set" の ${e.id ?? e.kind} に ${field} がある（costSetOverride は参照しないため絞り込みが無言で無視される）`,
                 )
             }
+        }
+        if (e.scope !== undefined && e.scope !== "self") {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} の scope が "self" 以外（costSetOverride は "self" しか読まない）`)
+        }
+        if (
+            e.condition !== undefined &&
+            !(typeof e.condition === "object" && e.condition !== null && "ownNexusAtLeast" in e.condition)
+        ) {
+            add(
+                c.cardId,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+            )
         }
         if ("amount" in e) {
             add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に amount がある（置換には setTo を使用してください）`)
