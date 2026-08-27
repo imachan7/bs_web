@@ -33,6 +33,7 @@ import {
 } from "../EffectModules"
 import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 // 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
@@ -1360,23 +1361,11 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
         let paid: number
         if (fromFieldOrReserve) {
-            paid = requiredCost ?? 1
-            // リザーブ優先。足りない分だけ場のスピリット（コアが多い順）から取る
-            const fromReserve = Math.min(paid, player.reserve)
-            player.reserve -= fromReserve
-            let remaining = paid - fromReserve
-            for (const sp of [...player.field.spirits].sort((a, b) => b.cores - a.cores)) {
-                if (remaining <= 0) break
-                const take = Math.min(remaining, sp.cores)
-                sp.cores -= take
-                remaining -= take
-            }
-            if (remaining > 0) {
-                // 途中まで払ってしまわないよう、支払えないと分かった時点で戻す設計にはせず、
-                // 事前に総量を確かめる（下の early return で到達しない）
-                paid -= remaining
-            }
-            player.trashCores += paid
+            // リザーブ優先で払う共通処理（cores.payCoresFromFieldOrReserveToTrash）。
+            // 2026-08-27 に、ここに直接書いてあった同じ処理を BS10-103 グロウイングソードと
+            // 共通化した（**挙動は変えていない**。維持コア割れの消滅は元から removal.ts 側の
+            // 掃除が拾っていて、共通処理は destroySpirit を明示的に呼ぶだけの違い）
+            paid = payCoresFromFieldOrReserveToTrash(state, owner, requiredCost ?? 1)
         } else {
             paid = requiredCost ?? self!.cores
             self!.cores -= paid
