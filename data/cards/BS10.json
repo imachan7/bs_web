@@ -6115,5 +6115,216 @@
         "optional": false
       }
     ]
+  },
+  {
+    "cardId": "BS10-094",
+    "name": "未完成の古代戦艦：竜骨",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n効果の記述を持たない自分のスピリットすべては、コスト4以下の相手のスピリットを疲労状態でブロックできる。\nLv2\n効果の記述を持たない自分のスピリットすべてのLvを、1つ上のものとして扱う。",
+    "effects": [
+      {
+        "id": "BS10-094-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "vanillaFilter": true,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        },
+        "constraint": {
+          "type": "canBlockWhileRested",
+          "targetMaxCost": 4
+        }
+      },
+      {
+        "id": "BS10-094-e2",
+        "kind": "levelAs",
+        "levels": null,
+        "sourceLevels": [
+          2
+        ],
+        "target": "ownSpiritsVanilla",
+        "treatAs": {
+          "plus": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-112",
+    "name": "ネクサスエクステンション",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\n自分のトラッシュにあるネクサスカード1枚をコストを支払わずに配置する。\nその後、自分のトラッシュにあるネクサスカード1枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS10-112-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "deployNexus",
+          "from": "trash"
+        }
+      },
+      {
+        "id": "BS10-112-e2",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "recoverNexusFromTrash"
+        }
+      },
+      {
+        "id": "BS10-112-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 3000,
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-113",
+    "name": "オリオンパワー",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\nこのターンの間、系統：「闘神」/「星魂」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のデッキを上から10枚破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS10-113-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS10-113-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDealtLife",
+        "levels": null,
+        "lentOnly": true,
+        "familyFilter": [
+          "闘神",
+          "星魂"
+        ],
+        "action": {
+          "type": "mill",
+          "count": 10
+        }
+      },
+      {
+        "id": "BS10-113-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 3000,
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-114",
+    "name": "エリダヌスフラッド",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\n相手の合体スピリット1体を破壊する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
+    "effects": [
+      {
+        "id": "BS10-114-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "combined": true
+          }
+        }
+      },
+      {
+        "id": "BS10-114-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 4000,
+          "anySide": true
+        }
+      }
+    ]
   }
 ]

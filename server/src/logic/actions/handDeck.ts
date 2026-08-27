@@ -1186,6 +1186,69 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         return
 }
 
+// recoverMagicFromTrashHandlerのネクサス版（BS10-112ネクサスエクステンション：「その後、自分のトラッシュにある
+// ネクサスカード1枚を手札に戻す」）。同じマジックの前半でdeployNexusが既に1枚トラッシュから取り除いた後に
+// 呼ばれる想定で、末尾（新しい方）から探すのは同じ考え方
+const recoverNexusFromTrashHandler: ActionHandler<"recoverNexusFromTrash"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
+        const player = state.players[owner]
+        const nexusOk = (cardId: string): boolean =>
+            getCard(cardId).type === "nexus" &&
+            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c)))
+        if (chosenCardIndex !== undefined) {
+            const cardId = player.trashCards[chosenCardIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}のネクサス回収：対象がいなかった。`)
+                return
+            }
+            player.trashCards.splice(chosenCardIndex, 1)
+            player.hand.push(cardId)
+            log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+            notifyHandGained(state, owner, 1)
+            return
+        }
+        if (state.interactiveTargets) {
+            const indices = player.trashCards
+                .map((id, i) => ({ id, i }))
+                .filter(({ id }) => nexusOk(id))
+                .map(({ i }) => i)
+            if (indices.length >= 2) {
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}のネクサス回収：手札に戻すカードを選んでください`,
+                    "trash",
+                    indices,
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
+        let idx = -1
+        for (let j = player.trashCards.length - 1; j >= 0; j--) {
+            if (nexusOk(player.trashCards[j]!)) {
+                idx = j
+                break
+            }
+        }
+        if (idx === -1) {
+            log(state, `${sourceName}のネクサス回収：トラッシュに対象がいなかった。`)
+            return
+        }
+        const cardId = player.trashCards[idx]!
+        player.trashCards.splice(idx, 1)
+        player.hand.push(cardId)
+        log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
+        notifyHandGained(state, owner, 1)
+        return
+}
+
 // トラッシュにある指定色のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する
 // （BS08堕天使ミカファールLv2-3）。フィールドのコアは使えずリザーブのみで支払う簡略化
 const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor"> = (ctx, action) => {
@@ -2454,6 +2517,7 @@ const handlers = {
     revealDiscardRest: revealDiscardRestHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
+    recoverNexusFromTrash: recoverNexusFromTrashHandler,
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
