@@ -2,10 +2,12 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction } from "../../type"
-import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
+    attachBrave,
     bothSidesPids,
     countEffectCounter,
+    detachBraveByEffect,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -17,6 +19,7 @@ import {
     fireTrigger,
     fireNexusDeployed,
     pickEnemyCandidates,
+    refreshSpirit,
     requestCardChoice,
     requestChoice,
     resolveAction,
@@ -25,7 +28,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -599,10 +602,16 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         // をそのまま使う（サーバーのvalidateSummonと条件を揃えるため）。合体する場合は
         // summonFreeFromHandIndexのbraveTargetInstanceId経路（doSummonのダイレクトブレイヴと同じ結果）へ渡す
         const finishBraveSummon = (handIndex: number, combineTargetInstanceId?: string): void => {
+            // thenDraw（X005R北斗七星龍ジーク・アポロドラゴン）：実際に召喚できたときだけ引く。
+            // summonFreeFromHandIndexは不発時に手札を消費しないので、手札枚数の増減で成否を判定する
+            const beforeHandLen = player.hand.length
             summonFreeFromHandIndex(state, owner, sourceName, handIndex, action.skipTensho, {
                 ...summonOpts,
                 ...(combineTargetInstanceId !== undefined ? { braveTargetInstanceId: combineTargetInstanceId } : {}),
             })
+            if (action.thenDraw && !state.winner && player.hand.length < beforeHandLen) {
+                draw(state, owner, action.thenDraw)
+            }
         }
         const resolveBraveSummon = (handIndex: number): void => {
             const cardId = player.hand[handIndex]
@@ -627,9 +636,55 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 selfInstanceId: self ? self.instanceId : null,
             })
         }
+        // repeatWhileChosen（BS10-029木星神龍ノブナガード・ゼウシス）：「好きなだけ」。BRAVE.md §12.6の
+        // とおり count の自動選択（合体先を選ばせない）は使わず、1枚ずつ選んで召喚し繰り返す。
+        // interactiveTargetsは毎回requestCardChoiceで聞き直し、選ばなくなったら終わる。
+        // 非対話はコスト最大から貪欲に、候補が尽きるまですべて召喚する
+        // （resolveBraveSummonの非対話フォールバックと同じく合体先は選ばせずスピリット状態で出す）
+        function askNextRepeatBrave(): void {
+            const indices: number[] = []
+            for (let i = 0; i < player.hand.length; i++) {
+                if (matchesCardId(player.hand[i]!)) indices.push(i)
+            }
+            if (indices.length === 0) return
+            if (state.interactiveTargets) {
+                // 前ラウンドの合体選択でぶら下がったcombineHandIndexを持ち越さない
+                // （残したままだと、次のカード選択の解決がこれを「合体先選択の再開」と誤読する）
+                const { combineHandIndex: _staleIdx, ...actionForNext } = action
+                requestCardChoice(
+                    state,
+                    owner,
+                    `${sourceName}：召喚するブレイヴを選んでください（選ばない場合は終了します）`,
+                    "hand",
+                    indices,
+                    true,
+                    actionForNext,
+                    self,
+                    true,
+                )
+                return
+            }
+            let bestIdx = -1
+            let bestCost = -1
+            for (const i of indices) {
+                const cost = getCard(player.hand[i]!).cost
+                if (cost > bestCost) {
+                    bestCost = cost
+                    bestIdx = i
+                }
+            }
+            resolveBraveSummon(bestIdx)
+            if (state.winner) return
+            askNextRepeatBrave()
+        }
         // 合体選択の中断から再開（targetInstanceId＝合体先、未指定＝単体召喚。RESUME_STACK.md）
         if (action.combineHandIndex !== undefined) {
             finishBraveSummon(action.combineHandIndex, targetInstanceId)
+            if (!state.winner && action.repeatWhileChosen) askNextRepeatBrave()
+            return
+        }
+        if (action.repeatWhileChosen && chosenCardIndex === undefined) {
+            askNextRepeatBrave()
             return
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
@@ -820,6 +875,9 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         if (chosenCardIndex !== undefined) {
             if (action.bravesOnly) {
                 resolveBraveSummon(chosenCardIndex)
+                // repeatWhileChosen：合体選択で中断していなければ（=state.pendingChoiceが立っていなければ）
+                // 次の1枚を聞きに行く。中断した場合はcombineHandIndex側の再開処理がループを引き継ぐ
+                if (!state.winner && action.repeatWhileChosen && !state.pendingChoice) askNextRepeatBrave()
                 return
             }
             summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
@@ -1128,6 +1186,81 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
         return
 }
 
+// 効果によるブレイヴの分離（BRAVE.md §12.5・§12.7）。分離元ホストの決定：
+// ctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086巨星望む大樹Lv2＝
+// 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
+// 選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027若武者ウンピョル）
+const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId, srcType } = ctx
+    const player = state.players[owner]
+
+    // 合体先選択の中断から再開（027：「自分のスピリット1体に合体できる」の応答）
+    if (action.detachedBraveInstanceId !== undefined) {
+        const brave = player.field.spirits.find((sp) => sp.instanceId === action.detachedBraveInstanceId)
+        if (!brave) return
+        if (targetInstanceId !== undefined) {
+            const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+            if (host) attachBrave(state, owner, host, brave)
+        }
+        return
+    }
+
+    let host: CardInstance | undefined
+    if (targetInstanceId !== undefined) {
+        host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId && (sp.braveRefs ?? []).length > 0)
+    } else {
+        const hostCandidates = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).length > 0)
+        if (hostCandidates.length === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        if (state.interactiveTargets && hostCandidates.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：ブレイヴを分離させる自分の合体スピリットを選んでください`,
+                hostCandidates.map((h) => h.instanceId),
+                false,
+                action,
+                self,
+            )
+            return
+        }
+        host = hostCandidates[0]
+    }
+    if (!host) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const brave = bravesOf(player, host)[0]
+    if (!brave) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    detachBraveByEffect(state, owner, host, brave)
+
+    if (action.combineToChosenSpirit) {
+        const combineCandidates = braveCombineCandidates(state, owner, brave.cardId)
+        if (combineCandidates.length > 0 && state.interactiveTargets) {
+            suspend(state, {
+                pid: owner,
+                kind: "target",
+                prompt: `${sourceName}：分離した${getCard(brave.cardId).name}を合体させるスピリットを選んでください（選ばない場合はスピリット状態のままにします）`,
+                candidates: combineCandidates,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...action, detachedBraveInstanceId: brave.instanceId },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+        // 非対話：合体先を選ばせず、分離したスピリット状態のままにする（bravesOnly召喚の非対話フォールバックと同じ簡略化）
+    }
+    if (action.thenRefreshHost) {
+        refreshSpirit(state, owner, host, srcType)
+    }
+}
+
 // 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
 // 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
 // BS09-044妖精の姫巫女ハマ・ドリュアス：このバトルに「ブロッカーがLv1なら
@@ -1315,6 +1448,7 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
+    detachBrave: detachBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,

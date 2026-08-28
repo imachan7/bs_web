@@ -1176,6 +1176,11 @@ export function auraAppliesTo(
     if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
         return false
     }
+    // braveOnly（BS10-086巨星望む大樹Lv1：自分のスピリット状態のブレイヴすべて）。合体中のブレイヴは
+    // field.spiritsに実体が無いため、ownAllの走査に来た時点で自動的に「スピリット状態」を意味する
+    if (aura.braveOnly === true && card(targetInst.cardId).type !== "brave") {
+        return false
+    }
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
         return false
     }

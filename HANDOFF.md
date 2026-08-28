@@ -20,7 +20,7 @@
 
 **BS10（十二神皇編 第1章）の投入。→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)**
 
-- **116 / 121枚 投入済み（黄17枚・青17枚とも完了）。残るは保留分5枚だけ**
+- **120 / 121枚 投入済み。残るは BS10-X06 の1枚だけ**（下の段B）
 - **黄・青の解釈はすべて確認済み**（SEMANTICS_AUDIT §3.12〜3.15 / TIMING_CHART / COST_MODEL へ転記済み。
   聞き直さないこと）
 - 色1バッチごとに検証定型を通してコミットする（CLAUDE.md「コミット規律」）
@@ -31,7 +31,19 @@
 **解釈はすべて確認済み**（[BRAVE.md](./docs/design/BRAVE.md) §12.5〜12.7 に転記済み。聞き直さないこと）。
 **2段に分ける。段Aの4枚は同じ器を共有するのでまとめて実装する。**
 
-#### 段A：027 / 029 / 086 / X005R（分離・再合体とコストなしブレイヴ召喚）
+#### 段A：027 / 029 / 086 / X005R ※**完了（2026-08-28）**。段Bの着手時に消してよい
+
+足した器: `attachBrave` / `detachBraveByEffect`（`removal.ts`。合体処理の重複2箇所を統合）/
+アクション `detachBrave` / `summonFromHandFree.repeatWhileChosen`・`thenDraw` /
+`AuraDef.braveOnly` / fieldEvent `ownCombinedSpiritBattleEnded` /
+`exhaust.countCounter` ＋ `EffectCounter "ownCombinedSpirits"`。テストは `scripts/smoke/part263.ts`。
+
+⚠️ **テストの穴を2つ塞いだ**（統合時に発見）。どちらも「実装を壊してもテストが落ちない」形だった:
+`fireFieldEventTriggers` の直呼びだけでは**実戦の発火経路を検査できない**（実アタック経由を1本足した）／
+「1体につき」は**対象が1体だけだと `count:1` と区別できない**（2体にして初めて検査になる）。
+
+以下は着手前に書いた設計（記録として残す）:
+
 
 | 器 | 中身 | 使うカード |
 | :-- | :-- | :-- |

@@ -56,7 +56,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
+import { attachBrave, destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -2495,11 +2495,7 @@ export function summonFreeFromHandIndex(
             ? undefined
             : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
     if (braveHost !== undefined) {
-        player.field.combinedBraves.push(inst)
-        braveHost.braveRefs = [...(braveHost.braveRefs ?? []), { slot: "single", instanceId: inst.instanceId }]
-        // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（doSummonの合体分岐と同じ）
-        braveHost.isRested = braveHost.isRested || inst.isRested
-        refreshLevelAsOverrides(state)
+        attachBrave(state, owner, braveHost, inst)
     } else {
         player.field.spirits.push(inst)
     }
@@ -2805,6 +2801,10 @@ export function countEffectCounter(
     // 直前の【粉砕】で破棄した総枚数／うちスピリットカードの枚数（resolveFunsaiが記録。BS03巨人王ランドルフ／BS04二刀流のアムブローズ）
     if (counter === "lastFunsaiTotal") return state.lastFunsai?.total ?? 0
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
+    // ownCombinedSpirits：自分のフィールドの合体スピリット数（BS10-029木星神龍ノブナガード・ゼウシス）
+    if (counter === "ownCombinedSpirits") {
+        return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
+    }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
         return countSpiritsWeighted(
@@ -3208,6 +3208,8 @@ export {
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
+    attachBrave,
+    detachBraveByEffect,
     detachBravesOnLeave,
     destroySpiritsFrom,
     destroyTargetsBatch,

@@ -6,6 +6,7 @@ import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "..
 import {
     canExhaustNexus,
     bothSidesPids,
+    countEffectCounter,
     destroySpirit,
     exhaustSpirit,
     refreshSpirit,
@@ -50,6 +51,17 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             // 差し替え）をまたいで「この疲労は【暴風】由来」を持ち回るため
             const { countFromBofu: _resolved, ...rest } = action
             action = { ...rest, count: bofu, bofuSourcePid: owner }
+        }
+        // countCounter（BS10-029木星神龍ノブナガード・ゼウシス「自分の合体スピリット1体につき」）：
+        // countを無視しEffectCounterの値を疲労させる体数として使う（coreRemove.countCounterと同型）
+        if (action.countCounter !== undefined) {
+            const n = countEffectCounter(state, owner, self, action.countCounter, srcType)
+            const { countCounter: _cc, ...restCc } = action
+            if (n === 0) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            action = { ...restCc, count: n }
         }
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)

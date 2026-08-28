@@ -6589,5 +6589,273 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-027",
+    "name": "若武者ウンピョル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "剣獣",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\nバトル終了時、自分の合体スピリット1体からブレイヴを分離させ、自分のスピリット1体に合体できる。",
+    "effects": [
+      {
+        "id": "BS10-027-e1",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "detachBrave",
+          "combineToChosenSpirit": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-029",
+    "name": "木星神龍ノブナガード・ゼウシス",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 6,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "神星",
+      "剣獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるブレイヴカードを好きなだけ、コストを支払わずに召喚できる。\nただし、『このブレイヴの召喚時』効果は発揮されない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n自分の合体スピリット1体につき、相手のスピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS10-029-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "bravesOnly": true,
+          "repeatWhileChosen": true,
+          "skipOnSummon": true
+        }
+      },
+      {
+        "id": "BS10-029-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "whileCombined": true,
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "countCounter": "ownCombinedSpirits"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-086",
+    "name": "巨星望む大樹",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のスピリット状態のブレイヴすべてをBP+2000する。\nLv2『お互いのアタックステップ』\n自分の合体スピリットがバトルしたとき、バトル終了時、分離することで、そのスピリットを回復させる。",
+    "effects": [
+      {
+        "id": "BS10-086-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 2000,
+          "braveOnly": true,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "both"
+          }
+        }
+      },
+      {
+        "id": "BS10-086-e2",
+        "kind": "fieldEvent",
+        "event": "ownCombinedSpiritBattleEnded",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "optional": true,
+        "action": {
+          "type": "detachBrave",
+          "thenRefreshHost": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "X005R",
+    "name": "北斗七星龍ジーク・アポロドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "神星",
+      "星竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるブレイヴカード1枚を、コストを支払わずに召喚できる。\nこの効果でブレイヴが召喚されたとき、自分はデッキから1枚ドローする。\n【合体時】Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "X005R-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "bravesOnly": true,
+          "thenDraw": 1
+        }
+      },
+      {
+        "id": "X005R-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "attacker",
+        "whileCombined": true,
+        "levels": [
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1
+        }
+      }
+    ]
   }
 ]

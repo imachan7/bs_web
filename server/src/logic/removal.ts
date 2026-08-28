@@ -164,6 +164,8 @@ checkExhaustOnCoreChange,
     pickEnemyByBp,
     pickEnemyCandidates,
     placeCoresOnSpirit,
+    refreshLevelAsOverrides,
+    refreshSpirit,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
@@ -202,7 +204,42 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
     return false
 }
 
-// ---- ブレイヴの分離（docs/design/BRAVE.md §6）----
+// ---- 合体・分離（docs/design/BRAVE.md §2.3・§6・§12.5）----
+
+// **合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
+// ホストが braveRefs で参照する（参照方式。§2.3）。かつては GameEngine.ts の
+// placeSummonedSpirit と EffectModules.ts の summonFreeFromHandIndex に同じ処理が
+// 2箇所書かれていた（2026-08-28、効果による再合体で3箇所目になる前にここへ寄せた）
+export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[pid]
+    // 分離してスピリット状態で field.spirits にいるブレイヴを再合体させる経路（detachBrave.combineToChosenSpirit）
+    // では、まずそこから抜く。ダイレクトブレイヴ・召喚直後のインスタンスはそもそも spirits にいないので no-op
+    const at = player.field.spirits.findIndex((sp) => sp.instanceId === brave.instanceId)
+    if (at !== -1) player.field.spirits.splice(at, 1)
+    player.field.combinedBraves.push(brave)
+    host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: brave.instanceId }]
+    // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（§1.3）
+    host.isRested = host.isRested || brave.isRested
+    // ブレイヴが足すコスト・色・シンボルをここで組み直す（このあとに出る召喚時効果等がコストや色を読むため）
+    refreshLevelAsOverrides(state)
+}
+
+// 効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
+// detachBravesOnLeave の Lv1維持コスト以上のコア支払いとは別の手順）。
+// 分離したブレイヴはホストの疲労状態を引き継ぐ（§12.5：ルール改定で移動元が疲労していると移動先も疲労になる）
+export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    brave.isRested = host.isRested
+    player.field.spirits.push(brave)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
+}
+
+// ---- ブレイヴの分離（場を離れるとき。docs/design/BRAVE.md §6）----
 
 // **ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**
 // 場を離れる経路は破壊だけではない（維持コア割れの消滅・手札へ戻る・デッキへ戻る・
