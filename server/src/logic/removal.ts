@@ -1597,6 +1597,28 @@ export function returnNexusToHand(
     notifyHandGained(state, ownerPid, 1)
 }
 
+// ネクサスを持ち主のデッキの下（末尾）へ戻す：コアはリザーブへ、カードはデッキの下へ。
+// returnNexusToHand のデッキ下版。代替召喚コストの支払い（BS10-058水星神龍メルクリウス・サーペント：
+// 青のネクサス1つをデッキの下に戻すことで、コストを支払わずに召喚できる）に使う。
+// 破壊ではないため onDestroy は誘発しない
+export function returnNexusToDeckBottom(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+): void {
+    const player = state.players[ownerPid]
+    const index = player.field.nexuses.findIndex(
+        (n) => n.instanceId === instanceId,
+    )
+    if (index === -1) return
+    const inst = player.field.nexuses[index]
+    if (!inst) return
+    player.field.nexuses.splice(index, 1)
+    player.reserve += inst.cores
+    player.deck.push(inst.cardId)
+    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの下に戻った。`)
+}
+
 // スピリットを持ち主の手札へ戻す（バウンス）。
 // **その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 // 実際の移動と「手札に戻ったとき」の誘発は、バウンス効果の解決が終わってから

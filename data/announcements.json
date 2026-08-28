@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-08-28",
+   "category": "fix",
+   "text": "ブレイヴカードを手札から場に出せなかったのを直しました。召喚するとき、スピリット状態で出すか、自分のスピリットに合体させて出すかを選べます"
+  },
+  {
    "date": "2026-08-24",
    "category": "fix",
    "text": "緑翼の大樹の「【暴風】で疲労させる相手を自分で指定する」が、アタックステップ以外でも効いていたのを直しました"

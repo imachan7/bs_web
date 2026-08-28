@@ -12,8 +12,9 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
-import { battleSwapSummonCheck } from "../../../shared/summon"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
+import type { AltSummonFromHandOption } from "../../../shared/rules"
+import { battleSwapSummonCheck, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -109,13 +110,16 @@ export function validateSummon(
     // 指定時は**ダイレクトブレイヴ**（合体先のスピリットを選んで、合体した状態で召喚する）。
     // docs/design/BRAVE.md §5。省略時、ブレイヴは**スピリットとして**通常どおり召喚される（§1.1）
     braveTargetInstanceId?: string,
+    // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058）：召喚コストを支払わず、
+    // 指定したネクサスをデッキの下に戻すことがコストになる
+    altSummonNexusInstanceIds?: string[],
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
-    if (card.type !== "spirit" && card.type !== "brave") return "スピリットカードではありません"
+    if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
 
     // ダイレクトブレイヴの追加検証（§5.3）
     if (braveTargetInstanceId !== undefined) {
@@ -197,7 +201,28 @@ export function validateSummon(
         }
     }
 
-    const cost = effectiveCost(state, pid, card)
+    // kind:"altSummonFromHand"（BS10-058）：召喚コストを支払わず、指定したネクサスを
+    // 自分のデッキの下に戻すことがコスト。COST_MODEL.md §1＝支払いと召喚の両方が成立するときだけ発揮できる
+    let altSummon: AltSummonFromHandOption | null = null
+    if (altSummonNexusInstanceIds !== undefined) {
+        const result = altSummonFromHandCheck(state, pid, handIndex)
+        if (typeof result === "string") return result
+        if (altSummonNexusInstanceIds.length !== result.count) {
+            return `ネクサスを${result.count}個指定してください`
+        }
+        const seen = new Set<string>()
+        for (const id of altSummonNexusInstanceIds) {
+            if (seen.has(id)) return "同じネクサスを重複して指定しています"
+            seen.add(id)
+            if (!result.candidateNexusIds.includes(id)) return "指定したネクサスはこの召喚のコストに使えません"
+        }
+        // コストとして戻すネクサスを、維持コアの支払い元（paySources）に二重で使うことはできない
+        for (const src of paySources ?? []) {
+            if (seen.has(src.instanceId)) return "コストとして戻すネクサスは支払い元に使えません"
+        }
+        altSummon = result
+    }
+    const cost = altSummon !== null ? 0 : effectiveCost(state, pid, card)
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {

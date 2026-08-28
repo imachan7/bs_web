@@ -1,5 +1,5 @@
 // フェーズ名、色、初期値などの共通定数定義
-import type { Color, Phase } from "../server/src/type"
+import type { CardType, Color, Phase } from "../server/src/type"
 
 export const PHASES: readonly Phase[] = [
     "start",
@@ -28,6 +28,15 @@ export const COLOR_LABELS: Record<Color, string> = {
     white: "白",
     yellow: "黄",
     blue: "青",
+}
+
+// カード種別の表示名。**種別が増えたらここが type エラーになる**ので、
+// 表示を決めないまま「その他はマジック」に落ちることがない（2026-08-28）
+export const CARD_TYPE_LABELS: Record<CardType, string> = {
+    spirit: "スピリット",
+    nexus: "ネクサス",
+    magic: "マジック",
+    brave: "ブレイヴ",
 }
 
 export const INITIAL_LIFE = 5

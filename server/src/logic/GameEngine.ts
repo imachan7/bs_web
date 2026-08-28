@@ -79,6 +79,7 @@ import {
     resolveMagic,
     resolveTensho,
     returnSpiritToHand,
+    returnNexusToDeckBottom,
     fireBounceTriggers,
     flushBounces,
     requestActivationConfirm,
@@ -245,7 +246,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
@@ -435,8 +436,9 @@ function doSummon(
     substituteInstanceId?: string,
     discardHandIndices?: number[],
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
+    altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds)
     if (error) return error
 
     const player = state.players[pid]
@@ -451,7 +453,12 @@ function doSummon(
         return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId, paySources)
     }
 
-    const cost = effectiveCost(state, pid, card)
+    // kind:"altSummonFromHand"（BS10-058）：指定した自分の青ネクサスをデッキの下に戻すことがコストで、
+    // 召喚コストは支払わない（維持コアは通常どおりリザーブから。COST_MODEL.md §1＝検証済みのA・Bを実行するだけ）
+    if (altSummonNexusInstanceIds !== undefined) {
+        for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
+    }
+    const cost = altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
@@ -496,7 +503,8 @@ function doSummon(
         braveTargetInstanceId === undefined
             ? ""
             : `${getCard(player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
-    const logText = `${player.name}は${flashNote}${braveNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
+    const altSummonNote = altSummonNexusInstanceIds !== undefined ? "、ネクサスをデッキの下に戻すことでコストを支払わずに" : ""
+    const logText = `${player.name}は${flashNote}${braveNote}${altSummonNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
     const reserveDelta = maintain - placedFromField
 
     // 【転召】は「コストを支払う → **転召** → 維持コアを置く → 召喚完了」の順に解決する

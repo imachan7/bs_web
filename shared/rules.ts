@@ -2153,3 +2153,53 @@ export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
     }
     return false
 }
+
+// ---- 代替召喚ルート（kind:"altSummonFromHand"。BS10-058水星神龍メルクリウス・サーペント） ----
+
+export interface AltSummonFromHandOption {
+    effectId: string
+    color: Color
+    count: number
+    candidateNexusIds: string[] // 支払いに使える自分のネクサス（cost.returnOwnNexusToDeckBottom.color 一致）のinstanceId
+}
+
+// 判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**
+// （battleSwapSummonCheck と同じ形）。戻り値は失敗理由（string）か成功時のオプション。
+// 支払い元（altSummonNexusInstanceIds）の枚数・重複チェックはサーバー専用の検証が持つため、
+// ここでは「この召喚方法を選べるか」と「候補ネクサス一覧」までを返す
+export function altSummonFromHandCheck(
+    board: Board,
+    pid: PlayerId,
+    handIndex: number,
+): AltSummonFromHandOption | string {
+    const cardId = board.players[pid].hand?.[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const cardData = card(cardId)
+    if (cardData.type !== "spirit") return "スピリットカードではありません"
+    const alt = cardData.effects.find((e) => e.kind === "altSummonFromHand")
+    if (!alt || alt.kind !== "altSummonFromHand") return "このカードはこの召喚方法を使えません"
+    // timing:"main"＝自分のメインステップ中の任意のタイミング（バトル中は不可）
+    if (board.turnPlayer !== pid || board.phase !== "main" || board.battle) {
+        return "自分のメインステップではありません"
+    }
+    const { color, count } = alt.cost.returnOwnNexusToDeckBottom
+    const candidates = board.players[pid].field.nexuses.filter((n) => instHasColor(n, color))
+    if (candidates.length < count) return "コストにできる自分のネクサスが足りません"
+    return {
+        effectId: alt.id,
+        color,
+        count,
+        candidateNexusIds: candidates.map((n) => n.instanceId),
+    }
+}
+
+// UI向け：手札の handIndex 枚目がいま代替召喚できるなら候補ネクサスを返す（できなければ ok:false）
+export function canAltSummonFromHand(
+    board: Board,
+    pid: PlayerId,
+    handIndex: number,
+): { ok: boolean; candidateNexusIds: string[] } {
+    const result = altSummonFromHandCheck(board, pid, handIndex)
+    return typeof result === "string" ? { ok: false, candidateNexusIds: [] } : { ok: true, candidateNexusIds: result.candidateNexusIds }
+}
+

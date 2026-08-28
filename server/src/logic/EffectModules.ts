@@ -3195,6 +3195,7 @@ export {
     declineReviveConfirm,
     destroyNexus,
     returnNexusToHand,
+    returnNexusToDeckBottom,
     returnSpiritToHand,
     returnSpiritToDeckTop,
     returnSpiritToDeckBottom,

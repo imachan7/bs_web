@@ -14,7 +14,7 @@ import type {
     Keyword,
     PlayerId,
 } from "../../server/src/type"
-import { COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
+import { CARD_TYPE_LABELS, COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
@@ -48,6 +48,7 @@ import {
     type DirectAttackFilter,
     boardResistanceAgainst,
     isEndStepLocked,
+    bravesOf,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -162,10 +163,13 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
-    const cost = effectiveCost(view, view.you, card)
+    // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
+    const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
     const targetLevel = paying.level || 1
     const lv = card.levels.find((l) => l.level === targetLevel)
-    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
+    // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
+    const maintain =
+        card.type === "magic" || paying.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
@@ -248,6 +252,8 @@ export interface PayingState {
     targetInstanceId?: string // マジックで対象選択済みの場合のみ
     level?: number // 召喚レベル指定用
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
+    braveTargetInstanceId?: string // ダイレクトブレイヴの合体先スピリット（維持コアは置かない）
+    altSummonNexusInstanceIds?: string[] // 代替召喚でデッキの下に戻すネクサス（召喚コストは0になる）
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
@@ -301,9 +307,16 @@ export interface UiState {
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[] } | null
     // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
     battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
+    // ブレイヴの召喚方法を選択中。ブレイヴは「スピリット状態で単体召喚」と
+    // 「合体した状態で召喚（ダイレクトブレイヴ）」のどちらかを毎回選ぶ（2026-08-28 ユーザー指示）。
+    // candidateIds は合体先に選べる自分のスピリット（空でも単体召喚の選択肢は出す）
+    braveSummonSelect: { handIndex: number; cardId: string; candidateIds: string[] } | null
+    // 代替召喚（kind:"altSummonFromHand"）の方法を選択中。通常召喚と、
+    // 支払いに使えるネクサスごとの選択肢を出す（BS10-058 水星神龍メルクリウス・サーペント）
+    altSummonSelect: { handIndex: number; cardId: string; candidateNexusIds: string[] } | null
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
 }
@@ -487,7 +500,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -554,13 +567,14 @@ export function render(view: GameView, ui: UiState): void {
             const card = master(cardId)
             const b = document.createElement("button")
             b.dataset.cardIndex = String(idx)
-            b.textContent = `${card.name}（${card.type === "spirit" ? "スピリット" : card.type === "nexus" ? "ネクサス" : "マジック"}）`
+            b.textContent = `${card.name}（${CARD_TYPE_LABELS[card.type]}）`
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
-        const cost = effectiveCost(view, view.you, card)
+        // 代替召喚（ネクサスをデッキの下に戻して払う）では召喚コストが0になる
+        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
         const reserve = view.players[view.you].reserve
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
         // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
@@ -574,6 +588,37 @@ export function render(view: GameView, ui: UiState): void {
                 ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
                 : `Lv${l.level} (${l.cores}コア)`
             if (needsField) b.classList.add("needs-field-cores")
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
+    } else if (ui.braveSummonSelect) {
+        // ブレイヴの召喚方法。単体（スピリット状態）と、合体先ごとのボタンを並べる
+        const single = document.createElement("button")
+        single.dataset.braveSummon = "single"
+        single.textContent = "スピリット状態で召喚"
+        choiceOptionsEl.appendChild(single)
+        for (const hostId of ui.braveSummonSelect.candidateIds) {
+            const host = view.players[view.you].field.spirits.find((s) => s.instanceId === hostId)
+            if (host === undefined) continue
+            const b = document.createElement("button")
+            b.dataset.braveSummon = hostId
+            // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア）
+            b.textContent = `${master(host.cardId).name} に合体`
+            choiceOptionsEl.appendChild(b)
+        }
+        show("choice-options", true)
+    } else if (ui.altSummonSelect) {
+        // 代替召喚。通常どおり払う道と、ネクサスをデッキの下に戻して払う道を並べる
+        const normal = document.createElement("button")
+        normal.dataset.altSummon = "normal"
+        normal.textContent = `通常どおり召喚（コスト${effectiveCost(view, view.you, master(ui.altSummonSelect.cardId))}）`
+        choiceOptionsEl.appendChild(normal)
+        for (const nexusId of ui.altSummonSelect.candidateNexusIds) {
+            const nexus = view.players[view.you].field.nexuses.find((n) => n.instanceId === nexusId)
+            if (nexus === undefined) continue
+            const b = document.createElement("button")
+            b.dataset.altSummon = nexusId
+            b.textContent = `${master(nexus.cardId).name} をデッキの下に戻して召喚（コストなし）`
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
@@ -618,6 +663,12 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.battleSwapSummon) {
         $("targeting-info").textContent =
             `🔄 入れ替え召喚: 手札に戻す自分のスピリットを選んでください`
+    } else if (ui.braveSummonSelect) {
+        $("targeting-info").textContent =
+            `⚔ ブレイヴの召喚方法を選んでください（スピリット状態／合体した状態）`
+    } else if (ui.altSummonSelect) {
+        $("targeting-info").textContent =
+            `🌀 召喚の方法を選んでください（コストを払う／ネクサスをデッキの下に戻す）`
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -867,6 +918,31 @@ function fieldCardEl(
         badge.className = "as-spirit-badge"
         badge.textContent = "スピリット化中"
         el.appendChild(badge)
+    }
+
+    // 合体しているブレイヴ。実体は field.combinedBraves にいて braveRefs で参照されており、
+    // 単独のカードとして場に並ばない（BRAVE.md §2.3）ので、ホストのカードの中に名前とLvを出す。
+    // BP・シンボル・コストは既に合体後の値が effectiveBp などから出ている
+    if (!isNexus) {
+        const braves = bravesOf(view.players[ownerPid], inst)
+        if (braves.length > 0) {
+            // カードは固定サイズなので、行を通常フローに足すと下へはみ出す。
+            // 下端に重ねる箱にまとめて入れる（異魔神ブレイヴのように2体合体しても縦に積める）
+            const box = document.createElement("div")
+            box.className = "brave-combined-box"
+            for (const brave of braves) {
+                const row = document.createElement("div")
+                row.className = "brave-combined"
+                row.dataset.instanceId = brave.instanceId
+                row.dataset.cardId = brave.cardId
+                const braveName = master(brave.cardId).name
+                // カード幅が76pxしかないので記号は置かず名前を優先する（左の色バーで見分けがつく）
+                row.textContent = `${braveName} Lv${levelOf(brave).level}`
+                row.title = `合体中: ${braveName}` // カードが狭く名前が省略されるため、フル名はここで見せる
+                box.appendChild(row)
+            }
+            el.appendChild(box)
+        }
     }
 
     let unexhaustable = false
@@ -1282,7 +1358,7 @@ function renderHand(view: GameView, ui: UiState): void {
         el.appendChild(costBadge)
 
         const typeLabel =
-            m.type === "spirit" ? "スピリット" : m.type === "nexus" ? "ネクサス" : "マジック"
+            CARD_TYPE_LABELS[m.type]
 
         const name = document.createElement("div")
         name.className = "name"

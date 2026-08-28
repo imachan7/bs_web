@@ -5992,6 +5992,70 @@
     "effects": []
   },
   {
+    "cardId": "BS10-058",
+    "name": "水星神龍メルクリウス・サーペント",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "神星",
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "『自分のメインステップ』\n手札にあるこのスピリットカードは、自分の青のネクサス1つをデッキの下に戻すことで、コストを支払わずに召喚できる。\n【合体時】Lv2『このスピリットの合体アタック時』\n自分は、相手の手札1枚を内容を見ないで選ぶ。\nその後、内容を見て、そのカードがマジックカードのとき破棄する。\n他のカードのときは手札に戻す。",
+    "effects": [
+      {
+        "id": "BS10-058-e1",
+        "kind": "altSummonFromHand",
+        "levels": null,
+        "timing": "main",
+        "cost": {
+          "returnOwnNexusToDeckBottom": {
+            "color": "blue",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "BS10-058-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "randomOpponentHandMagicDiscard"
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
     "cardId": "BS10-059",
     "name": "フォート・ゴレム",
     "type": "spirit",

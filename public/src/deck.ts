@@ -1,7 +1,7 @@
 // デッキビルダーページのロジック
 // カードプールの表示・フィルタ、デッキ編集、制約検証、保存・書き出しを担当する
 import type { CardData, CardType, Color, Keyword } from "../../server/src/type"
-import { COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
+import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
 import { KEYWORDS } from "../../shared/rules"
 
 // ---- 定数 ----
@@ -10,12 +10,7 @@ const MAX_COPIES = 3 // 同名カードの上限枚数
 const STORAGE_KEY = "bsweb:decks"
 const MAX_COST = 8 // 第一弾の最大コスト（コストカーブ表示用）
 
-const TYPE_LABELS: Record<CardType, string> = {
-    spirit: "スピリット",
-    nexus: "ネクサス",
-    magic: "マジック",
-    brave: "ブレイヴ",
-}
+const TYPE_LABELS = CARD_TYPE_LABELS // 表の実体は data/constants.ts（renderer と共有）
 
 // フィルタ用のコスト帯（チップの data-cost と同じ並び）
 const COST_BANDS: ReadonlyArray<{ min: number; max: number }> = [

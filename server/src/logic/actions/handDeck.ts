@@ -290,6 +290,30 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         return
 }
 
+// 「内容を見ないで選ぶ」＝誰も選ばないランダム（決定的簡略化をしない。SEMANTICS_AUDIT.md §3.14）。
+// discardOpponent の random+cardTypeFilter とは違い、**候補をマジックに絞ってから選ばない**
+// （フィルタしてから選ぶと必ずマジックが当たってしまい、印刷テキストの「内容を見ないで」に反する）
+const randomOpponentHandMagicDiscardHandler: ActionHandler<"randomOpponentHandMagicDiscard"> = (ctx) => {
+    const { state, owner, opp, sourceName, srcType } = ctx
+    const target = state.players[opp]
+    if (target.hand.length === 0) {
+        log(state, `${sourceName}：${target.name}の手札がなかった。`)
+        return
+    }
+    const pick = Math.floor(Math.random() * target.hand.length)
+    const cardId = target.hand[pick]!
+    if (getCard(cardId).type === "magic") {
+        target.hand.splice(pick, 1)
+        target.trashCards.push(cardId)
+        log(state, `${sourceName}：${target.name}の手札から内容を見ないで選んだ「${getCard(cardId).name}」はマジックカードだったため破棄した。`)
+        // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
+        tryFreeSummonOnHandDiscard(state, opp, cardId, srcType, owner)
+    } else {
+        log(state, `${sourceName}：${target.name}の手札から内容を見ないで選んだ「${getCard(cardId).name}」はマジックカードではなかったため、そのまま手札に残った。`)
+    }
+    return
+}
+
 const discardOpponentDownToHandler: ActionHandler<"discardOpponentDownTo"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 奇術師オリバー：相手の手札がlimit枚を超えている場合のみ、limit枚になるまで破棄する
@@ -2503,6 +2527,7 @@ const handlers = {
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
+    randomOpponentHandMagicDiscard: randomOpponentHandMagicDiscardHandler,
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
