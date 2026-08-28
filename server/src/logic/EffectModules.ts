@@ -2453,7 +2453,14 @@ export function summonFreeFromHandIndex(
     sourceName: string,
     handIndex: number,
     skipTensho?: true,
-    opts?: { payCost?: true; skipOnSummon?: true; paySources?: PaySource[] },
+    opts?: {
+        payCost?: true
+        skipOnSummon?: true
+        paySources?: PaySource[]
+        // 指定時は**ダイレクトブレイヴ**（doSummonのbraveTargetInstanceIdと同じ結果になるようにする。
+        // 維持コアを置かない・field.combinedBravesへ入れる・host.braveRefsで参照する。BS10-096最後の優勝旗）
+        braveTargetInstanceId?: string
+    },
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2462,7 +2469,8 @@ export function summonFreeFromHandIndex(
         return
     }
     const card = getCard(cardId)
-    const maintain = minLevelCores(card)
+    // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。doSummonと同じ規則）
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
     // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
@@ -2479,10 +2487,26 @@ export function summonFreeFromHandIndex(
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
     player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain)
-    player.field.spirits.push(inst)
+    // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
+    // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
+    const braveHost =
+        opts?.braveTargetInstanceId === undefined
+            ? undefined
+            : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
+    if (braveHost !== undefined) {
+        player.field.combinedBraves.push(inst)
+        braveHost.braveRefs = [...(braveHost.braveRefs ?? []), { slot: "single", instanceId: inst.instanceId }]
+        // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（doSummonの合体分岐と同じ）
+        braveHost.isRested = braveHost.isRested || inst.isRested
+        refreshLevelAsOverrides(state)
+    } else {
+        player.field.spirits.push(inst)
+    }
+    const braveNote =
+        braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""
     log(
         state,
-        `${player.name}は${sourceName}の効果で、${card.name}を` +
+        `${player.name}は${sourceName}の効果で、${braveNote}${card.name}を` +
             (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
             (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )

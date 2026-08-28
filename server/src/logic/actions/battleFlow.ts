@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction } from "../../type"
-import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
+import { clearBattle, createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     bothSidesPids,
     countEffectCounter,
@@ -25,7 +25,8 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -540,7 +541,9 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
         const matchesCardId = (candidateId: string): boolean => {
             const candidate = getCard(candidateId)
-            if (candidate.type !== "spirit") return false
+            // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
+            // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
+            if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
             if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
             if (action.sameFamilyAsSelf) {
                 if (!selfFamily) return false
@@ -589,6 +592,44 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+        }
+        // bravesOnly召喚の合体先選択（ダイレクトブレイヴ／スピリット状態）。2026-08-28 ユーザー指示：
+        // 効果からのブレイヴ召喚は常にこの選択方式にする。候補はshared/summon.tsのbraveCombineCandidates
+        // をそのまま使う（サーバーのvalidateSummonと条件を揃えるため）。合体する場合は
+        // summonFreeFromHandIndexのbraveTargetInstanceId経路（doSummonのダイレクトブレイヴと同じ結果）へ渡す
+        const finishBraveSummon = (handIndex: number, combineTargetInstanceId?: string): void => {
+            summonFreeFromHandIndex(state, owner, sourceName, handIndex, action.skipTensho, {
+                ...summonOpts,
+                ...(combineTargetInstanceId !== undefined ? { braveTargetInstanceId: combineTargetInstanceId } : {}),
+            })
+        }
+        const resolveBraveSummon = (handIndex: number): void => {
+            const cardId = player.hand[handIndex]
+            if (cardId === undefined) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            const combineCandidates = braveCombineCandidates(state, owner, cardId)
+            if (!state.interactiveTargets || combineCandidates.length === 0) {
+                finishBraveSummon(handIndex)
+                return
+            }
+            const { combineHandIndex: _resumeIdx, ...restForCombine } = action
+            suspend(state, {
+                pid: owner,
+                kind: "target",
+                prompt: `${sourceName}：${getCard(cardId).name}を合体させるスピリットを選んでください（選ばない場合は単体で召喚します）`,
+                candidates: combineCandidates,
+                optional: true,
+                resolveOnSkip: true,
+                action: { ...restForCombine, combineHandIndex: handIndex },
+                selfInstanceId: self ? self.instanceId : null,
+            })
+        }
+        // 合体選択の中断から再開（targetInstanceId＝合体先、未指定＝単体召喚。RESUME_STACK.md）
+        if (action.combineHandIndex !== undefined) {
+            finishBraveSummon(action.combineHandIndex, targetInstanceId)
+            return
         }
         // count指定時：count枚まで複数体を召喚する（BS06アルカナキング・カール＝4枚まで）。
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
@@ -724,7 +765,62 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 return
             }
         }
+        // costDestroyOwnSpiritSameCost：自分のスピリット1体を破壊することがコストで、
+        // 破壊したスピリットと**同じコスト**のブレイヴカードだけが召喚候補になる（BS10-096最後の優勝旗）。
+        // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする
+        // （「コスト最小を機械的に破壊→ブレイヴが無くて不発」「破壊だけ起きる」はどちらも誤り）。
+        // コスト比較は場のスピリット側はinstBaseCost（合体で変わるコストも見る）、
+        // 手札のブレイヴ側はカード静的なcostで行う（手札カードはinstance化されていないため）
+        if (action.costDestroyOwnSpiritSameCost && chosenCardIndex === undefined) {
+            const sacrifices = player.field.spirits.filter((s) =>
+                player.hand.some((cardId) => matchesCardId(cardId) && getCard(cardId).cost === instBaseCost(s)),
+            )
+            if (sacrifices.length === 0) {
+                log(state, `${sourceName}：破壊して召喚できる組み合わせがないため発動しなかった。`)
+                return
+            }
+            const { costDestroyOwnSpiritSameCost: _paidSc, costSacrificeChosen: _flagSc, ...restSc } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                const victimCost = instBaseCost(chosen)
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
+                ctx.resolve({ ...restSc, costFilter: victimCost })
+                return
+            }
+            // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
+            if (state.interactiveTargets && sacrifices.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    sacrifices.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：コスト最小を自動選択（同コストはフィールド先頭）
+            let victim = sacrifices[0]!
+            for (const s of sacrifices) {
+                if (instBaseCost(s) < instBaseCost(victim)) victim = s
+            }
+            const victimCost = instBaseCost(victim)
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            ctx.resolve({ ...restSc, costFilter: victimCost })
+            return
+        }
         if (chosenCardIndex !== undefined) {
+            if (action.bravesOnly) {
+                resolveBraveSummon(chosenCardIndex)
+                return
+            }
             summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
             return
         }
@@ -784,6 +880,10 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         }
         if (bestIndex === -1) {
             log(state, `${sourceName}：手札に対象のスピリットがなかった。`)
+            return
+        }
+        if (action.bravesOnly) {
+            resolveBraveSummon(bestIndex)
             return
         }
         summonFreeFromHandIndex(state, owner, sourceName, bestIndex, action.skipTensho, summonOpts)

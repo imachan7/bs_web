@@ -1874,6 +1874,70 @@
     ]
   },
   {
+    "cardId": "BS10-096",
+    "name": "最後の優勝旗",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このネクサスの配置時』\nボイドからコア1個をこのネクサスに置く。\nLv2『自分のメインステップ開始時』\n自分のスピリット1体を破壊することで、自分の手札にある、その破壊したスピリットと同じコストのブレイヴカード1枚を、コストを支払わずに召喚する。",
+    "effects": [
+      {
+        "id": "BS10-096-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "voidCoreToSelf",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS10-096-e2",
+        "kind": "step",
+        "step": "main",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "bravesOnly": true,
+          "costDestroyOwnSpiritSameCost": true
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS10-097",
     "name": "ブレイヴオーラ",
     "type": "magic",
