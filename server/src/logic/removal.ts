@@ -477,8 +477,10 @@ export function commitPendingDestruction(
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
-    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間はトラッシュへ置かれる
-    if (destroyedCoresGoToTrash(state)) {
+    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
+    // battleOpponentDestroyedCoresToVoid（BS10-X01幻羅星龍ガイ・アスラLv4）が
+    // このプレイヤーを指している間はボイド（トラッシュ）へ置かれる
+    if (destroyedCoresGoToTrash(state) || state.battle?.opponentDestroyedCoresToVoidPid === ownerPid) {
         player.trashCores += inst.cores
     } else {
         player.reserve += inst.cores

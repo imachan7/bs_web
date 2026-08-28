@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, maxCostAsSelf, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, maxCostAsSelf, maxLv1BpOfSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -111,6 +111,15 @@ export function normalizeFilter(
         if (!ctx.self) return SELF_REQUIRED
         const cost = getCard(ctx.self.cardId).cost
         resolved.cost = { max: cost }
+    }
+
+    // self のカードのLv1BP以下（実効BPでなく印刷値。fieldEventではselfにイベント対象＝召喚された
+    // スピリットが入る＝sameCostAsSelfと同じ理由。BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手」）
+    if (maxLv1BpOfSelf) {
+        if (!ctx.self) return SELF_REQUIRED
+        const lv1 = getCard(ctx.self.cardId).levels.find((l) => l.level === 1)
+        if (!lv1) return SELF_REQUIRED
+        resolved.maxBp = lv1.bp
     }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる

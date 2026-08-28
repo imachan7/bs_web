@@ -36,7 +36,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -96,7 +96,8 @@ const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom">
         const player = state.players[owner]
         const indices: number[] = []
         for (let j = player.trashCards.length - 1; j >= 0 && indices.length < action.count; j--) {
-            if (getCard(player.trashCards[j]!).type === "spirit") indices.push(j)
+            const id = player.trashCards[j]!
+            if (getCard(id).type === "spirit" && !isTrashCardProtected(id)) indices.push(j)
         }
         if (indices.length === 0) {
             log(state, `${sourceName}：トラッシュにスピリットカードがなかった。`)
@@ -1010,7 +1011,8 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         const vanillaOk = (cardId: string): boolean =>
             action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
         const isRecoverable = (cardId: string): boolean =>
-            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId)
+            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
+            !isTrashCardProtected(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -1156,7 +1158,8 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // トラッシュのカードが対象なのでカード静的な colors で判定する（配列＝いずれかでOR）
         const magicOk = (cardId: string): boolean =>
             getCard(cardId).type === "magic" &&
-            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c)))
+            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
+            !isTrashCardProtected(cardId)
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -1222,7 +1225,8 @@ const recoverNexusFromTrashHandler: ActionHandler<"recoverNexusFromTrash"> = (ct
         const player = state.players[owner]
         const nexusOk = (cardId: string): boolean =>
             getCard(cardId).type === "nexus" &&
-            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c)))
+            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
+            !isTrashCardProtected(cardId)
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -1279,8 +1283,12 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
         const player = state.players[owner]
         const isEligible = (cardId: string): boolean => {
-            const c = getCard(cardId)
-            return c.type === "magic" && (action.colorFilter === undefined || cardHasColor(c, action.colorFilter))
+            const cardData = getCard(cardId)
+            return (
+                cardData.type === "magic" &&
+                (action.colorFilter === undefined || cardHasColor(cardData, action.colorFilter)) &&
+                !isTrashCardProtected(cardId)
+            )
         }
         const perform = (idx: number): void => {
             const cardId = player.trashCards[idx]
@@ -1477,8 +1485,9 @@ const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMag
         const recoverColor = (color: Color): void => {
             const indices: number[] = []
             for (let i = 0; i < player.trashCards.length; i++) {
-                const c = getCard(player.trashCards[i]!)
-                if (c.type === "magic" && cardHasColor(c, color)) indices.push(i)
+                const id = player.trashCards[i]!
+                const c = getCard(id)
+                if (c.type === "magic" && cardHasColor(c, color) && !isTrashCardProtected(id)) indices.push(i)
             }
             if (indices.length === 0) {
                 log(state, `${sourceName}：色「${COLOR_LABELS[color]}」のマジックカードがトラッシュになかった。`)

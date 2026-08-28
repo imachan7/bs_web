@@ -1808,6 +1808,23 @@
         "symbols": [
           "red"
         ]
+      },
+      {
+        "id": "BS10-080-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "vanillaOnly": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxLv1BpOfSelf": true
+          }
+        }
       }
     ]
   },
@@ -2158,6 +2175,18 @@
           3,
           4
         ]
+      },
+      {
+        "id": "BS10-X01-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          4
+        ],
+        "action": {
+          "type": "battleOpponentDestroyedCoresToVoid"
+        },
+        "optional": false
       }
     ]
   },
@@ -4679,6 +4708,10 @@
     "limited": true,
     "effect": "トラッシュにあるこのマジックカードは、一切の効果を受けない。\nメイン：\n『自分のエンドステップ』を3回行うまで、お互い、アタックステップは行えず、デッキは破棄されず、ボイド/リザーブからライフにコアを置けない。\nこの効果発揮後、自分はボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く。\nこのコアは、この効果以外に使用することはできない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
     "effects": [
+      {
+        "id": "BS10-108-e0",
+        "kind": "trashImmunity"
+      },
       {
         "id": "BS10-108-e1",
         "kind": "magic",

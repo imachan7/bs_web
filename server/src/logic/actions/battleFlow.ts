@@ -28,7 +28,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -265,6 +265,20 @@ const battleCompareByCostHandler: ActionHandler<"battleCompareByCost"> = (ctx, a
         }
         state.battle.compareByCost = true
         log(state, `${sourceName}：バトル解決時、BPの代わりにコストを比較する。`)
+        return
+}
+
+// BS10-X01 幻羅星龍ガイ・アスラLv4：このバトルの間、破壊された相手のスピリットのコアすべてはボイドへ。
+// battleLoserCoresToVoidと違い「直前バトルの1回きり」ではなく、**このバトルが終わるまで継続**するフラグ。
+// 自分のスピリットには効かない（opp限定）。実際のコア移動はcommitPendingDestructionが読む
+const battleOpponentDestroyedCoresToVoidHandler: ActionHandler<"battleOpponentDestroyedCoresToVoid"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+        if (!state.battle) {
+            log(state, `${sourceName}：バトル外のため不発。`)
+            return
+        }
+        state.battle.opponentDestroyedCoresToVoidPid = opp
+        log(state, `${sourceName}：このバトルの間、破壊された相手のスピリット上のコアはボイドに置かれる。`)
         return
 }
 
@@ -1053,6 +1067,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
                 return false
             }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
+            if (isTrashCardProtected(candidateId)) return false
             // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
             // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
             if (action.payCost) {
@@ -1444,6 +1459,7 @@ const handlers = {
     battleCompareByLevel: battleCompareByLevelHandler,
     battleCompareByCores: battleCompareByCoresHandler,
     battleCompareByCost: battleCompareByCostHandler,
+    battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
     lockFlash: lockFlashHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,

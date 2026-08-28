@@ -111,6 +111,16 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// トラッシュにあるこのカードが、一切の効果を受けない（kind:"trashImmunity"）か。
+// フィールドの状態・現在Lvと無関係にカード静的なデータだけで判定する（effectSources経由ではない＝
+// トラッシュのカードはそもそも場にいないため、effectActiveOn等のレベル判定が使えない）。
+// **トラッシュにあるカードを対象にする効果は、候補を絞り込む箇所でこれを1つ呼ぶこと**
+// （noTrashRecoveryのように各ハンドラ冒頭へ個別に書くと、書き忘れの経路が残る。
+// BS10-108ルナティックシール：「トラッシュにあるこのマジックカードは、一切の効果を受けない」＝自分の効果からも守られる）
+export function isTrashCardProtected(cardId: string): boolean {
+    return card(cardId).effects.some((e) => e.kind === "trashImmunity")
+}
+
 // インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 // （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
 // **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
