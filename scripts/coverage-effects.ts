@@ -1036,11 +1036,23 @@ process.on("exit", () => {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                         if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
                     }
-                } else if (effect.target === "ownSpiritsByKeyword") {`,
+                } else if (effect.target === "ownSpiritsAll") {`,
             `                    for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                         if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
+                    }
+                } else if (effect.target === "ownSpiritsAll") {`,
+        )
+        patch(
+            em,
+            `                    for (const spirit of player.field.spirits) {
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+                    }
+                } else if (effect.target === "ownSpiritsByKeyword") {`,
+            `                    for (const spirit of player.field.spirits) {
+                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,
         )

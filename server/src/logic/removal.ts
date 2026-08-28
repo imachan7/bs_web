@@ -167,6 +167,7 @@ checkExhaustOnCoreChange,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
+    voidCorePlacementBlocked,
 } from "./EffectModules"
 
 
@@ -994,7 +995,9 @@ export function applyDestroyBatchAfter(
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
-        if (self) {
+        if (self && voidCorePlacementBlocked(state)) {
+            log(state, `${getCard(self.cardId).name}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
+        } else if (self) {
             placeCoresOnSpirit(state, self, destroyed, ownerPid)
             log(
                 state,

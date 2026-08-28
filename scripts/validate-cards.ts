@@ -42,7 +42,7 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
-    "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
+    "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
@@ -107,6 +107,12 @@ function checkLentEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
+    // カードが lentOnly:true を1つでも明示していれば、著者は「貸す側のエントリ」を自分で
+    // 指定済み（判定基準にする）。この場合、無印（lentOnly無し）の非action系エントリは
+    // 「貸与とは無関係な、この実カード自身の常時効果」と扱い、levels必須チェックの対象から外す
+    // （BS10-056蒼天大聖モンゴクウ＝levelAsをlentOnlyで貸しつつ、globalConstraintは実インスタンス側で
+    // 常時発揮する別効果。lentOnlyが1つも無いカードでは、従来どおり「貸す側の書き忘れ」を疑って検査する）
+    const hasExplicitLentOnly = c.effects.some((e) => (e as { lentOnly?: boolean }).lentOnly === true)
     for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
         // 貸与されるのは**継続効果のエントリだけ**。action を持つ kind（magic / triggered / step /
         // fieldEvent / battleWon / activated）は発動側であって貸与対象ではない。
@@ -119,6 +125,7 @@ function checkLentEffects(
         //  levels を null 以外で書くと仮想発生源は Lv0 なので**無言で一度も発火しない**）
         const lentOnlyEntry = (e as { lentOnly?: boolean }).lentOnly === true
         if (!lentOnlyEntry && (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword")) continue
+        if (!lentOnlyEntry && hasExplicitLentOnly) continue
 
         // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
         // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**

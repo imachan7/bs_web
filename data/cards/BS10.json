@@ -6326,5 +6326,140 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS10-095",
+    "name": "俊星流れるコロッセオ",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2\n相手は、相手のフィールドにあるシンボルと同じ色のマジックカードしか使用できない。\nLv2『自分のアタックステップ』\n相手のスピリット/ブレイヴ/ネクサス/マジックの「BPを+する」効果は発揮されない。",
+    "effects": [
+      {
+        "id": "BS10-095-e1",
+        "kind": "magicRestriction",
+        "restriction": "colorLockOpponent",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS10-095-e2",
+        "kind": "bpBuffSuppression",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own"
+      }
+    ]
+  },
+  {
+    "cardId": "BS10-056",
+    "name": "蒼天大聖モンゴクウ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "トラッシュにあるこのスピリットカードは、[猿人モンゴクウ]として扱う。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。\nLv1･Lv2･Lv3\nお互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない。",
+    "effects": [
+      {
+        "id": "BS10-056-e1",
+        "kind": "trashNameAs",
+        "levels": null,
+        "name": "猿人モンゴクウ"
+      },
+      {
+        "id": "BS10-056-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS10-056-e3",
+        "kind": "levelAs",
+        "levels": null,
+        "lentOnly": true,
+        "target": "ownSpiritsAll",
+        "treatAs": "max"
+      },
+      {
+        "id": "BS10-056-e4",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "voidCoreBlockedOutsideCoreStep"
+        }
+      }
+    ]
   }
 ]

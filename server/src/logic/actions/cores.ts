@@ -39,6 +39,7 @@ import {
     applyTenshoSubstitute,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
+    voidCorePlacementBlocked,
 } from "../EffectModules"
 import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -379,6 +380,10 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
 
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
     const { state, owner, self, sourceName, destroyContext, targetInstanceId } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         const player = state.players[owner]
         // costDestroyOwnSpirit：コストがminCost以上の自分のスピリット1体を破壊することがコスト
         // （BS10-105ライフチャージ）。「〜することで〜する」の任意コストは、破壊できる対象が
@@ -427,6 +432,10 @@ const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
 
 const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         const count = countEffectCounter(state, owner, self, action.counter, srcType)
         if (count === 0) {
             log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
@@ -444,6 +453,10 @@ const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
@@ -459,6 +472,10 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
 const voidCoreToSelfPerHandler: ActionHandler<"voidCoreToSelfPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // カウント値ぶん、ボイドからこのスピリット上にコアを置く
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
@@ -480,6 +497,10 @@ const voidCoreToSelfPerBofuCountHandler: ActionHandler<"voidCoreToSelfPerBofuCou
     const { state, owner, self, sourceName } = ctx
         // 颶風高原：召喚されたスピリット（self＝fieldEventのselfOverride）自身が持つ【暴風】の指定数ぶん、
         // ボイドからそのスピリット上にコアを置く（【暴風】を持たない／selfが無いならno-op）
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
@@ -509,6 +530,10 @@ const voidCoreToOtherHandler: ActionHandler<"voidCoreToOther"> = (ctx, action) =
         // 明記があるカードだけ（excludeSelf。BS01-066スタッグローブ）
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
+            return
+        }
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
             return
         }
         // colorFilter（BS09-020ヤミヤンマ＝白のスピリット）：指定色を持つ自分のスピリットのみ対象。
@@ -889,6 +914,8 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
                     state,
                     `${sourceName}：この効果で${destroyed}体が消滅したため、自分はデッキから${destroyed}枚ドローした。`,
                 )
+            } else if (voidCorePlacementBlocked(state)) {
+                log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
             } else {
                 self.cores += destroyed
                 log(
@@ -1193,6 +1220,10 @@ const linkNexusCoresChoiceHandler: ActionHandler<"linkNexusCoresChoice"> = (ctx,
 
 const voidCoreToAllOwnByFamilyHandler: ActionHandler<"voidCoreToAllOwnByFamily"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         // ボイドからコアcount個ずつを、指定系統いずれかを持つ自分のスピリットすべての上に置く（太陽花ゾンネ・ブルム）
         const candidates = state.players[owner].field.spirits.filter((s) =>
             action.families.some((family) => spiritHasFamily(state, owner, s, family)),
@@ -1213,6 +1244,10 @@ const voidCoreToAllOwnByFamilyHandler: ActionHandler<"voidCoreToAllOwnByFamily">
 
 const voidCoreToOwnNexusesHandler: ActionHandler<"voidCoreToOwnNexuses"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         // ボイドからコアcount個ずつを、指定色（省略時は色不問）の自分のネクサスすべての上に置く（ボルカノ・ゴレム）
         const nexuses = state.players[owner].field.nexuses.filter(
             (n) => action.colorFilter === undefined || instHasColor(n, action.colorFilter),
@@ -1259,6 +1294,10 @@ const voidCoreToOwnNexusesHandler: ActionHandler<"voidCoreToOwnNexuses"> = (ctx,
 
 const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）。
         // familyFilter 指定時はその系統を持つ自分のスピリットだけが対象（BS07デルファングス＝虚神/神将）
         const eligible = state.players[owner].field.spirits.filter(
@@ -1535,6 +1574,10 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
 
 const voidCoreToOwnByKeywordHandler: ActionHandler<"voidCoreToOwnByKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         // 甲殻戦士ロングホーン：ボイドからコアcount個ずつを、指定キーワードを持つ自分のスピリットすべてへ。
         // combinedFilter指定時は合体スピリットに絞る（BS10-087戦場に息づく命Lv2＝自分の合体スピリットすべて）
         const keyword = action.keyword
@@ -1639,6 +1682,10 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
 
 const voidCoresToNexusLevelHandler: ActionHandler<"voidCoresToNexusLevel"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
+        if (voidCorePlacementBlocked(state)) {
+            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+            return
+        }
         // フルアッド：自分のネクサス1つがlevelになるように、不足分のコアをボイドから置く。
         // 対象決定はvoidCoreToOwnNexusesのsingle分岐と同じ優先順（targetInstanceId→
         // interactiveTargets時はrequestChoice→自動時はコア数最少）

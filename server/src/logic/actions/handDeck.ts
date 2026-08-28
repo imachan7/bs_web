@@ -36,7 +36,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isVanillaCard, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -967,9 +967,9 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         const keywordOk = (cardId: string): boolean =>
             action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)
         // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
-        // カード静的な名前（cardId基準）で判定する
+        // カード静的な名前（cardId基準。trashNameAsによる別名も一致する）で判定する
         const nameOk = (cardId: string): boolean =>
-            action.nameIncludes === undefined || getCard(cardId).name.includes(action.nameIncludes)
+            action.nameIncludes === undefined || trashCardNameMatches(cardId, action.nameIncludes)
         // colorFilter（BS09-015獄獣ガシャベルスLv3＝黄）：トラッシュのカードが対象なので
         // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
         const colorOk = (cardId: string): boolean =>

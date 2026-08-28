@@ -1730,6 +1730,17 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
     state.players[ownerPid].trashCores += count
 }
 
+// globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
+// お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない。ライフ・トラッシュへは対象外
+// （voidCoreToOwnTrash / lifeCharge の from:"void" はこれを呼ばない）。
+// ボイドから直接置く各アクション（coreGain系／voidCoreToSelf系／voidCoreToOther系／
+// voidCoreToAllOwnByFamily／voidCoreToOwnNexuses／voidCoreToTarget／voidCoreToOwnByKeyword／
+// voidCoresToNexusLevel／coreDrainAllOthers／destroyのvoidCoreToSelfPerDestroyed）が冒頭で呼ぶ
+export function voidCorePlacementBlocked(state: GameState): boolean {
+    if (state.phase === "core") return false
+    return hasGlobalConstraint(state, "voidCoreBlockedOutsideCoreStep")
+}
+
 // フィールド発生源から全スピリット／全ネクサスに効くグローバル制約（kind: "globalConstraint"）が
 // 現在有効か判定する。両陣営のフィールド（スピリット＋ネクサス）を走査し、
 // レベル条件を満たす該当制約が1つでもあれば true（発生源の持ち主は問わない）。
@@ -2093,6 +2104,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                         if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
+                    }
+                } else if (effect.target === "ownSpiritsAll") {
+                    // 発生源の持ち主のスピリットすべて（修飾なし。BS10-056蒼天大聖モンゴクウ）。
+                    // 都度全消去→再構築（このファイル冒頭のコメント参照）なので、解決より後に召喚された
+                    // スピリットにもこのターン中ずっと自然に効く（levelAs は個体への印ではなく走査のたびに再適用されるため）
+                    for (const spirit of player.field.spirits) {
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
                     // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ

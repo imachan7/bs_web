@@ -1379,6 +1379,16 @@ export function cardNameContains(inst: CardInstance, text: string): boolean {
     return (inst.namesAsContinuous ?? []).includes(text)
 }
 
+// トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
+// kind:"trashNameAs"（トラッシュにある間だけ別名としても扱う。BS10-056蒼天大聖モンゴクウ）を持つカードは
+// その名前でも一致する。トラッシュのカード名を照合する呼び出し側はすべてこれを通すこと
+// （直接 getCard(cardId).name.includes(...) を書くと trashNameAs が無言ですり抜ける）
+export function trashCardNameMatches(cardId: string, needle: string): boolean {
+    const c = card(cardId)
+    if (c.name.includes(needle)) return true
+    return c.effects.some((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+}
+
 // コスト範囲の判定（TargetFilter.cost）。
 // 従来 EffectModules 側にあった matchesCostFilter をここへ移し、matchesTarget から使う
 export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {

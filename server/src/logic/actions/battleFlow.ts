@@ -25,7 +25,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter } from "../../../../shared/rules"
+import { cardHasColor, effectiveBp, hasKeyword, instIsCombined, instMinLevelCores, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
@@ -886,8 +886,8 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
                 if (!wanted.some((f) => candidate.family.includes(f))) return false
             }
             // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
-            // カード静的な名前で判定する
-            if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+            // カード静的な名前（trashNameAsによる別名も一致する）で判定する
+            if (action.nameIncludes !== undefined && !trashCardNameMatches(candidateId, action.nameIncludes)) return false
             // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
             // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
             if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
