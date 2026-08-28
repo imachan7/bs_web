@@ -6,7 +6,8 @@
 //     そのブレイヴが元から持つ効果は残す（BRAVE.md §12.7）
 //   - kind "braveStatsAs"（server/src/logic/EffectModules.ts refreshLevelAsOverrides）：
 //     対象は field.spirits にいる card.type==="brave" の個体のみ（合体中は field.combinedBraves にいるため対象外）。
-//     シンボルは既存の symbolsOverrideContinuous を流用（symbolFixと同じ「元のシンボル1色目でcount個に固定」）
+//     シンボルは既存の symbolsOverrideContinuous を流用。ただし色は**発生源のシンボル色**で固定する
+//     （symbolFix は「対象自身のシンボル1色目」。シンボルの色とカードの色は別の値なので colors から導かない）
 //   - TargetFilter.maxCostAsSelf（server/src/type.ts・server/src/logic/actions/filter.ts）：
 //     sameCostAsSelfの「以下」版。cost:{max: selfのコスト}へ解決する
 //
@@ -55,6 +56,13 @@ console.log("=== braveStatsAs：スピリット状態のブレイヴの能力値
     const lv = instLevels(brave)
     assert(lv.length === 1 && lv[0]!.level === 1 && lv[0]!.bp === 7000, "上書きでLv1 BPが7000になる（元は2000）")
     assert(instanceSymbolCount(brave) === 1, "上書きでシンボルが1個になる（元は0個）")
+    // ⚠️ **シンボルの色とカードの色は別の値**（2026-08-29 ユーザー指摘）。BS10-061 は**赤い**ブレイヴだが、
+    // 与えられるシンボルは発生源 BS10-X06 のシンボル色＝**青**になる。カードのcolorsから
+    // シンボル色を導く実装だとここが赤になって落ちる
+    assert(
+        JSON.stringify(brave.symbolsOverrideContinuous) === JSON.stringify(["blue"]),
+        `与えられるシンボルは発生源のシンボル色（青）。ブレイヴ自身のカード色（赤）ではない（実際: ${JSON.stringify(brave.symbolsOverrideContinuous)}）`,
+    )
 }
 
 console.log("=== braveStatsAs：上書きされたブレイヴが元から持つ効果はそのまま発揮される ===")

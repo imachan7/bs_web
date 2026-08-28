@@ -2043,11 +2043,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             family: effect.family,
                             braveLevels: effect.braveLevels,
                         }
-                        // 色はそのブレイヴ自身の色（symbolFixと違い、symbol[0]は使わない）。
-                        // BS10のブレイヴはコスト帯によって元々symbolが0個のもの（BS10-061等）があり、
-                        // symbol[0]で引くと色が無く上書きされずに終わってしまう。colorsは全ブレイヴが単色で必ず1つ持つため、
-                        // symbolがある個体では symbol[0] === colors[0] で一致する（データ確認済み）
-                        const baseColor = getCard(spirit.cardId).colors[0]
+                        // ⚠️ **シンボルの色とカードの色は別の値**（シンボルの色がカードの色と違う
+                        // スピリットが実在する。2026-08-29 ユーザー指摘）。カードのcolorsからシンボル色を
+                        // 導いてはいけない。ここは**発生源自身のシンボル色**で固定する（2026-08-29 ユーザー確認）。
+                        // テキストが定めているのは「コスト◯/系統◯/シンボル1個/Lv1 BP◯」という1つの型で、
+                        // シンボルの色も発生源が定める（ブレイヴごとに変わるなら一律に書けない）。
+                        // そのため**元々シンボルを持たないブレイヴにも1個与えられる**。
+                        // 別の色のシンボルを定める効果が出てきたら、そのときに色の軸をEffectDefへ足す
+                        const baseColor = getCard(source.cardId).symbol[0]
                         if (!baseColor) continue
                         spirit.symbolsOverrideContinuous = new Array(effect.symbolCount).fill(baseColor)
                     }

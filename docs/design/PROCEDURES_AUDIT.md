@@ -56,6 +56,7 @@ grep -rl "<手順の語>" docs/design/*.md SPEC.md
 | :-- | :-- |
 | アタックステップ（＞０〜＞７）・BP比較・バトル終了 | [TIMING_CHART.md](./TIMING_CHART.md) §1 |
 | **ブロックされなかったアタックはバトルにならない**（『バトル終了時』が発火しない） | TIMING_CHART.md §1.9 |
+| **シンボルの色とカードの色は別の値**（colors からシンボル色を導かない） | SEMANTICS_AUDIT.md §3.16 |
 | **同時発揮の解決順（継続効果→誘発、同種はターンプレイヤーが決める）** | TIMING_CHART.md §0 ／ ⚠️ 実装は §3 のとおり未追随 |
 | 破壊処理（破壊待機→誘発→トラッシュ→コア移動）・相打ちの体ごと解決 | TIMING_CHART.md §2・§3 |
 | 効果文の接続詞（その後／さらに／このとき）の前後関係 | [CONJUNCTION.md](./CONJUNCTION.md) |
