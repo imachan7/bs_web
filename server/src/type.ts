@@ -88,6 +88,7 @@ export interface TargetFilter {
     sameBpAsBattleLoser?: true // 直前のバトルで破壊された側と同じ実効BP（normalizeFilter が state.lastBattleDestroyedBp を exactBp 軸へ解決する。記録が無ければ対象なし。BS03熾烈極める最前線Lv2）
     lowerBpThanBattleLoser?: true // 直前のバトルで破壊された側より実効BPが低い（normalizeFilter が state.lastBattleDestroyedBp-1 を maxBp 軸へ解決する＝厳密な未満。記録が無ければ対象なし。BS10-X04月光龍ストライク・ジークヴルム Lv2：「そのスピリットよりBPの低い」）
     sameCostAsSelf?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝召喚されたスピリット等）と同じコスト。normalizeFilter が cost 軸へ解決する。self がいなければ対象なし（BS09-060緑翼の大樹＝「そのスピリットと同じコストの相手」）
+    maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
     // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
@@ -1455,6 +1456,23 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "braveStatsAs" // 発生源が場にありレベル有効の間、持ち主の**スピリット状態のブレイヴすべて**
+          // （card.type==="brave" かつ field.spirits にいる個体。合体中のブレイヴは field.combinedBraves
+          // にいるため自然に対象外＝BRAVE.md §12.7）のコスト・系統・レベル表（BP）・シンボルを継続的に
+          // 上書きする。**そのブレイヴが元から持つ効果は上書きしない**（効果文がステータスにしか
+          // 触れていないため）。継続（EffectModules.refreshLevelAsOverridesが毎回再計算し
+          // CardInstance.braveStatsAsContinuous / symbolsOverrideContinuous へ反映）。BS10-X06天蠍神騎スコル・スピア
+          levels: number[] | null
+          target: "ownAll"
+          cost: number
+          family: string[]
+          braveLevels: LevelDef[] // 上書き後のレベル表（BP）。ブレイヴのスピリット状態は常にLv1のみ1件（§2.2）
+          symbolCount: number // シンボルを固定する個数。色はそのブレイヴ自身の色（colors[0]）。
+          // symbolFixはsymbol[0]（元々持つシンボルの1色目）を使うが、こちらはそれだと使えない
+          // （BS10のブレイヴはsymbolが0個のものがあるため）。ブレイヴは全カード単色でcolorsを必ず1つ持つ
+      }
+    | {
+          id: string
           kind: "magicBuffBonus" // マジックによるBPバフに追加でBP+する（対象・アタックステップ限定。騎獣スレイプホース）
           levels: number[] | null
           turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効。
@@ -1854,6 +1872,14 @@ export interface CardInstance {
     //   - instEffectsSuppressed が true を返す（＝「ネクサスとしての効果を失い」。effectSources・activeConstraints・
     //     spiritHasKeyword・fireTrigger の4か所が発揮を止める）／instIsVanilla も true（＝「効果の記述なし」）
     // シンボルは上書きしない（効果文が触れていないため、ネクサス本来のシンボルのまま）
+    braveStatsAsContinuous?: { cost: number; family: string[]; braveLevels: LevelDef[] }
+    // 継続的な「スピリット状態のブレイヴのステータスを◯として扱う」上書き（kind:"braveStatsAs"）。
+    // asSpiritThisTurn と同型（cost/family/レベル表を差し替える）だが**別のフィールド**にしてある:
+    // instEffectsSuppressed は asSpiritThisTurn !== undefined を「効果無効」の判定に使っており、
+    // asSpiritThisTurn を流用すると「そのブレイヴが元から持つ効果は残す」という確定事項
+    // （BRAVE.md §12.7）に反してしまう。**instEffectsSuppressed には足さないこと**。
+    // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築する。
+    // shared/rules.ts の instBaseCost / instFamilies / instLevels が asSpiritThisTurn より先にこちらを見る
     noRefreshTargetInstanceId?: string // このスピリットが「回復できない」と指定した**相手**スピリットのinstanceId（action:"markNoRefreshTarget"）。
     // このスピリット自身が疲労状態でフィールドにいる間だけ効く（EffectModules.isRefreshBlockedByMark が判定。スクルディア）。
     // 疲労し直すたびに上書きされる。指定先が場を離れても残るが、instanceId が一致しなくなるだけで無害

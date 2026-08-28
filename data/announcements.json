@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-08-29",
+   "category": "new",
+   "text": "星座編 第一弾「八星龍降臨」のカード121枚を追加しました。自分のスピリットに合体させて強化する新しい種類のカード「ブレイヴ」が使えます"
+  },
+  {
    "date": "2026-08-28",
    "category": "new",
    "text": "ブレイヴを組み込んだデッキ「赤ブレイヴ」を追加しました。合体を試せる構成になっています"

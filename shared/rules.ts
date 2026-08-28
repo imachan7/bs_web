@@ -245,13 +245,19 @@ export function instCostDelta(inst: CardInstance): number {
 // そのうえで instCostDelta の増減を足す（**増減は置き換えであって追加ではない**＝元のコストは残らない。
 // 「コスト+3」したスピリットは、相手の「コスト3以下を破壊」にはもう当たらない。BS08グロウアップ）
 export function instBaseCost(inst: CardInstance): number {
-    return Math.max(0, (inst.asSpiritThisTurn?.cost ?? card(inst.cardId).cost) + instCostDelta(inst))
+    // braveStatsAsContinuous（kind:"braveStatsAs"。BS10-X06）が asSpiritThisTurn より優先。
+    // 両方が同時に載ることは現状ない（ネクサス限定 vs ブレイヴ限定）が、優先順位は明示しておく
+    return Math.max(
+        0,
+        (inst.braveStatsAsContinuous?.cost ?? inst.asSpiritThisTurn?.cost ?? card(inst.cardId).cost) +
+            instCostDelta(inst),
+    )
 }
 
-// このインスタンスの「カード側の系統」。asSpiritThisTurn があればその系統で置き換わる
+// このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
 // （付与効果による系統は含まない。それらは spiritHasFamily が別途見る）
 export function instFamilies(inst: CardInstance): string[] {
-    return inst.asSpiritThisTurn?.family ?? card(inst.cardId).family
+    return inst.braveStatsAsContinuous?.family ?? inst.asSpiritThisTurn?.family ?? card(inst.cardId).family
 }
 
 // インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
@@ -436,10 +442,11 @@ export function matchesBraveCondition(
 export function instLevels(inst: CardInstance): LevelDef[] {
     // 合体中のブレイヴは**合体状態のレベル表**を引く（BRAVE.md §4。Lv1は0コアなので
     // コアを持たなくても Lv1 が成立する）。判定に使うコア数は coresOverride に写した**ホストのコア数**
+    // 合体していないときは braveStatsAsContinuous（kind:"braveStatsAs"。BS10-X06）→ asSpiritThisTurn の順に見る
     const levels =
         inst.braveCombined === true
             ? (card(inst.cardId).braveLevels ?? card(inst.cardId).levels)
-            : (inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
+            : (inst.braveStatsAsContinuous?.braveLevels ?? inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
     // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
     // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
     const bonus = inst.levelCostBonusContinuous ?? 0

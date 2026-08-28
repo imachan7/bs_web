@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, maxCostAsSelf, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -103,6 +103,14 @@ export function normalizeFilter(
         if (!ctx.self) return SELF_REQUIRED
         const cost = getCard(ctx.self.cardId).cost
         resolved.cost = { min: cost, max: cost }
+    }
+
+    // self と同じかそれ以下のコスト（sameCostAsSelfの以下版。BS10-X06天蠍神騎スコル・スピア＝
+    // 「このスピリットのコスト以下の相手」）
+    if (maxCostAsSelf) {
+        if (!ctx.self) return SELF_REQUIRED
+        const cost = getCard(ctx.self.cardId).cost
+        resolved.cost = { max: cost }
     }
 
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる

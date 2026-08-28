@@ -18,93 +18,30 @@
 
 ## 1. いまの本線と次の一手
 
-**BS10（十二神皇編 第1章）の投入。→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)**
+**BS10（星座編 第一弾「八星龍降臨」）の投入は 121 / 121枚で完了（2026-08-29）。**
+→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)
 
-- **120 / 121枚 投入済み。残るは BS10-X06 の1枚だけ**（下の段B）
-- **黄・青の解釈はすべて確認済み**（SEMANTICS_AUDIT §3.12〜3.15 / TIMING_CHART / COST_MODEL へ転記済み。
-  聞き直さないこと）
-- 色1バッチごとに検証定型を通してコミットする（CLAUDE.md「コミット規律」）
-- **PR #48 で main へ出してある**（黄17枚・青17枚・ブレイヴUI・ネクサス配置時の修正）
+- **PR #48 で main へ出してある**（黄17枚・青17枚・保留分5枚・ブレイヴUI・ネクサス配置時の修正）。
+  **まだマージされていない**ので、次のセッションはまずここを見ること
+- この弾で確定した規則は手順書へ転記済み（[BRAVE.md](./docs/design/BRAVE.md) §12 /
+  [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.9 /
+  [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.12〜3.15）
 
-### 保留分5枚の設計（2026-08-28 確定。実装より先に書いた）
+### 次の候補（本線が空いたので、着手前に方針を確認すること）
 
-**解釈はすべて確認済み**（[BRAVE.md](./docs/design/BRAVE.md) §12.5〜12.7 に転記済み。聞き直さないこと）。
-**2段に分ける。段Aの4枚は同じ器を共有するのでまとめて実装する。**
+| 候補 | 中身 |
+| :-- | :-- |
+| ブレイヴの段階5・7 | 分離のコア支払いUI（[BRAVE.md](./docs/design/BRAVE.md) §6.3。`PayingState` の3つ目の起点が要る）と合体表示。**§2 の「破壊待機の手順3」もここ** |
+| 未決の解釈 | §2 の4件（PROCEDURES_AUDIT §5 の Q2/Q3/Q4/Q6） |
+| 範囲コア奪取の残り穴 | ネクサス上のコアとコア入れ替え系が共通ヘルパーを通っていない（[SPEC.md](./SPEC.md) §5「未着手の課題」。実害小） |
+| 次の弾の取り込み | `scripts/fetch_wiki_cards.py` で staging へ |
 
-#### 段A：027 / 029 / 086 / X005R ※**完了（2026-08-28）**。段Bの着手時に消してよい
+⚠️ **テストの書き方で2026-08-28〜29 に2回踏んだこと**（次も踏むので先に読む）:
 
-足した器: `attachBrave` / `detachBraveByEffect`（`removal.ts`。合体処理の重複2箇所を統合）/
-アクション `detachBrave` / `summonFromHandFree.repeatWhileChosen`・`thenDraw` /
-`AuraDef.braveOnly` / fieldEvent `ownCombinedSpiritBattleEnded` /
-`exhaust.countCounter` ＋ `EffectCounter "ownCombinedSpirits"`。テストは `scripts/smoke/part263.ts`。
-
-⚠️ **テストの穴を2つ塞いだ**（統合時に発見）。どちらも「実装を壊してもテストが落ちない」形だった:
-`fireFieldEventTriggers` の直呼びだけでは**実戦の発火経路を検査できない**（実アタック経由を1本足した）／
-「1体につき」は**対象が1体だけだと `count:1` と区別できない**（2体にして初めて検査になる）。
-
-以下は着手前に書いた設計（記録として残す）:
-
-
-| 器 | 中身 | 使うカード |
-| :-- | :-- | :-- |
-| `attachBrave(state, pid, host, brave)` | **合体処理の共通入口**（`field.combinedBraves` へ入れ、`braveRefs` を張り、疲労を合成し、`refreshLevelAsOverrides`）。⚠️ 同じ処理が `GameEngine.ts:400` と `EffectModules.ts:2496` に**すでに2回書かれている**。効果による再合体で3回目になるので、**先に1本へ寄せてから足す** | 027 |
-| `detachBraveByEffect(state, pid, host, brave)` | **効果による分離。コアは要らない**（§12.5。「場を離れるときに残す」＝`detachBravesOnLeave` とは別の手順）。疲労状態はホストから写す | 027 / 086 |
-| アクション `detachBrave` | `{ combineToChosenSpirit?: true; thenRefreshHost?: true }`。前者が 027（分離して別のスピリットへ合体）、後者が 086 Lv2（分離することでホストを回復） | 027 / 086 |
-| `summonFromHandFree.repeatWhileChosen` | 「好きなだけ」。**1枚ずつ合体先を選ばせて繰り返す**（§12.6）。既存の `count` は自動選択のみなので**使わない** | 029 |
-| `summonFromHandFree.thenDraw` | 「この効果でブレイヴが召喚されたとき、1枚ドロー」。**実際に召喚できたときだけ**引く | X005R |
-| fieldEvent `ownCombinedSpiritBattleEnded` | 「自分の合体スピリットがバトルしたとき、バトル終了時」。ネクサスから見るので `trigger:"onBattleEnd"`（バトル参加者に発火）では届かない | 086 Lv2 |
-
-- **027 の『アタック時』バトル終了時**は `trigger:"onBattleEnd"` でよい（BS07-025 草林の長老ブチ・エナジが同型）
-- 【合体時】ゲート `whileCombined` は**実装済み**（§12.3）。029 Lv2･Lv3 と X005R Lv3 の2節目はそれを添えるだけ
-- 086 Lv1 の「スピリット状態のブレイヴすべてを BP+2000」は既存の `kind:"aura"` に
-  **スピリット状態のブレイヴだけを指す対象軸**が要る
-
-#### 段B：X06（能力値の上書き）
-
-- 1節：スピリット状態のブレイヴすべてを“コスト5/系統：光導・異合/シンボル1/Lv1 BP7000”として扱う。
-  **能力値だけ上書きし、元の効果は残す**（§12.7）。`kind:"levelAs"` の親戚だがレベル置換では届かない
-- 2節：系統「光導」「星魂」を持つ自分のスピリットへ『アタック時』効果を与える。
-  既存 `effectGrant` で書けるか要確認。**「合体していないスピリット」という対象フィルタが新規**
-
-⚠️ **ブランチが2本に分かれている。** 黄の作業は `worktree-bs10-yellow`（12枚まで）と、
-そこから派生した `worktree-bs10-yellow-2b`（残り5枚＝011f980・ad3284c）にある。
-**先に進んでいるのは 2b のほう。** 分けたのは、元のワークツリーが別セッションにロックされていて
-入れなかったため。青に着手する前に 2b を親ブランチへ早送りして1本に戻すこと。
-
-### 黄17枚の設計（2026-08-27 確定。ブランチ `worktree-bs10-yellow`）※完了。青の着手時に消してよい
-
-**17枚すべて投入済み。BS10 は 100 / 121枚。**
-
-足した器: `AuraCounter.ownHand` / `discardBothHands.all` / `returnToDeckBottom` /
-`lifeImmuneThisTurn`（＋`TurnConstraintDef.lifeImmuneForPid`）/ `immuneToOpponentEffects.against` /
-`constraintGrant` の `costFilter`・`turn`・`combinedFilter` /
-`trashSymbolReduction`（トラッシュのシンボルでも軽減。092・X05）/ `millUntilMagicCastFree` /
-`battleCompareByCost` / `reviveOnDestroy.cost.handDiscardCardType` / `requirePrevAttackerCombined`
-（＋`GameState.lastAttackerCombinedPid`・`prevAttackerCombinedPid`）。
-
-⚠️ **2a で `hasFullEffectImmunity` の既存の不具合を直した**（e413bd5）。`constraintGrant` で
-**範囲付与された効果免疫が効いていなかった**（自前の `kind:"constraint"` しか見ていなかった）。
-署名に board/pid が増えているので、この関数を呼ぶコードを書くときは注意。
-
-**効果テキストが空の3枚（044/045/048）はバニラで正しい。** BS10 は各色3枚ずつ計18枚のバニラを持ち、
-BS10-091 シャボンの湖畔が参照する「効果の記述を持たない」軸のために要る。
-
-**042 カラドリアスの1節目は【光芒】のキーワード宣言1件だけでよい。**
-ただし **047 ルージュの【聖命】は宣言だけでは何も起きない**（誤ってそう指示して訂正された）。
-理由と見分け方は `server/src/type.ts` の Keyword 定義の下のコメントに書いた。
-
-**解釈は4点ともユーザー確認済みで、手順書へ転記済み**（734deac。TIMING_CHART §1.5/§2・COST_MODEL §6）。
-
-#### 黄で分かった、次の色でも効くこと
-
-- **「新機構が要る」と見積もった7つのうち、実際に新規だったのは3つだけだった。**
-  設計の前に `grep` で既存の器を1回探すと、`compareByCores` の隣・`castMagicFromTrashByColor` のように
-  **そのまま使える点**が見つかる。青の設計でも、器を洗ってから枚数を見積もること
-- **委譲プロンプトの誤指示が計4件あり、いずれもサブエージェント側が既存実装を見て訂正した**（正しかった）。
-  誤りはすべて「既存の器の意味を、実装を読まずに推測した」ことが原因。
-  ピン留めするなら**行番号まで実際に開いて確認してから**書く
-
----
+- **`fireTrigger` / `fireFieldEventTriggers` の直呼びだけでは、実戦の発火経路を検査できない。**
+  「データは正しいのにエンジンが呼んでいない」は型検査でも smoke でも捕まらない
+  （ネクサスの『配置時』と BS10-086 で実際に起きた）。**実アクション経由のケースを1本入れること**
+- **「1体につき」は、対象が1体だけだと `count:1` と区別できない。** 2体にして初めて検査になる
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 

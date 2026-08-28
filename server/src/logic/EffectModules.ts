@@ -1809,6 +1809,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
+            delete inst.braveStatsAsContinuous
             // 合体中のブレイヴ側の目印。coresOverride は**ここでしか使っていない**ときだけ消す
             // （クロスシザースのネクサスコア数リンクは field.nexuses に載るので混ざらない）
             if (inst.braveCombined === true) {
@@ -2025,6 +2026,30 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         const baseColor = getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue
                         spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)
+                    }
+                    continue
+                }
+                if (effect.kind === "braveStatsAs") {
+                    // 「自分のスピリット状態のブレイヴすべてを"コスト◯/系統：◯/Lv1 BP◯"の
+                    // スピリット状態のブレイヴとして扱う」（継続。BS10-X06天蠍神騎スコル・スピア）。
+                    // 対象は field.spirits にいる card.type==="brave" の個体のみ（合体中のブレイヴは
+                    // field.combinedBraves にいるため自然に対象外＝BRAVE.md §12.7）。
+                    // ステータスだけを上書きし、そのブレイヴが元から持つ効果は残す（effectsDisabledContinuousは立てない）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (getCard(spirit.cardId).type !== "brave") continue
+                        spirit.braveStatsAsContinuous = {
+                            cost: effect.cost,
+                            family: effect.family,
+                            braveLevels: effect.braveLevels,
+                        }
+                        // 色はそのブレイヴ自身の色（symbolFixと違い、symbol[0]は使わない）。
+                        // BS10のブレイヴはコスト帯によって元々symbolが0個のもの（BS10-061等）があり、
+                        // symbol[0]で引くと色が無く上書きされずに終わってしまう。colorsは全ブレイヴが単色で必ず1つ持つため、
+                        // symbolがある個体では symbol[0] === colors[0] で一致する（データ確認済み）
+                        const baseColor = getCard(spirit.cardId).colors[0]
+                        if (!baseColor) continue
+                        spirit.symbolsOverrideContinuous = new Array(effect.symbolCount).fill(baseColor)
                     }
                     continue
                 }
