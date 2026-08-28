@@ -65,6 +65,7 @@ import {
     fireTrigger,
     notifyHandGained,
     notifyNexusDeployed,
+    fireNexusDeployed,
     notifySpiritCoresRemovedByOpponent,
     resolveMagicEffects,
 } from "./triggers"
@@ -862,7 +863,7 @@ function resolveMilledFromDeck(
                 const inst = createInstance(cardId, state.turn, 0)
                 player.field.nexuses.push(inst)
                 log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに配置された。`)
-                notifyNexusDeployed(state, pid)
+                fireNexusDeployed(state, pid, inst)
             } else {
                 log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに発揮された。`)
                 // 破棄されたマジックは「使用」ではなく効果だけが発揮される。トラッシュへは既に入れてあるので、
@@ -3188,6 +3189,7 @@ export {
     fireFieldEventTriggers,
     notifyHandGained,
     notifyNexusDeployed,
+    fireNexusDeployed,
     applyBothSidesRedirectToCandidates,
     bothSidesPids,
     bothSidesRedirectKeepPid,

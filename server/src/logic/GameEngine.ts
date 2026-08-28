@@ -52,7 +52,6 @@ import {
     fireExhaustedTriggers,
     fireSummonSequence,
     flushPendingTenshoEvent,
-    fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
@@ -69,7 +68,7 @@ import {
     instanceSymbolCount,
     instColors,
     millDeck,
-    notifyNexusDeployed,
+    fireNexusDeployed,
     payCost,
     refreshLevelAsOverrides,
     sweepLevelCostDepletion,
@@ -566,14 +565,13 @@ function doSetNexus(
     player.field.nexuses.push(nexusInst)
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
-    // 『このネクサスの配置時』（kind:"triggered" trigger:"onSummon"）を発火する。
+    // 『このネクサスの配置時』と「自分のネクサスが配置されたとき」を発火する（triggers.ts）。
     // ⚠️ 2026-08-28 発覚：以前はここでonSummonを発火しておらず、BS09-066目覚める要塞城の
     // 『配置時』効果が実戦で一度も発揮されないバグがあった（BS10-096最後の優勝旗の実装中に発見。
     // データはtrigger:"onSummon"で書かれているのに、doSetNexusがfireSummonTriggerを呼んでいなかった）。
-    // スピリットのplaceSummonedSpiritと同じくfireSummonTriggerだけを呼ぶ（fireSummonSequenceの
-    // ownSpiritSummonedフィールドイベントはfield.spiritsだけが対象で、ネクサスには意図的に効かないため）
-    fireSummonTrigger(state, pid, nexusInst)
-    notifyNexusDeployed(state, pid)
+    // fireSummonSequenceのownSpiritSummonedフィールドイベントはfield.spiritsだけが対象で、
+    // ネクサスには意図的に効かないため、スピリットのplaceSummonedSpiritとは別の経路になっている
+    fireNexusDeployed(state, pid, nexusInst)
     return null
 }
 

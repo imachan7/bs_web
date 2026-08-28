@@ -102,6 +102,10 @@ console.log("=== BS09-065 名工集いし大工房 Lv2：フィールドのコ�
     s.players.p1.trashCards.push("BS09-066")
     // フィールドにコストぶんのコアを用意する（スピリット上に余分に載せる）
     const holder = put(s, "p1", "BS09-051", 10)
+    // 2026-08-28 以降、配置された BS09-066 自身の『配置時』（手札の青スピリットを無償召喚）も発揮される。
+    // ここで見たいのは「配置コストがフィールドのコアで払われる」ことだけなので、手札を空にして分離する
+    // （召喚されたスピリットに乗るコアはリザーブから出るため、混ざるとリザーブの検査が意味を失う）
+    s.players.p1.hand = []
     const reserveBefore = s.players.p1.reserve
     const nexusesBefore = s.players.p1.field.nexuses.length
     fireStepTriggers(s, "end")

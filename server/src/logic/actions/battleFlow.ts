@@ -15,7 +15,7 @@ import {
     fireSummonSequence,
     fireSummonTrigger,
     fireTrigger,
-    notifyNexusDeployed,
+    fireNexusDeployed,
     pickEnemyCandidates,
     requestCardChoice,
     requestChoice,
@@ -393,12 +393,13 @@ const deployNexusFromTrashByFieldCoresHandler: ActionHandler<"deployNexusFromTra
         }
         player.trashCards.splice(idx, 1)
         const maintain = minLevelCores(getCard(cardId))
-        player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
+        const inst = createInstance(cardId, state.turn, maintain)
+        player.field.nexuses.push(inst)
         log(
             state,
             `${player.name}はフィールドのコア${String(cost)}個を支払い、トラッシュから${getCard(cardId).name}を配置した。`,
         )
-        notifyNexusDeployed(state, owner)
+        fireNexusDeployed(state, owner, inst)
     }
     if (chosenCardIndex !== undefined) {
         deploy(chosenCardIndex)
@@ -448,7 +449,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 state,
                 `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
             )
-            notifyNexusDeployed(state, owner)
+            fireNexusDeployed(state, owner, inst)
         }
         if (action.all) {
             // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
@@ -525,7 +526,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             state,
             `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
         )
-        notifyNexusDeployed(state, owner)
+        fireNexusDeployed(state, owner, inst)
         return
 }
 

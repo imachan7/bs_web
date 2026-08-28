@@ -311,8 +311,24 @@ BS10-095 俊星流れるコロッセオLv2 で確認した。
 `fireSummonSequence` ではなく `fireSummonTrigger` だけを呼ぶこと。前者が出す
 `ownSpiritSummoned` のフィールドイベントは `field.spirits` だけが対象で、ネクサスには効かない。
 
-⚠️ **未決**：効果によるネクサス配置（トラッシュから配置する等、`field.nexuses.push` の残り6経路）で
-『配置時』を発揮させるかは**まだ決めていない**。現状は通常配置（`doSetNexus`）だけが発火する。
+**効果による配置でも『配置時』を発揮させる**（2026-08-28 ユーザー判断）。配置であることに変わりがないため。
+経路ごとに2行書くと同じ呼び忘れが再発するので、**配置はすべて `triggers.ts` の `fireNexusDeployed`
+1本を通す**（自身の『配置時』＋他カードの「自分のネクサスが配置されたとき」をまとめて呼ぶ）。
+通す経路は次の4つ:
+
+| 経路 | 場所 |
+| :-- | :-- |
+| 手札からの通常配置 | `GameEngine.doSetNexus` |
+| トラッシュからフィールドのコアで配置 | `deployNexusFromTrashByFieldCores` |
+| 手札／トラッシュからコストなしで配置 | `deployNexus`（自動選択・対話の両分岐） |
+| デッキ破棄されたネクサスの配置 | `deployThisNexusFree`（EffectModules） |
+
+**通さない**のは次の2つ。どちらも「配置」ではない:
+`destroy.ts` の破壊されたネクサスの復活と、`PhaseManager` のスピリット化していたネクサスが元に戻る処理
+（この2つは他カード向けの `notifyNexusDeployed` だけを呼ぶ）。
+
+再発防止は `scripts/smoke/part262.ts`（実カードで踏める2経路を実際に通す。`deployThisNexusFree` を
+持つ唯一のカード BS08-064 は『配置時』を持たないため、そこは呼び出しの共有で担保）。
 
 ## 4. 次にやること
 

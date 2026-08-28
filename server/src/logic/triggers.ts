@@ -1193,6 +1193,19 @@ export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void 
     fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
 }
 
+// ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
+//   ・fireSummonTrigger    … 置かれたネクサス自身の『このネクサスの配置時』（trigger:"onSummon"）
+//   ・notifyNexusDeployed  … 他カードの「自分のフィールドにネクサスが配置されたとき」
+// ⚠️ 2026-08-28 まで、前者を呼んでいたのは手札からの通常配置だけで、効果による配置
+// （トラッシュから／コストを支払わずに／デッキ破棄から）では自身の『配置時』が黙って消えていた。
+// 経路ごとに2行書くと同じ呼び忘れが再発するので、配置の経路はすべてこの1本を通す。
+// **破壊されたネクサスの復活（destroy.ts）とスピリット化の解除（PhaseManager）は「配置」ではない**ので、
+// ここは通さず notifyNexusDeployed だけを呼ぶ（2026-08-28 ユーザー判断）
+export function fireNexusDeployed(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+    fireSummonTrigger(state, ownerPid, inst)
+    notifyNexusDeployed(state, ownerPid)
+}
+
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
 // 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
 // bothSidesCoreToVoid / exhaustAll side:"both" / returnAllToHand side:"both" / nexusCoresToTrash side:"both" /
