@@ -1592,12 +1592,22 @@ export function hasFullEffectImmunity(
     inst: CardInstance,
     srcType: CardType | undefined,
 ): boolean {
-    if (srcType !== "spirit" && srcType !== "magic") return false
+    // ⚠️ against 省略時の既定は「スピリット/マジックの効果」。against:"all" はネクサス/ブレイヴも含むので、
+    //    ここで早期 return するとその分が届かなくなる（BS11-027海戦機ニヨルド）
+    if (srcType === undefined) return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
     // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
-    return activeConstraints(board, pid, inst).some(
-        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || c.against === srcType),
-    )
+    return activeConstraints(board, pid, inst).some((c) => {
+        if (c.type !== "immuneToOpponentEffects") return false
+        // 「自分のフィールドにネクサスが1つだけある間」（BS11-027）
+        if (c.condition !== undefined && board.players[pid].field.nexuses.length !== c.condition.ownNexusExactly) {
+            return false
+        }
+        if (c.against === "all") return true
+        if (c.against !== undefined) return c.against === srcType
+        // 省略時は従来どおりスピリット/マジックの効果のみ
+        return srcType === "spirit" || srcType === "magic"
+    })
 }
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 // （【呪撃】を装甲で防ぐ判定と、reviveOnDestroy の byBattleVsArmorColor＝「装甲の色の相手に
@@ -1760,6 +1770,19 @@ export function lifeDamageLimit(
     // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（lifeCrushアクションも別途これを見る）
     if (lifeImmuneThisTurn(board, defenderPid)) {
         return { max: 0, reason: "このターンはライフが減らない" }
+    }
+    // BS11-080デルタバリア：ライフは**0にならない**（減りはするが1で止まる）。
+    // 対象は attackMinCost 以上のコストのアタッカー（省略時はすべて）
+    const floor = board.turnConstraints.find(
+        (c) =>
+            c.type === "lifeFloorOneForPid" &&
+            c.pid === defenderPid &&
+            (c.attackMinCost === undefined || instBaseCost(attacker) >= c.attackMinCost),
+    )
+    if (floor !== undefined) {
+        const room = Math.max(0, board.players[defenderPid].life - 1)
+        if (room === 0) return { max: 0, reason: "この効果でライフは0にならない" }
+        return { max: room, reason: "この効果でライフは0にならない" }
     }
     // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
     if (noLifeDamageByCost(board, attacker)) {
@@ -2112,6 +2135,11 @@ export function activatableAbility(
         if ("exhaustSelf" in e.cost) {
             if (inst.isRested) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
+        }
+        if ("selfCoresToTrash" in e.cost) {
+            // 発生源自身の上のコアで払う（BS11-067 白き楯の長城Lv2＝このネクサスのコア3個）
+            if (inst.cores < e.cost.selfCoresToTrash) continue
+            return { effectId: e.id, costLabel: `このカードのコア${e.cost.selfCoresToTrash}個を払って効果を発動` }
         }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }

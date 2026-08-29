@@ -314,6 +314,15 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：${state.players[opp].name}はこのターンライフが減らないため発動しなかった。`)
             return
         }
+        // BS11-080デルタバリア：相手のスピリット/マジックの効果ではライフが0にならない（1で止まる）。
+        // ネクサスの効果は対象外なので srcType で絞る
+        const lifeFloor =
+            (srcType === "spirit" || srcType === "brave" || srcType === "magic") &&
+            state.turnConstraints.some((c) => c.type === "lifeFloorOneForPid" && c.pid === opp)
+        if (lifeFloor && state.players[opp].life <= 1) {
+            log(state, `${sourceName}：${state.players[opp].name}のライフは0にならないため減らせなかった。`)
+            return
+        }
         // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
         // 足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」の任意コストは
         // 自動発動で簡略化。levelOverrideOpponentNexuses.costReserveToVoidと同じ方針）
@@ -1209,6 +1218,43 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // BS11-078 ブレイヴフラッシュ：自分の**スピリット状態のブレイヴ**1体を、自分のスピリット1体に合体させる。
 // 合体条件は通常どおり判定し、成立する組み合わせが1つも無ければ不発。
 // interactiveTargets 時はブレイヴ→合体先の順に選ばせ、非対話は最初に成立する組み合わせに倒す
+// BS11-030 ドルフィング：「相手の合体スピリット1体を指定できる。このターンの間、
+// 指定された合体スピリットはアタックできない」。非対話は実効BP最大を選ぶ決定的簡略化
+const markCantAttackThisTurnHandler: ActionHandler<"markCantAttackThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const player = state.players[opp]
+    const candidates = player.field.spirits.filter((sp) => !action.combinedOnly || instIsCombined(sp))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (targetInstanceId !== undefined) {
+        const inst = candidates.find((sp) => sp.instanceId === targetInstanceId)
+        if (!inst) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        inst.cantAttackThisTurn = true
+        log(state, `${sourceName}：${getCard(inst.cardId).name}はこのターンアタックできない。`)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：このターンアタックできなくする相手のスピリットを選んでください`,
+            candidates.map((sp) => sp.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const target = [...candidates].sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a))[0]!
+    target.cantAttackThisTurn = true
+    log(state, `${sourceName}：${getCard(target.cardId).name}はこのターンアタックできない。`)
+}
+
 const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const player = state.players[owner]
@@ -1589,6 +1635,7 @@ const handlers = {
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
     combineOwnBrave: combineOwnBraveHandler,
+    markCantAttackThisTurn: markCantAttackThisTurnHandler,
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     detachBrave: detachBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,

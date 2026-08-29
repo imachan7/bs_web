@@ -731,6 +731,9 @@ export function validateActivateAbility(
     if (effect.cost !== undefined) {
         if ("exhaustSelf" in effect.cost) {
             if (inst.isRested) return "すでに疲労しています"
+        } else if ("selfCoresToTrash" in effect.cost) {
+            // 発生源自身の上のコアで払う（BS11-067 白き楯の長城Lv2）
+            if (inst.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }

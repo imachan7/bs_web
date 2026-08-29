@@ -574,6 +574,18 @@ const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ct
 
 // このターンの間、持ち主のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない
 // （capLifeDamageThisTurnのmax:0はアタック限定なので届かない。BS10-093時刻む花時計）
+// BS11-080 デルタバリア：このターンの間、発生源の持ち主のライフは**0にならない**（1で止まる）。
+// 「減らない」（lifeImmuneThisTurn）とは別物で、減りはする
+const lifeFloorOneThisTurnHandler: ActionHandler<"lifeFloorOneThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({
+        type: "lifeFloorOneForPid",
+        pid: owner,
+        ...(action.attackMinCost !== undefined ? { attackMinCost: action.attackMinCost } : {}),
+    })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは0にならない。`)
+}
+
 const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => {
     const { state, owner, sourceName } = ctx
     state.turnConstraints.push({ type: "lifeImmuneForPid", pid: owner })
@@ -972,6 +984,7 @@ const handlers = {
     banActByCostThisTurn: banActByCostThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
+    lifeFloorOneThisTurn: lifeFloorOneThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     disableOpponentArmorThisTurn: disableOpponentArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,

@@ -36,7 +36,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, currentLevel, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, currentLevel, instBaseCost, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -1789,6 +1789,15 @@ const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
 }
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
+    // oncePerTurn（BS11-032 天王神獣スレイ・ウラノス「この効果はターンに1回しか使えない」）。
+    // **発生源1体につき**ターン1回（同名が2体いればそれぞれ1回）。activated.oncePerTurn と同じ考え方
+    if (action.oncePerTurn && ctx.self) {
+        if (ctx.self.returnToHandUsedTurn === ctx.state.turn) {
+            log(ctx.state, `${ctx.sourceName}：この効果はこのターン既に使っている。`)
+            return
+        }
+        ctx.self.returnToHandUsedTurn = ctx.state.turn
+    }
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
         // （BS06レインディア：ブロックしたスピリットが系統「空牙」のときのみ手札に戻す）
@@ -1832,6 +1841,13 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             player.trashCores += action.costReserveToTrash
             log(state, `${player.name}はリザーブのコア${action.costReserveToTrash}個をトラッシュに置いた。`)
         }
+        // thenRefreshOwnIfMaxCost（BS11-032）：**この効果で実際に戻したスピリット**のコストが
+        // maxCost 以下だったときだけ、指定系統を持つ自分のスピリット1体を回復させる
+        const applyThenRefreshOwnIfMaxCost = (returnedCost: number): void => {
+            const spec = action.thenRefreshOwnIfMaxCost
+            if (spec === undefined || returnedCost > spec.maxCost) return
+            ctx.resolve({ type: "refreshOne", filter: { family: spec.familyFilter }, count: 1 })
+        }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -1851,7 +1867,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
+            const returnedCost = instBaseCost(found.inst)
             returnSpiritToHand(state, found.pid, found.inst, sourceName)
+            applyThenRefreshOwnIfMaxCost(returnedCost)
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -1967,7 +1985,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
             }
+            const returnedCost = instBaseCost(target)
             returnSpiritToHand(state, opp, target, sourceName)
+            applyThenRefreshOwnIfMaxCost(returnedCost)
         }
         return
 }

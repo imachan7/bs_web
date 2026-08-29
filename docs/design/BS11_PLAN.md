@@ -1,7 +1,7 @@
 # BS11「星座編 第二弾：灼熱の太陽」の取り込み計画
 
 - 取り込み: 2026-08-29（`data/staging/BS11.json`。91枚）
-- 進捗: **46 / 91枚**（赤16枚・紫15枚・緑15枚 完了 2026-08-29）
+- 進捗: **61 / 91枚**（赤16枚・紫15枚・緑15枚・白15枚 完了 2026-08-29）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色なし。各色15枚前後）
 - 関連: [BRAVE.md](./BRAVE.md)（ブレイヴのエンジンは段階4まで実装済み。**段階5＝分離が未了**）
 
@@ -144,6 +144,31 @@ BS11-016 邪眼皇ゼナス「相手の合体スピリット**すべてのブレ
 
 ⚠️ **`opponentDrew` / `anyNexusDestroyed` は `triggered` の trigger ではなく `fieldEvent` の event。**
 `TriggerEvent` にも同名があるので取り違えやすい（`validate:cards` が「未知の trigger」で弾いてくれる）。
+
+## 2.7 済：白15枚（2026-08-29）
+
+`scripts/smoke/part272.ts`。足した器:
+
+| 器 | 用途 |
+| :-- | :-- |
+| `immuneToOpponentEffects` の `against:"all"` / `"brave"` と `condition { ownNexusExactly }` | 「スピリット/ブレイヴ/ネクサス/マジックの効果を受けない」（027）／「相手のブレイヴの効果を受けない」（055） |
+| `action:"markCantAttackThisTurn"`（`combinedOnly`） | 「指定された合体スピリットはアタックできない」（030） |
+| `action:"returnOneAmong"` | 「スピリット/ブレイヴ/ネクサス、どれか1つを手札に戻す」（056）。`destroyOneAmong` の兄弟 |
+| `activated.cost { selfCoresToTrash }` | 「このネクサスのコア3個をトラッシュに置くことで」（067 Lv2） |
+| `returnToHand` の `oncePerTurn` / `thenRefreshOwnIfMaxCost` | 「ターンに1回」「コスト4以下を戻したとき回復させる」（032） |
+| `refreshAllOwn.exemptCombined` | 「合体スピリット以外はアタックできない」（079） |
+| `action:"lifeFloorOneThisTurn"` ＋ `lifeFloorOneForPid` | 「自分のライフは0にならない」（080）。**減らない**（`lifeImmuneThisTurn`）とは別物 |
+| `globalConstraint` の `nonCombinedRefreshLimit` / `nexusesCantRefresh`、`constraint:"opponentCombinedCantRefresh"` | リフレッシュステップの制約3種（X04） |
+
+⚠️ **`hasFullEffectImmunity` は srcType が spirit/magic 以外だと早期 return していた。**
+`against:"all"`（027）を足すときに外した。既定（`against` 省略）の挙動は変えていない。
+
+⚠️ **`returnToHand` の追撃（`thenRefreshOwnIfMaxCost`）は、対象指定の経路と自動選択の経路の
+**両方**に入れること。片方だけだと非対話で無言に落ちる（2026-08-29 に実際に踏んだ）。
+
+⚠️ `fieldEvent` には `subjectCombined` / `subjectSide` / `maxCostAsSelf`（filter）が既にあり、
+068 の「合体していない相手のスピリットがアタックしたとき」「そのスピリットのコスト以下」は
+**新しい軸を足さずに書けた**。似た効果を足す前に既存の軸を見ること。
 
 ## 3. 進め方
 

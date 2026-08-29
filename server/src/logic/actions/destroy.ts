@@ -10,6 +10,7 @@ import {
     countEffectCounter,
     destroyCombinedBrave,
     destroyNexus,
+    returnSpiritToHand,
     destroySpirit,
     destroySpiritsFrom,
     destroyTargetsBatch,
@@ -935,6 +936,128 @@ const costDestroyOwnThenOpponentDestroysToCostHandler: ActionHandler<"costDestro
     void srcType
 }
 
+// BS11-056 極星剣機ポーラ・キャリバー：「相手のスピリット/ブレイヴ/ネクサス、どれか1つを手札に戻す」。
+// destroyOneAmong の兄弟で、**合体中のブレイヴも単独で選べる**（BRAVE.md §12.8）。
+// 合体中のブレイヴは field.spirits に居ないので kind:"option"（カード名＋種別のラベル）で選ばせる
+const returnOneAmongHandler: ActionHandler<"returnOneAmong"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, chosenOption } = ctx
+    const player = state.players[opp]
+    type Cand = { label: string; kind: "spirit" | "brave" | "nexus"; instanceId: string; hostInstanceId?: string }
+    const seen = new Map<string, number>()
+    const labelFor = (name: string, suffix: string): string => {
+        const b = `${name}${suffix}`
+        const n = (seen.get(b) ?? 0) + 1
+        seen.set(b, n)
+        return n === 1 ? b : `${b}（${n}体目）`
+    }
+    const candidates: Cand[] = []
+    for (const kind of action.types) {
+        if (kind === "spirit") {
+            for (const sp of player.field.spirits) {
+                if (getCard(sp.cardId).type === "brave") continue
+                if (isResisted(state, opp, sp, attemptOf(ctx, "bounce", "targeted"))) continue
+                candidates.push({ label: labelFor(getCard(sp.cardId).name, ""), kind, instanceId: sp.instanceId })
+            }
+        } else if (kind === "brave") {
+            for (const sp of player.field.spirits) {
+                if (getCard(sp.cardId).type !== "brave") continue
+                if (isResisted(state, opp, sp, attemptOf(ctx, "bounce", "targeted"))) continue
+                candidates.push({ label: labelFor(getCard(sp.cardId).name, "（ブレイヴ）"), kind, instanceId: sp.instanceId })
+            }
+            for (const host of player.field.spirits) {
+                for (const brave of bravesOf(player, host)) {
+                    candidates.push({
+                        label: labelFor(getCard(brave.cardId).name, "（合体中のブレイヴ）"),
+                        kind,
+                        instanceId: brave.instanceId,
+                        hostInstanceId: host.instanceId,
+                    })
+                }
+            }
+        } else {
+            for (const nx of player.field.nexuses) {
+                candidates.push({ label: labelFor(getCard(nx.cardId).name, "（ネクサス）"), kind, instanceId: nx.instanceId })
+            }
+        }
+    }
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const returnOne = (c: Cand): void => {
+        if (c.kind === "nexus") {
+            ctx.resolve({ type: "returnNexusToHand", count: 1 })
+            return
+        }
+        if (c.hostInstanceId !== undefined) {
+            // 合体中のブレイヴを手札へ：ホストから外して、実体を持ち主の手札へ戻す（コアは動かない）
+            const host = player.field.spirits.find((sp) => sp.instanceId === c.hostInstanceId)
+            const brave = host ? bravesOf(player, host).find((b) => b.instanceId === c.instanceId) : undefined
+            if (!host || !brave) return
+            host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+            if (host.braveRefs.length === 0) delete host.braveRefs
+            const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+            if (at !== -1) player.field.combinedBraves.splice(at, 1)
+            player.hand.push(brave.cardId)
+            log(state, `${player.name}の${getCard(brave.cardId).name}は手札に戻った。（${getCard(host.cardId).name}は場に残る）`)
+            return
+        }
+        const inst = player.field.spirits.find((sp) => sp.instanceId === c.instanceId)
+        if (inst) returnSpiritToHand(state, opp, inst, sourceName)
+    }
+    if (state.interactiveTargets) {
+        if (chosenOption !== undefined) {
+            const picked = candidates.find((c) => c.label === chosenOption)
+            if (!picked) {
+                log(state, `${sourceName}：選ばれた対象が見つからなかった。`)
+                return
+            }
+            returnOne(picked)
+            const rest = action.count - 1
+            if (rest > 0 && !state.pendingChoice) ctx.resolve({ ...action, count: rest })
+            return
+        }
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：手札に戻す対象を選んでください（残り${action.count}つ）`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            candidates.map((c) => c.label),
+        )
+        return
+    }
+    // 非対話（テスト・AI）：types に書かれた順で最初に見つかった陣を選ぶ決定的簡略化
+    for (let i = 0; i < action.count; i++) {
+        const alive = candidates.filter((c) => {
+            if (c.kind === "nexus") return player.field.nexuses.some((n) => n.instanceId === c.instanceId)
+            if (c.hostInstanceId !== undefined) return player.field.combinedBraves.some((b) => b.instanceId === c.instanceId)
+            return player.field.spirits.some((sp) => sp.instanceId === c.instanceId)
+        })
+        const kind = action.types.find((k) => alive.some((c) => c.kind === k))
+        if (kind === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        const pool = alive.filter((c) => c.kind === kind)
+        let picked = pool[0]!
+        if (kind === "spirit") {
+            const best = pool
+                .map((c) => ({ c, inst: player.field.spirits.find((sp) => sp.instanceId === c.instanceId) }))
+                .filter((x) => x.inst !== undefined)
+                .sort((a, b) => effectiveBp(state, opp, b.inst!) - effectiveBp(state, opp, a.inst!))[0]
+            if (best) picked = best.c
+        }
+        returnOne(picked)
+        if (state.pendingChoice || state.winner) return
+    }
+    void srcColors
+    void srcType
+}
+
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
@@ -1828,6 +1951,7 @@ const handlers = {
     costDestroyOwnThenOpponentDestroysToCost: costDestroyOwnThenOpponentDestroysToCostHandler,
     destroyNexus: destroyNexusHandler,
     destroyOneAmong: destroyOneAmongHandler,
+    returnOneAmong: returnOneAmongHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyPer: destroyPerHandler,

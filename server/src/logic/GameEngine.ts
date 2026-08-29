@@ -1307,6 +1307,15 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
         )
+    } else if ("selfCoresToTrash" in effect.cost) {
+        // 発生源自身の上のコアで払う（BS11-067 白き楯の長城Lv2＝このネクサスのコア3個）
+        const n = effect.cost.selfCoresToTrash
+        inst.cores -= n
+        player.trashCores += n
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このカードのコア${n}個をトラッシュ）`,
+        )
     } else {
         const n = effect.cost.reserveToTrash
         player.reserve -= n

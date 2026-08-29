@@ -1,7 +1,8 @@
 // ターン進行・フェーズ遷移の制御
-import type { GameState } from "../type"
-import { draw, getCard, log, pushResumeFrames } from "./GameState"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
+import type { GameState, PlayerId } from "../type"
+import { draw, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, effectSources, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
+import { currentLevel, effectActiveAtLevel, hasGlobalConstraint, instIsCombined } from "../../../shared/rules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -75,7 +76,27 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 player.trashCores = 0
             }
             const refreshedInstanceIds = new Set<string>()
+            // BS11-X04 宝瓶神機アクア・エリシオン：リフレッシュステップの制約。
+            //   - 合体していないスピリットは指定数までしか回復できない（どれを回復させるかは持ち主の選択だが、
+            //     ここは**フィールドの先頭側から**の決定的簡略化。ターン開始処理の途中で聞くと
+            //     再開の手当てが要るため。data/card-notes.json に簡略化として記録してある）
+            //   - ネクサスすべては回復できない
+            //   - 相手側の発生源が opponentCombinedCantRefresh を持つなら、合体スピリットは回復できない
+            const nonCombinedLimit = state.turnConstraints.length >= 0 ? nonCombinedRefreshLimitOf(state) : undefined
+            const nexusesBlocked = hasGlobalConstraint(state, "nexusesCantRefresh")
+            const combinedBlocked = combinedRefreshBlockedFor(state, pid)
+            let nonCombinedRefreshed = 0
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+                const isNexus = player.field.nexuses.some((n) => n.instanceId === inst.instanceId)
+                if (isNexus && nexusesBlocked) continue
+                if (!isNexus) {
+                    const combined = instIsCombined(inst)
+                    if (combined && combinedBlocked) continue
+                    if (!combined && nonCombinedLimit !== undefined) {
+                        if (nonCombinedRefreshed >= nonCombinedLimit) continue
+                        if (inst.isRested) nonCombinedRefreshed++
+                    }
+                }
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
                 // 相手のスピリットから「回復できない」と指定されている間も回復しない
@@ -266,4 +287,31 @@ export function endTurn(state: GameState): void {
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"
     state.turn += 1
     runTurnStart(state)
+}
+
+// BS11-X04：「合体していないスピリットは1体しか回復できない」の上限（無ければ undefined）。
+// 両陣営に効く globalConstraint なので、どちらのフィールドの発生源でも拾う
+function nonCombinedRefreshLimitOf(state: GameState): number | undefined {
+    let limit: number | undefined
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(state, pid)) {
+            const level = currentLevel(inst).level
+            for (const e of getCard(inst.cardId).effects) {
+                if (e.kind !== "globalConstraint") continue
+                if (e.constraint.type !== "nonCombinedRefreshLimit") continue
+                if (!effectActiveAtLevel(e.levels, level)) continue
+                limit = limit === undefined ? e.constraint.count : Math.min(limit, e.constraint.count)
+            }
+        }
+    }
+    return limit
+}
+
+// BS11-X04 の【合体中】Lv3：「相手の合体スピリットすべては回復できない」。
+// pid から見た**相手側**の発生源が constraint:"opponentCombinedCantRefresh" を有効に持つか
+function combinedRefreshBlockedFor(state: GameState, pid: PlayerId): boolean {
+    const foe = opponentOf(pid)
+    return effectSources(state, foe).some((src) =>
+        activeConstraints(state, foe, src).some((c) => c.type === "opponentCombinedCantRefresh"),
+    )
 }
