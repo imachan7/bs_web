@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, cantMakeBraveSpiritState, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -120,6 +120,12 @@ export function validateSummon(
     const card = getCard(cardId)
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+
+    // 「相手は、ブレイヴをスピリット状態にできない」（BS11-X02 Lv3）：
+    // 単体召喚＝スピリット状態で場に出す経路なので弾く。合体させる召喚（ダイレクトブレイヴ）は通す
+    if (card.type === "brave" && braveTargetInstanceId === undefined && cantMakeBraveSpiritState(state, pid)) {
+        return "相手の効果で、ブレイヴをスピリット状態にできません"
+    }
 
     // ダイレクトブレイヴの追加検証（§5.3）
     if (braveTargetInstanceId !== undefined) {

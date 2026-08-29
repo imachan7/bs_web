@@ -480,6 +480,54 @@ const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> =
     log(state, `${sourceName}：手札${action.discardCount}枚を破棄し、自分はデッキから${action.drawCount}枚ドローした。`)
 }
 
+// BS11-075 トーテンタンツ：「自分の手札にあるスピリットカード1枚かブレイヴカード1枚を破棄することで、
+// 相手のスピリットのコアcount個を相手のリザーブに置く」。
+// COST_MODEL.md §1：**コストを完全に払えるときだけ発揮できる**＝該当する手札が無ければ不発
+const costDiscardHandTypeThenCoreRemoveHandler: ActionHandler<"costDiscardHandTypeThenCoreRemove"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    const matches = (cardId: string): boolean => action.cardTypes.includes(getCard(cardId).type as "spirit" | "brave")
+    // 選択の解決から戻ってきた：選ばれた1枚を破棄する（コア除去は remainingAction 側が行う）
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || !matches(cardId)) {
+            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => matches(player.hand[i]!))
+    if (indices.length === 0) {
+        log(state, `${sourceName}：コストにできる手札がないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとして破棄するカードを選んでください`,
+                "hand",
+                indices,
+                { ...action },
+                { type: "coreRemove", count: action.count },
+            )
+        ) {
+            return
+        }
+    }
+    // 決定的自動選択：該当する手札の末尾を破棄する
+    const at = indices[indices.length - 1]!
+    const [cardId] = player.hand.splice(at, 1)
+    if (cardId !== undefined) player.trashCards.push(cardId)
+    log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId!).name}を破棄した。`)
+    ctx.resolve({ type: "coreRemove", count: action.count })
+}
+
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
 // どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
 const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
@@ -1018,9 +1066,13 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
         const vanillaOk = (cardId: string): boolean =>
             action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
+        // maxCost（BS11-051イビル・フィッシャー＝コスト6以下）：トラッシュのカードが対象なので
+        // 軽減を考えない**カード静的なコスト**で判定する（他のトラッシュ側フィルタと揃える）
+        const costOk = (cardId: string): boolean =>
+            action.maxCost === undefined || getCard(cardId).cost <= action.maxCost
         const isRecoverable = (cardId: string): boolean =>
             typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
-            !isTrashCardProtected(cardId)
+            costOk(cardId) && !isTrashCardProtected(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -2549,6 +2601,7 @@ const handlers = {
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
+    costDiscardHandTypeThenCoreRemove: costDiscardHandTypeThenCoreRemoveHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,

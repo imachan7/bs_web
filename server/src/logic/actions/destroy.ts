@@ -32,6 +32,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
+import { effectiveCost } from "../../../../shared/cost"
 import { bravesOf, displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
@@ -733,7 +734,9 @@ const destroyOneAmongHandler: ActionHandler<"destroyOneAmong"> = (ctx, action) =
                 candidates.push({ label: labelFor(getCard(sp.cardId).name, ""), kind, instanceId: sp.instanceId })
             }
         } else if (kind === "brave") {
-            for (const sp of player.field.spirits) {
+            // combinedOnly（BS11-014「相手の**合体スピリットの**ブレイヴ1つ」）：
+            // スピリット状態のブレイヴは候補に入れない
+            for (const sp of action.combinedOnly ? [] : player.field.spirits) {
                 if (getCard(sp.cardId).type !== "brave") continue // スピリット状態のブレイヴ
                 if (isResisted(state, opp, sp, attemptOf(ctx, "destroy", "targeted"))) continue
                 candidates.push({ label: labelFor(getCard(sp.cardId).name, "（ブレイヴ）"), kind, instanceId: sp.instanceId })
@@ -756,6 +759,17 @@ const destroyOneAmongHandler: ActionHandler<"destroyOneAmong"> = (ctx, action) =
     }
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    // eachCombined（BS11-016 邪眼皇ゼナス「相手の合体スピリットすべてのブレイヴ1つずつ」）：
+    // 選択は挟まず、合体スピリット1体につき先頭のブレイヴを1つ破壊する
+    if (action.eachCombined) {
+        for (const host of [...player.field.spirits]) {
+            const brave = bravesOf(player, host)[0]
+            if (!brave) continue
+            destroyCombinedBrave(state, opp, host, brave)
+            if (state.winner) return
+        }
         return
     }
     const destroyOne = (c: Cand): void => {
@@ -822,6 +836,103 @@ const destroyOneAmongHandler: ActionHandler<"destroyOneAmong"> = (ctx, action) =
         if (state.pendingChoice || state.winner) return
     }
     void srcColors
+}
+
+// BS11-076 シェアリングペイン：「自分のスピリット1体を破壊することで、相手は、コスト合計が
+// その破壊したスピリットのコスト以上になるように、相手のスピリットを好きなだけ破壊する」。
+// **選ぶのは相手**（CHOOSER_RULES.md §1）で、対話では1体ずつ選ばせる（coresDownToLimit と同じ形）。
+// COST_MODEL.md §1：破壊できる自分のスピリットがいなければ不発
+const costDestroyOwnThenOpponentDestroysToCostHandler: ActionHandler<"costDestroyOwnThenOpponentDestroysToCost"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
+    const me = state.players[owner]
+    const foe = state.players[opp]
+
+    // ---- 後半：相手がコスト合計 needCost 以上になるまで自分のスピリットを破壊する
+    if (action.needCost !== undefined) {
+        const need = action.needCost
+        const paid = (): number => 0 // 破壊済みの合計は「残り必要コスト」を持ち回るので都度は数えない
+        void paid
+        const candidates = foe.field.spirits.filter(
+            (sp) => !isResisted(state, opp, sp, attemptOf(ctx, "destroy", "targeted")),
+        )
+        if (need <= 0 || candidates.length === 0) {
+            if (need > 0) log(state, `${sourceName}：${foe.name}に破壊できるスピリットがいなかった。`)
+            return
+        }
+        const labelOf = (sp: CardInstance): string => `${getCard(sp.cardId).name}（コスト${effectiveCost(state, opp, getCard(sp.cardId))}）`
+        if (state.interactiveTargets) {
+            if (chosenOption !== undefined) {
+                const picked = candidates.find((sp) => labelOf(sp) === chosenOption)
+                if (!picked) {
+                    log(state, `${sourceName}：選ばれた対象が見つからなかった。`)
+                    return
+                }
+                const paidCost = effectiveCost(state, opp, getCard(picked.cardId))
+                destroySpirit(state, opp, picked.instanceId, "destroy", undefined, { allowSuspend: true })
+                const rest = need - paidCost
+                if (rest > 0 && !state.pendingChoice) ctx.resolve({ ...action, needCost: rest })
+                return
+            }
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：${foe.name}は破壊するスピリットを選んでください（コスト合計であと${need}必要）`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                candidates.map(labelOf),
+                opp, // 選ぶのは破壊される側
+            )
+            return
+        }
+        // 非対話（テスト・AI）：**コストの大きい方から**破壊する決定的簡略化（体数が少なく済む）
+        let remaining = need
+        for (const sp of [...candidates].sort(
+            (a, b) => effectiveCost(state, opp, getCard(b.cardId)) - effectiveCost(state, opp, getCard(a.cardId)),
+        )) {
+            if (remaining <= 0) break
+            remaining -= effectiveCost(state, opp, getCard(sp.cardId))
+            destroySpirit(state, opp, sp.instanceId, "destroy", undefined, { allowSuspend: true })
+            if (state.pendingChoice || state.winner) return
+        }
+        return
+    }
+
+    // ---- 前半：コストとして自分のスピリット1体を破壊する
+    const own = me.field.spirits.filter((sp) => self === null || sp.instanceId !== self.instanceId || true)
+    if (own.length === 0) {
+        log(state, `${sourceName}：コストにできる自分のスピリットがいないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets && chosenOption === undefined && own.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+            own.map((sp) => sp.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    // 対象選択から戻ったときは ctx.targetInstanceId に入る
+    const chosen =
+        ctx.targetInstanceId !== undefined
+            ? own.find((sp) => sp.instanceId === ctx.targetInstanceId)
+            : // 非対話（テスト・AI）：実効BP最小を選ぶ決定的簡略化
+              [...own].sort((a, b) => effectiveBp(state, owner, a) - effectiveBp(state, owner, b))[0]
+    if (!chosen) {
+        log(state, `${sourceName}：コストにできる自分のスピリットがいなかった。`)
+        return
+    }
+    const need = effectiveCost(state, owner, getCard(chosen.cardId))
+    destroySpirit(state, owner, chosen.instanceId, "destroy", undefined, { allowSuspend: true })
+    log(state, `${sourceName}：${getCard(chosen.cardId).name}（コスト${need}）を破壊した。${foe.name}はコスト合計${need}以上になるように破壊する。`)
+    ctx.resolve({ ...action, needCost: need })
+    void srcType
 }
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
@@ -1709,6 +1820,7 @@ const handlers = {
     sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
+    costDestroyOwnThenOpponentDestroysToCost: costDestroyOwnThenOpponentDestroysToCostHandler,
     destroyNexus: destroyNexusHandler,
     destroyOneAmong: destroyOneAmongHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,

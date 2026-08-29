@@ -21,6 +21,7 @@ import {
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
+    instIsCombined,
 } from "./rules"
 
 // このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
@@ -189,6 +190,8 @@ export function matchesDirectedAttackFilter(
     if (filter.targetFilter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
     if (filter.targetFilter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
     if (filter.targetFilter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"
+    // combined＝相手の合体スピリットのみ（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
+    if (filter.targetFilter === "combined" && !instIsCombined(target)) return "合体スピリットしか指定できません"
     if (
         filter.targetMinBp !== undefined &&
         effectiveBp(board, targetPid, target) < filter.targetMinBp

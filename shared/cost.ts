@@ -53,7 +53,14 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
 // pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
 // 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
-export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: CardData): Color[] {
+export function reductionGrantSymbols(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+    // 軽減される対象カードが**どのゾーンにあるか**（省略時は手札。BS11-013グラシャハウンドの
+    // 「自分のトラッシュにある【不死】を持つスピリットカードすべてに」は "trash" のときだけ効く）
+    zone: "hand" | "trash" = "hand",
+): Color[] {
     const extra: Color[] = []
     // effectSources：このターンだけの仮想発生源（マジックが lendSelfThisTurn で貸した継続効果）も含める
     // （BS07リボーンフレイム。従来は field だけを見ており、貸与された reductionGrant が無言で効かなかった）
@@ -62,6 +69,7 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "reductionGrant") continue
+            if ((effect.zone ?? "hand") !== zone) continue
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
@@ -364,6 +372,8 @@ export function effectiveCost(
     pid: PlayerId,
     cardData: CardData,
     ignoreFreeGrant = false,
+    // 対象カードのあるゾーン（reductionGrant.zone の照合に使う。省略時は手札）
+    zone: "hand" | "trash" = "hand",
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
     // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）。
@@ -386,7 +396,7 @@ export function effectiveCost(
     if (setOverride !== undefined) {
         base = setOverride
     } else {
-        const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
+        const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData, zone)]
         const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
         // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で

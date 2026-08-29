@@ -1206,8 +1206,11 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
 // 選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027若武者ウンピョル）
 const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId, srcType, chosenOption } = ctx
-    const player = state.players[owner]
+    const { state, owner, opp, self, sourceName, targetInstanceId, srcType, chosenOption } = ctx
+    // side:"opponent"（BS11-015 冥王神獣インフェルド・ハデス）：相手の合体スピリットを分離させる。
+    // コアの分け方を決めるのは**合体スピリットの持ち主**なので、detachBraveByEffect には targetPid を渡す
+    const targetPid = action.side === "opponent" ? opp : owner
+    const player = state.players[targetPid]
 
     // 合体先選択の中断から再開（027：「自分のスピリット1体に合体できる」の応答）
     if (action.detachedBraveInstanceId !== undefined) {
@@ -1215,7 +1218,7 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         if (!brave) return
         if (targetInstanceId !== undefined) {
             const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
-            if (host) attachBrave(state, owner, host, brave)
+            if (host) attachBrave(state, targetPid, host, brave)
         }
         return
     }
@@ -1239,7 +1242,9 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
             requestChoice(
                 state,
                 owner,
-                `${sourceName}：ブレイヴを分離させる自分の合体スピリットを選んでください`,
+                action.side === "opponent"
+                    ? `${sourceName}：ブレイヴを分離させる相手の合体スピリットを選んでください`
+                    : `${sourceName}：ブレイヴを分離させる自分の合体スピリットを選んでください`,
                 hostCandidates.map((h) => h.instanceId),
                 false,
                 action,
@@ -1271,15 +1276,15 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
             self,
             "option",
             Array.from({ length: host.cores + 1 }, (_, i) => String(i)),
-            owner,
+            targetPid,
             true,
         )
         return
     }
-    detachBraveByEffect(state, owner, host, brave, splitCores)
+    detachBraveByEffect(state, targetPid, host, brave, splitCores)
 
     if (action.combineToChosenSpirit) {
-        const combineCandidates = braveCombineCandidates(state, owner, brave.cardId)
+        const combineCandidates = braveCombineCandidates(state, targetPid, brave.cardId)
         if (combineCandidates.length > 0 && state.interactiveTargets) {
             suspend(state, {
                 pid: owner,
@@ -1296,7 +1301,7 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         // 非対話：合体先を選ばせず、分離したスピリット状態のままにする（bravesOnly召喚の非対話フォールバックと同じ簡略化）
     }
     if (action.thenRefreshHost) {
-        refreshSpirit(state, owner, host, srcType)
+        refreshSpirit(state, targetPid, host, srcType)
     }
 }
 

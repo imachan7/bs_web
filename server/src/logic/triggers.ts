@@ -291,6 +291,11 @@ export function fireTrigger(
                 const oppNexuses = state.players[opponentOf(owner)].field.nexuses
                 const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
                 if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
+            } else if ("targetCombined" in effect.condition) {
+                // BS11-X02 滅神星龍ダークヴルム・ノヴァ：「相手の合体スピリットとバトルしたとき」。
+                // onBattleStart のイベント対象（＝バトル相手）が合体スピリットのときだけ発火する
+                const t = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
+                if (!t || !instIsCombined(t.inst)) return false
             } else if ("bothFieldsHaveSpiritMinBp" in effect.condition) {
                 // BS11-008爆竜ドラゴニックベアード：お互いのフィールドに指定BP以上のスピリットが
                 // **それぞれ**いるときのみ発火（片側だけなら何も破壊しない）

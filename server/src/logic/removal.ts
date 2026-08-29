@@ -83,6 +83,7 @@ import {
     costCantAct,
     countAuraCounter,
     braveKeepCores,
+    cantMakeBraveSpiritState,
     bravesOf,
     countSpiritsWeighted,
     countSymbols,
@@ -220,6 +221,19 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: brave.instanceId }]
     // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（§1.3）
     host.isRested = host.isRested || brave.isRested
+    // 「相手のスピリットが合体したとき、その合体スピリットは疲労する」（BS11-064 闇の聖剣 Lv2）。
+    // 合体の唯一の入口であるここで見る（経路ごとに書くと必ずどれかを忘れる）
+    const foe = opponentOf(pid)
+    const combineExhaust = effectSources(state, foe).some((src) => {
+        const level = currentLevel(src).level
+        return getCard(src.cardId).effects.some(
+            (e) => e.kind === "opponentCombineExhaust" && effectActiveAtLevel(e.levels, level),
+        )
+    })
+    if (combineExhaust) {
+        host.isRested = true
+        log(state, `${getCard(host.cardId).name}は合体したため疲労した。`)
+    }
     // ブレイヴが足すコスト・色・シンボルをここで組み直す（このあとに出る召喚時効果等がコストや色を読むため）
     refreshLevelAsOverrides(state)
 }
@@ -249,6 +263,11 @@ export function detachBraveByEffect(
     coresToBrave?: number,
 ): void {
     const player = state.players[ownerPid]
+    // 「相手は、ブレイヴをスピリット状態にできない」（BS11-X02 Lv3）：分離そのものが起きない
+    if (cantMakeBraveSpiritState(state, ownerPid)) {
+        log(state, `${player.name}の${getCard(brave.cardId).name}は、スピリット状態にできないため分離できなかった。`)
+        return
+    }
     host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
     if (host.braveRefs.length === 0) delete host.braveRefs
     const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
@@ -314,6 +333,12 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
         const name = getCard(brave.cardId).name
+        // 「相手は、ブレイヴをスピリット状態にできない」（BS11-X02 Lv3）：残せずトラッシュへ
+        if (cantMakeBraveSpiritState(state, ownerPid)) {
+            player.trashCards.push(brave.cardId)
+            log(state, `${player.name}の${name}は、スピリット状態にできないためトラッシュに置かれた。`)
+            continue
+        }
         const need = braveKeepCores(brave)
         // 残すには「自分のフィールド/リザーブから Lv1維持コスト以上のコア」が要る（§1.4）。
         // どう積んでも足りないなら確認を出さずトラッシュへ（§6.3 の手順1）。
@@ -799,6 +824,21 @@ export function wouldRevive(
 
 // この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
 // 召喚コスト＋維持コアをリザーブから払えないものは、確認自体を出さないので除く
+// 破壊されたスピリットを「コストNとしても扱う」効果（BS11-064 闇の聖剣Lv1）を集める。
+// 元のコストに**加えて**扱うので、【不死】の引き金コストの判定はこの集合との積で見る
+function destroyedCostsWith(state: GameState, ownerPid: PlayerId, destroyedCost: number): number[] {
+    const costs = new Set<number>([destroyedCost])
+    for (const src of effectSources(state, ownerPid)) {
+        const level = currentLevel(src).level
+        for (const e of getCard(src.cardId).effects) {
+            if (e.kind !== "destroyedCostAs") continue
+            if (!effectActiveAtLevel(e.levels, level)) continue
+            for (const c of e.costs) costs.add(c)
+        }
+    }
+    return [...costs]
+}
+
 export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCost: number): number[] {
     // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
     if (state.phase !== "attack") return []
@@ -809,14 +849,17 @@ export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedC
         if (cardId === undefined) continue
         const card = getCard(cardId)
         if (card.type !== "spirit") continue
+        // 「そのスピリットをコスト3/4のスピリットとしても扱う」（BS11-064）の分も引き金になる
+        const costs = destroyedCostsWith(state, ownerPid, destroyedCost)
         const hit = card.effects.some(
             (e) =>
                 e.kind === "keyword" &&
                 e.keyword === "fushi" &&
-                (e.triggerCosts ?? []).includes(destroyedCost),
+                costs.some((c) => (e.triggerCosts ?? []).includes(c)),
         )
         if (!hit) continue
-        if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
+        // トラッシュにあるカードなので軽減は zone:"trash" で計算する（BS11-013グラシャハウンド）
+        if (player.reserve < effectiveCost(state, ownerPid, card, false, "trash") + minLevelCores(card)) continue
         found.push(i)
     }
     return found
@@ -853,7 +896,8 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = effectiveCost(state, info.pid, card)
+    // 候補の絞り込み（fushiCandidates）と同じ zone:"trash" で計算する（ズレると確認は出るのに払えない）
+    const cost = effectiveCost(state, info.pid, card, false, "trash")
     const maintain = minLevelCores(card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)

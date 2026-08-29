@@ -1,7 +1,7 @@
 # BS11「星座編 第二弾：灼熱の太陽」の取り込み計画
 
 - 取り込み: 2026-08-29（`data/staging/BS11.json`。91枚）
-- 進捗: **16 / 91枚**（赤16枚 完了 2026-08-29）
+- 進捗: **31 / 91枚**（赤16枚・紫15枚 完了 2026-08-29）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色なし。各色15枚前後）
 - 関連: [BRAVE.md](./BRAVE.md)（ブレイヴのエンジンは段階4まで実装済み。**段階5＝分離が未了**）
 
@@ -91,6 +91,29 @@ BS11-016 邪眼皇ゼナス「相手の合体スピリット**すべてのブレ
 
 ⚠️ **Wiki の staging には `braveCondition` が入っていない**（合体条件は効果文の中にある）。
 ブレイヴを投入するときは効果文から機械的に導いて書き足すこと（赤2枚は「コスト◯以上」の形だった）。
+
+## 2.5 済：紫15枚（2026-08-29）
+
+`scripts/smoke/part270.ts`。足した器:
+
+| 器 | 用途 |
+| :-- | :-- |
+| `constraint:"cantCombine"` | 「このスピリットは合体できない」（X02）。`braveCombineCandidates` が候補から外す |
+| `constraint:"opponentCantMakeBraveSpiritState"` | 「相手は、ブレイヴをスピリット状態にできない」（X02 Lv3）。**3経路すべて**を禁じる（[BRAVE.md](./BRAVE.md) §12.9） |
+| `canDirectAttack.targetFilter:"combined"` | 「相手の合体スピリット1体を指定してアタック」（X02） |
+| `triggered.condition { targetCombined }` | 「相手の合体スピリットとバトルしたとき」（X02） |
+| `detachBrave.side:"opponent"` | 「相手の合体スピリット1体を分離させる」（015） |
+| `destroyOneAmong` の `combinedOnly` / `eachCombined` | 「合体スピリットのブレイヴ1つ」（014）／「合体スピリットすべてのブレイヴ1つずつ」（016） |
+| `reductionGrant.zone:"trash"` ＋ `effectiveCost` の zone 引数 | 「トラッシュにある〜に軽減シンボルを与える」（013） |
+| `kind:"destroyedCostAs"` | 「破壊されたスピリットをコスト3/4としても扱う」（064 Lv1）。【不死】の引き金が広がる |
+| `kind:"opponentCombineExhaust"` | 「相手のスピリットが合体したとき疲労する」（064 Lv2）。`attachBrave` が見る |
+| `action:"costDiscardHandTypeThenCoreRemove"` | 「手札のスピリット/ブレイヴ1枚を破棄することで」（075） |
+| `action:"costDestroyOwnThenOpponentDestroysToCost"` | 「コスト合計が◯以上になるように相手が破壊する」（076） |
+| `recoverSpiritFromTrash.maxCost` | 「トラッシュにあるコスト6以下のスピリットカード1枚」（051） |
+
+⚠️ **軽減はフィールドの同色シンボル数で頭打ちになる。** `reductionGrant` の検査を書くときは、
+対象カード自身が持つ同色の軽減シンボル数より**多い**シンボルを場に出しておかないと、
+1つ足しても結果が変わらず**検査にならない**（2026-08-29 に実際に踏んだ）。
 
 ## 3. 進め方
 

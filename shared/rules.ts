@@ -2110,9 +2110,23 @@ export function activatableAbility(
     return null
 }
 
+// **pid はブレイヴをスピリット状態にできないか**（BS11-X02 滅神星龍ダークヴルム・ノヴァ Lv3
+// 「相手は、ブレイヴをスピリット状態にできない」）。2026-08-29 ユーザー確認で、
+// ブレイヴがスピリット状態になる**3経路すべて**を禁じる:
+//   (a) ブレイヴを単体で召喚する（RuleValidator.validateSummon）
+//   (b) ホストが場を離れるときコアを置いて残す（detachBravesOnLeave。§6.3）
+//   (c) 効果で分離する（detachBraveByEffect。§12.5）
+// 判定は**相手側の発生源**が constraint:"opponentCantMakeBraveSpiritState" を有効に持つかで行う
+export function cantMakeBraveSpiritState(board: Board, pid: PlayerId): boolean {
+    const foe = pid === "p1" ? "p2" : "p1"
+    return effectSources(board, foe).some((src) =>
+        activeConstraints(board, foe, src).some((c) => c.type === "opponentCantMakeBraveSpiritState"),
+    )
+}
+
 // 指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
 export interface DirectAttackFilter {
-    targetFilter: "rested" | "singleCore" | "recovered" | "any"
+    targetFilter: "rested" | "singleCore" | "recovered" | "any" | "combined" // combined＝相手の合体スピリットのみ（BS11-X02）
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
     targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
 }
