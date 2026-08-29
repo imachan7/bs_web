@@ -224,10 +224,30 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     refreshLevelAsOverrides(state)
 }
 
-// 効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
-// detachBravesOnLeave の Lv1維持コスト以上のコア支払いとは別の手順）。
+// 分離するときブレイヴへ渡すコア数の既定値（非対話＝テスト・AI用の決定的簡略化）。
+// **ブレイヴには維持ぶんだけ渡し、渡すとホストが維持できなくなるなら渡さない**（どちらも残る方を優先する）
+export function autoDetachCoresToBrave(host: CardInstance, brave: CardInstance): number {
+    const needBrave = braveKeepCores(brave)
+    return host.cores - needBrave >= instMinLevelCores(host) ? needBrave : 0
+}
+
+// 効果によるブレイヴの分離（§12.5）。
+// ⚠️ **合体スピリット上のコアをホストとブレイヴに分け直す**（2026-08-29 ユーザー確認。
+// それ以前は「コアは要らない」＝ホストに全部残す簡略化だった）。コアの総数は変わらない。
+// 分け方は**合体スピリットの持ち主**が決める（BS11-015「分離するときのコアの移動は相手が行う」）。
+// 対話時は呼び出し側が coresToBrave を決めて渡し、非対話では autoDetachCoresToBrave の既定値を使う。
+// 分けた結果 Lv1維持コアを下回った側は消滅する（cause:"deplete"＝復活判定に入らない）。
+//
+// 「場を離れるときに残す」＝ detachBravesOnLeave（§1.4。自分のフィールド/リザーブから
+// Lv1維持コスト以上を**新たに置く**）とは別の手順であることは変わらない。
 // 分離したブレイヴはホストの疲労状態を引き継ぐ（§12.5：ルール改定で移動元が疲労していると移動先も疲労になる）
-export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+export function detachBraveByEffect(
+    state: GameState,
+    ownerPid: PlayerId,
+    host: CardInstance,
+    brave: CardInstance,
+    coresToBrave?: number,
+): void {
     const player = state.players[ownerPid]
     host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
     if (host.braveRefs.length === 0) delete host.braveRefs
@@ -235,8 +255,22 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
     if (at !== -1) player.field.combinedBraves.splice(at, 1)
     brave.isRested = host.isRested
     player.field.spirits.push(brave)
+    // ⚠️ 参照を切ってから refresh する。合体状態のレベル表のままだと instMinLevelCores がずれる
     refreshLevelAsOverrides(state)
-    log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
+    const give = Math.max(0, Math.min(coresToBrave ?? autoDetachCoresToBrave(host, brave), host.cores))
+    host.cores -= give
+    brave.cores += give
+    log(
+        state,
+        `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。` +
+            `（コア${give}個を${getCard(brave.cardId).name}へ移した）`,
+    )
+    // 分け直した結果、維持コアを下回った側は消滅する
+    for (const inst of [brave, host]) {
+        if (inst.cores < instMinLevelCores(inst)) {
+            destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+        }
+    }
 }
 
 // ---- ブレイヴの分離（場を離れるとき。docs/design/BRAVE.md §6）----

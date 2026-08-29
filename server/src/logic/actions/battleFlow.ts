@@ -1206,7 +1206,7 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
 // 選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027若武者ウンピョル）
 const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId, srcType } = ctx
+    const { state, owner, self, sourceName, targetInstanceId, srcType, chosenOption } = ctx
     const player = state.players[owner]
 
     // 合体先選択の中断から再開（027：「自分のスピリット1体に合体できる」の応答）
@@ -1220,10 +1220,16 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         return
     }
 
+    // コアの分け方の選択から再開（分離元ホストは action が持ち回る）
+    let splitCores: number | undefined
     let host: CardInstance | undefined
-    if (targetInstanceId !== undefined) {
+    if (action.splitHostInstanceId !== undefined) {
+        host = player.field.spirits.find((sp) => sp.instanceId === action.splitHostInstanceId)
+        splitCores = chosenOption === undefined ? undefined : Number(chosenOption)
+        if (!host || splitCores === undefined || Number.isNaN(splitCores)) return
+    } else if (targetInstanceId !== undefined) {
         host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId && (sp.braveRefs ?? []).length > 0)
-    } else {
+    } else if (action.splitHostInstanceId === undefined) {
         const hostCandidates = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).length > 0)
         if (hostCandidates.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
@@ -1252,7 +1258,25 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    detachBraveByEffect(state, owner, host, brave)
+    // コアの分け直し（§12.5。2026-08-29 改定）。分け方は**合体スピリットの持ち主**が決めるので、
+    // 対話時は「ブレイヴに載せるコアの数」を増減式で選ばせてから分離する
+    if (splitCores === undefined && state.interactiveTargets && host.cores > 0) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${getCard(brave.cardId).name}に載せるコアの数を選んでください（${getCard(host.cardId).name}の上のコア${host.cores}個から分けます）`,
+            [],
+            false,
+            { ...action, splitHostInstanceId: host.instanceId },
+            self,
+            "option",
+            Array.from({ length: host.cores + 1 }, (_, i) => String(i)),
+            owner,
+            true,
+        )
+        return
+    }
+    detachBraveByEffect(state, owner, host, brave, splitCores)
 
     if (action.combineToChosenSpirit) {
         const combineCandidates = braveCombineCandidates(state, owner, brave.cardId)

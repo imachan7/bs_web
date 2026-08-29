@@ -62,8 +62,10 @@ const hostCardId = findHost()
 const hostCardId2 = findHost(hostCardId)
 
 // 実際に合体させた状態を作る（attachBraveを使って本物のcombinedBraves参照を張る）
+// ⚠️ ホストには**ホストのLv1維持コア＋ブレイヴのLv1維持コア**を載せる。分離時はコアを分け直すので
+// （BRAVE.md §12.5。2026-08-29 改定）、ホストのぶんちょうどだと分離した側が維持コア割れで消滅する
 function setupCombinedHost(s: GameState, pid: PlayerId, hostId: string, rested: boolean): { host: ReturnType<typeof createInstance>; brave: ReturnType<typeof createInstance> } {
-    const host = createInstance(hostId, s.turn, getCard(hostId).levels[0]!.cores)
+    const host = createInstance(hostId, s.turn, getCard(hostId).levels[0]!.cores + getCard(braveId).levels[0]!.cores)
     const brave = createInstance(braveId, s.turn, 0)
     s.players[pid].field.spirits.push(host)
     attachBrave(s, pid, host, brave)
@@ -81,7 +83,10 @@ console.log("=== attachBrave/detachBraveByEffect：疲労状態を引き継ぐ =
     assert(!s.players.p1.field.combinedBraves.some((b) => b.instanceId === brave.instanceId), "combinedBravesからは消える")
     assert(host.braveRefs === undefined, "ホストのbraveRefsも消える")
     assert(brave.isRested === true, "疲労状態のホストから分離すると、ブレイヴも疲労状態を引き継ぐ（ルール改定。BRAVE.md §12.5）")
-    assert(brave.cores === 0, "効果による分離にコアは要らない（維持コアを置かない）")
+    // 2026-08-29 改定：コアは合体スピリット上のぶんを**分け直す**（新たに置くのではない）
+    assert(brave.cores === getCard(braveId).levels[0]!.cores, "分離したブレイヴにはLv1維持ぶんのコアが移る")
+    assert(host.cores === getCard(hostCardId).levels[0]!.cores, "移したぶんだけホストのコアが減る")
+    assert(host.cores + brave.cores === getCard(hostCardId).levels[0]!.cores + getCard(braveId).levels[0]!.cores, "コアの総数は変わらない")
 }
 
 console.log("=== BS10-027：合体スピリットが無ければ何も起きない ===")
@@ -121,6 +126,9 @@ console.log("=== BS10-027：対話では合体スピリット候補2体からホ
         "候補は合体スピリット2体すべて",
     )
     assert(act(s, "p1", { type: "resolveChoice", instanceId: combo1.host.instanceId }) === null, "ホストを選べる")
+    // コアの分け直し（§12.5。2026-08-29 改定）の選択が続く
+    assert(s.pendingChoice?.kind === "option" && s.pendingChoice.stepper === true, "ブレイヴに載せるコアの数を増減式で選ばせる")
+    assert(act(s, "p1", { type: "resolveChoice", option: String(getCard(braveId).levels[0]!.cores) }) === null, "分けるコア数を選べる")
     assert(combo1.host.braveRefs === undefined, "選んだホストから分離する")
     assert((combo2.host.braveRefs ?? []).length === 1, "選ばなかったホストは合体したまま")
 }
@@ -135,7 +143,10 @@ console.log("=== BS10-027：対話では分離後「自分のスピリット1体
     s.players.p1.field.spirits.push(newHost)
     refreshLevelAsOverrides(s)
     fireTrigger(s, "p1", spirit, "onBattleEnd")
-    // 候補は元のホストが1体だけなので自動解決され、続けて合体先選択の選択待ちが立つ
+    // 候補は元のホストが1体だけなので自動解決され、まずコアの分け方の選択が立つ
+    assert(s.pendingChoice?.kind === "option", "先にコアの分け方を選ばせる")
+    assert(act(s, "p1", { type: "resolveChoice", option: String(getCard(braveId).levels[0]!.cores) }) === null, "分けるコア数を選べる")
+    // 続けて合体先選択の選択待ちが立つ
     assert(s.pendingChoice !== null && s.pendingChoice.kind === "target", "合体先を選ぶ選択待ちが立つ")
     assert((s.pendingChoice?.candidates ?? []).includes(newHost.instanceId), "新しいホストが合体先候補に出る")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: newHost.instanceId }) === null, "合体先を選べる")
@@ -320,6 +331,8 @@ console.log("=== BS10-086 Lv2：対話では発動確認を出す（「〜する
     assert(s.pendingChoice?.confirm === true, "任意発揮なので発動確認が出る")
     assert((host.braveRefs ?? []).length === 1, "確認前はまだ分離していない")
     assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動する")
+    assert(s.pendingChoice?.kind === "option", "発動を選ぶとコアの分け方の選択が続く")
+    assert(act(s, "p1", { type: "resolveChoice", option: String(getCard(braveId).levels[0]!.cores) }) === null, "分けるコア数を選べる")
     assert(host.braveRefs === undefined, "確認後に分離する")
     assert(host.isRested === false, "確認後にホストが回復する")
 }
