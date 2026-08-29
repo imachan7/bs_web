@@ -164,9 +164,12 @@ checkExhaustOnCoreChange,
     pickEnemyByBp,
     pickEnemyCandidates,
     placeCoresOnSpirit,
+    refreshLevelAsOverrides,
+    refreshSpirit,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
+    voidCorePlacementBlocked,
 } from "./EffectModules"
 
 
@@ -201,7 +204,42 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
     return false
 }
 
-// ---- ブレイヴの分離（docs/design/BRAVE.md §6）----
+// ---- 合体・分離（docs/design/BRAVE.md §2.3・§6・§12.5）----
+
+// **合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
+// ホストが braveRefs で参照する（参照方式。§2.3）。かつては GameEngine.ts の
+// placeSummonedSpirit と EffectModules.ts の summonFreeFromHandIndex に同じ処理が
+// 2箇所書かれていた（2026-08-28、効果による再合体で3箇所目になる前にここへ寄せた）
+export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[pid]
+    // 分離してスピリット状態で field.spirits にいるブレイヴを再合体させる経路（detachBrave.combineToChosenSpirit）
+    // では、まずそこから抜く。ダイレクトブレイヴ・召喚直後のインスタンスはそもそも spirits にいないので no-op
+    const at = player.field.spirits.findIndex((sp) => sp.instanceId === brave.instanceId)
+    if (at !== -1) player.field.spirits.splice(at, 1)
+    player.field.combinedBraves.push(brave)
+    host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: brave.instanceId }]
+    // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（§1.3）
+    host.isRested = host.isRested || brave.isRested
+    // ブレイヴが足すコスト・色・シンボルをここで組み直す（このあとに出る召喚時効果等がコストや色を読むため）
+    refreshLevelAsOverrides(state)
+}
+
+// 効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
+// detachBravesOnLeave の Lv1維持コスト以上のコア支払いとは別の手順）。
+// 分離したブレイヴはホストの疲労状態を引き継ぐ（§12.5：ルール改定で移動元が疲労していると移動先も疲労になる）
+export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    brave.isRested = host.isRested
+    player.field.spirits.push(brave)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
+}
+
+// ---- ブレイヴの分離（場を離れるとき。docs/design/BRAVE.md §6）----
 
 // **ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**
 // 場を離れる経路は破壊だけではない（維持コア割れの消滅・手札へ戻る・デッキへ戻る・
@@ -439,8 +477,10 @@ export function commitPendingDestruction(
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
-    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間はトラッシュへ置かれる
-    if (destroyedCoresGoToTrash(state)) {
+    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
+    // battleOpponentDestroyedCoresToVoid（BS10-X01幻羅星龍ガイ・アスラLv4）が
+    // このプレイヤーを指している間はボイド（トラッシュ）へ置かれる
+    if (destroyedCoresGoToTrash(state) || state.battle?.opponentDestroyedCoresToVoidPid === ownerPid) {
         player.trashCores += inst.cores
     } else {
         player.reserve += inst.cores
@@ -994,7 +1034,9 @@ export function applyDestroyBatchAfter(
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
-        if (self) {
+        if (self && voidCorePlacementBlocked(state)) {
+            log(state, `${getCard(self.cardId).name}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
+        } else if (self) {
             placeCoresOnSpirit(state, self, destroyed, ownerPid)
             log(
                 state,
@@ -1154,6 +1196,22 @@ function tryReviveOnDestroy(
             return false
         }
         if (effect.cost?.handDiscardOne) {
+            const cardType = effect.cost.handDiscardCardType
+            if (cardType !== undefined) {
+                // BS10-046龍仙公主：手札の末尾から指定種別のカードを探して破棄する。
+                // 該当が無ければ支払い不可＝不発（指定なしの既存挙動＝末尾1枚は変えない）
+                let index = -1
+                for (let i = player.hand.length - 1; i >= 0; i--) {
+                    if (getCard(player.hand[i]!).type === cardType) {
+                        index = i
+                        break
+                    }
+                }
+                if (index === -1) return false
+                const cardId = player.hand.splice(index, 1)[0]!
+                player.trashCards.push(cardId)
+                return true
+            }
             // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
             if (player.hand.length === 0) return false
             const cardId = player.hand.pop()!
@@ -1576,6 +1634,28 @@ export function returnNexusToHand(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は手札に戻った。`)
     emitEvent(state, { type: "returnToHand", pid: ownerPid, cardName: getCard(inst.cardId).name })
     notifyHandGained(state, ownerPid, 1)
+}
+
+// ネクサスを持ち主のデッキの下（末尾）へ戻す：コアはリザーブへ、カードはデッキの下へ。
+// returnNexusToHand のデッキ下版。代替召喚コストの支払い（BS10-058水星神龍メルクリウス・サーペント：
+// 青のネクサス1つをデッキの下に戻すことで、コストを支払わずに召喚できる）に使う。
+// 破壊ではないため onDestroy は誘発しない
+export function returnNexusToDeckBottom(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+): void {
+    const player = state.players[ownerPid]
+    const index = player.field.nexuses.findIndex(
+        (n) => n.instanceId === instanceId,
+    )
+    if (index === -1) return
+    const inst = player.field.nexuses[index]
+    if (!inst) return
+    player.field.nexuses.splice(index, 1)
+    player.reserve += inst.cores
+    player.deck.push(inst.cardId)
+    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの下に戻った。`)
 }
 
 // スピリットを持ち主の手札へ戻す（バウンス）。

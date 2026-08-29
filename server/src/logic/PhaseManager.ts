@@ -249,6 +249,9 @@ export function endTurn(state: GameState): void {
     state.triggerSuppressionThisTurn = []
     // このターンのアタック回数（「最初のアタック」判定用）もリセット
     state.attacksThisTurn = 0
+    // BS10-047：「次にアタックした」はターンをまたがないので、直前のアタック宣言の記録もリセット
+    delete state.lastAttackerCombinedPid
+    delete state.prevAttackerCombinedPid
     // このターンの「ブロックされない」無視（レッドウォール）もリセット
     state.ignoreUnblockableThisTurn = []
     // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット

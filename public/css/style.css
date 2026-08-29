@@ -883,6 +883,32 @@ button:active {
     inset: -8px;
 }
 
+/* 合体しているブレイヴ。ホストのカードの中に1行ずつ並べる（単独のカードとしては場に出ない）。
+   .card は 76px 角の固定サイズなので、名前は省略表示にしてフル名は title 属性で見せる。
+   order で末尾へ回しているのは、fieldCardEl に早期 return が多く DOM 順で末尾に置きにくいため */
+.brave-combined-box {
+    position: absolute;
+    left: 2px;
+    /* 右下にはシンボル（.symbols）が絶対配置されているので、その幅ぶん空ける */
+    right: 16px;
+    bottom: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.brave-combined {
+    padding: 0 2px;
+    font-size: 9px;
+    line-height: 1.25;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.4);
+    border-left: 2px solid var(--c-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
 .awaken-badge {
     bottom: -6px; right: -6px;
     background: var(--warning);

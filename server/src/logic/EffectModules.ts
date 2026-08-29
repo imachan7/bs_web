@@ -56,7 +56,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
+import { attachBrave, destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -65,6 +65,7 @@ import {
     fireTrigger,
     notifyHandGained,
     notifyNexusDeployed,
+    fireNexusDeployed,
     notifySpiritCoresRemovedByOpponent,
     resolveMagicEffects,
 } from "./triggers"
@@ -862,7 +863,7 @@ function resolveMilledFromDeck(
                 const inst = createInstance(cardId, state.turn, 0)
                 player.field.nexuses.push(inst)
                 log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに配置された。`)
-                notifyNexusDeployed(state, pid)
+                fireNexusDeployed(state, pid, inst)
             } else {
                 log(state, `${player.name}の${name}は、デッキから破棄されたためコストを支払わずに発揮された。`)
                 // 破棄されたマジックは「使用」ではなく効果だけが発揮される。トラッシュへは既に入れてあるので、
@@ -1730,6 +1731,17 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
     state.players[ownerPid].trashCores += count
 }
 
+// globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
+// お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない。ライフ・トラッシュへは対象外
+// （voidCoreToOwnTrash / lifeCharge の from:"void" はこれを呼ばない）。
+// ボイドから直接置く各アクション（coreGain系／voidCoreToSelf系／voidCoreToOther系／
+// voidCoreToAllOwnByFamily／voidCoreToOwnNexuses／voidCoreToTarget／voidCoreToOwnByKeyword／
+// voidCoresToNexusLevel／coreDrainAllOthers／destroyのvoidCoreToSelfPerDestroyed）が冒頭で呼ぶ
+export function voidCorePlacementBlocked(state: GameState): boolean {
+    if (state.phase === "core") return false
+    return hasGlobalConstraint(state, "voidCoreBlockedOutsideCoreStep")
+}
+
 // フィールド発生源から全スピリット／全ネクサスに効くグローバル制約（kind: "globalConstraint"）が
 // 現在有効か判定する。両陣営のフィールド（スピリット＋ネクサス）を走査し、
 // レベル条件を満たす該当制約が1つでもあれば true（発生源の持ち主は問わない）。
@@ -1797,6 +1809,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
+            delete inst.braveStatsAsContinuous
             // 合体中のブレイヴ側の目印。coresOverride は**ここでしか使っていない**ときだけ消す
             // （クロスシザースのネクサスコア数リンクは field.nexuses に載るので混ざらない）
             if (inst.braveCombined === true) {
@@ -2016,6 +2029,33 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "braveStatsAs") {
+                    // 「自分のスピリット状態のブレイヴすべてを"コスト◯/系統：◯/Lv1 BP◯"の
+                    // スピリット状態のブレイヴとして扱う」（継続。BS10-X06天蠍神騎スコル・スピア）。
+                    // 対象は field.spirits にいる card.type==="brave" の個体のみ（合体中のブレイヴは
+                    // field.combinedBraves にいるため自然に対象外＝BRAVE.md §12.7）。
+                    // ステータスだけを上書きし、そのブレイヴが元から持つ効果は残す（effectsDisabledContinuousは立てない）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (getCard(spirit.cardId).type !== "brave") continue
+                        spirit.braveStatsAsContinuous = {
+                            cost: effect.cost,
+                            family: effect.family,
+                            braveLevels: effect.braveLevels,
+                        }
+                        // ⚠️ **シンボルの色とカードの色は別の値**（シンボルの色がカードの色と違う
+                        // スピリットが実在する。2026-08-29 ユーザー指摘）。カードのcolorsからシンボル色を
+                        // 導いてはいけない。ここは**発生源自身のシンボル色**で固定する（2026-08-29 ユーザー確認）。
+                        // テキストが定めているのは「コスト◯/系統◯/シンボル1個/Lv1 BP◯」という1つの型で、
+                        // シンボルの色も発生源が定める（ブレイヴごとに変わるなら一律に書けない）。
+                        // そのため**元々シンボルを持たないブレイヴにも1個与えられる**。
+                        // 別の色のシンボルを定める効果が出てきたら、そのときに色の軸をEffectDefへ足す
+                        const baseColor = getCard(source.cardId).symbol[0]
+                        if (!baseColor) continue
+                        spirit.symbolsOverrideContinuous = new Array(effect.symbolCount).fill(baseColor)
+                    }
+                    continue
+                }
                 if (effect.kind === "alsoCostGrant") {
                     // 持ち主のスピリットすべてを「コストNとしても扱う」（継続。道化師クラン）。
                     // instHasCost / instMatchesCostFilter は state を受け取らない設計のため、
@@ -2093,6 +2133,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                         if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
+                    }
+                } else if (effect.target === "ownSpiritsAll") {
+                    // 発生源の持ち主のスピリットすべて（修飾なし。BS10-056蒼天大聖モンゴクウ）。
+                    // 都度全消去→再構築（このファイル冒頭のコメント参照）なので、解決より後に召喚された
+                    // スピリットにもこのターン中ずっと自然に効く（levelAs は個体への印ではなく走査のたびに再適用されるため）
+                    for (const spirit of player.field.spirits) {
+                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
                     // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ
@@ -2435,7 +2482,14 @@ export function summonFreeFromHandIndex(
     sourceName: string,
     handIndex: number,
     skipTensho?: true,
-    opts?: { payCost?: true; skipOnSummon?: true; paySources?: PaySource[] },
+    opts?: {
+        payCost?: true
+        skipOnSummon?: true
+        paySources?: PaySource[]
+        // 指定時は**ダイレクトブレイヴ**（doSummonのbraveTargetInstanceIdと同じ結果になるようにする。
+        // 維持コアを置かない・field.combinedBravesへ入れる・host.braveRefsで参照する。BS10-096最後の優勝旗）
+        braveTargetInstanceId?: string
+    },
 ): void {
     const player = state.players[owner]
     const cardId = player.hand[handIndex]
@@ -2444,7 +2498,8 @@ export function summonFreeFromHandIndex(
         return
     }
     const card = getCard(cardId)
-    const maintain = minLevelCores(card)
+    // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。doSummonと同じ規則）
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
     // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
@@ -2461,10 +2516,22 @@ export function summonFreeFromHandIndex(
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
     player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain)
-    player.field.spirits.push(inst)
+    // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
+    // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
+    const braveHost =
+        opts?.braveTargetInstanceId === undefined
+            ? undefined
+            : player.field.spirits.find((sp) => sp.instanceId === opts.braveTargetInstanceId)
+    if (braveHost !== undefined) {
+        attachBrave(state, owner, braveHost, inst)
+    } else {
+        player.field.spirits.push(inst)
+    }
+    const braveNote =
+        braveHost !== undefined ? `${getCard(braveHost.cardId).name}に合体させて` : ""
     log(
         state,
-        `${player.name}は${sourceName}の効果で、${card.name}を` +
+        `${player.name}は${sourceName}の効果で、${braveNote}${card.name}を` +
             (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
             (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
@@ -2762,6 +2829,10 @@ export function countEffectCounter(
     // 直前の【粉砕】で破棄した総枚数／うちスピリットカードの枚数（resolveFunsaiが記録。BS03巨人王ランドルフ／BS04二刀流のアムブローズ）
     if (counter === "lastFunsaiTotal") return state.lastFunsai?.total ?? 0
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
+    // ownCombinedSpirits：自分のフィールドの合体スピリット数（BS10-029木星神龍ノブナガード・ゼウシス）
+    if (counter === "ownCombinedSpirits") {
+        return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
+    }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
         return countSpiritsWeighted(
@@ -3146,6 +3217,7 @@ export {
     fireFieldEventTriggers,
     notifyHandGained,
     notifyNexusDeployed,
+    fireNexusDeployed,
     applyBothSidesRedirectToCandidates,
     bothSidesPids,
     bothSidesRedirectKeepPid,
@@ -3164,6 +3236,8 @@ export {
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
+    attachBrave,
+    detachBraveByEffect,
     detachBravesOnLeave,
     destroySpiritsFrom,
     destroyTargetsBatch,
@@ -3177,6 +3251,7 @@ export {
     declineReviveConfirm,
     destroyNexus,
     returnNexusToHand,
+    returnNexusToDeckBottom,
     returnSpiritToHand,
     returnSpiritToDeckTop,
     returnSpiritToDeckBottom,

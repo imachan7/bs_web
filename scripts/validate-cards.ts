@@ -42,10 +42,11 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
-    "destroyedCoresToTrash", "nameAsGrant", "vanillaAsGrant", "nexusEffectsDisabled",
+    "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
+    "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity",
 ])
 
 export interface ValidationIssue {
@@ -106,6 +107,12 @@ function checkLentEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
+    // カードが lentOnly:true を1つでも明示していれば、著者は「貸す側のエントリ」を自分で
+    // 指定済み（判定基準にする）。この場合、無印（lentOnly無し）の非action系エントリは
+    // 「貸与とは無関係な、この実カード自身の常時効果」と扱い、levels必須チェックの対象から外す
+    // （BS10-056蒼天大聖モンゴクウ＝levelAsをlentOnlyで貸しつつ、globalConstraintは実インスタンス側で
+    // 常時発揮する別効果。lentOnlyが1つも無いカードでは、従来どおり「貸す側の書き忘れ」を疑って検査する）
+    const hasExplicitLentOnly = c.effects.some((e) => (e as { lentOnly?: boolean }).lentOnly === true)
     for (const e of c.effects as { id?: string; kind?: string; levels?: unknown; aura?: { target?: string } }[]) {
         // 貸与されるのは**継続効果のエントリだけ**。action を持つ kind（magic / triggered / step /
         // fieldEvent / battleWon / activated）は発動側であって貸与対象ではない。
@@ -118,6 +125,7 @@ function checkLentEffects(
         //  levels を null 以外で書くと仮想発生源は Lv0 なので**無言で一度も発火しない**）
         const lentOnlyEntry = (e as { lentOnly?: boolean }).lentOnly === true
         if (!lentOnlyEntry && (ACTION_BEARING_KINDS.has(e.kind ?? "") || e.kind === "keyword")) continue
+        if (!lentOnlyEntry && hasExplicitLentOnly) continue
 
         // §2.2: levels が null 以外だと、仮想発生源の currentLevel が 0 のため
         // effectActiveAtLevel が false を返し、**エラーも出ずに一度も発火しない**
@@ -147,21 +155,30 @@ function checkLentEffects(
     }
 }
 
-// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード）の検査。
+// costMod の mode:"set"（コスト置換。BS05 パントマイスター／ゴッドスピード／BS10-059フォート・ゴレム）の検査。
 //
-// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition を見るが、
-// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter だけ。
+// 加算側（costModTotal）は colorFilter / cardType / side / phaseTurn / condition:{ownFamilyCountAtLeast} を見るが、
+// 置換側（costSetOverride）が見るのは levels / familyFilter / keywordFilter / costFilter と、
+// scope:"self" のときだけの condition:{ownNexusAtLeast} だけ。
 // 同じ kind に両方のフィールドが同居できる型なので、置換に加算側のフィルタを書くと
 // **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
 // 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
 // 書いた瞬間に発現するため、データ側で落とす。
-const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn", "condition"] as const
+const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn"] as const
 
 function checkCostSetEffects(
     c: CardData,
     add: (cardId: string, message: string) => void,
 ): void {
-    for (const e of c.effects as { id?: string; kind?: string; mode?: string; amount?: unknown; setTo?: unknown }[]) {
+    for (const e of c.effects as {
+        id?: string
+        kind?: string
+        mode?: string
+        amount?: unknown
+        setTo?: unknown
+        scope?: unknown
+        condition?: unknown
+    }[]) {
         if (e.kind !== "costMod" || e.mode !== "set") continue
         for (const field of COST_SET_UNSUPPORTED) {
             if (field in e) {
@@ -170,6 +187,18 @@ function checkCostSetEffects(
                     `costMod mode:"set" の ${e.id ?? e.kind} に ${field} がある（costSetOverride は参照しないため絞り込みが無言で無視される）`,
                 )
             }
+        }
+        if (e.scope !== undefined && e.scope !== "self") {
+            add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} の scope が "self" 以外（costSetOverride は "self" しか読まない）`)
+        }
+        if (
+            e.condition !== undefined &&
+            !(typeof e.condition === "object" && e.condition !== null && "ownNexusAtLeast" in e.condition)
+        ) {
+            add(
+                c.cardId,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+            )
         }
         if ("amount" in e) {
             add(c.cardId, `costMod mode:"set" の ${e.id ?? e.kind} に amount がある（置換には setTo を使用してください）`)
@@ -203,7 +232,7 @@ const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser",
-    "sameCostAsEventTarget", "sameCostAsSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
+    "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
 ])
 

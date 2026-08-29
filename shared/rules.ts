@@ -111,6 +111,16 @@ export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
 }
 
+// トラッシュにあるこのカードが、一切の効果を受けない（kind:"trashImmunity"）か。
+// フィールドの状態・現在Lvと無関係にカード静的なデータだけで判定する（effectSources経由ではない＝
+// トラッシュのカードはそもそも場にいないため、effectActiveOn等のレベル判定が使えない）。
+// **トラッシュにあるカードを対象にする効果は、候補を絞り込む箇所でこれを1つ呼ぶこと**
+// （noTrashRecoveryのように各ハンドラ冒頭へ個別に書くと、書き忘れの経路が残る。
+// BS10-108ルナティックシール：「トラッシュにあるこのマジックカードは、一切の効果を受けない」＝自分の効果からも守られる）
+export function isTrashCardProtected(cardId: string): boolean {
+    return card(cardId).effects.some((e) => e.kind === "trashImmunity")
+}
+
 // インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 // （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
 // **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
@@ -245,13 +255,19 @@ export function instCostDelta(inst: CardInstance): number {
 // そのうえで instCostDelta の増減を足す（**増減は置き換えであって追加ではない**＝元のコストは残らない。
 // 「コスト+3」したスピリットは、相手の「コスト3以下を破壊」にはもう当たらない。BS08グロウアップ）
 export function instBaseCost(inst: CardInstance): number {
-    return Math.max(0, (inst.asSpiritThisTurn?.cost ?? card(inst.cardId).cost) + instCostDelta(inst))
+    // braveStatsAsContinuous（kind:"braveStatsAs"。BS10-X06）が asSpiritThisTurn より優先。
+    // 両方が同時に載ることは現状ない（ネクサス限定 vs ブレイヴ限定）が、優先順位は明示しておく
+    return Math.max(
+        0,
+        (inst.braveStatsAsContinuous?.cost ?? inst.asSpiritThisTurn?.cost ?? card(inst.cardId).cost) +
+            instCostDelta(inst),
+    )
 }
 
-// このインスタンスの「カード側の系統」。asSpiritThisTurn があればその系統で置き換わる
+// このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
 // （付与効果による系統は含まない。それらは spiritHasFamily が別途見る）
 export function instFamilies(inst: CardInstance): string[] {
-    return inst.asSpiritThisTurn?.family ?? card(inst.cardId).family
+    return inst.braveStatsAsContinuous?.family ?? inst.asSpiritThisTurn?.family ?? card(inst.cardId).family
 }
 
 // インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
@@ -436,10 +452,11 @@ export function matchesBraveCondition(
 export function instLevels(inst: CardInstance): LevelDef[] {
     // 合体中のブレイヴは**合体状態のレベル表**を引く（BRAVE.md §4。Lv1は0コアなので
     // コアを持たなくても Lv1 が成立する）。判定に使うコア数は coresOverride に写した**ホストのコア数**
+    // 合体していないときは braveStatsAsContinuous（kind:"braveStatsAs"。BS10-X06）→ asSpiritThisTurn の順に見る
     const levels =
         inst.braveCombined === true
             ? (card(inst.cardId).braveLevels ?? card(inst.cardId).levels)
-            : (inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
+            : (inst.braveStatsAsContinuous?.braveLevels ?? inst.asSpiritThisTurn?.levels ?? card(inst.cardId).levels)
     // 「Lvコストを+Nする」の継続効果（BS09-017蛇凰神バァラル）。**Lv1のコストも上がる**ので、
     // 維持コア（instMinLevelCores）もここを通って自然に引き上がる
     const bonus = inst.levelCostBonusContinuous ?? 0
@@ -503,6 +520,18 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
             }
         }
         if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
+    }
+    return count
+}
+
+// 軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
+// フィールドと違い個体（CardInstance）ではなくカードIDの列なので、カード静的な symbol だけで数える
+export function countTrashSymbols(player: BoardPlayer, colors: Color[]): number {
+    let count = 0
+    for (const cardId of player.trashCards) {
+        for (const sym of card(cardId).symbol) {
+            if (colors.includes(sym)) count++
+        }
     }
     return count
 }
@@ -892,7 +921,7 @@ export function boardResistanceAgainst(
     if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
-    if (hasFullEffectImmunity(target, attempt.sourceType)) {
+    if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
         return { category: "fullImmune", label: "相手の効果を受けない" }
     }
     if (attempt.sourceType === "magic" && hasMagicImmunity(board, targetOwnerPid, target)) {
@@ -1024,6 +1053,7 @@ export function countAuraCounter(
     countingSourceType?: CardType, // 数えている効果の発生源の種別（spiritCountWeight の限定に使う）
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
+    if (counter === "ownHand") return handSizeOf(board.players[sourcePid])
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
     if (counter === "allNexuses") {
         return (
@@ -1161,6 +1191,11 @@ export function auraAppliesTo(
     }
     // combinedFilter（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）
     if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
+        return false
+    }
+    // braveOnly（BS10-086巨星望む大樹Lv1：自分のスピリット状態のブレイヴすべて）。合体中のブレイヴは
+    // field.spiritsに実体が無いため、ownAllの走査に来た時点で自動的に「スピリット状態」を意味する
+    if (aura.braveOnly === true && card(targetInst.cardId).type !== "brave") {
         return false
     }
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
@@ -1366,6 +1401,16 @@ export function cardNameContains(inst: CardInstance, text: string): boolean {
     return (inst.namesAsContinuous ?? []).includes(text)
 }
 
+// トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
+// kind:"trashNameAs"（トラッシュにある間だけ別名としても扱う。BS10-056蒼天大聖モンゴクウ）を持つカードは
+// その名前でも一致する。トラッシュのカード名を照合する呼び出し側はすべてこれを通すこと
+// （直接 getCard(cardId).name.includes(...) を書くと trashNameAs が無言ですり抜ける）
+export function trashCardNameMatches(cardId: string, needle: string): boolean {
+    const c = card(cardId)
+    if (c.name.includes(needle)) return true
+    return c.effects.some((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+}
+
 // コスト範囲の判定（TargetFilter.cost）。
 // 従来 EffectModules 側にあった matchesCostFilter をここへ移し、matchesTarget から使う
 export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {
@@ -1486,6 +1531,13 @@ export function activeConstraintsWithSource(
                 if (turn === "own" && pid !== board.turnPlayer) continue
                 if (turn === "opponent" && pid === board.turnPlayer) continue
             }
+            // BS10-091シャボンの湖畔Lv2：コスト2のスピリットのみ（AuraDef.costFilterと同じ意味。付与コストも見る）
+            if (effect.costFilter !== undefined && !instHasCost(inst, effect.costFilter)) continue
+            // AuraDef.turnと同じ意味：フェーズを問わずturn条件のみで絞る（phaseTurnのphase必須版とは別軸）
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
+            if (effect.combinedFilter && !instIsCombined(inst)) continue
             // colorFromChosen（BS09-081サマーソルトターン）：「指定した色」を、貸与時に選ばれた色
             // （仮想発生源の lentChoiceColor）へ解決してから積む。色が選ばれていなければ付与しない
             const c = effect.constraint
@@ -1534,16 +1586,16 @@ export function isUntargetableByOpponent(inst: CardInstance): boolean {
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasFullEffectImmunity(
+    board: Board,
+    pid: PlayerId,
     inst: CardInstance,
     srcType: CardType | undefined,
 ): boolean {
     if (srcType !== "spirit" && srcType !== "magic") return false
-    const level = currentLevel(inst).level
-    return card(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "immuneToOpponentEffects" &&
-            effectActiveAtLevel(e.levels, level),
+    // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
+    // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
+    return activeConstraints(board, pid, inst).some(
+        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || c.against === srcType),
     )
 }
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
@@ -1696,6 +1748,10 @@ export function lifeDamageLimit(
     if (attacker.lifeDamageNegatedFor === defenderPid) {
         return { max: 0, reason: "このアタックのライフダメージは打ち消されている" }
     }
+    // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（lifeCrushアクションも別途これを見る）
+    if (lifeImmuneThisTurn(board, defenderPid)) {
+        return { max: 0, reason: "このターンはライフが減らない" }
+    }
     // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
     if (noLifeDamageByCost(board, attacker)) {
         return { max: 0, reason: "コスト条件によりライフが減らない" }
@@ -1716,6 +1772,13 @@ export function lifeDamageLimit(
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
+}
+
+// このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らないか
+// （BS10-093時刻む花時計。TIMING_CHART.md §2「あらゆる原因を止める」）。
+// lifeDamageLimit（アタック経路）と lifeCrushハンドラ（効果経路）の両方から呼ぶ共通の入口
+export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
+    return board.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === pid)
 }
 
 export function lifeProtectedByCostThisTurn(
@@ -2112,3 +2175,53 @@ export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
     }
     return false
 }
+
+// ---- 代替召喚ルート（kind:"altSummonFromHand"。BS10-058水星神龍メルクリウス・サーペント） ----
+
+export interface AltSummonFromHandOption {
+    effectId: string
+    color: Color
+    count: number
+    candidateNexusIds: string[] // 支払いに使える自分のネクサス（cost.returnOwnNexusToDeckBottom.color 一致）のinstanceId
+}
+
+// 判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**
+// （battleSwapSummonCheck と同じ形）。戻り値は失敗理由（string）か成功時のオプション。
+// 支払い元（altSummonNexusInstanceIds）の枚数・重複チェックはサーバー専用の検証が持つため、
+// ここでは「この召喚方法を選べるか」と「候補ネクサス一覧」までを返す
+export function altSummonFromHandCheck(
+    board: Board,
+    pid: PlayerId,
+    handIndex: number,
+): AltSummonFromHandOption | string {
+    const cardId = board.players[pid].hand?.[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const cardData = card(cardId)
+    if (cardData.type !== "spirit") return "スピリットカードではありません"
+    const alt = cardData.effects.find((e) => e.kind === "altSummonFromHand")
+    if (!alt || alt.kind !== "altSummonFromHand") return "このカードはこの召喚方法を使えません"
+    // timing:"main"＝自分のメインステップ中の任意のタイミング（バトル中は不可）
+    if (board.turnPlayer !== pid || board.phase !== "main" || board.battle) {
+        return "自分のメインステップではありません"
+    }
+    const { color, count } = alt.cost.returnOwnNexusToDeckBottom
+    const candidates = board.players[pid].field.nexuses.filter((n) => instHasColor(n, color))
+    if (candidates.length < count) return "コストにできる自分のネクサスが足りません"
+    return {
+        effectId: alt.id,
+        color,
+        count,
+        candidateNexusIds: candidates.map((n) => n.instanceId),
+    }
+}
+
+// UI向け：手札の handIndex 枚目がいま代替召喚できるなら候補ネクサスを返す（できなければ ok:false）
+export function canAltSummonFromHand(
+    board: Board,
+    pid: PlayerId,
+    handIndex: number,
+): { ok: boolean; candidateNexusIds: string[] } {
+    const result = altSummonFromHandCheck(board, pid, handIndex)
+    return typeof result === "string" ? { ok: false, candidateNexusIds: [] } : { ok: true, candidateNexusIds: result.candidateNexusIds }
+}
+

@@ -5,11 +5,35 @@
 //  依存が一方向になるよう、両者を使う判定は下流のこのファイルへ分ける）
 //
 // 制約は rules.ts と同じ: node 組み込みモジュールを import しないこと（クライアントへバンドルするため）。
-import type { PlayerId } from "../server/src/type"
+import type { CardData, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
-import { isFlashLockedFor, minLevelCores } from "./rules"
+import { isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+
+// 召喚（type:"summon"）で場に出せるカードか。
+// **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
+// サーバーの validateSummon が同じ規則で受け付けるため、クライアントの
+// 「手札から出せるか」の判定は必ずこれを通すこと（片方だけ spirit 判定になっていると
+// 「クリックできるのにサーバーが弾く」／「出せるはずのカードが押せない」のズレが出る）
+// 戻り値を型述語にしてあるのは、呼び出し側（クライアントの sendPlay）で
+// **カード種別の網羅漏れをコンパイル時に検出する**ため（種別が増えたら never チェックが落ちる）
+export function isSummonableCardType(type: CardData["type"]): type is "spirit" | "brave" {
+    return type === "spirit" || type === "brave"
+}
+
+// 合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
+// 条件はサーバーの validateSummon と同じ:
+//   ・自分のフィールドのスピリットで、まだブレイヴが合体していない
+//   ・そのブレイヴの合体条件を満たす
+// 空配列なら合体先が無い（＝スピリット状態でしか召喚できない）
+export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId: string): string[] {
+    if (card(braveCardId).type !== "brave") return []
+    return board.players[pid].field.spirits
+        .filter((host) => (host.braveRefs ?? []).length === 0)
+        .filter((host) => matchesBraveCondition(board, pid, host, braveCardId))
+        .map((host) => host.instanceId)
+}
 
 // ---- 入れ替え召喚（kind:"battleSwapSummon"。BS07ブラックカラカロッサム） ----
 

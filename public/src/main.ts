@@ -18,9 +18,9 @@ import {
     hideWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAwakenFromReserve, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
-import { canBattleSwapSummon } from "../../shared/summon"
+import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../shared/summon"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -33,7 +33,7 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, stepper: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, stepper: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -154,35 +154,52 @@ function sendPlay(
     substituteInstanceId?: string,
     discardHandIndices?: number[],
     millPay?: number,
+    braveTargetInstanceId?: string,
+    altSummonNexusInstanceIds?: string[],
 ): void {
-    if (cardType === "spirit") {
+    // ブレイヴは単体で場に出すとスピリットとして扱われるので、召喚はこちらを通る（BRAVE.md §1.1）
+    if (isSummonableCardType(cardType)) {
         send({ 
             type: "summon", 
             handIndex, 
             ...(paySources ? { paySources } : {}), 
             ...(level !== undefined ? { level } : {}),
             ...(substituteInstanceId ? { substituteInstanceId } : {}),
-            ...(discardHandIndices ? { discardHandIndices } : {})
+            ...(discardHandIndices ? { discardHandIndices } : {}),
+            ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
+            ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {})
         })
     } else if (cardType === "nexus") {
         send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}), ...(millPay !== undefined ? { millPay } : {}) })
-    } else {
+    } else if (cardType === "magic") {
+        // **マジックのときだけ** castMagic を送る。かつてここは「それ以外はすべて castMagic」
+        // という取りこぼしの受け皿になっており、ブレイヴが追加されたときに
+        // 手札のブレイヴが castMagic として送られて場に出せなくなっていた（2026-08-28 修正）。
+        // 今後カード種別が増えたときも、ここに書き足すまでは黙って誤送信されない
         send({
             type: "castMagic",
             handIndex,
             ...(targetInstanceId ? { targetInstanceId } : {}),
             ...(paySources ? { paySources } : {}),
         })
+    } else {
+        // カード種別の網羅チェック。**新しい種別が増えるとここで typecheck が落ちる**ので、
+        // 出し方を決めないまま既存のアクションへ紛れ込むことがない（2026-08-28 ユーザー指示）
+        const unknown: never = cardType
+        console.error(`このカード種別の出し方が未実装です: ${String(unknown)}`)
     }
 }
 
 // 軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
-function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string): void {
+function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string, braveTargetInstanceId?: string, altSummonNexusInstanceIds?: string[]): void {
     if (!view) return
-    const cost = effectiveCost(view, view.you, card)
+    // 代替召喚（kind:"altSummonFromHand"）は召喚コストを支払わない。維持コアは通常どおり必要
+    const cost = altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
     
     // 入れ替え召喚（substituteInstanceId あり）の場合は強制Lv1（維持コア=minLevelCores）になるためレベル選択をスキップする
-    if (level === undefined && substituteInstanceId === undefined && (card.type === "spirit" || card.type === "nexus")) {
+    // ダイレクトブレイヴ（braveTargetInstanceId あり）は合体状態のLv1固定でコアを置かないため、
+    // 入れ替え召喚と同じくレベル選択をスキップする（サーバーもレベル指定を受け付けない）
+    if (level === undefined && substituteInstanceId === undefined && braveTargetInstanceId === undefined && (card.type === "spirit" || card.type === "nexus")) {
         const reserve = view.players[view.you].reserve
         const cardIdForField = view.players[view.you].hand?.[handIndex]
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
@@ -198,7 +215,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
             ui.awakenTarget = null
             ui.paying = null
             ui.directedAttack = null
-            ui.summonLevelSelect = { handIndex, cardId, ...(targetInstanceId ? { targetInstanceId } : {}) }
+            ui.summonLevelSelect = { handIndex, cardId, ...(targetInstanceId ? { targetInstanceId } : {}), ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}) }
             rerender()
             return
         }
@@ -210,7 +227,8 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     
     const targetLevel = level || 1
     const lv = card.levels.find((l) => l.level === targetLevel)
-    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
+    // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
+    const maintain = card.type === "magic" || braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
     const reserve = view.players[view.you].reserve
 
     // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。
@@ -235,7 +253,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     // （そのまま確定すれば従来どおり全額コア払いになる）
     const altAvailable = millPayable > 0 || handDiscardPayable > 0
     if (!altAvailable && reserve >= cost + maintain) {
-        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId)
+        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds)
         return
     }
     // コアが足りない、または代替コストを選べる → 支払いモードを開始（他のモードは排他的に解除する）
@@ -243,6 +261,8 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     ui.awakenTarget = null
     ui.summonLevelSelect = null
     ui.battleSwapSummon = null
+    ui.braveSummonSelect = null
+    ui.altSummonSelect = null
     ui.paying = { 
         handIndex, 
         ...(targetInstanceId ? { targetInstanceId } : {}), 
@@ -250,7 +270,9 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
         discardHandIndices: [],
         millPay: 0,
         ...(level !== undefined ? { level } : {}),
-        ...(substituteInstanceId ? { substituteInstanceId } : {})
+        ...(substituteInstanceId ? { substituteInstanceId } : {}),
+        ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
+        ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {})
     }
     rerender()
 }
@@ -289,6 +311,8 @@ function submitPaying(): void {
         pay.substituteInstanceId,
         pay.discardHandIndices.length > 0 ? pay.discardHandIndices : undefined,
         pay.millPay > 0 ? pay.millPay : undefined,
+        pay.braveTargetInstanceId,
+        pay.altSummonNexusInstanceIds,
     )
     ui.paying = null
 }
@@ -374,6 +398,8 @@ socket.on("state", (v: GameView) => {
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
     ui.summonLevelSelect = null // レベル選択もリセット
+    ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
+    ui.altSummonSelect = null // 代替召喚の方法選択もリセット
     ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
     rerender()
 })
@@ -467,7 +493,39 @@ function onHandClick(handIndex: number): void {
         !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
 
     if (myMainFree) {
+        // ブレイヴは「スピリット状態で召喚」と「合体した状態で召喚」を毎回選ばせる
+        // （2026-08-28 ユーザー指示。合体先が無くても選択は出す＝何が起きるか分かるように）
+        if (card.type === "brave") {
+            ui.targeting = null
+            ui.awakenTarget = null
+            ui.paying = null
+            ui.directedAttack = null
+            ui.summonLevelSelect = null
+            ui.battleSwapSummon = null
+            ui.altSummonSelect = null
+            ui.braveSummonSelect = {
+                handIndex,
+                cardId,
+                candidateIds: braveCombineCandidates(view, view.you, cardId),
+            }
+            rerender()
+            return
+        }
         if (card.type === "spirit") {
+            // 代替召喚（BS10-058）を持つカードは、通常召喚と代替召喚のどちらで出すか選ばせる
+            const alt = canAltSummonFromHand(view, view.you, handIndex)
+            if (alt.ok) {
+                ui.targeting = null
+                ui.awakenTarget = null
+                ui.paying = null
+                ui.directedAttack = null
+                ui.summonLevelSelect = null
+                ui.battleSwapSummon = null
+                ui.braveSummonSelect = null
+                ui.altSummonSelect = { handIndex, cardId, candidateNexusIds: alt.candidateNexusIds }
+                rerender()
+                return
+            }
             tryPlay(handIndex, card, undefined)
             return
         }
@@ -637,10 +695,13 @@ function assignPayCore(instanceId: string): void {
     if (view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")) {
         if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
     }
-    const cost = effectiveCost(view, view.you, card)
+    // payingRemaining（renderer）と同じ計算にすること。
+    // 代替召喚は召喚コスト0、ダイレクトブレイヴは維持コアを置かない
+    const cost = pay.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
     const targetLevel = pay.level || 1
     const lv = card.levels.find((l) => l.level === targetLevel)
-    const maintain = card.type === "magic" ? 0 : (lv ? lv.cores : 0)
+    const maintain =
+        card.type === "magic" || pay.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
     const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
     const already = pay.assigned[instanceId] ?? 0
     // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る
@@ -1161,6 +1222,8 @@ async function init(): Promise<void> {
         ui.directedAttack = null
         ui.summonLevelSelect = null
         ui.battleSwapSummon = null
+        ui.braveSummonSelect = null
+        ui.altSummonSelect = null
         rerender()
     })
     byId("btn-skip-choice").addEventListener("click", () => {
@@ -1193,12 +1256,33 @@ async function init(): Promise<void> {
             send({ type: "resolveChoice", cardIndex })
             return
         }
+        const altEl = closestData(e, "data-alt-summon")
+        if (altEl && ui.altSummonSelect) {
+            const choice = altEl.dataset.altSummon
+            const { handIndex, cardId } = ui.altSummonSelect
+            ui.altSummonSelect = null
+            // "normal"＝通常どおりコストを払う。それ以外はデッキの下に戻すネクサスの instanceId
+            tryPlay(handIndex, master(cardId), undefined, undefined, undefined, undefined,
+                choice === "normal" ? undefined : [choice!])
+            return
+        }
+        const braveEl = closestData(e, "data-brave-summon")
+        if (braveEl && ui.braveSummonSelect) {
+            const choice = braveEl.dataset.braveSummon
+            const { handIndex, cardId } = ui.braveSummonSelect
+            ui.braveSummonSelect = null
+            // "single"＝スピリット状態で単体召喚（通常の召喚フロー）。
+            // それ以外は合体先スピリットの instanceId＝ダイレクトブレイヴ
+            tryPlay(handIndex, master(cardId), undefined, undefined, undefined,
+                choice === "single" ? undefined : choice)
+            return
+        }
         const levelEl = closestData(e, "data-summon-level")
         if (levelEl && ui.summonLevelSelect) {
             const level = Number(levelEl.dataset.summonLevel)
-            const { handIndex, cardId, targetInstanceId } = ui.summonLevelSelect
+            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds } = ui.summonLevelSelect
             ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, level)
+            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds)
             return
         }
     })

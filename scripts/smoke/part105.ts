@@ -230,7 +230,7 @@ console.log("=== BS04-043 ワルキューレ・ヒルド：Lv1-2 相手のスピ
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === other.instanceId),
         "免疫を持たない同じ側のスピリットは範囲破壊で破壊される",
     )
-    assert(hasFullEffectImmunity(hild, "spirit"), "hasFullEffectImmunityがtrueを返す")
+    assert(hasFullEffectImmunity(s, "p1", hild, "spirit"), "hasFullEffectImmunityがtrueを返す")
 }
 
 console.log("=== BS03-024 吸血騎士ノスフェラト：Lv2【呪撃】持ちの自分のスピリットすべてもLv1にブロックされない ===")

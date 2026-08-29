@@ -23,9 +23,10 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
+    attachBrave,
     activeConstraints,
     checkExhaustOnCoreChange,
     consumeSummonHandDiscardPay,
@@ -52,7 +53,6 @@ import {
     fireExhaustedTriggers,
     fireSummonSequence,
     flushPendingTenshoEvent,
-    fireSummonTrigger,
     fireFieldEventTriggers,
     fireTrigger,
     hasArmorAgainst,
@@ -69,7 +69,7 @@ import {
     instanceSymbolCount,
     instColors,
     millDeck,
-    notifyNexusDeployed,
+    fireNexusDeployed,
     payCost,
     refreshLevelAsOverrides,
     sweepLevelCostDepletion,
@@ -79,6 +79,7 @@ import {
     resolveMagic,
     resolveTensho,
     returnSpiritToHand,
+    returnNexusToDeckBottom,
     fireBounceTriggers,
     flushBounces,
     requestActivationConfirm,
@@ -245,7 +246,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
@@ -401,13 +402,8 @@ function placeSummonedSpirit(
             ? undefined
             : player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
     if (host !== undefined) {
-        player.field.combinedBraves.push(inst)
-        host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: inst.instanceId }]
-        // 合体時の疲労合成：**どちらかが疲労状態なら合体スピリットは疲労状態**（§1.3）
-        host.isRested = host.isRested || inst.isRested
-        // ブレイヴが足すコスト・色・シンボル（braveComposite）をここで組み直す。
-        // handleAction の末尾でも走るが、**このあとに出る召喚時効果がコストや色を読む**ので先に反映する
-        refreshLevelAsOverrides(state)
+        // 合体処理の共通入口（server/src/logic/removal.ts）。疲労合成・refreshLevelAsOverridesも内包する
+        attachBrave(state, pid, host, inst)
     } else {
         player.field.spirits.push(inst)
     }
@@ -435,8 +431,9 @@ function doSummon(
     substituteInstanceId?: string,
     discardHandIndices?: number[],
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
+    altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds)
     if (error) return error
 
     const player = state.players[pid]
@@ -451,7 +448,12 @@ function doSummon(
         return doBattleSwapSummon(state, pid, handIndex, substituteInstanceId, paySources)
     }
 
-    const cost = effectiveCost(state, pid, card)
+    // kind:"altSummonFromHand"（BS10-058）：指定した自分の青ネクサスをデッキの下に戻すことがコストで、
+    // 召喚コストは支払わない（維持コアは通常どおりリザーブから。COST_MODEL.md §1＝検証済みのA・Bを実行するだけ）
+    if (altSummonNexusInstanceIds !== undefined) {
+        for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
+    }
+    const cost = altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
@@ -496,7 +498,8 @@ function doSummon(
         braveTargetInstanceId === undefined
             ? ""
             : `${getCard(player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
-    const logText = `${player.name}は${flashNote}${braveNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
+    const altSummonNote = altSummonNexusInstanceIds !== undefined ? "、ネクサスをデッキの下に戻すことでコストを支払わずに" : ""
+    const logText = `${player.name}は${flashNote}${braveNote}${altSummonNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
     const reserveDelta = maintain - placedFromField
 
     // 【転召】は「コストを支払う → **転召** → 維持コアを置く → 召喚完了」の順に解決する
@@ -554,10 +557,17 @@ function doSetNexus(
     player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
 
-    player.field.nexuses.push(createInstance(cardId, state.turn, maintain))
+    const nexusInst = createInstance(cardId, state.turn, maintain)
+    player.field.nexuses.push(nexusInst)
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
-    notifyNexusDeployed(state, pid)
+    // 『このネクサスの配置時』と「自分のネクサスが配置されたとき」を発火する（triggers.ts）。
+    // ⚠️ 2026-08-28 発覚：以前はここでonSummonを発火しておらず、BS09-066目覚める要塞城の
+    // 『配置時』効果が実戦で一度も発揮されないバグがあった（BS10-096最後の優勝旗の実装中に発見。
+    // データはtrigger:"onSummon"で書かれているのに、doSetNexusがfireSummonTriggerを呼んでいなかった）。
+    // fireSummonSequenceのownSpiritSummonedフィールドイベントはfield.spiritsだけが対象で、
+    // ネクサスには意図的に効かないため、スピリットのplaceSummonedSpiritとは別の経路になっている
+    fireNexusDeployed(state, pid, nexusInst)
     return null
 }
 
@@ -837,6 +847,19 @@ function doAttack(
     const card = getCard(inst.cardId)
 
     inst.isRested = true
+    // BS10-047：『自分の合体スピリットの次にアタックしたとき』用に、直前のアタック宣言を1つだけ覚える。
+    // prev = 1つ前のアタッカーが合体スピリットだったときその持ち主／それ以外はundefined。
+    // state.battle を作る前に必ずスライドさせる（047自身のアタック時トリガーが読むのは「1つ前」なので順序が重要）
+    if (state.lastAttackerCombinedPid !== undefined) {
+        state.prevAttackerCombinedPid = state.lastAttackerCombinedPid
+    } else {
+        delete state.prevAttackerCombinedPid
+    }
+    if (instIsCombined(inst)) {
+        state.lastAttackerCombinedPid = pid
+    } else {
+        delete state.lastAttackerCombinedPid
+    }
     // 指定アタックの場合、blockerInstanceId を強制的に指定スピリットにセットする
     // （既存の「blockerInstanceId あり＝ブロック済み」ロジックにより、takeLife も他のブロックも
     // 自動的に拒否される。onBlock トリガーはブロック宣言ではないため発火させない）
@@ -1833,8 +1856,25 @@ function resolveBattle(state: GameState): void {
     if (compareByCores) {
         log(state, "バトル解決：BPの代わりにコアの数を比較する。")
     }
-    const attackerValue = compareByLevel ? currentLevel(attacker).level : compareByCores ? attacker.cores : attackerBp
-    const blockerValue = compareByLevel ? currentLevel(blocker).level : compareByCores ? blocker.cores : blockerBp
+    // ノックアウト：バトル解決時、BPの代わりにコストを比較する（コストが低い方が破壊される。同コストは相打ち）
+    const compareByCost = state.battle.compareByCost === true
+    if (compareByCost) {
+        log(state, "バトル解決：BPの代わりにコストを比較する。")
+    }
+    const attackerValue = compareByLevel
+        ? currentLevel(attacker).level
+        : compareByCores
+          ? attacker.cores
+          : compareByCost
+            ? getCard(attacker.cardId).cost
+            : attackerBp
+    const blockerValue = compareByLevel
+        ? currentLevel(blocker).level
+        : compareByCores
+          ? blocker.cores
+          : compareByCost
+            ? getCard(blocker.cardId).cost
+            : blockerBp
 
     // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
     // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
@@ -2107,13 +2147,39 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
         case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
-            if (survivingAttacker) fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+            if (survivingAttacker) {
+                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+                // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
+                // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
+                if (instIsCombined(survivingAttacker)) {
+                    fireFieldEventTriggers(
+                        state,
+                        attackerPid,
+                        "ownCombinedSpiritBattleEnded",
+                        { pid: attackerPid, inst: survivingAttacker },
+                        instColors(survivingAttacker),
+                        survivingAttacker.instanceId,
+                    )
+                }
+            }
             return
         }
         case 9: {
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
-            if (survivingBlocker) fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+            if (survivingBlocker) {
+                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+                if (instIsCombined(survivingBlocker)) {
+                    fireFieldEventTriggers(
+                        state,
+                        defenderPid,
+                        "ownCombinedSpiritBattleEnded",
+                        { pid: defenderPid, inst: survivingBlocker },
+                        instColors(survivingBlocker),
+                        survivingBlocker.instanceId,
+                    )
+                }
+            }
             return
         }
         case 10: {

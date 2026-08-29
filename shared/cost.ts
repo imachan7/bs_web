@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
+import { cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -298,11 +298,24 @@ export function costSetOverride(
     cardData: CardData,
 ): number | undefined {
     let result: number | undefined
+    // BS10-059：手札にあるこのスピリットカード自身の効果（scope:"self"）。effectSourcesでは拾えないため
+    // cardData.effects を直接見る（hasTrashSymbolReductionと同じ形）
+    for (const effect of cardData.effects) {
+        if (effect.kind !== "costMod" || effect.mode !== "set" || effect.scope !== "self") continue
+        if (effect.condition?.ownNexusAtLeast !== undefined) {
+            if (board.players[pid].field.nexuses.length < effect.condition.ownNexusAtLeast) continue
+        }
+        if (result === undefined || effect.setTo < result) result = effect.setTo
+    }
     const sources = effectSources(board, pid)
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "costMod" || effect.mode !== "set") continue
+            // scope:"self" は「手札にあるこのカード自身」の効果なので、上の cardData.effects の枝だけが扱う。
+            // ここで除外しないと、そのカードが**場に出たとたん**（BS10-059は絞り込みを持たないため）
+            // あらゆるカードのコストを置換してしまう
+            if (effect.scope === "self") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.familyFilter !== undefined) {
                 const wanted = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
@@ -322,6 +335,24 @@ export function costSetOverride(
         }
     }
     return result
+}
+
+// BS10-092／BS10-X05：この cardData がトラッシュのシンボルでも軽減できるか。
+// self（X05：手札にあるカード自身の効果）は effectSources では拾えないので cardData.effects を直接見る。
+// ownHand（092：ネクサス）は発生源側の走査で cardType/cardColor の絞り込みを効かせる
+function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData): boolean {
+    if (cardData.effects.some((e) => e.kind === "trashSymbolReduction" && e.scope === "self")) return true
+    for (const source of effectSources(board, pid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "trashSymbolReduction" || effect.scope !== "ownHand") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
+            if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            return true
+        }
+    }
+    return false
 }
 
 // 軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
@@ -367,9 +398,14 @@ export function effectiveCost(
             cardData.type === "spirit" && noReductionBySummonCost(board, cardData.cost)
         let reduction = 0
         if (!reductionBlocked && !reductionBlockedBySummonCost) {
+            // BS10-092／BS10-X05：フィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも
+            // 軽減できる（ループの外で1回だけ判定し、色ごとには呼ばない）
+            const withTrash = hasTrashSymbolReduction(board, pid, cardData)
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
-                const have = countSymbols(board.players[pid], [color])
+                const have =
+                    countSymbols(board.players[pid], [color]) +
+                    (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0)
                 reduction += Math.min(need, have)
             }
         }

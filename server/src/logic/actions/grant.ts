@@ -564,6 +564,14 @@ const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ct
     )
 }
 
+// このターンの間、持ち主のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない
+// （capLifeDamageThisTurnのmax:0はアタック限定なので届かない。BS10-093時刻む花時計）
+const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "lifeImmuneForPid", pid: owner })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは減らない。`)
+}
+
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
@@ -955,6 +963,7 @@ const handlers = {
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
+    lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
