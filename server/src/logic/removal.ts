@@ -300,8 +300,33 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
         const name = getCard(brave.cardId).name
         const need = braveKeepCores(brave)
-        if (player.reserve < need) {
+        // 残すには「自分のフィールド/リザーブから Lv1維持コスト以上のコア」が要る（§1.4）。
+        // どう積んでも足りないなら確認を出さずトラッシュへ（§6.3 の手順1）。
+        // ⚠️ **場を離れるホスト自身のコアも数に入れる**（この直後にリザーブへ戻り、支払いに使えるため）。
+        //    host はまだ field.spirits にいるので下の合計に含まれている
+        const payable = player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
+        if (payable < need) {
             // 残せない → **合体元と同時にトラッシュへ**（§1.4）。合体中のコアは0なので戻すコアは無い
+            player.trashCards.push(brave.cardId)
+            log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
+            continue
+        }
+        if (state.interactiveTargets) {
+            // 実対戦：残すかどうかと、コアの置き方はプレイヤーが決める（§6.3。簡略化しない）。
+            // ⚠️ 破壊処理の途中では中断できないので、ここでは**コア0個のまま場に置いて印を立てる**だけにし、
+            //    確認はアクションを解決しきった安全な地点（GameEngine の requestPendingBraveKeep）で出す。
+            //    先に場へ置くのは、アタック中のバトルを下の分岐でそのまま引き継がせるため
+            brave.cores = 0
+            brave.pendingBraveKeep = { need }
+            brave.isRested = host.isRested
+            player.field.spirits.push(brave)
+            log(state, `${player.name}の${name}は、スピリット状態で残すかの確認を待っている。`)
+            if (state.battle && wasAttacker) state.battle.attackerInstanceId = brave.instanceId
+            else if (state.battle && wasBlocker) state.battle.blockerInstanceId = brave.instanceId
+            continue
+        }
+        // 非対話（テスト・AI）はリザーブから自動で払う。払えなければ残さない
+        if (player.reserve < need) {
             player.trashCards.push(brave.cardId)
             log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
             continue

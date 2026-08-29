@@ -137,6 +137,9 @@ export function handleAction(
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
     requestPendingReviveConfirm(state)
+    // ホストが場を離れたときの「ブレイヴを残す／残さない」も、破壊処理の途中では中断できないので
+    // ここで出す（BRAVE.md §6.3）。確認待ちのブレイヴはコア0個で場に置かれている
+    requestPendingBraveKeep(state)
     // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
     endBattleIfAttackerLeftField(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
@@ -206,6 +209,31 @@ function requestPendingReviveConfirm(state: GameState): void {
         return
     }
     if (queue.length === 0) delete state.pendingReviveConfirms
+}
+
+// 「ブレイヴをスピリット状態で残すか」の確認を1件だけ pendingChoice として立てる（BRAVE.md §6.3）。
+// 対象は detachBravesOnLeave が pendingBraveKeep を立てて場に置いたブレイヴ
+function requestPendingBraveKeep(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) {
+            const keep = inst.pendingBraveKeep
+            if (keep === undefined) continue
+            suspend(state, {
+                pid,
+                kind: "option",
+                prompt: `${getCard(inst.cardId).name}：コア${String(keep.need)}個を置いて、スピリット状態でフィールドに残しますか？`,
+                candidates: [],
+                options: ["残す"],
+                optional: true,
+                confirm: true,
+                braveKeepConfirm: { pid, instanceId: inst.instanceId, need: keep.need },
+                action: { type: "noop" },
+                selfInstanceId: inst.instanceId,
+            })
+            return
+        }
+    }
 }
 
 // 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
@@ -1360,6 +1388,51 @@ function doResolveChoice(
         } else {
             declineReviveConfirm(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // ブレイヴを残すかの確認（BRAVE.md §6.3）。action は解決しない。
+    // 「残す」ならリザーブ（不足分は paySources でフィールドのコア）から need 個を置き、
+    // 選ばなければ合体元と一緒にトラッシュへ置く（§1.4）
+    if (pending.braveKeepConfirm) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.braveKeepConfirm
+        const player = state.players[info.pid]
+        const brave = player.field.spirits.find((sp) => sp.instanceId === info.instanceId)
+        if (!brave) {
+            state.pendingChoice = null
+            return finishChoiceResolution(state, pending.pid)
+        }
+        const name = getCard(brave.cardId).name
+        // フィールドから払うぶんは、確認を出したあとに盤面が動いていても払える範囲に丸める
+        const fromField = payCost(state, info.pid, 0, option === undefined ? undefined : paySources, info.need)
+        const fromReserve = info.need - fromField
+        if (option === undefined || player.reserve < fromReserve) {
+            if (option !== undefined) {
+                log(state, `${player.name}は${name}にコアを置けなかった。`)
+                player.reserve += fromField // 置くはずだったフィールド由来のコアはリザーブへ戻す
+            }
+            const idx = player.field.spirits.findIndex((sp) => sp.instanceId === brave.instanceId)
+            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            player.reserve += brave.cores
+            brave.cores = 0
+            delete brave.pendingBraveKeep
+            player.trashCards.push(brave.cardId)
+            log(state, `${player.name}の${name}は、コアを置かずトラッシュに置かれた。`)
+            state.pendingChoice = null
+            refreshLevelAsOverrides(state)
+            if (state.winner) return null
+            return finishChoiceResolution(state, pending.pid)
+        }
+        player.reserve -= fromReserve
+        brave.cores += info.need
+        delete brave.pendingBraveKeep
+        log(state, `${player.name}の${name}は、コア${String(info.need)}個を置いてスピリット状態でフィールドに残った。`)
+        state.pendingChoice = null
+        refreshLevelAsOverrides(state)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

@@ -281,6 +281,17 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
 function submitPaying(): void {
     if (!view || !ui.paying) return
     const pay = ui.paying
+    // ブレイヴを残す支払い（BRAVE.md §6.3）はカードを起点にしないので、確認の選択肢として送る
+    if (pay.braveKeepNeed !== undefined) {
+        const sources: PaySource[] = Object.entries(pay.assigned).map(([id, count]) => ({ instanceId: id, count }))
+        send({
+            type: "resolveChoice",
+            option: pay.braveKeepOption ?? "残す",
+            ...(sources.length > 0 ? { paySources: sources } : {}),
+        })
+        ui.paying = null
+        return
+    }
     const cardId = view.players[view.you].hand?.[pay.handIndex]
     if (cardId === undefined) {
         ui.paying = null
@@ -1244,7 +1255,23 @@ async function init(): Promise<void> {
         const optionEl = closestData(e, "data-option")
         if (optionEl) {
             ui.stepper = null
-            send({ type: "resolveChoice", option: String(optionEl.dataset.option) })
+            const option = String(optionEl.dataset.option)
+            // ブレイヴを残す確認で、リザーブだけでは置くコアが足りないときは
+            // 通常の召喚と同じ支払いモードへ入ってフィールドのコアを割り当ててもらう（BRAVE.md §6.3）
+            const keep = view?.pendingChoice?.braveKeepConfirm
+            if (view && keep !== undefined && view.players[view.you].reserve < keep.need) {
+                ui.paying = {
+                    handIndex: -1,
+                    braveKeepNeed: keep.need,
+                    braveKeepOption: option,
+                    assigned: {},
+                    discardHandIndices: [],
+                    millPay: 0,
+                }
+                rerender()
+                return
+            }
+            send({ type: "resolveChoice", option })
             return
         }
         const cardEl = closestData(e, "data-card-index")

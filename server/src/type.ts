@@ -1817,6 +1817,12 @@ export interface CardInstance {
     // （数・シンボル・【転召】の生贄にも数える）。
     // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
     pendingDestruction?: true
+    // **ブレイヴを残すかの確認待ち**（BRAVE.md §6.3。ホストが場を離れたときの分離）。
+    // 破壊処理の途中では中断できないので、ブレイヴを**コア0個のまま field.spirits に置いて**印を立て、
+    // アクションを解決しきった安全な地点（GameEngine の requestPendingBraveKeep）で
+    // 「残す（コアを置く）／残さない」を聞く。破壊待機（pendingDestruction）と同じ形の暫定状態。
+    // 「残す」ならコアを払って印を消し、「残さない」ならトラッシュへ送る
+    pendingBraveKeep?: { need: number }
     // **バウンス待機状態**（バトスピ Wiki「バウンスについて」。2020年5月のルール改定）。
     // 手札／デッキへ戻す効果を解決してから、実際にその場所へ移るまでの間だけ立つ。
     // この間もカードはフィールドに留まるが、**破壊待機状態とは扱いが違う**:
@@ -2053,6 +2059,15 @@ export interface PendingChoice {
         effectId: string
         sourceInstanceId: string
         context?: DestroyContext
+    }
+    braveKeepConfirm?: {
+        // ホストが場を離れたとき、ブレイヴをスピリット状態で残すかの確認待ち（BRAVE.md §6.3）。
+        // reviveConfirm と同じく **action は解決しない**。
+        // 「残す」ならリザーブ（足りなければ paySources でフィールドのコア）から need 個を置き、
+        // 選ばなければ合体元と一緒にトラッシュへ置く（§1.4）
+        pid: PlayerId
+        instanceId: string
+        need: number
     }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が

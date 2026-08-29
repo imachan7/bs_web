@@ -160,6 +160,11 @@ export function payableFieldCores(view: GameView, cardId: string): number {
 
 // 支払いモードでの残り不足コア数（0なら送信可能）
 export function payingRemaining(view: GameView, paying: PayingState): number {
+    // ブレイヴを残す支払いはカードを起点にしない（必要数は固定。コストは無く全額が置くコア）
+    if (paying.braveKeepNeed !== undefined) {
+        const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
+        return Math.max(paying.braveKeepNeed - view.players[view.you].reserve - assignedTotal, 0)
+    }
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
@@ -240,6 +245,11 @@ export function activatableAbility(
 // 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 export interface PayingState {
     handIndex: number
+    // **3つ目の起点**（BRAVE.md §6.3）：カードではなく「場のブレイヴを残すために置くコア」の支払い。
+    // 手札／トラッシュのカードを起点にしないので、必要数はここに直接持つ（コストは0、全額が置くコア）。
+    // 立っているときは resolveChoice に option と paySources を載せて送る
+    braveKeepNeed?: number
+    braveKeepOption?: string
     // 選択待ち（pendingChoice）の解決として送る場合の手札インデックス。
     // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summonFromHandFree の payCost）で、
     // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
@@ -627,7 +637,7 @@ export function render(view: GameView, ui: UiState): void {
     }
     // 選択待ちの解決として支払い中（起動効果の召喚コストをフィールドのコアから払う）のときは、
     // 選択待ちの文言ではなく支払いの案内を優先して出す（2026-08-23）
-    if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
+    if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined && ui.paying?.braveKeepNeed === undefined) {
         $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
     } else if (oppPendingChoice) {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`
@@ -1025,7 +1035,7 @@ function fieldCardEl(
     // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
     // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
     // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
-    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
+    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined && ui.paying?.braveKeepNeed === undefined) {
         if (view.pendingChoice.candidates.includes(inst.instanceId)) {
             el.classList.add("targetable", "clickable")
             // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
@@ -1084,7 +1094,7 @@ function fieldCardEl(
         // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
         // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
         // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
-        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
+        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined && ui.paying?.braveKeepNeed === undefined) {
             return el
         }
         // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う

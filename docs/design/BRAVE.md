@@ -368,11 +368,23 @@ tryReviveOnDestroy(state, ownerPid, inst, context, undefined, options?.allowSusp
 **足りない部品は1つだけ**：現在の支払いモードは「手札／トラッシュのカード1枚」を起点に
 コストを計算する（`PayingState.handIndex` + `choiceZone`）。分離では起点が
 **場のブレイヴ**で、必要数は**そのブレイヴのLv1維持コスト**になる。
-`PayingState` に3つ目の起点を足す必要がある（UI担当へ形を合意してから着手すること。
-[INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) §5 の手順4）。
+→ **実装済み（2026-08-29）**：`PayingState.braveKeepNeed` / `braveKeepOption`（`public/src/renderer.ts`）が
+3つ目の起点。コストは0で、必要数の全額が「置くコア」になる。決定すると
+`resolveChoice` に `option:"残す"` と `paySources` を載せて送る。
 
-**非対話（テスト・AI）では従来どおり自動で進める**こと（リザーブから払えるなら残す）。
-ここを忘れると既存 smoke が大量に落ちる（INTERRUPTION_POINTS.md §5 の手順3）。
+⚠️ **確認を出す位置**：破壊処理の途中では中断できないので、`detachBravesOnLeave` は
+**ブレイヴをコア0個のまま `field.spirits` に置いて `CardInstance.pendingBraveKeep` を立てる**だけにし、
+確認はアクションを解決しきった安全な地点（`GameEngine` の `requestPendingBraveKeep`。
+`requestPendingReviveConfirm` の隣）で出す。先に場へ置くのは、**アタック中のバトルをその場で
+引き継がせる**ため（§6.2 の5。後回しにすると `endBattleIfAttackerLeftField` にバトルを閉じられる）。
+選択待ちは `PendingChoice.braveKeepConfirm`（`reviveConfirm` と同型で **action は解決しない**）。
+
+⚠️ **場を離れるホスト自身のコアも「払える量」に数える**（この直後にリザーブへ戻り、支払いに使えるため）。
+実データではブレイヴのLv1維持コアは全て1個なので、**バトルで破壊された場合は必ず残せる**
+（払えない場合はホストがコアを全部失って消滅したときなど）。
+
+**非対話（テスト・AI）では従来どおり自動で進める**（リザーブから払えるなら残す）。実装もそうしてある
+（ここを変えると既存 smoke が大量に落ちる。INTERRUPTION_POINTS.md §5 の手順3）。
 
 ---
 
@@ -418,7 +430,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | ~~2~~ | **完了（2026-08-25）**。合体・分離のエンジン処理（`doSummon` の分岐・場を離れる**5経路**の共通入口・疲労合成） | `scripts/smoke/part238.ts` |
 | ~~3~~ | **完了（2026-08-25）**。BP・シンボル・**コスト**・**色**の合成（§3 の5関数） | `part238.ts` §H〜§J |
 | ~~4~~ | **完了（2026-08-25）**。`effectSources()` に合体中ブレイヴを含める＋合体状態のレベル判定（§4） | `part238.ts` §K（新しい `kind` は足していないので計測点の追加は不要） |
-| 5 | 分離のコア支払いUI（§6.3）※ `PayingState` の拡張は UI担当と形を合意 | 対話モードの smoke |
+| ~~5~~ | **完了（2026-08-29）**。分離のコア支払いUI（§6.3）。`PayingState.braveKeepNeed` が3つ目の起点 | `scripts/smoke/part268.ts` |
 | 6 | 実カードの構造化（**先に BS10 の取り込みが要る**） | カードごとの smoke |
 | 7 | クライアント（合体表示・ダイレクトブレイヴのUI） | 目視 |
 
