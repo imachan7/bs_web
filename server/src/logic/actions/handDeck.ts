@@ -36,7 +36,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, currentLevel, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -868,9 +868,15 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
 // この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordと対照的）。
 // 系統不一致・維持コア不足で召喚できなかったカードはすべてトラッシュへ
 const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFamily"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
         const player = state.players[owner]
-        const revealed = player.deck.splice(0, action.count)
+        // countFromSelfLevel（BS11-007輝龍皇ヘリオスドラゴン）：「このスピリットのLvと同じ枚数」
+        if (action.countFromSelfLevel && !self) {
+            log(state, `${sourceName}：枚数の基準になるスピリットがいなかった。`)
+            return
+        }
+        const count = action.countFromSelfLevel && self ? currentLevel(self).level : action.count
+        const revealed = player.deck.splice(0, count)
         if (revealed.length === 0) {
             log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
             return
@@ -885,7 +891,9 @@ const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFami
         for (const cardId of revealed) {
             const card = getCard(cardId)
             const maintain = minLevelCores(card)
-            if (card.type !== "spirit" || !wanted.some((f) => card.family.includes(f)) || player.reserve < maintain) {
+            // maxCost（BS11-007＝コスト7以下）：超えるカードは召喚できずトラッシュへ
+            const overCost = action.maxCost !== undefined && card.cost > action.maxCost
+            if (card.type !== "spirit" || overCost || !wanted.some((f) => card.family.includes(f)) || player.reserve < maintain) {
                 player.trashCards.push(cardId)
                 discardedCount++
                 continue

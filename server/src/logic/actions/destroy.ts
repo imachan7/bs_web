@@ -8,6 +8,7 @@ import {
     bothSidesPids,
     bothSidesRedirectKeepPid,
     countEffectCounter,
+    destroyCombinedBrave,
     destroyNexus,
     destroySpirit,
     destroySpiritsFrom,
@@ -31,7 +32,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { bravesOf, displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -102,6 +103,32 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         }
         // BP上限も filter 側で判定するため、候補列挙には上限を渡さない（Infinity）
         const limitBp = Infinity
+        // 「この効果で破壊したとき〜する」（drawPerDestroyed）は**実際に破壊できた数**が要るので、
+        // destroyAll と同じバッチ経路（destroySpiritsFrom + after）へ載せる。
+        // 復活の確認で中断しても、再開後に applyDestroyBatchAfter が適用される
+        const destroyCountingOne = (pid: PlayerId, instanceId: string): void => {
+            const batchTargets = [{ pid, instanceId }]
+            const after = {
+                drawPerDestroyed: true as const,
+                ...(self ? { selfInstanceId: self.instanceId } : {}),
+            }
+            const { destroyed, stoppedAt } = destroySpiritsFrom(state, batchTargets, 0, 0, destroyContext)
+            if (stoppedAt < batchTargets.length) {
+                pushResumeFrames(state, [{
+                    kind: "destroyBatch",
+                    ownerPid: owner,
+                    targets: batchTargets,
+                    index: stoppedAt,
+                    destroyed,
+                    ...(destroyContext ? { context: destroyContext } : {}),
+                    after,
+                }])
+                return
+            }
+            if (state.winner) return
+            applyDestroyBatchAfter(state, owner, destroyed, after)
+        }
+
         // excludeTarget（BS06計画された場外乱闘Lv2）：誘発から渡ってくる targetInstanceId（＝ブロッカー）は
         // 破壊する対象ではなく**除外する**対象。exhaustHandlerのexcludeTargetと同じ考え方
         const excludedId = action.excludeTarget ? targetInstanceId : undefined
@@ -134,7 +161,8 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
+            if (action.drawPerDestroyed) destroyCountingOne(found.pid, found.inst.instanceId)
+            else destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
             return
         }
         // interactive の選択後に再入するときは excludeTarget を落とす。
@@ -177,7 +205,8 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
                 }
-                destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
+                if (action.drawPerDestroyed) destroyCountingOne(target.pid, target.inst.instanceId)
+                else destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
                 // 復活の確認で中断した。**残りの体数ぶん**を再開フレームに積んで抜ける
                 // （対象は毎回その時点の盤面から選び直すので、体数だけ持ち回れば足りる）
                 if (state.pendingChoice) {
@@ -223,7 +252,8 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
             }
-            destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
+            if (action.drawPerDestroyed) destroyCountingOne(opp, target.instanceId)
+            else destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
             // 復活の確認で中断した。残りの体数ぶんを再開フレームに積んで抜ける
             if (state.pendingChoice) {
                 const rest = resolvedCount - i - 1
@@ -679,16 +709,166 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
         return
 }
 
+// 「相手のスピリット/ブレイヴ/ネクサス、どれか1つを破壊する」（BS11-X01）。
+// ブレイヴは**合体中のものも単独で選べる**（ホストは場に残る。2026-08-29 ユーザー確認。BRAVE.md §12.8）。
+// 合体中のブレイヴは field.spirits に居ないので kind:"target" では指せない。
+// そこでブラッディレインの取り先選択と同じ kind:"option"（カード名＋種別のラベル）で選ばせる
+const destroyOneAmongHandler: ActionHandler<"destroyOneAmong"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, chosenOption } = ctx
+    const player = state.players[opp]
+    type Cand = { label: string; kind: "spirit" | "brave" | "nexus"; instanceId: string; hostInstanceId?: string }
+    const seen = new Map<string, number>()
+    const labelFor = (name: string, suffix: string): string => {
+        const base = `${name}${suffix}`
+        const n = (seen.get(base) ?? 0) + 1
+        seen.set(base, n)
+        return n === 1 ? base : `${base}（${n}体目）`
+    }
+    const candidates: Cand[] = []
+    for (const kind of action.types) {
+        if (kind === "spirit") {
+            for (const sp of player.field.spirits) {
+                if (getCard(sp.cardId).type === "brave") continue // スピリット状態のブレイヴは "brave" 側で数える
+                if (isResisted(state, opp, sp, attemptOf(ctx, "destroy", "targeted"))) continue
+                candidates.push({ label: labelFor(getCard(sp.cardId).name, ""), kind, instanceId: sp.instanceId })
+            }
+        } else if (kind === "brave") {
+            for (const sp of player.field.spirits) {
+                if (getCard(sp.cardId).type !== "brave") continue // スピリット状態のブレイヴ
+                if (isResisted(state, opp, sp, attemptOf(ctx, "destroy", "targeted"))) continue
+                candidates.push({ label: labelFor(getCard(sp.cardId).name, "（ブレイヴ）"), kind, instanceId: sp.instanceId })
+            }
+            for (const host of player.field.spirits) {
+                for (const brave of bravesOf(player, host)) {
+                    candidates.push({
+                        label: labelFor(getCard(brave.cardId).name, "（合体中のブレイヴ）"),
+                        kind,
+                        instanceId: brave.instanceId,
+                        hostInstanceId: host.instanceId,
+                    })
+                }
+            }
+        } else {
+            for (const nx of player.field.nexuses) {
+                candidates.push({ label: labelFor(getCard(nx.cardId).name, "（ネクサス）"), kind, instanceId: nx.instanceId })
+            }
+        }
+    }
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const destroyOne = (c: Cand): void => {
+        if (c.kind === "nexus") {
+            destroyNexus(state, opp, c.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            return
+        }
+        if (c.hostInstanceId !== undefined) {
+            const host = player.field.spirits.find((sp) => sp.instanceId === c.hostInstanceId)
+            const brave = bravesOf(player, host ?? ({} as CardInstance)).find((b) => b.instanceId === c.instanceId)
+            if (host && brave) destroyCombinedBrave(state, opp, host, brave)
+            return
+        }
+        destroySpirit(state, opp, c.instanceId, "destroy", destroyContext, { allowSuspend: true })
+    }
+    if (state.interactiveTargets) {
+        if (chosenOption !== undefined) {
+            const picked = candidates.find((c) => c.label === chosenOption)
+            if (!picked) {
+                log(state, `${sourceName}：選ばれた対象が見つからなかった。`)
+                return
+            }
+            destroyOne(picked)
+            const rest = action.count - 1
+            if (rest > 0 && !state.pendingChoice) ctx.resolve({ ...action, count: rest })
+            return
+        }
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：破壊する対象を選んでください（残り${action.count}つ）`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            candidates.map((c) => c.label),
+        )
+        return
+    }
+    // 非対話（テスト・AI）：types に書かれた順で最初に見つかった陣を選ぶ決定的簡略化。
+    // スピリットだけは実効BP最大を選ぶ（他のアクションの自動選択と揃える）
+    for (let i = 0; i < action.count; i++) {
+        const rest = candidates.filter((c) => {
+            if (c.kind === "nexus") return player.field.nexuses.some((n) => n.instanceId === c.instanceId)
+            if (c.hostInstanceId !== undefined) return player.field.combinedBraves.some((b) => b.instanceId === c.instanceId)
+            return player.field.spirits.some((sp) => sp.instanceId === c.instanceId)
+        })
+        const kind = action.types.find((k) => rest.some((c) => c.kind === k))
+        if (kind === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        const pool = rest.filter((c) => c.kind === kind)
+        let picked = pool[0]!
+        if (kind === "spirit") {
+            const best = pool
+                .map((c) => ({ c, inst: player.field.spirits.find((sp) => sp.instanceId === c.instanceId) }))
+                .filter((x) => x.inst !== undefined)
+                .sort((a, b) => effectiveBp(state, opp, b.inst!) - effectiveBp(state, opp, a.inst!))[0]
+            if (best) picked = best.c
+        }
+        destroyOne(picked)
+        if (state.pendingChoice || state.winner) return
+    }
+    void srcColors
+}
+
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcType } = ctx
+    const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
+        // chosenColor（BS11-073バスターハンマー）：「色1色を指定する。指定した色のネクサスすべてを破壊する」。
+        // 色を選ぶのは効果の持ち主（CHOOSER_RULES.md §1）。非対話は破壊できる数が最も多い色に倒す
+        let chosenColor: Color | undefined
+        if (action.chosenColor && chosenColor === undefined) {
+            const countFor = (c: Color): number =>
+                sides.reduce((n, pid) => n + state.players[pid].field.nexuses.filter((x) => instColors(x).includes(c)).length, 0)
+            const colors = Object.keys(COLOR_LABELS) as Color[]
+            if (state.interactiveTargets) {
+                if (chosenOption === undefined) {
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}：破壊するネクサスの色を1色指定してください`,
+                        [],
+                        false,
+                        action,
+                        self,
+                        "option",
+                        colors.map((c) => COLOR_LABELS[c]),
+                    )
+                    return
+                }
+                chosenColor = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, l]) => l === chosenOption)?.[0]
+                if (chosenColor === undefined) {
+                    log(state, `${sourceName}：色を解釈できなかった。`)
+                    return
+                }
+            } else {
+                // 非対話（テスト・AI）：破壊できるネクサスが最も多い色に倒す決定的簡略化
+                chosenColor = [...colors].sort((a, b) => countFor(b) - countFor(a))[0]
+            }
+            if (chosenColor === undefined) return
+            log(state, `${sourceName}：色は${COLOR_LABELS[chosenColor]}が指定された。`)
+        }
         // levelFilter指定時はこれに含まれるレベルのネクサスのみ対象（BS03バスターランス＝Lv1のみ）。
         // **他のカードから見えるレベル（displayLevel）で判定する**：ウッド・ゴレムの
         // 「相手のネクサスすべてのLv2効果は発揮されない」は効果の発揮判定にだけ効く置き換えなので、
         // それでLv1に見えるようになったネクサスをバスターランスが破壊できてはいけない
         const matchesLevel = (n: CardInstance) =>
-            action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)
+            (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
+            (chosenColor === undefined || instColors(n).includes(chosenColor))
         let destroyed = 0
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
@@ -696,9 +876,10 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
                 ? state.players[pid].field.nexuses.filter(matchesLevel).length
                 : action.count
             for (let i = 0; i < iterations; i++) {
-                const nexus = action.levelFilter
-                    ? state.players[pid].field.nexuses.find(matchesLevel)
-                    : state.players[pid].field.nexuses[0]
+                const nexus =
+                    action.levelFilter || chosenColor !== undefined
+                        ? state.players[pid].field.nexuses.find(matchesLevel)
+                        : state.players[pid].field.nexuses[0]
                 if (!nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     break
@@ -1529,6 +1710,7 @@ const handlers = {
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,
+    destroyOneAmong: destroyOneAmongHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyPer: destroyPerHandler,

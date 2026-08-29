@@ -84,6 +84,7 @@ import {
     flushBounces,
     requestActivationConfirm,
     refreshSpirit,
+    applyTrashSummon,
 } from "./EffectModules"
 import {
     effectiveCost,
@@ -140,6 +141,8 @@ export function handleAction(
     // ホストが場を離れたときの「ブレイヴを残す／残さない」も、破壊処理の途中では中断できないので
     // ここで出す（BRAVE.md §6.3）。確認待ちのブレイヴはコア0個で場に置かれている
     requestPendingBraveKeep(state)
+    // トラッシュからの無償召喚（BS11-004）の確認も、召喚の解決の途中では出せないのでここで出す
+    requestPendingTrashSummon(state)
     // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
     endBattleIfAttackerLeftField(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
@@ -236,7 +239,40 @@ function requestPendingBraveKeep(state: GameState): void {
     }
 }
 
-// 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
+// トラッシュからの無償召喚（kind:"trashSummonOnOwnSummon"）の確認を1件だけ立てる（BS11-004）。
+// トラッシュから既に動いていた項目は捨てる
+function requestPendingTrashSummon(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    const queue = state.pendingTrashSummons
+    if (!queue || queue.length === 0) return
+    while (queue.length > 0) {
+        const entry = queue.shift()!
+        const player = state.players[entry.pid]
+        const index =
+            player.trashCards[entry.trashIndex] === entry.cardId
+                ? entry.trashIndex
+                : player.trashCards.indexOf(entry.cardId)
+        if (index === -1) continue
+        const card = getCard(entry.cardId)
+        if (player.reserve < minLevelCores(card)) continue
+        suspend(state, {
+            pid: entry.pid,
+            kind: "option",
+            prompt: `${card.name}：トラッシュからコストを支払わずに召喚しますか？`,
+            candidates: [],
+            options: ["召喚する"],
+            optional: true,
+            confirm: true,
+            trashSummonConfirm: { pid: entry.pid, cardId: entry.cardId, trashIndex: index },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return
+    }
+    if (queue.length === 0) delete state.pendingTrashSummons
+}
+
+// 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。// 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。
 // 選択待ちが残っている間は「まだ選んでいる途中」なので何もしない
 function flushRevealedCardsIfIdle(state: GameState): void {
     const zone = state.revealedCards
@@ -1437,6 +1473,22 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // トラッシュからの無償召喚（BS11-004）の確認。action は解決しない
+    if (pending.trashSummonConfirm) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.trashSummonConfirm
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyTrashSummon(state, info)
+        } else {
+            log(state, `${getCard(info.cardId).name}：トラッシュから召喚しなかった。`)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 【不死】（BS09）：トラッシュのこのカードを、コストを支払って召喚するかの確認。action は解決しない
     if (pending.fushiSummon) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
@@ -2221,7 +2273,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker")
                 // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
                 // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
                 if (instIsCombined(survivingAttacker)) {
@@ -2241,7 +2293,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) {
-                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker")
                 if (instIsCombined(survivingBlocker)) {
                     fireFieldEventTriggers(
                         state,

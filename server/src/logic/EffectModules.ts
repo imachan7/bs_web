@@ -1129,11 +1129,61 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             vanilla: instIsVanilla(inst),
         })
     }
+    // トラッシュにある「〜が召喚されたとき、コストを支払わずに召喚できる」カード（BS11-004）を積む。
+    // ここでは**聞かない**（召喚の解決の途中で中断すると後続が飛ぶ）。確認は GameEngine の
+    // requestPendingTrashSummon が、アクションを解決しきった地点で1件ずつ出す
+    if (!state.winner && stillOnField()) queueTrashSummons(state, pid, getCard(inst.cardId).name)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
         exhaustSpirit(state, pid, inst)
     }
+}
+
+// トラッシュの kind:"trashSummonOnOwnSummon" を走査し、召喚されたスピリットの名前に一致するものを
+// 確認待ちに積む（BS11-004プロミネンスワイバーン）。維持コアをリザーブから置けないものは積まない
+// （確認を出しても召喚できないため。【不死】の fushiCandidates と同じ考え方）
+export function queueTrashSummons(state: GameState, ownerPid: PlayerId, summonedName: string): void {
+    const player = state.players[ownerPid]
+    for (let i = 0; i < player.trashCards.length; i++) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined) continue
+        const card = getCard(cardId)
+        if (card.type !== "spirit") continue
+        const hit = card.effects.some(
+            (e) => e.kind === "trashSummonOnOwnSummon" && summonedName.includes(e.nameIncludes),
+        )
+        if (!hit) continue
+        if (player.reserve < minLevelCores(card)) continue
+        ;(state.pendingTrashSummons ??= []).push({ pid: ownerPid, cardId, trashIndex: i })
+    }
+}
+
+// 確認で「召喚する」が選ばれたときの後処理。**コストは支払わず**、維持コアだけリザーブから置く
+export function applyTrashSummon(
+    state: GameState,
+    info: NonNullable<PendingChoice["trashSummonConfirm"]>,
+): void {
+    const player = state.players[info.pid]
+    // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
+    const index =
+        player.trashCards[info.trashIndex] === info.cardId
+            ? info.trashIndex
+            : player.trashCards.indexOf(info.cardId)
+    if (index === -1) return
+    const card = getCard(info.cardId)
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${player.name}は維持コアを置けず、${card.name}を召喚できなかった。`)
+        return
+    }
+    player.trashCards.splice(index, 1)
+    player.reserve -= maintain
+    const inst = createInstance(info.cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}は${card.name}をトラッシュからコストを支払わずに召喚した。`)
+    // 「召喚」なので召喚時効果も通常どおり解決する（効果文に「発揮されない」と書かれていない）
+    fireSummonSequence(state, info.pid, inst)
 }
 
 // kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
@@ -3237,6 +3287,7 @@ export {
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
     attachBrave,
+    destroyCombinedBrave,
     detachBraveByEffect,
     detachBravesOnLeave,
     destroySpiritsFrom,

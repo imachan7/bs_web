@@ -273,6 +273,21 @@ export function detachBraveByEffect(
     }
 }
 
+// **合体中のブレイヴだけを破壊する**（2026-08-29 ユーザー確認。BS11-X01／014／016）。
+// ホストは場に残る。**コアは動かさない**：合体中のブレイヴのコアは0で、コアはホスト側に載っているため
+// （分離＝§12.5 は「スピリット状態になる」ので分け直すが、破壊はスピリットにならないので分けるものが無い）。
+// 実データのブレイヴに『破壊時』効果は1枚も無いので、ここでは破壊時の誘発を回さない
+export function destroyCombinedBrave(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    player.trashCards.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}の${getCard(brave.cardId).name}は破壊された。（${getCard(host.cardId).name}は場に残る）`)
+}
+
 // ---- ブレイヴの分離（場を離れるとき。docs/design/BRAVE.md §6）----
 
 // **ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**

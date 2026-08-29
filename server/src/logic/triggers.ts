@@ -291,6 +291,13 @@ export function fireTrigger(
                 const oppNexuses = state.players[opponentOf(owner)].field.nexuses
                 const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
                 if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
+            } else if ("bothFieldsHaveSpiritMinBp" in effect.condition) {
+                // BS11-008爆竜ドラゴニックベアード：お互いのフィールドに指定BP以上のスピリットが
+                // **それぞれ**いるときのみ発火（片側だけなら何も破壊しない）
+                const min = effect.condition.bothFieldsHaveSpiritMinBp
+                const has = (pid: PlayerId): boolean =>
+                    state.players[pid].field.spirits.some((sp) => effectiveBp(state, pid, sp) >= min)
+                if (!has(owner) || !has(opponentOf(owner))) return false
             } else if ("ownFieldHasColorSpirit" in effect.condition) {
                 // オチョゴ／ジェルフィ：発生源の持ち主のフィールドに指定色のスピリットがいるときのみ発火
                 const color = effect.condition.ownFieldHasColorSpirit
@@ -572,6 +579,10 @@ export function fireBattleWonTriggers(
             }
             // BS02エメラルドに輝く鍾乳洞Lv2：勝利したスピリットのコアが指定数以上のときのみ発火
             if (effect.winnerMinCores !== undefined && winnerInst.cores < effect.winnerMinCores) {
+                continue
+            }
+            // BS11-062オールトの竜巣Lv2：勝利したのが**合体スピリット**のときのみ発火
+            if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
                 continue
             }
             // BS07ニードルショット：「**そのスピリットが**、BPを比べ〜」＝直前の文でBP増加した1体に限る。

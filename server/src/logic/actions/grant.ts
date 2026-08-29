@@ -553,6 +553,14 @@ const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> =
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの【装甲】は働かない。`)
 }
 
+// このターンの間、**相手**のスピリットの【装甲】を働かなくする（BS11-049 ジャンビ・オレピス）。
+// 落とし方は disableOwnArmorThisTurn と同じで、対象の pid だけが違う
+const disableOpponentArmorThisTurnHandler: ActionHandler<"disableOpponentArmorThisTurn"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+    state.turnConstraints.push({ type: "armorDisabledForPid", pid: opp })
+    log(state, `${sourceName}：このターンの間、${state.players[opp].name}のスピリットの【装甲】は働かない。`)
+}
+
 // このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
 // 「減るか／減らないか」ではなく**値**で持つので、今後の同種の効果（〇しか減らない）もここに集まる
 const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ctx, action) => {
@@ -965,6 +973,7 @@ const handlers = {
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
+    disableOpponentArmorThisTurn: disableOpponentArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
