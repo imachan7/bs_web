@@ -1905,6 +1905,43 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             flushBounces(state)
             return
         }
+        // ownSide：**自分のスピリットだけ**が対象（BS11-077スタークレイドル）。
+        // 自分側なので装甲・マジック効果耐性は見ない（anySide の自分側と同じ非対称ルール）
+        if (action.ownSide) {
+            const ownMatches = (s: CardInstance) =>
+                effectiveBp(state, owner, s) <= limitBp && matchesTarget(state, owner, s, filter, self?.instanceId)
+            const ownCandidates = state.players[owner].field.spirits.filter(ownMatches)
+            if (ownCandidates.length === 0) {
+                log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+                return
+            }
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}の手札戻し：手札に戻す自分のスピリットを選んでください`,
+                    ownCandidates,
+                    { ...action, count: 1 },
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
+                )
+            ) {
+                return
+            }
+            // 非対話（テスト・AI）：実効BP最小を選ぶ決定的簡略化（自分の盤面を崩しにくい方）
+            for (let i = 0; i < resolvedCount; i++) {
+                const pool = state.players[owner].field.spirits.filter(ownMatches)
+                const target = [...pool].sort((a, b) => effectiveBp(state, owner, a) - effectiveBp(state, owner, b))[0]
+                if (!target) {
+                    log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+                    break
+                }
+                markBounce(state, owner, target, "hand", sourceName)
+            }
+            flushBounces(state)
+            return
+        }
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
         if (state.interactiveTargets) {

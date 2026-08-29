@@ -1631,6 +1631,11 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
             log(state, `${sourceName}：戻せるネクサスがなかった。`)
             return
         }
+        // colorFilter（BS11-066＝緑）：破壊されたネクサスの色が合わなければ**コストを払う前に**抜ける
+        if (action.colorFilter !== undefined && !getCard(last.cardId).colors.includes(action.colorFilter)) {
+            log(state, `${sourceName}：戻せる色のネクサスがなかった。`)
+            return
+        }
         const player = state.players[owner]
         // 「フィールドに戻す」は**破壊待機状態から戻す**という意味で、トラッシュからの回収ではない
         // （docs/design/TIMING_CHART.md §1.5）。したがって破壊待機状態のネクサスを探し、

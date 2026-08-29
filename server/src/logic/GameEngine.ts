@@ -458,6 +458,8 @@ function placeSummonedSpirit(
     // 指定時、実体は field.spirits ではなく **field.combinedBraves** へ入り、
     // ホストが braveRefs で参照する（参照方式。§2.3）
     braveTargetInstanceId?: string,
+    // 【神速】による召喚か（fieldEvent.sokuSummonOnly の判定に使う。BS11-065）
+    bySoku = false,
 ): void {
     const player = state.players[pid]
     player.reserve -= reserveDelta
@@ -479,11 +481,15 @@ function placeSummonedSpirit(
     if (state.pendingChoice) {
         // 『転召したとき』の誘発が選択待ちを立てた。召喚時効果は解決してから
         pushResumeFrames(state, [
-            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+            {
+                kind: "action",
+                selfInstanceId: inst.instanceId,
+                action: { type: "summonSequence", ...(bySoku ? { bySoku: true as const } : {}) },
+            },
         ])
         return
     }
-    if (!state.winner) fireSummonSequence(state, pid, inst)
+    if (!state.winner) fireSummonSequence(state, pid, inst, false, bySoku)
 }
 
 function doSummon(
@@ -556,6 +562,9 @@ function doSummon(
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
     const inst = createInstance(cardId, state.turn, maintain)
+    // 【神速】による召喚か（フラッシュタイミングでの手札からの召喚）。
+    // fieldEvent.sokuSummonOnly（BS11-065満天の牧草地Lv2）の判定に使う
+    const bySoku = state.isFlashTiming
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     const braveNote =
@@ -583,7 +592,7 @@ function doSummon(
         ])
         return null
     }
-    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId)
+    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId, bySoku)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
@@ -1095,6 +1104,15 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     const attacker = attackerInstanceId
         ? findSpirit(state.players[attackerPid], attackerInstanceId)
         : undefined
+    // BS11-054 武槍鳥スピニード・ハヤト：「指定した色のスピリットにブロックされたとき回復する」。
+    // 誘発より先に見る（回復は状態の変化であって、他の『ブロックされたとき』効果とは独立している）
+    if (attacker?.refreshWhenBlockedByColorThisTurn !== undefined) {
+        const blocker = findSpirit(state.players[pid], instanceId)
+        if (blocker && instColors(blocker).includes(attacker.refreshWhenBlockedByColorThisTurn)) {
+            attacker.isRested = false
+            log(state, `${getCard(attacker.cardId).name}は、指定した色のスピリットにブロックされたので回復した。`)
+        }
+    }
     if (attacker) fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId)
     if (state.winner) {
         state.battle = null

@@ -931,6 +931,467 @@
   ]
  },
  {
+  "cardId": "BS11-017",
+  "name": "ムシャツバメ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2･Lv3『自分のアタックステップ』\nこのスピリットをコスト+3する。",
+  "effects": [
+   {
+    "id": "BS11-017-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS11-017-e2",
+    "kind": "selfCostMod",
+    "levels": [
+     2,
+     3
+    ],
+    "amount": 3,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-018",
+  "name": "ヤクヤナギ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の手札にある【神速】を持つスピリットカードと、【神速】を持つブレイヴカードすべてに、軽減シンボル[緑][緑]を与える。",
+  "effects": [
+   {
+    "id": "BS11-018-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "keywordFilter": "soku",
+    "symbols": [
+     "green",
+     "green"
+    ],
+    "phase": "attack"
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-019",
+  "name": "ダンデラビット",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。\nさらに、ボイドからコア1個を、このスピリット以外の系統：「星魂」を持つ自分のスピリット1体に置く。",
+  "effects": [
+   {
+    "id": "BS11-019-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS11-019-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "voidCoreToOther",
+     "count": 1,
+     "familyFilter": "星魂",
+     "excludeSelf": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-020",
+  "name": "陰陽ヤマセミ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『このスピリットの召喚時』\n自分の手札にあるブレイヴカード1枚を、このスピリットに直接合体するように召喚できる。",
+  "effects": [
+   {
+    "id": "BS11-020-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS11-020-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "bravesOnly": true,
+     "combineToSelf": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-021",
+  "name": "ゴクラクチョー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『このスピリットの召喚時』\nボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS11-021-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS11-021-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreGain",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-022",
+  "name": "ウルビー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-023",
+  "name": "トーテムオウル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔",
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手がデッキからカードをドローしたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS11-023-e1",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-024",
+  "name": "武神鳥バーディ・ケンシン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「爪鳥」を持つ自分のスピリットすべてをBP+3000する。\nLv2『このスピリットのアタック時』\n【神速】を持つ自分のスピリット2体を回復させる。",
+  "effects": [
+   {
+    "id": "BS11-024-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "爪鳥",
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS11-024-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "keyword": "soku"
+     },
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS11-049",
   "name": "ジャンビ・オレピス",
   "type": "brave",
@@ -1171,6 +1632,122 @@
      "type": "coreRemove",
      "count": 1,
      "countCounter": "selfSymbols"
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 5
+  }
+ },
+ {
+  "cardId": "BS11-053",
+  "name": "カーミュラ1",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "blue"
+  ],
+  "family": [
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのブレイヴカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS11-053-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS11-053-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 4
+  }
+ },
+ {
+  "cardId": "BS11-054",
+  "name": "武槍鳥スピニード・ハヤト",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "red",
+   "red"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "合体条件：コスト5以上\n【合体時】『自分のアタックステップ』\nステップ開始時、色1色を指定する。\nこのターンの間、このスピリットは、指定した色のスピリットにブロックされたとき回復する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "コスト5以上",
+  "effects": [
+   {
+    "id": "BS11-054-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": null,
+    "whileCombined": true,
+    "action": {
+     "type": "refreshWhenBlockedByChosenColorThisTurn"
     }
    }
   ],
@@ -1441,6 +2018,134 @@
   ]
  },
  {
+  "cardId": "BS11-065",
+  "name": "満天の牧草地",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのメインステップ』\nお互い、ドローできず、手札を破棄できない。\nLv2『お互いのアタックステップ』\n自分のスピリットが【神速】の効果で召喚されたとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS11-065-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "turn": "both",
+    "constraint": {
+     "type": "noDrawAndNoHandDiscard"
+    }
+   },
+   {
+    "id": "BS11-065-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "both",
+    "sokuSummonOnly": true,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-066",
+  "name": "発見されし世界樹",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の緑のネクサスが破壊されたとき、このネクサス上のコア1個を自分のトラッシュに置くことで、破壊されたネクサス1つを同じ状態で自分のフィールドに戻す。\nLv2\n自分のスピリットが破壊されたとき、このネクサス上のコア3個をトラッシュに置くことで、そのスピリットを疲労状態で自分のフィールドに戻す。",
+  "effects": [
+   {
+    "id": "BS11-066-e1",
+    "kind": "fieldEvent",
+    "event": "anyNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "reviveLastDestroyedNexus",
+     "coreCost": 1,
+     "colorFilter": "green"
+    }
+   },
+   {
+    "id": "BS11-066-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "optional": true,
+    "when": {},
+    "cost": {
+     "sourceCoresToTrash": 3
+    },
+    "revived": {
+     "rested": true
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS11-073",
   "name": "バスターハンマー",
   "type": "magic",
@@ -1597,6 +2302,82 @@
     "action": {
      "type": "bpBuff",
      "amount": 3000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-077",
+  "name": "スタークレイドル",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体を疲労させる。\n【神速】を持つ自分のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS11-077-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS11-077-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "returnToHand",
+     "count": 1,
+     "ownSide": true,
+     "filter": {
+      "keyword": "soku"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-078",
+  "name": "ブレイヴフラッシュ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のスピリット状態のブレイヴ1体を、自分のスピリット1体に合体させる。\nこの効果は、ブロック宣言後のフラッシュタイミングで使えない。",
+  "effects": [
+   {
+    "id": "BS11-078-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "combineOwnBrave",
+     "flashAfterBlockForbidden": true
     }
    }
   ]
@@ -1778,6 +2559,81 @@
     ],
     "constraint": {
      "type": "opponentCantMakeBraveSpiritState"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-X03",
+  "name": "星騎士ハーキュリーΩ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "戦騎",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "自分のライフが3以下の間、手札にあるこのスピリットカードのコストを4にする。\nフラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n【合体時】Lv2･Lv3\n【神速】を持つ自分のスピリットが召喚されたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS11-X03-e1",
+    "kind": "costMod",
+    "levels": null,
+    "mode": "set",
+    "setTo": 4,
+    "scope": "self",
+    "condition": {
+     "ownLifeAtMost": 3
+    }
+   },
+   {
+    "id": "BS11-X03-e2",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS11-X03-e3",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "keywordFilter": "soku",
+    "action": {
+     "type": "refreshSelf"
     }
    }
   ]

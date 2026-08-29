@@ -41,7 +41,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
-    "destroyedCostAs", "opponentCombineExhaust", "trashSummonOnOwnSummon", "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
+    "destroyedCostAs", "opponentCombineExhaust", "selfCostMod", "trashSummonOnOwnSummon", "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
@@ -193,11 +193,15 @@ function checkCostSetEffects(
         }
         if (
             e.condition !== undefined &&
-            !(typeof e.condition === "object" && e.condition !== null && "ownNexusAtLeast" in e.condition)
+            !(
+                typeof e.condition === "object" &&
+                e.condition !== null &&
+                ("ownNexusAtLeast" in e.condition || "ownLifeAtMost" in e.condition)
+            )
         ) {
             add(
                 c.cardId,
-                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
             )
         }
         if ("amount" in e) {

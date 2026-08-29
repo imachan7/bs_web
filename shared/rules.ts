@@ -246,7 +246,8 @@ export function instCostDelta(inst: CardInstance): number {
     // 合体しているブレイヴのコストが加算される（BRAVE.md §1.1・§3.1）。
     // instBaseCost が唯一のコスト算出口なので、ここに1項足せば
     // 「コスト◯以下を破壊」「同じコストの相手を疲労」などコストを見る判定すべてに一度で効く
-    return (inst.tempCostDelta ?? 0) + (inst.braveComposite?.cost ?? 0)
+    // costDeltaContinuous は kind:"selfCostMod" の継続分（条件が外れた瞬間に消える。BS11-017）
+    return (inst.tempCostDelta ?? 0) + (inst.costDeltaContinuous ?? 0) + (inst.braveComposite?.cost ?? 0)
 }
 
 // このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
@@ -1636,6 +1637,14 @@ export function hasGlobalConstraint(
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // ⚠️ phase / turn は型にはあったが**ここで見ていなかった**（2026-08-29 に BS11-065
+                // 満天の牧草地『お互いのメインステップ』を入れるときに気づいた）。
+                // これらを宣言している既存5枚の constraint 型は、いずれもこの関数を通らない
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn !== undefined && effect.turn !== "both") {
+                    const isOwnTurn = board.turnPlayer === pid
+                    if (effect.turn === "own" ? !isOwnTurn : isOwnTurn) continue
+                }
                 return true
             }
         }

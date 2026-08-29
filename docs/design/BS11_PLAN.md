@@ -1,7 +1,7 @@
 # BS11「星座編 第二弾：灼熱の太陽」の取り込み計画
 
 - 取り込み: 2026-08-29（`data/staging/BS11.json`。91枚）
-- 進捗: **31 / 91枚**（赤16枚・紫15枚 完了 2026-08-29）
+- 進捗: **46 / 91枚**（赤16枚・紫15枚・緑15枚 完了 2026-08-29）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色なし。各色15枚前後）
 - 関連: [BRAVE.md](./BRAVE.md)（ブレイヴのエンジンは段階4まで実装済み。**段階5＝分離が未了**）
 
@@ -114,6 +114,36 @@ BS11-016 邪眼皇ゼナス「相手の合体スピリット**すべてのブレ
 ⚠️ **軽減はフィールドの同色シンボル数で頭打ちになる。** `reductionGrant` の検査を書くときは、
 対象カード自身が持つ同色の軽減シンボル数より**多い**シンボルを場に出しておかないと、
 1つ足しても結果が変わらず**検査にならない**（2026-08-29 に実際に踏んだ）。
+
+## 2.6 済：緑15枚（2026-08-29）
+
+`scripts/smoke/part271.ts`。【神速】が11枚と多いが `soku` は実装済みだったので、足したのは主に周辺の器:
+
+| 器 | 用途 |
+| :-- | :-- |
+| `kind:"selfCostMod"` ＋ `CardInstance.costDeltaContinuous` | 「このスピリットをコスト+3する」（017）。**継続**なので条件が外れた瞬間に戻る |
+| `reductionGrant` の `cardType` 省略 | 「【神速】スピリットカードと【神速】ブレイヴカードすべて」（018） |
+| `voidCoreToOther.familyFilter` | 「系統：「星魂」を持つ自分のスピリット1体に」（019） |
+| `summonFromHandFree.combineToSelf` | 「このスピリットに直接合体するように召喚」（020） |
+| `fieldEvent.sokuSummonOnly` ＋ 召喚経路の `bySoku` | 「【神速】の効果で召喚されたとき」（065 Lv2） |
+| `globalConstraint:"noDrawAndNoHandDiscard"` | 「お互い、ドローできず、手札を破棄できない」（065 Lv1） |
+| `reviveOnDestroy.cost.sourceCoresToTrash` | 「このネクサス上のコア3個をトラッシュに置くことで」（066 Lv2） |
+| `reviveLastDestroyedNexus.colorFilter` | 「自分の**緑の**ネクサスが破壊されたとき」（066 Lv1） |
+| `returnToHand.ownSide` | 「自分のスピリット1体を手札に戻す」（077） |
+| `action:"combineOwnBrave"` | 「スピリット状態のブレイヴを合体させる」（078）。ブロック宣言後のフラッシュでは使えない |
+| `action:"refreshWhenBlockedByChosenColorThisTurn"` | 「指定した色のスピリットにブロックされたとき回復する」（054） |
+| `costMod` mode:"set" の `condition { ownLifeAtMost }` | 「ライフが3以下の間、コストを4にする」（X03） |
+
+⚠️ **`hasGlobalConstraint` は `phase` / `turn` を見ていなかった**（型にはあったのに未判定）。
+065 の『お互いのメインステップ』を入れるときに気づいて直した。
+これらを宣言していた既存5枚は別の関数を通るので影響はない。
+
+⚠️ **手札の破棄は入口が30箇所以上に散っている。** 「手札を破棄できない」は
+`resolveAction`（アクションの唯一の合流点）で、破棄系アクションの集合 `HAND_DISCARD_ACTIONS` を見て止める。
+**手札を破棄するアクションを新しく足したら、この集合にも足すこと。**
+
+⚠️ **`opponentDrew` / `anyNexusDestroyed` は `triggered` の trigger ではなく `fieldEvent` の event。**
+`TriggerEvent` にも同名があるので取り違えやすい（`validate:cards` が「未知の trigger」で弾いてくれる）。
 
 ## 3. 進め方
 

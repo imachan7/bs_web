@@ -1096,7 +1096,7 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
 // 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
-export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
+export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false, bySoku = false): void {
     if (state.winner) return
     // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
     // refreshLevelAsOverrides は handleAction の事後フックでしか走らないため、
@@ -1125,6 +1125,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
+            bySoku,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
         })
@@ -1856,6 +1857,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.symbolsOverrideContinuous
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
+            delete inst.costDeltaContinuous
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
@@ -2104,6 +2106,19 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (!baseColor) continue
                         spirit.symbolsOverrideContinuous = new Array(effect.symbolCount).fill(baseColor)
                     }
+                    continue
+                }
+                if (effect.kind === "selfCostMod") {
+                    // 「このスピリットをコスト+3する」（BS11-017ムシャツバメLv2-3）。**発生源自身だけ**に効く継続効果
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phaseTurn !== undefined) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        const turnOk =
+                            effect.phaseTurn.turn === "both" ||
+                            (effect.phaseTurn.turn === "own" ? state.turnPlayer === pid : state.turnPlayer !== pid)
+                        if (!turnOk) continue
+                    }
+                    source.costDeltaContinuous = (source.costDeltaContinuous ?? 0) + effect.amount
                     continue
                 }
                 if (effect.kind === "alsoCostGrant") {
@@ -3028,6 +3043,30 @@ function fireCorePlacedFromDiff(state: GameState, before: CorePlaces): void {
     }
 }
 
+// 「手札を破棄できない」（globalConstraint "noDrawAndNoHandDiscard"）で止まるアクション。
+// **手札を破棄する効果とコスト**を列挙する（破棄しないカード操作＝手札に戻す・デッキへ戻す等は含めない）。
+// 新しく手札破棄のアクションを足したらここにも足すこと
+const HAND_DISCARD_ACTIONS = new Set<EffectAction["type"]>([
+    "discardBothHands",
+    "discardHandAll",
+    "discardOpponent",
+    "discardOpponentDownTo",
+    "discardSelfChoose",
+    "discardSelfOne",
+    "drawThenDiscard",
+    "drawPerHandDiscard",
+    "costDiscardHandThenDraw",
+    "costDiscardHandKeywordThenDraw",
+    "costDiscardHandTypeThenCoreRemove",
+    "costDiscardNamedThenPeek",
+    "selfBuffByHandDiscard",
+    "coreRemovePerHandDiscard",
+    "coreRemovePerHandDiscard",
+    "discardHandNexusesThenDraw",
+    "discardHandNexusToVoidCoreSelf",
+    "randomOpponentHandMagicDiscard",
+])
+
 export function resolveAction(
     state: GameState,
     owner: PlayerId,
@@ -3088,6 +3127,14 @@ export function resolveAction(
                 opts?.chosenOption,
                 opts?.chosenCardIndex,
             ),
+    }
+    // BS11-065 満天の牧草地：「お互い、ドローできず、手札を破棄できない」（『お互いのメインステップ』）。
+    // ドロー側は draw() が単一の入口なのでそこで止まるが、手札の破棄は**入口が30箇所以上に散っている**ため、
+    // ここ（アクションの唯一の合流点）で「手札を破棄する効果」だけをまとめて止める。
+    // コストとしての破棄も止まる＝コストを払えないので効果自体が発揮されない（COST_MODEL.md §1）
+    if (HAND_DISCARD_ACTIONS.has(action.type) && hasGlobalConstraint(state, "noDrawAndNoHandDiscard")) {
+        log(state, `${sourceName}：手札を破棄できないため発揮しなかった。`)
+        return
     }
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void
     // いま解決中の効果の発生源を state に載せる（docs/design/EFFECT_SOURCE_CONTEXT.md）。

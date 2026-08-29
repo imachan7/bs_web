@@ -600,19 +600,19 @@ const __covEid = (e: unknown): string =>
     // globalConstraint（singleCoreCantAct / nexusIndestructible）: hasGlobalConstraint の true 判定
     patch(
         f,
-        `            for (const effect of card(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
-                return true
-            }`,
-        `            for (const effect of card(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+        `                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn !== undefined && effect.turn !== "both") {
+                    const isOwnTurn = board.turnPlayer === pid
+                    if (effect.turn === "own" ? !isOwnTurn : isOwnTurn) continue
+                }
+                return true`,
+        `                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn !== undefined && effect.turn !== "both") {
+                    const isOwnTurn = board.turnPlayer === pid
+                    if (effect.turn === "own" ? !isOwnTurn : isOwnTurn) continue
+                }
                 __covRec2("cont\\t" + __covEid(effect))
-                return true
-            }`,
+                return true`,
     )
     // globalConstraint（costCantAct）: しきい値を実際に満たして true を返す時点
     patch(

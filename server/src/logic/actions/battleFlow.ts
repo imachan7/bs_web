@@ -1,8 +1,9 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, EffectAction } from "../../type"
+import type { CardInstance, Color, EffectAction } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { COLOR_LABELS } from "../../../../data/constants"
 import {
     attachBrave,
     bothSidesPids,
@@ -28,7 +29,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instColors, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -1205,6 +1206,100 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
 // ctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086巨星望む大樹Lv2＝
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
 // 選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027若武者ウンピョル）
+// BS11-078 ブレイヴフラッシュ：自分の**スピリット状態のブレイヴ**1体を、自分のスピリット1体に合体させる。
+// 合体条件は通常どおり判定し、成立する組み合わせが1つも無ければ不発。
+// interactiveTargets 時はブレイヴ→合体先の順に選ばせ、非対話は最初に成立する組み合わせに倒す
+const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+    // スピリット状態のブレイヴ（カード種別がブレイヴで、合体していない個体）
+    const braves = player.field.spirits.filter(
+        (sp) => getCard(sp.cardId).type === "brave" && (sp.braveRefs ?? []).length === 0,
+    )
+    // 合体先の選択から再開（action が合体させるブレイヴを持ち回る）
+    if (action.chosenBraveInstanceId !== undefined) {
+        const brave = braves.find((sp) => sp.instanceId === action.chosenBraveInstanceId)
+        const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+        if (!brave || !host) return
+        attachBrave(state, owner, host, brave)
+        log(state, `${sourceName}：${getCard(brave.cardId).name}を${getCard(host.cardId).name}に合体させた。`)
+        return
+    }
+    // 「そのブレイヴを合体させられる相手がいる」ものだけを候補にする（不発の判定もこれで足りる）
+    const usable = braves.filter((b) => braveCombineCandidates(state, owner, b.cardId).length > 0)
+    if (usable.length === 0) {
+        log(state, `${sourceName}：合体させられる組み合わせがなかった。`)
+        return
+    }
+    if (state.interactiveTargets && targetInstanceId === undefined && usable.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：合体させるブレイヴを選んでください`,
+            usable.map((b) => b.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    // ブレイヴが1体しか無い（または非対話）ときは、そのブレイヴで確定させる。
+    // 選択から戻ったときは targetInstanceId に選ばれたブレイヴが入る
+    const brave = targetInstanceId !== undefined ? usable.find((b) => b.instanceId === targetInstanceId) : usable[0]
+    if (!brave) return
+    const hosts = braveCombineCandidates(state, owner, brave.cardId)
+    if (state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${getCard(brave.cardId).name}を合体させるスピリットを選んでください`,
+            hosts,
+            false,
+            { ...action, chosenBraveInstanceId: brave.instanceId },
+            self,
+        )
+        return
+    }
+    const host = player.field.spirits.find((sp) => sp.instanceId === hosts[0])
+    if (!host) return
+    attachBrave(state, owner, host, brave)
+    log(state, `${sourceName}：${getCard(brave.cardId).name}を${getCard(host.cardId).name}に合体させた。`)
+}
+
+// BS11-054 武槍鳥スピニード・ハヤト：「ステップ開始時、色1色を指定する。このターンの間、
+// このスピリットは、指定した色のスピリットにブロックされたとき回復する」。
+// 色を選ぶのは効果の持ち主（CHOOSER_RULES.md §1）。非対話は相手のフィールドで最も多い色に倒す
+const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx) => {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    if (!self) return
+    const colors = Object.keys(COLOR_LABELS) as Color[]
+    let chosen: Color | undefined
+    if (state.interactiveTargets) {
+        if (chosenOption === undefined) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：色を1色指定してください（この色のスピリットにブロックされたとき回復します）`,
+                [],
+                false,
+                { type: "refreshWhenBlockedByChosenColorThisTurn" },
+                self,
+                "option",
+                colors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        chosen = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, l]) => l === chosenOption)?.[0]
+    } else {
+        const countFor = (c: Color): number =>
+            state.players[opp].field.spirits.filter((sp) => instColors(sp).includes(c)).length
+        chosen = [...colors].sort((a, b) => countFor(b) - countFor(a))[0]
+    }
+    if (chosen === undefined) return
+    self.refreshWhenBlockedByColorThisTurn = chosen
+    log(state, `${sourceName}：${COLOR_LABELS[chosen]}が指定された。このターン、その色にブロックされたとき回復する。`)
+}
+
 const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId, srcType, chosenOption } = ctx
     // side:"opponent"（BS11-015 冥王神獣インフェルド・ハデス）：相手の合体スピリットを分離させる。
@@ -1493,6 +1588,8 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
+    combineOwnBrave: combineOwnBraveHandler,
+    refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     detachBrave: detachBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
