@@ -1824,13 +1824,138 @@ interface CoreSource {
     instanceId?: string
 }
 
+// 取り先の候補を作る（リザーブ／トラッシュ／フィールドの各個体）。装甲・効果耐性で取れない個体は外す。
+// **opponentCoresToVoidByTotal と coresDownToLimit が共有する**（コピーすると片方だけ直す事故になる）
+function coreSourcesOf(
+    state: GameState,
+    targetPid: PlayerId,
+    actorPid: PlayerId,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+): CoreSource[] {
+    const player = state.players[targetPid]
+    const sources: CoreSource[] = []
+    if (player.reserve > 0) sources.push({ label: "リザーブ", kind: "reserve" })
+    if (player.trashCores > 0) sources.push({ label: "トラッシュ", kind: "trash" })
+    const seen = new Map<string, number>()
+    const labelFor = (name: string): string => {
+        const n = (seen.get(name) ?? 0) + 1
+        seen.set(name, n)
+        return n === 1 ? name : `${name}（${n}体目）`
+    }
+    for (const sp of player.field.spirits) {
+        if (sp.cores <= 0) continue
+        if (!canTakeCoresFrom(state, targetPid, sp, actorPid, srcColors, srcType)) continue
+        sources.push({ label: labelFor(getCard(sp.cardId).name), kind: "spirit", instanceId: sp.instanceId })
+    }
+    for (const nx of player.field.nexuses) {
+        if (nx.cores <= 0) continue
+        sources.push({ label: labelFor(getCard(nx.cardId).name), kind: "nexus", instanceId: nx.instanceId })
+    }
+    return sources
+}
+
+// 選ばれた取り先から1個だけボイドへ置く。維持コア割れの消滅処理は removeCoresToVoid が担う
+function takeOneCoreToVoid(state: GameState, targetPid: PlayerId, picked: CoreSource, actorPid: PlayerId): void {
+    const player = state.players[targetPid]
+    if (picked.kind === "reserve") {
+        player.reserve -= 1
+        log(state, `${player.name}はリザーブのコア1個をボイドに置いた。`)
+        return
+    }
+    if (picked.kind === "trash") {
+        player.trashCores -= 1
+        log(state, `${player.name}はトラッシュのコア1個をボイドに置いた。`)
+        return
+    }
+    if (picked.kind === "spirit") {
+        const sp = player.field.spirits.find((x) => x.instanceId === picked.instanceId)
+        if (!sp) return
+        removeCoresToVoid(state, targetPid, sp, 1, actorPid)
+        return
+    }
+    const nx = player.field.nexuses.find((x) => x.instanceId === picked.instanceId)
+    if (!nx) return
+    nx.cores -= 1
+    log(state, `${getCard(nx.cardId).name}の上のコア1個をボイドに置いた。`)
+}
+
+// 非対話（テスト・AI）の決定的簡略化：リザーブ→トラッシュ→フィールド（コアの多い個体から）の順に
+// count 個をボイドへ置く。**この順は2つのアクションで共有する**（規則を2つ持たないため）
+function autoTakeCoresToVoid(
+    state: GameState,
+    targetPid: PlayerId,
+    count: number,
+    actorPid: PlayerId,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+    sourceName: string,
+): { fromReserve: number; fromTrash: number; fromField: number; remaining: number } {
+    const player = state.players[targetPid]
+    let remaining = count
+    const fromReserve = Math.min(remaining, player.reserve)
+    player.reserve -= fromReserve
+    remaining -= fromReserve
+    const fromTrash = Math.min(remaining, player.trashCores)
+    player.trashCores -= fromTrash
+    remaining -= fromTrash
+    let fromField = 0
+    const skip = new Set<string>() // 耐性・保護で取れなかった個体（無限ループ防止）
+    while (remaining > 0) {
+        let richest: CardInstance | undefined
+        let richestKind: "spirit" | "nexus" | undefined
+        for (const s of player.field.spirits) {
+            if (s.cores > 0 && !skip.has(s.instanceId) && (!richest || s.cores > richest.cores)) {
+                richest = s
+                richestKind = "spirit"
+            }
+        }
+        for (const n of player.field.nexuses) {
+            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
+                richest = n
+                richestKind = "nexus"
+            }
+        }
+        if (!richest || !richestKind) break
+        if (richestKind === "spirit") {
+            if (!canTakeCoresFrom(state, targetPid, richest, actorPid, srcColors, srcType)) {
+                log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
+                skip.add(richest.instanceId)
+                continue
+            }
+            const removed = removeCoresToVoid(state, targetPid, richest, Math.min(remaining, richest.cores), actorPid)
+            if (removed === 0) {
+                skip.add(richest.instanceId)
+                continue
+            }
+            remaining -= removed
+            fromField += removed
+            continue
+        }
+        // ネクサスは装甲・維持コアの概念が無いので従来どおり直接動かす
+        const take = Math.min(remaining, richest.cores)
+        richest.cores -= take
+        remaining -= take
+        fromField += take
+    }
+    return { fromReserve, fromTrash, fromField, remaining }
+}
+
+// フィールド（スピリット＋ネクサス）＋トラッシュ＋リザーブのコア合計
+function totalCoresOf(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    return (
+        player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
+        player.field.nexuses.reduce((sum, n) => sum + n.cores, 0) +
+        player.trashCores +
+        player.reserve
+    )
+}
+
 const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTotal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, chosenOption } = ctx
     const player = state.players[opp]
-    const fieldCores =
-        player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
-        player.field.nexuses.reduce((sum, n) => sum + n.cores, 0)
-    const total = fieldCores + player.trashCores + player.reserve
+    const total = totalCoresOf(state, opp)
     // 条件を満たす段のうち最大の minTotal を採用する
     let count = 0
     let matchedMin = -1
@@ -1854,25 +1979,8 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
         const left = action.remaining ?? count
         if (left <= 0) return
 
-        // 取り先の候補を作る。装甲・効果耐性で取れない個体は候補から外す
-        const sources: CoreSource[] = []
-        if (player.reserve > 0) sources.push({ label: "リザーブ", kind: "reserve" })
-        if (player.trashCores > 0) sources.push({ label: "トラッシュ", kind: "trash" })
-        const seen = new Map<string, number>()
-        const labelFor = (name: string): string => {
-            const n = (seen.get(name) ?? 0) + 1
-            seen.set(name, n)
-            return n === 1 ? name : `${name}（${n}体目）`
-        }
-        for (const sp of player.field.spirits) {
-            if (sp.cores <= 0) continue
-            if (!canTakeCoresFrom(state, opp, sp, owner, srcColors, srcType)) continue
-            sources.push({ label: labelFor(getCard(sp.cardId).name), kind: "spirit", instanceId: sp.instanceId })
-        }
-        for (const nx of player.field.nexuses) {
-            if (nx.cores <= 0) continue
-            sources.push({ label: labelFor(getCard(nx.cardId).name), kind: "nexus", instanceId: nx.instanceId })
-        }
+        // 取り先の候補を作る。装甲・効果耐性で取れない個体は候補から外す（共通ヘルパー）
+        const sources = coreSourcesOf(state, opp, owner, srcColors, srcType)
         if (sources.length === 0) {
             log(state, `${sourceName}：${player.name}に取り除けるコアがなかった。`)
             return
@@ -1885,23 +1993,7 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
                 log(state, `${sourceName}：選ばれた取り先が見つからなかった。`)
                 return
             }
-            if (picked.kind === "reserve") {
-                player.reserve -= 1
-                log(state, `${player.name}はリザーブのコア1個をボイドに置いた。`)
-            } else if (picked.kind === "trash") {
-                player.trashCores -= 1
-                log(state, `${player.name}はトラッシュのコア1個をボイドに置いた。`)
-            } else if (picked.kind === "spirit") {
-                const sp = player.field.spirits.find((x) => x.instanceId === picked.instanceId)
-                if (!sp) return
-                // 維持コア割れの消滅処理は removeCoresToVoid が担う
-                removeCoresToVoid(state, opp, sp, 1, owner)
-            } else {
-                const nx = player.field.nexuses.find((x) => x.instanceId === picked.instanceId)
-                if (!nx) return
-                nx.cores -= 1
-                log(state, `${getCard(nx.cardId).name}の上のコア1個をボイドに置いた。`)
-            }
+            takeOneCoreToVoid(state, opp, picked, owner)
             const rest = left - 1
             if (rest > 0) ctx.resolve({ ...action, remaining: rest })
             return
@@ -1922,59 +2014,94 @@ const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTot
         return
     }
 
-    let remaining = count
-    // リザーブ
-    const fromReserve = Math.min(remaining, player.reserve)
-    player.reserve -= fromReserve
-    remaining -= fromReserve
-    // トラッシュ
-    const fromTrash = Math.min(remaining, player.trashCores)
-    player.trashCores -= fromTrash
-    remaining -= fromTrash
-    // フィールド（コアの多い個体から。維持コア割れのスピリットは消滅）
-    let fromField = 0
-    const skip = new Set<string>() // 耐性・保護で取れなかった個体（無限ループ防止）
-    while (remaining > 0) {
-        let richest: CardInstance | undefined
-        let richestKind: "spirit" | "nexus" | undefined
-        for (const s of player.field.spirits) {
-            if (s.cores > 0 && !skip.has(s.instanceId) && (!richest || s.cores > richest.cores)) {
-                richest = s
-                richestKind = "spirit"
-            }
-        }
-        for (const n of player.field.nexuses) {
-            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
-                richest = n
-                richestKind = "nexus"
-            }
-        }
-        if (!richest || !richestKind) break
-        if (richestKind === "spirit") {
-            if (!canTakeCoresFrom(state, opp, richest, owner, srcColors, srcType)) {
-                log(state, `${getCard(richest.cardId).name}は${sourceName}の効果を受けなかった。`)
-                skip.add(richest.instanceId)
-                continue
-            }
-            const removed = removeCoresToVoid(state, opp, richest, Math.min(remaining, richest.cores), owner)
-            if (removed === 0) {
-                skip.add(richest.instanceId)
-                continue
-            }
-            remaining -= removed
-            fromField += removed
-            continue
-        }
-        // ネクサスは装甲・維持コアの概念が無いので従来どおり直接動かす
-        const take = Math.min(remaining, richest.cores)
-        richest.cores -= take
-        remaining -= take
-        fromField += take
-    }
+    const { fromReserve, fromTrash, fromField, remaining } = autoTakeCoresToVoid(
+        state,
+        opp,
+        count,
+        owner,
+        srcColors,
+        srcType,
+        sourceName,
+    )
     log(
         state,
         `${sourceName}：${player.name}のコア合計${total}個につき${count - remaining}個をボイドに置いた。（リザーブ${fromReserve}／トラッシュ${fromTrash}／フィールド${fromField}。取り除く順は簡略化）`,
     )
+}
+
+// クロノ・ボロス：対象の「フィールド＋リザーブ＋トラッシュに残るコア」を limit 個以下になるまでボイドへ。
+// sides の順に1陣営ずつ処理する（「相手は〜。その後、自分は〜」）。取り先の選択・自動順は
+// opponentCoresToVoidByTotal と共通のヘルパーを使う
+const coresDownToLimitHandler: ActionHandler<"coresDownToLimit"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, chosenOption } = ctx
+    const idx = action.sideIndex ?? 0
+    const side = action.sides[idx]
+    if (side === undefined) return
+    const pid = side === "opponent" ? opp : owner
+    const player = state.players[pid]
+    // 次の陣営へ。無ければ終わり
+    const next = (): void => {
+        if (idx + 1 < action.sides.length) ctx.resolve({ ...action, sideIndex: idx + 1 })
+    }
+    const excess = totalCoresOf(state, pid) - action.limit
+    if (excess <= 0) {
+        log(state, `${sourceName}：${player.name}のコアは合計${totalCoresOf(state, pid)}個で、ボイドに置く必要がなかった。`)
+        next()
+        return
+    }
+
+    // 実対戦：効果文の主語はそれぞれの持ち主なので、取り先は1個ずつ**コアを失う側**が選ぶ
+    if (state.interactiveTargets) {
+        const sources = coreSourcesOf(state, pid, owner, srcColors, srcType)
+        if (sources.length === 0) {
+            log(state, `${sourceName}：${player.name}に取り除けるコアがなかった。`)
+            next()
+            return
+        }
+        if (chosenOption !== undefined) {
+            const picked = sources.find((c) => c.label === chosenOption)
+            if (!picked) {
+                log(state, `${sourceName}：選ばれた取り先が見つからなかった。`)
+                next()
+                return
+            }
+            takeOneCoreToVoid(state, pid, picked, owner)
+            // 残りは**毎回数え直す**（維持コア割れで消滅したスピリットのコアはリザーブへ戻るので、引き算では合わない）
+            if (totalCoresOf(state, pid) > action.limit) ctx.resolve({ ...action, sideIndex: idx })
+            else next()
+            return
+        }
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${player.name}はボイドに置くコアの取り先を選んでください（合計${action.limit}個以下になるまで。残り${excess}個）`,
+            [],
+            false,
+            { ...action, sideIndex: idx },
+            self,
+            "option",
+            sources.map((c) => c.label),
+            pid, // 選ぶのはコアを失う側
+        )
+        return
+    }
+
+    // 非対話（テスト・AI）：消滅したスピリットのコアがリザーブへ戻る分があるので、上限を切るまで繰り返す
+    let guard = 0
+    while (totalCoresOf(state, pid) > action.limit && guard++ < 50) {
+        const taken = autoTakeCoresToVoid(
+            state,
+            pid,
+            totalCoresOf(state, pid) - action.limit,
+            owner,
+            srcColors,
+            srcType,
+            sourceName,
+        )
+        if (taken.fromReserve + taken.fromTrash + taken.fromField === 0) break // これ以上取れない（装甲・耐性）
+    }
+    log(state, `${sourceName}：${player.name}のコアを合計${totalCoresOf(state, pid)}個にした。（取り除く順は簡略化）`)
+    next()
 }
 
 // チェンジングコア：対象スピリットのコアを1個だけ残し、残りを同じフィールドの別のスピリットへ移す。
@@ -2181,6 +2308,7 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
 
 const handlers = {
     opponentCoresToVoidByTotal: opponentCoresToVoidByTotalHandler,
+    coresDownToLimit: coresDownToLimitHandler,
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,

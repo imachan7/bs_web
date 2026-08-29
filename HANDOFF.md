@@ -27,40 +27,17 @@
   [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.9 /
   [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.12〜3.15）
 
-### いま進めていること：BS10 の部分実装4枚の仕上げ（2026-08-29）
+### 済：BS10 の部分実装4枚の仕上げ（2026-08-29 完了）
 
-カードは121枚とも投入済みだが、**効果の一部が未実装のものが4枚**あった（`data/card-notes.json` に記録）。
+カードは121枚とも投入済みで、**効果の一部が未実装だった4枚**（`data/card-notes.json` に記録していた分）を
+すべて実装した。`card-notes.json` の BS10 の記載は無くなり、`validate:gaps` の既知ギャップは 0 件。
 
-- **080 / X01 / 108 の3枚**は解釈が一意なので実装を委譲した（`scripts/smoke/part265.ts`）
-- **BS10-019 土星神龍クロノ・ボロス**（【合体時】Lv2･Lv3『破壊時』
-  「相手は、相手のフィールド/リザーブ/トラッシュに残るコアを合計5個以下になるようにボイドに置く。
-  その後、自分も同じことをする」）は下記の設計で、3枚の統合後に実装する
-
-#### BS10-019 の設計（2026-08-29 確定）
-
-**誰が選ぶか**は [CHOOSER_RULES.md](./docs/design/CHOOSER_RULES.md) §1 で確定済み（それぞれの持ち主）。
-**どのコアから減らすかは「対話では1個ずつ選ばせる」**（2026-08-29 ユーザー確認）。
-
-⚠️ **UI の拡張は要らない。** `opponentCoresToVoidByTotal`（`server/src/logic/actions/cores.ts:1827`。
-BS02ブラッディレイン）が**同じ問題を既に解いている**:
-
-| 要るもの | 既存にあるか |
-| :-- | :-- |
-| フィールド＋リザーブ＋トラッシュのコアを1個ずつ選ばせる | **ある**（`kind:"option"` の取り先選択。ラベルは「リザーブ」「トラッシュ」「カード名」） |
-| 「相手は」＝失う側に選ばせる（解決は発生源の持ち主のまま） | **ある**（`requestChoice` の `chooserPid`） |
-| 複数回の選択にまたがる再入 | **ある**（`action.remaining` を持ち回る。INTERRUPTION_POINTS §パターンB） |
-| 維持コア割れの消滅・装甲の判定 | **ある**（`removeCoresToVoid` / `canTakeCoresFrom`） |
-
-**足すのは2点だけ**:
-
-1. 個数の決め方を `tiers`（合計に応じた個数）ではなく **`limit`（残す合計の上限）** にした版
-2. 対象が**相手→その後 自分**の2段（自分の分は自分が選ぶ）
-
-⚠️ **選択ロジックは共通関数へ切り出して両アクションから呼ぶこと**（コピーすると片方だけ直す事故になる。
-このリポジトリで何度も起きている）。
-
-**非対話（テスト・AI）の自動順は既存に合わせて「リザーブ→トラッシュ→フィールド（コアの多い個体から）」**。
-規則を2つ持たないため（`opponentCoresToVoidByTotal` の既定と同じ）。
+- **080 炎の結晶石 / X01 幻羅星龍ガイ・アスラ / 108 ルナティックシール**（`scripts/smoke/part265.ts`）
+- **019 土星神龍クロノ・ボロス**：`action:"coresDownToLimit"`（`limit` と `sides`）を新設
+  （`scripts/smoke/part266.ts`）。確定した規則は
+  [CHOOSER_RULES.md](./docs/design/CHOOSER_RULES.md) §1.8 に書いた。
+  取り先の選択・自動順は `opponentCoresToVoidByTotal` と共通のヘルパーに切り出して両方から呼んでいる
+  （`coreSourcesOf` / `takeOneCoreToVoid` / `autoTakeCoresToVoid` / `totalCoresOf`）。UI の追加は不要だった
 
 ### 次の候補（本線が空いたので、着手前に方針を確認すること）
 

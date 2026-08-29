@@ -2657,6 +2657,25 @@
           "discardCount": 2,
           "drawCount": 3
         }
+      },
+      {
+        "id": "BS10-019-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "coresDownToLimit",
+          "limit": 5,
+          "sides": [
+            "opponent",
+            "own"
+          ]
+        }
       }
     ]
   },
