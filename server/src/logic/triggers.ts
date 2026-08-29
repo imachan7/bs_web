@@ -291,6 +291,13 @@ export function fireTrigger(
                 const oppNexuses = state.players[opponentOf(owner)].field.nexuses
                 const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
                 if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
+            } else if ("byOpponentSpiritEffect" in effect.condition) {
+                // BS11-034 星馬コルット：「**相手のスピリットの効果で**破壊されたとき」。
+                // onDestroy に渡る DestroyContext（発生源の陣営・種別）で判定する
+                // 解決中の効果の発生源は GameState.currentEffectSource が持つ
+                // （docs/design/EFFECT_SOURCE_CONTEXT.md）。バトルによる破壊では立たないので自然に外れる
+                const src = state.currentEffectSource
+                if (src === undefined || src.pid === owner || src.type !== "spirit") return false
             } else if ("targetCombined" in effect.condition) {
                 // BS11-X02 滅神星龍ダークヴルム・ノヴァ：「相手の合体スピリットとバトルしたとき」。
                 // onBattleStart のイベント対象（＝バトル相手）が合体スピリットのときだけ発火する

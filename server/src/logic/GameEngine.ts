@@ -1104,6 +1104,20 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     const attacker = attackerInstanceId
         ? findSpirit(state.players[attackerPid], attackerInstanceId)
         : undefined
+    // BS11-037 ヒポグリフィー：「相手は、相手のリザーブのコア1個を相手のトラッシュに置かなければ
+    // ブロックできない」。**払えるかは validateBlock（shared/block.ts）が見ているので、ここは支払いだけ**
+    if (attacker) {
+        const tax = activeConstraints(state, attackerPid, attacker).find(
+            (c) => c.type === "blockRequiresCorePayment",
+        )
+        if (tax !== undefined && tax.type === "blockRequiresCorePayment") {
+            const blocker = state.players[pid]
+            const pay = Math.min(tax.count, blocker.reserve)
+            blocker.reserve -= pay
+            blocker.trashCores += pay
+            log(state, `${blocker.name}はブロックのためリザーブのコア${pay}個をトラッシュに置いた。`)
+        }
+    }
     // BS11-054 武槍鳥スピニード・ハヤト：「指定した色のスピリットにブロックされたとき回復する」。
     // 誘発より先に見る（回復は状態の変化であって、他の『ブロックされたとき』効果とは独立している）
     if (attacker?.refreshWhenBlockedByColorThisTurn !== undefined) {

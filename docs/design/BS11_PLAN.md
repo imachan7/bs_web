@@ -1,7 +1,7 @@
 # BS11「星座編 第二弾：灼熱の太陽」の取り込み計画
 
 - 取り込み: 2026-08-29（`data/staging/BS11.json`。91枚）
-- 進捗: **61 / 91枚**（赤16枚・紫15枚・緑15枚・白15枚 完了 2026-08-29）
+- 進捗: **76 / 91枚**（赤16枚・紫15枚・緑15枚・白15枚・黄15枚 完了 2026-08-29）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色なし。各色15枚前後）
 - 関連: [BRAVE.md](./BRAVE.md)（ブレイヴのエンジンは段階4まで実装済み。**段階5＝分離が未了**）
 
@@ -169,6 +169,33 @@ BS11-016 邪眼皇ゼナス「相手の合体スピリット**すべてのブレ
 ⚠️ `fieldEvent` には `subjectCombined` / `subjectSide` / `maxCostAsSelf`（filter）が既にあり、
 068 の「合体していない相手のスピリットがアタックしたとき」「そのスピリットのコスト以下」は
 **新しい軸を足さずに書けた**。似た効果を足す前に既存の軸を見ること。
+
+## 2.8 済：黄15枚（2026-08-29）
+
+`scripts/smoke/part273.ts`。足した器:
+
+| 器 | 用途 |
+| :-- | :-- |
+| `triggered.condition { byOpponentSpiritEffect }` | 「相手のスピリットの効果で破壊されたとき」（034）。判定は `GameState.currentEffectSource`（[EFFECT_SOURCE_CONTEXT.md](./EFFECT_SOURCE_CONTEXT.md)） |
+| `detachBrave` の `all` / `minSymbols` | 「シンボル2つ以上の相手の合体スピリットすべてを分離」（034） |
+| `constraint:"blockRequiresCorePayment"` | 「リザーブのコア1個を置かなければブロックできない」（037） |
+| `action:"millUntilCostThenSummonFree"` | 「コスト6/7が出るまで破棄して召喚」（038） |
+| `symbolFix.target:"self"` | 「このスピリットのシンボルを黄3つにする」（039） |
+| `action:"banBlockByCostsThisTurn"` ＋ `cantBlockThisTurn` | 「コスト4/6/8の相手すべてはブロックできない」（057） |
+| `action:"revealTopThenFreeUseOrHand"` | デッキ上1枚を無償で使う／召喚する（058 / X05） |
+| `ownNexusIndestructible.requireAllOwnNexusesColor` | 「自分のネクサスすべてが黄の間」（069） |
+| `action:"opponentHandLockExceptColorThisTurn"` | 「相手は黄以外の手札のカードを使えない」（082） |
+| `constraintGrant` の `target:"opponentAll"` / `nonVanillaFilter` | 「効果の記述を持つ相手のスピリットすべて」（082） |
+| `action:"freeMagicAfterPaidMagic"` | マジック使用後にもう1枚を無償使用（X05。ターン2回） |
+
+⚠️ **`constraintGrant` は自分側の発生源しか走査していなかった。**
+`target:"opponentAll"`（082）を足すときに、相手側の発生源も見るようにした。既定（`ownAll`）の挙動は不変。
+
+⚠️ **`ownMagicUsed`（fieldEvent）は既にあった。** 似たイベントを足す前に `TriggerEvent` と
+fieldEvent の `event` 一覧を両方見ること（`opponentDrew` / `anyNexusDestroyed` と同じ罠）。
+
+⚠️ **テストで「ホストとブレイヴ」を実データから選ぶときは、ブレイヴを先に固定しない。**
+シンボル2個のホストは、先に選んだブレイヴの合体条件を満たさないことがある（**組で探す**）。
 
 ## 3. 進め方
 

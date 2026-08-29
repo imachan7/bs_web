@@ -29,7 +29,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instColors, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instColors, instIsCombined, instanceSymbolCount, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -1364,6 +1364,25 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
         return
     }
 
+    // all（BS11-034星馬コルット）：条件に合う合体スピリット**すべて**を分離させる。選択は挟まない
+    if (action.all) {
+        const hosts = player.field.spirits.filter(
+            (sp) =>
+                (sp.braveRefs ?? []).length > 0 &&
+                (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols),
+        )
+        if (hosts.length === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        for (const h of [...hosts]) {
+            for (const b of bravesOf(player, h)) {
+                detachBraveByEffect(state, targetPid, h, b)
+                if (state.winner) return
+            }
+        }
+        return
+    }
     // コアの分け方の選択から再開（分離元ホストは action が持ち回る）
     let splitCores: number | undefined
     let host: CardInstance | undefined

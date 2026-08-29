@@ -99,6 +99,16 @@ function paySourcesTotal(paySources: PaySource[] | undefined): number {
     return (paySources ?? []).reduce((sum, s) => sum + s.count, 0)
 }
 
+
+// BS11-082 ウィッグバインド：「相手は◯色以外の手札のカードを使えない」（このターン）。
+// 召喚・配置・マジック使用の3経路が共通で見る
+export function handLockedForColor(state: GameState, pid: PlayerId, cardId: string): string | null {
+    const lock = state.turnConstraints.find((c) => c.type === "handLockExceptColorForPid" && c.pid === pid)
+    if (lock === undefined || lock.type !== "handLockExceptColorForPid") return null
+    if (getCard(cardId).colors.includes(lock.color)) return null
+    return `効果により、${COLOR_LABELS[lock.color]}以外の手札のカードを使用できません`
+}
+
 export function validateSummon(
     state: GameState,
     pid: PlayerId,
@@ -120,6 +130,8 @@ export function validateSummon(
     const card = getCard(cardId)
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+    const handLock = handLockedForColor(state, pid, cardId)
+    if (handLock) return handLock
 
     // 「相手は、ブレイヴをスピリット状態にできない」（BS11-X02 Lv3）：
     // 単体召喚＝スピリット状態で場に出す経路なので弾く。合体させる召喚（ダイレクトブレイヴ）は通す
@@ -347,6 +359,8 @@ export function validateSetNexus(
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
+    const nexusHandLock = handLockedForColor(state, pid, cardId)
+    if (nexusHandLock) return nexusHandLock
     const card = getCard(cardId)
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
@@ -466,6 +480,11 @@ export function validateCastMagic(
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
     if (card.type !== "magic") return "マジックカードではありません"
+    // 手元(tegamoto)は「手札のカード」ではないので手札ロックの対象外
+    if (!fromTegamoto) {
+        const magicHandLock = handLockedForColor(state, pid, cardId)
+        if (magicHandLock) return magicHandLock
+    }
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
     // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）

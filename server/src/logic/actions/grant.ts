@@ -19,6 +19,8 @@ import {
 import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { resolveMagicEffects } from "../triggers"
+import { tryInteractiveCardChoice } from "../EffectModules"
 
 const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -576,6 +578,70 @@ const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ct
 // （capLifeDamageThisTurnのmax:0はアタック限定なので届かない。BS10-093時刻む花時計）
 // BS11-080 デルタバリア：このターンの間、発生源の持ち主のライフは**0にならない**（1で止まる）。
 // 「減らない」（lifeImmuneThisTurn）とは別物で、減りはする
+// BS11-057 バタホルン：このターンの間、相手のコスト4/6/8のスピリットすべてはブロックできない
+const banBlockByCostsThisTurnHandler: ActionHandler<"banBlockByCostsThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    for (const sp of state.players[opp].field.spirits) {
+        if (!action.costs.includes(instBaseCost(sp))) continue
+        sp.cantBlockThisTurn = true
+    }
+    log(state, `${sourceName}：このターンの間、コスト${action.costs.join("/")}の相手のスピリットはブロックできない。`)
+}
+
+// BS11-082 ウィッグバインド：このターンの間、相手は指定色以外の手札のカードを使えない
+const opponentHandLockExceptColorThisTurnHandler: ActionHandler<"opponentHandLockExceptColorThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    state.turnConstraints.push({ type: "handLockExceptColorForPid", pid: opp, color: action.color })
+    log(state, `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.color]}以外の手札のカードを使えない。`)
+}
+
+// BS11-X05 魔導双神ジェミナイズLv2-3：コストを支払ってマジックを使用したとき、その効果発揮後に
+// 手札／手元のマジック1枚を無償で使用できる（ターンに2回）。
+// **非対話（テスト・AI）では使わない**（どのマジックを使うかは盤面依存で、自動で選ぶと事故が大きい）
+const freeMagicAfterPaidMagicHandler: ActionHandler<"freeMagicAfterPaidMagic"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (self !== null) {
+        const used = self.freeMagicUsedTurn?.turn === state.turn ? self.freeMagicUsedTurn.count : 0
+        if (used >= action.timesPerTurn) {
+            log(state, `${sourceName}：この効果はこのターン既に${String(action.timesPerTurn)}回使っている。`)
+            return
+        }
+    }
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || getCard(cardId).type !== "magic") return
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        if (self !== null) {
+            const used = self.freeMagicUsedTurn?.turn === state.turn ? self.freeMagicUsedTurn.count : 0
+            self.freeMagicUsedTurn = { turn: state.turn, count: used + 1 }
+        }
+        log(state, `${player.name}は${getCard(cardId).name}をコストを支払わずに使用した。`)
+        resolveMagicEffects(state, owner, cardId, "flash")
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => getCard(player.hand[i]!).type === "magic")
+    if (indices.length === 0) {
+        log(state, `${sourceName}：使えるマジックカードが手札になかった。`)
+        return
+    }
+    if (!state.interactiveTargets) {
+        // 非対話は使わない（決定的簡略化）
+        return
+    }
+    tryInteractiveCardChoice(
+        state,
+        owner,
+        self,
+        `${sourceName}：コストを支払わずに使用するマジックカードを選んでください`,
+        "hand",
+        indices,
+        { ...action },
+        null,
+    )
+}
+
 const lifeFloorOneThisTurnHandler: ActionHandler<"lifeFloorOneThisTurn"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     state.turnConstraints.push({
@@ -984,6 +1050,9 @@ const handlers = {
     banActByCostThisTurn: banActByCostThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
+    banBlockByCostsThisTurn: banBlockByCostsThisTurnHandler,
+    opponentHandLockExceptColorThisTurn: opponentHandLockExceptColorThisTurnHandler,
+    freeMagicAfterPaidMagic: freeMagicAfterPaidMagicHandler,
     lifeFloorOneThisTurn: lifeFloorOneThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     disableOpponentArmorThisTurn: disableOpponentArmorThisTurnHandler,

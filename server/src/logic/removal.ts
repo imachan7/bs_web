@@ -1571,6 +1571,12 @@ function hasOwnNexusIndestructible(
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "ownNexusIndestructible") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // requireAllOwnNexusesColor（BS11-069黄金の鐘楼＝「自分のネクサスすべてが黄の間」）
+            if (effect.constraint.requireAllOwnNexusesColor !== undefined) {
+                const c = effect.constraint.requireAllOwnNexusesColor
+                if (player.field.nexuses.length === 0) continue
+                if (!player.field.nexuses.every((n) => instHasColor(n, c))) continue
+            }
             // colors（BS09-062ノルンの泉Lv2＝白/黄のネクサスだけ）：対象が分からないときは守らない側に倒す
             if (effect.constraint.colors !== undefined) {
                 if (!target) continue

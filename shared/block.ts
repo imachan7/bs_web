@@ -77,6 +77,20 @@ export function canBlock(
     if (blockerInst.cantBlockThisBattle) {
         return "このスピリットはこのバトルの間ブロックできません"
     }
+    // このターンの間だけブロックできない（BS11-057バタホルン＝コスト4/6/8の相手すべて）
+    if (blockerInst.cantBlockThisTurn) {
+        return "このスピリットはこのターンブロックできません"
+    }
+    // 「相手は、相手のリザーブのコアN個を相手のトラッシュに置かなければブロックできない」
+    // （BS11-037ヒポグリフィーLv2-3）。**払えるかどうか**をここで見る（支払いは宣言時に行う）
+    if (attackerInst) {
+        const tax = activeConstraints(board, attackerPid, attackerInst).find(
+            (c) => c.type === "blockRequiresCorePayment",
+        )
+        if (tax !== undefined && tax.type === "blockRequiresCorePayment" && board.players[blockerPid].reserve < tax.count) {
+            return `ブロックするにはリザーブのコア${tax.count}個をトラッシュに置く必要があります`
+        }
+    }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {
             return "このスピリットはブロックできません"

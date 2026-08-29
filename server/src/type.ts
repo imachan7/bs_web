@@ -239,9 +239,11 @@ export type EffectAction =
     | { type: "recoverMagicFromTrash"; colors?: Color[] } // colors指定時は、そのいずれかの色を持つマジックカードだけを対象にする（カード静的な colors で判定。BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）。// 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
     | { type: "recoverNexusFromTrash"; colors?: Color[] } // recoverMagicFromTrashのネクサス版。自分のトラッシュにあるネクサスカード1枚（末尾＝新しい方）を手札に戻す（colors指定時はそのいずれかの色を持つネクサスカードだけを対象。BS10-112ネクサスエクステンション）
     | { type: "castMagicFromTrashByColor"; colorFilter?: Color } // 自分のトラッシュにある指定色（省略時は色不問）のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する（interactiveTargets時はcard choiceで選択、自動時はコストが払える中で最もコストが高いものを自動選択。該当・支払い可能なカードがなければ不発）。この効果ではフィールドのコアは使えずリザーブのみで支払う簡略化。発動タイミングはこの効果自体の発火位置で決まる（バトル中ならflash、それ以外はメイン優先。BS08堕天使ミカファール）
+    | { type: "freeMagicAfterPaidMagic"; timesPerTurn: number } // 自分が**コストを支払って**マジックカードを使用したとき、その効果発揮後、自分の手札/手元にあるマジックカード1枚をコストを支払わずに使用できる（BS11-X05魔導双神ジェミナイズLv2-3＝ターンに2回）。非対話（テスト・AI）は使わない＝不発の決定的簡略化
     | { type: "magicMirrorRepeat" } // このフラッシュタイミングで相手が直前に使用したマジックカードの効果を、自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCastを参照し、相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止。BS08マジックミラー）
     | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
     | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number; vanillaFilter?: true } // 自分のスピリット全員（costFilter指定時はコスト一致のみ、vanillaFilter指定時は効果の記述を持たないスピリットのみ）に、このターンの間キーワードを付与する（リフレクションアーマー／BS05サーキュラーソー・アーム）
+    | { type: "banBlockByCostsThisTurn"; costs: number[] } // このターンの間、**相手の**指定コスト（完全一致。配列＝OR）のスピリットすべてはブロックできない（BS11-057バタホルン＝コスト4/6/8）。banActByCostThisTurn（アタックもブロックも不可・コスト以下）とは別枠
     | { type: "banActByCostThisTurn"; maxCost: number } // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
     | { type: "deployNexusFromTrashByFieldCores"; colors: Color[] } // 自分のトラッシュにある指定色いずれかのネクサスカード1枚を、**自分のフィールドのコアだけ**を使ってコストを支払い配置する（リザーブは使わない。2026-08-14 ユーザー確認）。フィールドのコアが足りなければ不発。取るのはネクサス上→コアの多いスピリットの順（維持コアを割る個体からは取らない決定的簡略化。BS09-065名工集いし大工房Lv2）
     | { type: "deployNexus"; from: "hand" | "trash"; colors?: Color[]; all?: boolean } // colors省略時は**色を問わない**（SD02-006 鼬の暗殺者ウィゼーブ＝「トラッシュにあるネクサスカード1枚」）。// 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）。all指定時は該当するネクサスカードをすべて配置する
@@ -250,7 +252,7 @@ export type EffectAction =
     | { type: "treatOwnNexusesAsSpiritsThisTurn"; minCores?: number; cost: number; family: string[]; levels: LevelDef[] } // 自分のネクサス（minCores個以上のコアが置かれているもの。省略時1）を、このターンの間スピリットとして扱う（BS03ゴーレムクラフト）。field.nexuses から field.spirits へ**同じインスタンスのまま**移し、CardInstance.asSpiritThisTurn に cost/family/levels の上書きを載せる。ターン終了時に PhaseManager.endTurn が生き残りを field.nexuses へ戻す（破壊された個体は既に場を離れているので戻らず、ネクサスカードがトラッシュに残る）
     | { type: "combineOwnBrave"; flashAfterBlockForbidden?: true; chosenBraveInstanceId?: string } // 自分の**スピリット状態のブレイヴ**1体を、自分のスピリット1体に合体させる（BS11-078ブレイヴフラッシュ）。合体条件は通常どおり判定し、組み合わせが1つも無ければ不発。interactiveTargets時はブレイヴ→合体先の順に選ばせ、非対話は最初に成立する組み合わせを選ぶ決定的簡略化。chosenBraveInstanceIdは**内部専用**（合体先の選択から再開するときに合体させるブレイヴを持ち回る。cards.jsonには書かない）。flashAfterBlockForbidden指定時は「ブロック宣言後のフラッシュタイミングでは使えない」（RuleValidator が使用そのものを弾く）
     | { type: "refreshWhenBlockedByChosenColorThisTurn" } // 「ステップ開始時、色1色を指定する。このターンの間、このスピリットは、指定した色のスピリットにブロックされたとき回復する」（BS11-054武槍鳥スピニード・ハヤト）。色を選ぶのは効果の持ち主（CHOOSER_RULES.md §1）。非対話は相手のフィールドで最も多い色に倒す決定的簡略化
-    | { type: "detachBrave"; side?: "opponent"; combineToChosenSpirit?: true; thenRefreshHost?: true; detachedBraveInstanceId?: string; splitHostInstanceId?: string } // side:"opponent" 指定時は**相手の**合体スピリットを分離させる（BS11-015冥王神獣インフェルド・ハデス。コアの分け方を決めるのは持ち主＝相手のまま） // 効果によるブレイヴの分離（BRAVE.md §12.5）。**合体スピリット上のコアをホストとブレイヴに分け直す**（2026-08-29 ユーザー確認。総数は変わらず、維持コアを下回った側は消滅する。それ以前は「コアは要らない」＝ホストに全部残す簡略化だった）。分け方は合体スピリットの持ち主が決める＝interactiveTargets 時は増減式（stepper）で「ブレイヴに載せるコアの数」を選ばせ、非対話は autoDetachCoresToBrave（ブレイヴの維持ぶんだけ渡し、ホストが維持できなくなるなら渡さない）。splitHostInstanceIdは**内部専用**（その選択から再開するときの分離元ホスト保持。cards.jsonには書かない）。「場を離れるときに残す」＝detachBravesOnLeaveとは別の手順。分離元ホストはctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086）、無ければ「自分の合体スピリット1体」から選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027）。分離したブレイヴはホストの疲労状態を引き継ぐ（detachBraveByEffect）。combineToChosenSpirit指定時は分離後「自分のスピリット1体に合体できる」（任意。候補はshared/summon.tsのbraveCombineCandidatesで判定、interactiveTargetsならPendingChoice kind:"target" optional:true・スキップ＝スピリット状態のまま、非対話は合体させず終える＝bravesOnly非対話フォールバックと同じ簡略化。BS10-027）。thenRefreshHost指定時は分離した直後にホストを回復させる（BS10-086Lv2「そのスピリット」＝分離元ホスト1体だけ。分離して出てきたブレイヴは回復しない）。detachedBraveInstanceIdは**内部専用**（combineToChosenSpiritの合体先選択が中断から再開するときの分離済みブレイヴのinstanceId保持。cards.jsonには書かない）
+    | { type: "detachBrave"; side?: "opponent"; all?: true; minSymbols?: number; combineToChosenSpirit?: true; thenRefreshHost?: true; detachedBraveInstanceId?: string; splitHostInstanceId?: string } // side:"opponent" 指定時は**相手の**合体スピリットを分離させる（BS11-015冥王神獣インフェルド・ハデス。コアの分け方を決めるのは持ち主＝相手のまま）。all指定時は対象を1体に絞らず**条件に合う合体スピリットすべて**を分離させる（選択は挟まない。BS11-034星馬コルット）。minSymbols指定時はシンボル数がこれ以上の合体スピリットだけが対象（同＝2つ以上） // 効果によるブレイヴの分離（BRAVE.md §12.5）。**合体スピリット上のコアをホストとブレイヴに分け直す**（2026-08-29 ユーザー確認。総数は変わらず、維持コアを下回った側は消滅する。それ以前は「コアは要らない」＝ホストに全部残す簡略化だった）。分け方は合体スピリットの持ち主が決める＝interactiveTargets 時は増減式（stepper）で「ブレイヴに載せるコアの数」を選ばせ、非対話は autoDetachCoresToBrave（ブレイヴの維持ぶんだけ渡し、ホストが維持できなくなるなら渡さない）。splitHostInstanceIdは**内部専用**（その選択から再開するときの分離元ホスト保持。cards.jsonには書かない）。「場を離れるときに残す」＝detachBravesOnLeaveとは別の手順。分離元ホストはctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086）、無ければ「自分の合体スピリット1体」から選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027）。分離したブレイヴはホストの疲労状態を引き継ぐ（detachBraveByEffect）。combineToChosenSpirit指定時は分離後「自分のスピリット1体に合体できる」（任意。候補はshared/summon.tsのbraveCombineCandidatesで判定、interactiveTargetsならPendingChoice kind:"target" optional:true・スキップ＝スピリット状態のまま、非対話は合体させず終える＝bravesOnly非対話フォールバックと同じ簡略化。BS10-027）。thenRefreshHost指定時は分離した直後にホストを回復させる（BS10-086Lv2「そのスピリット」＝分離元ホスト1体だけ。分離して出てきたブレイヴは回復しない）。detachedBraveInstanceIdは**内部専用**（combineToChosenSpiritの合体先選択が中断から再開するときの分離済みブレイヴのinstanceId保持。cards.jsonには書かない）
     | { type: "summonFromHandFree"; costSacrificeChosen?: true; colorFilter?: Color; sameFamilyAsSelf?: boolean; familyFilter?: FamilyFilter; costFilter?: number | { max?: number; min?: number }; nameIncludes?: string; maxCostFromOwnTrashCores?: true; costDestroyOwnFamily?: FamilyFilter; costDestroyOwnNexus?: true; count?: number; keywordFilter?: Keyword; skipTensho?: true; payCost?: true; skipOnSummon?: true; cancelable?: true; bravesOnly?: true; combineToSelf?: true; costDestroyOwnSpiritSameCost?: true; combineHandIndex?: number; repeatWhileChosen?: true; thenDraw?: number } // combineToSelf指定時は、召喚するブレイヴを**発生源自身に直接合体させる**（合体先を選ばせない。BS11-020陰陽ヤマセミ＝「自分の手札にあるブレイヴカード1枚を、このスピリットに直接合体するように召喚できる」。合体条件は通常どおり判定し、満たさなければ不発）。// repeatWhileChosen指定時は「好きなだけ」召喚する（BRAVE.md §12.6：countの自動選択とは異なり**1枚ずつ合体先を選ばせて繰り返す**。interactiveTargetsは毎回requestCardChoiceで聞き直し、選ばなくなったら終了。非対話はコスト最大から貪欲に候補が尽きるまですべて召喚する＝合体先は選ばせずスピリット状態のまま出す簡略化。BS10-029）。thenDraw指定時は実際に召喚できたときだけ自分はデッキから指定枚数ドローする（不発時は引かない。BS10-X005R）。// bravesOnly指定時は召喚候補がスピリットカードでなく**ブレイヴカードだけ**になる（recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）。bravesOnly指定時の召喚は常に合体先（ダイレクトブレイヴ／スピリット状態）を選ばせる（interactiveTargetsならPendingChoice kind:"target" optional:true、スキップ＝単体召喚。候補はshared/summon.tsのbraveCombineCandidatesをそのまま使う）。// costDestroyOwnSpiritSameCost指定時は自分のスピリット1体を破壊することがコストで、**破壊したスピリットと同じコストのブレイヴカードだけ**が召喚候補になる（COST_MODEL.md §1：(破壊するスピリット,召喚するブレイヴ)の組み合わせが成立するものだけを候補にする。成立する組み合わせが無ければ発動しない＝破壊も起きない）。候補2体以上なら破壊するスピリットをプレイヤーが選ぶ（COST_MODEL.md §2）。解決後は破壊したコストをcostFilterに積んで再入する（BS10-096）。// combineHandIndexは**内部専用**（bravesOnly召喚が合体先選択の中断から再開するときの手札インデックス保持。cards.jsonには書かない） // cancelable指定時は、interactiveTargetsなら**候補が1枚でも必ず選択を出し、やめられる**（optional）。「起動能力から使う効果を、対象を見てからやめられるようにする」ためのもので、やめた場合は起動能力の「ターンに1回」も消費しない（doActivateAbilityがPendingChoice.revertActivatedで巻き戻す。BS08帝竜騎サイクル6枚）。// payCost指定時は**通常の召喚コストを支払う**（effectiveCostで軽減後コストを算出し、維持コア＋コストをリザーブから支払う。払えなければ不発）。アクション名の Free は既定の挙動を指すもので、payCost はその例外（BS08帝竜騎サイクル6枚＝「【転召】させずに召喚できる」だけでコスト免除の記載が無い）。// skipOnSummon指定時は召喚時効果と「召喚されたとき」の誘発を発揮させない（効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ。既定では発揮する＝2026-08-17修正）。// maxCostFromOwnTrashCores指定時は「自分のトラッシュにあるコアの数以下のコスト」が上限になる（BS02ディバインウィンド）。costDestroyOwnFamily指定時は指定系統の自分のスピリット1体（コスト最小、同コストはフィールド先頭）を破壊することがコストで、破壊できなければ不発（BS02キャストオフ）。costDestroyOwnNexus指定時は自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコストで、破壊できるネクサスがなければ不発（BS06リクラメーション）。// 自分の手札にあるスピリットカードのうち条件（colorFilter一致／sameFamilyAsSelf=selfと系統1つ以上共通／familyFilter=指定系統一致。配列＝OR）を満たすコスト最大の1枚（同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。維持コアはリザーブから置き、不足なら不発（ログのみ）。この効果で召喚されたスピリットの onSummon 効果は発揮されない（老賢樹トレントン／竜戦車アースガルド。familyFilterはBS05火龍王ボルケノス＝系統「竜人」限定で、selfの系統全部とはOR判定にしたくない場合に使う）。costFilter指定時はコストが完全一致するもののみ（BS05シーサーズ＝コスト2）。nameIncludes指定時はカード名にこの文字列を含むもののみ（BS05ペンタン帝国）。count指定時は「count枚まで」の複数体召喚（プレイヤー選択の決定的簡略化：コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切り。この場合interactiveTargetsでも選択式にせず自動選択のみ。BS06アルカナキング・カール＝4枚まで）。keywordFilter指定時はこのキーワードエントリを静的に持つカードのみ対象（hasKeywordで判定。summonFromTrashFreeと同型）。skipTensho指定時は召喚後の【転召】解決そのものをスキップする（既定は「コストを支払わない召喚でも転召は必ず行う」だが、この効果は転召を発揮したものとして扱う旨の記載があるため例外。BS08雷帝竜騎レイブリッツ：手札の【転召】持ちを【転召】させずに召喚できる）
     | { type: "destroyAllNexusesExceptChosenColors"; minTotalColors: number } // 両者フィールドのネクサスの色数合計（重複除く）がminTotalColors未満なら不発（ログのみ）。成立時はお互い自分フィールドで最多のネクサス色を1色自動指定し（同数はColor定義順の先頭、ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する（destroyAllExceptChosenColorsのネクサス版。色選択の決定的簡略化。溶海竜プレシオス）
     | { type: "destructionCoresToOwnSpirit" } // 破壊時：selfが破壊直前に置いていたコア数（coresAtDestruction）ぶんを、持ち主のリザーブから自分の実効BP最大のスピリットへ移す（destroySpiritがリザーブへ移した分の付け替え。対象がいなければリザーブに残る。対象選択の決定的簡略化。盾精ラングリーズ）
@@ -382,6 +384,7 @@ export type EffectAction =
     | { type: "disableOwnArmorThisTurn" } // 持ち主自身のスピリットの【装甲】をこのターンの間だけ働かなくする（SD01-040アーマーパージ）
     | { type: "disableOpponentArmorThisTurn" } // **相手の**スピリットの【装甲】をこのターンの間だけ働かなくする（「【装甲】をないものとして扱い、新たに得ることもない」＝BS11-049ジャンビ・オレピス）。判定の入口（boardResistanceAgainst）で一括して無視するのは disableOwnArmorThisTurn と同じ // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）
     | { type: "capLifeDamageThisTurn"; max: number } // このターンの間、発生源の持ち主のライフは1回のアタックで max 個までしか減らない（GameState.turnConstraints に lifeDamageMaxForPid を積む。SD01-039 ブリザードウォール＝1しか減らない）
+    | { type: "opponentHandLockExceptColorThisTurn"; color: Color } // このターンの間、**相手は**指定色以外の手札のカードを使えない（BS11-082ウィッグバインド＝黄以外）。turnConstraints に handLockExceptColorForPid を積み、召喚・配置・マジック使用の検証が見る
     | { type: "lifeFloorOneThisTurn"; attackMinCost?: number } // このターンの間、**発生源の持ち主のライフは0にならない**（減りはするが1で止まる）。相手のスピリット/マジックの効果によるライフ減少と、attackMinCost 以上のコストの相手のスピリットのアタックが対象（BS11-080デルタバリア＝コスト4以上）。ライフそのものを減らさない lifeImmuneThisTurn とは別物
     | { type: "lifeImmuneThisTurn" } // このターンの間、発生源の持ち主のライフはあらゆる原因（アタックによる減少・lifeCrushアクションによる効果的な減少の両方）で減らない（GameState.turnConstraints に lifeImmuneForPid を積む。capLifeDamageThisTurnと違いアタック限定ではない全面ロック。negateLifeDamageFromTarget＝対象を限る版とは別物。2026-08-27 ユーザー確認。BS10-093時刻む花時計）
     | { type: "protectLifeByCostThisTurn"; costSacrificeChosen?: true; maxCost: number; costExhaustFamily?: FamilyFilter } // このターンの間、コストがmaxCost以下のスピリットのアタックでは**発生源の持ち主のライフだけ**が減らされない（GameState.turnConstraints に片側限定の制約を積む。両陣営に効く globalConstraint:"noLifeDamageByCost" の片側版）。costExhaustFamily指定時は、持ち主のフィールドの指定系統（配列＝OR）の回復状態スピリット1体（実効BP最小＝犠牲を最小化する簡略化）を疲労させることがコストで、該当がなければ不発（BS07秘密の花園Lv2＝「楽族」）
@@ -390,7 +393,9 @@ export type EffectAction =
     | { type: "coreDrainToLowerLevel" } // 相手のスピリット1体（targetInstanceId優先、非対話時は実効BP最大）の上のコアを、1つ下のLvに必要なコア数と同じになるまで相手のトラッシュへ置く。Lv1のスピリット（1つ下のLvが無い）は対象にしても何も起きない。装甲・マジック効果耐性はcoreRemoveと同じ経路で尊重する（BS06-096レベルドレイン）
     | { type: "grantEffectToTargetThisTurn"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; filter?: TargetFilter } // 自分のスピリット1体（targetInstanceId優先。フォールバックはfilter一致の中から実効BP最大。interactiveTargets時は複数候補ならrequestChoice）に、このターンの間だけ指定の誘発効果を直接付与する（CardInstance.tempGrantedTriggers、ターン終了でリセット。fireTriggerが静的effectsと同様に走査する。effectGrantと違い対象は1体・仮想発生源を要しない。BS08メテオストーム＝カード名に「ヴルム」と入っている自分のスピリット1体に『このスピリットのアタック時』効果を付与）
     | { type: "revealAndSummonAllByFamily"; count: number; familyFilter: FamilyFilter; countFromSelfLevel?: true; maxCost?: number } // countFromSelfLevel指定時はcountを無視し**発生源の現在のLv**と同じ枚数をオープンする（BS11-007輝龍皇ヘリオスドラゴン＝「このスピリットのLvと同じ枚数」。selfが無ければno-op）。maxCost指定時は召喚できるのがそのコスト以下のカードだけになる（同＝コスト7以下） // 自分のデッキ上からcount枚を公開し、その中の指定系統（配列＝OR）を持つスピリットカード**すべて**を、コストを支払わず、【転召】させずに召喚する（維持コアが足りない分は召喚できずトラッシュへ。revealAndSummonKeywordと異なり任意選択を挟まない範囲効果）。この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordは発揮する点と対照的）。系統不一致・召喚できなかったカードはすべてトラッシュへ破棄する（BS08魔帝龍騎ダーク・クリムゾン：上7枚から系統「龍帝」/「竜騎」すべて）
+    | { type: "millUntilCostThenSummonFree"; costs: number[]; maxCount: number } // 自分のデッキを上から maxCount 枚を上限に、指定コストのいずれかを持つスピリットカードが出るまでトラッシュへ破棄し、出たらその1枚を**コストを支払わずに**召喚する（維持コアはリザーブから。払えなければ召喚できずトラッシュに残る）。この召喚では『このスピリットの召喚時』効果は発揮されない（BS11-038天星馬ペガシーダ＝コスト6/7・上限6枚）
     | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない。BS08冥将アマイモン）
+    | { type: "revealTopThenFreeUseOrHand"; use: "magicFlash" | "summonSpiritOrBrave" } // 自分のデッキを上から1枚オープンし、use:"magicFlash" ならそれがマジックカードのとき**フラッシュ効果をコストを支払わずに即時に使用できる**（BS11-058神弓鳥ペリュトーン）／use:"summonSpiritOrBrave" ならスピリットカード/ブレイヴカードのとき**コストを支払わずに召喚する**（BS11-X05魔導双神ジェミナイズ。ブレイヴは合体先を選ばずスピリット状態で出す簡略化）。条件に合わない・使わない場合はそのカードを手札に加える
     | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。selfBuffByHandDiscardと同型：interactiveTargets時はcard choiceで選ぶ、自動時は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない。BS10-X05堕天神龍ヴィーナ・ルシファー：discardCardType「spirit」）。// maxCount は**省略時は上限なし**（デッキが尽きるまで）。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる
     | { type: "costOwnSpiritCoresToTrashThenOpponent"; count: number; phase?: "own" | "opp"; remaining?: number } // phase/remaining は選択の再入をまたいで「いまどちら側のコアを何個置くところか」を持ち回る**内部専用フィールド**（cards.jsonには書かない）。// コアを取り除くスピリットは1個ずつ選ぶ：自分側は支払う本人が選び（COST_MODEL.md §2）、相手側は効果文が「**相手は**〜置く」なので相手が選ぶ（CHOOSER_RULES.md）。非対話ではどちらもコアの多い個体から（従来どおり）。// 自分のフィールドのスピリット上のコア合計がcount未満なら不発（ログのみ）。足りれば、自分のスピリットからコアの多い個体順に合計count個を自分のトラッシュへ置き（bothSidesCoreToTrashと同じ選び方）、続けて同じ処理を相手のスピリットに対しても行う（相手は必ず支払う。維持コア割れは消滅処理。BS08マインドブレイク：5個）
 
@@ -604,6 +609,7 @@ export interface EndStepLock {
 }
 
 export type ConstraintDef =
+    | { type: "blockRequiresCorePayment"; count: number } // 相手は、相手のリザーブのコアをこの数だけ相手のトラッシュに置かなければ**このスピリットを**ブロックできない（BS11-037ヒポグリフィーLv2-3）。ブロック宣言の検証で払えるかを見て、宣言時に支払う
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
@@ -653,7 +659,7 @@ export type GlobalConstraintDef =
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
-    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
+    | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[]; requireAllOwnNexusesColor?: Color } // requireAllOwnNexusesColor指定時は、**発生源の持ち主のネクサスすべてがその色のときだけ**有効（BS11-069黄金の鐘楼＝「自分のネクサスすべてが黄の間」） // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
     // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
     // どちらかを指定した場合は DestroyContext が要り、発生源が不明なときは**守らない**側に倒す（colors と同じ方針）。
     // 「相手の」を明示している効果なので、指定時は sourcePid が持ち主と異なることも求める
@@ -791,6 +797,7 @@ export type EffectDef =
               | { ownFieldHasKeyword: Keyword } // 発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火（一時/継続付与も考慮＝spiritHasKeyword。BS04クナノミ＝覚醒）
               | { ownFieldHasCombinedSpirit: true } // 発生源の持ち主のフィールドに合体スピリット（ブレイヴが合体しているホスト）がいるときのみ発火（instIsCombinedで判定。BS10-X03巨蟹武神キャンサードLv2＝「自分の合体スピリットがいる間」）
               | { bothFieldsHaveSpiritMinBp: number } // **お互いのフィールド**に実効BPがこれ以上のスピリットがそれぞれ1体以上いるときのみ発火（BS11-008爆竜ドラゴニックベアード＝BP10000以上）
+              | { byOpponentSpiritEffect: true } // **相手のスピリットの効果で**破壊されたときのみ発火（onDestroy用。DestroyContext の sourcePid/sourceType で判定。BS11-034星馬コルット）
               | { firstAttackOfTurn: true } // そのターンの最初のアタックのときのみ発火（GameState.attacksThisTurn === 1。BS04ダックル）
               | { lastFunsaiHasNexus: true } // 直前の【粉砕】で破棄したカードの中にネクサスカードがあったときのみ発火（GameState.lastFunsai。BS04伝説巨人ジュード）
               | { lastFunsaiHasSpirit: true } // 直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。BS06爆砕巨人ダグラスLv2-3）
@@ -1515,7 +1522,7 @@ export type EffectDef =
           // 継続（EffectModules.refreshLevelAsOverridesが毎回再計算しCardInstance.symbolsOverrideContinuousへ反映）。
           // instanceSymbolCount / countSymbols の両方がこれを見るため、軽減計算（コスト）にも効く。BS08海底に眠りし古代都市
           levels: number[] | null
-          target: "ownAll"
+          target: "ownAll" | "self" // "self" は**発生源自身だけ**（BS11-039天使ティアエル＝「このスピリットのシンボルを黄のシンボル3つにする」）
           familyFilter?: FamilyFilter
           count: number
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時はこのステップかつturn条件のときのみ有効（own=発生源の持ち主がturnPlayer。BS09-008炎皇帝アグニフォンLv2-3＝『自分のアタックステップ』）
@@ -1646,11 +1653,12 @@ export type EffectDef =
           kind: "constraintGrant" // 発生源が場にありレベル有効の間、持ち主フィールドの対象（ownAll、minLevel条件）に
           // 制約を継続付与する（夢魔の寝所Lv2：自分のLv3スピリットに指定アタックを許す）
           levels: number[] | null
-          target: "ownAll"
+          target: "ownAll" | "opponentAll" // "opponentAll"＝発生源の持ち主から見た**相手の**スピリットすべて（BS11-082ウィッグバインド）
           minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR。matchesFamilyFilterで判定）を持つスピリットのみ（BS06計画された場外乱闘：闘神）
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時付与・継続付与を考慮。spiritHasKeywordで判定）を持つスピリットのみ（BS05シンクロニシティ：覚醒持ちに指定アタックを付与）
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ（reviveOnDestroy.vanillaFilterと同型。BS05ポテンシャルパワー）
+          nonVanillaFilter?: true // 指定時は**効果の記述を持つ**スピリットのみ（vanillaFilter の裏。BS11-082ウィッグバインド＝「効果の記述を持つ相手のスピリットすべて」）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ（instanceSymbolCountで判定＝ダブルハートの追加シンボルも見る。BS05最古龍の顎Lv2：シンボル2つ以上）
           nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ（cardNameContainsで判定＝「〜として扱う」付与名も見る。BS05天焦がす大聖火Lv2：「巨人」）
@@ -1891,6 +1899,9 @@ export interface CardInstance {
     // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
     pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
+    cantBlockThisTurn?: true // **このターンの間**ブロックできない（banBlockByCostsThisTurn。ターン終了でリセット。BS11-057バタホルン）
+    // freeMagicAfterPaidMagic（BS11-X05）の消費記録。ターン番号とその中で使った回数
+    freeMagicUsedTurn?: { turn: number; count: number }
     cantBlockThisBattle?: true // このバトルの間ブロックできない（markCantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーター）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
@@ -2535,6 +2546,7 @@ export type TurnConstraintDef =
     | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない
     // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
     //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）
+    | { type: "handLockExceptColorForPid"; pid: PlayerId; color: Color } // このターンの間、この pid は指定色以外の手札のカードを使えない（BS11-082）
     | { type: "lifeFloorOneForPid"; pid: PlayerId; attackMinCost?: number } // このターンの間、この pid のライフは**0にならない**（1で止まる）。相手のスピリット/マジックの効果によるライフ減少と、attackMinCost 以上のコストの相手のスピリットのアタックが対象（BS11-080デルタバリア）
     | { type: "lifeDamageMaxForPid"; max: number; pid: PlayerId } // このターンの間、この pid のライフは1回のアタックで max 個までしか減らない（0 なら減らない）。
     // **「減るか／減らないか」ではなく上限を値で持つ**のが要点（2026-08-16 ユーザー提案）。

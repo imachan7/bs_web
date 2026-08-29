@@ -1503,11 +1503,19 @@ export function activeConstraintsWithSource(
     // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
     // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
     const granted: ConstraintWithSource[] = []
+    // 自分側の発生源（target:"ownAll"）に加え、**相手側の発生源が持つ target:"opponentAll"** も拾う
+    // （BS11-082ウィッグバインド＝「効果の記述を持つ相手のスピリットすべては〜できない」）
+    const foe: PlayerId = pid === "p1" ? "p2" : "p1"
     const sources = effectSources(board, pid)
-    for (const source of sources) {
+    const grantSources = [
+        ...sources.map((src) => ({ src, wantTarget: "ownAll" as const })),
+        ...effectSources(board, foe).map((src) => ({ src, wantTarget: "opponentAll" as const })),
+    ]
+    for (const { src: source, wantTarget } of grantSources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
+            if ((effect.target ?? "ownAll") !== wantTarget) continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
@@ -1517,6 +1525,8 @@ export function activeConstraintsWithSource(
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            // BS11-082ウィッグバインド：**効果の記述を持つ**スピリットのみ対象（vanillaFilter の裏）
+            if (effect.nonVanillaFilter && instIsVanilla(inst)) continue
             // BS05最古龍の顎Lv2：シンボル2つ以上のスピリットのみ（ダブルハートの追加シンボルも数える）
             if (effect.minSymbols !== undefined && instanceSymbolCount(inst) < effect.minSymbols) continue
             // BS05天焦がす大聖火Lv2：カード名に「巨人」を含むスピリットのみ（「〜として扱う」付与名も見る）

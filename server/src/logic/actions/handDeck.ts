@@ -36,6 +36,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
+import { fireSummonSequence } from "../EffectModules"
 import { KEYWORDS, cardHasColor, countSymbols, currentLevel, instBaseCost, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -1788,6 +1789,85 @@ const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
         return
 }
 
+// BS11-038 天星馬ペガシーダ：「自分のデッキを上から、コスト6/7のスピリットカードが出るまで破棄できる(上限6枚)。
+// その後、トラッシュにあるそのスピリットカード1枚をコストを支払わずに召喚する。
+// ただし『このスピリットの召喚時』効果は発揮されない」
+const millUntilCostThenSummonFreeHandler: ActionHandler<"millUntilCostThenSummonFree"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    let hitId: string | undefined
+    let milled = 0
+    for (let i = 0; i < action.maxCount; i++) {
+        const cardId = player.deck.shift()
+        if (cardId === undefined) break
+        milled++
+        const card = getCard(cardId)
+        player.trashCards.push(cardId)
+        if (card.type === "spirit" && action.costs.includes(card.cost)) {
+            hitId = cardId
+            break
+        }
+    }
+    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
+    if (hitId === undefined) {
+        log(state, `${sourceName}：条件に合うスピリットカードは出なかった。`)
+        return
+    }
+    const card = getCard(hitId)
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：維持コアを置けず${card.name}を召喚できなかった。`)
+        return
+    }
+    const at = player.trashCards.lastIndexOf(hitId)
+    if (at !== -1) player.trashCards.splice(at, 1)
+    player.reserve -= maintain
+    const inst = createInstance(hitId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`)
+}
+
+// BS11-058 神弓鳥ペリュトーン／BS11-X05 魔導双神ジェミナイズ：
+// デッキを上から1枚オープンし、条件に合えば無償で使う／召喚する。合わなければ手札に加える。
+// ⚠️ 「使わない」を選べるのは対話時だけ（非対話は条件に合えば必ず使う決定的簡略化）
+const revealTopThenFreeUseOrHandHandler: ActionHandler<"revealTopThenFreeUseOrHand"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.deck.shift()
+    if (cardId === undefined) {
+        log(state, `${sourceName}：デッキにカードがなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    log(state, `${player.name}はデッキ上の${card.name}を公開した。`)
+    const matches =
+        action.use === "magicFlash" ? card.type === "magic" : card.type === "spirit" || card.type === "brave"
+    if (!matches) {
+        player.hand.push(cardId)
+        log(state, `${player.name}は${card.name}を手札に加えた。`)
+        return
+    }
+    if (action.use === "magicFlash") {
+        // フラッシュ効果をコストを支払わずに即時使用し、使い終わったカードはトラッシュへ
+        player.trashCards.push(cardId)
+        resolveMagicEffects(state, owner, cardId, "flash")
+        log(state, `${player.name}は${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
+        return
+    }
+    // スピリット/ブレイヴを無償召喚（ブレイヴは合体先を選ばずスピリット状態で出す簡略化）
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        player.hand.push(cardId)
+        log(state, `${player.name}は維持コアを置けないため${card.name}を手札に加えた。`)
+        return
+    }
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
+    fireSummonSequence(state, owner, inst)
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     // oncePerTurn（BS11-032 天王神獣スレイ・ウラノス「この効果はターンに1回しか使えない」）。
     // **発生源1体につき**ターン1回（同名が2体いればそれぞれ1回）。activated.oncePerTurn と同じ考え方
@@ -2680,6 +2760,8 @@ const handlers = {
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
     millPerLoserCost: millPerLoserCostHandler,
+    millUntilCostThenSummonFree: millUntilCostThenSummonFreeHandler,
+    revealTopThenFreeUseOrHand: revealTopThenFreeUseOrHandHandler,
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,

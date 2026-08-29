@@ -2073,7 +2073,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
                         if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                     }
-                    for (const spirit of player.field.spirits) {
+                    // target:"self" は発生源自身だけ（BS11-039天使ティアエル）
+                    const symbolTargets = effect.target === "self" ? [source] : player.field.spirits
+                    for (const spirit of symbolTargets) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         const baseColor = getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue
