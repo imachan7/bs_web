@@ -1804,6 +1804,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.symbolsOverrideContinuous
+            delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
             delete inst.alsoCostsWhenDestroyed
@@ -2022,11 +2023,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
                         if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                     }
-                    for (const spirit of player.field.spirits) {
+                    // target:"self" は発生源自身だけ（BS11-039 天使ティアエル）
+                    const symbolFixTargets = effect.target === "self" ? [source] : player.field.spirits
+                    for (const spirit of symbolFixTargets) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
-                        const baseColor = getCard(spirit.cardId).symbol[0]
+                        // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
+                        const baseColor = effect.color ?? getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue
-                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)
+                        const fixed = new Array<Color>(effect.count).fill(baseColor)
+                        // summonReductionOnly：スピリット召喚の軽減計算のあいだだけ使う置き場へ入れる
+                        if (effect.summonReductionOnly) spirit.symbolsForSummonReduction = fixed
+                        else spirit.symbolsOverrideContinuous = fixed
                     }
                     continue
                 }
@@ -3265,6 +3272,7 @@ export {
     attachBrave,
     detachBraveByEffect,
     detachBraveByOwnerChoice,
+    returnCombinedBraveToHand,
     destroyCombinedBrave,
     detachBraveVoluntary,
     detachBravesOnLeave,

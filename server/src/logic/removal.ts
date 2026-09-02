@@ -293,7 +293,21 @@ export function destroyCombinedBrave(
     void context
 }
 
-// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
+// 合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
+// 「相手のスピリット/ブレイヴ/ネクサス、どれか1つを手札に戻す」の**ブレイヴ**が合体中だったとき。
+// 2026-09-02 ユーザー確認：合体中もスピリット状態も「ブレイヴ」に含む）。ホストは無傷で場に残る
+export function returnCombinedBraveToHand(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    player.hand.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は手札に戻った。`)
+}
+
+// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
 // スピリット状態のLv1維持コスト以上のコアを置く必要がある。支払い可否は
 // RuleValidator.validateDetachBrave が済ませている前提で、ここは実際にコアを動かすだけ。
 // 支払いは召喚と同じ payCost に通す（フィールドのコアを使ったときの消滅処理まで共通になる）

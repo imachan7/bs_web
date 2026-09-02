@@ -10,6 +10,9 @@ import {
     destroyCombinedBrave,
     detachBraveByEffect,
     detachBraveByOwnerChoice,
+    returnCombinedBraveToHand,
+    returnNexusToHand,
+    returnSpiritToHand,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -1325,6 +1328,53 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
     attachBrave(state, owner, host, brave)
 }
 
+// 相手のスピリット/ブレイヴ/ネクサスのどれか1つを破壊する／手札に戻す（BS11-056／BS11-X01 Lv3）。
+// 「ブレイヴ」は合体中もスピリット状態も含む（2026-09-02 ユーザー確認）。スピリット状態のブレイヴは
+// field.spirits にいるので「スピリット」側の候補にそのまま入り、合体中のブレイヴだけ別に集める
+const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const oppPlayer = state.players[opp]
+    const spirits = oppPlayer.field.spirits
+    const braves = oppPlayer.field.combinedBraves
+    const nexuses = oppPlayer.field.nexuses
+    const candidates = [...spirits, ...braves, ...nexuses]
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            action.mode === "destroy"
+                ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
+                : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`,
+            candidates.map((c) => c.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const chosen =
+        (targetInstanceId !== undefined ? candidates.find((c) => c.instanceId === targetInstanceId) : undefined) ??
+        candidates[0]!
+    if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
+        if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+        else returnSpiritToHand(state, opp, chosen, sourceName)
+        return
+    }
+    if (braves.some((b) => b.instanceId === chosen.instanceId)) {
+        const host = spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
+        if (!host) return
+        if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
+        else returnCombinedBraveToHand(state, opp, host, chosen)
+        return
+    }
+    if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
+    else returnNexusToHand(state, opp, chosen.instanceId)
+}
+
 // 相手の合体スピリットを**分離させる**（BRAVE.md §12.5.1。BS11-015／BS11-034）。
 // 分離そのものは効果の使用者が起こすが、**コアの移動はブレイヴの持ち主が行う**ので
 // 「場を離れるとき」と同じ pendingBraveKeeps に乗せる（持ち主に残すかどうかを聞く）
@@ -1633,6 +1683,7 @@ const handlers = {
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
+    removeOneOfAnyType: removeOneOfAnyTypeHandler,
     detachBrave: detachBraveHandler,
     detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,

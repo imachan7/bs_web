@@ -492,7 +492,9 @@ export function instanceSymbolCount(inst: CardInstance): number {
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
 // tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
-export function countSymbols(player: BoardPlayer, colors: Color[]): number {
+// forSummon: スピリット召喚の軽減計算から呼ばれたか。true のときだけ
+// symbolsForSummonReduction（BS11-039 天使ティアエル＝召喚の軽減の間だけ黄3つ）を使う
+export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = false): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
@@ -502,6 +504,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[]): number {
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
         const cardSymbols =
+            (forSummon ? inst.symbolsForSummonReduction : undefined) ??
             inst.symbolsOverrideContinuous ??
             (inst.braveComposite === undefined
                 ? card(inst.cardId).symbol

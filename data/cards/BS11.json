@@ -2201,6 +2201,23 @@
     "kind": "trashSymbolReduction",
     "levels": null,
     "scope": "self"
+   },
+   {
+    "id": "BS11-039-e2",
+    "kind": "symbolFix",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "self",
+    "count": 3,
+    "color": "yellow",
+    "summonReductionOnly": true,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
    }
   ]
  },
@@ -3197,7 +3214,21 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-056-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": null,
+    "whileCombined": true,
+    "battleRole": "blocker",
+    "optional": false,
+    "action": {
+     "type": "removeOneOfAnyType",
+     "mode": "toHand"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 5
   }
@@ -4662,6 +4693,21 @@
     "constraint": {
      "type": "canDirectAttack",
      "targetFilter": "any"
+    }
+   },
+   {
+    "id": "BS11-X01-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "battleRole": "attacker",
+    "optional": false,
+    "action": {
+     "type": "removeOneOfAnyType",
+     "mode": "destroy"
     }
    }
   ]

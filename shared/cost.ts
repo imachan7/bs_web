@@ -404,7 +404,7 @@ export function effectiveCost(
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
                 const have =
-                    countSymbols(board.players[pid], [color]) +
+                    countSymbols(board.players[pid], [color], cardData.type === "spirit") +
                     (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0)
                 reduction += Math.min(need, have)
             }

@@ -1188,9 +1188,9 @@ process.on("exit", () => {
         // symbolFix（BS08海底に眠りし古代都市Lv2ほか）
         patch(
             em,
-            `                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+            `                        const fixed = new Array<Color>(effect.count).fill(baseColor)`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+                        const fixed = new Array<Color>(effect.count).fill(baseColor)`,
         )
 
         // (5a-3) triggers.ts の継続 kind（2026-08-24 に計測点を追加）
