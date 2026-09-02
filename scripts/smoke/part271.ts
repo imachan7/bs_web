@@ -6,7 +6,8 @@
 import { act, assert, createGame, createInstance, destroyNexus, destroySpirit, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { noSummonTriggerByCost } from "../../shared/rules"
+import { cantActByCost, noSummonTriggerByCost } from "../../shared/rules"
+import { validateCastMagic } from "../../server/src/logic/RuleValidator"
 
 const byName = (n: string) => {
     const c = ALL_CARDS.find((x) => x.name === n)
@@ -294,6 +295,36 @@ console.log("=== §K デルタバリア：ライフは0にならない（下限�
     s3.players.p1.life = 1
     resolveAction(s3, "p2", null, { type: "lifeCrush", count: 1 }, undefined, ["red"], "nexus")
     assert(s3.players.p1.life === 0, "ネクサスの効果では守られない（効果文どおり）")
+}
+
+console.log("=== §L ウィッグバインド：効果持ちの相手はアタック不可、相手は黄以外を使えない ===")
+{
+    const wig = byName("ウィッグバインド")
+    const [banAct, banHand] = wig.effects.map((e) => (e as { action: Parameters<typeof resolveAction>[3] }).action)
+    assert(banAct !== undefined && banHand !== undefined, "テスト前提: 2つの効果を持つ")
+
+    const s = game()
+    const withEffect = ALL_CARDS.find((c) => c.type === "spirit" && c.effects.length > 0)
+    const vanilla = ALL_CARDS.find((c) => c.type === "spirit" && c.effects.length === 0)
+    assert(withEffect !== undefined && vanilla !== undefined, "テスト前提: 効果持ちとバニラがいる")
+    const oppWith = put(s, "p2", withEffect!.cardId, 3)
+    const oppVanilla = put(s, "p2", vanilla!.cardId, 3)
+    const mineWith = put(s, "p1", withEffect!.cardId, 3)
+    resolveAction(s, "p1", null, banAct!)
+    assert(cantActByCost(s, oppWith), "効果の記述を持つ相手はアタック/ブロックできない")
+    assert(!cantActByCost(s, oppVanilla), "バニラの相手は止まらない")
+    assert(!cantActByCost(s, mineWith), "自分のスピリットは止まらない（「相手の」限定）")
+
+    // 手札の色制限：黄だけ使える
+    resolveAction(s, "p1", null, banHand!)
+    const yellowMagic = ALL_CARDS.find((c) => c.type === "magic" && c.colors.length === 1 && c.colors[0] === "yellow")
+    const blueMagic = ALL_CARDS.find((c) => c.type === "magic" && c.colors.length === 1 && c.colors[0] === "blue")
+    assert(yellowMagic !== undefined && blueMagic !== undefined, "テスト前提: 黄と青のマジックがいる")
+    s.players.p2.hand = [blueMagic!.cardId, yellowMagic!.cardId]
+    s.players.p2.reserve = 20
+    assert(validateCastMagic(s, "p2", 0) !== null, "黄以外の手札は使えない")
+    const yellowResult = validateCastMagic(s, "p2", 1)
+    assert(yellowResult === null || !yellowResult.includes("このカードを使えません"), "黄の手札は色の制限では弾かれない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part271）")

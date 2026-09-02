@@ -577,13 +577,35 @@ const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> =
 
 const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可
-        state.turnConstraints.push({ type: "cantActByCost", maxCost: action.maxCost })
-        log(
-            state,
-            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットはアタックとブロックができない。`,
-        )
+        // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可。
+        // side:"opponent" / nonVanillaOnly で対象を絞れる（BS11-082 ウィッグバインド）
+        state.turnConstraints.push({
+            type: "cantActByCost",
+            ...(action.maxCost !== undefined ? { maxCost: action.maxCost } : {}),
+            ...(action.side === "opponent" ? { pid: opp } : {}),
+            ...(action.nonVanillaOnly ? { nonVanillaOnly: true as const } : {}),
+        })
+        const who = action.side === "opponent" ? `${state.players[opp].name}の` : ""
+        const what = action.nonVanillaOnly ? "効果の記述を持つスピリット" : "スピリット"
+        const cost = action.maxCost !== undefined ? `コスト${action.maxCost}以下の` : ""
+        log(state, `${sourceName}：このターンの間、${cost}${who}${what}はアタックとブロックができない。`)
         return
+}
+
+// このターンの間、指定側は手札のカードを使えない（BS11-082 ウィッグバインド＝「相手は黄以外の手札のカードを使えない」）
+const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    state.turnConstraints.push({
+        type: "cantUseHandCardsForPid",
+        pid: opp,
+        ...(action.allowedColor !== undefined ? { allowedColor: action.allowedColor } : {}),
+    })
+    log(
+        state,
+        action.allowedColor !== undefined
+            ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
+            : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
+    )
 }
 
 // このターンの間、持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。
@@ -1034,6 +1056,7 @@ const handlers = {
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    banHandCardsThisTurn: banHandCardsThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
     lifeFloorThisTurn: lifeFloorThisTurnHandler,

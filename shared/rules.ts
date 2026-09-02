@@ -2004,7 +2004,12 @@ export function cantActByCost(board: Board, inst: CardInstance): boolean {
     // 実コスト・付与コストのいずれかがmaxCost以下なら対象
     // （2026-08-02修正：以前はalsoCostsContinuousを見ておらず、クラン常設中でも判定に反映されないバグがあった）
     return board.turnConstraints.some((c) =>
-        c.type === "cantActByCost" && instAllCosts(inst).some((cost) => cost <= c.maxCost),
+        c.type === "cantActByCost" &&
+            (c.maxCost === undefined || instAllCosts(inst).some((cost) => cost <= (c.maxCost ?? 0))) &&
+            (c.pid === undefined ||
+                board.players[c.pid].field.spirits.some((sp) => sp.instanceId === inst.instanceId)) &&
+            // 「効果の記述を持つ」は instIsVanilla の裏（継続付与の「バニラとしても扱う」も考慮する）
+            (c.nonVanillaOnly !== true || !instIsVanilla(inst)),
     )
 }
 

@@ -99,6 +99,19 @@ function paySourcesTotal(paySources: PaySource[] | undefined): number {
     return (paySources ?? []).reduce((sum, s) => sum + s.count, 0)
 }
 
+// このターンの間、この pid は手札のカードを使えないか（BS11-082 ウィッグバインド）。
+// 使えないなら理由の文字列、使えるなら null。**召喚・配置・マジック使用のすべてが通る入口**で見る
+function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string | null {
+    for (const c of state.turnConstraints) {
+        if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
+        const colors = getCard(cardId).colors
+        if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
+        if (c.bannedColors !== undefined && !c.bannedColors.some((col) => colors.includes(col))) continue
+        return "効果により、このターンはこのカードを使えません"
+    }
+    return null
+}
+
 export function validateSummon(
     state: GameState,
     pid: PlayerId,
@@ -118,6 +131,8 @@ export function validateSummon(
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+    const banned = handCardBanned(state, pid, cardId)
+    if (banned) return banned
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
 
@@ -342,6 +357,8 @@ export function validateSetNexus(
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+    const bannedNexus = handCardBanned(state, pid, cardId)
+    if (bannedNexus) return bannedNexus
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
@@ -459,6 +476,9 @@ export function validateCastMagic(
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
+    // 手元（tegamoto）からの使用は手札ではないので、手札の使用禁止は掛からない
+    const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
+    if (bannedMagic) return bannedMagic
     if (card.type !== "magic") return "マジックカードではありません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が

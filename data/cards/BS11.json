@@ -3682,7 +3682,28 @@
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、効果の記述を持つ相手のスピリットすべてはアタックとブロックができず、相手は黄以外の手札のカードを使えない。",
   "limitCount": 1,
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-082-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "banActByCostThisTurn",
+     "side": "opponent",
+     "nonVanillaOnly": true
+    }
+   },
+   {
+    "id": "BS11-082-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "banHandCardsThisTurn",
+     "side": "opponent",
+     "allowedColor": "yellow"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-X05",
