@@ -1379,6 +1379,8 @@ export function matchesTarget(
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
+    // BS11-X04：合体していないスピリットだけ（合体中のブレイヴ自身も「合体している」側）
+    if (filter.uncombined === true && instIsCombined(inst)) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
     // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
@@ -1650,6 +1652,30 @@ export function hasGlobalConstraint(
     }
     return false
 }
+// リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
+// pid は**これから回復させるプレイヤー**。両陣営の発生源を見る:
+//   onlyOneUncombined / nexuses は両者に効き、combined は「発生源の持ち主から見た相手」だけに効く
+export function refreshRestrictionsFor(
+    board: Board,
+    pid: PlayerId,
+): { onlyOneUncombined: boolean; nexuses: boolean; combined: boolean } {
+    const result = { onlyOneUncombined: false, nexuses: false, combined: false }
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                if (effect.constraint.type === "refreshOnlyOneUncombined") result.onlyOneUncombined = true
+                else if (effect.constraint.type === "nexusesCantRefresh") result.nexuses = true
+                else if (effect.constraint.type === "opponentCombinedCantRefresh" && owner !== pid) {
+                    result.combined = true
+                }
+            }
+        }
+    }
+    return result
+}
+
 // フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
 // アタック/ブロックができない（BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2、BS02グレートウォール=costs[6,8]）。
 // hasGlobalConstraintの単純boolean判定と異なり、具体的なしきい値を比較する必要があるため専用の判定関数にする。

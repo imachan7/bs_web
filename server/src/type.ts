@@ -81,6 +81,7 @@ export interface TargetFilter {
     excludeSelf?: boolean // 発生源自身を対象から外す
     cores?: number // 実際に置かれているコア数がこれと一致する（BS05ドラグノ爆弾兵：コア1個）
     maxCores?: number // 実際に置かれているコア数がこれ以下（cores＝完全一致とは別軸。BS03水龍王リヴァイア：コアが3個以下）
+    uncombined?: true // **合体していない**スピリットだけ（instIsCombined が false。BS11-X04 宝瓶神機アクア・エリシオン＝リフレッシュステップで1体しか回復できない対象）
     rested?: true // 疲労状態（isRested）のものだけ（BS05吸血女王カーミラ：範囲破壊の疲労限定）
     nameContains?: string | string[] // カード名にこの文字列を含むものだけ（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。配列＝いずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
@@ -246,6 +247,7 @@ export type EffectAction =
     | { type: "treatOwnNexusesAsSpiritsThisTurn"; minCores?: number; cost: number; family: string[]; levels: LevelDef[] } // 自分のネクサス（minCores個以上のコアが置かれているもの。省略時1）を、このターンの間スピリットとして扱う（BS03ゴーレムクラフト）。field.nexuses から field.spirits へ**同じインスタンスのまま**移し、CardInstance.asSpiritThisTurn に cost/family/levels の上書きを載せる。ターン終了時に PhaseManager.endTurn が生き残りを field.nexuses へ戻す（破壊された個体は既に場を離れているので戻らず、ネクサスカードがトラッシュに残る）
     | { type: "destroyBrave"; allHosts?: true } // 相手の合体スピリットの**ブレイヴだけ**を破壊する（ホストは無傷で場に残る。BRAVE.md §6.5。BS11-014 切り裂き姫アゼイリア／BS11-016 邪眼皇ゼナス）。allHosts指定時は相手の合体スピリット**すべて**から1つずつ破壊する。省略時は1体ぶんで、候補2体以上なら効果の使用者が選ぶ（非対話は先頭）
     | { type: "combineOwnBrave"; chosenBraveInstanceId?: string } // 自分の**スピリット状態のブレイヴ**1体を、自分のスピリット1体に合体させる（BS11-078 ブレイヴフラッシュ）。メインステップの任意合体（GameAction "combineBrave"）とは別に、効果から合体させる入口。合体先の候補は shared/summon.ts の braveCombineCandidates（合体条件を満たす・まだブレイヴが付いていないスピリット）。候補2つ以上なら interactiveTargets で選ばせ、非対話は先頭を自動選択する。chosenBraveInstanceId は**内部専用**（ブレイヴを選んだ後、合体先の選択で中断から再開するために持ち回る。cards.jsonには書かない）
+    | { type: "markSkipNextRefresh"; filter?: TargetFilter } // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（CardInstance.skipNextRefresh を立て、そのステップで消費する。BS11-055 ジャノメ・シールダー＝疲労状態の相手のスピリット1体）。候補2体以上なら interactiveTargets で選ばせ、非対話は実効BP最大を自動選択する
     | { type: "banAttackTargetThisTurn"; combinedOnly?: true } // 相手のスピリット1体を指定し、そのスピリットはこのターンの間アタックできない（CardInstance.cantAttackThisTurn を立てる）。combinedOnly指定時は相手の**合体スピリット**のみ指定できる（instIsCombined。BS11-030 ドルフィング）。候補2体以上なら interactiveTargets で選ばせ、非対話は先頭を自動選択する
     | { type: "detachOpponentBrave"; allHosts?: true; minSymbols?: number } // 相手の合体スピリットを**分離させる**（BS11-015 冥王神獣インフェルド・ハデス／BS11-034 星馬コルット）。⚠️ 効果による自分の分離（"detachBrave"。コア不要）とは**別の手順**で、「分離するときのコアの移動は相手が行う」＝ブレイヴの持ち主に「残すか・どのコアを置くか」を聞く（場を離れるときと同じ pendingBraveKeeps に乗る。BRAVE.md §12.5.1）。allHosts指定時は条件を満たす相手の合体スピリットすべてを分離させる（BS11-034）。minSymbols指定時はシンボル数がこれ以上のホストのみ対象（instanceSymbolCount。BS11-034＝シンボル2つ以上）。省略時は1体ぶんで、候補2体以上なら効果の使用者が選ぶ（非対話は先頭）
     | { type: "detachBrave"; combineToChosenSpirit?: true; thenRefreshHost?: true; detachedBraveInstanceId?: string } // 効果によるブレイヴの分離（BRAVE.md §12.5：コアは要らない。「場を離れるときに残す」＝detachBravesOnLeaveとは別の手順）。分離元ホストはctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086）、無ければ「自分の合体スピリット1体」から選ぶ（候補2体以上ならinteractiveTargetsで選択、非対話は先頭を自動選択。BS10-027）。分離したブレイヴはホストの疲労状態を引き継ぐ（detachBraveByEffect）。combineToChosenSpirit指定時は分離後「自分のスピリット1体に合体できる」（任意。候補はshared/summon.tsのbraveCombineCandidatesで判定、interactiveTargetsならPendingChoice kind:"target" optional:true・スキップ＝スピリット状態のまま、非対話は合体させず終える＝bravesOnly非対話フォールバックと同じ簡略化。BS10-027）。thenRefreshHost指定時は分離した直後にホストを回復させる（BS10-086Lv2「そのスピリット」＝分離元ホスト1体だけ。分離して出てきたブレイヴは回復しない）。detachedBraveInstanceIdは**内部専用**（combineToChosenSpiritの合体先選択が中断から再開するときの分離済みブレイヴのinstanceId保持。cards.jsonには書かない）
@@ -648,6 +650,9 @@ export type GlobalConstraintDef =
     | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number } // maxBp指定時は実効BPがこれ以下のスピリットのアタックで判定する（コストでなくBPで縛る形。BS09-031守護巨獣ガラパーゾ＝BP3000以下）。// コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない（両陣営。BS07の「勇傑」各色に共通）。costs指定時はmaxCostの代わりに**コスト完全一致**（配列＝いずれかに一致。instAllCostsのいずれかが含まれればよい。BS08守護機獣スノパルド：コスト3/4）。keywordExclude指定時は、アタッカーがそのキーワードを持つときは保護しない（spiritHasKeyword判定。同カード：【転召】を持たない）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
+    | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで**合体していないスピリットは1体しか回復できない**（どれを回復させるかはそのステップのプレイヤーが選ぶ。BS11-X04 宝瓶神機アクア・エリシオン）
+    | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスすべては回復しない（BS11-X04 同上）
+    | { type: "opponentCombinedCantRefresh" } // 発生源の持ち主から見た**相手**の合体スピリットすべては、リフレッシュステップで回復しない（片側のみ。BS11-X04【合体中】Lv3）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
     | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
     // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
@@ -1810,6 +1815,7 @@ export interface CardInstance {
     tempBpBuff: number // ターン終了時まで有効なBP増減
     battleBpBuff?: number // このバトルの間だけ有効なBP増減（bpBuff の scope:"battle"）。clearBattle でリセットする。
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
+    skipNextRefresh?: true // 次に自分のリフレッシュステップが来たとき、この個体は回復しない（そこで消費する。BS11-055 ジャノメ・シールダー＝「指定したスピリットは、次の『相手のリフレッシュステップ』で回復できない」）
     cantAttackThisTurn: boolean // このターンの間アタック不可（refreshAllOwn で回復した個体などに付与）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）

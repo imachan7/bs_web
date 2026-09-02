@@ -3100,6 +3100,21 @@
      "type": "immuneToOpponentEffects",
      "against": "brave"
     }
+   },
+   {
+    "id": "BS11-055-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "markSkipNextRefresh",
+     "filter": {
+      "rested": true
+     }
+    }
    }
   ],
   "braveCondition": {
@@ -4703,6 +4718,30 @@
   "effects": [
    {
     "id": "BS11-X04-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "refreshOnlyOneUncombined"
+    }
+   },
+   {
+    "id": "BS11-X04-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "nexusesCantRefresh"
+    }
+   },
+   {
+    "id": "BS11-X04-e3",
     "kind": "keywordGrant",
     "levels": [
      2,
@@ -4720,6 +4759,17 @@
      "purple",
      "blue"
     ]
+   },
+   {
+    "id": "BS11-X04-e4",
+    "kind": "globalConstraint",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "constraint": {
+     "type": "opponentCombinedCantRefresh"
+    }
    }
   ]
  },

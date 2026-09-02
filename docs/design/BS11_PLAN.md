@@ -52,6 +52,25 @@
 **リフレッシュステップに中断点が要る**（ターン開始処理は `turnStartResumeStep` で
 途中から再開できるので、層としては足りている）。**選ぶのはそのステップのプレイヤー**（§1 の1）。
 
+### 2.1.1 実装（2026-09-02 完了）
+
+リフレッシュステップの制限は **`globalConstraint` 3種**で書く（`shared/rules.ts` の
+`refreshRestrictionsFor` が両陣営の発生源から集める）:
+
+| 制約 | 効く範囲 |
+| :-- | :-- |
+| `refreshOnlyOneUncombined` | 両者。合体していないスピリットは1体だけ回復 |
+| `nexusesCantRefresh` | 両者。ネクサスは回復しない |
+| `opponentCombinedCantRefresh` | 発生源の持ち主から見た**相手**だけ |
+
+**「1体しか回復できない」の選択は既存の `refreshOne` に委譲する**（`filter.uncombined`）。
+ステップ誘発（`fireStepTriggers`）の**後**に置く：選択で中断するとそのステップの残りが
+走らなくなるため（`driveTurnStart` は次のステップ番号から再開する）。
+
+「次の『相手のリフレッシュステップ』で回復できない」（BS11-055）は
+**対象自身に付ける1回限りの印**（`CardInstance.skipNextRefresh`。そのステップで消費する）。
+スクルディアの `noRefreshTargetInstanceId`（指定元が疲労している間ずっと効く）とは別物。
+
 ### 2.2 ブレイヴへの干渉（BS10 で入れたエンジンの上に足す）
 
 | # | 効果文 | 該当 | 今あるもの |

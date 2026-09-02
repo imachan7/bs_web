@@ -1008,7 +1008,47 @@ const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> =
     log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
 }
 
+// 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
+// 印は対象自身に付け、そのリフレッシュステップで消費する（PhaseManager）
+const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            !s.skipNextRefresh &&
+            matchesTarget(state, opp, s, filter, self?.instanceId) &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：次のリフレッシュステップで回復できなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.skipNextRefresh = true
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
+}
+
 const handlers = {
+    markSkipNextRefresh: markSkipNextRefreshHandler,
     banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
