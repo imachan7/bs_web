@@ -955,9 +955,13 @@ function fieldCardEl(
                 row.dataset.instanceId = brave.instanceId
                 row.dataset.cardId = brave.cardId
                 const braveName = master(brave.cardId).name
-                // はみ出す幅が狭いので記号は置かず名前を優先する（左の色バーで見分けがつく）
-                row.textContent = `${braveName} Lv${levelOf(brave).level}`
-                row.title = `合体中: ${braveName}` // 幅が狭く名前が省略されるため、フル名はここで見せる
+                // はみ出す幅は40pxしかないので、名前は**縦書き**で出す（日本語はこの向きで読める）。
+                // 収まらない分は省略されるので、フル名は title 属性で見せる
+                const nameEl = document.createElement("span")
+                nameEl.className = "brave-name"
+                nameEl.textContent = `${braveName} Lv${levelOf(brave).level}`
+                row.appendChild(nameEl)
+                row.title = `合体中: ${braveName}`
                 // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
                 if (isMine && myTurn && view.phase === "main" && !view.battle && view.pendingChoice === null) {
                     const need = minLevelCores(master(brave.cardId))
@@ -1715,15 +1719,15 @@ export function setupEffectTooltip(): void {
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
         if (card && card !== currentHoverCard) {
             currentHoverCard = card
             showFor(card)
         }
     })
     document.addEventListener("mouseout", (e) => {
-        const from = (e.target as HTMLElement).closest(".card, .log-card-name")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .log-card-name")
+        const from = (e.target as HTMLElement).closest(".card, .brave-combined, .log-card-name")
+        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .brave-combined, .log-card-name")
         if (from && from !== to) hide()
     })
 
@@ -1733,7 +1737,7 @@ export function setupEffectTooltip(): void {
     let longPressed = false
     document.addEventListener("pointerdown", (e) => {
         if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .log-card-name")
+        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
         window.clearTimeout(pressTimer)
         if (!card) {
             hide()
