@@ -1107,7 +1107,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
         const cardId = player.trashCards[i]
         if (cardId === undefined) continue
         const card = getCard(cardId)
-        const hit = card.effects.some(
+        const hit = card.effects.find(
             (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
         )
         if (!hit) continue

@@ -103,6 +103,9 @@ const MEASURED_CONTINUOUS_KINDS = new Set([
     "nameAsGrant", // namesAsContinuous の追加点
     "symbolFix", // symbolsOverrideContinuous の代入点
     "magicNegate", // payMagicNegate（無効化のコストを実際に払った時点）
+    // ここから 2026-09-02 追加（BS11）
+    "costDelta", // refreshLevelAsOverrides の costDeltaContinuous 加算点
+    "trashSummonOnNameSummoned", // tryTrashSummonOnNameSummoned が条件に合う発生源を見つけた時点
     "magicTargetRedirect", // setTargetRedirect が絞り込みを立てた時点
     "bothSidesTargetRedirect", // 発生源として確定した時点
     "battleBpAsLevel", // バトルのBP比較で別レベルのBPを返した時点
@@ -998,6 +1001,20 @@ process.on("exit", () => {
             `                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
                             String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
                         const values = effect.costs ?? (value !== undefined ? [value] : [])`,
+        )
+        // costDelta（BS11-017 ムシャツバメ）: 対象へ加算した時点
+        patch(
+            em,
+            `                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount`,
+        )
+        // trashSummonOnNameSummoned（BS11-004 プロミネンスワイバーン）: トラッシュの発生源が条件に合った時点
+        patch(
+            em,
+            `        if (!hit) continue`,
+            `        if (!hit) continue
+        __covRecord("cont\\t" + String((hit as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
         // levelAs: refreshLevelAsOverrides の8つの levelAsContinuous 代入点（target ごと）
         patch(
