@@ -365,14 +365,15 @@ tryReviveOnDestroy(state, ownerPid, inst, context, undefined, options?.allowSusp
 2. 「残す」を選んだクライアントは支払いモードへ入り、`resolveChoice` に `paySources` を載せて送る
 3. サーバーは `payCost` 相当でコアを集め、ブレイヴを `field.spirits` へ移してコアを置く
 
-**足りない部品は1つだけ**：現在の支払いモードは「手札／トラッシュのカード1枚」を起点に
-コストを計算する（`PayingState.handIndex` + `choiceZone`）。分離では起点が
-**場のブレイヴ**で、必要数は**そのブレイヴのLv1維持コスト**になる。
-`PayingState` に3つ目の起点を足す必要がある（UI担当へ形を合意してから着手すること。
-[INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) §5 の手順4）。
+**実装済み（2026-09-02）**。中身は次のとおり:
 
-**非対話（テスト・AI）では従来どおり自動で進める**こと（リザーブから払えるなら残す）。
-ここを忘れると既存 smoke が大量に落ちる（INTERRUPTION_POINTS.md §5 の手順3）。
+| | どう動くか |
+| :-- | :-- |
+| 脇に置く | `detachBravesOnLeave` は合体を解いて `GameState.pendingBraveKeeps` へ**コアを乗せずに**入れるだけ。場のどのゾーンにも属さない（保存則の検査もここを数える） |
+| 決着 | `flushBraveKeeps` が1体ずつ処理する。**払えるコア（リザーブ＋フィールド）が維持コスト未満なら確認を出さずトラッシュへ** |
+| 確認 | `PendingChoice.braveKeep`（kind:"option" / options:["残す"] / optional）。**答えるまでエントリを消さない**ので、別の中断に上書きされても `drainResumeStack` が聞き直す |
+| 支払い | クライアントは「残す」で支払いモードへ入る（`PayingState.forBraveKeep`）。`resolveChoice` に `paySources` を載せて送る。支払い元の指定が無ければ、リザーブ→フィールドの余剰コアの順に自動で集める（AI・自動応答がここを通る） |
+| 非対話 | 従来どおりリザーブから自動で払って残す（既存 smoke を変えないため）。テストは `scripts/smoke/part268.ts` |
 
 ### 6.3.1 順序：**ホストがトラッシュへ行き、そのコアがリザーブに入ってから置く**（2026-09-02 Wiki裁定）
 
@@ -448,9 +449,9 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | ~~2~~ | **完了（2026-08-25）**。合体・分離のエンジン処理（`doSummon` の分岐・場を離れる**5経路**の共通入口・疲労合成） | `scripts/smoke/part238.ts` |
 | ~~3~~ | **完了（2026-08-25）**。BP・シンボル・**コスト**・**色**の合成（§3 の5関数） | `part238.ts` §H〜§J |
 | ~~4~~ | **完了（2026-08-25）**。`effectSources()` に合体中ブレイヴを含める＋合体状態のレベル判定（§4） | `part238.ts` §K（新しい `kind` は足していないので計測点の追加は不要） |
-| 5 | 分離のコア支払いUI（§6.3）※ `PayingState` の拡張は UI担当と形を合意 | 対話モードの smoke |
-| 6 | 実カードの構造化（**先に BS10 の取り込みが要る**） | カードごとの smoke |
-| 7 | クライアント（合体表示・ダイレクトブレイヴのUI） | 目視 |
+| ~~5~~ | **完了（2026-09-02）**。分離のコア支払いUI（§6.3）。`PayingState.forBraveKeep` と `PendingChoice.braveKeep` | `scripts/smoke/part268.ts` |
+| ~~6~~ | **完了（2026-08-29）**。実カードの構造化（BS10 の121枚） | カードごとの smoke |
+| ~~7~~ | **完了（2026-09-02）**。クライアント（合体表示・ダイレクトブレイヴ・任意合体分離のUI） | 目視 |
 
 > **段6の前提**：ブレイヴのカードはプールに1枚も無い（BS01〜BS09＋SDのみ）。
 > 段1〜5 は**テスト用の合成カード**で進める（`scripts/smoke/part154.ts` のように

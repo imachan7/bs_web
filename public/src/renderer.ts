@@ -506,8 +506,11 @@ export function render(view: GameView, ui: UiState): void {
     // 効果解決中の選択待ち（サーバーがresolveChoice以外のアクションを全拒否するため、
     // 自分宛・相手宛を問わず通常の操作ボタンを隠す）
     const pendingChoiceActive = !!view.pendingChoice
+    // 「ブレイヴを残す」を押して支払いモードへ入っている間は、選択肢ボタンを出さない
+    // （出したままだと押し直して二重に入れてしまう。戻り道は「対象選択をやめる」）
+    const payingForChoice = ui.paying?.forBraveKeep !== undefined
     const myPendingChoice =
-        view.pendingChoice && view.pendingChoice.pid === view.you ? view.pendingChoice : null
+        view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice ? view.pendingChoice : null
     const oppPendingChoice =
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
@@ -650,7 +653,7 @@ export function render(view: GameView, ui: UiState): void {
     }
     // 選択待ちの解決として支払い中（起動効果の召喚コストをフィールドのコアから払う）のときは、
     // 選択待ちの文言ではなく支払いの案内を優先して出す（2026-08-23）
-    if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined && ui.paying?.forBraveKeep === undefined) {
+    if (myPendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
         $("targeting-info").textContent = `⚡ ${myPendingChoice.prompt}`
     } else if (oppPendingChoice) {
         $("targeting-info").textContent = `⏳ ${oppPendingChoice.prompt}`

@@ -18,60 +18,8 @@
 
 ## 1. いまの本線と次の一手
 
-**BS10（星座編 第一弾「八星龍降臨」）の投入は 121 / 121枚で完了（2026-08-29）。**
-→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)
-
-- **PR #48 で main へ出してある**（黄17枚・青17枚・保留分5枚・ブレイヴUI・ネクサス配置時の修正）。
-  **まだマージされていない**ので、次のセッションはまずここを見ること
-- この弾で確定した規則は手順書へ転記済み（[BRAVE.md](./docs/design/BRAVE.md) §12 /
-  [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.9 /
-  [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.12〜3.15）
-
-### 済：BS10 の部分実装4枚の仕上げ（2026-08-29 完了）
-
-カードは121枚とも投入済みで、**効果の一部が未実装だった4枚**（`data/card-notes.json` に記録していた分）を
-すべて実装した。`card-notes.json` の BS10 の記載は無くなり、`validate:gaps` の既知ギャップは 0 件。
-
-- **080 炎の結晶石 / X01 幻羅星龍ガイ・アスラ / 108 ルナティックシール**（`scripts/smoke/part265.ts`）
-- **019 土星神龍クロノ・ボロス**：`action:"coresDownToLimit"`（`limit` と `sides`）を新設
-  （`scripts/smoke/part266.ts`）。確定した規則は
-  [CHOOSER_RULES.md](./docs/design/CHOOSER_RULES.md) §1.8 に書いた。
-  取り先の選択・自動順は `opponentCoresToVoidByTotal` と共通のヘルパーに切り出して両方から呼んでいる
-  （`coreSourcesOf` / `takeOneCoreToVoid` / `autoTakeCoresToVoid` / `totalCoresOf`）。UI の追加は不要だった
-
-### 進行中：場を離れるときのブレイヴの分離を対話にする（段階5の残り。2026-09-02 設計確定）
-
-**ユーザー確定**：完全対話（BRAVE.md §6.3 どおり）。「残す／残さない」＋**コアの置き元まで**選ばせる。
-**Wiki裁定確定**：ホストがトラッシュへ行き、そのコアがリザーブに入って**から**置く（§6.3.1 に転記済み）。
-＝ 破壊された合体スピリットのコアで、そのままブレイヴを残せる。**現状は逆順のバグ**。
-
-確定スキーマ（これで実装する）:
-
-```ts
-// GameState：退避中のブレイヴ（コアを乗せずに「分けて置いてある」状態。場のどこにも属さない）
-pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean }[]
-// PendingChoice：kind:"option" / options:["残す"] / optional:true（スキップ＝残さない）
-braveKeep?: { pid: PlayerId; instanceId: string; need: number }
-// GameView（自分側だけ）：クライアントが退避中のブレイヴを描くため
-pendingBraveKeep?: { instanceId: string; cardId: string; need: number }
-```
-
-- **ResumeFrame は足さない。** 退避リストが空になるまで flush を繰り返す形にする
-- `detachBravesOnLeave` は**ホストを場から抜いてコアを移した後**へ移す（呼び出し5箇所）。
-  中では参照を切って `combinedBraves` から抜き、**非対話なら従来どおり同期で決着**
-  （リザーブから払えれば残す／でなければトラッシュ）、**対話なら `pendingBraveKeeps` へ退避するだけ**
-- `flushBraveKeeps(state)`：退避を1体ずつ。払える総量（リザーブ＋フィールドの余剰コア）が
-  `braveKeepCores` 未満ならトラッシュ、足りるなら suspend で聞く。中断したら止まる
-- flush の呼び出し点：`destroySpirit` 末尾 / `resumeDestroyCommit` 末尾 / `flushBounces` 末尾 /
-  `applyRevived({toHand})` 直後 / PhaseManager のネクサス戻し / handDeck の該当箇所。
-  **保険として `drainResumeStack` のループ後と `handleAction` の出口でも呼ぶ**（漏れても回収される）
-- 支払いは `payCost(state, pid, 0, paySources, need)`（`detachBraveVoluntary` と同じ）。
-  クライアントは「残す」を押したら既存の支払いモードへ入り、`resolveChoice` に `paySources` を載せる
-  （`PayingState` の起点に `forBraveKeep` を足す。`forDetachBraveInstanceId` の経路を流用）
-- バトル継続（§6.2 の5）は退避エントリの `wasAttacker` / `wasBlocker` で持ち回る
-
-⚠️ **既存 smoke（part238 §G）は `destroySpirit` を直呼びする非対話経路**なので、
-非対話を同期のまま保てば無変更で通る。順序修正で「残せるようになる」ケースが増える点だけ要確認。
+**本線は空いている。** BS10（星座編 第一弾「八星龍降臨」）121枚と、ブレイヴの段階1〜7は
+すべて main に入っている（[BRAVE.md](./docs/design/BRAVE.md) §9 の表・[BS10_PLAN.md](./docs/design/BS10_PLAN.md)）。
 
 ### 次の候補（本線が空いたので、着手前に方針を確認すること）
 
@@ -94,7 +42,6 @@ pendingBraveKeep?: { instanceId: string; cardId: string; need: number }
 - **「Aすることで、Bを2つする」で B が1つしか満たせないとき**（[COST_MODEL.md](./docs/design/COST_MODEL.md) §1）。
   該当2枚（剣王獣ビャク・ガロウLv2／カイザーアトラス皇帝Lv2）。現状の挙動（いる分だけ処理してコストは払う）を
   smoke `part178` で固定済み。正解が出たらしきい値1か所（`>= 1` → `>= count`）を切り替える
-- **ブレイヴ（合体スピリット）**は BS10 で導入済みだが、破壊待機の手順3「ブレイヴを残すか選ぶ」は未実装
 - **破壊待機中のアタック・ブロックの可否**は未対応（破壊待機中にアタック宣言は起きないので実害なし）
 
 ---
