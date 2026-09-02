@@ -242,6 +242,34 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
     log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
 }
 
+// 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
+// **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
+// 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。
+//
+// ⚠️ 合体中のブレイヴは field.spirits にいないので destroySpirit では届かない（専用の経路）
+export function destroyCombinedBrave(
+    state: GameState,
+    ownerPid: PlayerId,
+    host: CardInstance,
+    brave: CardInstance,
+    context?: DestroyContext,
+): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    const name = getCard(brave.cardId).name
+    // 破壊時の誘発は**ブレイヴ自身のもの**だけ。この時点でブレイヴは場から抜けているので、
+    // 発生源として渡して発火させる（スピリットの破壊待機のような窓は設けない）
+    player.trashCards.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
+    fireTrigger(state, ownerPid, brave, "onDestroy")
+    void context
+}
+
 // メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
 // スピリット状態のLv1維持コスト以上のコアを置く必要がある。支払い可否は
 // RuleValidator.validateDetachBrave が済ませている前提で、ここは実際にコアを動かすだけ。

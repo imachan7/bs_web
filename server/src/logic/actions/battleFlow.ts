@@ -7,6 +7,7 @@ import {
     attachBrave,
     bothSidesPids,
     countEffectCounter,
+    destroyCombinedBrave,
     detachBraveByEffect,
     destroyNexus,
     destroySpirit,
@@ -1208,6 +1209,52 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
         return
 }
 
+// 相手の合体スピリットの**ブレイヴだけ**を破壊する（BRAVE.md §6.5。BS11-014／BS11-016）。
+// ホストは無傷で場に残る。どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ
+const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const oppPlayer = state.players[opp]
+    const hosts = oppPlayer.field.spirits.filter((sp) => bravesOf(oppPlayer, sp).length > 0)
+    if (hosts.length === 0) {
+        log(state, `${sourceName}：ブレイヴが合体している相手のスピリットがいなかった。`)
+        return
+    }
+    // allHosts（BS11-016 邪眼皇ゼナス＝「合体スピリットすべてのブレイヴ1つずつ」）
+    if (action.allHosts) {
+        for (const host of [...hosts]) {
+            const brave = bravesOf(oppPlayer, host)[0]
+            if (brave) destroyCombinedBrave(state, opp, host, brave, destroyContext)
+            if (state.pendingChoice || state.winner) return
+        }
+        return
+    }
+    // 対象指定（選択の再開）→ そのホストのブレイヴを壊す
+    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ブレイヴを破壊する相手の合体スピリットを選んでください`,
+            hosts.map((h) => h.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const host = chosen ?? hosts[0]
+    if (!host) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const brave = bravesOf(oppPlayer, host)[0]
+    if (!brave) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    destroyCombinedBrave(state, opp, host, brave, destroyContext)
+}
+
 // 効果によるブレイヴの分離（BRAVE.md §12.5・§12.7）。分離元ホストの決定：
 // ctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086巨星望む大樹Lv2＝
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
@@ -1471,6 +1518,7 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
+    destroyBrave: destroyBraveHandler,
     detachBrave: detachBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
