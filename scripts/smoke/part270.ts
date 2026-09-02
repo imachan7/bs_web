@@ -164,4 +164,31 @@ console.log("=== §D スクルディア：回復できなくする相手のス�
     assert(self2.noRefreshTargetInstanceId === a2.instanceId, "従来どおり自動選択される")
 }
 
+console.log("=== §E 探偵ペンタン：「内容を見ないで選ぶ」はランダム（先頭固定にしない） ===")
+{
+    const pentan = byName("探偵ペンタン")
+    const e1 = pentan.effects.find((e) => e.kind === "step")
+    assert(e1 !== undefined && "action" in e1, "テスト前提: 探偵ペンタンは『スタートステップ』効果を持つ")
+    const action = (e1 as { action: EffectAction }).action
+    const costCardName = (action as { cardName?: string }).cardName
+    assert(costCardName !== undefined, "テスト前提: コストに破棄するカード名がある")
+    const costCard = byName(costCardName!)
+
+    // 相手の手札を5枚にして何度も回し、**先頭以外も選ばれる**ことを見る
+    // （ランダムなので「必ず先頭以外」は言えない。20回まわして1度も動かなければ固定と判断する）
+    const hand = anySpirit.slice(0, 5).map((c) => c.cardId)
+    const seen = new Set<string>()
+    for (let i = 0; i < 20; i++) {
+        const s = game(false)
+        const self = put(s, "p1", pentan.cardId, 1)
+        s.players.p1.hand = [costCard.cardId]
+        s.players.p2.hand = [...hand]
+        resolveAction(s, "p1", self, action)
+        const peeked = s.players.p1.peekedOpponentCardIds?.[0]
+        assert(peeked !== undefined && hand.includes(peeked), "見たカードは相手の手札のどれか")
+        seen.add(peeked!)
+    }
+    assert(seen.size >= 2, `20回で2種類以上が選ばれる（先頭固定ではない。実際: ${seen.size}種類）`)
+}
+
 console.log("すべてのチェックに合格しました 🎉（part270）")

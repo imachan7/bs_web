@@ -2014,7 +2014,9 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
     const paid = player.hand.splice(index, 1)[0]!
     player.trashCards.push(paid)
     log(state, `${player.name}はコストとして${getCard(paid).name}を破棄した。`)
-    const peeked = target.hand[0]!
+    // 「内容を見ないで選ぶ」は**ランダム**（SEMANTICS_AUDIT.md §3.14。
+    // 先頭固定にすると、見る側が並び順から内容を推測できてしまう）
+    const peeked = target.hand[Math.floor(Math.random() * target.hand.length)]!
     if (!player.peekedOpponentCardIds) player.peekedOpponentCardIds = []
     player.peekedOpponentCardIds.push(peeked)
     // ログには**カード名を出さない**（両者が読むため。見た本人は PlayerView から知る）
