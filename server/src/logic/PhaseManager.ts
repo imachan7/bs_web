@@ -219,6 +219,7 @@ export function endTurn(state: GameState): void {
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
             delete inst.tempCostDelta
+            delete inst.refreshOnBlockedByColorThisTurn
             inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn

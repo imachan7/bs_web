@@ -968,6 +968,56 @@ const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => 
 // マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
 // resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
 // EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
+// このバトルの間、相手はリザーブのコアを払わなければブロックできない（BS11-037 ヒポグリフィーLv2-3）
+const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThisBattle"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル中でないため何も起きなかった。`)
+        return
+    }
+    state.battle.blockCostReserveToTrash = { pid: opp, count: action.count }
+    log(
+        state,
+        `${sourceName}：${state.players[opp].name}はリザーブのコア${action.count}個をトラッシュに置かなければブロックできない。`,
+    )
+}
+
+// 色1色を指定し、このターンの間、発生源自身はその色のスピリットにブロックされたとき回復する
+// （BS11-054 武槍鳥スピニード・ハヤト）。非対話は相手のフィールドに最も多い色を自動指定する
+const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    if (!self) return
+    const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+    if (chosenOption === undefined) {
+        if (state.interactiveTargets) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：指定する色を選んでください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        // 非対話：相手のフィールドに最も多い色（同数は定義順の先頭）を選ぶ
+        const counts = allColors.map(
+            (c) => [c, state.players[opp].field.spirits.filter((sp) => instHasColor(sp, c)).length] as const,
+        )
+        const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
+        self.refreshOnBlockedByColorThisTurn = best[0]
+        log(state, `${sourceName}：色「${COLOR_LABELS[best[0]]}」を指定した。（この色にブロックされたら回復する）`)
+        return
+    }
+    const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
+    if (!colorEntry) return
+    self.refreshOnBlockedByColorThisTurn = colorEntry[0]
+    log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
+}
+
 const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
     const { state, owner, sourceCardId, chosenOption } = ctx
         if (chosenOption === undefined) {
@@ -1062,6 +1112,8 @@ const handlers = {
     addSymbolThisTurn: addSymbolThisTurnHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
+    requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
+    refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,

@@ -892,6 +892,11 @@ export function validateBlock(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためブロックできません"
     }
+    // BS11-037 ヒポグリフィー：リザーブのコアを払わなければブロックできない（払えないならブロック不可）
+    const blockCost = state.battle?.blockCostReserveToTrash
+    if (blockCost && blockCost.pid === pid && state.players[pid].reserve < blockCost.count) {
+        return `リザーブのコアが${String(blockCost.count)}個ないためブロックできません`
+    }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
     if (cantActByCost(state, inst, "block")) {
         return "このターンの間、このスピリットはブロックできません"

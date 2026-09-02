@@ -69,6 +69,7 @@ import {
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
+    instHasColor,
     millDeck,
     fireNexusDeployed,
     payCost,
@@ -1030,6 +1031,20 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
+    // BS11-037 ヒポグリフィー：ブロックの追加コスト（リザーブ→トラッシュ）。検証で払えることは確認済み
+    const blockCost = state.battle.blockCostReserveToTrash
+    if (blockCost && blockCost.pid === pid) {
+        state.players[pid].reserve -= blockCost.count
+        state.players[pid].trashCores += blockCost.count
+        log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
+    }
+    // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
+    const blockedAttackerPid = opponentOf(pid)
+    const blockedAttacker = findSpirit(state.players[blockedAttackerPid], state.battle.attackerInstanceId)
+    const wantColor = blockedAttacker?.refreshOnBlockedByColorThisTurn
+    if (blockedAttacker && wantColor !== undefined && blocker && instHasColor(blocker, wantColor)) {
+        refreshSpirit(state, blockedAttackerPid, blockedAttacker)
+    }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）

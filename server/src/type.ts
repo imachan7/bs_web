@@ -250,6 +250,8 @@ export type EffectAction =
     | { type: "destroyBrave"; allHosts?: true } // 相手の合体スピリットの**ブレイヴだけ**を破壊する（ホストは無傷で場に残る。BRAVE.md §6.5。BS11-014 切り裂き姫アゼイリア／BS11-016 邪眼皇ゼナス）。allHosts指定時は相手の合体スピリット**すべて**から1つずつ破壊する。省略時は1体ぶんで、候補2体以上なら効果の使用者が選ぶ（非対話は先頭）
     | { type: "combineOwnBrave"; chosenBraveInstanceId?: string } // 自分の**スピリット状態のブレイヴ**1体を、自分のスピリット1体に合体させる（BS11-078 ブレイヴフラッシュ）。メインステップの任意合体（GameAction "combineBrave"）とは別に、効果から合体させる入口。合体先の候補は shared/summon.ts の braveCombineCandidates（合体条件を満たす・まだブレイヴが付いていないスピリット）。候補2つ以上なら interactiveTargets で選ばせ、非対話は先頭を自動選択する。chosenBraveInstanceId は**内部専用**（ブレイヴを選んだ後、合体先の選択で中断から再開するために持ち回る。cards.jsonには書かない）
     | { type: "markSkipNextRefresh"; filter?: TargetFilter } // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（CardInstance.skipNextRefresh を立て、そのステップで消費する。BS11-055 ジャノメ・シールダー＝疲労状態の相手のスピリット1体）。候補2体以上なら interactiveTargets で選ばせ、非対話は実効BP最大を自動選択する
+    | { type: "requireCoreToBlockThisBattle"; count: number } // このバトルの間、相手はリザーブのコアを count 個トラッシュに置かなければブロックできない（払えないならブロックできない。BS11-037 ヒポグリフィーLv2-3）
+    | { type: "refreshWhenBlockedByChosenColorThisTurn" } // 色1色を指定し、このターンの間、**発生源自身**は指定した色のスピリットにブロックされたとき回復する（BS11-054 武槍鳥スピニード・ハヤト）。interactiveTargets では色を選ばせ、非対話は相手のフィールドに最も多い色を自動指定する
     | { type: "banAttackTargetThisTurn"; combinedOnly?: true } // 相手のスピリット1体を指定し、そのスピリットはこのターンの間アタックできない（CardInstance.cantAttackThisTurn を立てる）。combinedOnly指定時は相手の**合体スピリット**のみ指定できる（instIsCombined。BS11-030 ドルフィング）。候補2体以上なら interactiveTargets で選ばせ、非対話は先頭を自動選択する
     | { type: "removeOneOfAnyType"; mode: "destroy" | "toHand" } // 相手の**スピリット/ブレイヴ/ネクサスのどれか1つ**を破壊する（mode:"destroy"）／手札に戻す（mode:"toHand"）。BS11-056 極星剣機ポーラ・キャリバー／BS11-X01 太陽神龍ライジング・アポロドラゴンLv3。「ブレイヴ」は**合体中もスピリット状態も含む**（2026-09-02 ユーザー確認）。合体中のブレイヴを選んだときはホストを残してそれだけが場を離れる（destroyCombinedBrave / returnCombinedBraveToHand）。候補2つ以上なら interactiveTargets で選ばせ、非対話はスピリット→合体中のブレイヴ→ネクサスの順に先頭を自動選択する
     | { type: "detachOpponentBrave"; allHosts?: true; minSymbols?: number } // 相手の合体スピリットを**分離させる**（BS11-015 冥王神獣インフェルド・ハデス／BS11-034 星馬コルット）。⚠️ 効果による自分の分離（"detachBrave"。コア不要）とは**別の手順**で、「分離するときのコアの移動は相手が行う」＝ブレイヴの持ち主に「残すか・どのコアを置くか」を聞く（場を離れるときと同じ pendingBraveKeeps に乗る。BRAVE.md §12.5.1）。allHosts指定時は条件を満たす相手の合体スピリットすべてを分離させる（BS11-034）。minSymbols指定時はシンボル数がこれ以上のホストのみ対象（instanceSymbolCount。BS11-034＝シンボル2つ以上）。省略時は1体ぶんで、候補2体以上なら効果の使用者が選ぶ（非対話は先頭）
@@ -1864,6 +1866,7 @@ export interface CardInstance {
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
+    refreshOnBlockedByColorThisTurn?: Color // このターンの間、この色のスピリットにブロックされたら回復する（BS11-054 武槍鳥スピニード・ハヤト。ターン終了でリセット）
     tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
@@ -2019,6 +2022,7 @@ export interface BattleState {
     extraBlockerIds?: string[] // 複数体ブロックで宣言はしたが**バトルはしない**ブロッカー。
     // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
     // （既存の処理に手を入れずに済ませるための形。BS10-X03巨蟹武神キャンサード）
+    blockCostReserveToTrash?: { pid: PlayerId; count: number } // このバトルで、この pid はリザーブのコアをこの数だけトラッシュに置かなければブロックできない（払えないならブロック自体ができない。BS11-037 ヒポグリフィーLv2-3）。バトル終了で消える
     handColorBannedFor?: { pid: PlayerId; color: Color } // このバトルの間、この pid は指定色の手札のカードを使えない（BS11-060 雷神砲カノン・アームズ＝破棄したカードと同じ色）。バトル終了（clearBattle）で消える
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（true の場合 blockerInstanceId はアタッカーが指定した相手スピリット。通常アタックは false）

@@ -2192,6 +2192,20 @@
      "from": "void"
     },
     "optional": false
+   },
+   {
+    "id": "BS11-037-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "requireCoreToBlockThisBattle",
+     "count": 1
+    }
    }
   ]
  },
@@ -3229,7 +3243,19 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-054-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": null,
+    "whileCombined": true,
+    "action": {
+     "type": "refreshWhenBlockedByChosenColorThisTurn"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 5
   }
