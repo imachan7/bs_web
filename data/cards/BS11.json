@@ -2847,5 +2847,1506 @@
     ]
    }
   ]
+ },
+ {
+  "cardId": "BS11-033",
+  "name": "ニジノコ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "戯狩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1\nこのスピリットは赤のスピリットとしても扱う。\nLv2\nこのスピリットは紫のスピリットとしても扱う。\nLv3\nこのスピリットは白のスピリットとしても扱う。",
+  "effects": [
+   {
+    "id": "BS11-033-e1",
+    "kind": "colorAs",
+    "levels": [
+     1
+    ],
+    "colors": [
+     "red"
+    ]
+   },
+   {
+    "id": "BS11-033-e2",
+    "kind": "colorAs",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "purple"
+    ]
+   },
+   {
+    "id": "BS11-033-e3",
+    "kind": "colorAs",
+    "levels": [
+     3
+    ],
+    "colors": [
+     "white"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-034",
+  "name": "星馬コルット",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "戯狩",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのスピリットが相手のスピリットの効果で破壊されたとき、シンボル2つ以上を持つ相手の合体スピリットすべてを分離させる。\nただし、分離するときのコアの移動は相手が行う。",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-035",
+  "name": "物作りの妖精レプラ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "楽族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-036",
+  "name": "冥土の魔女ヘレン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるマジックカード3枚までをオープンして手元に置くことで、オープンしたカード1枚につき、自分はデッキから1枚ドローする。\nオープンしたマジックカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。",
+  "effects": [
+   {
+    "id": "BS11-036-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "handMagicToTegamotoDraw"
+    },
+    "optional": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-037",
+  "name": "ヒポグリフィー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣",
+   "戯狩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv2･Lv3『このスピリットのアタック時』\n相手は、相手のリザーブのコア1個を相手のトラッシュに置かなければブロックできない。",
+  "effects": [
+   {
+    "id": "BS11-037-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS11-037-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-038",
+  "name": "天星馬ペガシーダ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "戯狩",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分のデッキを上から、コスト6/7のスピリットカードが出るまで破棄できる(上限6枚)。\nその後、トラッシュにあるそのスピリットカード1枚をコストを支払わずに召喚する。\nただし、『このスピリットの召喚時』効果は発揮されない。\nLv2『このスピリットの破壊時』\n自分はデッキから3枚ドローする。",
+  "effects": [
+   {
+    "id": "BS11-038-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 3
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-039",
+  "name": "天使ティアエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "手札にあるこのスピリットカードは、自分のフィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも召喚コストを軽減できる。\nLv1･Lv2･Lv3『自分のメインステップ』\n自分がスピリットカードを召喚するとき、このスピリットのシンボルを黄のシンボル3つにする。",
+  "effects": [
+   {
+    "id": "BS11-039-e1",
+    "kind": "trashSymbolReduction",
+    "levels": null,
+    "scope": "self"
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-040",
+  "name": "神獣ヒキュー",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣",
+   "戯狩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n自分がマジックの効果を使用したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS11-040-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS11-040-e2",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "condition": "selfIsAttacking",
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-057",
+  "name": "バタホルン",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "purple"
+  ],
+  "family": [
+   "道玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、コスト4/6/8の相手のスピリットすべてはブロックできない。\n合体条件：コスト3以上\n【合体時】【光芒】『このスピリットの合体アタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "effects": [
+   {
+    "id": "BS11-057-e1",
+    "kind": "keyword",
+    "keyword": "kobo",
+    "levels": null,
+    "whileCombined": true
+   }
+  ],
+  "braveCondition": {
+   "minCost": 3
+  }
+ },
+ {
+  "cardId": "BS11-058",
+  "name": "神弓鳥ペリュトーン",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "white",
+   "white"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\n自分のデッキを上から1枚オープンできる。\nそのカードがマジックカードのとき、そのカードのフラッシュ効果を、コストを支払わずに即時に使用できる。\n使用しない、または、他のカードのときは手札に加える。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "effects": [],
+  "braveCondition": {
+   "minCost": 5
+  }
+ },
+ {
+  "cardId": "BS11-069",
+  "name": "黄金の鐘楼",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n自分のネクサスすべてが黄の間、自分のネクサスすべては破壊されない。\nLv2『お互いのアタックステップ』\n【聖命】を持つ自分のスピリットが破壊されたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-070",
+  "name": "彷徨う無重力島",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「戯狩」を持つ自分のスピリットが疲労したとき、自分はデッキから1枚ドローする。\nLv2『お互いのアタックステップ』\n系統：「戯狩」を持つ自分のスピリットすべてに“【聖命】『このスピリットのアタック時』このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く”という効果を与える。",
+  "effects": [
+   {
+    "id": "BS11-070-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritExhausted",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "familyFilter": [
+     "戯狩"
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-081",
+  "name": "ライトニングデリバリー",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分はデッキから1枚ドローする。\nこのターンの間、【光芒】/【聖命】を持つ自分のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS11-081-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-082",
+  "name": "ウィッグバインド",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、効果の記述を持つ相手のスピリットすべてはアタックとブロックができず、相手は黄以外の手札のカードを使えない。",
+  "limitCount": 1,
+  "effects": []
+ },
+ {
+  "cardId": "BS11-X05",
+  "name": "魔導双神ジェミナイズ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 7,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "光導",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットが手札から召喚されたとき、自分のデッキを上から1枚オープンする。\nそのカードがスピリットカード/ブレイヴカードのとき、コストを支払わずに召喚する。\n残ったカードは手札に加える。\nLv2･Lv3\n自分がコストを支払ってマジックカードを使用したとき、その効果発揮後、自分の手札/手元にあるマジックカード1枚を、コストを支払わずに使用できる。\nこの効果はターンに2回しか使えない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-041",
+  "name": "クレイ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n相手のデッキを上から2枚破棄する。",
+  "effects": [
+   {
+    "id": "BS11-041-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "mill",
+     "count": 2
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-042",
+  "name": "海賊ラッコルセア",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットの【粉砕】の効果で相手のトラッシュにスピリットカードが1枚以上置かれたとき、ボイドからコア1個を自分のスピリット1体の上に置く。",
+  "effects": [
+   {
+    "id": "BS11-042-e1",
+    "kind": "fieldEvent",
+    "event": "ownFunsaiMilled",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "action": {
+     "type": "voidCoreToOther",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-043",
+  "name": "タワー・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『相手のアタックステップ』\nこのスピリットは、相手のコスト5以下のスピリットすべてを疲労状態でブロックできる。",
+  "effects": [
+   {
+    "id": "BS11-043-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS11-043-e2",
+    "kind": "constraint",
+    "levels": [
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "canBlockWhileRested",
+     "targetMaxCost": 5
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-044",
+  "name": "シェル・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-045",
+  "name": "MCギンガー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "道化"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互い、ターンに1回しかマジックの効果を使えない。\nLv1･Lv2『このスピリットのアタック時』\n相手のデッキを上から1枚破棄する。\nその破棄されたカードと同じコストの相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS11-045-e1",
+    "kind": "magicRestriction",
+    "restriction": "oncePerTurnAll",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-046",
+  "name": "轟腕のトドン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv1･Lv2『自分のエンドステップ』\n【粉砕】を持つ自分のスピリットすべてを回復させる。",
+  "effects": [
+   {
+    "id": "BS11-046-e1",
+    "kind": "keyword",
+    "keyword": "kyoshu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS11-046-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshSelfByExhaustNexus"
+    },
+    "optional": true
+   },
+   {
+    "id": "BS11-046-e3",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "refreshAllByKeyword",
+     "keyword": "funsai",
+     "side": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-047",
+  "name": "海王神獣トライ・ポセイドス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "神星",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のコスト7以上のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。\nLv2『自分のアタックステップ』\n自分のコスト7以上のスピリットすべてをBP+3000する。",
+  "effects": [
+   {
+    "id": "BS11-047-e1",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "costMinFilter": 7,
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-048",
+  "name": "ケンタウロス・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n【粉砕】を持つ自分のスピリット1体につき、相手のデッキを上から3枚破棄する。\nLv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS11-048-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "millPer",
+     "counter": {
+      "ownKeyword": "funsai"
+     },
+     "multiplier": 3
+    },
+    "optional": false
+   },
+   {
+    "id": "BS11-048-e2",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-059",
+  "name": "レチクル・アームズ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手のデッキを上から3枚破棄する。\n合体条件：コスト3以上\n【合体時】【粉砕】『このスピリットの合体アタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "effects": [
+   {
+    "id": "BS11-059-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "mill",
+     "count": 3
+    },
+    "optional": false
+   },
+   {
+    "id": "BS11-059-e2",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": null,
+    "whileCombined": true
+   }
+  ],
+  "braveCondition": {
+   "minCost": 3
+  }
+ },
+ {
+  "cardId": "BS11-060",
+  "name": "雷神砲カノン・アームズ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "red",
+   "red"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "合体条件：コスト5以上\n【合体中】『このスピリットのアタック時』\n相手のデッキを上から1枚破棄する。\nさらに、このバトルの間、相手は、このスピリットの効果で破棄したカードと同じ色の手札のカードを使えない。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "effects": [],
+  "braveCondition": {
+   "minCost": 5
+  }
+ },
+ {
+  "cardId": "BS11-071",
+  "name": "柱岩の海上都市",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n【粉砕】を持つ自分のスピリットが召喚されたとき、相手のデッキを上から2枚破棄する。\nLv2『自分のアタックステップ』\n自分のスピリットがアタックしたとき、相手のデッキを上から1枚破棄する。\nそのカードがコスト3以下のとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS11-071-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "turn": "own",
+    "keywordFilter": "funsai",
+    "action": {
+     "type": "mill",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-072",
+  "name": "未完成の古代戦艦：船尾",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互い、ボイドからライフにコアを置けない。\nLv2『相手のメインステップ』\n『このスピリットの召喚時』効果と『このブレイヴの召喚時』効果は発揮されない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS11-083",
+  "name": "レッドボイス",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n「ブロックされない」効果を持つ相手のスピリットすべてを破壊する。",
+  "effects": [
+   {
+    "id": "BS11-083-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroyAll",
+     "filter": {
+      "unblockableOnly": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-084",
+  "name": "ソリッドボディー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、【粉砕】を持つ自分のスピリットすべては、相手のスピリットを疲労状態でブロックできる。",
+  "effects": [
+   {
+    "id": "BS11-084-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS11-084-e2",
+    "kind": "constraintGrant",
+    "levels": null,
+    "lentOnly": true,
+    "target": "ownAll",
+    "keywordFilter": "funsai",
+    "constraint": {
+     "type": "canBlockWhileRested"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS11-X06",
+  "name": "天秤造神リブラ・ゴレム",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "光導",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『このスピリットのアタック時』\nこのスピリットの【粉砕】で相手のデッキからスピリットカードが破棄されたとき、このスピリットは回復する。\nLv3『このスピリットのアタック時』\nこのスピリットが回復状態の間、相手のライフを減らせない。",
+  "effects": [
+   {
+    "id": "BS11-X06-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS11-X06-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "condition": {
+     "lastFunsaiHasSpirit": true
+    },
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
  }
 ]
