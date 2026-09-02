@@ -408,6 +408,9 @@ console.log("=== BS08-X33 ミカファール：トラッシュのマジックの
         s.players.p1.trashCores === trashCoresBefore + cost,
         `支払ったコアはトラッシュへ（実際: ${String(s.players.p1.trashCores - trashCoresBefore)}個）`,
     )
+    // 対話モードでは、キャッツアイの対象もプレイヤーが選ぶ（2026-09-02。候補は自分のスピリット3体）
+    assert(s.pendingChoice?.kind === "target", "Lv3として扱うスピリットの選択待ちが立つ")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: target.instanceId }) === null, "対象を選ぶ")
     assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
 }
 

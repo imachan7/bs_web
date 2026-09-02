@@ -44,7 +44,21 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
 // **増減であって追加ではない**ので、元のコストは残らない（+3したスピリットは
 // 相手の「コスト3以下を破壊」にもう当たらない）。読み口は instCostDelta → instBaseCost の1本
 const costBuffThisTurnHandler: ActionHandler<"costBuffThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストを変えるスピリットを選んでください`,
+            state.players[owner].field.spirits,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
     const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
     if (!target) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -204,11 +218,25 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
 
 // BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
 // このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
-const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
         const hasBlockTrigger = (inst: CardInstance): boolean =>
             getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
         const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：『ブロック時』効果を『アタック時』に変えるスピリットを選んでください`,
+                mine,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
         const target = targetInstanceId
             ? mine.find((s) => s.instanceId === targetInstanceId)
             : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
@@ -369,18 +397,32 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
+        // 未指定時は自分のフィールドの候補から選ばせる（マッシブアップ）。
+        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）
+        const ownCandidates = state.players[owner].field.spirits.filter(
+            (s) =>
+                (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
+                (!action.requireLevelExists ||
+                    getCard(s.cardId).levels.some((l) => l.level === action.level)),
+        )
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：Lv${action.level}として扱うスピリットを選んでください`,
+                ownCandidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : (() => {
-                  // 未指定時は自分のフィールドから条件を満たすスピリットを1体自動選択する（マッシブアップ）
-                  const cand = state.players[owner].field.spirits.find(
-                      (s) =>
-                          (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
-                          (!action.requireLevelExists ||
-                              getCard(s.cardId).levels.some((l) => l.level === action.level)),
-                  )
-                  return cand ? { pid: owner, inst: cand } : null
-              })()
+            : // 非対話（テスト・AI）と候補1体のときは先頭を自動選択（決定的簡略化）
+              (ownCandidates[0] ? { pid: owner, inst: ownCandidates[0] } : null)
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -738,17 +780,33 @@ const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx,
 
 const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // バーストファイア：cantBlock/cantBlockLowerBp を持つ自分スピリット優先、なければ先頭
+        // バーストファイア：『ブロックできない』を受けている自分のスピリットが候補。
+        // 誰の効果を消すかはプレイヤーが選ぶ（候補が無ければフィールド全体から選ぶ）
         const mine = state.players[owner].field.spirits
+        const blocked = mine.filter((s) =>
+            activeConstraints(state, owner, s).some(
+                (c) => c.type === "cantBlock" || c.type === "cantBlockLowerBp",
+            ),
+        )
+        const candidates = blocked.length > 0 ? blocked : mine
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：『ブロックできない』効果を無効にするスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話（テスト・AI）と候補1体のとき：『ブロックできない』持ちを優先、なければ先頭
         const target =
-            mine.find((s) =>
-                activeConstraints(state, owner, s).some(
-                    (c) =>
-                        c.type === "cantBlock" ||
-                        c.type === "cantBlockLowerBp",
-                ),
-            ) ??
-            mine[0] ??
+            (targetInstanceId !== undefined ? mine.find((s) => s.instanceId === targetInstanceId) : undefined) ??
+            candidates[0] ??
             null
         if (!target) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
