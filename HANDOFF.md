@@ -18,17 +18,24 @@
 
 ## 1. いまの本線と次の一手
 
-**本線は BS11「星座編 第二弾：灼熱の太陽」の投入**（91枚。素データは `data/staging/BS11.json`）。
-→ [BS11_PLAN.md](./docs/design/BS11_PLAN.md)（§1 に確定した解釈4件、§4 にバッチ計画）
+**BS11「星座編 第二弾：灼熱の太陽」は91枚すべて投入済み（2026-09-03 完了）。**
+→ [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5 に残っている節の一覧
 
-- **`data/cards/BS11.json` はバッチごとに追記していく**（空配列から始めてある）。
-  こうしないと `validate:gaps` が「効果文はあるのに effects が空」で落ちる
-- 新しいキーワードは1つも無い。新機構は **リフレッシュステップの制限**（BS11-X04 / 055）と
-  **ブレイヴへの干渉**（分離・ブレイヴだけ破壊・フラッシュ合体・合体の禁止）の2系統だけ
-- **新しい action type を足すときは、それを使うカードと同じコミットで入れる。**
-  使うカードが無いと `validate:cards` が「どのカードにも使われていない」で落ちる
+**次の一手は次のどれか**（上から順に小さい）:
+
+1. **BS11 に残る2節を潰す**（[BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5）。
+   どちらも横断的な下ごしらえが要る:
+   - BS11-065「手札を破棄できない」← 手札破棄の共通ヘルパーを作るのが先（いま38か所に散っている）
+   - BS11-X05 Lv2-3「マジックをもう1枚無償で使用」← `fireMagicUsedTriggers` に「コストを払ったか」を渡すのが先
+2. **次の弾（BS12「月の咆哮」）の取り込み**（`scripts/fetch_wiki_cards.py` で staging へ）
+3. **ブレイヴ経由の未計測**（`npm run coverage:effects` の「未計測の kind」7種）。
+   いずれも BS10 で入れた kind（altSummonFromHand / braveStatsAs / trashImmunity /
+   trashNameAs / trashSymbolReduction）で、計測点が無いだけ
 
 BS10（121枚）とブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9）。
+BS11 で確定した規則は BRAVE.md §12.5.1〜§12.5.5 に移してある。
+
+---
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
