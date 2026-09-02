@@ -496,7 +496,6 @@ export function commitPendingDestruction(
         delete inst.pendingDestruction
         return
     }
-    detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
@@ -509,6 +508,9 @@ export function commitPendingDestruction(
         player.reserve += inst.cores
     }
     delete inst.pendingDestruction
+    // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
+    // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
+    detachBravesOnLeave(state, ownerPid, inst)
 }
 
 // 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
@@ -1308,12 +1310,12 @@ function tryReviveOnDestroy(
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
         if ("toHand" in revived) {
-            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
             notifyHandGained(state, ownerPid, 1)
+            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
         } else {
             inst.isRested = revived.rested
             // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
@@ -1745,9 +1747,9 @@ export function flushBounces(state: GameState, order?: string[]): void {
             if (!pb) continue
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1）
             player.field.spirits.splice(index, 1)
             player.reserve += inst.cores
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)

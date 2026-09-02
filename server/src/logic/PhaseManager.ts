@@ -218,9 +218,9 @@ export function endTurn(state: GameState): void {
         for (const inst of [...field.spirits]) {
             if (inst.asSpiritThisTurn === undefined) continue
             delete inst.asSpiritThisTurn
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             field.spirits.splice(field.spirits.indexOf(inst), 1)
             field.nexuses.push(inst)
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }
