@@ -27,6 +27,7 @@ import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAl
 import {
     summonFreeFromTrashIndex,
     attachBrave,
+    detachBraveVoluntary,
     activeConstraints,
     checkExhaustOnCoreChange,
     consumeSummonHandDiscardPay,
@@ -93,6 +94,8 @@ import {
     validateBlock,
     validateCastMagic,
     validateEndTurn,
+    validateCombineBrave,
+    validateDetachBrave,
     validateMoveCore,
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
@@ -260,6 +263,10 @@ function dispatchAction(
             )
         case "moveCore":
             return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete)
+        case "combineBrave":
+            return doCombineBrave(state, pid, action.braveInstanceId, action.hostInstanceId)
+        case "detachBrave":
+            return doDetachBrave(state, pid, action.braveInstanceId, action.paySources)
         case "awaken":
             return doAwaken(state, pid, action.instanceId, action.fromInstanceId, action.count)
         case "attack":
@@ -730,6 +737,34 @@ function doCastMagic(
         }
     }
     if (state.winner) state.battle = null
+    return null
+}
+
+// メインステップの任意合体（docs/design/BRAVE.md §6.4）。
+// ブレイヴが載せていたコアは**リザーブへ戻す**（分離でリザーブから払うことと対称。§6.4 の注記）
+function doCombineBrave(state: GameState, pid: PlayerId, braveInstanceId: string, hostInstanceId: string): string | null {
+    const error = validateCombineBrave(state, pid, braveInstanceId, hostInstanceId)
+    if (error) return error
+    const player = state.players[pid]
+    const brave = findSpirit(player, braveInstanceId)
+    const host = findSpirit(player, hostInstanceId)
+    if (!brave || !host) return "対象のカードが見つかりません"
+    player.reserve += brave.cores
+    brave.cores = 0
+    attachBrave(state, pid, host, brave)
+    log(state, `${player.name}は${getCard(brave.cardId).name}を${getCard(host.cardId).name}に合体させた。`)
+    return null
+}
+
+// メインステップの任意分離（§6.4）。コアの支払いは detachBraveVoluntary が行う
+function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string, paySources?: PaySource[]): string | null {
+    const error = validateDetachBrave(state, pid, braveInstanceId, paySources)
+    if (error) return error
+    const player = state.players[pid]
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
+    const host = player.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    if (!brave || !host) return "対象のカードが見つかりません"
+    detachBraveVoluntary(state, pid, host, brave, paySources)
     return null
 }
 

@@ -2510,6 +2510,8 @@ export type GameAction =
           fromInstanceId: string
           count: number
       }
+    | { type: "combineBrave"; braveInstanceId: string; hostInstanceId: string } // メインステップの任意合体（docs/design/BRAVE.md §6.4）。スピリット状態のブレイヴを自分のスピリット1体へ合体させる。ブレイヴが載せていたコアは**リザーブへ戻す**（§1.1 の出典とは異なる。分離でリザーブから払うことと対称にするための決定）。合体先の候補は shared/summon.ts の braveCombineCandidates を通す（サーバーとUIで判定を共有する。§5.0）
+    | { type: "detachBrave"; braveInstanceId: string; paySources?: PaySource[] } // メインステップの任意分離（§6.4）。⚠️ **Effect の "detachBrave"（効果による分離。コア不要）とは別物**。こちらは braveKeepCores（スピリット状態のLv1維持コスト）以上のコアを置く必要がある。paySources 省略時はリザーブから自動で払い、リザーブが足りなければ拒否する（クライアントは支払いUIへ入って paySources を付けて再送する）
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string } // targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string }
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）

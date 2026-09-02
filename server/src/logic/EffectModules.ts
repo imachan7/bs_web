@@ -3238,6 +3238,7 @@ export {
 export {
     attachBrave,
     detachBraveByEffect,
+    detachBraveVoluntary,
     detachBravesOnLeave,
     destroySpiritsFrom,
     destroyTargetsBatch,

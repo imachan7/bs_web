@@ -27,6 +27,7 @@ import type {
     GameState,
     GlobalConstraintDef,
     Keyword,
+    PaySource,
     Phase,
     PlayerId,
     ResolvedTargetFilter,
@@ -161,6 +162,7 @@ checkExhaustOnCoreChange,
     exhaustSpirit,
     fireSummonSequence,
     isResisted,
+    payCost,
     pickEnemyByBp,
     pickEnemyCandidates,
     placeCoresOnSpirit,
@@ -237,6 +239,27 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
     player.field.spirits.push(brave)
     refreshLevelAsOverrides(state)
     log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
+}
+
+// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
+// スピリット状態のLv1維持コスト以上のコアを置く必要がある。支払い可否は
+// RuleValidator.validateDetachBrave が済ませている前提で、ここは実際にコアを動かすだけ。
+// 支払いは召喚と同じ payCost に通す（フィールドのコアを使ったときの消滅処理まで共通になる）
+export function detachBraveVoluntary(
+    state: GameState,
+    pid: PlayerId,
+    host: CardInstance,
+    brave: CardInstance,
+    paySources?: PaySource[],
+): void {
+    const player = state.players[pid]
+    const need = braveKeepCores(brave)
+    // コストは0・置くコアが need。payCost の戻り値は「フィールドのコアから置くコアへ回った数」
+    const placedFromField = payCost(state, pid, 0, paySources, need)
+    player.reserve -= need - placedFromField
+    detachBraveByEffect(state, pid, host, brave)
+    brave.cores = need
+    refreshLevelAsOverrides(state)
 }
 
 // ---- ブレイヴの分離（場を離れるとき。docs/design/BRAVE.md §6）----

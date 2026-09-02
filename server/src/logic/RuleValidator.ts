@@ -14,7 +14,7 @@ import {
 } from "./GameState"
 import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { battleSwapSummonCheck, isSummonableCardType } from "../../../shared/summon"
+import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, braveKeepCores, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -579,6 +579,48 @@ export function validateCastMagic(
     const payError = validatePaySources(state, pid, effectiveCost(state, pid, card), paySources)
     if (payError) return payError
     return null
+}
+
+// メインステップの任意合体（docs/design/BRAVE.md §6.4）。
+// 合体先の候補列挙は braveCombineCandidates に一本化する（サーバーとUIで判定を共有し、
+// 「UIにボタンが出るのにサーバーが弾く」ズレを構造的に防ぐ。§5.0 の規則）
+export function validateCombineBrave(
+    state: GameState,
+    pid: PlayerId,
+    braveInstanceId: string,
+    hostInstanceId: string,
+): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    const player = state.players[pid]
+    const brave = findSpirit(player, braveInstanceId)
+    if (!brave) return "対象のブレイヴが見つかりません"
+    if (getCard(brave.cardId).type !== "brave") return "ブレイヴカードではありません"
+    // スピリット状態のブレイヴに他のブレイヴは合体できない（§1.2）
+    if ((brave.braveRefs ?? []).length > 0) return "ブレイヴが合体しているため合体できません"
+    if (!braveCombineCandidates(state, pid, brave.cardId).includes(hostInstanceId)) {
+        return "そのスピリットには合体できません"
+    }
+    return null
+}
+
+// メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
+// スピリット状態のLv1維持コスト以上のコアを置く必要がある
+export function validateDetachBrave(
+    state: GameState,
+    pid: PlayerId,
+    braveInstanceId: string,
+    paySources?: PaySource[],
+): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    const player = state.players[pid]
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
+    if (!brave) return "合体しているブレイヴが見つかりません"
+    // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
+    const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
+    if (hosts.length !== 1) return "このブレイヴは分離できません"
+    return validatePaySources(state, pid, braveKeepCores(brave), paySources)
 }
 
 export function validateMoveCore(
