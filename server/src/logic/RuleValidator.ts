@@ -571,6 +571,15 @@ export function validateCastMagic(
         if (isFlashLockedFor(state, pid)) {
             return "効果により、フラッシュで手札のカードを使用できません"
         }
+        // 「ブロック宣言後のフラッシュタイミングで使えない」（BS11-078 ブレイヴフラッシュ）。
+        // ブロックされているかは blockerInstanceId で見る（ブロックしない＝takeLife はその場で
+        // ライフ処理まで進むので、そもそもここに来る窓が無い）
+        if (
+            state.battle.blockerInstanceId !== null &&
+            card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.afterBlockForbidden)
+        ) {
+            return "このマジックはブロック宣言後のフラッシュタイミングでは使用できません"
+        }
     } else {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing

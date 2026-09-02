@@ -1257,6 +1257,67 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
     destroyCombinedBrave(state, opp, host, brave, destroyContext)
 }
 
+// 効果による合体（BRAVE.md §12.5.2。BS11-078 ブレイヴフラッシュ）。
+// スピリット状態のブレイヴを選び、合体先のスピリットを選んで合体させる。
+// メインステップの任意合体（GameAction "combineBrave"）とは別の入口で、タイミング制限はマジック側が持つ
+const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+
+    // 合体先の選択から再開（ブレイヴは既に選んである）
+    if (action.chosenBraveInstanceId !== undefined) {
+        const brave = player.field.spirits.find((sp) => sp.instanceId === action.chosenBraveInstanceId)
+        const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+        if (brave && host) attachBrave(state, owner, host, brave)
+        return
+    }
+
+    // スピリット状態のブレイヴ（合体中のブレイヴは field.spirits にいない）。
+    // 合体先の候補が1つも無いブレイヴは選ばせない
+    const braves = player.field.spirits.filter(
+        (sp) =>
+            getCard(sp.cardId).type === "brave" &&
+            (sp.braveRefs ?? []).length === 0 &&
+            braveCombineCandidates(state, owner, sp.cardId).length > 0,
+    )
+    if (braves.length === 0) {
+        log(state, `${sourceName}：合体させられるスピリット状態のブレイヴがいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && braves.length >= 2 && targetInstanceId === undefined) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：合体させるブレイヴを選んでください`,
+            braves.map((b) => b.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const brave = (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ?? braves[0]!
+    const hosts = braveCombineCandidates(state, owner, brave.cardId)
+    if (state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${getCard(brave.cardId).name}を合体させるスピリットを選んでください`,
+            hosts,
+            false,
+            { ...action, chosenBraveInstanceId: brave.instanceId },
+            self,
+        )
+        return
+    }
+    const host = player.field.spirits.find((sp) => sp.instanceId === hosts[0])
+    if (!host) {
+        log(state, `${sourceName}：合体させられるスピリットがいなかった。`)
+        return
+    }
+    attachBrave(state, owner, host, brave)
+}
+
 // 相手の合体スピリットを**分離させる**（BRAVE.md §12.5.1。BS11-015／BS11-034）。
 // 分離そのものは効果の使用者が起こすが、**コアの移動はブレイヴの持ち主が行う**ので
 // 「場を離れるとき」と同じ pendingBraveKeeps に乗せる（持ち主に残すかどうかを聞く）
@@ -1564,6 +1625,7 @@ const handlers = {
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
+    combineOwnBrave: combineOwnBraveHandler,
     detachBrave: detachBraveHandler,
     detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,

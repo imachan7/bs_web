@@ -4147,7 +4147,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分のスピリット状態のブレイヴ1体を、自分のスピリット1体に合体させる。\nこの効果は、ブロック宣言後のフラッシュタイミングで使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-078-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "afterBlockForbidden": true,
+    "action": {
+     "type": "combineOwnBrave"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-079",

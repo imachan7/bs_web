@@ -742,6 +742,17 @@ BS10 に11件ある。実装は `kind:"triggered"` の `trigger:"onAttack"` に
 - 実装は専用のアクション `detachOpponentBrave`（`detachBraveByOwnerChoice` を通す）。
   自分側の `detachBrave`（コア不要）とは入口から分けてある
 
+#### 12.5.2 効果による**合体**（2026-09-02 ユーザー確認）
+
+「フラッシュタイミングで合体させる」（BS11-078 ブレイヴフラッシュ）は、
+**効果専用の合体アクション `combineOwnBrave`** で行う。メインステップの任意合体
+（`GameAction "combineBrave"`、§6.4）は**触らない**（メインステップ限定のままにする）。
+
+- 対象は**スピリット状態のブレイヴ**（合体中のブレイヴは `field.spirits` にいない）。
+  合体先の候補は `braveCombineCandidates` に一本化する（§5.0 の規則）
+- 「ブロック宣言後のフラッシュタイミングで使えない」は**このマジック固有の制限**として
+  マジックのエントリに書く（`magic.afterBlockForbidden`。判定は `state.battle.blockerInstanceId`）
+
 ### 12.6 効果によるブレイヴ召喚（2026-08-25 ユーザー確認）
 
 「コストを支払わずに召喚できる」（北斗七星龍ジーク・アポロドラゴン／木星神龍ノブナガード・ゼウシス／
