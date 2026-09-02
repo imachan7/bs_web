@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, braveKeepCores, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -135,6 +135,12 @@ export function validateSummon(
     if (banned) return banned
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+
+    // BS11-X02 滅神星龍ダークヴルム・ノヴァLv3：相手はブレイヴをスピリット状態にできない
+    // （＝合体先を指定しないブレイヴの召喚を止める）
+    if (card.type === "brave" && braveTargetInstanceId === undefined && cantSpiritStateBrave(state, pid)) {
+        return "相手の効果により、ブレイヴをスピリット状態にできません"
+    }
 
     // ダイレクトブレイヴの追加検証（§5.3）
     if (braveTargetInstanceId !== undefined) {
@@ -649,6 +655,8 @@ export function validateDetachBrave(
     // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
     const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (hosts.length !== 1) return "このブレイヴは分離できません"
+    // BS11-X02 Lv3：相手はブレイヴをスピリット状態にできない（分離した先がスピリット状態になる）
+    if (cantSpiritStateBrave(state, pid)) return "相手の効果により、ブレイヴをスピリット状態にできません"
     return validatePaySources(state, pid, braveKeepCores(brave), paySources)
 }
 

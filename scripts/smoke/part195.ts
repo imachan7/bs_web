@@ -167,7 +167,7 @@ console.log("=== 【不死：コスト】は、カードごとに指定された
         s2.players.p1.trashCards.push(card.cardId)
 
         for (const cost of costs) {
-            const cands = fushiCandidates(s2, "p1", cost)
+            const cands = fushiCandidates(s2, "p1", [cost])
             assert(
                 cands.length > 0,
                 `${card.name}：コスト${cost}のスピリットが破壊されたら召喚候補になる`,
@@ -176,7 +176,7 @@ console.log("=== 【不死：コスト】は、カードごとに指定された
         // 指定コストの外では候補にならない（範囲の上下どちらか、実在する値で確かめる）
         const outside = [Math.min(...costs) - 1, Math.max(...costs) + 1].filter((n) => n >= 0)
         for (const cost of outside) {
-            const cands = fushiCandidates(s2, "p1", cost)
+            const cands = fushiCandidates(s2, "p1", [cost])
             assert(
                 !cands.some((i) => s2.players.p1.trashCards[i] === card.cardId),
                 `${card.name}：コスト${cost}（指定外）の破壊では候補にならない`,

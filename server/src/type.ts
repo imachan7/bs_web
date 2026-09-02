@@ -653,6 +653,7 @@ export type GlobalConstraintDef =
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで**合体していないスピリットは1体しか回復できない**（どれを回復させるかはそのステップのプレイヤーが選ぶ。BS11-X04 宝瓶神機アクア・エリシオン）
     | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスすべては回復しない（BS11-X04 同上）
     | { type: "opponentCombinedCantRefresh" } // 発生源の持ち主から見た**相手**の合体スピリットすべては、リフレッシュステップで回復しない（片側のみ。BS11-X04【合体中】Lv3）
+    | { type: "opponentCantSpiritStateBrave" } // 発生源の持ち主から見た**相手**は、ブレイヴをスピリット状態にできない（片側のみ。BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。止めるのは3経路：メインステップの任意分離／場を離れるときの「残す」／ブレイヴ単体（合体先なし）の召喚
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
     | { type: "ownNexusIndestructible"; colors?: Color[]; sourceColors?: Color[]; sourceTypes?: CardType[] } // colors指定時は、そのいずれかの色を持つネクサスだけを守る（BS09-062ノルンの泉Lv2＝白/黄）。// 発生源の持ち主のネクサスすべては、相手の効果によって破壊されない。
     // sourceColors / sourceTypes 指定時は、**破壊しようとしている効果の発生源**をさらに絞る（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）。
@@ -1380,6 +1381,10 @@ export type EffectDef =
           levels: number[] | null
           target: "ownAll"
           cost?: number // 「このコストとしても扱う」値（固定値。道化師クラン）
+          costs?: number[] // 複数の値を同時に与える（「コスト3/4のスピリットとしても扱う」。BS11-064 闇の聖剣）
+          whenDestroyedOnly?: true // 指定時は**破壊されたときの判定にだけ**効く（CardInstance.alsoCostsWhenDestroyed に入り、【不死】の引き金コスト判定だけが読む）。
+          // 効果文が「自分のスピリットが破壊されたとき、そのスピリットをコスト3/4のスピリットとしても扱う」と場面を限っているため、
+          // 常時の alsoCostsContinuous（コスト参照の効果すべてに効く）とは別の置き場にする（2026-09-02 ユーザー確認。BS11-064 闇の聖剣Lv1）
           plus?: number // 指定時は固定値ではなく「**元のコスト+plus**としても扱う」（SD02-013 転召の祭壇Lv2＝コスト+3）。
           // 目的は【転召：コスト◯以上】の条件を満たしやすくすること（2026-08-16 ユーザー確認。docs/design/SD02_PLAN.md §1）
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
@@ -1857,6 +1862,7 @@ export interface CardInstance {
     namesAsContinuous?: string[] // 継続的な「カード名に〜が入っているものとして扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（BS02アルカナプリンス・オベロ／BS03アルカナプリンセス・アン）
     colorsAsContinuous?: Color[] // 継続的な「〜の色としても扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（百面相のフラットフェイス／妖精ティングリー）
     symbolsOverrideContinuous?: Color[] // 継続的な「シンボルを◯個に固定する」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（kind:"symbolFix"）。instanceSymbolCount / countSymbols が、カード静的なsymbolの代わりにこちらを見る（BS08海底に眠りし古代都市）
+    alsoCostsWhenDestroyed?: number[] // 「破壊されたとき、このコストとしても扱う」値（kind:"alsoCostGrant" の whenDestroyedOnly。【不死】の引き金コスト判定だけが読む。BS11-064 闇の聖剣Lv1）
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
     levelAsEffectsOnly?: true // levelAsContinuous による置き換えが**効果の発揮判定にだけ効く**目印（kind:"levelAs" の effectsOnly）。
@@ -2300,7 +2306,7 @@ export type ResumeFrame =
           kind: "destroyOne"
           pid: PlayerId // 破壊される個体の持ち主
           instanceId: string
-          destroyedCost: number // 破壊される個体のコスト（【不死】の引き金判定に使う。破壊前に読む）
+          destroyedCost: number[] // 破壊される個体のコスト（【不死】の引き金判定に使う。破壊前に読む）。「破壊されたとき、コスト3/4としても扱う」ぶんを含むので配列（BS11-064 闇の聖剣Lv1）
           order: ("destroy" | "fushi")[] // 確定した解決順
           step: number // 次に解決する order の位置
           fushiDone: number // 【不死】の候補を何枚ぶん確認し終えたか

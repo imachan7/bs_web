@@ -994,10 +994,10 @@ process.on("exit", () => {
         // 対象インスタンスへ載せておき、読む側がそれを引く（tempFamilies の教訓＝書くだけの状態を実行済みにしない）
         patch(
             em,
-            `                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+            `                        const values = effect.costs ?? (value !== undefined ? [value] : [])`,
             `                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
                             String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
-                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+                        const values = effect.costs ?? (value !== undefined ? [value] : [])`,
         )
         // levelAs: refreshLevelAsOverrides の8つの levelAsContinuous 代入点（target ごと）
         patch(

@@ -2946,7 +2946,21 @@
     "bp": 3000
    }
   ],
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-052-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 1,
+     "countCounter": "selfSymbols"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 5
   }
@@ -3603,6 +3617,20 @@
   "limited": false,
   "effect": "Lv1･Lv2\n自分のスピリットが破壊されたとき、そのスピリットをコスト3/4のスピリットとしても扱う。\nLv2\n相手のスピリットが合体したとき、その合体スピリットは疲労する。",
   "effects": [
+   {
+    "id": "BS11-064-e2",
+    "kind": "alsoCostGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "target": "ownAll",
+    "costs": [
+     3,
+     4
+    ],
+    "whenDestroyedOnly": true
+   },
    {
     "id": "BS11-064-e1",
     "kind": "fieldEvent",
@@ -4601,6 +4629,16 @@
     "action": {
      "type": "selfBuff",
      "amount": 10000
+    }
+   },
+   {
+    "id": "BS11-X02-e4",
+    "kind": "globalConstraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "opponentCantSpiritStateBrave"
     }
    }
   ]

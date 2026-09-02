@@ -1652,6 +1652,23 @@ export function hasGlobalConstraint(
     }
     return false
 }
+// pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
+// 発生源の持ち主から見た相手だけに効くので、pid 以外のフィールドの発生源を見る
+export function cantSpiritStateBrave(board: Board, pid: PlayerId): boolean {
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === pid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "opponentCantSpiritStateBrave") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
 // pid は**これから回復させるプレイヤー**。両陣営の発生源を見る:
 //   onlyOneUncombined / nexuses は両者に効き、combined は「発生源の持ち主から見た相手」だけに効く

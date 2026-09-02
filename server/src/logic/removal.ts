@@ -84,6 +84,7 @@ import {
     costCantAct,
     countAuraCounter,
     braveKeepCores,
+    cantSpiritStateBrave,
     coresCantBeRemoved,
     bravesOf,
     countSpiritsWeighted,
@@ -372,7 +373,10 @@ export function flushBraveKeeps(state: GameState): void {
         const player = state.players[entry.pid]
         const need = braveKeepCores(entry.brave)
         const name = getCard(entry.brave.cardId).name
-        if (state.interactiveTargets && payableCores(state, entry.pid) >= need) {
+        // BS11-X02 滅神星龍ダークヴルム・ノヴァLv3：この持ち主はブレイヴをスピリット状態にできない
+        // ＝「残す」を選べない（確認を出さずトラッシュへ）
+        const cantKeep = cantSpiritStateBrave(state, entry.pid)
+        if (!cantKeep && state.interactiveTargets && payableCores(state, entry.pid) >= need) {
             suspend(state, {
                 pid: entry.pid,
                 kind: "option",
@@ -389,7 +393,7 @@ export function flushBraveKeeps(state: GameState): void {
             return
         }
         state.pendingBraveKeeps!.shift()
-        if (player.reserve < need) {
+        if (cantKeep || player.reserve < need) {
             // 残せない → **合体元と同時にトラッシュへ**（§1.4）
             player.trashCards.push(entry.brave.cardId)
             log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
@@ -924,7 +928,13 @@ export function wouldRevive(
 
 // この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
 // 召喚コスト＋維持コアをリザーブから払えないものは、確認自体を出さないので除く
-export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCost: number): number[] {
+// 破壊された個体が【不死】の引き金として持つコストの一覧。
+// 本来のコストに加えて「破壊されたとき、このコストとしても扱う」ぶんを足す（BS11-064 闇の聖剣Lv1）
+function destroyedCostsOf(inst: CardInstance): number[] {
+    return [getCard(inst.cardId).cost, ...(inst.alsoCostsWhenDestroyed ?? [])]
+}
+
+export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCosts: number[]): number[] {
     // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
     if (state.phase !== "attack") return []
     const player = state.players[ownerPid]
@@ -938,7 +948,7 @@ export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedC
             (e) =>
                 e.kind === "keyword" &&
                 e.keyword === "fushi" &&
-                (e.triggerCosts ?? []).includes(destroyedCost),
+                (e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c)),
         )
         if (!hit) continue
         if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
@@ -1117,7 +1127,7 @@ export function destroySpiritsFrom(
         // 【不死】（BS09）：この破壊を引き金にトラッシュから召喚できるカードがあるか。
         // **絡まなければ従来どおり destroySpirit を直接呼ぶ**（ほぼ全てのケース）
         const target = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
-        const fushi = target ? fushiCandidates(state, t.pid, getCard(target.cardId).cost) : []
+        const fushi = target ? fushiCandidates(state, t.pid, destroyedCostsOf(target)) : []
         if (fushi.length === 0) {
             if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true })) {
                 destroyed++
@@ -1144,7 +1154,7 @@ export function destroySpiritsFrom(
                 kind: "destroyOne",
                 pid: t.pid,
                 instanceId: t.instanceId,
-                destroyedCost: getCard(target.cardId).cost,
+                destroyedCost: destroyedCostsOf(target),
                 order,
                 step: 0,
                 fushiDone: 0,

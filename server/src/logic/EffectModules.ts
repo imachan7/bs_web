@@ -1806,6 +1806,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.symbolsOverrideContinuous
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
+            delete inst.alsoCostsWhenDestroyed
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
@@ -2069,10 +2070,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         const value = effect.plus !== undefined
                             ? getCard(spirit.cardId).cost + effect.plus
                             : effect.cost
-                        if (value === undefined) continue
-                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []
-                        if (!spirit.alsoCostsContinuous.includes(value)) {
-                            spirit.alsoCostsContinuous.push(value)
+                        // costs（複数値。BS11-064 闇の聖剣＝コスト3/4）と cost/plus（単一値）を1本にまとめる
+                        const values = effect.costs ?? (value !== undefined ? [value] : [])
+                        if (values.length === 0) continue
+                        // whenDestroyedOnly：破壊されたときの判定にだけ効く（置き場を分ける）
+                        const key = effect.whenDestroyedOnly ? "alsoCostsWhenDestroyed" : "alsoCostsContinuous"
+                        for (const v of values) {
+                            if (!spirit[key]) spirit[key] = []
+                            if (!spirit[key].includes(v)) spirit[key].push(v)
                         }
                     }
                     continue
@@ -2810,7 +2815,21 @@ export function countEffectCounter(
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
-    if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    if (counter === "selfSymbols") {
+        if (!self) return 0
+        // 合体中のブレイヴが発生源のときは、**合体スピリット全体**のシンボル数を数える
+        // （合体中は1体として扱う。2026-09-02 ユーザー確認。BS11-052 魔銃ヴェスパー）。
+        // ホスト側が発生源のときは instanceSymbolCount がブレイヴぶんを含んでいるので変わらない
+        if (self.braveCombined) {
+            for (const p of ["p1", "p2"] as const) {
+                const host = state.players[p].field.spirits.find((sp) =>
+                    (sp.braveRefs ?? []).some((r) => r.instanceId === self.instanceId),
+                )
+                if (host) return instanceSymbolCount(host)
+            }
+        }
+        return instanceSymbolCount(self)
+    }
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
