@@ -39,11 +39,44 @@
   取り先の選択・自動順は `opponentCoresToVoidByTotal` と共通のヘルパーに切り出して両方から呼んでいる
   （`coreSourcesOf` / `takeOneCoreToVoid` / `autoTakeCoresToVoid` / `totalCoresOf`）。UI の追加は不要だった
 
+### 進行中：場を離れるときのブレイヴの分離を対話にする（段階5の残り。2026-09-02 設計確定）
+
+**ユーザー確定**：完全対話（BRAVE.md §6.3 どおり）。「残す／残さない」＋**コアの置き元まで**選ばせる。
+**Wiki裁定確定**：ホストがトラッシュへ行き、そのコアがリザーブに入って**から**置く（§6.3.1 に転記済み）。
+＝ 破壊された合体スピリットのコアで、そのままブレイヴを残せる。**現状は逆順のバグ**。
+
+確定スキーマ（これで実装する）:
+
+```ts
+// GameState：退避中のブレイヴ（コアを乗せずに「分けて置いてある」状態。場のどこにも属さない）
+pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean }[]
+// PendingChoice：kind:"option" / options:["残す"] / optional:true（スキップ＝残さない）
+braveKeep?: { pid: PlayerId; instanceId: string; need: number }
+// GameView（自分側だけ）：クライアントが退避中のブレイヴを描くため
+pendingBraveKeep?: { instanceId: string; cardId: string; need: number }
+```
+
+- **ResumeFrame は足さない。** 退避リストが空になるまで flush を繰り返す形にする
+- `detachBravesOnLeave` は**ホストを場から抜いてコアを移した後**へ移す（呼び出し5箇所）。
+  中では参照を切って `combinedBraves` から抜き、**非対話なら従来どおり同期で決着**
+  （リザーブから払えれば残す／でなければトラッシュ）、**対話なら `pendingBraveKeeps` へ退避するだけ**
+- `flushBraveKeeps(state)`：退避を1体ずつ。払える総量（リザーブ＋フィールドの余剰コア）が
+  `braveKeepCores` 未満ならトラッシュ、足りるなら suspend で聞く。中断したら止まる
+- flush の呼び出し点：`destroySpirit` 末尾 / `resumeDestroyCommit` 末尾 / `flushBounces` 末尾 /
+  `applyRevived({toHand})` 直後 / PhaseManager のネクサス戻し / handDeck の該当箇所。
+  **保険として `drainResumeStack` のループ後と `handleAction` の出口でも呼ぶ**（漏れても回収される）
+- 支払いは `payCost(state, pid, 0, paySources, need)`（`detachBraveVoluntary` と同じ）。
+  クライアントは「残す」を押したら既存の支払いモードへ入り、`resolveChoice` に `paySources` を載せる
+  （`PayingState` の起点に `forBraveKeep` を足す。`forDetachBraveInstanceId` の経路を流用）
+- バトル継続（§6.2 の5）は退避エントリの `wasAttacker` / `wasBlocker` で持ち回る
+
+⚠️ **既存 smoke（part238 §G）は `destroySpirit` を直呼びする非対話経路**なので、
+非対話を同期のまま保てば無変更で通る。順序修正で「残せるようになる」ケースが増える点だけ要確認。
+
 ### 次の候補（本線が空いたので、着手前に方針を確認すること）
 
 | 候補 | 中身 |
 | :-- | :-- |
-| ブレイヴの段階5・7 | **「場を離れるとき」の分離の確認（§6.3）が残り**。`PayingState` の3つ目の起点（`forDetachBraveInstanceId`）は任意分離（§6.4）で入ったので流用できる。**§2 の「破壊待機の手順3」もここ** |
 | 未決の解釈 | §2 の4件（PROCEDURES_AUDIT §5 の Q2/Q3/Q4/Q6） |
 | 範囲コア奪取の残り穴 | ネクサス上のコアとコア入れ替え系が共通ヘルパーを通っていない（[SPEC.md](./SPEC.md) §5「未着手の課題」。実害小） |
 | 次の弾の取り込み | `scripts/fetch_wiki_cards.py` で staging へ |
