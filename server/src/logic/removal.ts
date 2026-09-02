@@ -1614,11 +1614,16 @@ function hasOwnNexusIndestructible(
                     continue
                 }
             }
-            if (effect.condition) {
+            if (effect.condition?.ownVanillaSpiritsAtLeast !== undefined) {
                 const vanillaCount = player.field.spirits.filter((s) =>
                     instIsVanilla(s),
                 ).length
                 if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            }
+            // 「自分のネクサスすべてが黄の間」（BS11-069 黄金の鐘楼）。発生源自身も数に入る
+            if (effect.condition?.allOwnNexusesHaveColor !== undefined) {
+                const color = effect.condition.allOwnNexusesHaveColor
+                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
             }
             return true
         }

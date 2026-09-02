@@ -3528,7 +3528,39 @@
   "rarity": "C,U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のターン』\n自分のネクサスすべてが黄の間、自分のネクサスすべては破壊されない。\nLv2『お互いのアタックステップ』\n【聖命】を持つ自分のスピリットが破壊されたとき、ボイドからコア1個を自分のライフに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-069-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "constraint": {
+     "type": "ownNexusIndestructible"
+    },
+    "condition": {
+     "allOwnNexusesHaveColor": "yellow"
+    }
+   },
+   {
+    "id": "BS11-069-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "subjectKeywordFilter": "seimei",
+    "selfMode": "source",
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-070",

@@ -839,18 +839,12 @@ process.on("exit", () => {
             path.join(tree, "server/src/logic/removal.ts"),
             // ※ 2026-08-07 にバニラ判定が instIsVanilla(s) へ一本化された（isVanillaCard(getCard(...)) から変更）。
             //    差し込み先はエンジンの現在の形に追随させること
-            `            if (effect.condition) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            // ※ 2026-09-02: condition が「バニラ数」と「ネクサスの色」の2軸になったため、
+            //    差し込み先は **return true の直前** だけに縮めてある（条件式そのものを写さない）
+            `                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
             }
             return true`,
-            `            if (effect.condition) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            `                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true`,

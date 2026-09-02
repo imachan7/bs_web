@@ -3,7 +3,7 @@
 // docs/design/BS11_PLAN.md §2.3 A のうち、この回で足したもの:
 //   - destroy.drawPerDestroyed：**実際に破壊できた**1体につき1枚ドローする（BS11-006 獅龍皇子レオグルス）
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, destroyNexus, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, destroyNexus, destroySpirit, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -178,6 +178,57 @@ console.log("=== §G 発見されし世界樹：『自分の緑のネクサス�
     destroyNexus(r.s, "p1", r.victim.instanceId)
     assert(!r.s.players.p1.field.nexuses.some((n) => n.cardId === r.victim.cardId), "緑以外は戻らない")
     assert(r.src.cores === 3, "払われていない")
+}
+
+console.log("=== §H 黄金の鐘楼：自分のネクサスがすべて黄の間だけ、ネクサスが破壊されない ===")
+{
+    const bell = byName("黄金の鐘楼")
+    const nexusOf = (color: string) => {
+        const c = ALL_CARDS.find((x) => x.type === "nexus" && x.colors.length === 1 && x.colors[0] === color && x.cardId !== bell.cardId)
+        assert(c !== undefined, `テスト前提: ${color}の単色ネクサスがいる`)
+        return c!.cardId
+    }
+    assert(bell.colors.length === 1 && bell.colors[0] === "yellow", "テスト前提: 黄金の鐘楼は黄の単色")
+    const setup = (otherColor: string) => {
+        const s = game()
+        s.turnPlayer = "p2" // 『相手のターン』限定なので、相手のターンにする
+        const src = createInstance(bell.cardId, s.turn, 2) // Lv1
+        s.players.p1.field.nexuses.push(src)
+        const other = createInstance(nexusOf(otherColor), s.turn, 1)
+        s.players.p1.field.nexuses.push(other)
+        return { s, other }
+    }
+    // すべて黄 → 守られる
+    const y = setup("yellow")
+    destroyNexus(y.s, "p1", y.other.instanceId, { sourcePid: "p2", sourceType: "spirit" })
+    assert(y.s.players.p1.field.nexuses.length === 2, "自分のネクサスがすべて黄なら破壊されない")
+    // 黄以外が混ざる → 守られない
+    const b = setup("blue")
+    destroyNexus(b.s, "p1", b.other.instanceId, { sourcePid: "p2", sourceType: "spirit" })
+    assert(b.s.players.p1.field.nexuses.length === 1, "黄以外が混ざっていれば破壊される")
+}
+
+console.log("=== §I 黄金の鐘楼Lv2：【聖命】を持つ自分のスピリットが破壊されたときだけライフに置く ===")
+{
+    const bell = byName("黄金の鐘楼")
+    const seimei = ALL_CARDS.find((c) => c.type === "spirit" && c.effects.some((e) => e.kind === "keyword" && e.keyword === "seimei"))
+    const plain = ALL_CARDS.find((c) => c.type === "spirit" && c.effects.length === 0)
+    assert(seimei !== undefined && plain !== undefined, "テスト前提: 【聖命】持ちとバニラがいる")
+    const setup = (cardId: string) => {
+        const s = game()
+        s.phase = "attack"
+        const src = createInstance(bell.cardId, s.turn, 6) // Lv2
+        s.players.p1.field.nexuses.push(src)
+        const victim = put(s, "p1", cardId, 3)
+        s.players.p1.life = 3
+        return { s, victim }
+    }
+    const a = setup(seimei!.cardId)
+    destroySpirit(a.s, "p1", a.victim.instanceId, "destroy")
+    assert(a.s.players.p1.life === 4, "【聖命】持ちが破壊されたらライフにコアが置かれる")
+    const b = setup(plain!.cardId)
+    destroySpirit(b.s, "p1", b.victim.instanceId, "destroy")
+    assert(b.s.players.p1.life === 3, "【聖命】を持たないスピリットでは発火しない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part271）")

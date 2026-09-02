@@ -963,6 +963,15 @@ export function fireFieldEventTriggers(
                 const subjectIsVanilla = eventInfo?.vanilla ?? (selfOverride !== undefined && instIsVanilla(selfOverride.inst))
                 if (!subjectIsVanilla) continue
             }
+            // subjectKeywordFilter（BS11-069 黄金の鐘楼Lv2＝【聖命】持ち）：主体の実体で判定する。
+            // 破壊のイベントでも、この時点では破壊待機状態でまだ場にいるのでキーワードを読める
+            if (effect.subjectKeywordFilter !== undefined) {
+                if (selfOverride === undefined) continue
+                const needs = Array.isArray(effect.subjectKeywordFilter)
+                    ? effect.subjectKeywordFilter
+                    : [effect.subjectKeywordFilter]
+                if (!needs.some((kw) => spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, kw))) continue
+            }
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
