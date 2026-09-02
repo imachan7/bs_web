@@ -242,6 +242,23 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
     log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
 }
 
+// 相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
+// 「場を離れるとき」と同じ手順（§6.3）に乗せ、持ち主に「残すか・どのコアを置くか」を聞く。
+// ⚠️ 自分の効果による分離（detachBraveByEffect。コア不要）とは別の手順。
+// ホストはそのまま場に残るので、バトル中でもブレイヴがバトルを引き継ぐことはない
+export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    brave.isRested = host.isRested // 分離時に疲労状態を引き継ぐ（§12.5）
+    state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker: false, wasBlocker: false }]
+    log(state, `${player.name}の${getCard(host.cardId).name}は分離させられた。`)
+    refreshLevelAsOverrides(state)
+    flushBraveKeeps(state)
+}
+
 // 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
 // **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
 // 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。

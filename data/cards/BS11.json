@@ -761,6 +761,74 @@
   ]
  },
  {
+  "cardId": "BS11-015",
+  "name": "冥王神獣インフェルド・ハデス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "神星",
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【不死：コスト4/5】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、自分のコスト4/5のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n相手の合体スピリット1体を分離させる。\nただし、分離するときのコアの移動は相手が行う。",
+  "effects": [
+   {
+    "id": "BS11-015-e1",
+    "kind": "keyword",
+    "keyword": "fushi",
+    "levels": null,
+    "triggerCosts": [
+     4,
+     5
+    ]
+   },
+   {
+    "id": "BS11-015-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "detachOpponentBrave"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
   "cardId": "BS11-016",
   "name": "邪眼皇ゼナス",
   "type": "spirit",
@@ -1825,7 +1893,23 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nこのスピリットが相手のスピリットの効果で破壊されたとき、シンボル2つ以上を持つ相手の合体スピリットすべてを分離させる。\nただし、分離するときのコアの移動は相手が行う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-034-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "byOpponentSpiritEffectOnly": true,
+    "action": {
+     "type": "detachOpponentBrave",
+     "allHosts": true,
+     "minSymbols": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-035",

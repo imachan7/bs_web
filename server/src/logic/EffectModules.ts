@@ -3238,6 +3238,7 @@ export {
 export {
     attachBrave,
     detachBraveByEffect,
+    detachBraveByOwnerChoice,
     destroyCombinedBrave,
     detachBraveVoluntary,
     detachBravesOnLeave,

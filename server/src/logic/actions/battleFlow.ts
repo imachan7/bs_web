@@ -9,6 +9,7 @@ import {
     countEffectCounter,
     destroyCombinedBrave,
     detachBraveByEffect,
+    detachBraveByOwnerChoice,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -18,6 +19,7 @@ import {
     fireSummonSequence,
     fireSummonTrigger,
     fireTrigger,
+    instanceSymbolCount,
     fireNexusDeployed,
     pickEnemyCandidates,
     refreshSpirit,
@@ -1255,6 +1257,49 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
     destroyCombinedBrave(state, opp, host, brave, destroyContext)
 }
 
+// 相手の合体スピリットを**分離させる**（BRAVE.md §12.5.1。BS11-015／BS11-034）。
+// 分離そのものは効果の使用者が起こすが、**コアの移動はブレイヴの持ち主が行う**ので
+// 「場を離れるとき」と同じ pendingBraveKeeps に乗せる（持ち主に残すかどうかを聞く）
+const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const oppPlayer = state.players[opp]
+    const hosts = oppPlayer.field.spirits.filter(
+        (sp) =>
+            bravesOf(oppPlayer, sp).length > 0 &&
+            (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols),
+    )
+    if (hosts.length === 0) {
+        log(state, `${sourceName}：分離させられる相手の合体スピリットがいなかった。`)
+        return
+    }
+    if (action.allHosts) {
+        for (const host of [...hosts]) {
+            for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
+            if (state.pendingChoice || state.winner) return
+        }
+        return
+    }
+    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：分離させる相手の合体スピリットを選んでください`,
+            hosts.map((h) => h.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const host = chosen ?? hosts[0]
+    if (!host) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
+}
+
 // 効果によるブレイヴの分離（BRAVE.md §12.5・§12.7）。分離元ホストの決定：
 // ctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086巨星望む大樹Lv2＝
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
@@ -1520,6 +1565,7 @@ const handlers = {
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
     detachBrave: detachBraveHandler,
+    detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,
