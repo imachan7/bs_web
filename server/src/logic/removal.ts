@@ -1710,6 +1710,10 @@ function hasOwnNexusIndestructible(
                 const color = effect.condition.allOwnNexusesHaveColor
                 if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
             }
+            // 「自分のフィールドにネクサスが1つだけある間」（BS11-027 海戦機ニヨルドLv2）
+            if (effect.condition?.ownNexusCountExactly !== undefined) {
+                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
+            }
             return true
         }
     }

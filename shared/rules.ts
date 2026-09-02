@@ -246,7 +246,7 @@ export function instCostDelta(inst: CardInstance): number {
     // 合体しているブレイヴのコストが加算される（BRAVE.md §1.1・§3.1）。
     // instBaseCost が唯一のコスト算出口なので、ここに1項足せば
     // 「コスト◯以下を破壊」「同じコストの相手を疲労」などコストを見る判定すべてに一度で効く
-    return (inst.tempCostDelta ?? 0) + (inst.braveComposite?.cost ?? 0)
+    return (inst.tempCostDelta ?? 0) + (inst.costDeltaContinuous ?? 0) + (inst.braveComposite?.cost ?? 0)
 }
 
 // このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
@@ -1490,6 +1490,14 @@ export function activeConstraintsWithSource(
         )
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
         // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
+        // 「自分のフィールドにネクサスが1つだけある間」（BS11-027 海戦機ニヨルド）。
+        // 条件を満たさなければ制約自体を外す
+        .filter((c) => {
+            const whileCount =
+                (c.type === "cantAttack" || c.type === "immuneToOpponentEffects") ? c.whileOwnNexusCount : undefined
+            if (whileCount === undefined) return true
+            return board.players[pid].field.nexuses.length === whileCount
+        })
         .filter((c) => {
             if (c.type !== "cantAttack" || c.unlessOpponentHasColorSpirit === undefined) return true
             const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"

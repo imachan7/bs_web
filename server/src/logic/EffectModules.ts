@@ -1807,6 +1807,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
+            delete inst.costDeltaContinuous
             delete inst.alsoCostsWhenDestroyed
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
@@ -2010,6 +2011,19 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         for (const c of effect.colors) {
                             if (!target.colorsAsContinuous.includes(c)) target.colorsAsContinuous.push(c)
                         }
+                    }
+                    continue
+                }
+                if (effect.kind === "costDelta") {
+                    // 継続的な「コスト+N」（BS11-017 ムシャツバメLv2-3）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
+                    for (const spirit of effect.target === "self" ? [source] : player.field.spirits) {
+                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount
                     }
                     continue
                 }

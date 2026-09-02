@@ -841,10 +841,10 @@ process.on("exit", () => {
             //    差し込み先はエンジンの現在の形に追随させること
             // ※ 2026-09-02: condition が「バニラ数」と「ネクサスの色」の2軸になったため、
             //    差し込み先は **return true の直前** だけに縮めてある（条件式そのものを写さない）
-            `                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
+            `                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             return true`,
-            `                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
+            `                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true`,

@@ -440,6 +440,27 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS11-008-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "bothFieldsHaveMinBpSpirit": 10000
+    },
+    "action": {
+     "type": "destroyAll",
+     "anySide": true,
+     "filter": {
+      "minBp": 10000
+     }
+    }
    }
   ]
  },
@@ -944,6 +965,20 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS11-017-e2",
+    "kind": "costDelta",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "self",
+    "amount": 3,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
    }
   ]
  },
@@ -1514,7 +1549,45 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のフィールドにネクサスが1つだけある間、このスピリットは、アタックできず、相手のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2\n自分のフィールドにネクサスが1つだけある間、そのネクサスは破壊されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-027-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack",
+     "whileOwnNexusCount": 1
+    }
+   },
+   {
+    "id": "BS11-027-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "immuneToOpponentEffects",
+     "whileOwnNexusCount": 1
+    }
+   },
+   {
+    "id": "BS11-027-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "ownNexusIndestructible"
+    },
+    "condition": {
+     "ownNexusCountExactly": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-028",

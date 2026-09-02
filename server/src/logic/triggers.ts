@@ -382,6 +382,12 @@ export function fireTrigger(
                 // BS08ボクルガー：発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火。
                 // サーバー内部のstate.players[opp].handは常に実配列（隠匿マスクはviewFor変換時のみ）
                 if (state.players[opponentOf(owner)].hand.length < effect.condition.opponentHandAtLeast) return false
+            } else if ("bothFieldsHaveMinBpSpirit" in effect.condition) {
+                // BS11-008 爆竜ドラゴニックベアード：お互いのフィールドにBP10000以上のスピリットがいるとき
+                const min = effect.condition.bothFieldsHaveMinBpSpirit
+                const has = (p: PlayerId) =>
+                    state.players[p].field.spirits.some((sp) => effectiveBp(state, p, sp) >= min)
+                if (!has("p1") || !has("p2")) return false
             } else if ("battleOpponentCombined" in effect.condition) {
                 // BS11-X02 滅神星龍ダークヴルム・ノヴァLv2-3：いま成立しているバトルの相手側が
                 // 合体スピリットのときのみ発火。self がアタッカーかブロッカーかで相手側を選ぶ

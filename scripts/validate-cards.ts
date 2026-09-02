@@ -37,7 +37,7 @@ const VALID_TRIGGERS = new Set([
 const VALID_KINDS = new Set([
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
-    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
+    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",

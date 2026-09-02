@@ -620,10 +620,10 @@ export type ConstraintDef =
     | { type: "protectOwnLifeByBpUpToSelf" } // ブロックされなかったアタッカーの実効BPが**この発生源自身の実効BP以下**のとき、そのアタックでは発生源の持ち主のライフは減らされない（片側のみ。ライフダメージ直前に activeConstraints から発生源ごとのBPを引き直して比較する。BS08空帝竜騎プラチナム）
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
     | { type: "immuneToOpponentSummonEffects" } // このスピリットは、相手のスピリットの『このスピリットの召喚時』効果を受けない（isEffectBlockedがGameState.resolvingSummonTriggerPidを見て判定する。BS05リトルナイト・ランスロットLv3）
-    | { type: "immuneToOpponentEffects"; against?: "spirit" | "brave" } // このスピリットは、相手のスピリット/マジックの効果を受けない（untargetableByOpponentと異なり範囲効果にも有効。ネクサスの効果・自分の効果は通る。BS04ワルキューレ・ヒルド）。against:"spirit"指定時は相手の**スピリットの**効果のみ（マジックは通る。BS10-091シャボンの湖畔Lv2＝「相手のスピリットの効果を受けない」）。against:"brave"指定時は相手の**ブレイヴの**効果のみ（BS11-055 ジャノメ・シールダーの【合体時】＝「相手のブレイヴの効果を受けない」。合体中のブレイヴが発生源のとき srcType は "brave" になる）
+    | { type: "immuneToOpponentEffects"; against?: "spirit" | "brave"; whileOwnNexusCount?: number } // このスピリットは、相手のスピリット/マジックの効果を受けない（untargetableByOpponentと異なり範囲効果にも有効。ネクサスの効果・自分の効果は通る。BS04ワルキューレ・ヒルド）。against:"spirit"指定時は相手の**スピリットの**効果のみ（マジックは通る。BS10-091シャボンの湖畔Lv2＝「相手のスピリットの効果を受けない」）。whileOwnNexusCount指定時は「持ち主のフィールドのネクサス数がちょうどこの数の間」だけ有効（BS11-027 海戦機ニヨルド）。against:"brave"指定時は相手の**ブレイヴの**効果のみ（BS11-055 ジャノメ・シールダーの【合体時】＝「相手のブレイヴの効果を受けない」。合体中のブレイヴが発生源のとき srcType は "brave" になる）
     | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" | "any"; targetMinBp?: number; targetMinCost?: number; targetCombinedOnly?: true } // targetCombinedOnly指定時は相手の**合体スピリット**しか指定できない（instIsCombinedで判定。BS11-X02 滅神星龍ダークヴルム・ノヴァ）。// targetMinCost指定時は相手スピリットのコストがこれ以上のもののみ指定できる（instMatchesCostFilterで判定＝道化師クランの付与コストも見る。BS05天焦がす大聖火Lv2：コスト5以上） // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ、any=状態条件なし。イリュージョナ／牛霊スモゥグ／オルカリア）。targetMinBp指定時は相手スピリットの実効BPがこれ以上のものだけ指定できる（BS05シンクロニシティ：BP4000以上。BP条件だけで絞りたい場合はtargetFilter:"any"と組み合わせる）
     | { type: "cantCombine" } // このスピリットにはブレイヴを合体できない（BS11-X02 滅神星龍ダークヴルム・ノヴァ＝「このスピリットは合体できない」）。判定は shared/summon.ts の braveCombineCandidates（合体先の候補から外す）
-    | { type: "cantAttack"; unlessOpponentHasColorSpirit?: Color } // このスピリットはアタックできない（カイザレオン大帝Lv1）。unlessOpponentHasColorSpirit 指定時は「持ち主から見た相手のフィールドに指定色のスピリットがいない間」だけ有効（activeConstraints が判定して外す。BS04鎧装獣ヘイズ・ルーン＝赤）
+    | { type: "cantAttack"; unlessOpponentHasColorSpirit?: Color; whileOwnNexusCount?: number } // このスピリットはアタックできない（カイザレオン大帝Lv1）。whileOwnNexusCount指定時は「持ち主のフィールドのネクサス数がちょうどこの数の間」だけ有効（BS11-027 海戦機ニヨルド＝ネクサスが1つだけある間）。unlessOpponentHasColorSpirit 指定時は「持ち主から見た相手のフィールドに指定色のスピリットがいない間」だけ有効（activeConstraints が判定して外す。BS04鎧装獣ヘイズ・ルーン＝赤）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
     | { type: "noRestWhenBlockingCost"; maxCost?: number; sameCost?: true } // このスピリットが、コストmaxCost以下（sameCost指定時は自身と同じコスト）の相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor の兄弟。BS07シルバー・ゴレム／造兵工房）
@@ -767,6 +767,7 @@ export type EffectDef =
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 発生源の持ち主のフィールドに、カード名にいずれかの文字列を含むスピリットが合計count体以上いるときのみ発火（cardNameContainsで判定。step.conditionの同名軸と同じ形。BS07マカロニペンタン＝[皇帝アンプルール]/[女帝ペンプレス]）
               | { battleLoserMaxCost: number } // onBattleWin 専用：直前のバトルで破壊した相手のコストがこれ以下のときのみ発火（GameState.lastBattleDestroyedCost。resolveBattle が onBattleWin の発火前に記録する。BS07天刃の勇者ヴォルザLv2＝コスト3以下だけを破壊したとき）
               | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火（サーバー内部のstate.players[opp].hand.lengthで判定。BS08ボクルガー：相手の手札6枚以上）
+              | { bothFieldsHaveMinBpSpirit: number } // **両陣営のフィールド**に、実効BPがこの値以上のスピリットがそれぞれ1体以上いるときのみ発火（BS11-008 爆竜ドラゴニックベアード＝お互いのフィールドにBP10000以上のスピリットがいるとき）
               | { battleOpponentCombined: true } // いま成立しているバトル（state.battle）の**相手側の個体**が合体スピリット（instIsCombined）のときのみ発火（onBattleStart用。アタック宣言時＝指定アタックでブロッカーが決まっている場合と、ブロック宣言時の両方で同じ判定になる。BS11-X02 滅神星龍ダークヴルム・ノヴァLv2-3＝「相手の合体スピリットとバトルしたとき」）
               | { requirePrevAttackerCombined: true } // 直前のアタック宣言が、発生源の持ち主自身の合体スピリットによるものだったときのみ発火（state.prevAttackerCombinedPid === owner で判定。ターン開始でリセット。BS10-047赤ずきん妖精ルージュLv3＝「自分の合体スピリットの次にアタックしたとき」）
       }
@@ -1155,7 +1156,7 @@ export type EffectDef =
           whileCombined?: true // 【合体時】＝このカードが合体しているときだけ発揮する（docs/design/BRAVE.md §12.3）。
           // BS10-074 きぐるみクマッターの「疲労状態のネクサスすべての効果は発揮されない」が使う
           constraint: GlobalConstraintDef // フィールド発生源から全スピリット／全ネクサスに効く制約（発生源の持ち主を問わない。ただしownNexusIndestructibleは発生源の持ち主自身のみに効く）
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color } // constraint: "ownNexusIndestructible" 用の発揮条件。ownVanillaSpiritsAtLeast＝発生源の持ち主のバニラスピリット数がこれ以上（サファイアの城壁）。allOwnNexusesHaveColor＝**持ち主のネクサスすべてが**その色を持つとき（BS11-069 黄金の鐘楼＝「自分のネクサスすべてが黄の間」。発生源自身も数に入る）
+          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; ownNexusCountExactly?: number } // ownNexusCountExactly＝発生源の持ち主のフィールドのネクサス数がちょうどこの数のときだけ有効（BS11-027 海戦機ニヨルドLv2＝ネクサスが1つだけある間、そのネクサスは破壊されない） // constraint: "ownNexusIndestructible" 用の発揮条件。ownVanillaSpiritsAtLeast＝発生源の持ち主のバニラスピリット数がこれ以上（サファイアの城壁）。allOwnNexusesHaveColor＝**持ち主のネクサスすべてが**その色を持つとき（BS11-069 黄金の鐘楼＝「自分のネクサスすべてが黄の間」。発生源自身も数に入る）
           phase?: Phase // constraint: "battlingCoresProtected" 用：指定時はこのステップ中のみ有効
           turn?: "own" | "opponent" | "both" // constraint: "battlingCoresProtected" 用：own=発生源の持ち主がturnPlayerのとき（『自分のアタックステップ』。BS05茨の決戦地）
       }
@@ -1432,6 +1433,18 @@ export type EffectDef =
           combinedFilter?: true // 指定時は合体スピリット（instIsCombinedがtrue）のみ対象（BS10-079そびえる机山群Lv2：合体スピリットすべてはバウンスされない）
           against: "magic" | "bounce" // magic=相手のマジックの効果を受けない（ポークン等）／bounce=相手の効果によるバウンス（returnToHand/returnAllToHand）を受けない。自分自身の効果によるバウンスは対象外（BS06恐竜姫ジュラ）
           condition?: { ownCostCountAtLeast: { cost: number; count: number } } // 発生源の持ち主のフィールドに指定コストのスピリットがcount体以上のときのみ有効（BS05リトルナイト・ランスロット：コスト2が3体以上）
+      }
+    | {
+          id: string
+          kind: "costDelta" // 発生源が場にありレベル有効の間、対象スピリットのコストを amount だけ増減する（継続）。
+          // EffectModules.refreshLevelAsOverrides が CardInstance.costDeltaContinuous へ毎回再計算し、
+          // shared/rules.instCostDelta が読む（コストを見る判定すべてに一度で効く）。
+          // ⚠️ **増減は置き換えであって追加ではない**（tempCostDelta と同じ。「コスト+3」したスピリットは
+          // 「コスト3以下を破壊」にもう当たらない）。BS11-017 ムシャツバメLv2-3＝『自分のアタックステップ』このスピリットをコスト+3
+          levels: number[] | null
+          target: "self" | "ownAll"
+          amount: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時はこのステップかつturn条件のときのみ有効
       }
     | {
           id: string
@@ -1841,6 +1854,7 @@ export interface CardInstance {
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
+    costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
     tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
