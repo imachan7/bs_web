@@ -1691,6 +1691,43 @@ const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMag
 
 // BS09-084ドラゴニックハウル：自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の
 // 相手のスピリットすべてを破壊する。デッキが0枚なら破棄できないので不発
+// 相手のデッキを上から1枚破棄し、**破棄したカード**に応じて続けて解決する
+// （BS11-045 MCギンガー／BS11-071 柱岩の海上都市Lv2／BS11-060 雷神砲カノン・アームズ）
+const millOpponentThenReactHandler: ActionHandler<"millOpponentThenReact"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
+    const top = state.players[opp].deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：相手のデッキが0枚のため発動しなかった。`)
+        return
+    }
+    if (millDeck(state, opp, 1, owner, srcType ? { sourceType: srcType } : undefined) === 0) {
+        log(state, `${sourceName}：デッキを破棄できなかった。`)
+        return
+    }
+    const milled = getCard(top)
+    log(state, `${sourceName}：破棄したのは${milled.name}。`)
+    if (action.react === "destroyOneSameCost") {
+        ctx.resolve(
+            { type: "destroy", count: 1, filter: { cost: { min: milled.cost, max: milled.cost } } },
+            { sourceColors: srcColors, sourceType: srcType },
+        )
+        return
+    }
+    if (action.react === "exhaustOneIfMaxCost") {
+        if (action.maxCost === undefined || milled.cost > action.maxCost) {
+            log(state, `${sourceName}：破棄したカードのコストが条件に合わなかった。`)
+            return
+        }
+        ctx.resolve({ type: "exhaust", count: 1 }, { sourceColors: srcColors, sourceType: srcType })
+        return
+    }
+    // banHandColorThisBattle：このバトルの間、相手は破棄したカードと同じ色の手札を使えない
+    const color = milled.colors[0]
+    if (!state.battle || color === undefined) return
+    state.battle.handColorBannedFor = { pid: opp, color }
+    log(state, `${sourceName}：このバトルの間、${state.players[opp].name}は${COLOR_LABELS[color]}の手札のカードを使えない。`)
+}
+
 const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
     const { state, owner, sourceName, srcColors, srcType } = ctx
     const player = state.players[owner]
@@ -2688,6 +2725,7 @@ const handlers = {
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     drawPerHandDiscard: drawPerHandDiscardHandler,
+    millOpponentThenReact: millOpponentThenReactHandler,
     millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,

@@ -2540,6 +2540,20 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS11-045-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "millOpponentThenReact",
+     "react": "destroyOneSameCost"
+    }
    }
   ]
  },
@@ -3442,7 +3456,20 @@
     "bp": 5000
    }
   ],
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-060-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "millOpponentThenReact",
+     "react": "banHandColorThisBattle"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 5
   }
@@ -4135,6 +4162,22 @@
     "action": {
      "type": "mill",
      "count": 2
+    }
+   },
+   {
+    "id": "BS11-071-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "subjectSide": "own",
+    "action": {
+     "type": "millOpponentThenReact",
+     "react": "exhaustOneIfMaxCost",
+     "maxCost": 3
     }
    }
   ]

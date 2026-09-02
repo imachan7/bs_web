@@ -102,6 +102,11 @@ function paySourcesTotal(paySources: PaySource[] | undefined): number {
 // このターンの間、この pid は手札のカードを使えないか（BS11-082 ウィッグバインド）。
 // 使えないなら理由の文字列、使えるなら null。**召喚・配置・マジック使用のすべてが通る入口**で見る
 function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string | null {
+    // このバトルの間だけの色制限（BS11-060 雷神砲カノン・アームズ）
+    const battleBan = state.battle?.handColorBannedFor
+    if (battleBan && battleBan.pid === pid && getCard(cardId).colors.includes(battleBan.color)) {
+        return "効果により、このバトルの間はこの色のカードを使えません"
+    }
     for (const c of state.turnConstraints) {
         if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
         const colors = getCard(cardId).colors
