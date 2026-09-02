@@ -582,13 +582,20 @@ const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx,
         state.turnConstraints.push({
             type: "cantActByCost",
             ...(action.maxCost !== undefined ? { maxCost: action.maxCost } : {}),
+            ...(action.costs !== undefined ? { costs: action.costs } : {}),
+            ...(action.blockOnly ? { blockOnly: true as const } : {}),
             ...(action.side === "opponent" ? { pid: opp } : {}),
             ...(action.nonVanillaOnly ? { nonVanillaOnly: true as const } : {}),
         })
         const who = action.side === "opponent" ? `${state.players[opp].name}の` : ""
         const what = action.nonVanillaOnly ? "効果の記述を持つスピリット" : "スピリット"
-        const cost = action.maxCost !== undefined ? `コスト${action.maxCost}以下の` : ""
-        log(state, `${sourceName}：このターンの間、${cost}${who}${what}はアタックとブロックができない。`)
+        const cost = action.costs !== undefined
+            ? `コスト${action.costs.join("/")}の`
+            : action.maxCost !== undefined
+              ? `コスト${action.maxCost}以下の`
+              : ""
+        const verb = action.blockOnly ? "ブロックができない" : "アタックとブロックができない"
+        log(state, `${sourceName}：このターンの間、${cost}${who}${what}は${verb}。`)
         return
 }
 
@@ -611,10 +618,12 @@ const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx,
 // このターンの間、持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。
 // 「【装甲】をないものとして扱い、**新たに得ることもない**」＝ すでに持っている分も、
 // このターンに付与された分もまとめて落とす。判定の入口（boardResistanceAgainst）で一括して無視する
-const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "armorDisabledForPid", pid: owner })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの【装甲】は働かない。`)
+const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    // side:"opponent"（BS11-049 ジャンビ・オレピス）＝相手のスピリットの【装甲】を落とす
+    const pid = action.side === "opponent" ? opp : owner
+    state.turnConstraints.push({ type: "armorDisabledForPid", pid })
+    log(state, `${sourceName}：このターンの間、${state.players[pid].name}のスピリットの【装甲】は働かない。`)
 }
 
 // このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。

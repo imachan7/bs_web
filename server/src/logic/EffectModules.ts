@@ -2144,6 +2144,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 都度全消去→再構築（このファイル冒頭のコメント参照）なので、解決より後に召喚された
                     // スピリットにもこのターン中ずっと自然に効く（levelAs は個体への印ではなく走査のたびに再適用されるため）
                     for (const spirit of player.field.spirits) {
+                        // costMinFilter（BS11-047 海王神獣トライ・ポセイドス＝コスト7以上）
+                        if (
+                            effect.costMinFilter !== undefined &&
+                            !instAllCosts(spirit).some((c) => c >= effect.costMinFilter!)
+                        ) {
+                            continue
+                        }
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {

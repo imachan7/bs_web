@@ -1040,12 +1040,10 @@ process.on("exit", () => {
         )
         patch(
             em,
-            `                    for (const spirit of player.field.spirits) {
-                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+            `                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,
-            `                    for (const spirit of player.field.spirits) {
-                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,

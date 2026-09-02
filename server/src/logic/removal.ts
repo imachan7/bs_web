@@ -1356,7 +1356,18 @@ function tryReviveOnDestroy(
         return true
     }
 
-    const applyCost = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>): boolean => {
+    const applyCost = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        source?: CardInstance,
+    ): boolean => {
+        // 発生源自身のコアを払う（BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
+        if (effect.cost?.sourceCoresToTrash !== undefined) {
+            const need = effect.cost.sourceCoresToTrash
+            if (!source || source.cores < need) return false
+            source.cores -= need
+            player.trashCores += need
+            return true
+        }
         if (effect.cost?.keepOneCoreRestToTrash) {
             const excess = inst.cores - 1
             if (excess > 0) {
@@ -1553,7 +1564,7 @@ function tryReviveOnDestroy(
         // 任意でない復活（＝確認を出さずに確定する）。"any" は復活しうるので true、
         // "confirm" は確認が出ないので次のエントリを見に行く
         if (probe) return probe === "any"
-        if (!applyCost(effect)) return false
+        if (!applyCost(effect, inst)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
@@ -1615,7 +1626,7 @@ function tryReviveOnDestroy(
             // 任意でない復活。"any" は復活しうるので true、"confirm" は次の発生源を見に行く
             if (probe === "any") return true
             if (probe) continue
-            if (!applyCost(effect)) continue
+            if (!applyCost(effect, source)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる

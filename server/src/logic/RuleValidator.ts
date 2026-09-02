@@ -735,8 +735,12 @@ export function validateActivateAbility(
     instanceId: string,
     effectId: string,
 ): string | null {
-    const inst = findSpirit(state.players[pid], instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスの起動能力もある（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）ので、
+    // スピリットで見つからなければネクサスも探す
+    const inst =
+        findSpirit(state.players[pid], instanceId) ??
+        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     const level = currentLevel(inst).level
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
@@ -791,6 +795,9 @@ export function validateActivateAbility(
     if (effect.cost !== undefined) {
         if ("exhaustSelf" in effect.cost) {
             if (inst.isRested) return "すでに疲労しています"
+        } else if ("selfCoresToTrash" in effect.cost) {
+            // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
+            if (inst.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -881,7 +888,7 @@ export function validateBlock(
         return "コストが低いためブロックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
-    if (cantActByCost(state, inst)) {
+    if (cantActByCost(state, inst, "block")) {
         return "このターンの間、このスピリットはブロックできません"
     }
 

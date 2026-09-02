@@ -2049,12 +2049,15 @@ function hasImmunityAgainst(
 }
 
 // このターン限りの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか（ヘビィゲート）
-export function cantActByCost(board: Board, inst: CardInstance): boolean {
+export function cantActByCost(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
     // 道化師クランの tempAlsoCosts（一時付与）／alsoCostsContinuous（継続付与）も判定対象に含める：
     // 実コスト・付与コストのいずれかがmaxCost以下なら対象
     // （2026-08-02修正：以前はalsoCostsContinuousを見ておらず、クラン常設中でも判定に反映されないバグがあった）
     return board.turnConstraints.some((c) =>
         c.type === "cantActByCost" &&
+            // blockOnly（BS11-057 バタホルン）：ブロックだけを止める
+            (c.blockOnly !== true || act === "block") &&
+            (c.costs === undefined || instAllCosts(inst).some((cost) => c.costs!.includes(cost))) &&
             (c.maxCost === undefined || instAllCosts(inst).some((cost) => cost <= (c.maxCost ?? 0))) &&
             (c.pid === undefined ||
                 board.players[c.pid].field.spirits.some((sp) => sp.instanceId === inst.instanceId)) &&
@@ -2192,6 +2195,11 @@ export function activatableAbility(
         if ("exhaustSelf" in e.cost) {
             if (inst.isRested) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
+        }
+        if ("selfCoresToTrash" in e.cost) {
+            // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
+            if (inst.cores < e.cost.selfCoresToTrash) continue
+            return { effectId: e.id, costLabel: `このカードの上のコア${e.cost.selfCoresToTrash}個を払って効果を発動` }
         }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }

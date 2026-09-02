@@ -2655,6 +2655,16 @@
       "turn": "own"
      }
     }
+   },
+   {
+    "id": "BS11-047-e2",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "ownSpiritsAll",
+    "treatAs": "max",
+    "costMinFilter": 7,
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },
@@ -2773,6 +2783,19 @@
     "keyword": "awaken",
     "levels": null,
     "whileCombined": true
+   },
+   {
+    "id": "BS11-049-e3",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "disableOwnArmorThisTurn",
+     "side": "opponent"
+    }
    }
   ],
   "braveCondition": {
@@ -3221,6 +3244,25 @@
     "keyword": "kobo",
     "levels": null,
     "whileCombined": true
+   },
+   {
+    "id": "BS11-057-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "banActByCostThisTurn",
+     "costs": [
+      4,
+      6,
+      8
+     ],
+     "blockOnly": true,
+     "side": "opponent"
+    }
    }
   ],
   "braveCondition": {
@@ -3725,6 +3767,22 @@
      "type": "reviveLastDestroyedNexus",
      "coreCost": 1
     }
+   },
+   {
+    "id": "BS11-066-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "optional": true,
+    "when": {},
+    "revived": {
+     "rested": true
+    },
+    "cost": {
+     "sourceCoresToTrash": 3
+    }
    }
   ]
  },
@@ -3774,6 +3832,20 @@
      "type": "forceAttackThisTurn",
      "side": "opponent",
      "count": 1
+    }
+   },
+   {
+    "id": "BS11-067-e2",
+    "kind": "activated",
+    "timing": "flashBattle",
+    "levels": [
+     2
+    ],
+    "cost": {
+     "selfCoresToTrash": 3
+    },
+    "action": {
+     "type": "endBattle"
     }
    }
   ]

@@ -239,7 +239,7 @@ export type EffectAction =
     | { type: "magicMirrorRepeat" } // このフラッシュタイミングで相手が直前に使用したマジックカードの効果を、自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCastを参照し、相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止。BS08マジックミラー）
     | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
     | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number; vanillaFilter?: true } // 自分のスピリット全員（costFilter指定時はコスト一致のみ、vanillaFilter指定時は効果の記述を持たないスピリットのみ）に、このターンの間キーワードを付与する（リフレクションアーマー／BS05サーキュラーソー・アーム）
-    | { type: "banActByCostThisTurn"; maxCost?: number; side?: "opponent"; nonVanillaOnly?: true } // side:"opponent"指定時は相手のスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけを止める（BS11-082 ウィッグバインド）。maxCost省略時はコストを問わない
+    | { type: "banActByCostThisTurn"; maxCost?: number; costs?: number[]; blockOnly?: true; side?: "opponent"; nonVanillaOnly?: true } // side:"opponent"指定時は相手のスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけを止める（BS11-082 ウィッグバインド）。maxCost省略時はコストを問わない。costs指定時は「そのいずれかと一致するコスト」だけを止める（BS11-057 バタホルン＝コスト4/6/8）。blockOnly指定時はブロックだけ止める（アタックは通す）
     | { type: "banHandCardsThisTurn"; side: "opponent"; allowedColor?: Color } // このターンの間、指定側は手札のカードを使えない（allowedColor指定時はその色だけ使える。BS11-082 ウィッグバインド＝「相手は黄以外の手札のカードを使えない」） // このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可にする（ヘビィゲート）
     | { type: "deployNexusFromTrashByFieldCores"; colors: Color[] } // 自分のトラッシュにある指定色いずれかのネクサスカード1枚を、**自分のフィールドのコアだけ**を使ってコストを支払い配置する（リザーブは使わない。2026-08-14 ユーザー確認）。フィールドのコアが足りなければ不発。取るのはネクサス上→コアの多いスピリットの順（維持コアを割る個体からは取らない決定的簡略化。BS09-065名工集いし大工房Lv2）
     | { type: "deployNexus"; from: "hand" | "trash"; colors?: Color[]; all?: boolean } // colors省略時は**色を問わない**（SD02-006 鼬の暗殺者ウィゼーブ＝「トラッシュにあるネクサスカード1枚」）。// 手札またはトラッシュから、指定色いずれかのネクサスカード1枚をコストを支払わずに自分のフィールドに配置する（該当なしはno-op。スコルピード／白虎ハック／黒虎クロン）。all指定時は該当するネクサスカードをすべて配置する
@@ -380,7 +380,7 @@ export type EffectAction =
     | { type: "selfBuffByExhaustFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外・回復状態の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最大＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**疲労させるスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByDestroyFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）を破壊し、このスピリット自身を回復させる（該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**破壊するスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByReturnToDeckTopName"; nameIncludes: string; sacrificeChosen?: true } // nameIncludes一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）をデッキの一番上に戻し、このスピリット自身を回復させる（refreshSelfByDestroyFamilyの「破壊」を「デッキの上に戻す」に差し替えた版。該当なしはno-op。BS08勇者フェニックスペンタン）。// sacrificeChosen は**デッキの上に戻すスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
-    | { type: "disableOwnArmorThisTurn" } // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）
+    | { type: "disableOwnArmorThisTurn"; side?: "opponent" } // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。side:"opponent"指定時は**相手**のスピリットの【装甲】を働かなくする（BS11-049 ジャンビ・オレピス＝「相手のスピリットすべては、【装甲】をないものとして扱い、新たに得ることもない」）
     | { type: "capLifeDamageThisTurn"; max: number } // このターンの間、発生源の持ち主のライフは1回のアタックで max 個までしか減らない（GameState.turnConstraints に lifeDamageMaxForPid を積む。SD01-039 ブリザードウォール＝1しか減らない）
     | { type: "lifeFloorThisTurn"; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // このターンの間、発生源の持ち主のライフが floor を下回らないようにする（GameState.turnConstraints に lifeFloorForPid を積む。BS11-080 デルタバリア）
     | { type: "lifeImmuneThisTurn" } // このターンの間、発生源の持ち主のライフはあらゆる原因（アタックによる減少・lifeCrushアクションによる効果的な減少の両方）で減らない（GameState.turnConstraints に lifeImmuneForPid を積む。capLifeDamageThisTurnと違いアタック限定ではない全面ロック。negateLifeDamageFromTarget＝対象を限る版とは別物。2026-08-27 ユーザー確認。BS10-093時刻む花時計）
@@ -1240,7 +1240,7 @@ export type EffectDef =
           // 発動コスト。reserveToTrash=リザーブからトラッシュへ置くコア数／
           // exhaustSelf=このスピリット自身を疲労させる（既に疲労していれば発動不可。BS07桜の妖精オウカ）。
           // **省略時は追加コストなし**（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけでコストの記載が無い）
-          cost?: { reserveToTrash: number } | { exhaustSelf: true }
+          cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } // selfCoresToTrash=**発生源自身**の上のコアをこの数だけ持ち主のトラッシュへ（足りなければ発動不可。BS11-067 白き楯の長城Lv2＝このネクサスのコア3個）
           oncePerTurn?: true // 「ターンに1回」。**発生源のスピリット1体につき**ターン1回（同名が2体いればそれぞれ1回使える）。
           // 消費は CardInstance.activatedUsedTurn に effectId ごとのターン番号で記録する（BS08帝竜騎サイクル6枚）
           condition?: "selfInBattle" // 発動条件（self が現在のバトルの当事者＝attacker/blocker）
@@ -1315,6 +1315,7 @@ export type EffectDef =
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件（発生源の持ち主基準。"both"=どちらのターンでも）
           revived: { rested: boolean } | { toHand: true } // 戻るときの状態（false=回復状態、true=疲労状態）／toHand=場に留まらず持ち主の手札に戻る（コアはリザーブへ、カードは手札へ。トラッシュは経由しない）
           cost?: {
+              sourceCoresToTrash?: number // **発生源自身**（このネクサス等）の上のコアをこの数だけ持ち主のトラッシュへ。足りなければ支払い不可＝不発（scope:"ownAll" 用。BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
               keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りを持ち主のトラッシュへ
               oneCoreToVoid?: boolean // 対象のコア1個をボイドへ（コア1個の個体は支払い不可＝不発）
               oneCoreToTrash?: boolean // 対象のコア1個を持ち主のトラッシュへ。**コア1個の個体でも支払う**（2026-08-14 ユーザー確認）。
@@ -1445,6 +1446,7 @@ export type EffectDef =
           // ⚠️ 相対シフトは**そのカードが持つ最高Lvで頭打ち**にする：Lv1-Lv2 のカードが Lv2 のとき
           // 「1つ上」は Lv3 になるが、そのレベル定義が無いと levelOf が置き換えを黙って無視して
           // **効果が無言で消える**（レベル表に無い override はフォールバックされる仕様のため）
+          costMinFilter?: number // target: "ownSpiritsAll" 用：対象スピリットのコストがこれ以上のときのみ（付与コストも見る＝instAllCosts。aura.costMinFilter と同じ意味。BS11-047 海王神獣トライ・ポセイドス＝コスト7以上）
           keywordFilter?: Keyword // target: "ownSpiritsByKeyword" 用。
           // target: "opponentBlockersOfOwnKeyword" では「**このキーワードを持つ自分のスピリット**をブロックしている相手」を指す
           // （SD02-005 天使ヘルヴィムLv2-3＝【光芒】を持つ自分のスピリットをブロックしている相手すべてはLv1として扱う）
@@ -2478,7 +2480,7 @@ export interface GameState {
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
-    | { type: "cantActByCost"; maxCost?: number; pid?: PlayerId; nonVanillaOnly?: true } // コストがmaxCost以下のスピリットはすべてアタック/ブロック不可（ヘビィゲート）。**maxCost省略時はコストを問わない**。pid指定時はそのプレイヤーのスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけに効く（BS11-082 ウィッグバインド＝「効果の記述を持つ相手のスピリットすべて」）
+    | { type: "cantActByCost"; maxCost?: number; costs?: number[]; blockOnly?: true; pid?: PlayerId; nonVanillaOnly?: true } // コストがmaxCost以下（costs指定時はそのいずれかと一致）のスピリットはすべてアタック/ブロック不可（ヘビィゲート）。blockOnly指定時はブロックだけを止める（BS11-057 バタホルン＝コスト4/6/8の相手はブロックできない）。**maxCost省略時はコストを問わない**。pid指定時はそのプレイヤーのスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけに効く（BS11-082 ウィッグバインド＝「効果の記述を持つ相手のスピリットすべて」）
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[] } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）
     | { type: "noLifeDamageByCostForPid"; maxCost: number; pid: PlayerId } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）

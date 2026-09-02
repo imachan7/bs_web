@@ -1247,8 +1247,10 @@ function doActivateAbility(
     if (error) return error
 
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）も通す
+    const inst =
+        findSpirit(player, instanceId) ?? player.field.nexuses.find((n) => n.instanceId === instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
@@ -1263,6 +1265,14 @@ function doActivateAbility(
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
+        )
+    } else if ("selfCoresToTrash" in effect.cost) {
+        const n = effect.cost.selfCoresToTrash
+        inst.cores -= n
+        player.trashCores += n
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このカードの上のコア${n}個をトラッシュ）`,
         )
     } else {
         const n = effect.cost.reserveToTrash

@@ -1090,6 +1090,20 @@ function fieldCardEl(
     }
 
     if (isNexus) {
+        // ネクサスの起動能力（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）。
+        // 判定はスピリットと同じ共有層（activatableAbility）に任せる
+        if (isMine) {
+            const nexusActivatable = activatableAbility(view, view.you, inst)
+            if (nexusActivatable) {
+                const badge = document.createElement("button")
+                badge.className = "activate-badge"
+                badge.dataset.activate = inst.instanceId
+                badge.dataset.effect = nexusActivatable.effectId
+                badge.textContent = "起動"
+                badge.title = nexusActivatable.costLabel
+                el.appendChild(badge)
+            }
+        }
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
         if (isMine && ui.paying !== null) {
             const assigned = ui.paying.assigned[inst.instanceId] ?? 0
