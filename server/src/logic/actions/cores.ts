@@ -1727,10 +1727,52 @@ const voidCoresToNexusLevelHandler: ActionHandler<"voidCoresToNexusLevel"> = (ct
 }
 
 const opponentNexusOrReserveCoreToTrashHandler: ActionHandler<"opponentNexusOrReserveCoreToTrash"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-        // エナジードレイン：相手のネクサス（コア数最多）にコアがあればそこから、
-        // 無ければ相手のリザーブから、count個を相手のトラッシュへ
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+        // エナジードレイン：相手のネクサス上のコアか、相手のリザーブのコアかを**効果の使用者が選ぶ**
+        // （2026-09-02。PROCEDURES_AUDIT §5 の一般則。ネクサスから取るとレベルが下がるので選択に意味がある）。
+        // 非対話（テスト・AI）は従来どおり「コア数最多のネクサス → 無ければリザーブ」
         const oppPlayer = state.players[opp]
+        // 選択肢のラベル（表示文言がそのまま値として返る）。同名ネクサスが並ぶので先頭に番号を振る
+        const coreSourceLabels = (): { label: string; instanceId?: string }[] => [
+            ...oppPlayer.field.nexuses
+                .filter((n) => n.cores > 0)
+                .map((n, i) => ({ label: `${i + 1}. ${getCard(n.cardId).name}（コア${n.cores}個）`, instanceId: n.instanceId })),
+            ...(oppPlayer.reserve > 0 ? [{ label: `リザーブ（コア${oppPlayer.reserve}個）` }] : []),
+        ]
+        if (chosenOption !== undefined) {
+            const picked = coreSourceLabels().find((o) => o.label === chosenOption)
+            const nexus = picked?.instanceId
+                ? oppPlayer.field.nexuses.find((n) => n.instanceId === picked.instanceId)
+                : undefined
+            if (nexus) {
+                const take = Math.min(action.count, nexus.cores)
+                nexus.cores -= take
+                oppPlayer.trashCores += take
+                log(state, `${sourceName}：${getCard(nexus.cardId).name}（ネクサス）のコア${take}個をトラッシュに置いた。`)
+                return
+            }
+            const take = Math.min(action.count, oppPlayer.reserve)
+            oppPlayer.reserve -= take
+            oppPlayer.trashCores += take
+            log(state, `${sourceName}：${oppPlayer.name}のリザーブのコア${take}個をトラッシュに置いた。`)
+            return
+        }
+        // 取り先が2つ以上あるときだけ聞く
+        const sources = coreSourceLabels()
+        if (state.interactiveTargets && sources.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：${oppPlayer.name}のどこからコアを取りますか？`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                sources.map((o) => o.label),
+            )
+            return
+        }
         const richestNexus = oppPlayer.field.nexuses
             .filter((n) => n.cores > 0)
             .reduce<CardInstance | undefined>(

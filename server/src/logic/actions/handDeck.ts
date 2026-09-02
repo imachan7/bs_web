@@ -89,23 +89,67 @@ const drawUpToHandler: ActionHandler<"drawUpTo"> = (ctx, action) => {
         return
 }
 
+// トラッシュにあって「デッキの下に戻せる」スピリットカードの枚数
+function countChoosableTrashSpirits(trashCards: string[]): number {
+    return trashCards.filter((id) => getCard(id).type === "spirit" && !isTrashCardProtected(id)).length
+}
+
 const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        // トリックプランク：自分のトラッシュにあるスピリットカードを末尾（新しい方）から
-        // 最大count枚、その順で自分のデッキの下に戻す（選択・順序の決定的簡略化）
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        // トリックプランク：自分のトラッシュにあるスピリットカードをcount枚、**好きな順番で**デッキの下へ。
+        // 対話では1枚ずつ選ばせ、**選んだ順**に積む（PROCEDURES_AUDIT §5 Q4）
         const player = state.players[owner]
-        const indices: number[] = []
-        for (let j = player.trashCards.length - 1; j >= 0 && indices.length < action.count; j--) {
-            const id = player.trashCards[j]!
-            if (getCard(id).type === "spirit" && !isTrashCardProtected(id)) indices.push(j)
+        // ⚠️ **選び終わるまでトラッシュから抜かない**（インデックスで控える）。
+        // 途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる
+        const picked = action.pickedIndices ?? []
+        if (chosenCardIndex !== undefined) {
+            const next = [...picked, chosenCardIndex]
+            if (next.length < action.count && next.length < countChoosableTrashSpirits(player.trashCards)) {
+                ctx.resolve({ ...action, pickedIndices: next })
+                return
+            }
+            // 選んだ順のまま、まとめてデッキの下へ（インデックスの大きい方から抜くとずれない）
+            const movedIds = next.map((j) => player.trashCards[j]!)
+            for (const j of [...next].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
+            for (const id of movedIds) player.deck.push(id)
+            log(
+                state,
+                `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
+            )
+            return
         }
-        if (indices.length === 0) {
+        const choosable = player.trashCards
+            .map((id, j) => ({ id, j }))
+            .filter(({ id, j }) => getCard(id).type === "spirit" && !isTrashCardProtected(id) && !picked.includes(j))
+            .map(({ j }) => j)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：デッキの下に戻すスピリットカードを選んでください（${picked.length + 1}/${action.count}枚目）`,
+                "trash",
+                choosable,
+                { ...action, pickedIndices: picked },
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話（テスト・AI）と候補1枚のとき：末尾（新しい方）からその順で戻す。
+        // 既に選んだぶん（picked）が先、そのあとに自動で拾ったぶんが続く
+        const indices: number[] = []
+        for (let j = player.trashCards.length - 1; j >= 0 && picked.length + indices.length < action.count; j--) {
+            const id = player.trashCards[j]!
+            if (getCard(id).type === "spirit" && !isTrashCardProtected(id) && !picked.includes(j)) indices.push(j)
+        }
+        if (indices.length === 0 && picked.length === 0) {
             log(state, `${sourceName}：トラッシュにスピリットカードがなかった。`)
             return
         }
-        // indices は末尾（新しい方）→先頭の順に収集済み。この順のままデッキの下へ積む
-        const movedIds = indices.map((j) => player.trashCards[j]!)
-        for (const j of indices) player.trashCards.splice(j, 1)
+        const order = [...picked, ...indices]
+        const movedIds = order.map((j) => player.trashCards[j]!)
+        for (const j of [...order].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
         for (const id of movedIds) player.deck.push(id)
         log(
             state,
@@ -483,14 +527,32 @@ const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> =
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
 // どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
 const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
     if (!self) return
     const player = state.players[owner]
-    const index = player.hand.findIndex((id) => getCard(id).type === "nexus")
-    if (index === -1) {
+    const nexusIndices = player.hand.map((id, i) => ({ id, i })).filter(({ id }) => getCard(id).type === "nexus").map(({ i }) => i)
+    if (nexusIndices.length === 0) {
         log(state, `${sourceName}：手札にネクサスカードがなかった。`)
         return
     }
+    // どのネクサスカードを破棄するかは持ち主が選ぶ（2026-09-02。PROCEDURES_AUDIT §5 の一般則）
+    if (
+        chosenCardIndex === undefined &&
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：破棄するネクサスカードを選んでください`,
+            "hand",
+            nexusIndices,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    // 非対話（テスト・AI）と候補1枚のとき：手札の先頭側から
+    const index = chosenCardIndex !== undefined && nexusIndices.includes(chosenCardIndex) ? chosenCardIndex : nexusIndices[0]!
     const [cardId] = player.hand.splice(index, 1)
     if (cardId === undefined) return
     player.trashCards.push(cardId)

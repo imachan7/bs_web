@@ -687,8 +687,8 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         // スクルディア：このスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。
         // 指定は発生源（self）に記録し、self が疲労状態で持ち主のフィールドにいる間だけ効く
         // （判定は EffectModules.isRefreshBlockedByMark。リフレッシュステップのみが見る）。
-        // 対象は実効BP最大の1体を自動選択する（アタック宣言中の疲労からも発火しうるため、
-        // ここで pendingChoice を立てない決定的簡略化）
+        // どれを指定するかは発生源の持ち主が選ぶ（2026-09-02。PROCEDURES_AUDIT §5 の一般則）。
+        // 非対話（テスト・AI）と候補1体のときは実効BP最大を自動選択する
         if (!self) return
         const candidates = state.players[opp].field.spirits.filter(
             (s) => s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
@@ -697,9 +697,25 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
             log(state, `${sourceName}：相手に疲労状態のスピリットがいなかった。`)
             return
         }
-        const target = candidates.reduce((best, s) =>
-            effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-        )
+        if (
+            ctx.targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：回復できなくするスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        const target =
+            (ctx.targetInstanceId !== undefined
+                ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+                : undefined) ??
+            candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
         self.noRefreshTargetInstanceId = target.instanceId
         log(
             state,
