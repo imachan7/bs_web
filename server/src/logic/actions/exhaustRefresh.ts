@@ -971,7 +971,45 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
     )
 }
 
+// 相手のスピリット1体を指定し、このターンの間アタックできなくする（BS11-030 ドルフィング）。
+// 指定するのは発生源の持ち主（2026-09-02 の一般則。PROCEDURES_AUDIT §5）
+const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName } = ctx
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            (!action.combinedOnly || instIsCombined(s)) &&
+            !s.cantAttackThisTurn &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：このターンアタックできなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.cantAttackThisTurn = true
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+}
+
 const handlers = {
+    banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,

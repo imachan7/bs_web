@@ -382,6 +382,18 @@ export function fireTrigger(
                 // BS08ボクルガー：発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火。
                 // サーバー内部のstate.players[opp].handは常に実配列（隠匿マスクはviewFor変換時のみ）
                 if (state.players[opponentOf(owner)].hand.length < effect.condition.opponentHandAtLeast) return false
+            } else if ("battleOpponentCombined" in effect.condition) {
+                // BS11-X02 滅神星龍ダークヴルム・ノヴァLv2-3：いま成立しているバトルの相手側が
+                // 合体スピリットのときのみ発火。self がアタッカーかブロッカーかで相手側を選ぶ
+                const battle = state.battle
+                if (!battle) return false
+                const otherId =
+                    battle.attackerInstanceId === src.instanceId
+                        ? battle.blockerInstanceId
+                        : battle.attackerInstanceId
+                if (!otherId) return false
+                const other = findSpiritAny(state, otherId)
+                if (!other || !instIsCombined(other.inst)) return false
             } else if ("requirePrevAttackerCombined" in effect.condition) {
                 // BS10-047赤ずきん妖精ルージュLv3：直前のアタック宣言が発生源の持ち主自身の
                 // 合体スピリットによるものだったときのみ発火（doAttackがスライドさせるprevAttackerCombinedPid）

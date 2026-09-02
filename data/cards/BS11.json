@@ -1659,7 +1659,23 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、相手の合体スピリット1体を指定できる。\nこのターンの間、指定された合体スピリットはアタックできない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-030-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "banAttackTargetThisTurn",
+     "combinedOnly": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-031",
@@ -3503,6 +3519,23 @@
      "type": "coreRemove",
      "count": 1
     }
+   },
+   {
+    "id": "BS11-063-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "combinedFilter": true,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
    }
   ]
  },
@@ -4482,7 +4515,51 @@
   "rarity": "X",
   "limited": true,
   "effect": "Lv1･Lv2･Lv3\nこのスピリットは合体できない。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n相手の合体スピリット1体を指定し、その合体スピリットにアタックできる。\nLv2･Lv3『このスピリットのバトル時』\n相手の合体スピリットとバトルしたとき、このスピリットをBP+10000する。\nLv3\n相手は、ブレイヴをスピリット状態にできない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-X02-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "cantCombine"
+    }
+   },
+   {
+    "id": "BS11-X02-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any",
+     "targetCombinedOnly": true
+    }
+   },
+   {
+    "id": "BS11-X02-e3",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "battleOpponentCombined": true
+    },
+    "action": {
+     "type": "selfBuff",
+     "amount": 10000
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-X03",

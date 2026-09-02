@@ -16,6 +16,7 @@ import {
     instAllCosts,
     instHasColor,
     instHasCost,
+    instIsCombined,
     instIsVanilla,
     instMatchesCostFilter,
     KEYWORDS,
@@ -186,6 +187,10 @@ export function matchesDirectedAttackFilter(
     board: Board,
     targetPid: PlayerId,
 ): string | null {
+    // BS11-X02 滅神星龍ダークヴルム・ノヴァ：相手の**合体スピリット**しか指定できない
+    if (filter.targetCombinedOnly && !instIsCombined(target)) {
+        return "相手の合体スピリットしか指定できません"
+    }
     if (filter.targetFilter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
     if (filter.targetFilter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
     if (filter.targetFilter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"

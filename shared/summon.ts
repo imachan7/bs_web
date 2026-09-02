@@ -9,7 +9,7 @@ import type { CardData, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
-import { isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+import { activeConstraints, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -31,6 +31,8 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
     if (card(braveCardId).type !== "brave") return []
     return board.players[pid].field.spirits
         .filter((host) => (host.braveRefs ?? []).length === 0)
+        // 「このスピリットは合体できない」（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
+        .filter((host) => !activeConstraints(board, pid, host).some((c) => c.type === "cantCombine"))
         .filter((host) => matchesBraveCondition(board, pid, host, braveCardId))
         .map((host) => host.instanceId)
 }
