@@ -1096,6 +1096,42 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
 // 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
+// トラッシュにあるカード自身の効果（kind:"trashSummonOnNameSummoned"）。
+// いま召喚されたスピリットのカード名が nameIncludes を含むとき、そのカードを
+// コストを支払わずに召喚できる（任意）。【不死】と同じく**トラッシュが発生源**なので、
+// effectSources では拾えず、ここで持ち主のトラッシュを直接走査する（BS11-004 プロミネンスワイバーン）
+function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned: CardInstance): void {
+    const player = state.players[pid]
+    const summonedName = getCard(summoned.cardId).name
+    for (let i = 0; i < player.trashCards.length; i++) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined) continue
+        const card = getCard(cardId)
+        const hit = card.effects.some(
+            (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
+        )
+        if (!hit) continue
+        // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
+        if (player.reserve < minLevelCores(card)) continue
+        if (state.interactiveTargets) {
+            suspend(state, {
+                pid,
+                kind: "option",
+                prompt: `トラッシュの${card.name}を、コストを支払わずに召喚しますか？`,
+                candidates: [],
+                options: ["召喚する"],
+                optional: true,
+                confirm: true,
+                action: { type: "summonFreeFromTrashIndexInternal", trashIndex: i },
+                selfInstanceId: null,
+            })
+            return
+        }
+        summonFreeFromTrashIndex(state, pid, card.name, i)
+        return
+    }
+}
+
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
     // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
@@ -1127,11 +1163,17 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             byFushi,
             // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
             bySoku: state.summoningBySoku === true,
+            // 手札からの召喚か（doSummon / summonFreeFromHandIndex が立てる。BS11-X05 魔導双神ジェミナイズ）
+            fromHand: state.summoningFromHand === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
         })
     }
     delete state.summoningBySoku
+    delete state.summoningFromHand
+    // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
+    // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
+    if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
@@ -2551,6 +2593,7 @@ export function summonFreeFromHandIndex(
     // 支払い元が維持コア割れしたらそこで消滅する）
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
     player.reserve -= maintain - placedFromField
+    state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     const inst = createInstance(cardId, state.turn, maintain)
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）

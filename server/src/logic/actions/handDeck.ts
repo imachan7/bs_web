@@ -1762,6 +1762,14 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
 // 出ればそのカード1枚を手札に戻す。デッキ切れ・上限到達まで出なければ手札には戻らない
 // デッキを上から、指定コストのスピリットカードが出るまで破棄し（上限あり）、
 // 出たらトラッシュからコストを支払わずに召喚する（BS11-038 天星馬ペガシーダ）
+// kind:"trashSummonOnNameSummoned" の確認に「召喚する」と答えたときの解決（内部専用）
+const summonFreeFromTrashIndexInternalHandler: ActionHandler<"summonFreeFromTrashIndexInternal"> = (ctx, action) => {
+    const { state, owner } = ctx
+    const cardId = state.players[owner].trashCards[action.trashIndex]
+    if (cardId === undefined) return
+    summonFreeFromTrashIndex(state, owner, getCard(cardId).name, action.trashIndex)
+}
+
 const millUntilCostSpiritSummonFreeHandler: ActionHandler<"millUntilCostSpiritSummonFree"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
@@ -1849,6 +1857,38 @@ function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName
 
 // デッキを上から1枚オープンし、マジックならフラッシュ効果を無償で即時使用できる。
 // 使わない／マジック以外なら手札に加える（BS11-058 神弓鳥ペリュトーン）
+// デッキを上から1枚オープンし、スピリット/ブレイヴならコストを支払わずに召喚する。
+// それ以外（または召喚できなかったとき）は手札に加える（BS11-X05 魔導双神ジェミナイズ）
+const revealTopSummonFreeOrHandHandler: ActionHandler<"revealTopSummonFreeOrHand"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：デッキが0枚のため何も起きなかった。`)
+        return
+    }
+    const card = getCard(top)
+    log(state, `${sourceName}：デッキの上から${card.name}をオープンした。`)
+    if (card.type === "spirit" || card.type === "brave") {
+        // トラッシュ経由ではなく、いったんトラッシュ末尾へ置いてから召喚経路に載せる
+        player.deck.shift()
+        player.trashCards.push(top)
+        const before = player.field.spirits.length + player.field.combinedBraves.length
+        summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+        const summoned = player.field.spirits.length + player.field.combinedBraves.length > before
+        if (summoned) return
+        // 維持コアが足りない等で召喚できなかったら手札に加える（「残ったカードは手札に加える」）
+        const at = player.trashCards.lastIndexOf(top)
+        if (at !== -1) player.trashCards.splice(at, 1)
+        player.hand.push(top)
+        log(state, `${sourceName}：召喚できなかったので${card.name}を手札に加えた。`)
+        return
+    }
+    player.deck.shift()
+    player.hand.push(top)
+    log(state, `${sourceName}：${card.name}を手札に加えた。`)
+}
+
 const revealTopCastMagicFreeOrHandHandler: ActionHandler<"revealTopCastMagicFreeOrHand"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
     const player = state.players[owner]
@@ -2844,8 +2884,10 @@ const handlers = {
     millOpponentThenReact: millOpponentThenReactHandler,
     millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
+    summonFreeFromTrashIndexInternal: summonFreeFromTrashIndexInternalHandler,
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
+    revealTopSummonFreeOrHand: revealTopSummonFreeOrHandHandler,
     revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,

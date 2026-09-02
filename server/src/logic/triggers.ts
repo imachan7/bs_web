@@ -905,6 +905,8 @@ export function fireFieldEventTriggers(
         byFushi?: boolean
         // 同上：その召喚が【神速】によるものだったか（sokuSummonOnly の判定に使う。BS11-065 満天の牧草地Lv2）
         bySoku?: boolean
+        // 同上：手札からの召喚だったか（fromHandOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ）
+        fromHand?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -1068,6 +1070,7 @@ export function fireFieldEventTriggers(
             // 【不死】の効果で召喚されたときのみ（BS09-013ミミズクロ）。通常の召喚では発火しない
             if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
             if (effect.sokuSummonOnly && eventInfo?.bySoku !== true) continue
+            if (effect.fromHandOnly && eventInfo?.fromHand !== true) continue
             // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
             // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
             // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）

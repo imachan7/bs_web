@@ -223,6 +223,12 @@
      2,
      3
     ]
+   },
+   {
+    "id": "BS11-004-e2",
+    "kind": "trashSummonOnNameSummoned",
+    "levels": null,
+    "nameIncludes": "太陽"
    }
   ]
  },
@@ -5250,7 +5256,27 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\n系統：「神星」/「光導」/「星魂」を持つ自分のスピリットが手札から召喚されたとき、自分のデッキを上から1枚オープンする。\nそのカードがスピリットカード/ブレイヴカードのとき、コストを支払わずに召喚する。\n残ったカードは手札に加える。\nLv2･Lv3\n自分がコストを支払ってマジックカードを使用したとき、その効果発揮後、自分の手札/手元にあるマジックカード1枚を、コストを支払わずに使用できる。\nこの効果はターンに2回しか使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-X05-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "familyFilter": [
+     "神星",
+     "光導",
+     "星魂"
+    ],
+    "fromHandOnly": true,
+    "action": {
+     "type": "revealTopSummonFreeOrHand"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-X06",

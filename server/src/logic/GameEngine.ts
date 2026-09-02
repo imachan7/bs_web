@@ -523,6 +523,7 @@ function doSummon(
     // 【神速】による召喚か（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）。
     // フラッシュタイミングで手札から召喚できるのは神速だけなので、ここで判定できる
     if (state.isFlashTiming) state.summoningBySoku = true
+    state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly。BS11-X05）
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける
