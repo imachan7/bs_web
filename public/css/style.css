@@ -889,23 +889,25 @@ button:active {
    はみ出すぶんの幅は has-brave 側の margin-right で確保し、隣のカードと重ならないようにする */
 /* スピリットのカードは 76px 角なので、はみ出す幅は40px（ほぼ半分）に取る。
    .spirit-zone .card の margin-right を上書きするため、同じ詳細度で後ろに置いてある（下部を参照） */
+/* ⚠️ z-index: -1 で「ホストの背面へ回す」ことはできない。.card は stacking context を
+   作らないため、負のz-indexは .spirit-zone の背景の下まで沈み、クリックもホバーも
+   ゾーンに取られる（2026-09-02 に実際に踏んだ。DOM API の .click() は当たるので
+   自動確認では気づけない）。重なりを持たせずホストへ密着させる形にしてある */
 .brave-combined-box {
     position: absolute;
-    left: calc(100% - 6px);
+    left: 100%;
     top: 3px;
     bottom: 3px;
     width: 40px;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    /* ホストの背面へ回して「後ろから半分のぞく」見た目にする */
-    z-index: -1;
 }
 .brave-combined {
     position: relative;
     flex: 1;
     min-height: 0;
-    padding: 3px 2px 3px 7px;
+    padding: 3px 2px;
     border-radius: 0 6px 6px 0;
     background: linear-gradient(#22252e, #22252e) padding-box,
                 linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
@@ -929,7 +931,7 @@ button:active {
 /* 分離（メインステップの任意分離。§6.4）。ブレイヴのはみ出した部分の下端に置く */
 .detach-badge {
     position: absolute;
-    left: 7px;
+    left: 1px;
     right: 1px;
     bottom: 1px;
     padding: 1px 0;
@@ -1150,14 +1152,14 @@ button:active {
 /* 合体しているブレイヴが右へ34pxはみ出すぶん、隣のカードとの余白を広げる（BRAVE.md §6.4）。
    .spirit-zone .card と同じ詳細度なので、必ずこの後ろに置くこと */
 .spirit-zone .card.has-brave {
-    /* ブレイヴのはみ出し34px＋隣のカードとの間隔26px。
+    /* ブレイヴのはみ出し40px＋隣のカードとの間隔26px。
        ホストとブレイヴの間は隙間ゼロ・隣のカードとは広い隙間、という差で
        「どれと合体しているか」が空間だけで読めるようにする（2026-09-02 ユーザー指示） */
-    margin-right: 60px;
+    margin-right: 66px;
 }
 /* コア増減ボタン（hover で出る）はブレイヴの外側へ逃がす */
 .card.has-brave .core-buttons {
-    right: -62px;
+    right: -68px;
 }
 
 /* ネクサスは六角形 */
