@@ -284,6 +284,8 @@ export function fireTrigger(
         // 2026-08-25 ユーザー確認）
         if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
+        // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
+        if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
@@ -446,6 +448,10 @@ export function fireTrigger(
         const entry = entries[i]
         const effect = entry?.effect
         if (!entry || !effect || !matches(effect, entry.src)) continue
+        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）
+        if (effect.oncePerTurn === true) {
+            entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+        }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
         if (effect.optional && state.interactiveTargets) {

@@ -136,6 +136,7 @@ export type EffectAction =
     | { type: "bpBuffPer"; counter: EffectCounter; amountPer: number; keywordFilter?: Keyword } // ⚠️ **これはマジックの単発バフ用**。スピリット/ネクサスの「〜1体につきこのスピリットをBP+1000する」は**継続効果なので kind:"aura" + AuraCounter で書く**（2026-08-27 にデータ全件を確認。aura 側17枚・bpBuffPer 側4枚がすべてこの境界で分かれており例外なし）。 // 対象スピリット1体を「カウント値×amountPer」だけBP+（0ならログのみ）。keywordFilter指定時は、そのキーワードを持つ自分のスピリットのみ対象（静的・一時付与・継続付与を考慮。BS07ネクサスアタック＝【強襲】持ち）
     | { type: "discardHandAll" } // 自分の手札をすべてトラッシュへ
     | { type: "bpBuffAll"; filter?: TargetFilter; amount: number } // 自分のフィールドのスピリットすべてをBP+（ターン終了時まで。filter.family 指定時は指定系統持ちのみ。配列＝いずれかの系統でOR）
+    | { type: "returnOneThenRefreshIfMaxCost"; maxCost: number; refreshFamilyFilter: FamilyFilter } // 相手のスピリット1体を手札に戻し、**戻したスピリットのコストが maxCost 以下だったとき**に限り、指定系統を持つ自分のスピリット1体を回復させる（BS11-032 天王神獣スレイ・ウラノスLv2-3）。候補2体以上なら interactiveTargets で選ばせ、非対話は実効BP最大を自動選択する
     | { type: "returnToHand"; count: number; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; filter?: TargetFilter; costReserveToTrash?: number } // costReserveToTrash指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからトラッシュへ送ってから実行する（lifeCrush.costReserveToVoid と同じ方針。「〜することで」は任意コストなのでカード側で optional:true を立てる。BS07剣王獣ビャク・ガロウLv2）。// 対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf=selfの実効BP以下の相手のみ（BS04鋼葉の樹林Lv2）。countPerOpponentNexus指定時はcountを無視し、相手のネクサス数を対象数として使う（BS05幻獣王リーン）。anySide指定時は自分/相手どちらのスピリットも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり実効BP最大を自動選択＝同値は相手側優先。BS01ヘル・ブリンディ等：修飾なしの「スピリット」）。filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する（BS06レインディア＝ブロックしたスピリットが系統「空牙」のときのみ）
     | { type: "handToOwnDeckTop"; count: number } // 持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す（opponentHandToDeckTopの自分版。interactiveTargetsでは持ち主本人に選ばせ、自動時は手札末尾＝決定的簡略化。BS09-058魔本収められし書架Lv2）
     | { type: "opponentHandToDeckTop"; count: number } // 相手は手札からcount枚を選んで自分のデッキの一番上に戻す（interactiveTargetsでは相手本人に選ばせる。自動時は手札末尾＝決定的簡略化。BS07魔札の占い師ディーシャLv2）
@@ -392,7 +393,9 @@ export type EffectAction =
     | { type: "coreDrainToLowerLevel" } // 相手のスピリット1体（targetInstanceId優先、非対話時は実効BP最大）の上のコアを、1つ下のLvに必要なコア数と同じになるまで相手のトラッシュへ置く。Lv1のスピリット（1つ下のLvが無い）は対象にしても何も起きない。装甲・マジック効果耐性はcoreRemoveと同じ経路で尊重する（BS06-096レベルドレイン）
     | { type: "grantEffectToTargetThisTurn"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; filter?: TargetFilter } // 自分のスピリット1体（targetInstanceId優先。フォールバックはfilter一致の中から実効BP最大。interactiveTargets時は複数候補ならrequestChoice）に、このターンの間だけ指定の誘発効果を直接付与する（CardInstance.tempGrantedTriggers、ターン終了でリセット。fireTriggerが静的effectsと同様に走査する。effectGrantと違い対象は1体・仮想発生源を要しない。BS08メテオストーム＝カード名に「ヴルム」と入っている自分のスピリット1体に『このスピリットのアタック時』効果を付与）
     | { type: "revealAndSummonAllByFamily"; count: number; familyFilter: FamilyFilter; costFilter?: { max?: number; min?: number }; countFromSelfLevel?: true } // costFilter指定時は召喚できるカードのコストをこの範囲に絞る（BS11-007 輝龍皇ヘリオスドラゴン＝コスト7以下）。countFromSelfLevel指定時は count を無視し、**発生源の現在レベル**と同じ枚数をオープンする（同カード＝「このスピリットのLvと同じ枚数」） // 自分のデッキ上からcount枚を公開し、その中の指定系統（配列＝OR）を持つスピリットカード**すべて**を、コストを支払わず、【転召】させずに召喚する（維持コアが足りない分は召喚できずトラッシュへ。revealAndSummonKeywordと異なり任意選択を挟まない範囲効果）。この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordは発揮する点と対照的）。系統不一致・召喚できなかったカードはすべてトラッシュへ破棄する（BS08魔帝龍騎ダーク・クリムゾン：上7枚から系統「龍帝」/「竜騎」すべて）
+    | { type: "millUntilCostSpiritSummonFree"; costs: number[]; maxCount: number; skipOnSummon?: true } // 自分のデッキを上から、指定コストのスピリットカードが出るまで破棄し（上限 maxCount 枚）、出たらそのカードをトラッシュからコストを支払わずに召喚する。skipOnSummon指定時は『このスピリットの召喚時』効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ＝コスト6/7・上限6枚）
     | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない。BS08冥将アマイモン）
+    | { type: "revealTopCastMagicFreeOrHand" } // 自分のデッキを上から1枚オープンし、**マジックカードならそのフラッシュ効果をコストを支払わずに即時に使用できる**（任意）。使用しない／マジック以外のときはそのカードを手札に加える（BS11-058 神弓鳥ペリュトーン）。interactiveTargets では使用するかの確認を出し、非対話は使用する側に倒す
     | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。selfBuffByHandDiscardと同型：interactiveTargets時はcard choiceで選ぶ、自動時は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない。BS10-X05堕天神龍ヴィーナ・ルシファー：discardCardType「spirit」）。// maxCount は**省略時は上限なし**（デッキが尽きるまで）。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる
     | { type: "costOwnSpiritCoresToTrashThenOpponent"; count: number; phase?: "own" | "opp"; remaining?: number } // phase/remaining は選択の再入をまたいで「いまどちら側のコアを何個置くところか」を持ち回る**内部専用フィールド**（cards.jsonには書かない）。// コアを取り除くスピリットは1個ずつ選ぶ：自分側は支払う本人が選び（COST_MODEL.md §2）、相手側は効果文が「**相手は**〜置く」なので相手が選ぶ（CHOOSER_RULES.md）。非対話ではどちらもコアの多い個体から（従来どおり）。// 自分のフィールドのスピリット上のコア合計がcount未満なら不発（ログのみ）。足りれば、自分のスピリットからコアの多い個体順に合計count個を自分のトラッシュへ置き（bothSidesCoreToTrashと同じ選び方）、続けて同じ処理を相手のスピリットに対しても行う（相手は必ず支払う。維持コア割れは消滅処理。BS08マインドブレイク：5個）
 
@@ -749,6 +752,8 @@ export type EffectDef =
           optional: boolean // 「〜できる」= 任意。interactiveTargets（実対戦）では発動確認の
           // pendingChoice（kind:"option" / confirm:true）を出し、選ばなければ発動しない。
           // interactiveTargets=false（テスト）では従来どおり常に発動する
+          oncePerTurn?: true // 「この効果はターンに1回しか使えない」。**発生源1体につき**ターン1回（同名が2体いればそれぞれ1回）。
+          // 消費は CardInstance.triggeredUsedTurn に effectId ごとのターン番号で記録する（activatedUsedTurn / stepUsedTurn と同型。BS11-032 天王神獣スレイ・ウラノス）
           battleRole?: "attacker" | "blocker" // onBattleWin 専用：勝利したときの自分の役割がこれと一致する場合のみ発火（省略時は従来通り常に発火）
           condition?:
               | { opponentNexusColorsAtLeast: number } // 指定時、持ち主から見て相手フィールドのネクサスの色数（重複除く）がこれ以上のときのみ発火（溶海竜プレシオスLv3）
@@ -1854,6 +1859,7 @@ export interface CardInstance {
     activatedUsedTurn?: Record<string, number> // kind:"activated" の oncePerTurn 用。effectId -> 最後に発動したターン番号（state.turn と一致する間は再発動できない。BS08帝竜騎サイクル）
     magicNegateUsedTurn?: number // kind:"magicNegate" の oncePerTurn 用。この個体が最後にマジックを無効にしたターン番号（state.turn と一致する間は再使用できない。BS02鏡の回廊Lv2）
     reviveOnDestroyUsedTurn?: number // kind:"reviveOnDestroy" の oncePerTurn 用。この発生源が最後に復活を成立させたターン番号（magicNegateUsedTurnと同型。BS06暴かれた墓石Lv2）
+    triggeredUsedTurn?: Record<string, number> // kind:"triggered" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（stepUsedTurnと同型。BS11-032 天王神獣スレイ・ウラノス）
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）

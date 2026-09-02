@@ -2,8 +2,9 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { createInstance, currentLevel, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
+import { createInstance, currentLevel, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
+    summonFreeFromTrashIndex,
     tryFreeSummonOnHandDiscard,
     bothSidesPids,
     askPayToNegateIfNeeded,
@@ -36,7 +37,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -1759,6 +1760,34 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
 
 // BS08冥将アマイモン：自分のデッキを上から、指定系統を持つスピリットカードが出るまで（上限maxCount枚）破棄し、
 // 出ればそのカード1枚を手札に戻す。デッキ切れ・上限到達まで出なければ手札には戻らない
+// デッキを上から、指定コストのスピリットカードが出るまで破棄し（上限あり）、
+// 出たらトラッシュからコストを支払わずに召喚する（BS11-038 天星馬ペガシーダ）
+const millUntilCostSpiritSummonFreeHandler: ActionHandler<"millUntilCostSpiritSummonFree"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    let found: string | undefined
+    let milled = 0
+    for (let i = 0; i < action.maxCount; i++) {
+        const cardId = player.deck.shift()
+        if (cardId === undefined) break
+        player.trashCards.push(cardId)
+        milled++
+        const candidate = getCard(cardId)
+        if (candidate.type === "spirit" && action.costs.includes(candidate.cost)) {
+            found = cardId
+            break
+        }
+    }
+    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
+    if (found === undefined) {
+        log(state, `${sourceName}：対象のスピリットカードが出なかった。`)
+        return
+    }
+    const idx = player.trashCards.lastIndexOf(found)
+    if (idx === -1) return
+    summonFreeFromTrashIndex(state, owner, sourceName, idx, action.skipOnSummon ? { skipOnSummon: true } : undefined)
+}
+
 const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
@@ -1816,6 +1845,53 @@ function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName
     }
     log(state, `${sourceName}：${getCard(found).name}のフラッシュ効果をコストを支払わずに発揮した。`)
     resolveMagicEffects(state, owner, found, "flash", undefined)
+}
+
+// デッキを上から1枚オープンし、マジックならフラッシュ効果を無償で即時使用できる。
+// 使わない／マジック以外なら手札に加える（BS11-058 神弓鳥ペリュトーン）
+const revealTopCastMagicFreeOrHandHandler: ActionHandler<"revealTopCastMagicFreeOrHand"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+    const player = state.players[owner]
+    // 使用するかの確認から戻ってきた（オープン済みのカードは deck の先頭のまま持ち回る）
+    if (chosenOption !== undefined) {
+        const cardId = player.deck[0]
+        if (cardId === undefined) return
+        player.deck.shift()
+        log(state, `${sourceName}：${getCard(cardId).name}のフラッシュ効果をコストを支払わずに使用した。`)
+        resolveMagicEffects(state, owner, cardId, "flash", undefined)
+        return
+    }
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：デッキが0枚のため何も起きなかった。`)
+        return
+    }
+    log(state, `${sourceName}：デッキの上から${getCard(top).name}をオープンした。`)
+    if (getCard(top).type === "magic") {
+        if (state.interactiveTargets) {
+            suspend(state, {
+                pid: owner,
+                kind: "option",
+                prompt: `${sourceName}：${getCard(top).name}のフラッシュ効果をコストを支払わずに使用しますか？（使用しない場合は手札に加えます）`,
+                candidates: [],
+                options: ["使用する"],
+                optional: true,
+                confirm: true,
+                skipLabel: "手札に加える",
+                action,
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+        // 非対話は使用する側に倒す
+        player.deck.shift()
+        log(state, `${sourceName}：${getCard(top).name}のフラッシュ効果をコストを支払わずに使用した。`)
+        resolveMagicEffects(state, owner, top, "flash", undefined)
+        return
+    }
+    player.deck.shift()
+    player.hand.push(top)
+    log(state, `${sourceName}：${getCard(top).name}を手札に加えた。`)
 }
 
 const CARD_TYPE_LABELS: Record<"spirit" | "nexus" | "magic", string> = {
@@ -1892,6 +1968,46 @@ const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
         }
         millDeck(state, opponentOf(owner), cost, owner, srcType ? { sourceType: srcType } : undefined)
         return
+}
+
+// 相手のスピリット1体を手札に戻し、戻したコストが条件を満たしたときだけ味方1体を回復させる
+// （BS11-032 天王神獣スレイ・ウラノスLv2-3）
+const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshIfMaxCost"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType } = ctx
+    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce")
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：手札に戻せる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：手札に戻す相手のスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    const returnedCost = instBaseCost(target)
+    returnSpiritToHand(state, opp, target, sourceName)
+    if (returnedCost > action.maxCost) {
+        log(state, `${sourceName}：戻したスピリットのコストが${String(action.maxCost)}を超えるため回復しない。`)
+        return
+    }
+    ctx.resolve(
+        { type: "refreshOne", filter: { family: action.refreshFamilyFilter } },
+        { sourceColors: srcColors, sourceType: srcType },
+    )
 }
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
@@ -2728,10 +2844,13 @@ const handlers = {
     millOpponentThenReact: millOpponentThenReactHandler,
     millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
+    millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
+    revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
     millPerLoserCost: millPerLoserCostHandler,
+    returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,

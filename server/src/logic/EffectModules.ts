@@ -2604,7 +2604,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[] },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -2637,6 +2637,11 @@ export function summonFreeFromTrashIndex(
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst)
+    // skipOnSummon 指定時は召喚時効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ）
+    if (opts?.skipOnSummon) {
+        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
+        return
+    }
     // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])

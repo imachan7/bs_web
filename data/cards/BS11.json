@@ -1892,6 +1892,25 @@
      "white",
      "yellow"
     ]
+   },
+   {
+    "id": "BS11-032-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "oncePerTurn": true,
+    "action": {
+     "type": "returnOneThenRefreshIfMaxCost",
+     "maxCost": 4,
+     "refreshFamilyFilter": [
+      "光導",
+      "神星"
+     ]
+    }
    }
   ]
  },
@@ -2224,6 +2243,25 @@
      "count": 3
     },
     "optional": false
+   },
+   {
+    "id": "BS11-038-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "millUntilCostSpiritSummonFree",
+     "costs": [
+      6,
+      7
+     ],
+     "maxCount": 6,
+     "skipOnSummon": true
+    }
    }
   ]
  },
@@ -3425,7 +3463,19 @@
     "bp": 4000
    }
   ],
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-058-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": true,
+    "action": {
+     "type": "revealTopCastMagicFreeOrHand"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 5
   }
