@@ -768,6 +768,9 @@ export function render(view: GameView, ui: UiState): void {
     } else {
         show("result-overlay", false)
     }
+
+    // 再描画でホバー中のカードがDOMから外れた場合、ツールチップを消す
+    if (currentHoverCard !== null && !document.body.contains(currentHoverCard)) hideEffectTooltip()
 }
 
 function renderInfo(
@@ -960,10 +963,12 @@ function fieldCardEl(
                 row.dataset.cardId = brave.cardId
                 const braveName = master(brave.cardId).name
                 // はみ出す幅は40pxしかないので、名前は**縦書き**で出す（日本語はこの向きで読める）。
-                // 収まらない分は省略されるので、フル名は title 属性で見せる
+                // 収まらない分は省略されるので、フル名は title 属性で見せる。
+                // レベルは出さない（合体中のブレイヴのレベルはホストのコア数で決まるので、
+                // ホストのカードが出している Lv 表示と二重になる。2026-09-02 ユーザー指示）
                 const nameEl = document.createElement("span")
                 nameEl.className = "brave-name"
-                nameEl.textContent = `${braveName} Lv${levelOf(brave).level}`
+                nameEl.textContent = braveName
                 row.appendChild(nameEl)
                 row.title = `合体中: ${braveName}`
                 // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
@@ -1581,6 +1586,15 @@ export function showToast(message: string): void {
 // カード名＋効果全文をカードの上（入らなければ下）に重ねて表示する。
 // カードは再描画のたびに作り直されるため、document への委譲で拾う。
 
+let currentHoverCard: HTMLElement | null = null
+
+/** ツールチップを非表示にし、ホバー追跡をリセットする */
+export function hideEffectTooltip(): void {
+    const tip = document.getElementById("effect-tooltip")
+    if (tip) tip.classList.add("hidden")
+    currentHoverCard = null
+}
+
 export function setupEffectTooltip(): void {
     const tip = document.createElement("div")
     tip.id = "effect-tooltip"
@@ -1715,12 +1729,6 @@ export function setupEffectTooltip(): void {
         tip.style.left = `${left}px`
     }
 
-    let currentHoverCard: HTMLElement | null = null
-    const hide = (): void => {
-        tip.classList.add("hidden")
-        currentHoverCard = null
-    }
-
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
@@ -1730,9 +1738,11 @@ export function setupEffectTooltip(): void {
         }
     })
     document.addEventListener("mouseout", (e) => {
+        // セレクタは合体ブレイヴを足した側（このブランチ）、関数名は hideEffectTooltip へ
+        // 改名された側（origin/main の再描画時クリア）を採る。**どちらも必要**
         const from = (e.target as HTMLElement).closest(".card, .brave-combined, .log-card-name")
         const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .brave-combined, .log-card-name")
-        if (from && from !== to) hide()
+        if (from && from !== to) hideEffectTooltip()
     })
 
     // スマホ: 長押し（500ms）で表示。指を離しても表示は残し、次のタップで消す。
@@ -1744,7 +1754,7 @@ export function setupEffectTooltip(): void {
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
         window.clearTimeout(pressTimer)
         if (!card) {
-            hide()
+            hideEffectTooltip()
             return
         }
         pressTimer = window.setTimeout(() => {
