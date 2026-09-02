@@ -124,31 +124,28 @@ grep -rl "<手順の語>" docs/design/*.md SPEC.md
 
 ---
 
-## 4. ⚠️ 対戦者が選ぶべき場面を実装が自動で決めている（44件）
+## 4. ⚠️ 対戦者が選ぶべき場面を実装が自動で決めていないか
 
-`interactiveTargets` の分岐が無い＝**実対戦でも自動**の箇所。性質ごとに:
+**一覧を手で持たない。`npm run audit:choices` が数え直す**（`scripts/audit-auto-choices.ts`）。
+かつてここに44件の手書きの表があったが、直すたびに古くなり、
+**残っていない項目を「次はこれ」と指していた**（2026-09-02 に数え直したら上位は対応済みだった）。
 
-影響カード枚数の多い順（**着手はこの順**。枚数はその action type を使うカード数）:
+判定は「ハンドラ（と、そこから推移的に呼ぶ関数）に聞く経路が1つも無い」＋
+「効果文に選択の語があるカードで使われている」。**誤検出を含む**ので1件ずつ読んで判断する:
 
-| 枚数 | action type | 場所 | 中身 |
-| :-- | :-- | :-- | :-- |
-| 38 | `refreshSelf` | `exhaustRefresh.ts:596` | ⚠️ **対象選択ではない**（コストを払える範囲の解釈）。Q2 の対象外 |
-| ~~11~~ | ~~`refreshSelfByExhaustNexus`~~ | `exhaustRefresh.ts:617` | **2026-08-17 対応済み**（持ち主が選ぶ。テストは `part218.ts`） |
-| 10 | `lifeCrush` | `battleFlow.ts:200` | 任意コストを聞かずに自動発動（→ Q3 寄り） |
-| 3 | `selfBuffByExhaustFamily` | `buff.ts:384` | 疲労させる1体を実効BP最大に固定 |
-| 3 | `destroyByBpBudget` | `destroy.ts:689` | 予算内でBP最大から貪欲に選ぶ |
-| 2 | `moveCoresLeavingOne` / `destructionCoresToOwnSpirit` / `destroyByCostBudget` / `summonRepeatFromHand` / `costDiscardHandKeywordThenDraw` | | 対象・枚数の自動選択 |
-| 1 | 残り（`swapOpponentCores` / `returnBothSidesToDeckBottom` ほか） | | 対象・順番の自動選択 |
+| よくある誤検出 | 理由 |
+| :-- | :-- |
+| `ctx.resolve` で `destroy` などへ委譲しているもの | 委譲先が聞いているが、静的には追えない |
+| マジックの `bpBuff` / `grantKeyword` など | **クライアントが対象を先取りする**（`renderer.ts` の `magicTargetSide`） |
+| フラッシュ効果に「スピリット1体を」があるカード | 選択の語が別の節のもの。メイン側の効果には選択が無い |
+| 「すべて」を対象にする効果 | そもそも選ばない |
 
-**上位2件で21枚**、残りは1〜3枚ずつの長い裾。
+**2026-09-02 に、実際に自動だった10か所を選択式にした**（part269 / part270）。
+残りの検出はすべて上の誤検出パターンに当てはまることを確認済み。
 
-**進捗**：`refreshSelfByExhaustNexus`（11枚）は対応済み。**次は `lifeCrush`（10枚）**だが、
-これは対象選択ではなく「任意コストを聞かずに自動発動」なので Q3（任意性）として扱う。
-そのあとは1〜3枚ずつの裾を、`selfBuffByExhaustFamily` → `destroyByBpBudget` の順に。
-
-**注意**：この44件は「実装者が自覚してコメントを書いた」ものだけ。
-**コメントを書かずに自動化した箇所は含まれない**（`destroyNexus` の対象選択が無いことは、
-このgrepではなく PR #29 の作業中に偶然見つかった）。網羅には §6 の機械検査が要る。
+⚠️ この検査は「実装者が自覚してコメントを書いた」ものに限らないが、
+`ctx.resolve` 越しは追えないので**網羅ではない**。実対戦で「選べないのはおかしい」が出たら、
+その action type を直接読むこと。
 
 ---
 
