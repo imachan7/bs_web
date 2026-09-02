@@ -587,6 +587,10 @@ export function fireBattleWonTriggers(
                     : [effect.winnerKeywordFilter]
                 if (!needs.some((kw) => spiritHasKeyword(state, winnerPid, winnerInst, kw))) continue
             }
+            // BS11-062 オールトの竜巣Lv2：勝利したのが**合体スピリット**のときのみ発火
+            if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
+                continue
+            }
             firing.push({ inst, effect })
         }
     }

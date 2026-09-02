@@ -1300,10 +1300,12 @@ const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action)
         }
         // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）。
         // familyFilter 指定時はその系統を持つ自分のスピリットだけが対象（BS07デルファングス＝虚神/神将）
+        // excludeSelf（BS11-019 ダンデラビット＝「このスピリット以外の」）は発生源自身を外す
         const eligible = state.players[owner].field.spirits.filter(
             (s) =>
-                action.familyFilter === undefined ||
-                matchesFamilyFilter(state, owner, s, action.familyFilter),
+                (action.familyFilter === undefined ||
+                    matchesFamilyFilter(state, owner, s, action.familyFilter)) &&
+                !(action.excludeSelf === true && s.instanceId === self?.instanceId),
         )
         const target = targetInstanceId
             ? eligible.find((s) => s.instanceId === targetInstanceId)

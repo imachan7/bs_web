@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, PlayerId } from "../../type"
-import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
+import { createInstance, currentLevel, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
     tryFreeSummonOnHandDiscard,
     bothSidesPids,
@@ -930,9 +930,11 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
 // この効果で召喚されたスピリットの『召喚時』効果は発揮されない（revealAndSummonKeywordと対照的）。
 // 系統不一致・維持コア不足で召喚できなかったカードはすべてトラッシュへ
 const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFamily"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
         const player = state.players[owner]
-        const revealed = player.deck.splice(0, action.count)
+        // countFromSelfLevel（BS11-007 輝龍皇ヘリオスドラゴン＝「このスピリットのLvと同じ枚数」）
+        const revealCount = action.countFromSelfLevel && self ? currentLevel(self).level : action.count
+        const revealed = player.deck.splice(0, revealCount)
         if (revealed.length === 0) {
             log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
             return
@@ -947,7 +949,12 @@ const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFami
         for (const cardId of revealed) {
             const card = getCard(cardId)
             const maintain = minLevelCores(card)
-            if (card.type !== "spirit" || !wanted.some((f) => card.family.includes(f)) || player.reserve < maintain) {
+            // costFilter（BS11-007＝コスト7以下）はカード静的なコストで判定する
+            const costOk =
+                action.costFilter === undefined ||
+                ((action.costFilter.max === undefined || card.cost <= action.costFilter.max) &&
+                    (action.costFilter.min === undefined || card.cost >= action.costFilter.min))
+            if (card.type !== "spirit" || !wanted.some((f) => card.family.includes(f)) || !costOk || player.reserve < maintain) {
                 player.trashCards.push(cardId)
                 discardedCount++
                 continue
@@ -1072,9 +1079,19 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
         const vanillaOk = (cardId: string): boolean =>
             action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
+        // costFilter（BS11-051 イビル・フィッシャー＝コスト6以下）：トラッシュのカードが対象なので
+        // カード静的なコストで判定する（フィールドの一時的なコスト修正は関係しない）
+        const costOk = (cardId: string): boolean => {
+            if (action.costFilter === undefined) return true
+            const cost = getCard(cardId).cost
+            return (
+                (action.costFilter.max === undefined || cost <= action.costFilter.max) &&
+                (action.costFilter.min === undefined || cost >= action.costFilter.min)
+            )
+        }
         const isRecoverable = (cardId: string): boolean =>
             typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
-            !isTrashCardProtected(cardId)
+            costOk(cardId) && !isTrashCardProtected(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする

@@ -103,4 +103,48 @@ console.log("=== §D バスターハンマー：色を指定して、その色�
     assert(s.players.p1.hand.length === handBefore + 2, "破壊できた2つぶん引く")
 }
 
+console.log("=== §E ダンデラビット：「このスピリット以外の」でコアを置く先から自分を外す ===")
+{
+    const dande = byName("ダンデラビット")
+    const e2 = dande.effects.find((x) => "action" in x && (x as { action: { type: string } }).action.type === "voidCoreToTarget")
+    assert(e2 !== undefined, "テスト前提: ダンデラビットは voidCoreToTarget を持つ")
+    const action2 = (e2 as { action: Parameters<typeof resolveAction>[3] }).action
+    // 系統「星魂」を持つスピリットをデータから引く
+    const seikon = ALL_CARDS.filter((c) => c.type === "spirit" && c.family.includes("星魂"))
+    assert(seikon.length >= 1, "テスト前提: 系統「星魂」のスピリットがいる")
+
+    const s = game()
+    const self = put(s, "p1", dande.cardId, 1)
+    assert(dande.family.includes("星魂"), "テスト前提: ダンデラビット自身も「星魂」を持つ（＝除外が効くか見える）")
+    const other = put(s, "p1", seikon.find((c) => c.cardId !== dande.cardId)!.cardId, 1)
+    const selfCores = self.cores
+    resolveAction(s, "p1", self, action2)
+    assert(other.cores === 2, "自分以外の「星魂」にコアが置かれる")
+    assert(self.cores === selfCores, "発生源自身には置かれない")
+}
+
+console.log("=== §F リブートコード：回復しても、合体スピリットだけはアタックできる ===")
+{
+    const reboot = byName("リブートコード")
+    const e = reboot.effects.find((x) => x.kind === "magic")
+    assert(e !== undefined && "action" in e, "テスト前提: リブートコードはマジック効果を持つ")
+    const rebootAction = (e as { action: Parameters<typeof resolveAction>[3] }).action
+
+    const s = game()
+    const host = put(s, "p1", ALL_CARDS.find((c) => c.type === "spirit")!.cardId, 3)
+    const plain = put(s, "p1", ALL_CARDS.find((c) => c.type === "spirit")!.cardId, 3)
+    // ホストにブレイヴを合体させる（合体中のブレイヴは field.combinedBraves に置き、braveRefs で参照する）
+    const brave = ALL_CARDS.find((c) => c.type === "brave")
+    assert(brave !== undefined, "テスト前提: ブレイヴカードがいる")
+    const braveInst = createInstance(brave!.cardId, s.turn, 0)
+    s.players.p1.field.combinedBraves.push(braveInst)
+    host.braveRefs = [{ slot: "single", instanceId: braveInst.instanceId }]
+    host.isRested = true
+    plain.isRested = true
+    resolveAction(s, "p1", null, rebootAction)
+    assert(!host.isRested && !plain.isRested, "疲労していた自分のスピリットはすべて回復する")
+    assert(plain.cantAttackThisTurn === true, "合体していないスピリットはこのターンアタックできない")
+    assert(host.cantAttackThisTurn !== true, "合体スピリットはアタックできる")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part271）")

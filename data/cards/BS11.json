@@ -366,7 +366,30 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nバトル終了時、自分のデッキを上から、このスピリットのLvと同じ枚数オープンできる。\nその中の系統：「星竜」を持つコスト7以下のスピリットカードすべてを、コストを支払わずに召喚できる。\n残ったカードは破棄する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-007-e1",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "revealAndSummonAllByFamily",
+     "count": 1,
+     "countFromSelfLevel": true,
+     "familyFilter": [
+      "星竜"
+     ],
+     "costFilter": {
+      "max": 7
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-008",
@@ -653,6 +676,20 @@
     "symbols": [
      "red"
     ]
+   },
+   {
+    "id": "BS11-062-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "turn": "own",
+    "winnerCombinedOnly": true,
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1
+    }
    }
   ]
  },
@@ -1170,6 +1207,21 @@
      "discardNonMatching": true
     },
     "optional": false
+   },
+   {
+    "id": "BS11-051-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "action": {
+     "type": "recoverSpiritFromTrash",
+     "count": 1,
+     "costFilter": {
+      "max": 6
+     }
+    },
+    "optional": false
    }
   ],
   "braveCondition": {
@@ -1513,6 +1565,24 @@
     "action": {
      "type": "coreGain",
      "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS11-019-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1,
+     "familyFilter": [
+      "星魂"
+     ],
+     "excludeSelf": true
     },
     "optional": false
    }
@@ -2775,7 +2845,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n疲労状態の自分のスピリットすべてを回復させる。\nこのターンの間、この効果で回復した、合体スピリット以外のスピリットはアタックできない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-079-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshAllOwn",
+     "exemptCombined": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-080",

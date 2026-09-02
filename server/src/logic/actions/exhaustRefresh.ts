@@ -24,7 +24,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -663,9 +663,11 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
             // exemptKeyword（BS09-076エマージェンシー＝【転召】持ちはアタックできる）は exemptFamily と OR
+            // exemptCombined（BS11-079 リブートコード＝「合体スピリット以外のスピリットはアタックできない」）も OR
             const exempt =
                 (action.exemptFamily !== undefined && matchesFamilyFilter(state, owner, s, action.exemptFamily)) ||
-                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword))
+                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword)) ||
+                (action.exemptCombined === true && instIsCombined(s))
             if (!exempt) {
                 s.cantAttackThisTurn = true
             }
