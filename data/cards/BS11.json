@@ -2034,7 +2034,23 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2\n自分の緑のネクサスが破壊されたとき、このネクサス上のコア1個を自分のトラッシュに置くことで、破壊されたネクサス1つを同じ状態で自分のフィールドに戻す。\nLv2\n自分のスピリットが破壊されたとき、このネクサス上のコア3個をトラッシュに置くことで、そのスピリットを疲労状態で自分のフィールドに戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-066-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "colorFilter": "green",
+    "optional": true,
+    "action": {
+     "type": "reviveLastDestroyedNexus",
+     "coreCost": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-077",
@@ -2652,7 +2668,18 @@
    }
   ],
   "braveConditionText": "コスト3以上",
-  "effects": [],
+  "effects": [
+   {
+    "id": "BS11-055-e1",
+    "kind": "constraint",
+    "levels": null,
+    "whileCombined": true,
+    "constraint": {
+     "type": "immuneToOpponentEffects",
+     "against": "brave"
+    }
+   }
+  ],
   "braveCondition": {
    "minCost": 3
   }

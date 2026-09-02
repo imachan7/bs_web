@@ -1591,6 +1591,14 @@ export function hasFullEffectImmunity(
     inst: CardInstance,
     srcType: CardType | undefined,
 ): boolean {
+    // ブレイヴの効果（合体中のブレイヴが発生源）も対象にする。
+    // ⚠️ against 未指定の「相手の効果を受けない」は**従来どおりスピリット/マジックだけ**を止める
+    // （既存カードの範囲を広げないため）。ブレイヴを止めるのは against:"brave" を書いたときだけ
+    if (srcType === "brave") {
+        return activeConstraints(board, pid, inst).some(
+            (c) => c.type === "immuneToOpponentEffects" && c.against === "brave",
+        )
+    }
     if (srcType !== "spirit" && srcType !== "magic") return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
     // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る

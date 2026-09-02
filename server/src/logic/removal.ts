@@ -1706,7 +1706,10 @@ function driveNexusDestruction(
             // 「自分のネクサスが破壊されたとき」をそのネクサス自身が持つ形（BS07の各色ネクサス6枚）も
             // 走査にそのまま含まれる（以前は場から外していたため extraSources で補っていた）
             case 3:
-                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
+                // eventColors には**破壊されたネクサスの色**を渡す。
+                // 渡さないと fieldEvent.colorFilter が常に外れる（「自分の緑のネクサスが破壊されたとき」＝
+                // BS11-066 発見されし世界樹。2026-09-02 まで配線されておらず、条件付きの誘発は常に不発だった）
+                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, {
                     byOpponentEffect,
                 })
                 break

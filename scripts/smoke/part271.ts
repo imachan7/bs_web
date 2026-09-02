@@ -3,7 +3,7 @@
 // docs/design/BS11_PLAN.md §2.3 A のうち、この回で足したもの:
 //   - destroy.drawPerDestroyed：**実際に破壊できた**1体につき1枚ドローする（BS11-006 獅龍皇子レオグルス）
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, destroyNexus, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -145,6 +145,39 @@ console.log("=== §F リブートコード：回復しても、合体スピリ�
     assert(!host.isRested && !plain.isRested, "疲労していた自分のスピリットはすべて回復する")
     assert(plain.cantAttackThisTurn === true, "合体していないスピリットはこのターンアタックできない")
     assert(host.cantAttackThisTurn !== true, "合体スピリットはアタックできる")
+}
+
+console.log("=== §G 発見されし世界樹：『自分の緑のネクサスが破壊されたとき』の色の絞り込みが効く ===")
+{
+    // ⚠️ ownNexusDestroyed の誘発は、破壊されたネクサスの色が渡っておらず
+    // **colorFilter が常に外れていた**（2026-09-02 に配線した）。ここはその回帰テスト。
+    const tree = byName("発見されし世界樹")
+    const e = tree.effects.find((x) => x.kind === "fieldEvent")
+    assert(e !== undefined && (e as { colorFilter?: string }).colorFilter === "green", "テスト前提: 緑に絞る誘発を持つ")
+    const nexusOf = (color: string) => {
+        const c = ALL_CARDS.find((x) => x.type === "nexus" && x.colors.length === 1 && x.colors[0] === color && x.cardId !== tree.cardId)
+        assert(c !== undefined, `テスト前提: ${color}の単色ネクサスがいる`)
+        return c!.cardId
+    }
+    const setup = (destroyedColor: string) => {
+        const s = game()
+        const src = createInstance(tree.cardId, s.turn, 3) // 支払い用のコアを載せておく
+        s.players.p1.field.nexuses.push(src)
+        const victim = createInstance(nexusOf(destroyedColor), s.turn, 1)
+        s.players.p1.field.nexuses.push(victim)
+        return { s, src, victim }
+    }
+    // 緑のネクサスが破壊された → 戻る（コア1個を払う）
+    const g = setup("green")
+    destroyNexus(g.s, "p1", g.victim.instanceId)
+    assert(g.s.players.p1.field.nexuses.some((n) => n.cardId === g.victim.cardId), "緑なら破壊されたネクサスが戻る")
+    assert(g.src.cores === 2, "戻すコストとして自身のコア1個がトラッシュへ")
+
+    // 緑以外が破壊された → 戻らない（色の絞り込みが効いている）
+    const r = setup("red")
+    destroyNexus(r.s, "p1", r.victim.instanceId)
+    assert(!r.s.players.p1.field.nexuses.some((n) => n.cardId === r.victim.cardId), "緑以外は戻らない")
+    assert(r.src.cores === 3, "払われていない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part271）")
