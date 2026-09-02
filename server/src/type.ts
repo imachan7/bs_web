@@ -653,6 +653,8 @@ export type GlobalConstraintDef =
     | { type: "singleCoreCantAttack" } // コア1個しか置いていないスピリットは、アタックができない（ブロックは可能。singleCoreCantActのアタック限定版。両陣営。BS08赤き砂の座）
     | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number } // maxBp指定時は実効BPがこれ以下のスピリットのアタックで判定する（コストでなくBPで縛る形。BS09-031守護巨獣ガラパーゾ＝BP3000以下）。// コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない（両陣営。BS07の「勇傑」各色に共通）。costs指定時はmaxCostの代わりに**コスト完全一致**（配列＝いずれかに一致。instAllCostsのいずれかが含まれればよい。BS08守護機獣スノパルド：コスト3/4）。keywordExclude指定時は、アタッカーがそのキーワードを持つときは保護しない（spiritHasKeyword判定。同カード：【転召】を持たない）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
+    | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // **発生源が回復状態の間、発生源の持ち主は相手のライフを減らせない**（片側のみ。Lv3で自分を回復させる効果の見返りの制約。BS11-X06 天秤造神リブラ・ゴレムLv3。2026-09-02 ユーザー確認で「文面どおり」）
+    | { type: "noDrawInMain" } // 両陣営とも、**メインステップの間はドローできない**（BS11-065 満天の牧草地Lv1-2＝「お互い、ドローできず、手札を破棄できない」のドロー側。破棄側は未実装で card-notes.json に理由を書いてある）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る。BS09-047鮫人サンゴジョー）
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで**合体していないスピリットは1体しか回復できない**（どれを回復させるかはそのステップのプレイヤーが選ぶ。BS11-X04 宝瓶神機アクア・エリシオン）
     | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスすべては回復しない（BS11-X04 同上）
@@ -1080,6 +1082,7 @@ export type EffectDef =
           // ※ 破壊/召喚は eventInfo.families（**カード静的な系統**）で判定する。疲労イベントは families を渡さないため、
           //    selfOverride のインスタンスに対して matchesFamilyFilter で**継続付与された系統も含めて**判定する
           //    （BS02生み出される尖兵：自身のLv1が与える「武装」を Lv2 が見る）
+          sokuSummonOnly?: true // event: "ownSpiritSummoned" 限定：その召喚が**【神速】によるもの**（フラッシュタイミングでの手札からの召喚）だったときのみ発火（「【神速】の効果で召喚されたとき」。BS11-065 満天の牧草地Lv2）。⚠️ keywordFilter:"soku"（＝召喚されたカードが【神速】を持つ）とは別物で、こちらは**その召喚が神速で行われたか**を見る
           fushiSummonOnly?: true // event: "ownSpiritSummoned" 限定：その召喚が【不死】によるものだったときのみ発火（「【不死】の効果で召喚されたとき」。BS09-013ミミズクロ）。
           // 【不死】召喚も通常の召喚と同じくこのイベントを起こす（TIMING_CHART.md）ので、限定したいときだけ指定する
           subjectCombined?: boolean // 指定時、**イベントの主体が合体しているか**で絞る（true=合体スピリット／false=合体していない）。
@@ -1230,7 +1233,7 @@ export type EffectDef =
           cardTypeFilter?: CardType // 対象カードの種別（BS07女帝ペンプレスLv2-3＝スピリットカードのみ。加算側の cardType と同義だが、両枝を混同させないため別名にしてある）
           scope?: "self" // 指定時は「手札にあるこのカード自身」の効果（hasTrashSymbolReductionと同型）。
           // costSetOverride は cardData.effects を直接見て判定する（effectSourcesの発生源走査では拾えないため）。BS10-059フォート・ゴレム
-          condition?: { ownNexusAtLeast: number } // scope:"self"用：発生源の持ち主（＝このカードを使おうとしているプレイヤー）のネクサス数がこれ以上のときのみ有効（BS10-059＝1以上）
+          condition?: { ownNexusAtLeast: number } | { ownLifeAtMost: number } // ownLifeAtMost＝発生源の持ち主のライフがこれ以下のときのみ有効（BS11-X03 星騎士ハーキュリーΩ＝ライフ3以下の間、手札のこのカードのコストを4にする）。// scope:"self"用：発生源の持ち主（＝このカードを使おうとしているプレイヤー）のネクサス数がこれ以上のときのみ有効（BS10-059＝1以上）
       }
     | {
           id: string
@@ -2455,6 +2458,7 @@ export interface GameState {
     // 召喚の途中で、**まだ場に出していない**スピリットの instanceId（2026-08-20）。
     // 【転召】は「召喚コスト支払い後・維持コアを置く前」に解決するため、その間だけ立つ。
     // これが立っている間は『転召したとき』の誘発を保留する（下の pendingTenshoEvent）
+    summoningBySoku?: true // いま解決中の召喚が【神速】によるものか（フラッシュタイミングの手札からの召喚）。fireSummonSequence が読んで「【神速】の効果で召喚されたとき」（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）に渡し、そこで消す
     summoningInstanceId?: string
     // 保留した『転召したとき』（fieldEvent "ownTensho"）。召喚されたスピリットが場に出た時点で発火する。
     // 保留しないと、召喚されたカード自身が持つこの誘発（BS08-009関将龍皇ドラグロン等6枚。

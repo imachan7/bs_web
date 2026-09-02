@@ -1829,6 +1829,10 @@ export function lifeDamageLimit(
     if (lifeProtectedByCostThisTurn(board, defenderPid, attacker)) {
         return { max: 0, reason: "このターンはコスト条件によりライフが減らない" }
     }
+    // BS11-X06 天秤造神リブラ・ゴレムLv3：発生源が回復状態の間、その持ち主は相手のライフを減らせない
+    if (cantReduceOpponentLife(board, defenderPid === "p1" ? "p2" : "p1")) {
+        return { max: 0, reason: "回復状態の発生源があるため、相手のライフを減らせない" }
+    }
     // BS08空帝竜騎プラチナム：アタッカーの実効BPが発生源以下なら減らない
     if (protectedByBpUpToSelf(board, defenderPid, attacker)) {
         return { max: 0, reason: "BP条件によりライフが減らない" }
@@ -1864,6 +1868,21 @@ export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType
         floor = Math.max(floor, c.floor)
     }
     return floor
+}
+
+// attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
+// cantReduceOpponentLifeWhileSelfRefreshed を持つ**回復状態の**発生源があれば減らせない（BS11-X06 Lv3）
+export function cantReduceOpponentLife(board: Board, attackerPid: PlayerId): boolean {
+    for (const inst of effectSources(board, attackerPid)) {
+        if (inst.isRested) continue
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "cantReduceOpponentLifeWhileSelfRefreshed") continue
+            if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+            return true
+        }
+    }
+    return false
 }
 
 export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {

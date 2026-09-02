@@ -193,11 +193,15 @@ function checkCostSetEffects(
         }
         if (
             e.condition !== undefined &&
-            !(typeof e.condition === "object" && e.condition !== null && "ownNexusAtLeast" in e.condition)
+            !(
+                typeof e.condition === "object" &&
+                e.condition !== null &&
+                ("ownNexusAtLeast" in e.condition || "ownLifeAtMost" in e.condition)
+            )
         ) {
             add(
                 c.cardId,
-                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
             )
         }
         if ("amount" in e) {

@@ -34,7 +34,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -317,6 +317,11 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
         if (lifeImmuneThisTurn(state, opp)) {
             log(state, `${sourceName}：${state.players[opp].name}はこのターンライフが減らないため発動しなかった。`)
+            return
+        }
+        // BS11-X06 天秤造神リブラ・ゴレムLv3：回復状態の発生源がある間、この持ち主は相手のライフを減らせない
+        if (cantReduceOpponentLife(state, owner)) {
+            log(state, `${sourceName}：回復状態の発生源があるため、相手のライフを減らせなかった。`)
             return
         }
         // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。

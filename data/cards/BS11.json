@@ -3849,7 +3849,33 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのメインステップ』\nお互い、ドローできず、手札を破棄できない。\nLv2『お互いのアタックステップ』\n自分のスピリットが【神速】の効果で召喚されたとき、相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-065-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noDrawInMain"
+    }
+   },
+   {
+    "id": "BS11-065-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "sokuSummonOnly": true,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-066",
@@ -4992,6 +5018,17 @@
     "action": {
      "type": "refreshSelf"
     }
+   },
+   {
+    "id": "BS11-X03-e3",
+    "kind": "costMod",
+    "levels": null,
+    "mode": "set",
+    "setTo": 4,
+    "scope": "self",
+    "condition": {
+     "ownLifeAtMost": 3
+    }
    }
   ]
  },
@@ -5206,6 +5243,16 @@
      "type": "refreshSelf"
     },
     "optional": false
+   },
+   {
+    "id": "BS11-X06-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     3
+    ],
+    "constraint": {
+     "type": "cantReduceOpponentLifeWhileSelfRefreshed"
+    }
    }
   ]
  },

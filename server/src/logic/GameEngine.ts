@@ -519,6 +519,9 @@ function doSummon(
     // 『転召したとき』の誘発が保留され、場に出た時点で発火する（fireTenshoEvent / flushPendingTenshoEvent）。
     // **召喚時効果は場に出た後**（2026-08-13 修正。以前は犠牲が消える前に召喚時効果が出ていた）
     state.summoningInstanceId = inst.instanceId
+    // 【神速】による召喚か（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）。
+    // フラッシュタイミングで手札から召喚できるのは神速だけなので、ここで判定できる
+    if (state.isFlashTiming) state.summoningBySoku = true
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける

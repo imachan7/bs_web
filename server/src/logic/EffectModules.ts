@@ -1125,10 +1125,13 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
+            // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
+            bySoku: state.summoningBySoku === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
         })
     }
+    delete state.summoningBySoku
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
