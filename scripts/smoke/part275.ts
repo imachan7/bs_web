@@ -4,7 +4,7 @@
 //   合体スピリットとバトルしたときBP+10000
 // - BS11-030 ドルフィング：相手のアタックステップ開始時、相手の合体スピリット1体をアタック不可にする
 // - BS11-063 終末描かれしキャンバスLv2：自分の合体スピリットに疲労状態を狙う指定アタックを与える
-import { act, assert, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave } from "../../server/src/logic/removal"
@@ -132,6 +132,41 @@ console.log("=== §E BS11-063 Lv2：自分の合体スピリットが疲労状�
         act(s, "p1", { type: "attack", instanceId: host.instanceId, targetSpiritInstanceId: rested.instanceId }) === null,
         "合体スピリットは疲労状態の相手を指定できる",
     )
+}
+
+console.log("=== §F BS11-064 Lv2：相手のスピリットが合体したとき、その合体スピリットは疲労する ===")
+{
+    const s = game("dark-sword")
+    const sword = createInstance("BS11-064", s.turn, 3) // 闇の聖剣 Lv2
+    s.players.p1.field.nexuses.push(sword)
+    const host = combined(s, "p2", vanilla[1]!.cardId, 2) // 相手が合体
+    assert(host.isRested === true, "相手の合体スピリットは疲労する")
+}
+{
+    const s = game("dark-sword-own")
+    const sword = createInstance("BS11-064", s.turn, 3)
+    s.players.p1.field.nexuses.push(sword)
+    const host = combined(s, "p1", vanilla[1]!.cardId, 2) // 自分が合体
+    assert(host.isRested === false, "自分の合体スピリットは疲労しない")
+}
+
+console.log("=== §G BS11-020：召喚時、手札のブレイヴを自分に直接合体するように召喚する ===")
+{
+    const s = game("yamasemi")
+    // 先に本体を場に出す（召喚時効果は fireSummonTrigger でなく、ここでは効果を直接呼ばずに実召喚で通す）
+    // 合体条件「コスト3以上」のブレイヴを使う（ヤマセミはコスト4。バニラ条件のブレイヴは合体できない）
+    const minCostBrave = ALL_CARDS.find(
+        (c) => c.type === "brave" && JSON.stringify(c.braveCondition) === JSON.stringify({ minCost: 3 }),
+    )
+    assert(minCostBrave !== undefined, "テスト前提: 合体条件コスト3以上のブレイヴがいる")
+    s.players.p1.hand = [minCostBrave!.cardId]
+    const self_ = createInstance("BS11-020", s.turn, 2)
+    s.players.p1.field.spirits.push(self_)
+    refreshLevelAsOverrides(s)
+    resolveAction(s, "p1", self_, { type: "summonFromHandFree", bravesOnly: true, combineToSelf: true, payCost: true })
+    assert(s.players.p1.field.combinedBraves.length === 1, "ブレイヴが召喚されて合体している")
+    assert((self_.braveRefs ?? []).length === 1, "合体先は発生源自身")
+    assert(s.players.p1.hand.length === 0, "手札から出ている")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part275）")

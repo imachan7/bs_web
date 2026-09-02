@@ -225,6 +225,11 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     host.isRested = host.isRested || brave.isRested
     // ブレイヴが足すコスト・色・シンボルをここで組み直す（このあとに出る召喚時効果等がコストや色を読むため）
     refreshLevelAsOverrides(state)
+    // 「スピリットが合体したとき」（BS11-064 闇の聖剣Lv2）。合体の入口はここ1つなので、
+    // 経路（召喚・効果・再合体）を問わず必ず1回だけ発火する。両フィールドから呼び、
+    // 発生源側は subjectSide で自分/相手を絞る
+    fireFieldEventTriggers(state, pid, "anySpiritCombined", { pid, inst: host })
+    fireFieldEventTriggers(state, opponentOf(pid), "anySpiritCombined", { pid, inst: host })
 }
 
 // 効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝

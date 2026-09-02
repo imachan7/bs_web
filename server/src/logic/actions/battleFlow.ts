@@ -644,6 +644,13 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 return
             }
             const combineCandidates = braveCombineCandidates(state, owner, cardId)
+            // combineToSelf（BS11-020 陰陽ヤマセミ）：合体先は発生源自身に固定なので選ばせない。
+            // 合体条件を満たさないときは合体させず、スピリット状態で召喚する
+            if (action.combineToSelf) {
+                const toSelf = self && combineCandidates.includes(self.instanceId) ? self.instanceId : undefined
+                finishBraveSummon(handIndex, toSelf)
+                return
+            }
             if (!state.interactiveTargets || combineCandidates.length === 0) {
                 finishBraveSummon(handIndex)
                 return

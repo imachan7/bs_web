@@ -1108,6 +1108,22 @@
      1,
      2
     ]
+   },
+   {
+    "id": "BS11-020-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "bravesOnly": true,
+     "combineToSelf": true,
+     "payCost": true
+    }
    }
   ]
  },
@@ -3571,7 +3587,20 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2\n自分のスピリットが破壊されたとき、そのスピリットをコスト3/4のスピリットとしても扱う。\nLv2\n相手のスピリットが合体したとき、その合体スピリットは疲労する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-064-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritCombined",
+    "levels": [
+     2
+    ],
+    "subjectSide": "opponent",
+    "action": {
+     "type": "exhaustSelf"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-065",
