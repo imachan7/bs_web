@@ -860,6 +860,7 @@ button:active {
 .pay-badge,
 .cant-attack-badge,
 .step-active-badge,
+.combine-badge,
 .as-spirit-badge {
     position: absolute;
     min-width: 44px;
@@ -877,37 +878,71 @@ button:active {
 .pay-badge::after,
 .cant-attack-badge::after,
 .step-active-badge::after,
+.combine-badge::after,
 .as-spirit-badge::after {
     content: '';
     position: absolute;
     inset: -8px;
 }
 
-/* 合体しているブレイヴ。ホストのカードの中に1行ずつ並べる（単独のカードとしては場に出ない）。
-   .card は 76px 角の固定サイズなので、名前は省略表示にしてフル名は title 属性で見せる。
-   order で末尾へ回しているのは、fieldCardEl に早期 return が多く DOM 順で末尾に置きにくいため */
+/* 合体しているブレイヴ：ホストの右へ半分ずらして重ねる（docs/design/BRAVE.md §6.4）。
+   はみ出すぶんの幅は has-brave 側の margin-right で確保し、隣のカードと重ならないようにする */
+.card.has-brave {
+    margin-right: 46px;
+}
 .brave-combined-box {
     position: absolute;
-    left: 2px;
-    /* 右下にはシンボル（.symbols）が絶対配置されているので、その幅ぶん空ける */
-    right: 16px;
-    bottom: 2px;
+    left: calc(100% - 8px);
+    top: 14px;
+    bottom: 14px;
+    width: 52px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
+    /* ホストの背面へ回して「後ろから半分のぞく」見た目にする */
+    z-index: -1;
 }
 .brave-combined {
-    padding: 0 2px;
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    padding: 4px 3px 4px 6px;
     font-size: 9px;
-    line-height: 1.25;
-    border-radius: 2px;
-    background: rgba(0, 0, 0, 0.4);
-    border-left: 2px solid var(--c-sub);
-    white-space: nowrap;
+    line-height: 1.2;
+    border-radius: 0 8px 8px 0;
+    background: linear-gradient(145deg, #2a2e39, #20232c);
+    border: 1px solid #3a3f4e;
+    border-left: 3px solid var(--c-sub);
+    box-shadow: 3px 4px 6px rgba(0, 0, 0, 0.35);
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
 }
+
+/* 分離（メインステップの任意分離。§6.4）。ブレイヴのはみ出した部分の下端に置く */
+.detach-badge {
+    position: absolute;
+    left: 6px;
+    right: 2px;
+    bottom: 2px;
+    padding: 1px 0;
+    font-size: 9px;
+    line-height: 1.2;
+    border: none;
+    border-radius: 3px;
+    background: var(--c-sub);
+    color: #fff;
+    cursor: pointer;
+}
+.detach-badge:hover {
+    filter: brightness(1.2);
+}
+
+/* 合体（メインステップの任意合体。§6.4）。スピリット状態のブレイヴにだけ出る */
+.combine-badge {
+    bottom: -6px; left: -6px;
+    background: var(--c-sub);
+    color: #fff;
+}
+.combine-badge:hover { filter: brightness(1.2); }
 
 .awaken-badge {
     bottom: -6px; right: -6px;

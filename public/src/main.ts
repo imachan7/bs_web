@@ -33,7 +33,7 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, stepper: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -263,6 +263,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     ui.battleSwapSummon = null
     ui.braveSummonSelect = null
     ui.altSummonSelect = null
+    ui.combineBrave = null
     ui.paying = { 
         handIndex, 
         ...(targetInstanceId ? { targetInstanceId } : {}), 
@@ -281,6 +282,18 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
 function submitPaying(): void {
     if (!view || !ui.paying) return
     const pay = ui.paying
+    // 任意分離（BRAVE.md §6.4）：手札ではなく場の合体中ブレイヴが起点なので、ここで先に分岐する
+    if (pay.forDetachBraveInstanceId !== undefined) {
+        send({
+            type: "detachBrave",
+            braveInstanceId: pay.forDetachBraveInstanceId,
+            ...(Object.keys(pay.assigned).length > 0
+                ? { paySources: Object.entries(pay.assigned).map(([id, count]) => ({ instanceId: id, count })) }
+                : {}),
+        })
+        ui.paying = null
+        return
+    }
     const cardId = view.players[view.you].hand?.[pay.handIndex]
     if (cardId === undefined) {
         ui.paying = null
@@ -1088,6 +1101,54 @@ async function init(): Promise<void> {
             ui.awakenTarget = String(awakenBtn.dataset.awaken)
             ui.targeting = null // 覚醒モード開始時はマジックの対象選択を解除
             ui.paying = null
+            rerender()
+            return
+        }
+        // 合体バッジ（BRAVE.md §6.4）：クリックで合体先の選択モードへ入る
+        const combineBtn = closestData(e, "data-combine")
+        if (combineBtn) {
+            if (!view) return
+            const braveInstanceId = String(combineBtn.dataset.combine)
+            const brave = view.players[view.you].field.spirits.find((sp) => sp.instanceId === braveInstanceId)
+            if (brave) {
+                ui.combineBrave = {
+                    braveInstanceId,
+                    candidateIds: braveCombineCandidates(view, view.you, brave.cardId),
+                }
+                ui.targeting = null
+                ui.awakenTarget = null
+                ui.paying = null
+                rerender()
+            }
+            return
+        }
+        // 分離バッジ（§6.4）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る
+        const detachBtn = closestData(e, "data-detach")
+        if (detachBtn) {
+            if (!view) return
+            const braveInstanceId = String(detachBtn.dataset.detach)
+            const brave = view.players[view.you].field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
+            if (!brave) return
+            const need = minLevelCores(master(brave.cardId))
+            if (view.players[view.you].reserve >= need) {
+                send({ type: "detachBrave", braveInstanceId })
+            } else {
+                ui.targeting = null
+                ui.awakenTarget = null
+                ui.combineBrave = null
+                ui.paying = { handIndex: -1, forDetachBraveInstanceId: braveInstanceId, assigned: {}, discardHandIndices: [], millPay: 0 }
+                rerender()
+            }
+            return
+        }
+        // 合体先の選択中：候補のスピリットをクリックすると合体する
+        if (ui.combineBrave !== null) {
+            const card = closestData(e, "data-instance-id")
+            const hostInstanceId = card ? String(card.dataset.instanceId) : ""
+            if (ui.combineBrave.candidateIds.includes(hostInstanceId)) {
+                send({ type: "combineBrave", braveInstanceId: ui.combineBrave.braveInstanceId, hostInstanceId })
+            }
+            ui.combineBrave = null
             rerender()
             return
         }

@@ -39,29 +39,11 @@
   取り先の選択・自動順は `opponentCoresToVoidByTotal` と共通のヘルパーに切り出して両方から呼んでいる
   （`coreSourcesOf` / `takeOneCoreToVoid` / `autoTakeCoresToVoid` / `totalCoresOf`）。UI の追加は不要だった
 
-### いま：メインステップの任意合体・分離（2026-09-02 ユーザー確定。実装前にここへ書いた）
-
-規則は [BRAVE.md](./docs/design/BRAVE.md) §6.4 に転記済み。**確定したスキーマ**は次の2本。
-
-```ts
-// GameAction（server/src/type.ts）に追加。※Effect の "detachBrave"（効果による分離）とは別物
-| { type: "combineBrave"; braveInstanceId: string; hostInstanceId: string }
-| { type: "detachBrave"; braveInstanceId: string; paySources?: PaySource[] }
-```
-
-- 実行できるのは**自分のメインステップ**（`pendingChoice` なし・バトル中でない）。回数無制限
-- **合体**：`attachBrave`（removal.ts の唯一の入口）を呼ぶ前に `player.reserve += brave.cores; brave.cores = 0`。
-  候補は `shared/summon.ts` の `braveCombineCandidates` を通す（サーバーとUIで判定を共有する §5.0 の規則）
-- **分離**：`braveKeepCores(brave)` 個のコアが要る。`paySources` 省略時はリザーブから自動で払い、
-  **リザーブが足りなければ拒否**する（クライアントが支払いUIへ入って `paySources` を付けて再送する）。
-  支払いは `payCost(state, pid, 0, paySources, need)` を流用し、戻り値ぶんを差し引いて残りをリザーブから引く
-- UI は合体ブレイヴを**ホストの右へ半分ずらして重ねる**（今の `brave-combined-box`＝下端の帯を置き換える）
-
 ### 次の候補（本線が空いたので、着手前に方針を確認すること）
 
 | 候補 | 中身 |
 | :-- | :-- |
-| ブレイヴの段階5・7 | 分離のコア支払いUI（[BRAVE.md](./docs/design/BRAVE.md) §6.3。`PayingState` の3つ目の起点が要る）と合体表示。**§2 の「破壊待機の手順3」もここ** |
+| ブレイヴの段階5・7 | **「場を離れるとき」の分離の確認（§6.3）が残り**。`PayingState` の3つ目の起点（`forDetachBraveInstanceId`）は任意分離（§6.4）で入ったので流用できる。**§2 の「破壊待機の手順3」もここ** |
 | 未決の解釈 | §2 の4件（PROCEDURES_AUDIT §5 の Q2/Q3/Q4/Q6） |
 | 範囲コア奪取の残り穴 | ネクサス上のコアとコア入れ替え系が共通ヘルパーを通っていない（[SPEC.md](./SPEC.md) §5「未着手の課題」。実害小） |
 | 次の弾の取り込み | `scripts/fetch_wiki_cards.py` で staging へ |

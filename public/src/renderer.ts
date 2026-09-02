@@ -19,6 +19,7 @@ import { setCardLookup } from "../../shared/cardDb"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
+import { braveCombineCandidates } from "../../shared/summon"
 import {
     activeConstraints,
     cantActByCost,
@@ -33,6 +34,7 @@ import {
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
+    minLevelCores,
     sokuPayableInstanceIds,
     OPPONENT_RESERVE_TARGET,
     canAwakenFromReserve,
@@ -163,6 +165,11 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
+    // 任意分離（§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
+    if (paying.forDetachBraveInstanceId !== undefined) {
+        const assigned = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
+        return Math.max(minLevelCores(card) - view.players[view.you].reserve - assigned, 0)
+    }
     // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
     const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
     const targetLevel = paying.level || 1
@@ -254,6 +261,11 @@ export interface PayingState {
     substituteInstanceId?: string // 入れ替え召喚の入れ替え元
     braveTargetInstanceId?: string // ダイレクトブレイヴの合体先スピリット（維持コアは置かない）
     altSummonNexusInstanceIds?: string[] // 代替召喚でデッキの下に戻すネクサス（召喚コストは0になる）
+    // 支払いの3つ目の起点（BRAVE.md §6.4）：**メインステップの任意分離**。
+    // 手札／トラッシュのカードではなく**場の合体中ブレイヴ**が起点で、必要数はそのブレイヴの
+    // スピリット状態のLv1維持コスト。立っているときは summon ではなく detachBrave を送る。
+    // リザーブだけで払えるときは支払いモードに入らず、そのまま detachBrave を送っている
+    forDetachBraveInstanceId?: string
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
@@ -275,6 +287,9 @@ export interface AltPayInfo {
 // **payingAltPay と payingRemaining は必ずこれを通す**（ゾーンの読み違いで別のカードを見ないように）
 export function payingCardId(view: GameView, paying: PayingState): string | undefined {
     const player = view.players[view.you]
+    if (paying.forDetachBraveInstanceId !== undefined) {
+        return player.field.combinedBraves.find((b) => b.instanceId === paying.forDetachBraveInstanceId)?.cardId
+    }
     if (paying.choiceZone === "trash") return player.trashCards[paying.handIndex]
     return player.hand?.[paying.handIndex]
 }
@@ -317,6 +332,9 @@ export interface UiState {
     // 代替召喚（kind:"altSummonFromHand"）の方法を選択中。通常召喚と、
     // 支払いに使えるネクサスごとの選択肢を出す（BS10-058 水星神龍メルクリウス・サーペント）
     altSummonSelect: { handIndex: number; cardId: string; candidateNexusIds: string[] } | null
+    // 任意合体モード（BRAVE.md §6.4）：合体させるスピリット状態のブレイヴを選んだ状態。
+    // candidateIds は合体先に選べる自分のスピリット（braveCombineCandidates と同じ判定）
+    combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
 }
@@ -926,8 +944,9 @@ function fieldCardEl(
     if (!isNexus) {
         const braves = bravesOf(view.players[ownerPid], inst)
         if (braves.length > 0) {
-            // カードは固定サイズなので、行を通常フローに足すと下へはみ出す。
-            // 下端に重ねる箱にまとめて入れる（異魔神ブレイヴのように2体合体しても縦に積める）
+            // ホストの**右へ半分ずらして重ねる**（BRAVE.md §6.4。実物の合体の見た目に寄せる）。
+            // ずらしたぶんの幅は has-brave の margin-right で確保する（隣のカードと重ならないように）
+            el.classList.add("has-brave")
             const box = document.createElement("div")
             box.className = "brave-combined-box"
             for (const brave of braves) {
@@ -936,9 +955,19 @@ function fieldCardEl(
                 row.dataset.instanceId = brave.instanceId
                 row.dataset.cardId = brave.cardId
                 const braveName = master(brave.cardId).name
-                // カード幅が76pxしかないので記号は置かず名前を優先する（左の色バーで見分けがつく）
+                // はみ出す幅が狭いので記号は置かず名前を優先する（左の色バーで見分けがつく）
                 row.textContent = `${braveName} Lv${levelOf(brave).level}`
-                row.title = `合体中: ${braveName}` // カードが狭く名前が省略されるため、フル名はここで見せる
+                row.title = `合体中: ${braveName}` // 幅が狭く名前が省略されるため、フル名はここで見せる
+                // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
+                if (isMine && myTurn && view.phase === "main" && !view.battle && view.pendingChoice === null) {
+                    const need = minLevelCores(master(brave.cardId))
+                    const btn = document.createElement("button")
+                    btn.className = "detach-badge"
+                    btn.dataset.detach = brave.instanceId
+                    btn.textContent = "分離"
+                    btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
+                    row.appendChild(btn)
+                }
                 box.appendChild(row)
             }
             el.appendChild(box)
@@ -1135,6 +1164,23 @@ function fieldCardEl(
             badge.textContent = "覚醒可能"
             badge.title = "クリックしてコアの移動元を選ぶ"
             el.appendChild(badge)
+        }
+        // メインステップの任意合体（BRAVE.md §6.4）：スピリット状態のブレイヴにだけ「合体」を出す。
+        // 候補の列挙は braveCombineCandidates に一本化する（サーバーの受理条件と同じ実装）
+        if (myTurn && view.phase === "main" && !view.battle && master(inst.cardId).type === "brave") {
+            const candidates = braveCombineCandidates(view, view.you, inst.cardId)
+            if (candidates.length > 0) {
+                const badge = document.createElement("button")
+                badge.className = "combine-badge"
+                badge.dataset.combine = inst.instanceId
+                badge.textContent = "合体"
+                badge.title = "クリックして合体先のスピリットを選ぶ（このブレイヴのコアはリザーブへ戻る）"
+                el.appendChild(badge)
+            }
+        }
+        // 任意合体モード中：合体先に選べるスピリットを強調する
+        if (ui.combineBrave !== null && ui.combineBrave.candidateIds.includes(inst.instanceId)) {
+            el.classList.add("targetable", "clickable")
         }
         // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
         // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
