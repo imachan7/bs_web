@@ -652,7 +652,11 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.paying !== null) {
         const remaining = payingRemaining(view, ui.paying)
         const alt = payingAltPay(view, ui.paying)
-        const base = `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
+        // 任意分離（BRAVE.md §6.4）にはコストが無く、置くコアだけなので案内を分ける
+        const base =
+            ui.paying.forDetachBraveInstanceId !== undefined
+                ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
+                : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
         if (alt.kind === "handDiscard") {
             // 破棄する手札は「どれを捨てるか」を選ぶので、手札そのものをクリックさせる
             $("targeting-info").textContent =

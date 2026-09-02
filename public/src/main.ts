@@ -695,6 +695,18 @@ function assignPayCore(instanceId: string): void {
         player.field.spirits.find((s) => s.instanceId === instanceId) ??
         player.field.nexuses.find((n) => n.instanceId === instanceId)
     if (!inst) return
+    // 任意分離（BRAVE.md §6.4）は**手札が起点ではない**ので、先にここで分岐する。
+    // コストは無く、必要なのは置くコア（そのブレイヴのスピリット状態のLv1維持コスト）だけ
+    if (pay.forDetachBraveInstanceId !== undefined) {
+        const brave = player.field.combinedBraves.find((b) => b.instanceId === pay.forDetachBraveInstanceId)
+        if (!brave) {
+            ui.paying = null
+            rerender()
+            return
+        }
+        assignOneCore(pay, instanceId, inst.cores, minLevelCores(master(brave.cardId)), player.reserve)
+        return
+    }
     const cardId = player.hand?.[pay.handIndex]
     if (cardId === undefined) {
         ui.paying = null
@@ -721,11 +733,24 @@ function assignPayCore(instanceId: string): void {
     const alt = payingAltPay(view, pay)
     const need = cost + maintain - Math.min(alt.used, cost)
     // フィールドのコアはコストにも置くコアにも充当できるため、上限は need
+    assignOneCore(pay, instanceId, inst.cores, need, player.reserve)
+}
+
+// 支払い元1つにコアを1個割り当て、必要数に達したら送信する。
+// 召喚・配置と任意分離で共通（need の求め方だけが呼び出し側で違う）
+function assignOneCore(
+    pay: { assigned: Record<string, number> },
+    instanceId: string,
+    instCores: number,
+    need: number,
+    reserve: number,
+): void {
+    const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
+    const already = pay.assigned[instanceId] ?? 0
     if (assignedTotal >= need) return // 必要数に到達済み（過払い防止）
-    if (already >= inst.cores) return // このスピリットのコアを使い切った
+    if (already >= instCores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
-    const newTotal = assignedTotal + 1
-    if (player.reserve + newTotal >= need) {
+    if (reserve + assignedTotal + 1 >= need) {
         // 必要数に達したので送信する（代替コストの選択も submitPaying が一緒に送る）
         submitPaying()
         return
