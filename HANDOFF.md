@@ -18,19 +18,19 @@
 
 ## 1. いまの本線と次の一手
 
-**BS11「星座編 第二弾：灼熱の太陽」は91枚すべて投入済み（2026-09-03 完了）。**
-→ [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5 に残っている節の一覧
+**BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
+→ [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手は次のどれか**（上から順に小さい）:
+**次の一手: バッチ0（器 A〜D）を入れる。** 他の色バッチはすべてこれに依存する:
 
-1. **BS11 に残る2節を潰す**（[BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5）。
-   どちらも横断的な下ごしらえが要る:
-   - BS11-065「手札を破棄できない」← 手札破棄の共通ヘルパーを作るのが先（いま38か所に散っている）
-   - BS11-X05 Lv2-3「マジックをもう1枚無償で使用」← `fireMagicUsedTriggers` に「コストを払ったか」を渡すのが先
-2. **次の弾（BS12「月の咆哮」）の取り込み**（`scripts/fetch_wiki_cards.py` で staging へ）
-3. **ブレイヴ経由の未計測**（`npm run coverage:effects` の「未計測の kind」7種）。
-   いずれも BS10 で入れた kind（altSummonFromHand / braveStatsAs / trashImmunity /
-   trashNameAs / trashSymbolReduction）で、計測点が無いだけ
+- **A 【重装甲】** — 新 Keyword `heavyArmor`。免疫判定で `sourceType:"brave"` も防ぐ（【装甲】は防がない）。
+  **【装甲】の参照には含めない**（`KEYWORD_INCLUDES` に足さない）。`colorsFrom:"selfColors"` が【重装甲：可変】
+- **B 【転召：系統/ボイド】** — `keyword:"tensho"` エントリに `familyFilter`（現状は `minCost` だけ）。
+  `tenshoCoreSubstitute` にも系統版が要る（BS12-061 / 064 / 066）
+- **C シンボルの追加（継続）／喪失** — 新 kind `symbolAddGrant`（BS12-006）と `tempSymbolLoss`（BS12-080）
+- **D シンボル数フィルタ** — `TargetFilter.symbolCount`（`instanceSymbolCount` で判定。7枚が使う）
+
+BS11 は91枚すべて投入済み。残る2節は [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5（どちらも横断的な下ごしらえが先）。
 
 BS10（121枚）とブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9）。
 BS11 で確定した規則は BRAVE.md §12.5.1〜§12.5.5 に移してある。
