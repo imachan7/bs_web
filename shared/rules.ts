@@ -1216,6 +1216,13 @@ export function auraAppliesTo(
     ) {
         return false
     }
+    // keywordsFilter（OR。BS11-081 ライトニングデリバリー＝【光芒】/【聖命】）
+    if (
+        aura.keywordsFilter &&
+        !aura.keywordsFilter.some((k) => spiritHasKeyword(board, targetOwnerPid, targetInst, k))
+    ) {
+        return false
+    }
     if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
         return false
     }

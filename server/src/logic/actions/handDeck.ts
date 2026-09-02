@@ -1,7 +1,7 @@
 // 手札・デッキ・トラッシュ操作系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, GameState, PlayerId } from "../../type"
+import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames } from "../GameState"
 import {
     tryFreeSummonOnHandDiscard,
@@ -475,6 +475,56 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
 // （BS10-019土星神龍クロノ・ボロス）。COST_MODEL.md §1：コストと効果の両方が完全に解決できる
 // ときだけ発揮できる＝手札がdiscardCount枚未満なら不発（部分的に破棄しない）。
 // discardCountは「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入）
+// 手札の指定種別1枚を破棄することで、相手のスピリットのコアを取り除く（BS11-075 トーテンタンツ）。
+// コストと本体の両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）
+const costDiscardHandTypeThenCoreRemoveHandler: ActionHandler<"costDiscardHandTypeThenCoreRemove"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（コア除去は remainingAction 側）
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+        return
+    }
+    const indices = player.hand
+        .map((cardId, i) => ({ cardId, i }))
+        .filter(({ cardId }) => cardId !== undefined && action.cardTypes.includes(getCard(cardId).type))
+        .map(({ i }) => i)
+    if (indices.length === 0) {
+        log(state, `${sourceName}：コストにできる手札がないため発動しなかった。`)
+        return
+    }
+    const coreRemove: EffectAction = { type: "coreRemove", count: action.count }
+    if (
+        state.interactiveTargets &&
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストとして破棄するカードを選んでください`,
+            "hand",
+            indices,
+            { type: "costDiscardHandTypeThenCoreRemove", cardTypes: action.cardTypes, count: action.count },
+            coreRemove,
+        )
+    ) {
+        return
+    }
+    // 決定的自動選択：候補の末尾を破棄する
+    const at = indices[indices.length - 1]!
+    const cardId = player.hand[at]!
+    player.hand.splice(at, 1)
+    player.trashCards.push(cardId)
+    log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+    ctx.resolve(coreRemove, {})
+}
+
 const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
@@ -2622,6 +2672,7 @@ const handlers = {
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
+    costDiscardHandTypeThenCoreRemove: costDiscardHandTypeThenCoreRemoveHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,

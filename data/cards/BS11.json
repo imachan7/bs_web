@@ -3970,6 +3970,19 @@
      "type": "draw",
      "count": 1
     }
+   },
+   {
+    "id": "BS11-070-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "seimei",
+    "target": "ownAll",
+    "familyFilter": [
+     "戯狩"
+    ],
+    "phase": "attack"
    }
   ]
  },
@@ -4187,7 +4200,21 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分の手札にあるスピリットカード1枚かブレイヴカード1枚を破棄することで、相手のスピリットのコア2個を相手のリザーブに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-075-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "costDiscardHandTypeThenCoreRemove",
+     "cardTypes": [
+      "spirit",
+      "brave"
+     ],
+     "count": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-077",
@@ -4357,6 +4384,29 @@
     "action": {
      "type": "draw",
      "count": 1
+    }
+   },
+   {
+    "id": "BS11-081-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lendSelfThisTurn"
+    }
+   },
+   {
+    "id": "BS11-081-e3",
+    "kind": "aura",
+    "levels": null,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordsFilter": [
+      "kobo",
+      "seimei"
+     ],
+     "amount": 1000,
+     "lentOnly": true
     }
    }
   ]
