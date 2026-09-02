@@ -41,7 +41,7 @@ import {
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -1300,10 +1300,12 @@ const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action)
         }
         // ボイドからコアcount個を対象の自分スピリットの上に置く（未指定時は自分の実効BP最大。ポーションベリー）。
         // familyFilter 指定時はその系統を持つ自分のスピリットだけが対象（BS07デルファングス＝虚神/神将）
+        // excludeSelf（BS11-019 ダンデラビット＝「このスピリット以外の」）は発生源自身を外す
         const eligible = state.players[owner].field.spirits.filter(
             (s) =>
-                action.familyFilter === undefined ||
-                matchesFamilyFilter(state, owner, s, action.familyFilter),
+                (action.familyFilter === undefined ||
+                    matchesFamilyFilter(state, owner, s, action.familyFilter)) &&
+                !(action.excludeSelf === true && s.instanceId === self?.instanceId),
         )
         const target = targetInstanceId
             ? eligible.find((s) => s.instanceId === targetInstanceId)
@@ -1644,6 +1646,12 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             log(state, `${sourceName}：効果により、ボイド/リザーブからライフにコアを置けなかった。`)
             return
         }
+        // 「お互い、ボイドからライフにコアを置けない」（BS11-072 未完成の古代戦艦：船尾）。
+        // 置き元がボイドのときだけ止める（リザーブ・スピリット上からの経路は通す）
+        if (action.from === "void" && hasGlobalConstraint(state, "noVoidToLife")) {
+            log(state, `${sourceName}：効果により、ボイドからライフにコアを置けなかった。`)
+            return
+        }
         // upTo（BS09-X35超神星龍ジークヴルム・ノヴァ）：「ライフが5になるように」不足分だけ置く。
         // すでにその数以上なら何も置かない。ボイドから置くので必ず届く
         if (action.upTo !== undefined) {
@@ -1727,10 +1735,52 @@ const voidCoresToNexusLevelHandler: ActionHandler<"voidCoresToNexusLevel"> = (ct
 }
 
 const opponentNexusOrReserveCoreToTrashHandler: ActionHandler<"opponentNexusOrReserveCoreToTrash"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-        // エナジードレイン：相手のネクサス（コア数最多）にコアがあればそこから、
-        // 無ければ相手のリザーブから、count個を相手のトラッシュへ
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+        // エナジードレイン：相手のネクサス上のコアか、相手のリザーブのコアかを**効果の使用者が選ぶ**
+        // （2026-09-02。PROCEDURES_AUDIT §5 の一般則。ネクサスから取るとレベルが下がるので選択に意味がある）。
+        // 非対話（テスト・AI）は従来どおり「コア数最多のネクサス → 無ければリザーブ」
         const oppPlayer = state.players[opp]
+        // 選択肢のラベル（表示文言がそのまま値として返る）。同名ネクサスが並ぶので先頭に番号を振る
+        const coreSourceLabels = (): { label: string; instanceId?: string }[] => [
+            ...oppPlayer.field.nexuses
+                .filter((n) => n.cores > 0)
+                .map((n, i) => ({ label: `${i + 1}. ${getCard(n.cardId).name}（コア${n.cores}個）`, instanceId: n.instanceId })),
+            ...(oppPlayer.reserve > 0 ? [{ label: `リザーブ（コア${oppPlayer.reserve}個）` }] : []),
+        ]
+        if (chosenOption !== undefined) {
+            const picked = coreSourceLabels().find((o) => o.label === chosenOption)
+            const nexus = picked?.instanceId
+                ? oppPlayer.field.nexuses.find((n) => n.instanceId === picked.instanceId)
+                : undefined
+            if (nexus) {
+                const take = Math.min(action.count, nexus.cores)
+                nexus.cores -= take
+                oppPlayer.trashCores += take
+                log(state, `${sourceName}：${getCard(nexus.cardId).name}（ネクサス）のコア${take}個をトラッシュに置いた。`)
+                return
+            }
+            const take = Math.min(action.count, oppPlayer.reserve)
+            oppPlayer.reserve -= take
+            oppPlayer.trashCores += take
+            log(state, `${sourceName}：${oppPlayer.name}のリザーブのコア${take}個をトラッシュに置いた。`)
+            return
+        }
+        // 取り先が2つ以上あるときだけ聞く
+        const sources = coreSourceLabels()
+        if (state.interactiveTargets && sources.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：${oppPlayer.name}のどこからコアを取りますか？`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                sources.map((o) => o.label),
+            )
+            return
+        }
         const richestNexus = oppPlayer.field.nexuses
             .filter((n) => n.cores > 0)
             .reduce<CardInstance | undefined>(

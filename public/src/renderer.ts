@@ -165,8 +165,8 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
-    // 任意分離（§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
-    if (paying.forDetachBraveInstanceId !== undefined) {
+    // ブレイヴの分離（§6.3・§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
+    if (paying.forDetachBraveInstanceId !== undefined || paying.forBraveKeep !== undefined) {
         const assigned = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
         return Math.max(minLevelCores(card) - view.players[view.you].reserve - assigned, 0)
     }
@@ -266,6 +266,10 @@ export interface PayingState {
     // スピリット状態のLv1維持コスト。立っているときは summon ではなく detachBrave を送る。
     // リザーブだけで払えるときは支払いモードに入らず、そのまま detachBrave を送っている
     forDetachBraveInstanceId?: string
+    // 支払いの4つ目の起点（BRAVE.md §6.3）：**場を離れるときにブレイヴを残す**ときのコア。
+    // 起点は場のどこにも無い（脇に置かれている）ので、カードと必要数を選択待ちから受け取って持つ。
+    // 立っているときは resolveChoice（option＋paySources）を送る
+    forBraveKeep?: { option: string; cardId: string; need: number }
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
@@ -287,6 +291,7 @@ export interface AltPayInfo {
 // **payingAltPay と payingRemaining は必ずこれを通す**（ゾーンの読み違いで別のカードを見ないように）
 export function payingCardId(view: GameView, paying: PayingState): string | undefined {
     const player = view.players[view.you]
+    if (paying.forBraveKeep !== undefined) return paying.forBraveKeep.cardId
     if (paying.forDetachBraveInstanceId !== undefined) {
         return player.field.combinedBraves.find((b) => b.instanceId === paying.forDetachBraveInstanceId)?.cardId
     }
@@ -501,8 +506,11 @@ export function render(view: GameView, ui: UiState): void {
     // 効果解決中の選択待ち（サーバーがresolveChoice以外のアクションを全拒否するため、
     // 自分宛・相手宛を問わず通常の操作ボタンを隠す）
     const pendingChoiceActive = !!view.pendingChoice
+    // 「ブレイヴを残す」を押して支払いモードへ入っている間は、選択肢ボタンを出さない
+    // （出したままだと押し直して二重に入れてしまう。戻り道は「対象選択をやめる」）
+    const payingForChoice = ui.paying?.forBraveKeep !== undefined
     const myPendingChoice =
-        view.pendingChoice && view.pendingChoice.pid === view.you ? view.pendingChoice : null
+        view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice ? view.pendingChoice : null
     const oppPendingChoice =
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
@@ -654,7 +662,9 @@ export function render(view: GameView, ui: UiState): void {
         const alt = payingAltPay(view, ui.paying)
         // 任意分離（BRAVE.md §6.4）にはコストが無く、置くコアだけなので案内を分ける
         const base =
-            ui.paying.forDetachBraveInstanceId !== undefined
+            ui.paying.forBraveKeep !== undefined
+                ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forDetachBraveInstanceId !== undefined
                 ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
                 : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
         if (alt.kind === "handDiscard") {
@@ -1080,6 +1090,20 @@ function fieldCardEl(
     }
 
     if (isNexus) {
+        // ネクサスの起動能力（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）。
+        // 判定はスピリットと同じ共有層（activatableAbility）に任せる
+        if (isMine) {
+            const nexusActivatable = activatableAbility(view, view.you, inst)
+            if (nexusActivatable) {
+                const badge = document.createElement("button")
+                badge.className = "activate-badge"
+                badge.dataset.activate = inst.instanceId
+                badge.dataset.effect = nexusActivatable.effectId
+                badge.textContent = "起動"
+                badge.title = nexusActivatable.costLabel
+                el.appendChild(badge)
+            }
+        }
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
         if (isMine && ui.paying !== null) {
             const assigned = ui.paying.assigned[inst.instanceId] ?? 0

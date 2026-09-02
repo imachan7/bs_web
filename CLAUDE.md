@@ -125,6 +125,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
 ```
 
+### 自動選択の棚卸し（`npm run audit:choices`）— 効果を実装したあとに回す
+
+「対戦者が選ぶべき場面を実装が勝手に決めていないか」を数え直す。
+定型には**入れない**（誤検出を含むので、出力は人が読んで判断する）。
+方針と誤検出パターンは [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md) §4・§5。
+
 ### 実行時カバレッジ（`npm run coverage:effects`）— 弾の取り込みが一段落したら回す
 
 上の定型に**は入れない**（HEAD の使い捨て worktree を作って smoke を丸ごと1回走らせるので遅い）。

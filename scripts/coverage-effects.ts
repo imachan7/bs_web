@@ -103,6 +103,9 @@ const MEASURED_CONTINUOUS_KINDS = new Set([
     "nameAsGrant", // namesAsContinuous の追加点
     "symbolFix", // symbolsOverrideContinuous の代入点
     "magicNegate", // payMagicNegate（無効化のコストを実際に払った時点）
+    // ここから 2026-09-02 追加（BS11）
+    "costDelta", // refreshLevelAsOverrides の costDeltaContinuous 加算点
+    "trashSummonOnNameSummoned", // tryTrashSummonOnNameSummoned が条件に合う発生源を見つけた時点
     "magicTargetRedirect", // setTargetRedirect が絞り込みを立てた時点
     "bothSidesTargetRedirect", // 発生源として確定した時点
     "battleBpAsLevel", // バトルのBP比較で別レベルのBPを返した時点
@@ -839,18 +842,12 @@ process.on("exit", () => {
             path.join(tree, "server/src/logic/removal.ts"),
             // ※ 2026-08-07 にバニラ判定が instIsVanilla(s) へ一本化された（isVanillaCard(getCard(...)) から変更）。
             //    差し込み先はエンジンの現在の形に追随させること
-            `            if (effect.condition) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            // ※ 2026-09-02: condition が「バニラ数」と「ネクサスの色」の2軸になったため、
+            //    差し込み先は **return true の直前** だけに縮めてある（条件式そのものを写さない）
+            `                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             return true`,
-            `            if (effect.condition) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            `                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true`,
@@ -1000,10 +997,24 @@ process.on("exit", () => {
         // 対象インスタンスへ載せておき、読む側がそれを引く（tempFamilies の教訓＝書くだけの状態を実行済みにしない）
         patch(
             em,
-            `                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+            `                        const values = effect.costs ?? (value !== undefined ? [value] : [])`,
             `                        ;(spirit as unknown as Record<string, unknown>)["__covAlsoCostEid"] =
                             String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?")
-                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []`,
+                        const values = effect.costs ?? (value !== undefined ? [value] : [])`,
+        )
+        // costDelta（BS11-017 ムシャツバメ）: 対象へ加算した時点
+        patch(
+            em,
+            `                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount`,
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount`,
+        )
+        // trashSummonOnNameSummoned（BS11-004 プロミネンスワイバーン）: トラッシュの発生源が条件に合った時点
+        patch(
+            em,
+            `        if (!hit) continue`,
+            `        if (!hit) continue
+        __covRecord("cont\\t" + String((hit as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
         // levelAs: refreshLevelAsOverrides の8つの levelAsContinuous 代入点（target ごと）
         patch(
@@ -1046,12 +1057,10 @@ process.on("exit", () => {
         )
         patch(
             em,
-            `                    for (const spirit of player.field.spirits) {
-                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
+            `                        spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,
-            `                    for (const spirit of player.field.spirits) {
-                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+            `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {`,
@@ -1196,9 +1205,9 @@ process.on("exit", () => {
         // symbolFix（BS08海底に眠りし古代都市Lv2ほか）
         patch(
             em,
-            `                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+            `                        const fixed = new Array<Color>(effect.count).fill(baseColor)`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)`,
+                        const fixed = new Array<Color>(effect.count).fill(baseColor)`,
         )
 
         // (5a-3) triggers.ts の継続 kind（2026-08-24 に計測点を追加）

@@ -37,7 +37,7 @@ const VALID_TRIGGERS = new Set([
 const VALID_KINDS = new Set([
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
-    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "effectGrant", "colorAs", "funsaiBonus",
+    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
@@ -193,11 +193,15 @@ function checkCostSetEffects(
         }
         if (
             e.condition !== undefined &&
-            !(typeof e.condition === "object" && e.condition !== null && "ownNexusAtLeast" in e.condition)
+            !(
+                typeof e.condition === "object" &&
+                e.condition !== null &&
+                ("ownNexusAtLeast" in e.condition || "ownLifeAtMost" in e.condition)
+            )
         ) {
             add(
                 c.cardId,
-                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
             )
         }
         if ("amount" in e) {
@@ -477,6 +481,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     // ⚠️ **先に仕組みだけ入れてある枠**。BS10 を data/cards へ入れて構造化したら、
     // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）

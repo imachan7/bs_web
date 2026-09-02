@@ -84,6 +84,8 @@ import {
     costCantAct,
     countAuraCounter,
     braveKeepCores,
+    cantSpiritStateBrave,
+    coresCantBeRemoved,
     bravesOf,
     countSpiritsWeighted,
     countSymbols,
@@ -224,6 +226,11 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     host.isRested = host.isRested || brave.isRested
     // ブレイヴが足すコスト・色・シンボルをここで組み直す（このあとに出る召喚時効果等がコストや色を読むため）
     refreshLevelAsOverrides(state)
+    // 「スピリットが合体したとき」（BS11-064 闇の聖剣Lv2）。合体の入口はここ1つなので、
+    // 経路（召喚・効果・再合体）を問わず必ず1回だけ発火する。両フィールドから呼び、
+    // 発生源側は subjectSide で自分/相手を絞る
+    fireFieldEventTriggers(state, pid, "anySpiritCombined", { pid, inst: host })
+    fireFieldEventTriggers(state, opponentOf(pid), "anySpiritCombined", { pid, inst: host })
 }
 
 // 効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
@@ -241,7 +248,66 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
     log(state, `${player.name}は${getCard(host.cardId).name}から${getCard(brave.cardId).name}を分離させた。`)
 }
 
-// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
+// 相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
+// 「場を離れるとき」と同じ手順（§6.3）に乗せ、持ち主に「残すか・どのコアを置くか」を聞く。
+// ⚠️ 自分の効果による分離（detachBraveByEffect。コア不要）とは別の手順。
+// ホストはそのまま場に残るので、バトル中でもブレイヴがバトルを引き継ぐことはない
+export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    brave.isRested = host.isRested // 分離時に疲労状態を引き継ぐ（§12.5）
+    state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker: false, wasBlocker: false }]
+    log(state, `${player.name}の${getCard(host.cardId).name}は分離させられた。`)
+    refreshLevelAsOverrides(state)
+    flushBraveKeeps(state)
+}
+
+// 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
+// **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
+// 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。
+//
+// ⚠️ 合体中のブレイヴは field.spirits にいないので destroySpirit では届かない（専用の経路）
+export function destroyCombinedBrave(
+    state: GameState,
+    ownerPid: PlayerId,
+    host: CardInstance,
+    brave: CardInstance,
+    context?: DestroyContext,
+): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    const name = getCard(brave.cardId).name
+    // 破壊時の誘発は**ブレイヴ自身のもの**だけ。この時点でブレイヴは場から抜けているので、
+    // 発生源として渡して発火させる（スピリットの破壊待機のような窓は設けない）
+    player.trashCards.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
+    fireTrigger(state, ownerPid, brave, "onDestroy")
+    void context
+}
+
+// 合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
+// 「相手のスピリット/ブレイヴ/ネクサス、どれか1つを手札に戻す」の**ブレイヴ**が合体中だったとき。
+// 2026-09-02 ユーザー確認：合体中もスピリット状態も「ブレイヴ」に含む）。ホストは無傷で場に残る
+export function returnCombinedBraveToHand(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    player.hand.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は手札に戻った。`)
+}
+
+// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
 // スピリット状態のLv1維持コスト以上のコアを置く必要がある。支払い可否は
 // RuleValidator.validateDetachBrave が済ませている前提で、ここは実際にコアを動かすだけ。
 // 支払いは召喚と同じ payCost に通す（フィールドのコアを使ったときの消滅処理まで共通になる）
@@ -269,9 +335,11 @@ export function detachBraveVoluntary(
 // ターン終了でネクサスに戻る）。**入口ごとに書くと必ずどれかを忘れる**ので、
 // `field.spirits` から個体を抜くすべての箇所がこれを通る（§6.1.1）。
 //
-// 残すには「自分のフィールド/リザーブから **Lv1の維持コスト以上のコア**を置く」必要がある（§1.4）。
-// **非対話（テスト・AI）ではリザーブから払えるなら自動で残す。**
-// プレイヤーに置き方を選ばせる対話版は段階5（`PayingState` の3つ目の起点が要る。§6.3）。
+// ⚠️ **呼ぶ位置は「ホストを場から抜いてコアを移した後」**（§6.3.1 の裁定）。
+// ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順で、
+// 逆順にすると「残せるはずのブレイヴ」がトラッシュへ行く。
+//
+// ここでは合体を解いて**コアを乗せずに脇へ置く**だけで、残すかどうかは flushBraveKeeps が決める。
 export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
@@ -287,25 +355,149 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         }
         const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
-        const name = getCard(brave.cardId).name
-        const need = braveKeepCores(brave)
-        if (player.reserve < need) {
-            // 残せない → **合体元と同時にトラッシュへ**（§1.4）。合体中のコアは0なので戻すコアは無い
-            player.trashCards.push(brave.cardId)
+        // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
+        brave.isRested = host.isRested
+        state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker, wasBlocker }]
+    }
+    refreshLevelAsOverrides(state)
+    flushBraveKeeps(state)
+}
+
+// このプレイヤーがいま支払いに回せるコアの総数（リザーブ＋フィールドの取り除けるコア）。
+// 「残す」を選べる状態かどうかの判定に使う（払えないなら確認を出さずトラッシュへ）
+function payableCores(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    const onField = [...player.field.spirits, ...player.field.nexuses]
+        .filter((inst) => !coresCantBeRemoved(state, pid, inst))
+        .reduce((sum, inst) => sum + inst.cores, 0)
+    return player.reserve + onField
+}
+
+// 脇に置いてあるブレイヴを1体ずつ決着させる。
+// **非対話（テスト・AI）では従来どおりリザーブから自動で払って残す**（払えなければトラッシュ）。
+// 対話では持ち主に「残しますか？」を聞いて中断する。**エントリは答えが返るまで消さない**ので、
+// 確認が別の中断に上書きされても、次の flush で聞き直される
+export function flushBraveKeeps(state: GameState): void {
+    if (state.winner) {
+        delete state.pendingBraveKeeps
+        return
+    }
+    while (!state.pendingChoice && (state.pendingBraveKeeps?.length ?? 0) > 0) {
+        const entry = state.pendingBraveKeeps![0]!
+        const player = state.players[entry.pid]
+        const need = braveKeepCores(entry.brave)
+        const name = getCard(entry.brave.cardId).name
+        // BS11-X02 滅神星龍ダークヴルム・ノヴァLv3：この持ち主はブレイヴをスピリット状態にできない
+        // ＝「残す」を選べない（確認を出さずトラッシュへ）
+        const cantKeep = cantSpiritStateBrave(state, entry.pid)
+        if (!cantKeep && state.interactiveTargets && payableCores(state, entry.pid) >= need) {
+            suspend(state, {
+                pid: entry.pid,
+                kind: "option",
+                prompt: `${name}：コア${need}個を置いて、スピリット状態でフィールドに残しますか？`,
+                candidates: [],
+                options: ["残す"],
+                optional: true,
+                confirm: true,
+                skipLabel: "残さない（トラッシュへ）",
+                braveKeep: { pid: entry.pid, instanceId: entry.brave.instanceId, cardId: entry.brave.cardId, need },
+                action: { type: "noop" },
+                selfInstanceId: null,
+            })
+            return
+        }
+        state.pendingBraveKeeps!.shift()
+        if (cantKeep || player.reserve < need) {
+            // 残せない → **合体元と同時にトラッシュへ**（§1.4）
+            player.trashCards.push(entry.brave.cardId)
             log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
             continue
         }
         player.reserve -= need
-        brave.cores = need
-        // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
-        brave.isRested = host.isRested
-        player.field.spirits.push(brave)
-        log(state, `${player.name}の${name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
-        // アタック中なら、ブレイヴがそのままバトルを引き継ぐ（§6.2 の5）。
-        // **アタック宣言はやり直さない**＝アタック時効果は再発揮しない（2026-08-25 ユーザー確認。§12 の7）
-        if (state.battle && wasAttacker) state.battle.attackerInstanceId = brave.instanceId
-        else if (state.battle && wasBlocker) state.battle.blockerInstanceId = brave.instanceId
+        keepBrave(state, entry, need)
     }
+    if ((state.pendingBraveKeeps?.length ?? 0) === 0) delete state.pendingBraveKeeps
+}
+
+// コアを置いたブレイヴを、スピリット状態でフィールドへ戻す（支払いは呼び出し元が済ませてある）
+function keepBrave(
+    state: GameState,
+    entry: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean },
+    need: number,
+): void {
+    const player = state.players[entry.pid]
+    entry.brave.cores = need
+    player.field.spirits.push(entry.brave)
+    log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
+    // アタック中なら、ブレイヴがそのままバトルを引き継ぐ（§6.2 の5）。
+    // **アタック宣言はやり直さない**＝アタック時効果は再発揮しない（2026-08-25 ユーザー確認。§12 の7）
+    if (state.battle && entry.wasAttacker) state.battle.attackerInstanceId = entry.brave.instanceId
+    else if (state.battle && entry.wasBlocker) state.battle.blockerInstanceId = entry.brave.instanceId
+    refreshLevelAsOverrides(state)
+}
+
+// 「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
+// （フィールドのコアを使ったときの維持コア割れの処理まで共通になる）
+export function applyBraveKeep(
+    state: GameState,
+    info: { pid: PlayerId; instanceId: string; need: number },
+    paySources?: PaySource[],
+): void {
+    const entry = takeBraveKeep(state, info.instanceId)
+    if (!entry) return
+    // 支払い元の指定が無くリザーブが足りないとき（AI・自動応答）は、フィールドのコアから自動で補う。
+    // 確認を出す時点で払えることは flushBraveKeeps が確かめてあるので、ここで不足することはない
+    const sources = paySources ?? autoPaySources(state, info.pid, info.need)
+    const placedFromField = payCost(state, info.pid, 0, sources, info.need)
+    state.players[info.pid].reserve -= info.need - placedFromField
+    keepBrave(state, entry, info.need)
+}
+
+// リザーブで足りない分をフィールドのコアから自動で拾う（維持コアを割らない余剰コアを優先する）。
+// 支払い元を選ばない応答（AI・自動応答）のための決定的なフォールバック
+function autoPaySources(state: GameState, pid: PlayerId, need: number): PaySource[] {
+    const player = state.players[pid]
+    let short = need - player.reserve
+    if (short <= 0) return []
+    const sources: PaySource[] = []
+    const targets = [...player.field.spirits, ...player.field.nexuses].filter(
+        (inst) => !coresCantBeRemoved(state, pid, inst),
+    )
+    for (const surplusOnly of [true, false]) {
+        for (const inst of targets) {
+            if (short <= 0) break
+            const already = sources.find((src) => src.instanceId === inst.instanceId)?.count ?? 0
+            const floor = surplusOnly ? instMinLevelCores(inst) : 0
+            const usable = Math.max(inst.cores - already - floor, 0)
+            if (usable === 0) continue
+            const take = Math.min(usable, short)
+            if (already > 0) sources.find((src) => src.instanceId === inst.instanceId)!.count += take
+            else sources.push({ instanceId: inst.instanceId, count: take })
+            short -= take
+        }
+    }
+    return sources
+}
+
+// 「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+export function declineBraveKeep(state: GameState, info: { pid: PlayerId; instanceId: string }): void {
+    const entry = takeBraveKeep(state, info.instanceId)
+    if (!entry) return
+    const player = state.players[entry.pid]
+    player.trashCards.push(entry.brave.cardId)
+    log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、残さずトラッシュに置かれた。`)
+}
+
+function takeBraveKeep(
+    state: GameState,
+    instanceId: string,
+): { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean } | undefined {
+    const list = state.pendingBraveKeeps ?? []
+    const at = list.findIndex((e) => e.brave.instanceId === instanceId)
+    if (at === -1) return undefined
+    const [entry] = list.splice(at, 1)
+    if (list.length === 0) delete state.pendingBraveKeeps
+    return entry
 }
 
 // ---- スピリット／ネクサスの除去 ----
@@ -496,7 +688,6 @@ export function commitPendingDestruction(
         delete inst.pendingDestruction
         return
     }
-    detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
@@ -509,6 +700,9 @@ export function commitPendingDestruction(
         player.reserve += inst.cores
     }
     delete inst.pendingDestruction
+    // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
+    // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
+    detachBravesOnLeave(state, ownerPid, inst)
 }
 
 // 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
@@ -748,7 +942,13 @@ export function wouldRevive(
 
 // この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
 // 召喚コスト＋維持コアをリザーブから払えないものは、確認自体を出さないので除く
-export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCost: number): number[] {
+// 破壊された個体が【不死】の引き金として持つコストの一覧。
+// 本来のコストに加えて「破壊されたとき、このコストとしても扱う」ぶんを足す（BS11-064 闇の聖剣Lv1）
+function destroyedCostsOf(inst: CardInstance): number[] {
+    return [getCard(inst.cardId).cost, ...(inst.alsoCostsWhenDestroyed ?? [])]
+}
+
+export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCosts: number[]): number[] {
     // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
     if (state.phase !== "attack") return []
     const player = state.players[ownerPid]
@@ -762,7 +962,7 @@ export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedC
             (e) =>
                 e.kind === "keyword" &&
                 e.keyword === "fushi" &&
-                (e.triggerCosts ?? []).includes(destroyedCost),
+                (e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c)),
         )
         if (!hit) continue
         if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
@@ -941,7 +1141,7 @@ export function destroySpiritsFrom(
         // 【不死】（BS09）：この破壊を引き金にトラッシュから召喚できるカードがあるか。
         // **絡まなければ従来どおり destroySpirit を直接呼ぶ**（ほぼ全てのケース）
         const target = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
-        const fushi = target ? fushiCandidates(state, t.pid, getCard(target.cardId).cost) : []
+        const fushi = target ? fushiCandidates(state, t.pid, destroyedCostsOf(target)) : []
         if (fushi.length === 0) {
             if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true })) {
                 destroyed++
@@ -968,7 +1168,7 @@ export function destroySpiritsFrom(
                 kind: "destroyOne",
                 pid: t.pid,
                 instanceId: t.instanceId,
-                destroyedCost: getCard(target.cardId).cost,
+                destroyedCost: destroyedCostsOf(target),
                 order,
                 step: 0,
                 fushiDone: 0,
@@ -1170,7 +1370,18 @@ function tryReviveOnDestroy(
         return true
     }
 
-    const applyCost = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>): boolean => {
+    const applyCost = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        source?: CardInstance,
+    ): boolean => {
+        // 発生源自身のコアを払う（BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
+        if (effect.cost?.sourceCoresToTrash !== undefined) {
+            const need = effect.cost.sourceCoresToTrash
+            if (!source || source.cores < need) return false
+            source.cores -= need
+            player.trashCores += need
+            return true
+        }
         if (effect.cost?.keepOneCoreRestToTrash) {
             const excess = inst.cores - 1
             if (excess > 0) {
@@ -1308,12 +1519,12 @@ function tryReviveOnDestroy(
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
         if ("toHand" in revived) {
-            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
             notifyHandGained(state, ownerPid, 1)
+            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
         } else {
             inst.isRested = revived.rested
             // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
@@ -1367,7 +1578,7 @@ function tryReviveOnDestroy(
         // 任意でない復活（＝確認を出さずに確定する）。"any" は復活しうるので true、
         // "confirm" は確認が出ないので次のエントリを見に行く
         if (probe) return probe === "any"
-        if (!applyCost(effect)) return false
+        if (!applyCost(effect, inst)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
@@ -1429,7 +1640,7 @@ function tryReviveOnDestroy(
             // 任意でない復活。"any" は復活しうるので true、"confirm" は次の発生源を見に行く
             if (probe === "any") return true
             if (probe) continue
-            if (!applyCost(effect)) continue
+            if (!applyCost(effect, source)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
@@ -1488,11 +1699,20 @@ function hasOwnNexusIndestructible(
                     continue
                 }
             }
-            if (effect.condition) {
+            if (effect.condition?.ownVanillaSpiritsAtLeast !== undefined) {
                 const vanillaCount = player.field.spirits.filter((s) =>
                     instIsVanilla(s),
                 ).length
                 if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
+            }
+            // 「自分のネクサスすべてが黄の間」（BS11-069 黄金の鐘楼）。発生源自身も数に入る
+            if (effect.condition?.allOwnNexusesHaveColor !== undefined) {
+                const color = effect.condition.allOwnNexusesHaveColor
+                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
+            }
+            // 「自分のフィールドにネクサスが1つだけある間」（BS11-027 海戦機ニヨルドLv2）
+            if (effect.condition?.ownNexusCountExactly !== undefined) {
+                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
             return true
         }
@@ -1580,7 +1800,10 @@ function driveNexusDestruction(
             // 「自分のネクサスが破壊されたとき」をそのネクサス自身が持つ形（BS07の各色ネクサス6枚）も
             // 走査にそのまま含まれる（以前は場から外していたため extraSources で補っていた）
             case 3:
-                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, undefined, undefined, undefined, {
+                // eventColors には**破壊されたネクサスの色**を渡す。
+                // 渡さないと fieldEvent.colorFilter が常に外れる（「自分の緑のネクサスが破壊されたとき」＝
+                // BS11-066 発見されし世界樹。2026-09-02 まで配線されておらず、条件付きの誘発は常に不発だった）
+                fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, {
                     byOpponentEffect,
                 })
                 break
@@ -1745,9 +1968,9 @@ export function flushBounces(state: GameState, order?: string[]): void {
             if (!pb) continue
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1）
             player.field.spirits.splice(index, 1)
             player.reserve += inst.cores
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)

@@ -7,7 +7,12 @@ import {
     attachBrave,
     bothSidesPids,
     countEffectCounter,
+    destroyCombinedBrave,
     detachBraveByEffect,
+    detachBraveByOwnerChoice,
+    returnCombinedBraveToHand,
+    returnNexusToHand,
+    returnSpiritToHand,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -17,6 +22,7 @@ import {
     fireSummonSequence,
     fireSummonTrigger,
     fireTrigger,
+    instanceSymbolCount,
     fireNexusDeployed,
     pickEnemyCandidates,
     refreshSpirit,
@@ -28,7 +34,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -313,6 +319,11 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：${state.players[opp].name}はこのターンライフが減らないため発動しなかった。`)
             return
         }
+        // BS11-X06 天秤造神リブラ・ゴレムLv3：回復状態の発生源がある間、この持ち主は相手のライフを減らせない
+        if (cantReduceOpponentLife(state, owner)) {
+            log(state, `${sourceName}：回復状態の発生源があるため、相手のライフを減らせなかった。`)
+            return
+        }
         // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
         // 足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」の任意コストは
         // 自動発動で簡略化。levelOverrideOpponentNexuses.costReserveToVoidと同じ方針）
@@ -346,7 +357,14 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return
         }
-        const dealt = Math.min(count, player.life)
+        // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
+        // 下限までは減る。srcType（この効果の発生源の種別）で絞る
+        const floor = lifeFloorByEffect(state, opp, srcType)
+        const dealt = Math.min(count, Math.max(0, player.life - floor))
+        if (dealt === 0 && count > 0) {
+            log(state, `${sourceName}：${player.name}のライフはこれ以上減らせなかった。`)
+            return
+        }
         player.life -= dealt
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
         if (action.dest === "trash") player.trashCores += dealt
@@ -634,6 +652,13 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 return
             }
             const combineCandidates = braveCombineCandidates(state, owner, cardId)
+            // combineToSelf（BS11-020 陰陽ヤマセミ）：合体先は発生源自身に固定なので選ばせない。
+            // 合体条件を満たさないときは合体させず、スピリット状態で召喚する
+            if (action.combineToSelf) {
+                const toSelf = self && combineCandidates.includes(self.instanceId) ? self.instanceId : undefined
+                finishBraveSummon(handIndex, toSelf)
+                return
+            }
             if (!state.interactiveTargets || combineCandidates.length === 0) {
                 finishBraveSummon(handIndex)
                 return
@@ -1201,6 +1226,203 @@ const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, act
         return
 }
 
+// 相手の合体スピリットの**ブレイヴだけ**を破壊する（BRAVE.md §6.5。BS11-014／BS11-016）。
+// ホストは無傷で場に残る。どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ
+const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const oppPlayer = state.players[opp]
+    const hosts = oppPlayer.field.spirits.filter((sp) => bravesOf(oppPlayer, sp).length > 0)
+    if (hosts.length === 0) {
+        log(state, `${sourceName}：ブレイヴが合体している相手のスピリットがいなかった。`)
+        return
+    }
+    // allHosts（BS11-016 邪眼皇ゼナス＝「合体スピリットすべてのブレイヴ1つずつ」）
+    if (action.allHosts) {
+        for (const host of [...hosts]) {
+            const brave = bravesOf(oppPlayer, host)[0]
+            if (brave) destroyCombinedBrave(state, opp, host, brave, destroyContext)
+            if (state.pendingChoice || state.winner) return
+        }
+        return
+    }
+    // 対象指定（選択の再開）→ そのホストのブレイヴを壊す
+    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ブレイヴを破壊する相手の合体スピリットを選んでください`,
+            hosts.map((h) => h.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const host = chosen ?? hosts[0]
+    if (!host) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const brave = bravesOf(oppPlayer, host)[0]
+    if (!brave) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    destroyCombinedBrave(state, opp, host, brave, destroyContext)
+}
+
+// 効果による合体（BRAVE.md §12.5.2。BS11-078 ブレイヴフラッシュ）。
+// スピリット状態のブレイヴを選び、合体先のスピリットを選んで合体させる。
+// メインステップの任意合体（GameAction "combineBrave"）とは別の入口で、タイミング制限はマジック側が持つ
+const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+
+    // 合体先の選択から再開（ブレイヴは既に選んである）
+    if (action.chosenBraveInstanceId !== undefined) {
+        const brave = player.field.spirits.find((sp) => sp.instanceId === action.chosenBraveInstanceId)
+        const host = player.field.spirits.find((sp) => sp.instanceId === targetInstanceId)
+        if (brave && host) attachBrave(state, owner, host, brave)
+        return
+    }
+
+    // スピリット状態のブレイヴ（合体中のブレイヴは field.spirits にいない）。
+    // 合体先の候補が1つも無いブレイヴは選ばせない
+    const braves = player.field.spirits.filter(
+        (sp) =>
+            getCard(sp.cardId).type === "brave" &&
+            (sp.braveRefs ?? []).length === 0 &&
+            braveCombineCandidates(state, owner, sp.cardId).length > 0,
+    )
+    if (braves.length === 0) {
+        log(state, `${sourceName}：合体させられるスピリット状態のブレイヴがいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && braves.length >= 2 && targetInstanceId === undefined) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：合体させるブレイヴを選んでください`,
+            braves.map((b) => b.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const brave = (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ?? braves[0]!
+    const hosts = braveCombineCandidates(state, owner, brave.cardId)
+    if (state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：${getCard(brave.cardId).name}を合体させるスピリットを選んでください`,
+            hosts,
+            false,
+            { ...action, chosenBraveInstanceId: brave.instanceId },
+            self,
+        )
+        return
+    }
+    const host = player.field.spirits.find((sp) => sp.instanceId === hosts[0])
+    if (!host) {
+        log(state, `${sourceName}：合体させられるスピリットがいなかった。`)
+        return
+    }
+    attachBrave(state, owner, host, brave)
+}
+
+// 相手のスピリット/ブレイヴ/ネクサスのどれか1つを破壊する／手札に戻す（BS11-056／BS11-X01 Lv3）。
+// 「ブレイヴ」は合体中もスピリット状態も含む（2026-09-02 ユーザー確認）。スピリット状態のブレイヴは
+// field.spirits にいるので「スピリット」側の候補にそのまま入り、合体中のブレイヴだけ別に集める
+const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const oppPlayer = state.players[opp]
+    const spirits = oppPlayer.field.spirits
+    const braves = oppPlayer.field.combinedBraves
+    const nexuses = oppPlayer.field.nexuses
+    const candidates = [...spirits, ...braves, ...nexuses]
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            action.mode === "destroy"
+                ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
+                : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`,
+            candidates.map((c) => c.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const chosen =
+        (targetInstanceId !== undefined ? candidates.find((c) => c.instanceId === targetInstanceId) : undefined) ??
+        candidates[0]!
+    if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
+        if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+        else returnSpiritToHand(state, opp, chosen, sourceName)
+        return
+    }
+    if (braves.some((b) => b.instanceId === chosen.instanceId)) {
+        const host = spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
+        if (!host) return
+        if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
+        else returnCombinedBraveToHand(state, opp, host, chosen)
+        return
+    }
+    if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
+    else returnNexusToHand(state, opp, chosen.instanceId)
+}
+
+// 相手の合体スピリットを**分離させる**（BRAVE.md §12.5.1。BS11-015／BS11-034）。
+// 分離そのものは効果の使用者が起こすが、**コアの移動はブレイヴの持ち主が行う**ので
+// 「場を離れるとき」と同じ pendingBraveKeeps に乗せる（持ち主に残すかどうかを聞く）
+const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const oppPlayer = state.players[opp]
+    const hosts = oppPlayer.field.spirits.filter(
+        (sp) =>
+            bravesOf(oppPlayer, sp).length > 0 &&
+            (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols),
+    )
+    if (hosts.length === 0) {
+        log(state, `${sourceName}：分離させられる相手の合体スピリットがいなかった。`)
+        return
+    }
+    if (action.allHosts) {
+        for (const host of [...hosts]) {
+            for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
+            if (state.pendingChoice || state.winner) return
+        }
+        return
+    }
+    const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
+    if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：分離させる相手の合体スピリットを選んでください`,
+            hosts.map((h) => h.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const host = chosen ?? hosts[0]
+    if (!host) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
+}
+
 // 効果によるブレイヴの分離（BRAVE.md §12.5・§12.7）。分離元ホストの決定：
 // ctx.targetInstanceIdが指定されていればそれ（fieldEvent等が渡す。BS10-086巨星望む大樹Lv2＝
 // 「自分の合体スピリットがバトルしたとき」のその個体）、無ければ「自分の合体スピリット1体」から
@@ -1464,7 +1686,11 @@ const handlers = {
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
+    destroyBrave: destroyBraveHandler,
+    combineOwnBrave: combineOwnBraveHandler,
+    removeOneOfAnyType: removeOneOfAnyTypeHandler,
     detachBrave: detachBraveHandler,
+    detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,

@@ -69,6 +69,7 @@ import {
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
+    instHasColor,
     millDeck,
     fireNexusDeployed,
     payCost,
@@ -83,6 +84,9 @@ import {
     returnNexusToDeckBottom,
     fireBounceTriggers,
     flushBounces,
+    flushBraveKeeps,
+    applyBraveKeep,
+    declineBraveKeep,
     requestActivationConfirm,
     refreshSpirit,
 } from "./EffectModules"
@@ -94,6 +98,7 @@ import {
     validateBlock,
     validateCastMagic,
     validateEndTurn,
+    validatePaySources,
     validateCombineBrave,
     validateDetachBrave,
     validateMoveCore,
@@ -515,6 +520,10 @@ function doSummon(
     // 『転召したとき』の誘発が保留され、場に出た時点で発火する（fireTenshoEvent / flushPendingTenshoEvent）。
     // **召喚時効果は場に出た後**（2026-08-13 修正。以前は犠牲が消える前に召喚時効果が出ていた）
     state.summoningInstanceId = inst.instanceId
+    // 【神速】による召喚か（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）。
+    // フラッシュタイミングで手札から召喚できるのは神速だけなので、ここで判定できる
+    if (state.isFlashTiming) state.summoningBySoku = true
+    state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly。BS11-X05）
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける
@@ -1023,6 +1032,20 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
+    // BS11-037 ヒポグリフィー：ブロックの追加コスト（リザーブ→トラッシュ）。検証で払えることは確認済み
+    const blockCost = state.battle.blockCostReserveToTrash
+    if (blockCost && blockCost.pid === pid) {
+        state.players[pid].reserve -= blockCost.count
+        state.players[pid].trashCores += blockCost.count
+        log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
+    }
+    // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
+    const blockedAttackerPid = opponentOf(pid)
+    const blockedAttacker = findSpirit(state.players[blockedAttackerPid], state.battle.attackerInstanceId)
+    const wantColor = blockedAttacker?.refreshOnBlockedByColorThisTurn
+    if (blockedAttacker && wantColor !== undefined && blocker && instHasColor(blocker, wantColor)) {
+        refreshSpirit(state, blockedAttackerPid, blockedAttacker)
+    }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
@@ -1243,8 +1266,10 @@ function doActivateAbility(
     if (error) return error
 
     const player = state.players[pid]
-    const inst = findSpirit(player, instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）も通す
+    const inst =
+        findSpirit(player, instanceId) ?? player.field.nexuses.find((n) => n.instanceId === instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
@@ -1259,6 +1284,14 @@ function doActivateAbility(
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
+        )
+    } else if ("selfCoresToTrash" in effect.cost) {
+        const n = effect.cost.selfCoresToTrash
+        inst.cores -= n
+        player.trashCores += n
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このカードの上のコア${n}個をトラッシュ）`,
         )
     } else {
         const n = effect.cost.reserveToTrash
@@ -1395,6 +1428,26 @@ function doResolveChoice(
         } else {
             declineReviveConfirm(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 合体スピリットが場を離れたときの「ブレイヴを残しますか？」の確認（BRAVE.md §6.3）。
+    // action は解決せず、選べばコアを置いてフィールドへ戻し、選ばなければトラッシュへ置く
+    if (pending.braveKeep) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.braveKeep
+        // 支払い元の検証は召喚と同じ形。**指定が無いときは検証しない**（リザーブで足りなければ
+        // applyBraveKeep がフィールドのコアから自動で補う。AI・自動応答はここを通る）
+        if (option !== undefined && paySources !== undefined) {
+            const invalid = validatePaySources(state, info.pid, info.need, paySources)
+            if (invalid) return invalid
+        }
+        state.pendingChoice = null
+        if (option !== undefined) applyBraveKeep(state, info, paySources)
+        else declineBraveKeep(state, info)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -1638,7 +1691,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
     // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
     // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
     // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    while (!state.pendingChoice && !state.winner && state.resumeStack.length > 0) {
+    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0)) {
+        // 脇に置いたままのブレイヴ（BRAVE.md §6.3）を先に決着させる。detachBravesOnLeave 直後の
+        // 確認が別の中断に上書きされていても、ここで聞き直せる（エントリは答えるまで消えない）
+        flushBraveKeeps(state)
+        if (state.pendingChoice || state.resumeStack.length === 0) continue
         const frame = state.resumeStack.shift()
         if (!frame) continue
         if (frame.kind === "placeSummon") {

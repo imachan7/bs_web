@@ -18,51 +18,28 @@
 
 ## 1. いまの本線と次の一手
 
-**BS10（星座編 第一弾「八星龍降臨」）の投入は 121 / 121枚で完了（2026-08-29）。**
-→ [docs/design/BS10_PLAN.md](./docs/design/BS10_PLAN.md)
+**BS11「星座編 第二弾：灼熱の太陽」は91枚すべて投入済み（2026-09-03 完了）。**
+→ [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5 に残っている節の一覧
 
-- **PR #48 で main へ出してある**（黄17枚・青17枚・保留分5枚・ブレイヴUI・ネクサス配置時の修正）。
-  **まだマージされていない**ので、次のセッションはまずここを見ること
-- この弾で確定した規則は手順書へ転記済み（[BRAVE.md](./docs/design/BRAVE.md) §12 /
-  [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.9 /
-  [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.12〜3.15）
+**次の一手は次のどれか**（上から順に小さい）:
 
-### 済：BS10 の部分実装4枚の仕上げ（2026-08-29 完了）
+1. **BS11 に残る2節を潰す**（[BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5）。
+   どちらも横断的な下ごしらえが要る:
+   - BS11-065「手札を破棄できない」← 手札破棄の共通ヘルパーを作るのが先（いま38か所に散っている）
+   - BS11-X05 Lv2-3「マジックをもう1枚無償で使用」← `fireMagicUsedTriggers` に「コストを払ったか」を渡すのが先
+2. **次の弾（BS12「月の咆哮」）の取り込み**（`scripts/fetch_wiki_cards.py` で staging へ）
+3. **ブレイヴ経由の未計測**（`npm run coverage:effects` の「未計測の kind」7種）。
+   いずれも BS10 で入れた kind（altSummonFromHand / braveStatsAs / trashImmunity /
+   trashNameAs / trashSymbolReduction）で、計測点が無いだけ
 
-カードは121枚とも投入済みで、**効果の一部が未実装だった4枚**（`data/card-notes.json` に記録していた分）を
-すべて実装した。`card-notes.json` の BS10 の記載は無くなり、`validate:gaps` の既知ギャップは 0 件。
+BS10（121枚）とブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9）。
+BS11 で確定した規則は BRAVE.md §12.5.1〜§12.5.5 に移してある。
 
-- **080 炎の結晶石 / X01 幻羅星龍ガイ・アスラ / 108 ルナティックシール**（`scripts/smoke/part265.ts`）
-- **019 土星神龍クロノ・ボロス**：`action:"coresDownToLimit"`（`limit` と `sides`）を新設
-  （`scripts/smoke/part266.ts`）。確定した規則は
-  [CHOOSER_RULES.md](./docs/design/CHOOSER_RULES.md) §1.8 に書いた。
-  取り先の選択・自動順は `opponentCoresToVoidByTotal` と共通のヘルパーに切り出して両方から呼んでいる
-  （`coreSourcesOf` / `takeOneCoreToVoid` / `autoTakeCoresToVoid` / `totalCoresOf`）。UI の追加は不要だった
-
-### 次の候補（本線が空いたので、着手前に方針を確認すること）
-
-| 候補 | 中身 |
-| :-- | :-- |
-| ブレイヴの段階5・7 | **「場を離れるとき」の分離の確認（§6.3）が残り**。`PayingState` の3つ目の起点（`forDetachBraveInstanceId`）は任意分離（§6.4）で入ったので流用できる。**§2 の「破壊待機の手順3」もここ** |
-| 未決の解釈 | §2 の4件（PROCEDURES_AUDIT §5 の Q2/Q3/Q4/Q6） |
-| 範囲コア奪取の残り穴 | ネクサス上のコアとコア入れ替え系が共通ヘルパーを通っていない（[SPEC.md](./SPEC.md) §5「未着手の課題」。実害小） |
-| 次の弾の取り込み | `scripts/fetch_wiki_cards.py` で staging へ |
-
-⚠️ **テストの書き方で2026-08-28〜29 に2回踏んだこと**（次も踏むので先に読む）:
-
-- **`fireTrigger` / `fireFieldEventTriggers` の直呼びだけでは、実戦の発火経路を検査できない。**
-  「データは正しいのにエンジンが呼んでいない」は型検査でも smoke でも捕まらない
-  （ネクサスの『配置時』と BS10-086 で実際に起きた）。**実アクション経由のケースを1本入れること**
-- **「1体につき」は、対象が1体だけだと `count:1` と区別できない。** 2体にして初めて検査になる
+---
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-- **Q2 / Q3 / Q4 / Q6** の4件 → [PROCEDURES_AUDIT.md](./docs/design/PROCEDURES_AUDIT.md) §5 に表がある
-- **「Aすることで、Bを2つする」で B が1つしか満たせないとき**（[COST_MODEL.md](./docs/design/COST_MODEL.md) §1）。
-  該当2枚（剣王獣ビャク・ガロウLv2／カイザーアトラス皇帝Lv2）。現状の挙動（いる分だけ処理してコストは払う）を
-  smoke `part178` で固定済み。正解が出たらしきい値1か所（`>= 1` → `>= count`）を切り替える
-- **ブレイヴ（合体スピリット）**は BS10 で導入済みだが、破壊待機の手順3「ブレイヴを残すか選ぶ」は未実装
-- **破壊待機中のアタック・ブロックの可否**は未対応（破壊待機中にアタック宣言は起きないので実害なし）
+**いまは無い**（2026-09-02 に PROCEDURES_AUDIT §5 の Q2/Q3/Q4/Q6 と COST_MODEL の保留がすべて決着した）。
 
 ---
 

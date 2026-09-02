@@ -1,7 +1,8 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, getCard, log, pushResumeFrames } from "./GameState"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, returnSpiritToDeckBottom } from "./EffectModules"
+import { instIsCombined, refreshRestrictionsFor } from "../../../shared/rules"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -75,17 +76,36 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 player.trashCores = 0
             }
             const refreshedInstanceIds = new Set<string>()
+            // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）
+            const limits = refreshRestrictionsFor(state, pid)
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
                 // 相手のスピリットから「回復できない」と指定されている間も回復しない
                 // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
                 if (isRefreshBlockedByMark(state, pid, inst)) continue
+                // 「次のリフレッシュステップで回復できない」の印はここで消費する（BS11-055）
+                if (inst.skipNextRefresh) {
+                    delete inst.skipNextRefresh
+                    continue
+                }
+                const isNexus = player.field.nexuses.includes(inst)
+                if (limits.nexuses && isNexus) continue
+                if (limits.combined && !isNexus && instIsCombined(inst)) continue
+                // 「合体していないスピリットは1体しか回復できない」ときは、ここでは回復させず
+                // ステップ誘発のあとにまとめて1体だけ選ばせる（下の refreshOne）
+                if (limits.onlyOneUncombined && !isNexus && !instIsCombined(inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
                 // 回復は refreshSpirit を通す（「このスピリットが回復したとき」＝onRefreshed を発火させる唯一の入口）
                 refreshSpirit(state, pid, inst)
             }
             fireStepTriggers(state, "refresh", refreshedInstanceIds)
+            // 1体だけの回復は既存の refreshOne に委譲する（**どれを回復させるかはそのステップの
+            // プレイヤーが選ぶ**。対話では選択待ちで中断し、非対話は実効BP最大を自動選択する。
+            // ステップ誘発のあとに置くのは、中断するとこのステップの残りが走らなくなるため）
+            if (limits.onlyOneUncombined && !state.pendingChoice && !state.winner) {
+                resolveAction(state, pid, null, { type: "refreshOne", filter: { uncombined: true } })
+            }
         },
         // メインステップ
         () => {
@@ -199,6 +219,7 @@ export function endTurn(state: GameState): void {
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
             delete inst.tempCostDelta
+            delete inst.refreshOnBlockedByColorThisTurn
             inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn
@@ -218,9 +239,9 @@ export function endTurn(state: GameState): void {
         for (const inst of [...field.spirits]) {
             if (inst.asSpiritThisTurn === undefined) continue
             delete inst.asSpiritThisTurn
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             field.spirits.splice(field.spirits.indexOf(inst), 1)
             field.nexuses.push(inst)
+            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }

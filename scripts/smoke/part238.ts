@@ -143,7 +143,10 @@ console.log("=== §E 分離：Lv1維持コスト以上のコアを置けば残�
     const host2 = putHost(s2, "p1")
     s2.players.p1.hand = [BRAVE]
     act(s2, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host2.instanceId })
-    s2.players.p1.reserve = need - 1
+    // ⚠️ ホストのコアは**先にリザーブへ戻ってから**ブレイヴに置かれる（§6.3.1）ので、
+    // 「残せない」を作るにはリザーブとホストのコアの合計を維持コスト未満にする
+    s2.players.p1.reserve = 0
+    host2.cores = need - 1
     destroySpirit(s2, "p1", host2.instanceId, "destroy")
     assert(s2.players.p1.field.combinedBraves.length === 0, "合体中の置き場は空になる")
     assert(s2.players.p1.field.spirits.length === 0, "コアを置けないのでブレイヴは残らない")

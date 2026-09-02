@@ -458,6 +458,11 @@ export function clearBattle(state: GameState): void {
 // globalConstraint "noDrawOutsideDrawStep"（BS08豚人チョウハッカイ）は、この引数がfalseの
 // すべてのドロー（効果によるドロー）をここで一律に無効化する（draw/drawPer等の共通経路）
 export function draw(state: GameState, pid: PlayerId, count: number, fromDrawStep?: boolean): void {
+    // BS11-065 満天の牧草地：『お互いのメインステップ』お互いドローできない
+    if (state.phase === "main" && hasGlobalConstraint(state, "noDrawInMain")) {
+        log(state, `${state.players[pid].name}は、効果によりメインステップにドローできない。`)
+        return
+    }
     if (!fromDrawStep && hasGlobalConstraint(state, "noDrawOutsideDrawStep")) {
         log(state, `${state.players[pid].name}は、ドローステップ以外でドローできないため、ドローしなかった。`)
         return

@@ -284,6 +284,8 @@ export function fireTrigger(
         // 2026-08-25 ユーザー確認）
         if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
+        // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
+        if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
@@ -382,6 +384,24 @@ export function fireTrigger(
                 // BS08ボクルガー：発生源の持ち主から見た相手の手札枚数がこれ以上のときのみ発火。
                 // サーバー内部のstate.players[opp].handは常に実配列（隠匿マスクはviewFor変換時のみ）
                 if (state.players[opponentOf(owner)].hand.length < effect.condition.opponentHandAtLeast) return false
+            } else if ("bothFieldsHaveMinBpSpirit" in effect.condition) {
+                // BS11-008 爆竜ドラゴニックベアード：お互いのフィールドにBP10000以上のスピリットがいるとき
+                const min = effect.condition.bothFieldsHaveMinBpSpirit
+                const has = (p: PlayerId) =>
+                    state.players[p].field.spirits.some((sp) => effectiveBp(state, p, sp) >= min)
+                if (!has("p1") || !has("p2")) return false
+            } else if ("battleOpponentCombined" in effect.condition) {
+                // BS11-X02 滅神星龍ダークヴルム・ノヴァLv2-3：いま成立しているバトルの相手側が
+                // 合体スピリットのときのみ発火。self がアタッカーかブロッカーかで相手側を選ぶ
+                const battle = state.battle
+                if (!battle) return false
+                const otherId =
+                    battle.attackerInstanceId === src.instanceId
+                        ? battle.blockerInstanceId
+                        : battle.attackerInstanceId
+                if (!otherId) return false
+                const other = findSpiritAny(state, otherId)
+                if (!other || !instIsCombined(other.inst)) return false
             } else if ("requirePrevAttackerCombined" in effect.condition) {
                 // BS10-047赤ずきん妖精ルージュLv3：直前のアタック宣言が発生源の持ち主自身の
                 // 合体スピリットによるものだったときのみ発火（doAttackがスライドさせるprevAttackerCombinedPid）
@@ -428,6 +448,10 @@ export function fireTrigger(
         const entry = entries[i]
         const effect = entry?.effect
         if (!entry || !effect || !matches(effect, entry.src)) continue
+        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）
+        if (effect.oncePerTurn === true) {
+            entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+        }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
         if (effect.optional && state.interactiveTargets) {
@@ -586,6 +610,10 @@ export function fireBattleWonTriggers(
                     ? effect.winnerKeywordFilter
                     : [effect.winnerKeywordFilter]
                 if (!needs.some((kw) => spiritHasKeyword(state, winnerPid, winnerInst, kw))) continue
+            }
+            // BS11-062 オールトの竜巣Lv2：勝利したのが**合体スピリット**のときのみ発火
+            if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
+                continue
             }
             firing.push({ inst, effect })
         }
@@ -875,6 +903,10 @@ export function fireFieldEventTriggers(
         coresRemoved?: number
         // event: "ownSpiritSummoned" 限定：その召喚が【不死】によるものだったか（fushiSummonOnly の判定に使う。BS09-013ミミズクロ）
         byFushi?: boolean
+        // 同上：その召喚が【神速】によるものだったか（sokuSummonOnly の判定に使う。BS11-065 満天の牧草地Lv2）
+        bySoku?: boolean
+        // 同上：手札からの召喚だったか（fromHandOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ）
+        fromHand?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -959,6 +991,15 @@ export function fireFieldEventTriggers(
                 const subjectIsVanilla = eventInfo?.vanilla ?? (selfOverride !== undefined && instIsVanilla(selfOverride.inst))
                 if (!subjectIsVanilla) continue
             }
+            // subjectKeywordFilter（BS11-069 黄金の鐘楼Lv2＝【聖命】持ち）：主体の実体で判定する。
+            // 破壊のイベントでも、この時点では破壊待機状態でまだ場にいるのでキーワードを読める
+            if (effect.subjectKeywordFilter !== undefined) {
+                if (selfOverride === undefined) continue
+                const needs = Array.isArray(effect.subjectKeywordFilter)
+                    ? effect.subjectKeywordFilter
+                    : [effect.subjectKeywordFilter]
+                if (!needs.some((kw) => spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, kw))) continue
+            }
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
@@ -1028,6 +1069,8 @@ export function fireFieldEventTriggers(
             }
             // 【不死】の効果で召喚されたときのみ（BS09-013ミミズクロ）。通常の召喚では発火しない
             if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
+            if (effect.sokuSummonOnly && eventInfo?.bySoku !== true) continue
+            if (effect.fromHandOnly && eventInfo?.fromHand !== true) continue
             // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
             // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
             // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）

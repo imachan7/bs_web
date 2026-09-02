@@ -24,7 +24,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -663,9 +663,11 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
             // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
             // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
             // exemptKeyword（BS09-076エマージェンシー＝【転召】持ちはアタックできる）は exemptFamily と OR
+            // exemptCombined（BS11-079 リブートコード＝「合体スピリット以外のスピリットはアタックできない」）も OR
             const exempt =
                 (action.exemptFamily !== undefined && matchesFamilyFilter(state, owner, s, action.exemptFamily)) ||
-                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword))
+                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword)) ||
+                (action.exemptCombined === true && instIsCombined(s))
             if (!exempt) {
                 s.cantAttackThisTurn = true
             }
@@ -687,8 +689,8 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         // スクルディア：このスピリットが疲労したとき、相手の疲労状態のスピリット1体を指定する。
         // 指定は発生源（self）に記録し、self が疲労状態で持ち主のフィールドにいる間だけ効く
         // （判定は EffectModules.isRefreshBlockedByMark。リフレッシュステップのみが見る）。
-        // 対象は実効BP最大の1体を自動選択する（アタック宣言中の疲労からも発火しうるため、
-        // ここで pendingChoice を立てない決定的簡略化）
+        // どれを指定するかは発生源の持ち主が選ぶ（2026-09-02。PROCEDURES_AUDIT §5 の一般則）。
+        // 非対話（テスト・AI）と候補1体のときは実効BP最大を自動選択する
         if (!self) return
         const candidates = state.players[opp].field.spirits.filter(
             (s) => s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
@@ -697,9 +699,25 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
             log(state, `${sourceName}：相手に疲労状態のスピリットがいなかった。`)
             return
         }
-        const target = candidates.reduce((best, s) =>
-            effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-        )
+        if (
+            ctx.targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：回復できなくするスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        const target =
+            (ctx.targetInstanceId !== undefined
+                ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+                : undefined) ??
+            candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
         self.noRefreshTargetInstanceId = target.instanceId
         log(
             state,
@@ -953,7 +971,85 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
     )
 }
 
+// 相手のスピリット1体を指定し、このターンの間アタックできなくする（BS11-030 ドルフィング）。
+// 指定するのは発生源の持ち主（2026-09-02 の一般則。PROCEDURES_AUDIT §5）
+const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName } = ctx
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            (!action.combinedOnly || instIsCombined(s)) &&
+            !s.cantAttackThisTurn &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：このターンアタックできなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.cantAttackThisTurn = true
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+}
+
+// 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
+// 印は対象自身に付け、そのリフレッシュステップで消費する（PhaseManager）
+const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            !s.skipNextRefresh &&
+            matchesTarget(state, opp, s, filter, self?.instanceId) &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：次のリフレッシュステップで回復できなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.skipNextRefresh = true
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
+}
+
 const handlers = {
+    markSkipNextRefresh: markSkipNextRefreshHandler,
+    banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,

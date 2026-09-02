@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, braveKeepCores, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -65,7 +65,7 @@ function checkMainTiming(state: GameState, pid: PlayerId): string | null {
 // need はコストと「置くコア（維持コア）」の合計。
 // フィールドのコア（paySources）はコストにも置くコアにも充当できる（利用者確認 2026-08-01）ため、
 // 上限は need であって cost ではない
-function validatePaySources(
+export function validatePaySources(
     state: GameState,
     pid: PlayerId,
     need: number,
@@ -99,6 +99,24 @@ function paySourcesTotal(paySources: PaySource[] | undefined): number {
     return (paySources ?? []).reduce((sum, s) => sum + s.count, 0)
 }
 
+// このターンの間、この pid は手札のカードを使えないか（BS11-082 ウィッグバインド）。
+// 使えないなら理由の文字列、使えるなら null。**召喚・配置・マジック使用のすべてが通る入口**で見る
+function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string | null {
+    // このバトルの間だけの色制限（BS11-060 雷神砲カノン・アームズ）
+    const battleBan = state.battle?.handColorBannedFor
+    if (battleBan && battleBan.pid === pid && getCard(cardId).colors.includes(battleBan.color)) {
+        return "効果により、このバトルの間はこの色のカードを使えません"
+    }
+    for (const c of state.turnConstraints) {
+        if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
+        const colors = getCard(cardId).colors
+        if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
+        if (c.bannedColors !== undefined && !c.bannedColors.some((col) => colors.includes(col))) continue
+        return "効果により、このターンはこのカードを使えません"
+    }
+    return null
+}
+
 export function validateSummon(
     state: GameState,
     pid: PlayerId,
@@ -118,8 +136,16 @@ export function validateSummon(
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+    const banned = handCardBanned(state, pid, cardId)
+    if (banned) return banned
     // ブレイヴは単体で場に出すと**スピリットとして扱われる**ので、どちらもここを通る（§1.1）
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+
+    // BS11-X02 滅神星龍ダークヴルム・ノヴァLv3：相手はブレイヴをスピリット状態にできない
+    // （＝合体先を指定しないブレイヴの召喚を止める）
+    if (card.type === "brave" && braveTargetInstanceId === undefined && cantSpiritStateBrave(state, pid)) {
+        return "相手の効果により、ブレイヴをスピリット状態にできません"
+    }
 
     // ダイレクトブレイヴの追加検証（§5.3）
     if (braveTargetInstanceId !== undefined) {
@@ -342,6 +368,8 @@ export function validateSetNexus(
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+    const bannedNexus = handCardBanned(state, pid, cardId)
+    if (bannedNexus) return bannedNexus
     if (card.type !== "nexus") return "ネクサスカードではありません"
 
     const cost = effectiveCost(state, pid, card)
@@ -459,6 +487,9 @@ export function validateCastMagic(
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
+    // 手元（tegamoto）からの使用は手札ではないので、手札の使用禁止は掛からない
+    const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
+    if (bannedMagic) return bannedMagic
     if (card.type !== "magic") return "マジックカードではありません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
@@ -551,6 +582,15 @@ export function validateCastMagic(
         if (isFlashLockedFor(state, pid)) {
             return "効果により、フラッシュで手札のカードを使用できません"
         }
+        // 「ブロック宣言後のフラッシュタイミングで使えない」（BS11-078 ブレイヴフラッシュ）。
+        // ブロックされているかは blockerInstanceId で見る（ブロックしない＝takeLife はその場で
+        // ライフ処理まで進むので、そもそもここに来る窓が無い）
+        if (
+            state.battle.blockerInstanceId !== null &&
+            card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.afterBlockForbidden)
+        ) {
+            return "このマジックはブロック宣言後のフラッシュタイミングでは使用できません"
+        }
     } else {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
@@ -620,6 +660,8 @@ export function validateDetachBrave(
     // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
     const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (hosts.length !== 1) return "このブレイヴは分離できません"
+    // BS11-X02 Lv3：相手はブレイヴをスピリット状態にできない（分離した先がスピリット状態になる）
+    if (cantSpiritStateBrave(state, pid)) return "相手の効果により、ブレイヴをスピリット状態にできません"
     return validatePaySources(state, pid, braveKeepCores(brave), paySources)
 }
 
@@ -698,8 +740,12 @@ export function validateActivateAbility(
     instanceId: string,
     effectId: string,
 ): string | null {
-    const inst = findSpirit(state.players[pid], instanceId)
-    if (!inst) return "対象のスピリットが見つかりません"
+    // ネクサスの起動能力もある（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）ので、
+    // スピリットで見つからなければネクサスも探す
+    const inst =
+        findSpirit(state.players[pid], instanceId) ??
+        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId)
+    if (!inst) return "対象のカードが見つかりません"
     const level = currentLevel(inst).level
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
@@ -754,6 +800,9 @@ export function validateActivateAbility(
     if (effect.cost !== undefined) {
         if ("exhaustSelf" in effect.cost) {
             if (inst.isRested) return "すでに疲労しています"
+        } else if ("selfCoresToTrash" in effect.cost) {
+            // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
+            if (inst.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -843,8 +892,13 @@ export function validateBlock(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためブロックできません"
     }
+    // BS11-037 ヒポグリフィー：リザーブのコアを払わなければブロックできない（払えないならブロック不可）
+    const blockCost = state.battle?.blockCostReserveToTrash
+    if (blockCost && blockCost.pid === pid && state.players[pid].reserve < blockCost.count) {
+        return `リザーブのコアが${String(blockCost.count)}個ないためブロックできません`
+    }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
-    if (cantActByCost(state, inst)) {
+    if (cantActByCost(state, inst, "block")) {
         return "このターンの間、このスピリットはブロックできません"
     }
 

@@ -302,8 +302,12 @@ export function costSetOverride(
     // cardData.effects を直接見る（hasTrashSymbolReductionと同じ形）
     for (const effect of cardData.effects) {
         if (effect.kind !== "costMod" || effect.mode !== "set" || effect.scope !== "self") continue
-        if (effect.condition?.ownNexusAtLeast !== undefined) {
+        if (effect.condition !== undefined && "ownNexusAtLeast" in effect.condition) {
             if (board.players[pid].field.nexuses.length < effect.condition.ownNexusAtLeast) continue
+        }
+        // BS11-X03 星騎士ハーキュリーΩ：自分のライフが3以下の間だけ
+        if (effect.condition !== undefined && "ownLifeAtMost" in effect.condition) {
+            if (board.players[pid].life > effect.condition.ownLifeAtMost) continue
         }
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
@@ -404,7 +408,7 @@ export function effectiveCost(
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
                 const have =
-                    countSymbols(board.players[pid], [color]) +
+                    countSymbols(board.players[pid], [color], cardData.type === "spirit") +
                     (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0)
                 reduction += Math.min(need, have)
             }

@@ -1096,6 +1096,42 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
 // 正しい順序は「召喚できるかの判定 → 転召の対象選択 → 対象の消滅 → 召喚 → 召喚時効果」。
 // 転召の対象選択で中断した場合は、GameEngine が action:"summonSequence" として
 // pendingChoice.queue に積み直すので、選択の解決後にここへ合流する
+// トラッシュにあるカード自身の効果（kind:"trashSummonOnNameSummoned"）。
+// いま召喚されたスピリットのカード名が nameIncludes を含むとき、そのカードを
+// コストを支払わずに召喚できる（任意）。【不死】と同じく**トラッシュが発生源**なので、
+// effectSources では拾えず、ここで持ち主のトラッシュを直接走査する（BS11-004 プロミネンスワイバーン）
+function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned: CardInstance): void {
+    const player = state.players[pid]
+    const summonedName = getCard(summoned.cardId).name
+    for (let i = 0; i < player.trashCards.length; i++) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined) continue
+        const card = getCard(cardId)
+        const hit = card.effects.find(
+            (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
+        )
+        if (!hit) continue
+        // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
+        if (player.reserve < minLevelCores(card)) continue
+        if (state.interactiveTargets) {
+            suspend(state, {
+                pid,
+                kind: "option",
+                prompt: `トラッシュの${card.name}を、コストを支払わずに召喚しますか？`,
+                candidates: [],
+                options: ["召喚する"],
+                optional: true,
+                confirm: true,
+                action: { type: "summonFreeFromTrashIndexInternal", trashIndex: i },
+                selfInstanceId: null,
+            })
+            return
+        }
+        summonFreeFromTrashIndex(state, pid, card.name, i)
+        return
+    }
+}
+
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
     // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
@@ -1125,10 +1161,19 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
             byFushi,
+            // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
+            bySoku: state.summoningBySoku === true,
+            // 手札からの召喚か（doSummon / summonFreeFromHandIndex が立てる。BS11-X05 魔導双神ジェミナイズ）
+            fromHand: state.summoningFromHand === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
         })
     }
+    delete state.summoningBySoku
+    delete state.summoningFromHand
+    // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
+    // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
+    if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
@@ -1804,8 +1849,11 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.symbolsOverrideContinuous
+            delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
             delete inst.alsoCostsContinuous
+            delete inst.costDeltaContinuous
+            delete inst.alsoCostsWhenDestroyed
             delete inst.treatedAsVanillaContinuous
             delete inst.effectsDisabledContinuous
             delete inst.braveComposite
@@ -2011,6 +2059,19 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "costDelta") {
+                    // 継続的な「コスト+N」（BS11-017 ムシャツバメLv2-3）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
+                    for (const spirit of effect.target === "self" ? [source] : player.field.spirits) {
+                        spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount
+                    }
+                    continue
+                }
                 if (effect.kind === "symbolFix") {
                     // 持ち主の対象スピリット（familyFilter一致）のシンボルを、そのスピリット元々の
                     // シンボル1色目でcount個に固定する（継続。BS08海底に眠りし古代都市Lv2）
@@ -2021,11 +2082,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
                         if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                     }
-                    for (const spirit of player.field.spirits) {
+                    // target:"self" は発生源自身だけ（BS11-039 天使ティアエル）
+                    const symbolFixTargets = effect.target === "self" ? [source] : player.field.spirits
+                    for (const spirit of symbolFixTargets) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
-                        const baseColor = getCard(spirit.cardId).symbol[0]
+                        // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
+                        const baseColor = effect.color ?? getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue
-                        spirit.symbolsOverrideContinuous = new Array(effect.count).fill(baseColor)
+                        const fixed = new Array<Color>(effect.count).fill(baseColor)
+                        // summonReductionOnly：スピリット召喚の軽減計算のあいだだけ使う置き場へ入れる
+                        if (effect.summonReductionOnly) spirit.symbolsForSummonReduction = fixed
+                        else spirit.symbolsOverrideContinuous = fixed
                     }
                     continue
                 }
@@ -2069,10 +2136,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         const value = effect.plus !== undefined
                             ? getCard(spirit.cardId).cost + effect.plus
                             : effect.cost
-                        if (value === undefined) continue
-                        if (!spirit.alsoCostsContinuous) spirit.alsoCostsContinuous = []
-                        if (!spirit.alsoCostsContinuous.includes(value)) {
-                            spirit.alsoCostsContinuous.push(value)
+                        // costs（複数値。BS11-064 闇の聖剣＝コスト3/4）と cost/plus（単一値）を1本にまとめる
+                        const values = effect.costs ?? (value !== undefined ? [value] : [])
+                        if (values.length === 0) continue
+                        // whenDestroyedOnly：破壊されたときの判定にだけ効く（置き場を分ける）
+                        const key = effect.whenDestroyedOnly ? "alsoCostsWhenDestroyed" : "alsoCostsContinuous"
+                        for (const v of values) {
+                            if (!spirit[key]) spirit[key] = []
+                            if (!spirit[key].includes(v)) spirit[key].push(v)
                         }
                     }
                     continue
@@ -2139,6 +2210,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 都度全消去→再構築（このファイル冒頭のコメント参照）なので、解決より後に召喚された
                     // スピリットにもこのターン中ずっと自然に効く（levelAs は個体への印ではなく走査のたびに再適用されるため）
                     for (const spirit of player.field.spirits) {
+                        // costMinFilter（BS11-047 海王神獣トライ・ポセイドス＝コスト7以上）
+                        if (
+                            effect.costMinFilter !== undefined &&
+                            !instAllCosts(spirit).some((c) => c >= effect.costMinFilter!)
+                        ) {
+                            continue
+                        }
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
@@ -2515,6 +2593,7 @@ export function summonFreeFromHandIndex(
     // 支払い元が維持コア割れしたらそこで消滅する）
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
     player.reserve -= maintain - placedFromField
+    state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     const inst = createInstance(cardId, state.turn, maintain)
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
@@ -2568,7 +2647,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[] },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -2601,6 +2680,11 @@ export function summonFreeFromTrashIndex(
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst)
+    // skipOnSummon 指定時は召喚時効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ）
+    if (opts?.skipOnSummon) {
+        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
+        return
+    }
     // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
@@ -2810,7 +2894,21 @@ export function countEffectCounter(
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
-    if (counter === "selfSymbols") return self ? instanceSymbolCount(self) : 0
+    if (counter === "selfSymbols") {
+        if (!self) return 0
+        // 合体中のブレイヴが発生源のときは、**合体スピリット全体**のシンボル数を数える
+        // （合体中は1体として扱う。2026-09-02 ユーザー確認。BS11-052 魔銃ヴェスパー）。
+        // ホスト側が発生源のときは instanceSymbolCount がブレイヴぶんを含んでいるので変わらない
+        if (self.braveCombined) {
+            for (const p of ["p1", "p2"] as const) {
+                const host = state.players[p].field.spirits.find((sp) =>
+                    (sp.braveRefs ?? []).some((r) => r.instanceId === self.instanceId),
+                )
+                if (host) return instanceSymbolCount(host)
+            }
+        }
+        return instanceSymbolCount(self)
+    }
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
@@ -3238,8 +3336,14 @@ export {
 export {
     attachBrave,
     detachBraveByEffect,
+    detachBraveByOwnerChoice,
+    returnCombinedBraveToHand,
+    destroyCombinedBrave,
     detachBraveVoluntary,
     detachBravesOnLeave,
+    flushBraveKeeps,
+    applyBraveKeep,
+    declineBraveKeep,
     destroySpiritsFrom,
     destroyTargetsBatch,
     applyDestroyBatchAfter,

@@ -44,7 +44,21 @@ const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
 // **増減であって追加ではない**ので、元のコストは残らない（+3したスピリットは
 // 相手の「コスト3以下を破壊」にもう当たらない）。読み口は instCostDelta → instBaseCost の1本
 const costBuffThisTurnHandler: ActionHandler<"costBuffThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストを変えるスピリットを選んでください`,
+            state.players[owner].field.spirits,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
     const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
     if (!target) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -204,11 +218,25 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
 
 // BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
 // このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
-const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
+const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
         const hasBlockTrigger = (inst: CardInstance): boolean =>
             getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
         const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：『ブロック時』効果を『アタック時』に変えるスピリットを選んでください`,
+                mine,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
         const target = targetInstanceId
             ? mine.find((s) => s.instanceId === targetInstanceId)
             : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
@@ -369,18 +397,32 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
+        // 未指定時は自分のフィールドの候補から選ばせる（マッシブアップ）。
+        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）
+        const ownCandidates = state.players[owner].field.spirits.filter(
+            (s) =>
+                (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
+                (!action.requireLevelExists ||
+                    getCard(s.cardId).levels.some((l) => l.level === action.level)),
+        )
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：Lv${action.level}として扱うスピリットを選んでください`,
+                ownCandidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : (() => {
-                  // 未指定時は自分のフィールドから条件を満たすスピリットを1体自動選択する（マッシブアップ）
-                  const cand = state.players[owner].field.spirits.find(
-                      (s) =>
-                          (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
-                          (!action.requireLevelExists ||
-                              getCard(s.cardId).levels.some((l) => l.level === action.level)),
-                  )
-                  return cand ? { pid: owner, inst: cand } : null
-              })()
+            : // 非対話（テスト・AI）と候補1体のときは先頭を自動選択（決定的簡略化）
+              (ownCandidates[0] ? { pid: owner, inst: ownCandidates[0] } : null)
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -535,22 +577,53 @@ const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> =
 
 const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可
-        state.turnConstraints.push({ type: "cantActByCost", maxCost: action.maxCost })
-        log(
-            state,
-            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットはアタックとブロックができない。`,
-        )
+        // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可。
+        // side:"opponent" / nonVanillaOnly で対象を絞れる（BS11-082 ウィッグバインド）
+        state.turnConstraints.push({
+            type: "cantActByCost",
+            ...(action.maxCost !== undefined ? { maxCost: action.maxCost } : {}),
+            ...(action.costs !== undefined ? { costs: action.costs } : {}),
+            ...(action.blockOnly ? { blockOnly: true as const } : {}),
+            ...(action.side === "opponent" ? { pid: opp } : {}),
+            ...(action.nonVanillaOnly ? { nonVanillaOnly: true as const } : {}),
+        })
+        const who = action.side === "opponent" ? `${state.players[opp].name}の` : ""
+        const what = action.nonVanillaOnly ? "効果の記述を持つスピリット" : "スピリット"
+        const cost = action.costs !== undefined
+            ? `コスト${action.costs.join("/")}の`
+            : action.maxCost !== undefined
+              ? `コスト${action.maxCost}以下の`
+              : ""
+        const verb = action.blockOnly ? "ブロックができない" : "アタックとブロックができない"
+        log(state, `${sourceName}：このターンの間、${cost}${who}${what}は${verb}。`)
         return
+}
+
+// このターンの間、指定側は手札のカードを使えない（BS11-082 ウィッグバインド＝「相手は黄以外の手札のカードを使えない」）
+const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    state.turnConstraints.push({
+        type: "cantUseHandCardsForPid",
+        pid: opp,
+        ...(action.allowedColor !== undefined ? { allowedColor: action.allowedColor } : {}),
+    })
+    log(
+        state,
+        action.allowedColor !== undefined
+            ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
+            : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
+    )
 }
 
 // このターンの間、持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。
 // 「【装甲】をないものとして扱い、**新たに得ることもない**」＝ すでに持っている分も、
 // このターンに付与された分もまとめて落とす。判定の入口（boardResistanceAgainst）で一括して無視する
-const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "armorDisabledForPid", pid: owner })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの【装甲】は働かない。`)
+const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    // side:"opponent"（BS11-049 ジャンビ・オレピス）＝相手のスピリットの【装甲】を落とす
+    const pid = action.side === "opponent" ? opp : owner
+    state.turnConstraints.push({ type: "armorDisabledForPid", pid })
+    log(state, `${sourceName}：このターンの間、${state.players[pid].name}のスピリットの【装甲】は働かない。`)
 }
 
 // このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
@@ -570,6 +643,20 @@ const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => 
     const { state, owner, sourceName } = ctx
     state.turnConstraints.push({ type: "lifeImmuneForPid", pid: owner })
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは減らない。`)
+}
+
+// このターンの間、持ち主のライフが指定の下限を下回らないようにする（BS11-080 デルタバリア）。
+// 「減らない」（lifeImmuneThisTurn）とは別物で、**下限まではふつうに減る**
+const lifeFloorThisTurnHandler: ActionHandler<"lifeFloorThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({
+        type: "lifeFloorForPid",
+        pid: owner,
+        floor: action.floor,
+        ...(action.byAttackMinCost !== undefined ? { byAttackMinCost: action.byAttackMinCost } : {}),
+        ...(action.byEffectSourceTypes !== undefined ? { byEffectSourceTypes: action.byEffectSourceTypes } : {}),
+    })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは${action.floor}を下回らない。`)
 }
 
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
@@ -738,17 +825,33 @@ const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx,
 
 const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // バーストファイア：cantBlock/cantBlockLowerBp を持つ自分スピリット優先、なければ先頭
+        // バーストファイア：『ブロックできない』を受けている自分のスピリットが候補。
+        // 誰の効果を消すかはプレイヤーが選ぶ（候補が無ければフィールド全体から選ぶ）
         const mine = state.players[owner].field.spirits
+        const blocked = mine.filter((s) =>
+            activeConstraints(state, owner, s).some(
+                (c) => c.type === "cantBlock" || c.type === "cantBlockLowerBp",
+            ),
+        )
+        const candidates = blocked.length > 0 ? blocked : mine
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：『ブロックできない』効果を無効にするスピリットを選んでください`,
+                candidates,
+                action,
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話（テスト・AI）と候補1体のとき：『ブロックできない』持ちを優先、なければ先頭
         const target =
-            mine.find((s) =>
-                activeConstraints(state, owner, s).some(
-                    (c) =>
-                        c.type === "cantBlock" ||
-                        c.type === "cantBlockLowerBp",
-                ),
-            ) ??
-            mine[0] ??
+            (targetInstanceId !== undefined ? mine.find((s) => s.instanceId === targetInstanceId) : undefined) ??
+            candidates[0] ??
             null
         if (!target) {
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
@@ -865,6 +968,56 @@ const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => 
 // マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
 // resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
 // EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
+// このバトルの間、相手はリザーブのコアを払わなければブロックできない（BS11-037 ヒポグリフィーLv2-3）
+const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThisBattle"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル中でないため何も起きなかった。`)
+        return
+    }
+    state.battle.blockCostReserveToTrash = { pid: opp, count: action.count }
+    log(
+        state,
+        `${sourceName}：${state.players[opp].name}はリザーブのコア${action.count}個をトラッシュに置かなければブロックできない。`,
+    )
+}
+
+// 色1色を指定し、このターンの間、発生源自身はその色のスピリットにブロックされたとき回復する
+// （BS11-054 武槍鳥スピニード・ハヤト）。非対話は相手のフィールドに最も多い色を自動指定する
+const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    if (!self) return
+    const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+    if (chosenOption === undefined) {
+        if (state.interactiveTargets) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：指定する色を選んでください`,
+                [],
+                false,
+                action,
+                self,
+                "option",
+                allColors.map((c) => COLOR_LABELS[c]),
+            )
+            return
+        }
+        // 非対話：相手のフィールドに最も多い色（同数は定義順の先頭）を選ぶ
+        const counts = allColors.map(
+            (c) => [c, state.players[opp].field.spirits.filter((sp) => instHasColor(sp, c)).length] as const,
+        )
+        const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
+        self.refreshOnBlockedByColorThisTurn = best[0]
+        log(state, `${sourceName}：色「${COLOR_LABELS[best[0]]}」を指定した。（この色にブロックされたら回復する）`)
+        return
+    }
+    const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
+    if (!colorEntry) return
+    self.refreshOnBlockedByColorThisTurn = colorEntry[0]
+    log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
+}
+
 const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
     const { state, owner, sourceCardId, chosenOption } = ctx
         if (chosenOption === undefined) {
@@ -959,11 +1112,15 @@ const handlers = {
     addSymbolThisTurn: addSymbolThisTurnHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
+    requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
+    refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     banActByCostThisTurn: banActByCostThisTurnHandler,
+    banHandCardsThisTurn: banHandCardsThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
+    lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
