@@ -6,6 +6,7 @@
 import { act, assert, createGame, createInstance, destroyNexus, destroySpirit, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
+import { noSummonTriggerByCost } from "../../shared/rules"
 
 const byName = (n: string) => {
     const c = ALL_CARDS.find((x) => x.name === n)
@@ -229,6 +230,70 @@ console.log("=== §I 黄金の鐘楼Lv2：【聖命】を持つ自分のスピ�
     const b = setup(plain!.cardId)
     destroySpirit(b.s, "p1", b.victim.instanceId, "destroy")
     assert(b.s.players.p1.life === 3, "【聖命】を持たないスピリットでは発火しない")
+}
+
+console.log("=== §J 未完成の古代戦艦：船尾 ===")
+{
+    const ship = byName("未完成の古代戦艦：船尾")
+    // Lv1-2：お互い、ボイドからライフにコアを置けない
+    const s = game()
+    const nexus = createInstance(ship.cardId, s.turn, 1)
+    s.players.p1.field.nexuses.push(nexus)
+    s.players.p1.life = 3
+    s.players.p2.life = 3
+    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "void" })
+    assert(s.players.p1.life === 3, "自分もボイドからライフにコアを置けない")
+    // リザーブからは置ける（止めるのはボイドからだけ）
+    s.players.p1.reserve = 5
+    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "reserve" })
+    assert(s.players.p1.life === 4, "リザーブからは置ける")
+
+    // Lv2『相手のメインステップ』：『召喚時』効果は発揮されない
+    const s2 = game()
+    const nexus2 = createInstance(ship.cardId, s2.turn, 3) // Lv2
+    s2.players.p1.field.nexuses.push(nexus2)
+    const summoner = ALL_CARDS.find(
+        (c) => c.type === "spirit" && c.effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon"),
+    )
+    assert(summoner !== undefined, "テスト前提: 『召喚時』効果を持つスピリットがいる")
+    // 相手のメインステップ（p2のターン）では止まる
+    s2.turnPlayer = "p2"
+    s2.phase = "main"
+    assert(noSummonTriggerByCost(s2, createInstance(summoner!.cardId, s2.turn, 1)), "相手のメインステップでは『召喚時』が止まる")
+    // 自分のターンでは止まらない（『相手のメインステップ』限定）
+    s2.turnPlayer = "p1"
+    assert(!noSummonTriggerByCost(s2, createInstance(summoner!.cardId, s2.turn, 1)), "自分のターンでは止まらない")
+}
+
+console.log("=== §K デルタバリア：ライフは0にならない（下限までは減る） ===")
+{
+    const barrier = byName("デルタバリア")
+    const e = barrier.effects.find((x) => x.kind === "magic")
+    assert(e !== undefined && "action" in e, "テスト前提: デルタバリアはマジック効果を持つ")
+    const barrierAction = (e as { action: Parameters<typeof resolveAction>[3] }).action
+
+    // 効果（スピリット/マジック）によるライフ減少は1で止まる
+    const s = game()
+    resolveAction(s, "p1", null, barrierAction)
+    s.players.p1.life = 2
+    // 相手（p2）の効果として lifeCrush を解決する＝p1のライフを2個減らそうとする
+    resolveAction(s, "p2", null, { type: "lifeCrush", count: 2 }, undefined, ["red"], "spirit")
+    assert(s.players.p1.life === 1, "スピリットの効果ではライフ1で止まる（0にならない）")
+    assert(s.winner === null, "勝敗は決まらない")
+
+    // 下限までは普通に減る
+    const s2 = game()
+    resolveAction(s2, "p1", null, barrierAction)
+    s2.players.p1.life = 3
+    resolveAction(s2, "p2", null, { type: "lifeCrush", count: 1 }, undefined, ["red"], "spirit")
+    assert(s2.players.p1.life === 2, "下限に達するまでは普通に減る")
+
+    // ネクサスの効果は対象外（byEffectSourceTypes に含まれない）
+    const s3 = game()
+    resolveAction(s3, "p1", null, barrierAction)
+    s3.players.p1.life = 1
+    resolveAction(s3, "p2", null, { type: "lifeCrush", count: 1 }, undefined, ["red"], "nexus")
+    assert(s3.players.p1.life === 0, "ネクサスの効果では守られない（効果文どおり）")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part271）")

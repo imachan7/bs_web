@@ -2903,7 +2903,22 @@
   "rarity": "R",
   "limited": false,
   "effect": "フラッシュ：\nこのターンの間、相手のスピリット/マジックの効果と、コスト4以上の相手のスピリットのアタックでは、自分のライフは0にならない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-080-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "lifeFloorThisTurn",
+     "floor": 1,
+     "byAttackMinCost": 4,
+     "byEffectSourceTypes": [
+      "spirit",
+      "magic"
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-X04",
@@ -4357,7 +4372,31 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2\nお互い、ボイドからライフにコアを置けない。\nLv2『相手のメインステップ』\n『このスピリットの召喚時』効果と『このブレイヴの召喚時』効果は発揮されない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-072-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noVoidToLife"
+    }
+   },
+   {
+    "id": "BS11-072-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "phase": "main",
+    "turn": "opponent",
+    "constraint": {
+     "type": "noSummonTriggerByCost"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-083",

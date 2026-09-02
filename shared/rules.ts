@@ -1777,6 +1777,14 @@ export function lifeDamageLimit(
     for (const c of board.turnConstraints) {
         if (c.type === "lifeDamageMaxForPid" && c.pid === defenderPid) max = Math.min(max, c.max)
     }
+    // このターンの間のライフ下限（BS11-080 デルタバリア＝「ライフは0にならない」）。
+    // アタック経路では byAttackMinCost（アタッカーのコスト）で絞る
+    const attackerCost = Math.max(...instAllCosts(attacker), 0)
+    for (const c of board.turnConstraints) {
+        if (c.type !== "lifeFloorForPid" || c.pid !== defenderPid) continue
+        if (c.byAttackMinCost !== undefined && attackerCost < c.byAttackMinCost) continue
+        max = Math.min(max, Math.max(0, board.players[defenderPid].life - c.floor))
+    }
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
@@ -1785,6 +1793,18 @@ export function lifeDamageLimit(
 // このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らないか
 // （BS10-093時刻む花時計。TIMING_CHART.md §2「あらゆる原因を止める」）。
 // lifeDamageLimit（アタック経路）と lifeCrushハンドラ（効果経路）の両方から呼ぶ共通の入口
+// このターンの間、効果（lifeCrush 等）でこの pid のライフを減らせる下限。
+// 下限が無ければ 0（＝0まで減らせる）。BS11-080 デルタバリア
+export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType | undefined): number {
+    let floor = 0
+    for (const c of board.turnConstraints) {
+        if (c.type !== "lifeFloorForPid" || c.pid !== pid) continue
+        if (c.byEffectSourceTypes !== undefined && (srcType === undefined || !c.byEffectSourceTypes.includes(srcType))) continue
+        floor = Math.max(floor, c.floor)
+    }
+    return floor
+}
+
 export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
     return board.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === pid)
 }
@@ -1876,8 +1896,14 @@ export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noSummonTriggerByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // エントリに区間の指定（phase / turn）があれば、その区間でだけ効く
+                // （BS11-072 は『相手のメインステップ』限定。coreFloorFor と同じ見方）
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === board.turnPlayer) continue
                 const { maxCost } = effect.constraint
-                if (costs.some((cost) => cost <= maxCost)) return true
+                // maxCost 省略時はコストを問わずすべて止める
+                if (maxCost === undefined || costs.some((cost) => cost <= maxCost)) return true
             }
         }
     }

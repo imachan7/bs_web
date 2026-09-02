@@ -614,6 +614,20 @@ const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => 
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは減らない。`)
 }
 
+// このターンの間、持ち主のライフが指定の下限を下回らないようにする（BS11-080 デルタバリア）。
+// 「減らない」（lifeImmuneThisTurn）とは別物で、**下限まではふつうに減る**
+const lifeFloorThisTurnHandler: ActionHandler<"lifeFloorThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({
+        type: "lifeFloorForPid",
+        pid: owner,
+        floor: action.floor,
+        ...(action.byAttackMinCost !== undefined ? { byAttackMinCost: action.byAttackMinCost } : {}),
+        ...(action.byEffectSourceTypes !== undefined ? { byEffectSourceTypes: action.byEffectSourceTypes } : {}),
+    })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは${action.floor}を下回らない。`)
+}
+
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
@@ -1022,6 +1036,7 @@ const handlers = {
     banActByCostThisTurn: banActByCostThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
+    lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,

@@ -41,7 +41,7 @@ import {
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -1644,6 +1644,12 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         // このハンドラの置き元はボイドかリザーブのみ（スピリット上のコアから置く経路は別ハンドラ）
         if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
             log(state, `${sourceName}：効果により、ボイド/リザーブからライフにコアを置けなかった。`)
+            return
+        }
+        // 「お互い、ボイドからライフにコアを置けない」（BS11-072 未完成の古代戦艦：船尾）。
+        // 置き元がボイドのときだけ止める（リザーブ・スピリット上からの経路は通す）
+        if (action.from === "void" && hasGlobalConstraint(state, "noVoidToLife")) {
+            log(state, `${sourceName}：効果により、ボイドからライフにコアを置けなかった。`)
             return
         }
         // upTo（BS09-X35超神星龍ジークヴルム・ノヴァ）：「ライフが5になるように」不足分だけ置く。

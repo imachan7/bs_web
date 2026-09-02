@@ -28,7 +28,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -346,7 +346,14 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return
         }
-        const dealt = Math.min(count, player.life)
+        // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
+        // 下限までは減る。srcType（この効果の発生源の種別）で絞る
+        const floor = lifeFloorByEffect(state, opp, srcType)
+        const dealt = Math.min(count, Math.max(0, player.life - floor))
+        if (dealt === 0 && count > 0) {
+            log(state, `${sourceName}：${player.name}のライフはこれ以上減らせなかった。`)
+            return
+        }
         player.life -= dealt
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
         if (action.dest === "trash") player.trashCores += dealt
