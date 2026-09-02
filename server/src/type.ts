@@ -2054,6 +2054,17 @@ export interface PendingChoice {
         sourceInstanceId: string
         context?: DestroyContext
     }
+    braveKeep?: {
+        // 合体スピリットが場を離れたとき、「ブレイヴをスピリット状態で残しますか？」の確認待ち
+        // （docs/design/BRAVE.md §6.3）。**action は解決しない**。
+        // 選べば need 個のコアを置いて field.spirits へ戻し、選ばなければトラッシュへ置く。
+        // 確認中のブレイヴは GameState.pendingBraveKeeps に「コアを乗せずに分けて置いた」状態でいる
+        // （場のどのゾーンにも属さないので、クライアントへはこの cardId で見せる）
+        pid: PlayerId
+        instanceId: string
+        cardId: string
+        need: number // スピリット状態の Lv1 維持コスト（braveKeepCores）
+    }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。
@@ -2399,6 +2410,11 @@ export interface GameState {
     // 保留しないと、召喚されたカード自身が持つこの誘発（BS08-009関将龍皇ドラグロン等6枚。
     // 効果文では『召喚時』ブロックの一部）を拾えない
     pendingTenshoEvent?: { pid: PlayerId; families: string[]; names: string[] }
+    // 合体スピリットが場を離れて、**コアを乗せずに分けて置いてある**ブレイヴ（BRAVE.md §6.3.1）。
+    // 場のどのゾーンにも属さない一時的な置き場で、flushBraveKeeps が1体ずつ決着させる
+    // （残す＝コアを置いて field.spirits へ／残さない＝トラッシュへ）。
+    // **答えが返るまでエントリを消さない**ので、確認が別の中断に上書きされても保険の flush で拾い直せる
+    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

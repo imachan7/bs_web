@@ -83,6 +83,9 @@ import {
     returnNexusToDeckBottom,
     fireBounceTriggers,
     flushBounces,
+    flushBraveKeeps,
+    applyBraveKeep,
+    declineBraveKeep,
     requestActivationConfirm,
     refreshSpirit,
 } from "./EffectModules"
@@ -94,6 +97,7 @@ import {
     validateBlock,
     validateCastMagic,
     validateEndTurn,
+    validatePaySources,
     validateCombineBrave,
     validateDetachBrave,
     validateMoveCore,
@@ -1399,6 +1403,26 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 合体スピリットが場を離れたときの「ブレイヴを残しますか？」の確認（BRAVE.md §6.3）。
+    // action は解決せず、選べばコアを置いてフィールドへ戻し、選ばなければトラッシュへ置く
+    if (pending.braveKeep) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.braveKeep
+        // 支払い元の検証は召喚と同じ形。**指定が無いときは検証しない**（リザーブで足りなければ
+        // applyBraveKeep がフィールドのコアから自動で補う。AI・自動応答はここを通る）
+        if (option !== undefined && paySources !== undefined) {
+            const invalid = validatePaySources(state, info.pid, info.need, paySources)
+            if (invalid) return invalid
+        }
+        state.pendingChoice = null
+        if (option !== undefined) applyBraveKeep(state, info, paySources)
+        else declineBraveKeep(state, info)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 【不死】（BS09）：トラッシュのこのカードを、コストを支払って召喚するかの確認。action は解決しない
     if (pending.fushiSummon) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
@@ -1638,7 +1662,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
     // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
     // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
     // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    while (!state.pendingChoice && !state.winner && state.resumeStack.length > 0) {
+    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0)) {
+        // 脇に置いたままのブレイヴ（BRAVE.md §6.3）を先に決着させる。detachBravesOnLeave 直後の
+        // 確認が別の中断に上書きされていても、ここで聞き直せる（エントリは答えるまで消えない）
+        flushBraveKeeps(state)
+        if (state.pendingChoice || state.resumeStack.length === 0) continue
         const frame = state.resumeStack.shift()
         if (!frame) continue
         if (frame.kind === "placeSummon") {

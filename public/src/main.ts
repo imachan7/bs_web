@@ -282,6 +282,18 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
 function submitPaying(): void {
     if (!view || !ui.paying) return
     const pay = ui.paying
+    // 場を離れるときにブレイヴを残す（BRAVE.md §6.3）：選択待ちの解決として支払う
+    if (pay.forBraveKeep !== undefined) {
+        send({
+            type: "resolveChoice",
+            option: pay.forBraveKeep.option,
+            ...(Object.keys(pay.assigned).length > 0
+                ? { paySources: Object.entries(pay.assigned).map(([id, count]) => ({ instanceId: id, count })) }
+                : {}),
+        })
+        ui.paying = null
+        return
+    }
     // 任意分離（BRAVE.md §6.4）：手札ではなく場の合体中ブレイヴが起点なので、ここで先に分岐する
     if (pay.forDetachBraveInstanceId !== undefined) {
         send({
@@ -695,6 +707,11 @@ function assignPayCore(instanceId: string): void {
         player.field.spirits.find((s) => s.instanceId === instanceId) ??
         player.field.nexuses.find((n) => n.instanceId === instanceId)
     if (!inst) return
+    // 残すブレイヴに置くコア（BRAVE.md §6.3）。起点は場のどこにも無いので必要数は選択待ちから来る
+    if (pay.forBraveKeep !== undefined) {
+        assignOneCore(pay, instanceId, inst.cores, pay.forBraveKeep.need, player.reserve)
+        return
+    }
     // 任意分離（BRAVE.md §6.4）は**手札が起点ではない**ので、先にここで分岐する。
     // コストは無く、必要なのは置くコア（そのブレイヴのスピリット状態のLv1維持コスト）だけ
     if (pay.forDetachBraveInstanceId !== undefined) {
@@ -1330,7 +1347,25 @@ async function init(): Promise<void> {
         const optionEl = closestData(e, "data-option")
         if (optionEl) {
             ui.stepper = null
-            send({ type: "resolveChoice", option: String(optionEl.dataset.option) })
+            const option = String(optionEl.dataset.option)
+            // 「ブレイヴを残す」（BRAVE.md §6.3）は、置くコアをフィールドからも選べるので支払いモードへ入る。
+            // そのまま確定すればリザーブから払われる
+            const keep = view?.pendingChoice?.braveKeep
+            if (keep) {
+                ui.targeting = null
+                ui.awakenTarget = null
+                ui.combineBrave = null
+                ui.paying = {
+                    handIndex: -1,
+                    forBraveKeep: { option, cardId: keep.cardId, need: keep.need },
+                    assigned: {},
+                    discardHandIndices: [],
+                    millPay: 0,
+                }
+                rerender()
+                return
+            }
+            send({ type: "resolveChoice", option })
             return
         }
         const cardEl = closestData(e, "data-card-index")

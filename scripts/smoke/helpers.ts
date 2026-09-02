@@ -195,6 +195,9 @@ function countCards(state: GameState): number {
     // フィールドにもまだ無い。この1枚も数に入れる（RESUME_STACK.md §6 の手順どおりに
     // 「コストを支払う → 転召 → 維持コアを置く → 召喚完了」と進めるため。2026-08-20）
     total += state.summoningInstanceId !== undefined ? 1 : 0
+    // 場を離れた合体スピリットから外されて、残すかの確認を待っているブレイヴ（BRAVE.md §6.3）。
+    // 「コアを乗せずに分けて置いてある」状態で場のどのゾーンにも属さないので、ここで数える
+    total += state.pendingBraveKeeps?.length ?? 0
     return total
 }
 

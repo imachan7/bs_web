@@ -65,7 +65,7 @@ function checkMainTiming(state: GameState, pid: PlayerId): string | null {
 // need はコストと「置くコア（維持コア）」の合計。
 // フィールドのコア（paySources）はコストにも置くコアにも充当できる（利用者確認 2026-08-01）ため、
 // 上限は need であって cost ではない
-function validatePaySources(
+export function validatePaySources(
     state: GameState,
     pid: PlayerId,
     need: number,

@@ -84,6 +84,7 @@ import {
     costCantAct,
     countAuraCounter,
     braveKeepCores,
+    coresCantBeRemoved,
     bravesOf,
     countSpiritsWeighted,
     countSymbols,
@@ -269,9 +270,11 @@ export function detachBraveVoluntary(
 // ターン終了でネクサスに戻る）。**入口ごとに書くと必ずどれかを忘れる**ので、
 // `field.spirits` から個体を抜くすべての箇所がこれを通る（§6.1.1）。
 //
-// 残すには「自分のフィールド/リザーブから **Lv1の維持コスト以上のコア**を置く」必要がある（§1.4）。
-// **非対話（テスト・AI）ではリザーブから払えるなら自動で残す。**
-// プレイヤーに置き方を選ばせる対話版は段階5（`PayingState` の3つ目の起点が要る。§6.3）。
+// ⚠️ **呼ぶ位置は「ホストを場から抜いてコアを移した後」**（§6.3.1 の裁定）。
+// ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順で、
+// 逆順にすると「残せるはずのブレイヴ」がトラッシュへ行く。
+//
+// ここでは合体を解いて**コアを乗せずに脇へ置く**だけで、残すかどうかは flushBraveKeeps が決める。
 export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
@@ -287,25 +290,146 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         }
         const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
-        const name = getCard(brave.cardId).name
-        const need = braveKeepCores(brave)
+        // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
+        brave.isRested = host.isRested
+        state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker, wasBlocker }]
+    }
+    refreshLevelAsOverrides(state)
+    flushBraveKeeps(state)
+}
+
+// このプレイヤーがいま支払いに回せるコアの総数（リザーブ＋フィールドの取り除けるコア）。
+// 「残す」を選べる状態かどうかの判定に使う（払えないなら確認を出さずトラッシュへ）
+function payableCores(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    const onField = [...player.field.spirits, ...player.field.nexuses]
+        .filter((inst) => !coresCantBeRemoved(state, pid, inst))
+        .reduce((sum, inst) => sum + inst.cores, 0)
+    return player.reserve + onField
+}
+
+// 脇に置いてあるブレイヴを1体ずつ決着させる。
+// **非対話（テスト・AI）では従来どおりリザーブから自動で払って残す**（払えなければトラッシュ）。
+// 対話では持ち主に「残しますか？」を聞いて中断する。**エントリは答えが返るまで消さない**ので、
+// 確認が別の中断に上書きされても、次の flush で聞き直される
+export function flushBraveKeeps(state: GameState): void {
+    if (state.winner) {
+        delete state.pendingBraveKeeps
+        return
+    }
+    while (!state.pendingChoice && (state.pendingBraveKeeps?.length ?? 0) > 0) {
+        const entry = state.pendingBraveKeeps![0]!
+        const player = state.players[entry.pid]
+        const need = braveKeepCores(entry.brave)
+        const name = getCard(entry.brave.cardId).name
+        if (state.interactiveTargets && payableCores(state, entry.pid) >= need) {
+            suspend(state, {
+                pid: entry.pid,
+                kind: "option",
+                prompt: `${name}：コア${need}個を置いて、スピリット状態でフィールドに残しますか？`,
+                candidates: [],
+                options: ["残す"],
+                optional: true,
+                confirm: true,
+                skipLabel: "残さない（トラッシュへ）",
+                braveKeep: { pid: entry.pid, instanceId: entry.brave.instanceId, cardId: entry.brave.cardId, need },
+                action: { type: "noop" },
+                selfInstanceId: null,
+            })
+            return
+        }
+        state.pendingBraveKeeps!.shift()
         if (player.reserve < need) {
-            // 残せない → **合体元と同時にトラッシュへ**（§1.4）。合体中のコアは0なので戻すコアは無い
-            player.trashCards.push(brave.cardId)
+            // 残せない → **合体元と同時にトラッシュへ**（§1.4）
+            player.trashCards.push(entry.brave.cardId)
             log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
             continue
         }
         player.reserve -= need
-        brave.cores = need
-        // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
-        brave.isRested = host.isRested
-        player.field.spirits.push(brave)
-        log(state, `${player.name}の${name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
-        // アタック中なら、ブレイヴがそのままバトルを引き継ぐ（§6.2 の5）。
-        // **アタック宣言はやり直さない**＝アタック時効果は再発揮しない（2026-08-25 ユーザー確認。§12 の7）
-        if (state.battle && wasAttacker) state.battle.attackerInstanceId = brave.instanceId
-        else if (state.battle && wasBlocker) state.battle.blockerInstanceId = brave.instanceId
+        keepBrave(state, entry, need)
     }
+    if ((state.pendingBraveKeeps?.length ?? 0) === 0) delete state.pendingBraveKeeps
+}
+
+// コアを置いたブレイヴを、スピリット状態でフィールドへ戻す（支払いは呼び出し元が済ませてある）
+function keepBrave(
+    state: GameState,
+    entry: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean },
+    need: number,
+): void {
+    const player = state.players[entry.pid]
+    entry.brave.cores = need
+    player.field.spirits.push(entry.brave)
+    log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
+    // アタック中なら、ブレイヴがそのままバトルを引き継ぐ（§6.2 の5）。
+    // **アタック宣言はやり直さない**＝アタック時効果は再発揮しない（2026-08-25 ユーザー確認。§12 の7）
+    if (state.battle && entry.wasAttacker) state.battle.attackerInstanceId = entry.brave.instanceId
+    else if (state.battle && entry.wasBlocker) state.battle.blockerInstanceId = entry.brave.instanceId
+    refreshLevelAsOverrides(state)
+}
+
+// 「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
+// （フィールドのコアを使ったときの維持コア割れの処理まで共通になる）
+export function applyBraveKeep(
+    state: GameState,
+    info: { pid: PlayerId; instanceId: string; need: number },
+    paySources?: PaySource[],
+): void {
+    const entry = takeBraveKeep(state, info.instanceId)
+    if (!entry) return
+    // 支払い元の指定が無くリザーブが足りないとき（AI・自動応答）は、フィールドのコアから自動で補う。
+    // 確認を出す時点で払えることは flushBraveKeeps が確かめてあるので、ここで不足することはない
+    const sources = paySources ?? autoPaySources(state, info.pid, info.need)
+    const placedFromField = payCost(state, info.pid, 0, sources, info.need)
+    state.players[info.pid].reserve -= info.need - placedFromField
+    keepBrave(state, entry, info.need)
+}
+
+// リザーブで足りない分をフィールドのコアから自動で拾う（維持コアを割らない余剰コアを優先する）。
+// 支払い元を選ばない応答（AI・自動応答）のための決定的なフォールバック
+function autoPaySources(state: GameState, pid: PlayerId, need: number): PaySource[] {
+    const player = state.players[pid]
+    let short = need - player.reserve
+    if (short <= 0) return []
+    const sources: PaySource[] = []
+    const targets = [...player.field.spirits, ...player.field.nexuses].filter(
+        (inst) => !coresCantBeRemoved(state, pid, inst),
+    )
+    for (const surplusOnly of [true, false]) {
+        for (const inst of targets) {
+            if (short <= 0) break
+            const already = sources.find((src) => src.instanceId === inst.instanceId)?.count ?? 0
+            const floor = surplusOnly ? instMinLevelCores(inst) : 0
+            const usable = Math.max(inst.cores - already - floor, 0)
+            if (usable === 0) continue
+            const take = Math.min(usable, short)
+            if (already > 0) sources.find((src) => src.instanceId === inst.instanceId)!.count += take
+            else sources.push({ instanceId: inst.instanceId, count: take })
+            short -= take
+        }
+    }
+    return sources
+}
+
+// 「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+export function declineBraveKeep(state: GameState, info: { pid: PlayerId; instanceId: string }): void {
+    const entry = takeBraveKeep(state, info.instanceId)
+    if (!entry) return
+    const player = state.players[entry.pid]
+    player.trashCards.push(entry.brave.cardId)
+    log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、残さずトラッシュに置かれた。`)
+}
+
+function takeBraveKeep(
+    state: GameState,
+    instanceId: string,
+): { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean } | undefined {
+    const list = state.pendingBraveKeeps ?? []
+    const at = list.findIndex((e) => e.brave.instanceId === instanceId)
+    if (at === -1) return undefined
+    const [entry] = list.splice(at, 1)
+    if (list.length === 0) delete state.pendingBraveKeeps
+    return entry
 }
 
 // ---- スピリット／ネクサスの除去 ----
