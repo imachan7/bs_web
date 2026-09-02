@@ -319,7 +319,8 @@
      "count": 1,
      "filter": {
       "maxBp": 5000
-     }
+     },
+     "drawPerDestroyed": true
     },
     "optional": false
    }
@@ -674,7 +675,21 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n色1色を指定する。指定した色のネクサスすべてを破壊する。\nこの効果で破壊したネクサス1つにつき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS11-073-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroyNexus",
+     "count": 0,
+     "all": true,
+     "side": "both",
+     "chooseColor": true,
+     "drawPerDestroyed": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS11-074",

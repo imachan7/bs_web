@@ -134,6 +134,18 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
+            // drawPerDestroyed（BS11-006）は「実際に破壊できた数」を数える必要があるので、
+            // 数え方と中断の扱いを持っている destroyTargetsBatch を通す
+            if (action.drawPerDestroyed) {
+                destroyTargetsBatch(
+                    state,
+                    owner,
+                    [{ pid: found.pid, instanceId: found.inst.instanceId }],
+                    destroyContext,
+                    { drawPerDestroyed: true, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+                )
+                return
+            }
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
             return
         }
@@ -216,6 +228,25 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             ) {
                 return
             }
+        }
+        // drawPerDestroyed（BS11-006）：候補を先に選び切ってからバッチで破壊する
+        // （数え方と中断の扱いを destroyTargetsBatch に任せる）
+        if (action.drawPerDestroyed) {
+            const picked: { pid: PlayerId; instanceId: string }[] = []
+            for (let i = 0; i < resolvedCount; i++) {
+                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !picked.some((p) => p.instanceId === s.instanceId), srcColors, srcType)
+                if (!target) break
+                picked.push({ pid: opp, instanceId: target.instanceId })
+            }
+            if (picked.length === 0) {
+                log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                return
+            }
+            destroyTargetsBatch(state, owner, picked, destroyContext, {
+                drawPerDestroyed: true,
+                ...(self ? { selfInstanceId: self.instanceId } : {}),
+            })
+            return
         }
         for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
@@ -679,16 +710,44 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
         return
 }
 
+const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcType } = ctx
+    const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
+        // chooseColor（BS11-073 バスターハンマー）：まず色1色を指定させ、その色を colorFilter に
+        // 載せて解決し直す。**色を選ぶのは効果の使用者**（効果文に「相手は」が無い）
+        if (action.chooseColor) {
+            const { chooseColor: _chooseColor, ...rest } = action
+            const chosen = chosenOption !== undefined && (ALL_COLORS as string[]).includes(chosenOption)
+                ? (chosenOption as Color)
+                : undefined
+            if (chosen !== undefined) {
+                ctx.resolve({ ...rest, colorFilter: chosen })
+                return
+            }
+            if (state.interactiveTargets) {
+                requestChoice(state, owner, `${sourceName}：破壊するネクサスの色を指定してください`, [], false, action, self, "option", ALL_COLORS)
+                return
+            }
+            // 非対話（テスト・AI）：破壊できる数が最大になる色を選ぶ（同数は ALL_COLORS の順）
+            const countFor = (color: Color): number =>
+                sides.reduce(
+                    (sum, pid) => sum + state.players[pid].field.nexuses.filter((n) => instHasColor(n, color)).length,
+                    0,
+                )
+            const best = ALL_COLORS.reduce((a, b) => (countFor(b) > countFor(a) ? b : a))
+            ctx.resolve({ ...rest, colorFilter: best })
+            return
+        }
         // levelFilter指定時はこれに含まれるレベルのネクサスのみ対象（BS03バスターランス＝Lv1のみ）。
         // **他のカードから見えるレベル（displayLevel）で判定する**：ウッド・ゴレムの
         // 「相手のネクサスすべてのLv2効果は発揮されない」は効果の発揮判定にだけ効く置き換えなので、
         // それでLv1に見えるようになったネクサスをバスターランスが破壊できてはいけない
         const matchesLevel = (n: CardInstance) =>
-            action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)
+            (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
+            (action.colorFilter === undefined || instHasColor(n, action.colorFilter))
         let destroyed = 0
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
@@ -696,9 +755,10 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
                 ? state.players[pid].field.nexuses.filter(matchesLevel).length
                 : action.count
             for (let i = 0; i < iterations; i++) {
-                const nexus = action.levelFilter
-                    ? state.players[pid].field.nexuses.find(matchesLevel)
-                    : state.players[pid].field.nexuses[0]
+                const nexus =
+                    action.levelFilter !== undefined || action.colorFilter !== undefined
+                        ? state.players[pid].field.nexuses.find(matchesLevel)
+                        : state.players[pid].field.nexuses[0]
                 if (!nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     break
