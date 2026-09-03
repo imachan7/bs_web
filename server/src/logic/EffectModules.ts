@@ -1371,12 +1371,17 @@ export const TENSHO_SUBSTITUTE_HAND_DUMP = "手札に戻さずコアを置く"
 export function tenshoSpecOf(
     card: CardData,
     level: number,
-): { entry: EffectDef; minCost: number; dest: "trash" | "void" } | null {
+): { entry: EffectDef; minCost: number; familyFilter?: FamilyFilter | undefined; dest: "trash" | "void" } | null {
     const effect = card.effects.find(
         (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
     )
     if (!effect || effect.kind !== "keyword") return null
-    return { entry: effect, minCost: effect.minCost ?? 0, dest: effect.dest ?? "trash" }
+    return {
+        entry: effect,
+        minCost: effect.minCost ?? 0,
+        familyFilter: effect.familyFilter,
+        dest: effect.dest ?? "trash",
+    }
 }
 
 // 【転召】でコアを置く対象になれる自分のスピリット。
@@ -1388,13 +1393,18 @@ export function tenshoCandidates(
     ownerPid: PlayerId,
     minCost: number,
     excludeInstanceId?: string,
+    // 【転召：星魂/ボイド】（BS12初出）：コストでなく系統で対象を絞る。minCost とは排他で、
+    // 指定されているときはコスト条件を課さない（付与系統も見る＝matchesFamilyFilter）
+    familyFilter?: FamilyFilter,
 ): CardInstance[] {
-    return state.players[ownerPid].field.spirits.filter(
-        (s) =>
-            s.instanceId !== excludeInstanceId &&
-            (instMatchesCostFilter(s, { min: minCost }) ||
-                getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost),
-    )
+    return state.players[ownerPid].field.spirits.filter((s) => {
+        if (s.instanceId === excludeInstanceId) return false
+        if (familyFilter) return matchesFamilyFilter(state, ownerPid, s, familyFilter)
+        return (
+            instMatchesCostFilter(s, { min: minCost }) ||
+            getCard(s.cardId).cost + tenshoSelfCostBonus(state, ownerPid, s) >= minCost
+        )
+    })
 }
 
 export function resolveTensho(
@@ -1405,8 +1415,8 @@ export function resolveTensho(
     const level = currentLevel(spirit).level
     const spec = tenshoSpecOf(getCard(spirit.cardId), level)
     if (!spec) return
-    const { minCost, dest } = spec
-    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId)
+    const { minCost, familyFilter, dest } = spec
+    const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId, familyFilter)
     if (candidates.length === 0) {
         log(state, `【転召】${getCard(spirit.cardId).name}：対象がいなかった。`)
         return
@@ -1851,6 +1861,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.symbolsOverrideContinuous
             delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
+            delete inst.heavyArmorColorsGranted
             delete inst.alsoCostsContinuous
             delete inst.costDeltaContinuous
             delete inst.alsoCostsWhenDestroyed
@@ -1892,11 +1903,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 // 純粋述語で、ホストのカード自身しか見ないため。BS10フェンリルキャノンType-B）
                 const braveLevel = currentLevel(brave).level
                 for (const effect of getCard(brave.cardId).effects) {
-                    if (effect.kind !== "keyword" || effect.keyword !== "armor") continue
+                    if (effect.kind !== "keyword") continue
+                    if (effect.keyword !== "armor" && effect.keyword !== "heavyArmor") continue
                     if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
-                    if (!host.armorColorsGranted) host.armorColorsGranted = []
+                    // 【重装甲】も同じ理由でホストへ写す（hasHeavyArmorAgainst も state を受け取らない純粋述語。
+                    // BS12-055 ゲッコ・グライダー＝【合体時】【重装甲：紫/黄】）
+                    const granted =
+                        effect.keyword === "heavyArmor"
+                            ? (host.heavyArmorColorsGranted ??= [])
+                            : (host.armorColorsGranted ??= [])
                     for (const c of effect.colors ?? []) {
-                        if (!host.armorColorsGranted.includes(c)) host.armorColorsGranted.push(c)
+                        if (!granted.includes(c)) granted.push(c)
                     }
                 }
             }
@@ -1964,6 +1981,16 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             if (!source.armorColorsGranted.includes(c)) source.armorColorsGranted.push(c)
                         }
                     }
+                    continue
+                }
+                if (effect.kind === "keyword" && effect.keyword === "heavyArmor" && effect.colorsFrom === "selfColors") {
+                    // 【重装甲：可変】＝「このスピリットの色の相手の効果を受けない」（BS12-X04 月光神龍ルナテック・
+                    // ストライクヴルム）。**付与色も含めて毎回算出する**（2026-09-03 ユーザー確認。BS12-027 Lv2 が
+                    // 「自分の[ルナテック]すべてを紫/緑のスピリットとしても扱う」と組む）。
+                    // 【装甲：∞】の colorsFrom:"opponentFieldSymbols" と同じ都度再構築
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    const own = (source.heavyArmorColorsGranted ??= [])
+                    for (const c of instColors(source)) if (!own.includes(c)) own.push(c)
                     continue
                 }
                 if (effect.kind === "vanillaAsGrant") {

@@ -260,8 +260,12 @@ export function validateSummon(
     // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
     const tensho = tenshoSpecOf(card, level ?? 1)
     if (tensho) {
-        const candidates = tenshoCandidates(state, pid, tensho.minCost)
+        const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
+            if (tensho.familyFilter) {
+                const families = [tensho.familyFilter].flat().join("/")
+                return `【転召】でコアを置く、系統：「${families}」を持つ自分のスピリットがいません`
+            }
             return tensho.minCost > 0
                 ? `【転召】でコアを置く、コスト${tensho.minCost}以上の自分のスピリットがいません`
                 : "【転召】でコアを置く自分のスピリットがいません"

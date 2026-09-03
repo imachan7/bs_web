@@ -78,6 +78,7 @@ export interface TargetFilter {
     keyword?: Keyword // 指定キーワード持ち（一時付与・継続付与も考慮）
     vanilla?: true // 効果テキストを持たないカードのみ
     minSymbols?: number // シンボル数がこれ以上
+    symbolCount?: number // シンボル数が**これと完全一致**（minSymbols＝以上とは別軸。「シンボル1つを持つ相手のスピリット」「シンボル2つを持つ相手の合体スピリット」。instanceSymbolCountで判定＝合体しているブレイヴのシンボルも数える。BS12初出）
     excludeSelf?: boolean // 発生源自身を対象から外す
     cores?: number // 実際に置かれているコア数がこれと一致する（BS05ドラグノ爆弾兵：コア1個）
     maxCores?: number // 実際に置かれているコア数がこれ以下（cores＝完全一致とは別軸。BS03水龍王リヴァイア：コアが3個以下）
@@ -505,6 +506,11 @@ export type Keyword =
     // （shared/rules.ts の KEYWORD_INCLUDES）
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
+    | "heavyArmor" // 重装甲：指定色の相手の**スピリット/ブレイヴ/ネクサス/マジック**の効果を受けない（BS12初出）。
+    // ⚠️ 【装甲】の上位だが**別枠**（KEYWORD_INCLUDES に足さない。2026-09-03 ユーザー確認）。
+    // 「【装甲】を持つ自分のスピリットすべて」（BS12-067 Lv2）に重装甲持ちは含まれない
+    // （BS12-068 が「【装甲】/【重装甲】」と両方を併記しているのが根拠）。
+    // 装甲との差は**ブレイヴの効果も防ぐ**ことだけ（shared/rules.ts の boardResistanceAgainst）
     | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
     | "funsai" // 粉砕：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
     | "kobo" // 光芒：アタック時、バトル終了時に自分がこのバトルで使用したマジックカードすべてを手札に戻す
@@ -732,9 +738,11 @@ export type EffectDef =
           // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
           // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           colors?: Color[] // 装甲用: この色の相手効果を受けない
-          colorsFrom?: "opponentFieldSymbols" // 装甲用: colorsの代わりに、持ち主から見た相手フィールドのシンボル色を毎回算出して使う（【装甲：∞】。EffectModules.refreshLevelAsOverridesがarmorColorsGrantedへ都度再構築する。BS06鎧神機ヴァルハランス）
+          colorsFrom?: "opponentFieldSymbols" | "selfColors" // 装甲用: colorsの代わりに、持ち主から見た相手フィールドのシンボル色を毎回算出して使う（【装甲：∞】。EffectModules.refreshLevelAsOverridesがarmorColorsGrantedへ都度再構築する。BS06鎧神機ヴァルハランス）
+          // selfColors は**重装甲用**: 発生源自身の色（instColors＝colorAs等の付与色も含む）を毎回算出して使う（【重装甲：可変】。BS12-X04 月光神龍ルナテック・ストライクヴルム。heavyArmorColorsGrantedへ都度再構築）
           count?: number // 暴風用: 指定数（【暴風：2】＝2体）。表示と、同じカードの誘発エントリの体数を読み合わせるために持つ
           minCost?: number // 転召用: 対象スピリットのコスト下限
+          familyFilter?: FamilyFilter // 転召用: 対象スピリットの系統（配列＝OR。【転召：星魂/ボイド】＝系統「星魂」を持つ自分のスピリット1体。minCost とは排他で、こちらはコストを問わない。BS12初出）
           dest?: "trash" | "void" // 転召用: コアの行き先（trash=持ち主のトラッシュ、void=消滅）
           triggerCosts?: number[] // 不死用: 引き金になる自分のスピリットのコスト（【不死：コスト6/7】＝[6, 7]）。
           // 省略時は「キーワードを持つ」宣言だけ（「【不死】を持つ自分のスピリットすべて」の絞り込み用）
@@ -1930,6 +1938,9 @@ export interface CardInstance {
     blockTriggersAsAttackThisTurn?: boolean // このターンの間、『このスピリットのブロック時』効果を『アタック時』に発揮する
     // （ブロック時には発揮しない。ターン終了でリセット。fireTriggerが参照。GameState の同名フラグは両陣営全体版で、こちらは個体単位。BS07マクラーンスラッシュ）
     attackTriggersAsBlockThisTurn?: boolean // このターンの間、『このスピリットのアタック時』効果を『ブロック時』に発揮する（アタック時には発揮しない。ターン終了でリセット。fireTriggerが参照。BS05ブレイブチャージ）
+    heavyArmorColorsGranted?: Color[] // 【重装甲】の対象色のうち、**毎回算出が要るもの**（合体中のブレイヴが持つ静的【重装甲】のホストへの反映と、colorsFrom:"selfColors"＝【重装甲：可変】）。
+    // armorColorsGranted と同じくEffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、hasHeavyArmorAgainstが参照する。
+    // ⚠️ 静的な【重装甲：紫】等はカードのeffectsから直接読むのでここには入らない
     armorColorsGranted?: Color[] // 継続付与された装甲の対象色（kind:"keywordGrant"のkeyword:"armor"。
     // EffectModules.refreshLevelAsOverridesが毎回全消去→再構築する。hasArmorAgainstが参照する（BS05白夜の虚空Lv2）
     returnToDeckBottomAtEndStep?: boolean // このスピリットはエンドステップに持ち主のデッキの下へ戻る

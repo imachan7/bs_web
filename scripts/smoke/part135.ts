@@ -24,6 +24,7 @@ interface CardRow {
     type?: string
     cost?: number
     colors?: string[]
+    family?: string[]
     symbol?: string[]
     flash?: boolean
     effects?: Record<string, unknown>[]
@@ -154,10 +155,16 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
 {
     const targets = withKeyword("tensho")
     let ok = 0
-    for (const { card, level } of targets) {
+    for (const { card, entry, level } of targets) {
         const s = base(`tensho-${card.cardId}`)
+        // 【転召：星魂/ボイド】（BS12初出）はコストでなく系統で対象を絞るので、生け贄も系統で選ぶ
+        const families = [entry["familyFilter"] ?? []].flat() as string[]
+        const sacrificeCard =
+            families.length > 0
+                ? pickVanilla((c) => (c.family ?? []).some((f) => families.includes(f)))
+                : SACRIFICE
         // 生け贄は1体だけにする（2体以上あると選択待ちになりうる）
-        const sacrifice = put(s, "p1", SACRIFICE.cardId, 2)
+        const sacrifice = put(s, "p1", sacrificeCard.cardId, 2)
         s.players.p1.hand = [card.cardId]
         const error = act(s, "p1", { type: "summon", handIndex: 0, level })
         if (error !== null) {

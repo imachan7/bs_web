@@ -41,6 +41,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     superAwaken: { id: "superAwaken", label: "超覚醒" },
     clash: { id: "clash", label: "激突" },
     armor: { id: "armor", label: "装甲" },
+    heavyArmor: { id: "heavyArmor", label: "重装甲" },
     jugeki: { id: "jugeki", label: "呪撃" },
     funsai: { id: "funsai", label: "粉砕" },
     kobo: { id: "kobo", label: "光芒" },
@@ -921,6 +922,12 @@ export function boardResistanceAgainst(
     // 【装甲：色】の効果文は「指定された色の相手の**スピリット/ネクサス/マジック**の効果を受けない」で、
     // ブレイヴを列挙していない。これを防ぐのは【重装甲】（ブレイヴ登場後のキーワード。プールに入ったら実装する）。
     // なお**合体中**にブレイヴがホストへ付与している効果は、発生源が合体スピリット＝"spirit" で来るのでここで防がれる
+    // 【重装甲】は装甲より先に見る。**sourceType を問わない**＝ブレイヴの効果も防ぐのが装甲との差。
+    // ⚠️ armorDisabled（アーマーパージ＝「【装甲】を無いものとして扱う」）では**消えない**。
+    // 重装甲は装甲と別枠と確定したため（BS12_PLAN.md §1 の1）、「装甲」を名指しする効果は届かない
+    if (hasHeavyArmorAgainst(target, attempt.sourceColors)) {
+        return { category: "armor", label: `【${KEYWORDS.heavyArmor.label}】` }
+    }
     if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
@@ -1385,6 +1392,7 @@ export function matchesTarget(
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
+    if (filter.symbolCount !== undefined && instanceSymbolCount(inst) !== filter.symbolCount) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
@@ -1651,6 +1659,25 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
     // 継続付与の装甲（kind:"keywordGrant"のkeyword:"armor"。refreshLevelAsOverridesが
     // armorColorsGrantedへ毎回再計算する。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白）
     return (inst.armorColorsGranted ?? []).some((c) => sourceColors.includes(c))
+}
+
+// 【重装甲】。装甲との差は**ブレイヴの効果も防ぐ**ことだけで、判定の形は hasArmorAgainst と同じ。
+// ⚠️ 装甲とは別枠（KEYWORD_INCLUDES に入れない。2026-09-03 ユーザー確認。docs/design/BS12_PLAN.md §1）。
+// 一時付与の重装甲は BS12 に無いので tempKeywords は見ない（必要になったら足す）
+export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+    if (sourceColors === undefined || sourceColors.length === 0) return false
+    const level = currentLevel(inst).level
+    const staticHeavyArmor = card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            e.keyword === "heavyArmor" &&
+            effectActiveOn(inst, e, level) &&
+            (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
+    )
+    if (staticHeavyArmor) return true
+    // 毎回算出ぶん（合体中のブレイヴが持つ静的【重装甲】のホストへの反映と、【重装甲：可変】＝colorsFrom:"selfColors"）。
+    // refreshLevelAsOverrides が heavyArmorColorsGranted へ都度再構築する
+    return (inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))
 }
 export function hasGlobalConstraint(
     board: Board,

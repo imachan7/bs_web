@@ -974,10 +974,10 @@ process.on("exit", () => {
         patch(
             em,
             `    if (!spec) return
-    const { minCost, dest } = spec`,
+    const { minCost, familyFilter, dest } = spec`,
             `    if (!spec) return
     __covRecord("cont\\t" + String((spec.entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-    const { minCost, dest } = spec`,
+    const { minCost, familyFilter, dest } = spec`,
         )
         // colorAs: refreshLevelAsOverrides の colorsAsContinuous 代入点
         patch(

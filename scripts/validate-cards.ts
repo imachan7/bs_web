@@ -222,7 +222,7 @@ function checkCostSetEffects(
 const LEGACY_FILTER_FIELDS = [
     "maxBp", "maxBpFromSelf", "bpEqualsSelf", "keywordFilter", "colorFilter",
     "colorExclude", "familyFilter", "costFilter", "levelFilter", "vanillaFilter",
-    "minSymbols", "excludeSelf",
+    "minSymbols", "symbolCount", "excludeSelf",
 ] as const
 
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
@@ -234,7 +234,7 @@ const FILTER_ACTIONS = new Set([
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
+    "level", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
