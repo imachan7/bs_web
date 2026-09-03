@@ -21,14 +21,28 @@
 **BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
 → [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手: バッチ0（器 A〜D）を入れる。** 他の色バッチはすべてこれに依存する:
+**次の一手: バッチ0（器 A / B / D）を入れる。** 色バッチはすべてこれに依存する。確定済みスキーマ:
 
-- **A 【重装甲】** — 新 Keyword `heavyArmor`。免疫判定で `sourceType:"brave"` も防ぐ（【装甲】は防がない）。
-  **【装甲】の参照には含めない**（`KEYWORD_INCLUDES` に足さない）。`colorsFrom:"selfColors"` が【重装甲：可変】
-- **B 【転召：系統/ボイド】** — `keyword:"tensho"` エントリに `familyFilter`（現状は `minCost` だけ）。
-  `tenshoCoreSubstitute` にも系統版が要る（BS12-061 / 064 / 066）
-- **C シンボルの追加（継続）／喪失** — 新 kind `symbolAddGrant`（BS12-006）と `tempSymbolLoss`（BS12-080）
-- **D シンボル数フィルタ** — `TargetFilter.symbolCount`（`instanceSymbolCount` で判定。7枚が使う）
+**A 【重装甲】**（BS12-025/027/028/030/055/X04）
+- `Keyword` に `"heavyArmor"` を追加し `KEYWORDS` にラベル「重装甲」。**`KEYWORD_INCLUDES` には足さない**（§1 の1）
+- `kind:"keyword"` の既存 `colors` を再利用。`colorsFrom` に `"selfColors"` を追加＝【重装甲：可変】（BS12-X04）
+- `CardInstance.heavyArmorColorsGranted?: Color[]`（`armorColorsGranted` と同じ「都度全消去→再構築」）
+- `shared/rules.ts` に `hasHeavyArmorAgainst(inst, sourceColors)`（`hasArmorAgainst` の写し）
+- `boardResistanceAgainst`（shared/rules.ts:924 付近）で**装甲判定の直前**に重装甲を見る。
+  装甲と違い **`sourceType !== "brave"` の条件を付けない**＝ブレイヴの効果も防ぐ
+- `EffectModules.refreshLevelAsOverrides` に2つ足す: ①合体中のブレイヴが持つ静的【重装甲】をホストへ反映
+  （既存の armor の隣・1893行付近）②`colorsFrom:"selfColors"` → `instColors(source)` を毎回書き込む
+- `keywordGrant` の heavyArmor は**作らない**（BS12 に該当カードが無い）
+
+**B 【転召：系統/ボイド】**（BS12-007/015/024/040/047）
+- `kind:"keyword"` に `familyFilter?: FamilyFilter` を追加（転召用。既存 `minCost` と排他）
+- `dumpAllCoresTensho` の対象候補の絞り込みに足すだけ
+
+**D シンボル数フィルタ**（BS12-007/012/020/037/043/069/X01）
+- `TargetFilter` に `symbolCount?: number`（`instanceSymbolCount` で完全一致判定）。`matchesTarget` に1行
+
+C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
+[BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。
 
 BS11 は91枚すべて投入済み。残る2節は [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5（どちらも横断的な下ごしらえが先）。
 
