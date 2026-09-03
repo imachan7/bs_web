@@ -30,8 +30,19 @@ const SERIES_LABELS: Record<string, string> = {
     "BS07": "天醒",
     "BS08": "戦嵐",
     "BS09": "超星",
-    "X003": "プロモ",
-    "X004": "プロモ",
+    "BS10": "八星龍降臨",
+    "BS11": "灼熱の太陽",
+    "BS12": "月の咆哮",
+    "SD01": "構築済みデッキ",
+    "SD02": "構築済みデッキ",
+    "SD04": "構築済みデッキ",
+}
+
+// 弾の表示名。プロモは cardId の枝番（X003A / X005R 等）が弾ごとに違うので、
+// 一覧に並べず「X」始まりをまとめて「プロモ」と呼ぶ
+function seriesLabel(series: string): string {
+    if (series.startsWith("X")) return "プロモ"
+    return SERIES_LABELS[series] ?? ""
 }
 
 // ---- 状態 ----
@@ -1034,7 +1045,8 @@ function setupFilterChips(): void {
     for (const s of sortedSeries) {
         const option = document.createElement("option")
         option.value = s
-        option.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
+        const label = seriesLabel(s)
+        option.textContent = label === "" ? s : `${s} ${label}`
         seriesSelect.appendChild(option)
     }
     seriesSelect.addEventListener("change", () => {
@@ -1223,6 +1235,19 @@ async function init(): Promise<void> {
     cards = (await res.json()) as CardData[]
     cards.sort((a, b) => a.cardId.localeCompare(b.cardId))
     db = new Map(cards.map((c) => [c.cardId, c]))
+
+    // 収録範囲の表示。手で書くと弾を足すたびにずれるのでカードデータから出す
+    // （「BS01〜BS04（全521枚）」のまま1286枚になっていた）
+    const note = document.getElementById("topbar-note")
+    if (note !== null) {
+        const sets = cards.map((c) => c.cardId.split("-")[0] ?? "").filter((s) => s.startsWith("BS")).sort()
+        const first = sets[0]
+        const last = sets[sets.length - 1]
+        note.textContent =
+            first !== undefined && last !== undefined
+                ? `${first}〜${last}（全${cards.length}枚）`
+                : `全${cards.length}枚`
+    }
 
     setupFilterChips()
     setupDeckIo()
