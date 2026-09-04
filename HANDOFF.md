@@ -21,25 +21,35 @@
 **BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
 → [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手: バッチ0（器 A / B / D）を入れる。** 色バッチはすべてこれに依存する。確定済みスキーマ:
+**次の一手: バッチ1（赤15枚）を入れる。** バッチ0（器 A/B/D）は投入済み。確定済みスキーマ（2026-09-04 ユーザー確認）:
 
-**A 【重装甲】**（BS12-025/027/028/030/055/X04）
-- `Keyword` に `"heavyArmor"` を追加し `KEYWORDS` にラベル「重装甲」。**`KEYWORD_INCLUDES` には足さない**（§1 の1）
-- `kind:"keyword"` の既存 `colors` を再利用。`colorsFrom` に `"selfColors"` を追加＝【重装甲：可変】（BS12-X04）
-- `CardInstance.heavyArmorColorsGranted?: Color[]`（`armorColorsGranted` と同じ「都度全消去→再構築」）
-- `shared/rules.ts` に `hasHeavyArmorAgainst(inst, sourceColors)`（`hasArmorAgainst` の写し）
-- `boardResistanceAgainst`（shared/rules.ts:924 付近）で**装甲判定の直前**に重装甲を見る。
-  装甲と違い **`sourceType !== "brave"` の条件を付けない**＝ブレイヴの効果も防ぐ
-- `EffectModules.refreshLevelAsOverrides` に2つ足す: ①合体中のブレイヴが持つ静的【重装甲】をホストへ反映
-  （既存の armor の隣・1893行付近）②`colorsFrom:"selfColors"` → `instColors(source)` を毎回書き込む
-- `keywordGrant` の heavyArmor は**作らない**（BS12 に該当カードが無い）
+**1 指定アタック**（BS12-008）— 新 EffectAction `designateAttackTarget { pick: "maxBp" }`
+- `Battle.designatedBlockerInstanceId?: string` を立てるだけ。**アタック時効果と【バースト】の解決がすべて終わって
+  ブロック宣言に入る時点で**、その個体が生存し条件を保っていれば自動でブロッカーにする（**疲労状態でも指定でき、
+  疲労のままブロック宣言する**）。ブロック宣言は成立するので『ブロック時』効果は発揮する
+- 指定時に `boardResistanceAgainst`（op:"other", scope:"single"）を通す＝**【装甲】/【重装甲】持ちは指定できない**
+- 指定先が場を離れた／条件を満たさなくなった／アタッカーが指定アタックの効果を失った場合は**通常のアタックに戻る**
+  （**アタック宣言後のフラッシュタイミングは消さない**）
 
-**B 【転召：系統/ボイド】**（BS12-007/015/024/040/047）
-- `kind:"keyword"` に `familyFilter?: FamilyFilter` を追加（転召用。既存 `minCost` と排他）
-- `dumpAllCoresTensho` の対象候補の絞り込みに足すだけ
+**2 シンボル数の比較**（BS12-X01）— 新 EffectAction `lifeCoresBySymbolDiff`。`onBlocked` で self=アタッカー・
+targetInstanceId=ブロッカー。差（自分−ブロッカー、正のときだけ）ぶん相手のライフのコアを相手のリザーブへ
 
-**D シンボル数フィルタ**（BS12-007/012/020/037/043/069/X01）
-- `TargetFilter` に `symbolCount?: number`（`instanceSymbolCount` で完全一致判定）。`matchesTarget` に1行
+**3 シンボルの追加（継続）**（BS12-006 / X01 Lv3）— 新 kind `symbolAddGrant`。**盤面のシンボル数に効く**
+（`instanceSymbolCount` と `countSymbols` の両方が見る＝軽減にもライフダメージにも効く）。
+`CardInstance.symbolsAddedContinuous: Color[]` を `refreshLevelAsOverrides` が毎回再構築。
+006 は対象2群（`braveInSpiritState`+`symbolCount:0` ／ `combined`+`symbolCount:1`）で `steps:["ownAttack"]`
+
+**4 継続中のマジックの解除**（BS12-049）— 新 EffectAction `negateContinuousMagicByName { nameIncludes }`。
+**相手側の `endStepLock` を解除する**（BS10-108／BS12-078 型）。トラッシュ・手札のカードには何もしない
+
+**5 小さい器**
+- `removeOneOfAnyType` に `types?: ("spirit"|"brave"|"nexus")[]`（BS12-003＝ネクサスを外す）
+- AuraCounter に `"ownBraveSpirits"`（スピリット状態のブレイヴ数。BS12-004）
+- `summonFromHandFree` に `spiritStateOnly?: true`（bravesOnly と併用。BS12-005＝合体先を選ばせない）
+- `constraint tenshoCoreSubstitute` に `familyFilter` / `costFilter`（BS12-061。064 / 066 も同じ器）
+- fieldEvent の新 event `anyBraveSummoned`（**両陣営**。BS12-061 Lv2。`selfMode:"source"` を必ず付ける）
+- fieldEvent `ownSpiritExhausted` に `byOpponentEffectOnly?: true`（BS12-062 Lv1。`fireExhaustedTriggers` へ
+  発生源の種別と持ち主を渡す。**sourceType が spirit/brave/magic のときだけ**＝ネクサスの効果による疲労は発火しない）
 
 C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。
