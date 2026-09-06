@@ -360,8 +360,9 @@ export function matchesDirectedAttackFilter(
     target: CardInstance,
     view: GameView,
     targetPid: PlayerId,
+    attacker?: { pid: PlayerId; inst: CardInstance },
 ): boolean {
-    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid) === null
+    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid, attacker) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -1276,7 +1277,11 @@ function fieldCardEl(
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
         if (ui.directedAttack !== null) {
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid)) {
+            const attackerInst = view.players[view.you].field.spirits.find(
+                (s) => s.instanceId === ui.directedAttack?.attackerInstanceId,
+            )
+            const attacker = attackerInst ? { pid: view.you, inst: attackerInst } : undefined
+            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid, attacker)) {
                 el.classList.add("targetable", "clickable")
             }
             return el

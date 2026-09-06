@@ -10,12 +10,14 @@ import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
+    boardResistanceAgainst,
     canBlockWhileRestedThisTurn,
     currentLevel,
     effectiveBp,
     instAllCosts,
     instHasColor,
     instHasCost,
+    instColors,
     instIsCombined,
     instIsVanilla,
     instMatchesCostFilter,
@@ -186,7 +188,29 @@ export function matchesDirectedAttackFilter(
     target: CardInstance,
     board: Board,
     targetPid: PlayerId,
+    // 指定する側（アタッカー）。渡すと**その効果を受けない個体は指定できない**
+    // （2026-09-06 ユーザー確認：指定アタックは【装甲】/【重装甲】で防がれ、指定できない）
+    attacker?: { pid: PlayerId; inst: CardInstance },
 ): string | null {
+    if (attacker) {
+        const resisted = boardResistanceAgainst(board, targetPid, target, {
+            actorPid: attacker.pid,
+            op: "other",
+            scope: "targeted",
+            sourceType: card(attacker.inst.cardId).type,
+            sourceColors: instColors(attacker.inst),
+        })
+        if (resisted) return "このスピリットは効果を受けないため指定できません"
+    }
+    // BS12-008 グランド・ドラグキャッスル：相手のフィールドで最もBPの高いスピリットしか指定できない
+    if (filter.targetHighestBp) {
+        const maxBp = Math.max(
+            ...board.players[targetPid].field.spirits.map((s) => effectiveBp(board, targetPid, s)),
+        )
+        if (effectiveBp(board, targetPid, target) < maxBp) {
+            return "最もBPの高いスピリットしか指定できません"
+        }
+    }
     // BS11-X02 滅神星龍ダークヴルム・ノヴァ：相手の**合体スピリット**しか指定できない
     if (filter.targetCombinedOnly && !instIsCombined(target)) {
         return "相手の合体スピリットしか指定できません"

@@ -2293,6 +2293,7 @@ export function activatableAbility(
 export interface DirectAttackFilter {
     targetFilter: "rested" | "singleCore" | "recovered" | "any"
     targetCombinedOnly?: true // 指定時は相手の合体スピリットしか指定できない（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
+    targetHighestBp?: true // 指定時は相手のフィールドで**実効BPが最大**のスピリットしか指定できない（同値が複数なら全部が候補。BS12-008 グランド・ドラグキャッスル）
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
     targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
 }
@@ -2309,6 +2310,7 @@ export function directAttackFilter(
     if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
     if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
     if (constraint.targetCombinedOnly) filter.targetCombinedOnly = true
+    if (constraint.targetHighestBp) filter.targetHighestBp = true
     return filter
 }
 

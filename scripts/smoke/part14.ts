@@ -155,7 +155,10 @@ console.log("=== BS02-078 夢魔の寝所 e2：Lv2ネクサスは自分のLv3ス
         }) === null,
         "Lv3スピリットは疲労状態の相手を指定してアタックできる",
     )
-    assert(s.battle?.blockerInstanceId === restedTarget.instanceId, "指定した対象がブロッカーとして固定される")
+    assert(s.battle?.directedTargetInstanceId === restedTarget.instanceId, "指定先が控えられる")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ブロック確定）")
+    assert(s.battle?.blockerInstanceId === restedTarget.instanceId, "指定した対象がブロッカーになる")
 }
 
 console.log("--- Lv2以下のスピリットは指定アタックできない ---")

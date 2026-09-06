@@ -907,11 +907,15 @@ function doAttack(
     // 指定アタックの場合、blockerInstanceId を強制的に指定スピリットにセットする
     // （既存の「blockerInstanceId あり＝ブロック済み」ロジックにより、takeLife も他のブロックも
     // 自動的に拒否される。onBlock トリガーはブロック宣言ではないため発火させない）
+    // 指定アタックでも**アタック宣言の時点ではブロックを確定させない**（2026-09-06 ユーザー確認）。
+    // 確定するのはアタック時効果と【バースト】をすべて解決した後＝フラッシュ①を閉じる doPass の時点で、
+    // そこまでに指定先が場を離れたり耐性を得たりしたら通常のアタックに戻る
     state.battle = {
         attackerInstanceId: instanceId,
-        blockerInstanceId: targetSpiritInstanceId ?? null,
+        blockerInstanceId: null,
         flashLockedPlayer: null,
         directed: targetSpiritInstanceId !== undefined,
+        ...(targetSpiritInstanceId !== undefined ? { directedTargetInstanceId: targetSpiritInstanceId } : {}),
     }
     // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
     state.battleAttackerRef = inst
@@ -941,8 +945,10 @@ function doAttack(
 
     if (!state.winner) fireTrigger(state, pid, inst, "onAttack")
 
-    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない
-    if (!state.winner) fireTrigger(state, pid, inst, "onBattleStart")
+    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない。
+    // **指定アタックのときはここでは発火させない**（ブロックの確定が後ろにずれ、この時点では相手が
+    // 決まっていないため。resolveDirectedBlock がブロック確定後に発火させる）
+    if (!state.winner && targetSpiritInstanceId === undefined) fireTrigger(state, pid, inst, "onBattleStart")
 
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
@@ -1799,10 +1805,10 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
-        } else if (state.battle && state.battle.designatedBlockerInstanceId) {
-            // 指定アタック（BS12-008）：アタック時効果と【バースト】の解決がすべて終わり、
-            // ブロック宣言に入る時点＝ここで自動的にブロックを確定させる（防御側に選ばせない）
-            resolveDesignatedBlock(state)
+        } else if (state.battle && state.battle.directedTargetInstanceId) {
+            // 指定アタック：アタック時効果と【バースト】の解決がすべて終わり、ブロック宣言に入る
+            // 時点＝ここで自動的にブロックを確定させる（防御側に選ばせない）
+            resolveDirectedBlock(state)
         }
         // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）。
         // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
@@ -1810,31 +1816,40 @@ function doPass(state: GameState, pid: PlayerId): string | null {
     return null
 }
 
-// designateAttackTarget（BS12-008）が立てた designatedBlockerInstanceId を、正規のブロック宣言として
-// 自動的に成立させる。validateBlock/doBlockを経由しないため疲労状態でもブロックさせられる。
-// 指定先が場を離れた／耐性を得て条件を満たさなくなった場合は何もしない（通常のアタックに戻る＝
-// このあと防御側の block/takeLife 待ちに落ちる。アタック宣言後のフラッシュタイミングは既に閉じているだけ）
-function resolveDesignatedBlock(state: GameState): void {
+// 指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
+// 自動的に成立させる。validateBlock/doBlock を経由しないため**疲労状態でもブロックさせられる**
+// （2026-09-06 ユーザー確認：指定された側は疲労のままブロック宣言する）。
+// 指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もしない＝**通常のアタックに戻る**
+// （このあと防御側の block/takeLife 待ちに落ちる。アタック宣言後のフラッシュタイミングは消さない）
+function resolveDirectedBlock(state: GameState): void {
     if (!state.battle) return
-    const id = state.battle.designatedBlockerInstanceId
-    delete state.battle.designatedBlockerInstanceId
-    if (!id) return
+    const id = state.battle.directedTargetInstanceId
+    delete state.battle.directedTargetInstanceId
     const defenderPid = opponentOf(state.turnPlayer)
-    const target = findSpirit(state.players[defenderPid], id)
-    if (!target) return
     const attacker = findSpirit(state.players[state.turnPlayer], state.battle.attackerInstanceId)
+    const target = id !== undefined ? findSpirit(state.players[defenderPid], id) : undefined
     // アタッカーが場を離れた／指定アタックの効果そのものを失った場合も通常のアタックに戻る
     // （2026-09-04 ユーザー確認。BS12-008 は Lv1-3 すべてで発揮するのでレベル低下は見なくてよい）
-    if (!attacker || instEffectsSuppressed(attacker)) return
-    const resisted = boardResistanceAgainst(state, defenderPid, target, {
-        actorPid: state.turnPlayer,
-        op: "other",
-        scope: "targeted",
-        sourceType: "spirit",
-        sourceColors: instColors(attacker),
-    })
-    if (resisted) return
-    finishBlockDeclaration(state, defenderPid, id)
+    const resisted =
+        target && attacker
+            ? boardResistanceAgainst(state, defenderPid, target, {
+                  actorPid: state.turnPlayer,
+                  op: "other",
+                  scope: "targeted",
+                  sourceType: "spirit",
+                  sourceColors: instColors(attacker),
+              })
+            : null
+    if (target && attacker && !instEffectsSuppressed(attacker) && !resisted) {
+        finishBlockDeclaration(state, defenderPid, id!)
+    }
+    // アタッカーの『このスピリットのバトル時』は、指定アタックでは**ブロックが確定したこの時点**で
+    // 発揮する（アタック宣言の時点ではまだ相手が決まっていないため。BS11-X02 滅神星龍ダークヴルム・ノヴァの
+    // 「相手の合体スピリットとバトルしたとき」がブロッカーを見る）。通常のアタックでは doAttack の中で
+    // 発揮するので、二重には発揮しない
+    if (!state.winner && state.battle && attacker) {
+        fireTrigger(state, state.turnPlayer, attacker, "onBattleStart")
+    }
 }
 
 // ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）

@@ -526,17 +526,16 @@
     "effects": [
       {
         "id": "BS12-008-e1",
-        "kind": "triggered",
-        "trigger": "onAttack",
+        "kind": "constraint",
         "levels": [
           1,
           2,
           3
         ],
-        "optional": false,
-        "action": {
-          "type": "designateAttackTarget",
-          "pick": "maxBp"
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any",
+          "targetHighestBp": true
         }
       },
       {

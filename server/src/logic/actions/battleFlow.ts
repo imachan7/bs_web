@@ -1410,46 +1410,6 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     else returnNexusToHand(state, opp, chosen.instanceId)
 }
 
-// BS12-008 グランド・ドラグキャッスル：相手のフィールドで最もBPの高いスピリット1体を指定する。
-// 指定はBattleState.designatedBlockerInstanceIdを立てるだけ。実際のブロック確定は
-// GameEngine.doPassのフラッシュ①終了時点（finishDesignatedBlockIfAny）で行う
-const designateAttackTargetHandler: ActionHandler<"designateAttackTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    if (!state.battle) return
-    const attempt = {
-        actorPid: owner,
-        op: "other" as const,
-        scope: "targeted" as const,
-        ...(srcType !== undefined ? { sourceType: srcType } : {}),
-        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
-    }
-    const candidates = state.players[opp].field.spirits.filter(
-        (s) => boardResistanceAgainst(state, opp, s, attempt) === null,
-    )
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。通常のアタックになる。`)
-        return
-    }
-    const maxBp = Math.max(...candidates.map((s) => effectiveBp(state, opp, s)))
-    const tied = candidates.filter((s) => effectiveBp(state, opp, s) === maxBp)
-    if (tied.length >= 2 && targetInstanceId === undefined && state.interactiveTargets) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：アタックを指定する相手のスピリットを選んでください`,
-            tied.map((s) => s.instanceId),
-            false,
-            action,
-            self,
-        )
-        return
-    }
-    const chosen =
-        (targetInstanceId !== undefined ? tied.find((s) => s.instanceId === targetInstanceId) : undefined) ?? tied[0]!
-    state.battle.designatedBlockerInstanceId = chosen.instanceId
-    log(state, `${sourceName}：${getCard(chosen.cardId).name}を指定した。`)
-}
-
 // BS12-X01 金牛龍神ドラゴニック・タウラス：onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決する。
 // シンボル数の差ぶん、相手のライフのコアを相手のリザーブへ置く（lifeCrushへ委譲）
 const lifeCoresBySymbolDiffHandler: ActionHandler<"lifeCoresBySymbolDiff"> = (ctx, action) => {
@@ -1780,7 +1740,6 @@ const handlers = {
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
-    designateAttackTarget: designateAttackTargetHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,
     detachBrave: detachBraveHandler,

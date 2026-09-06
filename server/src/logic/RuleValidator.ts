@@ -859,7 +859,11 @@ export function validateAttack(
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
         // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
-        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid))
+        // アタッカーを渡す＝【装甲】/【重装甲】で効果を受けない個体は指定できない
+        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid), {
+            pid,
+            inst,
+        })
         if (filterError) return filterError
     }
     return null

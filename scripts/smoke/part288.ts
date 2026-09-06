@@ -1,4 +1,4 @@
-// smoke パート288（BS12 バッチ1・赤：designateAttackTarget／lifeCoresBySymbolDiff／symbolAddGrant／
+// smoke パート288（BS12 バッチ1・赤：指定アタック（canDirectAttack targetHighestBp）／lifeCoresBySymbolDiff／symbolAddGrant／
 // byOpponentEffectOnly（ownSpiritExhausted）／removeOneOfAnyType の types 絞り込み）
 import { assert, act, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
@@ -22,7 +22,7 @@ function game(seed: string): GameState {
     return s
 }
 
-console.log("=== §A designateAttackTarget：最もBPの高い相手を指定し、疲労状態でも自動でブロックさせる ===")
+console.log("=== §A 指定アタック：最もBPの高い相手を指定でき、疲労状態でも自動でブロックさせる ===")
 {
     const s = game("designate-basic")
     const attacker = createInstance(CASTLE, s.turn, 1) // Lv1
@@ -33,30 +33,62 @@ console.log("=== §A designateAttackTarget：最もBPの高い相手を指定し
     s.players.p2.field.spirits.push(strong, weak)
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "指定アタック持ちでアタック")
+    // 最もBPの高い個体しか指定できない（targetHighestBp）
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: attacker.instanceId,
+            targetSpiritInstanceId: weak.instanceId,
+        }) !== null,
+        "BPが最大でない相手は指定できない",
+    )
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: attacker.instanceId,
+            targetSpiritInstanceId: strong.instanceId,
+        }) === null,
+        "最もBPの高い相手を指定してアタックできる",
+    )
+    assert(s.battle?.blockerInstanceId === null, "アタック宣言の時点ではまだブロックは確定しない")
+    assert(s.battle?.directedTargetInstanceId === strong.instanceId, "指定先だけが控えられている")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→自動ブロック確定）")
-    assert(s.battle?.blockerInstanceId === strong.instanceId, "最もBPの高い相手が自動でブロッカーになる")
-    assert(strong.isRested === true, "疲労状態のまま強制ブロックする（validateBlockの疲労チェックを通さない）")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ここでブロック確定）")
+    assert(s.battle?.blockerInstanceId === strong.instanceId, "指定した相手が自動でブロッカーになる")
+    assert(strong.isRested === true, "疲労状態のままブロック宣言する")
 }
 
-console.log("=== §B designateAttackTarget：装甲持ちは指定候補から除外される ===")
+console.log("=== §B 指定アタック：装甲持ちは指定できない ===")
 {
     const s = game("designate-armor")
     const attacker = createInstance(CASTLE, s.turn, 1)
-    const armored = createInstance(ARMOR_RED, s.turn, 4) // Lv2 BP6000・【装甲：赤】
+    const armored = createInstance(ARMOR_RED, s.turn, 4) // Lv2 BP6000・【装甲：赤】＝BP最大
     const plain = createInstance(VANILLA, s.turn, 3) // ゴラドンLv2 BP3000
     s.players.p1.field.spirits.push(attacker)
     s.players.p2.field.spirits.push(armored, plain)
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "指定アタック持ちでアタック")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(s.battle?.blockerInstanceId === plain.instanceId, "【装甲：赤】持ちは除外され、次点のスピリットが指定される")
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: attacker.instanceId,
+            targetSpiritInstanceId: armored.instanceId,
+        }) !== null,
+        "【装甲：赤】持ちは指定できない",
+    )
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: attacker.instanceId,
+            targetSpiritInstanceId: plain.instanceId,
+        }) !== null,
+        "装甲持ちを避けても、BP最大でない相手は指定できない",
+    )
+    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "通常のアタックはできる")
+    assert(s.battle?.directedTargetInstanceId === undefined, "指定なしのアタックになっている")
 }
 
-console.log("=== §C designateAttackTarget：指定先が場を離れたら通常のアタックに戻る ===")
+console.log("=== §C 指定アタック：指定先が場を離れたら通常のアタックに戻る ===")
 {
     const s = game("designate-gone")
     const attacker = createInstance(CASTLE, s.turn, 1)
@@ -65,8 +97,15 @@ console.log("=== §C designateAttackTarget：指定先が場を離れたら通�
     s.players.p2.field.spirits.push(only)
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "指定アタック持ちでアタック")
-    assert(s.battle?.designatedBlockerInstanceId === only.instanceId, "この時点では指定されている")
+    assert(
+        act(s, "p1", {
+            type: "attack",
+            instanceId: attacker.instanceId,
+            targetSpiritInstanceId: only.instanceId,
+        }) === null,
+        "指定してアタック",
+    )
+    assert(s.battle?.directedTargetInstanceId === only.instanceId, "この時点では指定されている")
     // フラッシュ①の間に指定先が場を離れる
     s.players.p2.field.spirits = []
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
