@@ -874,7 +874,7 @@ BS04 の未実装カードが要求した2つの軸。いずれも `TargetFilter
 
 ### 起動能力（kind: "activated"）
 
-`{ kind: "activated", timing, levels, cost?, oncePerTurn?, condition?, action }`。
+`{ kind: "activated", timing, levels, cost?, oncePerTurn?, condition?, whileCombined?, action }`。
 プレイヤーが任意のタイミングで発動する能力の汎用の器。GameAction `activateAbility{instanceId, effectId}` で発動、
 `validateActivateAbility`（タイミング・条件 selfInBattle・優先権・「ターンに1回」・コスト）→ `doActivateAbility`
 （コスト支払い→消費の記録→resolveAction→passFlashPriority）。個別効果は `action` に載せるだけ。
@@ -887,6 +887,9 @@ BS04 の未実装カードが要求した2つの軸。いずれも `TargetFilter
   消費は `CardInstance.activatedUsedTurn`（effectId → ターン番号）に記録する
 - ⚠️ **発動可否の判定は2か所にある**：サーバーの `validateActivateAbility` と、UIのボタン表示を決める
   `shared/rules.activatableAbility`。片方だけ直すと「ボタンが出るのにサーバーが弾く」ズレになる（過去に発生）
+- `whileCombined`: 【合体時】の起動能力。**合体しているブレイヴが持つ**（BS12-050 突機竜アーケランサー）。
+  バッジはホストに出し、起動対象は**ブレイヴの instanceId**、効果の `self` には**ホスト**を渡す
+  （レベル・バトル参加・疲労の判定もホスト。[BRAVE.md](./docs/design/BRAVE.md) §12.3）
 - 『自分のメインステップ』でも効果文に「ステップ開始時」と書いてあるものは `kind:"step"` が正しい。
   使い分けは `docs/design/SEMANTICS_AUDIT.md` §3.6
 
@@ -1081,10 +1084,16 @@ SD01-028 呪われし神殿Lv2 がこれで相手にドローさせていた。
   `requireOwnCostCountAtLeast`（持ち主の場に指定コストのスピリットがN体以上いる間。幻獣王リーンLv3＝コスト2が3体以上）
 - `mustAttack` — アタック可能なら必ずアタック（ウィル・オーブ等）
 - `untargetableByOpponent` — 相手の対象を取る効果の対象にならない（ワルキューレ）
-- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp、**targetMinCost**）— アタック時に条件を満たす相手スピリットを
-  指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡し、
-  doAttack が BattleState を `directed:true`＋blocker 事前設定＝強制バトルにする。
-  クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定）
+- `canDirectAttack`（targetFilter: rested / singleCore / recovered / any、targetMinBp、**targetMinCost**、
+  targetCombinedOnly、**targetHighestBp**）— アタック時に条件を満たす相手スピリットを
+  指定してアタックできる（指定アタック）。attack アクションの `targetSpiritInstanceId` で対象を渡す。
+  **手順は [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.10**（2026-09-06 ユーザー提供）：
+  ブロックが確定するのは**アタック時効果と【バースト】をすべて解決した後**で、それまでは
+  `battle.directedTargetInstanceId` に控えるだけ。指定は**正規のブロック宣言として成立**するので
+  疲労状態のままでも成立し『ブロック時』効果も発揮する。**【装甲】/【重装甲】持ちは指定できない**。
+  指定先が場を離れる／アタッカーが効果を失うと**通常のアタックに戻る**（フラッシュタイミングは消えない）。
+  クライアントは「アタッカー→対象選択 or プレイヤーへ」の分岐UI（イリュージョナ＝疲労指定、スモゥグ＝コア1個指定、
+  BS12-008＝BP最大指定）
 - `tenshoCoreSubstitute` — このスピリットが【転召】の対象になったとき、**疲労することで**上のコアすべてを
   指定場所に置いたものとして扱う（実際にはコアを失わない代替。BS05の竜使い6枚＝各色1枚。
   BS05-007/017/026/034/043/053）。「〜することで」は**任意**なので、`dumpAllCoresTensho` は

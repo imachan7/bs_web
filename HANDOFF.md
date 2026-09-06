@@ -21,44 +21,9 @@
 **BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
 → [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手: バッチ1（赤15枚）を入れる。** バッチ0（器 A/B/D）は投入済み。確定済みスキーマ（2026-09-04 ユーザー確認）:
-
-**1 指定アタックは既存の `constraint canDirectAttack` に一本化する**（2026-09-06。赤バッチで
-`designateAttackTarget` を新設してしまったが**既存機構と重複**なので消す）。BS12-008 は
-`canDirectAttack` に `targetHighestBp?: true`（相手のフィールドで実効BPが最大のスピリットだけ指定できる）を
-足して表現する。あわせて**既存の指定アタックの手順が規則と食い違っているので直す**（ユーザー指示）:
-
-| 規則 | 直す前（誤り） |
-| :-- | :-- |
-| ブロックが確定するのは**アタック時効果と【バースト】をすべて解決した後** | `doAttack` が宣言と同時に `blockerInstanceId` を確定させていた |
-| 指定は**ブロック宣言として成立する**ので『ブロック時』効果は発揮する | 「ブロック宣言ではない」として onBlock を発火させていなかった |
-| **疲労状態のスピリットも指定でき、疲労のままブロック宣言する** | （たまたま通っていたが手順としては未定義） |
-| 【装甲】/【重装甲】を持つ個体は**指定できない** | 耐性を見ていなかった |
-| 指定先が場を離れる／耐性を得る／アタッカーが効果を失うと**通常のアタックに戻る**（アタック宣言後のフラッシュタイミングは消さない） | 指定先が消えるとバトルが壊れる |
-
-実装は `battle.directedTargetInstanceId` に控え、フラッシュ①を閉じる `doPass` の時点で
-`finishBlockDeclaration` を通す。対象条件は `matchesDirectedAttackFilter`（shared）に集約したまま
-`targetHighestBp` と耐性判定を足す（クライアントのハイライトと同一実装を保つ）。
-
-**2 シンボル数の比較**（BS12-X01）— 新 EffectAction `lifeCoresBySymbolDiff`。`onBlocked` で self=アタッカー・
-targetInstanceId=ブロッカー。差（自分−ブロッカー、正のときだけ）ぶん相手のライフのコアを相手のリザーブへ
-
-**3 シンボルの追加（継続）**（BS12-006 / X01 Lv3）— 新 kind `symbolAddGrant`。**盤面のシンボル数に効く**
-（`instanceSymbolCount` と `countSymbols` の両方が見る＝軽減にもライフダメージにも効く）。
-`CardInstance.symbolsAddedContinuous: Color[]` を `refreshLevelAsOverrides` が毎回再構築。
-006 は対象2群（`braveInSpiritState`+`symbolCount:0` ／ `combined`+`symbolCount:1`）で `steps:["ownAttack"]`
-
-**4 継続中のマジックの解除**（BS12-049）— 新 EffectAction `negateContinuousMagicByName { nameIncludes }`。
-**相手側の `endStepLock` を解除する**（BS10-108／BS12-078 型）。トラッシュ・手札のカードには何もしない
-
-**5 小さい器**
-- `removeOneOfAnyType` に `types?: ("spirit"|"brave"|"nexus")[]`（BS12-003＝ネクサスを外す）
-- AuraCounter に `"ownBraveSpirits"`（スピリット状態のブレイヴ数。BS12-004）
-- `summonFromHandFree` に `spiritStateOnly?: true`（bravesOnly と併用。BS12-005＝合体先を選ばせない）
-- `constraint tenshoCoreSubstitute` に `familyFilter` / `costFilter`（BS12-061。064 / 066 も同じ器）
-- fieldEvent の新 event `anyBraveSummoned`（**両陣営**。BS12-061 Lv2。`selfMode:"source"` を必ず付ける）
-- fieldEvent `ownSpiritExhausted` に `byOpponentEffectOnly?: true`（BS12-062 Lv1。`fireExhaustedTriggers` へ
-  発生源の種別と持ち主を渡す。**sourceType が spirit/brave/magic のときだけ**＝ネクサスの効果による疲労は発火しない）
+**次の一手: バッチ2（紫15枚）を入れる。** バッチ0（器 A/B/D）とバッチ1（赤15枚）は投入済み。
+確定した規則は手順書へ移した（指定アタック＝[TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.10、
+【合体時】の起動能力＝[BRAVE.md](./docs/design/BRAVE.md) §12.3）。
 
 C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。

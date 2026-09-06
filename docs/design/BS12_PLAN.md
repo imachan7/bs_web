@@ -1,7 +1,7 @@
 # BS12「星座編 第三弾：月の咆哮」の取り込み計画
 
 - 取り込み: 2026-09-03（`data/staging/BS12.json`。91枚）
-- 進捗: **0 / 91枚 投入済み**（バッチ0＝器 A/B/D は投入済み）
+- 進捗: **15 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色2枚：BS12-040 黄白 / X008 赤白）
 - 弾の `refer` は **「星座編 第三弾：月の咆哮」**（Wiki のカードリストから確定）
 - 関連: [BS11_PLAN.md](./BS11_PLAN.md)／[BRAVE.md](./BRAVE.md)
@@ -41,12 +41,12 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 
 | # | 器 | 対象カード | 形（案） |
 | :-- | :-- | :-- | :-- |
-| A | 【重装甲】 | 025 / 027 / 028 / 030 / 055 / X04 / 068 | `Keyword "heavyArmor"`。免疫判定で **sourceType:"brave" も防ぐ**（【装甲】は防がない＝type.ts §冒頭で設計済み）。`armorColorsGranted` と同じ経路を色ごとに持つ |
-| B | 【転召：系統/ボイド】 | 007 / 015 / 024 / 040 / 047 | 既存 `keyword:"tensho"` エントリに `familyFilter` を足す（現状は `minCost`）。061 / 064 / 066 の「系統：星魂を持つコスト3のスピリット1体のコアすべてを置いたものとして扱う」＝既存 `tenshoCoreSubstitute` の系統版 |
-| C | シンボルの追加（継続） | 006 | 新 kind `symbolAddGrant`（`colorAs`／`symbolFix` と同じ「場にありレベル有効の間」の継続。`steps:["ownAttack"]` で自分のアタックステップ限定） |
+| A ✅ | 【重装甲】 | 025 / 027 / 028 / 030 / 055 / X04 / 068 | `Keyword "heavyArmor"`。免疫判定で **sourceType:"brave" も防ぐ**（【装甲】は防がない＝type.ts §冒頭で設計済み）。`armorColorsGranted` と同じ経路を色ごとに持つ |
+| B ✅ | 【転召：系統/ボイド】 | 007 / 015 / 024 / 040 / 047 | 既存 `keyword:"tensho"` エントリに `familyFilter` を足す（現状は `minCost`）。061 / 064 / 066 の「系統：星魂を持つコスト3のスピリット1体のコアすべてを置いたものとして扱う」＝既存 `tenshoCoreSubstitute` の系統版 |
+| C ✅ | シンボルの追加（継続） | 006 | 新 kind `symbolAddGrant`（`colorAs`／`symbolFix` と同じ「場にありレベル有効の間」の継続。`steps:["ownAttack"]` で自分のアタックステップ限定） |
 | C' | シンボルの喪失 | 080 | ターン中の一時。`CardInstance.tempSymbolLoss: Color[]` を `countSymbols` が引く |
-| D | シンボル数フィルタ | 007 / 012 / 020 / 037 / 043 / 069 / X01 | `TargetFilter.symbolCount: number`（`instanceSymbolCount` で判定。BS11 の `detachOpponentBrave.minSymbols` と同じ数え方） |
-| E | シンボル数の比較 | X01 | アタッカーとブロッカーのシンボル数の差だけ、相手のライフのコアをリザーブへ |
+| D ✅ | シンボル数フィルタ | 007 / 012 / 020 / 037 / 043 / 069 / X01 | `TargetFilter.symbolCount: number`（`instanceSymbolCount` で判定。BS11 の `detachOpponentBrave.minSymbols` と同じ数え方） |
+| E ✅ | シンボル数の比較 | X01 | アタッカーとブロッカーのシンボル数の差だけ、相手のライフのコアをリザーブへ |
 | F | リフレッシュのコア戻し上限 | 047 | `globalConstraint` に `reserveReturnCapForPid`（次の1回だけ。BS11 のリフレッシュ制限層に並べる） |
 | G | 効果による召喚の禁止 | 072 | `globalConstraint` `noSummonByEffect`（両陣営。メインステップ限定） |
 | H | マジックのコスト支払い元の制限 | 046 / 047 | `globalConstraint` `magicPayExclude: "spiritCores" \| "fieldCores"`（`paySources` の検証で弾く） |
@@ -89,4 +89,7 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 
 ## 5. 残っている節
 
-（未着手）
+バッチ1（赤）で確定した器: 指定アタックは**新設せず既存の `canDirectAttack` に `targetHighestBp` を足す**
+（手順は TIMING_CHART.md §1.10）。シンボルの継続追加は `symbolAddGrant`（盤面のシンボル数に効く）。
+継続中のマジックの解除は `negateContinuousMagicByName`（`endStepLock` を解除）。
+【合体時】の起動能力は `kind:"activated"` + `whileCombined`（BRAVE.md §12.3）。
