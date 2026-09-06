@@ -1,7 +1,7 @@
 # BS12「星座編 第三弾：月の咆哮」の取り込み計画
 
 - 取り込み: 2026-09-03（`data/staging/BS12.json`。91枚）
-- 進捗: **15 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚）
+- 進捗: **29 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚、バッチ2＝紫14枚）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色2枚：BS12-040 黄白 / X008 赤白）
 - 弾の `refer` は **「星座編 第三弾：月の咆哮」**（Wiki のカードリストから確定）
 - 関連: [BS11_PLAN.md](./BS11_PLAN.md)／[BRAVE.md](./BRAVE.md)
@@ -50,19 +50,22 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 | F | リフレッシュのコア戻し上限 | 047 | `globalConstraint` に `reserveReturnCapForPid`（次の1回だけ。BS11 のリフレッシュ制限層に並べる） |
 | G | 効果による召喚の禁止 | 072 | `globalConstraint` `noSummonByEffect`（両陣営。メインステップ限定） |
 | H | マジックのコスト支払い元の制限 | 046 / 047 | `globalConstraint` `magicPayExclude: "spiritCores" \| "fieldCores"`（`paySources` の検証で弾く） |
-| I | 5回のエンドステップ回復不可 | 078 | `CardInstance.noRefreshUntilOwnEndSteps: number`。デッキ横のコアは**ボイドから出さない簡略化**（§1 で要確認） |
+| I | 5回のエンドステップ回復不可 | 078 | `CardInstance.noRefreshUntilOwnEndSteps: number`。デッキ横のコアは**ボイドから出さない簡略化**（§1 #3 で確認済み） |
 | J | Lv1/Lv2/Lv3BP を 2000 として扱う | 037 / 058 | 既存 `battleBpAsLevel` の兄弟。バトル中だけ BP を定数へ上書き |
-| K | 指定されなかったスピリットを全滅 | 015 | `mutualDestroyChoice` の否定版（お互い1体ずつ「残す」を選び、残り全部を破壊） |
+| K ✅ | 指定されなかったスピリットを全滅 | 015 | `mutualDestroyChoice` の否定版（お互い1体ずつ「残す」を選び、残り全部を破壊） |
 | L | ライフが N になるようにコアを置く | 082 | `lifeCharge` の「N まで」版 |
 | M | 手札が効果を受けない | 067 | `globalConstraint` `handImmuneForPid` |
 | N | コア0で最高Lvとして破壊 | 057 / 069 | 破壊待機の Lv 決定への差し込み（[TIMING_CHART.md](./TIMING_CHART.md) §1.5） |
 | O | 効果の記述を持つカードはターン1枚しか召喚できない | 071 | 既存 `summonLimitByCostForOpponent` の兄弟 |
 | P | 合体スピリット破壊時、ブレイヴを残しスピリットだけ手札へ | 068 | 破壊処理への置換（`detachBravesOnLeave` の隣） |
-| Q | 手札破棄で疲労状態でフィールドに戻る | 052 | 既存 `reviveOnDestroy` にコストと疲労状態を足す |
+| Q ✅ | 手札破棄で疲労状態でフィールドに戻る | 052 | 既存 `reviveOnDestroy` にコストと疲労状態を足す |
 | R | 相手の手札と同じ枚数ドロー | 053 | `draw` の count をカウンタから取る |
 | S | 「相手がドローしたとき」誘発 | 053 | `triggered` の新 event `opponentDrew` |
-| T | 相手のリザーブに置かれるコアはトラッシュへ | X02 | コア移動先の置換（`globalConstraint`） |
+| T ✅ | 相手のリザーブに置かれるコアはトラッシュへ | X02 | コア移動先の置換（`globalConstraint`） |
 | V | 相手によって破壊されたとき手札に戻る | X05 | 既存 `returnSelfToHand` を継続付与の形で |
+| U | シンボル2つの合体スピリットのアタックではライフが減らない | 020 | 既存 `globalConstraint: noLifeDamageByCost` に `symbolCount` と `combinedOnly` を足す（両陣営） |
+| W | 名前で絞ったコア除去耐性 | 022 | 既存 `coresCantBeRemoved`（両陣営・無条件）の「カード名で絞る・相手のスピリット/ブレイヴ/マジックの効果のみ」版 |
+| X | デッキ1枚オープンして系統一致なら召喚、外れは破棄 | 065 | 既存 `revealTopSummonFreeOrHand` の兄弟（手札に加えるのでなく破棄する・系統で絞る）
 
 ---
 
@@ -93,3 +96,8 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 （手順は TIMING_CHART.md §1.10）。シンボルの継続追加は `symbolAddGrant`（盤面のシンボル数に効く）。
 継続中のマジックの解除は `negateContinuousMagicByName`（`endStepLock` を解除）。
 【合体時】の起動能力は `kind:"activated"` + `whileCombined`（BRAVE.md §12.3）。
+
+バッチ2（紫）で確定した器: 「指定されなかったスピリットを全滅」＝`mutualKeepChoice`（発生源自身は候補外）／
+「相手のリザーブ行きのコアをトラッシュへ」＝`globalConstraint: coresToOpponentReserveGoToTrash`（両陣営の効果）／
+『破壊時』の「疲労状態でフィールドに戻る」＝既存 `reviveOnDestroy` に `whileCombined` を足すだけ／
+「色とシンボルは◯としても扱う」は **`colorAs` 1件で足りる**（`symbolFix` は置換なので使わない。SPEC.md §データを書くときの原則）。

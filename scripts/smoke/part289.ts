@@ -16,6 +16,7 @@ import {
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/removal"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
+import { countSymbols, instanceSymbolCount } from "../../shared/rules"
 
 const DILGAN = "BS12-012" // 戦車皇ディルガン（coreRemoveByPayingSelfCores／exhaustImmunityGrant scope:self）
 const KURONO = "BS12-015" // 冥王神龍クロノ・ハデス（mutualKeepChoice／symbol2つ）
@@ -192,6 +193,19 @@ console.log("=== §おまけ recoverSpiritFromTrash：countCounter / anyCardType
     })
     assert(s.players.p1.hand.length === handBefore + 1, "紫のマジックカードも対象になり手札へ戻った")
     assert(!s.players.p1.trashCards.includes("BS12-076"), "回収したカードはトラッシュから消えた")
+}
+
+console.log("=== §I BS12-009 ソードール：colorAs だけで「紫のシンボル1つ」が「白のシンボル1つ」としても数える ===")
+{
+    const s = game("swordole-symbol")
+    const swordole = createInstance(SWORDOLE, s.turn, 1)
+    s.players.p1.field.spirits.push(swordole)
+    refreshLevelAsOverrides(s)
+    // 印刷シンボルは紫1つのまま。symbolFix で白へ置き換えていないので数は1
+    assert(instanceSymbolCount(swordole) === 1, "シンボル数は1のまま（ライフダメージは1）")
+    assert(countSymbols(s.players.p1, ["purple"]) === 1, "紫の軽減シンボルとして数える（元の色を失わない）")
+    assert(countSymbols(s.players.p1, ["white"]) === 1, "白の軽減シンボルとしても数える（colorAs 経由）")
+    assert(countSymbols(s.players.p1, ["green"]) === 0, "付与していない色では数えない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part289）")

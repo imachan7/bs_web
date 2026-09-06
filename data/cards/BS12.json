@@ -602,17 +602,6 @@
         "colors": [
           "white"
         ]
-      },
-      {
-        "id": "BS12-009-e2",
-        "kind": "symbolFix",
-        "levels": [
-          1,
-          2
-        ],
-        "target": "self",
-        "count": 1,
-        "color": "white"
       }
     ]
   },
