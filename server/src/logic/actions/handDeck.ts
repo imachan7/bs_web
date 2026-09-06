@@ -33,6 +33,7 @@ import {
     flushBounces,
     returnSpiritToDeckTop,
     returnSpiritToHand,
+    removeCoresToVoid,
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
@@ -1121,6 +1122,18 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
+        // countCounter指定時はcountを無視しEffectCounterの値を戻す枚数として使う（BS12-X02魔羯邪神シュタイン・ボルグ）。
+        // 一度だけ解決し、countCounterを落としたactionへ入り直す（coreRemove.countCounterと同じ考え方）
+        if (action.countCounter !== undefined) {
+            const resolvedCount = countEffectCounter(state, owner, self, action.countCounter, srcType)
+            if (resolvedCount === 0) {
+                log(state, `${sourceName}のスピリット回収：カウントが0のため発動しなかった。`)
+                return
+            }
+            const { countCounter: _cc, ...rest } = action
+            ctx.resolve({ ...rest, count: resolvedCount })
+            return
+        }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         // BS07ドラグロン占術師：手札に戻したカードが指定系統のときだけ、続けて相手1体を破壊する。
@@ -1161,6 +1174,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）。
         // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
         const typeOk = (cardId: string): boolean => {
+            if (action.anyCardType) return true // BS12-X02：「紫のカード」＝種別を問わない
             const t = getCard(cardId).type
             if (action.bravesOnly) return t === "brave"
             return t === "spirit" || (action.includeBraves === true && t === "brave")
@@ -1240,6 +1254,43 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
             notifyHandGained(state, owner, 1)
             followUp([cardId])
+            return
+        }
+        // costBudget指定時はcountを無視し、summonFromTrashFree.costBudgetと同じ貪欲選択
+        // （コスト最大から順に、合計がbudget以下になる範囲で好きなだけ）で複数枚を手札に戻す
+        // （BS12-016骸巨人ギ・ガッシャ：系統「無魔」をコスト合計13まで）
+        if (action.costBudget !== undefined) {
+            let remaining = action.costBudget
+            const recoveredIds: string[] = []
+            for (;;) {
+                let bestIdx = -1
+                let bestCost = -1
+                for (let j = 0; j < player.trashCards.length; j++) {
+                    const id = player.trashCards[j]!
+                    if (!isRecoverable(id)) continue
+                    const cost = getCard(id).cost
+                    if (cost <= remaining && cost > bestCost) {
+                        bestIdx = j
+                        bestCost = cost
+                    }
+                }
+                if (bestIdx === -1) break
+                const cardId = player.trashCards[bestIdx]!
+                player.trashCards.splice(bestIdx, 1)
+                player.hand.push(cardId)
+                recoveredIds.push(cardId)
+                remaining -= bestCost
+            }
+            if (recoveredIds.length === 0) {
+                log(state, `${sourceName}のスピリット回収：トラッシュに対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は「${recoveredIds.map((id) => getCard(id).name).join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, recoveredIds.length)
+            followUp(recoveredIds)
             return
         }
         // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
@@ -2854,6 +2905,63 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
         return
 }
 
+// discardOpponentTegamotoDestroyPerの兄弟。相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ
+// 破棄し、破棄した枚数ぶん、相手のフィールド（スピリット/ネクサス上）またはリザーブから
+// ソウルコア以外のコアをボイドへ置く（ソウルコア未実装のいまはリザーブ・フィールドとも通常コアのみなので
+// 絞り込み不要）。リザーブ優先で取る（autoTakeCoresToVoidと同じ順）。相手の手元が0枚ならno-op。
+// BS12-011ミイラバード：召喚時
+const discardOpponentTegamotoVoidCoresPerHandler: ActionHandler<"discardOpponentTegamotoVoidCoresPer"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const target = state.players[opp]
+    const count = target.tegamoto.length
+    if (count === 0) {
+        log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
+        return
+    }
+    const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
+    target.trashCards.push(...target.tegamoto)
+    target.tegamoto = []
+    target.tegamotoPlayable = []
+    log(state, `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`)
+
+    let remaining = count
+    const fromReserve = Math.min(remaining, target.reserve)
+    target.reserve -= fromReserve
+    remaining -= fromReserve
+    let fromField = 0
+    while (remaining > 0) {
+        let richest: CardInstance | undefined
+        let richestKind: "spirit" | "nexus" | undefined
+        for (const s of target.field.spirits) {
+            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+                richest = s
+                richestKind = "spirit"
+            }
+        }
+        for (const n of target.field.nexuses) {
+            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
+                richest = n
+                richestKind = "nexus"
+            }
+        }
+        if (!richest || !richestKind) break
+        if (richestKind === "spirit") {
+            const removed = removeCoresToVoid(state, opp, richest, Math.min(remaining, richest.cores), owner)
+            if (removed === 0) break
+            remaining -= removed
+            fromField += removed
+        } else {
+            const take = Math.min(remaining, richest.cores)
+            richest.cores -= take
+            remaining -= take
+            fromField += take
+        }
+    }
+    const voided = fromReserve + fromField
+    if (voided > 0) log(state, `${sourceName}：${target.name}のコア${voided}個をボイドに置いた。`)
+    return
+}
+
 // BS08-055 竜騎集う円卓Lv2「系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、
 // 相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない」の**確認専用**。
 //
@@ -2947,6 +3055,7 @@ const handlers = {
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
     revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,
+    discardOpponentTegamotoVoidCoresPer: discardOpponentTegamotoVoidCoresPerHandler,
     payNegateDecide: payNegateDecideHandler,
 } satisfies Partial<ActionRegistry>
 

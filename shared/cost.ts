@@ -309,6 +309,16 @@ export function costSetOverride(
         if (effect.condition !== undefined && "ownLifeAtMost" in effect.condition) {
             if (board.players[pid].life > effect.condition.ownLifeAtMost) continue
         }
+        // BS12-016骸巨人ギ・ガッシャ：自分のトラッシュに指定系統（配列＝OR）を持つスピリットカードがcount枚以上
+        if (effect.condition !== undefined && "ownTrashFamilyCountAtLeast" in effect.condition) {
+            const { family, count } = effect.condition.ownTrashFamilyCountAtLeast
+            const wanted = Array.isArray(family) ? family : [family]
+            const trashCount = board.players[pid].trashCards.filter((id) => {
+                const c = card(id)
+                return c.type === "spirit" && wanted.some((f) => c.family.includes(f))
+            }).length
+            if (trashCount < count) continue
+        }
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
     const sources = effectSources(board, pid)

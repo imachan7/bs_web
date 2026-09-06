@@ -86,7 +86,9 @@ import {
     braveKeepCores,
     cantSpiritStateBrave,
     coresCantBeRemoved,
+    coresToOpponentReserveGoToTrash,
     bravesOf,
+    hostsOf,
     countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
@@ -522,7 +524,11 @@ export function destroySpirit(
     // deferCommit: 破壊待機の設定と確定（トラッシュ行き）を**呼び出し元が管理する**印。
     // 【不死】のように「破壊時の誘発」として同じ待機の窓の中で解決したいものがあるときに使う
     // （resolveDestroyOne。docs/design/TIMING_CHART.md §1.5）
-    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true },
+    // suppressOnDestroy: この破壊では『このスピリットの破壊時』（onDestroy）トリガーを発揮させない。
+    // 「自分のスピリットが破壊されたとき」フィールドイベント（fireOwnSpiritDestroyed）は通常どおり発火する
+    // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない。
+    // BS12-052デス・ヘイズ：召喚時に自分のスピリットを好きなだけ破壊するがそれらの破壊時効果は出さない）
+    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true; suppressOnDestroy?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -579,7 +585,7 @@ export function destroySpirit(
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
     if (cause === "destroy") {
-        fireTrigger(state, ownerPid, inst, "onDestroy")
+        if (!options?.suppressOnDestroy) fireTrigger(state, ownerPid, inst, "onDestroy")
         if (state.pendingChoice || state.winner) {
             suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
             return true
@@ -1607,6 +1613,22 @@ function tryReviveOnDestroy(
         if (tryEffect(effect, getCard(inst.cardId).name)) return true
     }
 
+    // 合体中ブレイヴの scope:"self" + whileCombined 由来（BS12-052デス・ヘイズ：
+    // 合体しているホスト＝instが破壊されるとき、ブレイヴ自身が持つ「このスピリットは戻る」を代わりに適用する）。
+    // effectSources() は合体中ブレイヴも含むが、あちらは scope:"ownAll"（複数対象への一般則）用の走査。
+    // scope:"self" はカードの持ち主＝ブレイヴ自身を指すため、ホストと一致するかをここで別途見る。
+    // レベルはブレイヴ自身のレベルで判定し（ホストのlevelではない）、tryEffectの内部再判定はlevels:nullで無効化する
+    for (const brave of state.players[ownerPid].field.combinedBraves) {
+        if (!hostsOf(state.players[ownerPid], brave).some((h) => h.instanceId === inst.instanceId)) continue
+        const braveLevel = currentLevel(brave).level
+        for (const effect of getCard(brave.cardId).effects) {
+            if (effect.kind !== "reviveOnDestroy") continue
+            if (effect.scope !== "self" || effect.whileCombined !== true) continue
+            if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
+            if (tryEffect({ ...effect, levels: null }, getCard(brave.cardId).name)) return true
+        }
+    }
+
     // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
     // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
@@ -2102,6 +2124,9 @@ export function removeCores(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
+    // このコア除去を引き起こした効果の種別（BS12-X02魔羯邪神シュタイン・ボルグ：
+    // coresToOpponentReserveGoToTrash の判定に使う。省略時＝ネクサス扱いと同じ「対象外」に倒す）
+    srcType?: CardType,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
     // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
@@ -2120,11 +2145,21 @@ export function removeCores(
     const floor = coreFloorFor(state, inst, ownerPid)
     const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
-    player.reserve += removed
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
-    )
+    // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
+    // 発生源の持ち主から見た相手（＝ownerPid）のトラッシュへ振り替える
+    if (removed > 0 && coresToOpponentReserveGoToTrash(state, ownerPid, srcType)) {
+        player.trashCores += removed
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除き、リザーブの代わりにトラッシュに置いた。`,
+        )
+    } else {
+        player.reserve += removed
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
+        )
+    }
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")

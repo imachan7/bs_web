@@ -985,7 +985,14 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "exhaustImmunityGrant") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (!spiritHasFamily(board, targetOwnerPid, inst, effect.familyFilter)) continue
+            // scope:"self"指定時は発生源自身だけが対象（BS12-012戦車皇ディルガン）。familyFilterは無視する
+            if (effect.scope === "self") {
+                if (source.instanceId !== inst.instanceId) continue
+            } else if (effect.familyFilter !== undefined) {
+                if (!spiritHasFamily(board, targetOwnerPid, inst, effect.familyFilter)) continue
+            } else {
+                continue // familyFilter・scopeのどちらも無いデータは対象なしに倒す（書き漏れの検出用）
+            }
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
@@ -1731,6 +1738,31 @@ export function cantSpiritStateBrave(board: Board, pid: PlayerId): boolean {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "opponentCantSpiritStateBrave") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:
+// 「スピリット/ブレイヴ/マジックの効果で相手のリザーブに置かれるコアすべては相手のトラッシュに置かれる」。
+// targetPid は「コアが向かうプレイヤー」。targetPid から見て発生源が「相手」である側だけを見る（両陣営の発生源が効く＝主語なし）。
+// sourceType（コア移動を引き起こした効果の種別）がspirit/brave/magicのいずれでもなければ判定するまでもなく false
+// （ネクサスの効果・undefined＝バトル敗北や場を離れるとき等のルール処理は対象外）
+export function coresToOpponentReserveGoToTrash(
+    board: Board,
+    targetPid: PlayerId,
+    sourceType: CardType | undefined,
+): boolean {
+    if (sourceType !== "spirit" && sourceType !== "brave" && sourceType !== "magic") return false
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === targetPid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "coresToOpponentReserveGoToTrash") continue
                 if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
                 return true
             }
