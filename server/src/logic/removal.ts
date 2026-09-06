@@ -2261,6 +2261,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
+                // colorFilter（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）：この色を持たなければ守らない
+                if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。
                 // 以前はカードの召喚コストとして実装していた（BS08-059聖なる柱状彫刻の挙動もここで変わる）
                 return instMinLevelCores(inst)

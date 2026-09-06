@@ -596,7 +596,10 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
             // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
             if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
-            if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
+            if (action.colorFilter !== undefined) {
+                const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
+                if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
+            }
             if (action.sameFamilyAsSelf) {
                 if (!selfFamily) return false
                 if (!candidate.family.some((f) => selfFamily.includes(f))) return false
@@ -1096,7 +1099,10 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
         const matchesCardId = (candidateId: string): boolean => {
             const candidate = getCard(candidateId)
             if (candidate.type !== "spirit") return false
-            if (action.colorFilter !== undefined && !cardHasColor(candidate, action.colorFilter)) return false
+            if (action.colorFilter !== undefined) {
+                const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
+                if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
+            }
             if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
             // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
             // カード静的な family で判定する（配列＝OR）
@@ -1437,10 +1443,18 @@ const lifeCoresBySymbolDiffHandler: ActionHandler<"lifeCoresBySymbolDiff"> = (ct
 const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
     const oppPlayer = state.players[opp]
+    // battlingOnly（BS12-019くノ一ジョロウ：「バトルしている相手の合体スピリット」）：
+    // 現在成立しているバトルの参加者（アタッカー/ブロッカー）のうち相手側のものだけに絞る
+    const battlingIds = state.battle
+        ? [state.battle.attackerInstanceId, state.battle.blockerInstanceId].filter(
+              (id): id is string => id !== null && id !== undefined,
+          )
+        : []
     const hosts = oppPlayer.field.spirits.filter(
         (sp) =>
             bravesOf(oppPlayer, sp).length > 0 &&
-            (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols),
+            (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols) &&
+            (!action.battlingOnly || battlingIds.includes(sp.instanceId)),
     )
     if (hosts.length === 0) {
         log(state, `${sourceName}：分離させられる相手の合体スピリットがいなかった。`)

@@ -112,6 +112,11 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             }
             exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
+            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+            if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+            }
             return
         }
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
@@ -210,6 +215,11 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             }
             exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
+            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+            if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                target.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                log(state, `${getCard(target.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+            }
         }
         return
 }

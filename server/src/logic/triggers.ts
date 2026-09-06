@@ -514,6 +514,7 @@ function collectGrantedTriggerActions(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "effectGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effect.whileCombined && !instIsCombined(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.granted.trigger !== event) continue
             if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
@@ -575,6 +576,7 @@ export function fireBattleWonTriggers(
             if (effect.selfOnly && inst.instanceId !== winnerInst.instanceId) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
+            if (effect.whileCombined && !instIsCombined(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
             // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）

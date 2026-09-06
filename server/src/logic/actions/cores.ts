@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -578,7 +578,7 @@ const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
 }
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceName, chosenOption } = ctx
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
         if (voidCorePlacementBlocked(state)) {
             log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
@@ -587,6 +587,29 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
+        }
+        // orReserve（BS12-077/BS12-X03）：「自分のリザーブか、このスピリット上か」を効果の使用者が毎回選ぶ
+        if (action.orReserve) {
+            if (chosenOption === "このスピリット上に置く") {
+                // 下の通常経路（スピリット上に置く）へ落ちる
+            } else if (chosenOption === "リザーブに置く" || !state.interactiveTargets) {
+                const player = state.players[owner]
+                player.reserve += action.count
+                log(state, `${player.name}はボイドからコア${action.count}個をリザーブに置いた。（リザーブ${player.reserve}）`)
+                return
+            } else {
+                suspend(state, {
+                    pid: owner,
+                    kind: "option",
+                    prompt: `${sourceName}：ボイドからコア${action.count}個を、自分のリザーブか、このスピリット上のどちらに置きますか？`,
+                    candidates: [],
+                    options: ["リザーブに置く", "このスピリット上に置く"],
+                    optional: false,
+                    action,
+                    selfInstanceId: self.instanceId,
+                })
+                return
+            }
         }
         log(
             state,

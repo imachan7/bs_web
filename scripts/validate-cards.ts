@@ -141,7 +141,12 @@ function checkLentEffects(
             add(c.cardId, `貸与効果 ${e.id ?? e.kind} の aura target が "self"（仮想発生源では成立しない）`)
         }
 
-        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない
+        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない。
+        // ただし kind:"effectGrant" の granted.action は例外：貸与の対象は仮想発生源自身ではなく
+        // **誘発を受けた側の実在インスタンス**（fireTriggerがresolveActionへselfInstanceを渡す。
+        // triggers.ts collectGrantedTriggerActions/fireTrigger）なので self は常に非null になる
+        // （BS12-077インセクトオーラ：voidCoreToSelf を effectGrant 経由でアタックしたスピリットに渡す）
+        if (e.kind === "effectGrant") continue
         const lent: { type?: unknown }[] = []
         collectActions([e], lent)
         for (const a of lent) {

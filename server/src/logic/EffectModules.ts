@@ -557,6 +557,9 @@ export function refreshSpirit(
 ): void {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
+    // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：残り回数がある間はリフレッシュステップ・
+    // 効果による回復のいずれも通さない（refreshSpiritの唯一の入口で判定するため両方に効く）
+    if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return
     // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
     // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
     if (

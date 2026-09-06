@@ -48,21 +48,30 @@ const noopHandler: ActionHandler<"noop"> = () => {
 }
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcType } = ctx
         // costSkipCoreStep：「ボイドからコアを自分のリザーブに置かないことで」＝そのコアステップの
         // コア置きを支払いに使う（step.beforeStepAction と対。BS10-087戦場に息づく命）。
         // コア置き区間がこのフラグを見て置かずに進む
         if (action.costSkipCoreStep === true) state.coreStepSkipped = true
+        // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：countを無視しEffectCounterの値を枚数とする
+        const count =
+            action.countCounter !== undefined
+                ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+                : action.count
+        if (action.countCounter !== undefined && count === 0) {
+            log(state, `${sourceName}：カウントが0のためドローしなかった。`)
+            return
+        }
         // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
         // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {
             const pids = bothSidesPids(state, srcType, true)
             for (const pid of [owner, opp]) {
                 if (!pids.includes(pid)) continue
-                draw(state, pid, action.count * drawDoubleMultiplier(state, pid))
+                draw(state, pid, count * drawDoubleMultiplier(state, pid))
             }
         } else {
-            draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+            draw(state, owner, count * drawDoubleMultiplier(state, owner))
         }
         return
 }
@@ -161,12 +170,26 @@ const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom">
 }
 
 const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, sourceName } = ctx
         const player = state.players[owner]
         const count = player.hand.length
+        // thenDrawOpponentHand（BS12-053オオヅツナナフシ：「そうしたとき、相手の手札と同じ枚数ドローする」）は
+        // 手札が0枚（＝破棄が起きない）なら発揮しない。「そうしたとき」＝破棄を完全に解決した後に数える
+        if (count === 0) {
+            log(state, `${sourceName}：手札がないため破棄しなかった。`)
+            return
+        }
         player.trashCards.push(...player.hand)
         player.hand = []
         log(state, `${player.name}は手札${count}枚をすべて破棄した。`)
+        if (action.thenDrawOpponentHand) {
+            const n = state.players[opp].hand.length
+            if (n === 0) {
+                log(state, `${sourceName}：相手の手札が0枚のためドローしなかった。`)
+                return
+            }
+            draw(state, owner, n)
+        }
         return
 }
 
@@ -1979,6 +2002,66 @@ const revealTopSummonFreeOrHandHandler: ActionHandler<"revealTopSummonFreeOrHand
     log(state, `${sourceName}：${card.name}を手札に加えた。`)
 }
 
+// BS12-065大樹茂る天守閣Lv2／BS12-X03独眼武神マンティクス・マサムネ：デッキ上から1枚オープンし、
+// その系統を持つスピリットカードなら任意でコストを支払わず召喚する。召喚しない／対象でないときは破棄する
+// （revealTopSummonFreeOrHandと違い外れは手札でなくトラッシュ）。
+const revealTopSummonFreeByFamilyHandler: ActionHandler<"revealTopSummonFreeByFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+
+    // 公開ゾーンからの再入：選ばれれば召喚（転召・召喚時効果とも通常どおり発揮）、残り0枚の後始末はキューが担う
+    if (chosenCardIndex !== undefined && state.revealedCards) {
+        const zone = state.revealedCards.cardIds
+        const pickedId = zone[chosenCardIndex]
+        if (pickedId !== undefined) {
+            zone.splice(chosenCardIndex, 1)
+            player.trashCards.push(pickedId)
+            summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+        }
+        return
+    }
+
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：デッキが0枚のため何も起きなかった。`)
+        return
+    }
+    const cardData = getCard(top)
+    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+    const eligible = cardData.type === "spirit" && wanted.some((f) => cardData.family.includes(f))
+    if (!eligible) {
+        player.deck.shift()
+        player.trashCards.push(top)
+        log(state, `${sourceName}：デッキの上から${cardData.name}をオープンし、破棄した。`)
+        return
+    }
+    player.deck.shift()
+    log(state, `${sourceName}：デッキの上から${cardData.name}をオープンした。`)
+    if (state.interactiveTargets) {
+        state.revealedCards = { pid: owner, cardIds: [top] }
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：${cardData.name}をコストを支払わずに召喚しますか？（召喚しない場合は破棄します）`,
+            "reveal",
+            [0],
+            true,
+            action,
+            self,
+            true,
+        )
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
+        } else {
+            discardRevealedZone(state, owner, sourceName)
+        }
+        return
+    }
+    // 非対話は召喚する側に倒す
+    player.trashCards.push(top)
+    summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+}
+
 const revealTopCastMagicFreeOrHandHandler: ActionHandler<"revealTopCastMagicFreeOrHand"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
     const player = state.players[owner]
@@ -3036,6 +3119,7 @@ const handlers = {
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     revealTopSummonFreeOrHand: revealTopSummonFreeOrHandHandler,
+    revealTopSummonFreeByFamily: revealTopSummonFreeByFamilyHandler,
     revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,

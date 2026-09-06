@@ -174,6 +174,12 @@ export function endTurn(state: GameState): void {
         state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
     }
 
+    // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
+    for (const inst of state.players[state.turnPlayer].field.spirits) {
+        if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue
+        inst.noRefreshUntilOwnEndSteps = (inst.noRefreshUntilOwnEndSteps ?? 0) - 1
+    }
+
     // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
     // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
     // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances・turnConstraints 等）より**前**。

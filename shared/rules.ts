@@ -919,6 +919,14 @@ export function boardResistanceAgainst(
     }
     // ここから下はすべて「相手の効果」限定
     if (attempt.actorPid === targetOwnerPid) return null
+    // 「相手のスピリット/ブレイヴ/マジックの効果で、カード名に◯◯と入っている自分のスピリット上の
+    // コアは取り除くことができない」（BS12-022太陽武者ゲンジ・ボルタ）。coresCantBeRemovedと違い片側限定
+    if (
+        attempt.op === "coreRemove" &&
+        coresCantBeRemovedByOpponent(board, targetOwnerPid, target, attempt.sourceType)
+    ) {
+        return { category: "coresLocked", label: "コアを取り除けない（相手の効果）" }
+    }
 
     // 【装甲】。ただしこのターン「装甲を無いものとして扱う」効果を受けていれば働かない
     //（すでに持っている分も、このターンに付与された分もまとめて落とす。SD01-040 アーマーパージ）
@@ -1860,7 +1868,13 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly } = effect.constraint
+                // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
+                // かつ合体スピリット」のアタックだけを保護する専用条件。maxCost等とは併用しない
+                if (symbolCount !== undefined && combinedOnly) {
+                    if (instanceSymbolCount(attacker) === symbolCount && instIsCombined(attacker)) return true
+                    continue
+                }
                 // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
                 if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
                 // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
@@ -2256,6 +2270,31 @@ export function isEndStepLocked(
 
 export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
     return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
+}
+
+// globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
+// 発生源の持ち主の、カード名にnameContainsを含むスピリット上のコアは、
+// **相手の**スピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemovedと違い片側限定）。
+// sourceType（コア除去を引き起こした効果の種別）がspirit/brave/magicのいずれでもなければ判定するまでもなくfalse
+// （ネクサスの効果・undefined＝ルール処理は対象外。coresToOpponentReserveGoToTrashと同じ形）
+export function coresCantBeRemovedByOpponent(
+    board: Board,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    sourceType: CardType | undefined,
+): boolean {
+    if (sourceType !== "spirit" && sourceType !== "brave" && sourceType !== "magic") return false
+    for (const inst of effectSources(board, targetOwnerPid)) {
+        const level = currentLevel(inst).level
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "coresCantBeRemovedByOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!card(target.cardId).name.includes(effect.constraint.nameContains)) continue
+            return true
+        }
+    }
+    return false
 }
 
 export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
