@@ -21,9 +21,31 @@
 **BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
 → [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手: バッチ2（紫15枚）を入れる。** バッチ0（器 A/B/D）とバッチ1（赤15枚）は投入済み。
+**次の一手: バッチ2（紫15枚）を実装する。** バッチ0（器 A/B/D）とバッチ1（赤15枚）は投入済み。
 確定した規則は手順書へ移した（指定アタック＝[TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.10、
 【合体時】の起動能力＝[BRAVE.md](./docs/design/BRAVE.md) §12.3）。
+
+### バッチ2（紫）の確定スキーマ（2026-09-06 ユーザー確認。完了したら手順書へ移してここから消す）
+
+対象15枚: 009-016 / 051-052 / 063-064 / 075-076 / X02。**新しく要る器は6つだけ**で、残りは既存。
+
+| 器 | 形 | 対象 |
+| :-- | :-- | :-- |
+| K | 新アクション `mutualKeepChoice` — お互い**自分の**スピリット1体を指定（自分→相手の順。`mutualDestroyChoice` と同じ二段階choice）、指定されなかった**両陣営の**スピリットすべてを破壊。**破壊待機中の発生源自身は指定候補に含めない** | 015 |
+| T | 新 globalConstraint `coresToOpponentReserveGoToTrash` — **両陣営の**スピリット/ブレイヴ/マジックの効果で、発生源の持ち主から見た相手のリザーブへ置かれるコアはその相手のトラッシュへ。ネクサスの効果とルール処理（バトル・場を離れる）は対象外 | X02 |
+| — | `reviveOnDestroy` に `whileCombined?: true` を足す（他 kind と同じ意味） | 052 |
+| — | `exhaustImmunityGrant` の `familyFilter` を任意にし `scope?: "self"` を足す（発生源自身だけ。ブレイヴの効果も防ぐ） | 012 |
+| — | `costMod` の `condition` に `{ ownTrashFamilyCountAtLeast: { family: FamilyFilter; count: number } }` を足す | 016 |
+| — | 新アクション2つ: `discardOpponentTegamotoVoidCoresPer`（`discardOpponentTegamotoDestroyPer` の兄弟。破棄枚数ぶん相手のフィールド/リザーブのソウルコア以外のコアをボイドへ）／`voidCoresFromField { side; count; costOwnFieldCoresToVoid? }` | 011 / 015 |
+| — | 新アクション `coreRemoveByPayingSelfCores { filter?; dest:"trash" }` — self のコアを好きなだけ自分のトラッシュへ置き（stepper。`bpBuff.extraPerCoreToTrash` と同じ選択の形）、置いた1個につき filter 一致の相手スピリットからコア1個を相手のトラッシュへ | 012 |
+
+既存の器で書くもの: 009=`colorAs`+`symbolFix` / 010=バニラ / 013=`fushi.triggerCosts:[5,6]`+【呪撃】 /
+014=`ownSpiritDestroyed`(familyFilter)+`onAttack`(whileCombined) / 016=`recoverSpiritFromTrash.costBudget:13` /
+051=`recoverSpiritFromTrash.familyFilter` / 052召喚時=`destroyOwn`+draw（`skipOnDestroy`相当で『破壊時』を出さない） /
+063=`onPlace` draw + `ownSpiritAttacked`(familyFilter) / 064=バッチ0の `tenshoCoreSubstitute.familyFilter` /
+075=`summonFromTrashFree { keywordFilter:"fushi", payCost:true }` / 076=`destroyBrave` /
+011Lv2・064Lv2=`ownSpiritExhausted` + `byOpponentEffectOnly`（既にスピリット/ブレイヴ/マジック限定）/
+012の絞り込み=`TargetFilter { symbolCount: 2, combined: true }`（バッチ0で入れた軸をそのまま使う）
 
 C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。
