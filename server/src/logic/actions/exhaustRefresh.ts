@@ -110,7 +110,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid)
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
             return
         }
@@ -163,7 +163,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
                 // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target, action.bofuSourcePid)
+                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
                 exhausted += 1
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             }
@@ -208,7 +208,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            exhaustSpirit(state, opp, target, action.bofuSourcePid)
+            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
         }
         return
@@ -241,7 +241,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
                 if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s)
+                exhaustSpirit(state, pid, s, undefined, owner, srcType)
                 exhausted++
             }
         }
@@ -271,7 +271,7 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
     while (remaining > 0) {
         const target = pickEnemyByBp(state, opp, Infinity, (sp) => !sp.isRested, srcColors, srcType, "exhaust")
         if (!target) break
-        exhaustSpirit(state, opp, target)
+        exhaustSpirit(state, opp, target, undefined, owner, srcType)
         exhausted++
         remaining--
     }
@@ -306,7 +306,7 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
                 if (s.isRested) continue
                 // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
                 if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s)
+                exhaustSpirit(state, pid, s, undefined, owner, srcType)
                 count++
             }
         }
@@ -381,7 +381,7 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
             if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-            exhaustSpirit(state, pid, s)
+            exhaustSpirit(state, pid, s, undefined, owner, srcType)
             exhausted++
         }
     }

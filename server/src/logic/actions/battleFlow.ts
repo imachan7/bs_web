@@ -34,7 +34,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -106,6 +106,22 @@ const endStepLockHandler: ActionHandler<"endStepLock"> = (ctx, action) => {
         locks: [...action.locks],
     })
     log(state, `${sourceName}：${state.players[owner].name}のエンドステップを${action.turns}回行うまで、お互いに制限がかかる。`)
+}
+
+// BS12-049 アンフィスバエナー：相手側が発揮中の endStepLock（BS10-108ルナティックシール型）のうち、
+// 発生源カード名にnameIncludesを含むものだけを解除する。トラッシュ・手札のカードには何もしない
+const negateContinuousMagicByNameHandler: ActionHandler<"negateContinuousMagicByName"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    const before = state.endStepLocks.length
+    state.endStepLocks = state.endStepLocks.filter(
+        (l) => !(l.pid === opp && getCard(l.cardId).name.includes(action.nameIncludes)),
+    )
+    const removed = before - state.endStepLocks.length
+    if (removed === 0) {
+        log(state, `${sourceName}：無効にできる効果がなかった。`)
+        return
+    }
+    log(state, `${sourceName}：${state.players[owner].name}は相手が発揮中の効果${removed}件を無効にした。`)
 }
 
 // BS10-008 火星神龍アレス・ドラグーン：アタックステップとエンドステップを順番にもう1回ずつ行う。
@@ -652,6 +668,11 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 return
             }
             const combineCandidates = braveCombineCandidates(state, owner, cardId)
+            // spiritStateOnly（BS12-005星角獣ユニゴーント）：合体先を選ばせず、必ずスピリット状態で出す
+            if (action.spiritStateOnly) {
+                finishBraveSummon(handIndex)
+                return
+            }
             // combineToSelf（BS11-020 陰陽ヤマセミ）：合体先は発生源自身に固定なので選ばせない。
             // 合体条件を満たさないときは合体させず、スピリット状態で召喚する
             if (action.combineToSelf) {
@@ -1339,10 +1360,19 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
     const oppPlayer = state.players[opp]
-    const spirits = oppPlayer.field.spirits
-    const braves = oppPlayer.field.combinedBraves
-    const nexuses = oppPlayer.field.nexuses
-    const candidates = [...spirits, ...braves, ...nexuses]
+    const types = action.types ?? ["spirit", "brave", "nexus"]
+    const spirits = types.includes("spirit") ? oppPlayer.field.spirits : []
+    const braves = types.includes("brave") ? oppPlayer.field.combinedBraves : []
+    const nexuses = types.includes("nexus") ? oppPlayer.field.nexuses : []
+    let candidates: CardInstance[] = [...spirits, ...braves, ...nexuses]
+    // maxBpFromSelf（BS12-003鎧竜人ガストン）：selfの実効BP以下のみ（ネクサスはBPが無いので対象外になる）
+    if (action.maxBpFromSelf && self) {
+        const selfBp = effectiveBp(state, owner, self)
+        const nexusIds = new Set(nexuses.map((n) => n.instanceId))
+        candidates = candidates.filter(
+            (c) => !nexusIds.has(c.instanceId) && effectiveBp(state, opp, c) <= selfBp,
+        )
+    }
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
@@ -1378,6 +1408,67 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     }
     if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
     else returnNexusToHand(state, opp, chosen.instanceId)
+}
+
+// BS12-008 グランド・ドラグキャッスル：相手のフィールドで最もBPの高いスピリット1体を指定する。
+// 指定はBattleState.designatedBlockerInstanceIdを立てるだけ。実際のブロック確定は
+// GameEngine.doPassのフラッシュ①終了時点（finishDesignatedBlockIfAny）で行う
+const designateAttackTargetHandler: ActionHandler<"designateAttackTarget"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (!state.battle) return
+    const attempt = {
+        actorPid: owner,
+        op: "other" as const,
+        scope: "targeted" as const,
+        ...(srcType !== undefined ? { sourceType: srcType } : {}),
+        ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+    }
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) => boardResistanceAgainst(state, opp, s, attempt) === null,
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。通常のアタックになる。`)
+        return
+    }
+    const maxBp = Math.max(...candidates.map((s) => effectiveBp(state, opp, s)))
+    const tied = candidates.filter((s) => effectiveBp(state, opp, s) === maxBp)
+    if (tied.length >= 2 && targetInstanceId === undefined && state.interactiveTargets) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：アタックを指定する相手のスピリットを選んでください`,
+            tied.map((s) => s.instanceId),
+            false,
+            action,
+            self,
+        )
+        return
+    }
+    const chosen =
+        (targetInstanceId !== undefined ? tied.find((s) => s.instanceId === targetInstanceId) : undefined) ?? tied[0]!
+    state.battle.designatedBlockerInstanceId = chosen.instanceId
+    log(state, `${sourceName}：${getCard(chosen.cardId).name}を指定した。`)
+}
+
+// BS12-X01 金牛龍神ドラゴニック・タウラス：onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決する。
+// シンボル数の差ぶん、相手のライフのコアを相手のリザーブへ置く（lifeCrushへ委譲）
+const lifeCoresBySymbolDiffHandler: ActionHandler<"lifeCoresBySymbolDiff"> = (ctx, action) => {
+    const { state, self, sourceName, targetInstanceId } = ctx
+    if (!self || targetInstanceId === undefined) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const blocker = findSpiritAny(state, targetInstanceId)
+    if (!blocker) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const diff = instanceSymbolCount(self) - instanceSymbolCount(blocker.inst)
+    if (diff <= 0) {
+        log(state, `${sourceName}：シンボルの数で上回っていないため発動しなかった。`)
+        return
+    }
+    lifeCrushHandler(ctx, { type: "lifeCrush", count: diff })
 }
 
 // 相手の合体スピリットを**分離させる**（BRAVE.md §12.5.1。BS11-015／BS11-034）。
@@ -1689,6 +1780,9 @@ const handlers = {
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
+    designateAttackTarget: designateAttackTargetHandler,
+    lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
+    negateContinuousMagicByName: negateContinuousMagicByNameHandler,
     detachBrave: detachBraveHandler,
     detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,

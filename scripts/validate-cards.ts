@@ -46,7 +46,7 @@ const VALID_KINDS = new Set([
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
-    "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity",
+    "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
 ])
 
 export interface ValidationIssue {
@@ -245,7 +245,7 @@ const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     exhaustAll: ["cores", "excludeSelf", "cost", "sameCostAsEventTarget"], // BS05双剣虎ジェン・フー／SD02-002 ミザール（同じコスト）。他の軸は exhaustAll ハンドラが見ない
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
-    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family"],
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined"],
 }
 
 function checkTargetFilters(

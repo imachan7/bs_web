@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -37,6 +37,7 @@ import {
     TENSHO_SUBSTITUTE_REST,
     TENSHO_SUBSTITUTE_HAND,
     applyTenshoSubstitute,
+    applyTenshoSubstituteCrossSource,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
@@ -351,6 +352,13 @@ const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (
         // 【転召】置換（BS05の竜使い）の任意発動のpendingChoice再開専用（cards.jsonには書かない）。
         // selfには転召の対象になった自分のスピリットが渡る
         if (!self) return
+        if (chosenOption === TENSHO_SUBSTITUTE_REST && action.exhaustInstanceId !== undefined) {
+            const sourceInst = findSpirit(state.players[owner], action.exhaustInstanceId) ?? findNexus(state.players[owner], action.exhaustInstanceId)
+            if (sourceInst) {
+                applyTenshoSubstituteCrossSource(state, owner, self, sourceInst)
+                return
+            }
+        }
         if (chosenOption === TENSHO_SUBSTITUTE_REST || chosenOption === TENSHO_SUBSTITUTE_HAND) {
             applyTenshoSubstitute(state, owner, self, chosenOption === TENSHO_SUBSTITUTE_HAND)
             return

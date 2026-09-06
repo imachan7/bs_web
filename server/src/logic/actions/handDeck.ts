@@ -1029,6 +1029,45 @@ const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFami
         return
 }
 
+// BS12-074 スターリードロー：デッキ上からcount枚をオープンし、系統一致のスピリット/（includeBraves時は）
+// ブレイヴカードすべてを手札に加える。残りはトラッシュへ破棄する（召喚せず手札に加えるだけの版）
+const revealTopFamilyToHandHandler: ActionHandler<"revealTopFamilyToHand"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const revealed = player.deck.splice(0, action.count)
+    if (revealed.length === 0) {
+        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        return
+    }
+    log(
+        state,
+        `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+    )
+    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+    let gainedCount = 0
+    let discardedCount = 0
+    for (const cardId of revealed) {
+        const card = getCard(cardId)
+        const typeOk = card.type === "spirit" || (action.includeBraves && card.type === "brave")
+        if (!typeOk || !wanted.some((f) => card.family.includes(f))) {
+            player.trashCards.push(cardId)
+            discardedCount++
+            continue
+        }
+        player.hand.push(cardId)
+        gainedCount++
+        log(state, `${player.name}は${sourceName}の効果で、${card.name}を手札に加えた。`)
+    }
+    if (gainedCount === 0) {
+        log(state, `${sourceName}：条件を満たすカードがなかった。`)
+    }
+    if (discardedCount > 0) {
+        log(state, `${player.name}は残り${discardedCount}枚をトラッシュに置いた。`)
+    }
+    if (gainedCount > 0) notifyHandGained(state, owner, gainedCount)
+    return
+}
+
 // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
 function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: string): void {
     const zone = state.revealedCards
@@ -2872,6 +2911,7 @@ const handlers = {
     deckReveal: deckRevealHandler,
     revealAndSummonKeyword: revealAndSummonKeywordHandler,
     revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
+    revealTopFamilyToHand: revealTopFamilyToHandHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     revealDiscardRest: revealDiscardRestHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,

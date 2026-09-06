@@ -815,8 +815,8 @@ process.on("exit", () => {
         const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
         patch(
             coresFile,
-            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
-            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
+            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
+            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
         )
         patch(
             coresFile,
@@ -1162,10 +1162,10 @@ process.on("exit", () => {
         patch(
             em,
             // ※ 2026-08-07 に疲労の代入が exhaustSpirit() へ一元化された（誘発点を1箇所にするため）
-            `                exhaustSpirit(state, affectedPid, affectedInst)
+            `                exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return`,
             `                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                exhaustSpirit(state, affectedPid, affectedInst)
+                exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return`,
         )
 

@@ -480,14 +480,17 @@ export function instMinLevelCores(inst: CardInstance): number {
 export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
     // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
+    // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：継続的な「シンボルを追加する」は
+    // **固定値に対しても加算する**（symbolsOverrideContinuousが勝つ既存の規則は変えない。2026-09-04ユーザー確認）
+    const added = inst.symbolsAddedContinuous?.length ?? 0
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0)
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added
     }
     // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
     // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0)
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
@@ -504,12 +507,16 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         if (inst.pendingBounce) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
-        const cardSymbols =
-            (forSummon ? inst.symbolsForSummonReduction : undefined) ??
-            inst.symbolsOverrideContinuous ??
-            (inst.braveComposite === undefined
-                ? card(inst.cardId).symbol
-                : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])
+        // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：固定・召喚軽減用の置き換えを受けていても
+        // **加算分は必ず足す**（instanceSymbolCountと同じ規則。2026-09-04ユーザー確認）
+        const cardSymbols = [
+            ...((forSummon ? inst.symbolsForSummonReduction : undefined) ??
+                inst.symbolsOverrideContinuous ??
+                (inst.braveComposite === undefined
+                    ? card(inst.cardId).symbol
+                    : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])),
+            ...(inst.symbolsAddedContinuous ?? []),
+        ]
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
@@ -1577,6 +1584,24 @@ export function activeConstraintsWithSource(
                 continue
             }
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
+        }
+    }
+    // tenshoCoreSubstitute の familyFilter/costFilter 指定（BS12-061剣の誕生地）：
+    // 他の発生源（ネクサス等）が「対象スピリットの絞り込み」つきでこの制約を**own（kind:"constraint"）として**
+    // 宣言している場合、そのスピリットの【転召】置換として合流させる。疲労するのは対象スピリットではなく
+    // **宣言した発生源自身**（EffectModules.tenshoAfterTargetTriggerがsourceInstanceIdを見て判定する）
+    for (const source of sources) {
+        if (source.instanceId === inst.instanceId) continue
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraint") continue
+            if (effect.constraint.type !== "tenshoCoreSubstitute") continue
+            const { familyFilter, costFilter } = effect.constraint
+            if (familyFilter === undefined && costFilter === undefined) continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (familyFilter !== undefined && !matchesFamilyFilter(board, pid, inst, familyFilter)) continue
+            if (costFilter !== undefined && !instHasCost(inst, costFilter)) continue
+            granted.push({ sourceInstanceId: source.instanceId, constraint: effect.constraint })
         }
     }
     // constraintSuppression（BS04獣使いドヴェルグ）：持ち主のフィールドの発生源が、対象スピリットの

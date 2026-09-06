@@ -572,19 +572,22 @@ export function destroySpirit(
     // BS10-012アントイーター/BS10-014闇騎士マリス
     const bySpiritEffect = context?.sourceType === "spirit" && context?.sourcePid !== undefined && context.sourcePid !== ownerPid
     const sourceInstanceId = context?.sourceInstanceId
+    // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
+    // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
+    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
     if (cause === "destroy") {
         fireTrigger(state, ownerPid, inst, "onDestroy")
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId, options?.deferCommit)
+            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
             return true
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId)
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId, options?.deferCommit)
+        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
         return true
     }
 
@@ -604,6 +607,7 @@ function suspendDestroyCommit(
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
+    byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
     deferCommit?: true,
 ): void {
@@ -621,6 +625,7 @@ function suspendDestroyCommit(
             byBattle,
             wasAttacker,
             bySpiritEffect,
+            byOpponentEffect,
             ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
             ...(deferCommit ? { deferCommit } : {}),
         },
@@ -639,6 +644,7 @@ function fireOwnSpiritDestroyed(
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
+    byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
 ): void {
     const master = getCard(inst.cardId)
@@ -647,6 +653,8 @@ function fireOwnSpiritDestroyed(
         byBattle,
         wasAttacker,
         bySpiritEffect,
+        // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
+        byOpponentEffect,
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
@@ -663,9 +671,9 @@ export function resumeDestroyCommit(
     // 誘発の解決中に復活した／場から居なくなったなら、破壊は成立しない
     if (!inst || !inst.pendingDestruction) return
     if (frame.step <= 1) {
-        fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.sourceInstanceId)
+        fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.sourceInstanceId, frame.deferCommit)
+            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId, frame.deferCommit)
             return
         }
     }

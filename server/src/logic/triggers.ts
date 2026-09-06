@@ -884,6 +884,8 @@ export function fireFieldEventTriggers(
         wasAttacker?: boolean
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
+        // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
+        // （ネクサスの効果による疲労は含まない。fireExhaustedTriggers が計算する。BS12-062白煙の大山脈）
         byOpponentEffect?: boolean
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean

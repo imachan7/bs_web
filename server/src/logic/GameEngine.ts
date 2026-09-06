@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -1799,11 +1799,42 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
+        } else if (state.battle && state.battle.designatedBlockerInstanceId) {
+            // 指定アタック（BS12-008）：アタック時効果と【バースト】の解決がすべて終わり、
+            // ブロック宣言に入る時点＝ここで自動的にブロックを確定させる（防御側に選ばせない）
+            resolveDesignatedBlock(state)
         }
         // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）。
         // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
     }
     return null
+}
+
+// designateAttackTarget（BS12-008）が立てた designatedBlockerInstanceId を、正規のブロック宣言として
+// 自動的に成立させる。validateBlock/doBlockを経由しないため疲労状態でもブロックさせられる。
+// 指定先が場を離れた／耐性を得て条件を満たさなくなった場合は何もしない（通常のアタックに戻る＝
+// このあと防御側の block/takeLife 待ちに落ちる。アタック宣言後のフラッシュタイミングは既に閉じているだけ）
+function resolveDesignatedBlock(state: GameState): void {
+    if (!state.battle) return
+    const id = state.battle.designatedBlockerInstanceId
+    delete state.battle.designatedBlockerInstanceId
+    if (!id) return
+    const defenderPid = opponentOf(state.turnPlayer)
+    const target = findSpirit(state.players[defenderPid], id)
+    if (!target) return
+    const attacker = findSpirit(state.players[state.turnPlayer], state.battle.attackerInstanceId)
+    // アタッカーが場を離れた／指定アタックの効果そのものを失った場合も通常のアタックに戻る
+    // （2026-09-04 ユーザー確認。BS12-008 は Lv1-3 すべてで発揮するのでレベル低下は見なくてよい）
+    if (!attacker || instEffectsSuppressed(attacker)) return
+    const resisted = boardResistanceAgainst(state, defenderPid, target, {
+        actorPid: state.turnPlayer,
+        op: "other",
+        scope: "targeted",
+        sourceType: "spirit",
+        sourceColors: instColors(attacker),
+    })
+    if (resisted) return
+    finishBlockDeclaration(state, defenderPid, id)
 }
 
 // ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）

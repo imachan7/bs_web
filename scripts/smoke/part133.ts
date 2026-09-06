@@ -43,10 +43,13 @@ for (const c of cards) {
         if (!action || action["type"] !== "bpBuff") continue
         const filter = action["filter"] as Record<string, unknown> | undefined
         const filterKeys = Object.keys(filter ?? {})
-        if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains" && k !== "family")) {
+        if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains" && k !== "family" && k !== "combined")) {
             unexpectedFilters.push(`${c.cardId} ${c.name}（${filterKeys.join(",")}）`)
             continue
         }
+        // combined 指定（BS12-073ネクサスコラプス＝「合体スピリット1体をBP+」）は、この汎用スイープが
+        // 立てる非合体の単体アタッカーでは対象条件を満たせないため対象外にする（専用の検証はpart288が持つ）
+        if (filterKeys.includes("combined")) continue
         const nameContains = filter?.["nameContains"]
         const family = filter?.["family"]
         entries.push({

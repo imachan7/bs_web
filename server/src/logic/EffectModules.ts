@@ -82,6 +82,7 @@ import {
 } from "../../../shared/cost"
 import {
     activeConstraints,
+    activeConstraintsWithSource,
     auraAmount,
     boardResistanceAgainst,
     auraAppliesTo,
@@ -510,7 +511,7 @@ export function checkExhaustOnCoreChange(
                     state,
                     `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
                 )
-                exhaustSpirit(state, affectedPid, affectedInst)
+                exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return
             }
         }
@@ -528,6 +529,10 @@ export function exhaustSpirit(
     // 【暴風】の効果による疲労のとき、その【暴風】の持ち主を渡す。
     // 記録（BS06颶風高原Lv2）と "ownBofuExhausted" の発火（BS06ミストラルコア）に使う
     bofuSourcePid?: PlayerId,
+    // この疲労を引き起こした効果の実行者と発生源種別（省略＝自分自身の操作／内部処理による疲労）。
+    // ownSpiritExhausted の byOpponentEffectOnly（BS12-062白煙の大山脈）が使う
+    causePid?: PlayerId,
+    causeType?: CardType,
 ): void {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
@@ -537,7 +542,7 @@ export function exhaustSpirit(
         state.bofuExhaustedThisBattle.push({ pid: ownerPid, instanceId: inst.instanceId })
         fireFieldEventTriggers(state, bofuSourcePid, "ownBofuExhausted", { pid: ownerPid, inst })
     }
-    fireExhaustedTriggers(state, ownerPid, inst)
+    fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
 }
 
 // スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
@@ -570,9 +575,21 @@ export function refreshSpirit(
 // （anyNexusDestroyed / ownNexusDestroyed と同じ組み合わせ）。self には疲労したスピリットを渡す。
 // アタック宣言の疲労だけは、アタッカーが効果で消滅したときの「バトル不成立」判定を既存のガードに
 // 任せるため doAttack 側で明示的にこの関数を呼んでいる（exhaustSpirit は経由しない）
-export function fireExhaustedTriggers(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
-    // 疲労したスピリットのコスト（道化師クランの付与コストも含む）を costFilter 用に渡す
-    const eventInfo = { costs: instAllCosts(inst) }
+export function fireExhaustedTriggers(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    causePid?: PlayerId,
+    causeType?: CardType,
+): void {
+    // 疲労したスピリットのコスト（道化師クランの付与コストも含む）を costFilter 用に渡す。
+    // byOpponentEffect：「相手の**スピリット/ブレイヴ/マジック**の効果」で疲労したときのみtrue
+    // （ネクサスの効果による疲労は含まない。BS12-062白煙の大山脈）
+    const eventInfo = {
+        costs: instAllCosts(inst),
+        byOpponentEffect:
+            causeType !== undefined && causeType !== "nexus" && causePid !== undefined && causePid !== ownerPid,
+    }
     const colors = instColors(inst)
     if (state.winner) return
     fireFieldEventTriggers(state, ownerPid, "ownSpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
@@ -1169,6 +1186,13 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             vanilla: instIsVanilla(inst),
         })
     }
+    // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
+    // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
+    // （ダイレクトブレイヴ）に入った場合も対象にするため isOnFieldAnyZone で判定する
+    if (!state.winner && isOnFieldAnyZone(player, inst.instanceId) && getCard(inst.cardId).type === "brave") {
+        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst })
+        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst })
+    }
     delete state.summoningBySoku
     delete state.summoningFromHand
     // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
@@ -1177,7 +1201,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
-        exhaustSpirit(state, pid, inst)
+        exhaustSpirit(state, pid, inst, undefined, opponentOf(pid), "spirit")
     }
 }
 
@@ -1555,24 +1579,39 @@ export function tenshoAfterTargetTrigger(
     // （skipSubstitute=true は「コアを置く」を選んだ後の再入。tenshoSubstituteChoice からのみ渡る）
     // mode:"returnToHand"（SD02-009 獣将軍クジャルタ）は疲労の代わりに手札へ戻る。
     // 疲労版と違い「疲労していないこと」は条件にならない（既に疲労していても戻せる）
-    const substitute = activeConstraints(state, ownerPid, inst).find(
-        (c) => c.type === "tenshoCoreSubstitute",
+    const substituteEntry = activeConstraintsWithSource(state, ownerPid, inst).find(
+        (e) => e.constraint.type === "tenshoCoreSubstitute",
     )
-    const substituteMode = substitute?.type === "tenshoCoreSubstitute" ? (substitute.mode ?? "rest") : undefined
-    const substituteAvailable =
-        substituteMode === "returnToHand" ? true : substituteMode === "rest" ? !inst.isRested : false
+    const substitute = substituteEntry?.constraint.type === "tenshoCoreSubstitute" ? substituteEntry.constraint : undefined
+    // familyFilter/costFilter付き（BS12-061剣の誕生地）＝宣言した発生源（ネクサス等）が別インスタンス。
+    // その場合は疲労するのは対象スピリット自身ではなく発生源自身
+    const crossSource = substituteEntry !== undefined && substituteEntry.sourceInstanceId !== inst.instanceId
+    const substituteSourceInst = crossSource
+        ? findSpirit(state.players[ownerPid], substituteEntry!.sourceInstanceId) ??
+          findNexus(state.players[ownerPid], substituteEntry!.sourceInstanceId)
+        : undefined
+    const substituteMode = substitute ? (substitute.mode ?? "rest") : undefined
+    const substituteAvailable = crossSource
+        ? substituteSourceInst !== undefined && !substituteSourceInst.isRested
+        : substituteMode === "returnToHand"
+          ? true
+          : substituteMode === "rest"
+            ? !inst.isRested
+            : false
     if (!skipSubstitute && substituteAvailable) {
-        const toHand = substituteMode === "returnToHand"
+        const toHand = !crossSource && substituteMode === "returnToHand"
         if (state.interactiveTargets) {
             requestChoice(
                 state,
                 ownerPid,
-                toHand
-                    ? `【転召】${getCard(inst.cardId).name}：手札に戻してコアを維持しますか？`
-                    : `【転召】${getCard(inst.cardId).name}：疲労してコアを維持しますか？`,
+                crossSource
+                    ? `【転召】${getCard(inst.cardId).name}：${getCard(substituteSourceInst!.cardId).name}を疲労させてコアを維持しますか？`
+                    : toHand
+                      ? `【転召】${getCard(inst.cardId).name}：手札に戻してコアを維持しますか？`
+                      : `【転召】${getCard(inst.cardId).name}：疲労してコアを維持しますか？`,
                 [],
                 false,
-                { type: "tenshoSubstituteChoice", dest },
+                { type: "tenshoSubstituteChoice", dest, ...(crossSource ? { exhaustInstanceId: substituteSourceInst!.instanceId } : {}) },
                 inst,
                 "option",
                 toHand
@@ -1582,7 +1621,11 @@ export function tenshoAfterTargetTrigger(
             return
         }
         // 自動時（テスト）はコアを失わない側を選ぶ決定的簡略化
-        applyTenshoSubstitute(state, ownerPid, inst, toHand)
+        if (crossSource) {
+            applyTenshoSubstituteCrossSource(state, ownerPid, inst, substituteSourceInst!)
+        } else {
+            applyTenshoSubstitute(state, ownerPid, inst, toHand)
+        }
         return
     }
     fireTenshoEvent(state, ownerPid, inst)
@@ -1616,6 +1659,23 @@ export function applyTenshoSubstitute(
         log(state, `【転召】${getCard(inst.cardId).name}は疲労し、コアをそのまま維持した。`)
         exhaustSpirit(state, ownerPid, inst)
     }
+    fireTenshoEvent(state, ownerPid, inst)
+}
+
+// tenshoCoreSubstituteのfamilyFilter/costFilter版（BS12-061剣の誕生地）：疲労するのは対象スピリット
+// （inst）ではなく、置換を宣言した発生源自身（sourceInst＝ネクサス）。コスト支払いなので
+// exhaustSpiritは通さず直接isRestedを立てる（【強襲】のネクサス疲労と同じ方針。ownSpiritExhaustedを誤発火させない）
+export function applyTenshoSubstituteCrossSource(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    sourceInst: CardInstance,
+): void {
+    sourceInst.isRested = true
+    log(
+        state,
+        `【転召】${getCard(sourceInst.cardId).name}を疲労させ、${getCard(inst.cardId).name}のコアはそのまま維持された。`,
+    )
     fireTenshoEvent(state, ownerPid, inst)
 }
 
@@ -1859,6 +1919,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.namesAsContinuous
             delete inst.colorsAsContinuous
             delete inst.symbolsOverrideContinuous
+            delete inst.symbolsAddedContinuous
             delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
             delete inst.heavyArmorColorsGranted
@@ -2083,6 +2144,30 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         for (const c of effect.colors) {
                             if (!target.colorsAsContinuous.includes(c)) target.colorsAsContinuous.push(c)
                         }
+                    }
+                    continue
+                }
+                if (effect.kind === "symbolAddGrant") {
+                    // 継続的な「シンボルを追加する」（BS12初出。BS12-006竜拳士アルディ・バロン／
+                    // BS12-X01金牛龍神ドラゴニック・タウラス）。盤面のシンボル数に効く（軽減計算・ライフダメージ両方）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
+                    const count =
+                        effect.counter !== undefined
+                            ? countEffectCounter(state, pid, source, effect.counter, undefined)
+                            : (effect.count ?? 1)
+                    if (count <= 0) continue
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits.filter((sp) => matchesTarget(state, pid, sp, effect.filter as ResolvedTargetFilter | undefined))
+                            : [source]
+                    for (const target of targets) {
+                        if (!target.symbolsAddedContinuous) target.symbolsAddedContinuous = []
+                        for (let i = 0; i < count; i++) target.symbolsAddedContinuous.push(effect.color)
                     }
                     continue
                 }
@@ -2796,6 +2881,7 @@ export function bpBuffTargetPasses(
     nameContains?: string | string[],
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
+    combinedFilter?: boolean,
 ): boolean {
     if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
     if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
@@ -2805,6 +2891,7 @@ export function bpBuffTargetPasses(
     }
     if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
     if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
+    if (combinedFilter !== undefined && instIsCombined(inst) !== combinedFilter) return false
     return true
 }
 
@@ -2823,9 +2910,10 @@ export function pickBpBuffTarget(
     nameContains?: string | string[],
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
+    combinedFilter?: boolean,
 ): CardInstance | null {
     const passes = (inst: CardInstance): boolean =>
-        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter)
+        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter)
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null
@@ -2957,6 +3045,10 @@ export function countEffectCounter(
     // ownCombinedSpirits：自分のフィールドの合体スピリット数（BS10-029木星神龍ノブナガード・ゼウシス）
     if (counter === "ownCombinedSpirits") {
         return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
+    }
+    // ownBraveSpirits：自分のフィールドでスピリット状態のブレイヴ数（BS12-004ドラゴン・フェゼント）
+    if (counter === "ownBraveSpirits") {
+        return state.players[owner].field.spirits.filter((s) => getCard(s.cardId).type === "brave").length
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
