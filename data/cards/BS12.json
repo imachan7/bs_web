@@ -998,6 +998,17 @@
           "type": "destroyNexus",
           "count": 1
         }
+      },
+      {
+        "id": "BS12-050-e3",
+        "kind": "activated",
+        "whileCombined": true,
+        "timing": "flash",
+        "levels": null,
+        "action": {
+          "type": "selfBuffByExhaustFamily",
+          "amount": 3000
+        }
       }
     ]
   },

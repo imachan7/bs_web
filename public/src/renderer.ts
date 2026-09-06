@@ -240,7 +240,7 @@ export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
-): { effectId: string; costLabel: string } | null {
+): { effectId: string; costLabel: string; instanceId?: string } | null {
     return sharedActivatableAbility(view, you, inst)
 }
 
@@ -1226,7 +1226,8 @@ function fieldCardEl(
         if (activatable) {
             const badge = document.createElement("button")
             badge.className = "activate-badge"
-            badge.dataset.activate = inst.instanceId
+            // 【合体時】の起動能力はブレイヴが持つので、起動対象はそのブレイヴの instanceId になる
+            badge.dataset.activate = activatable.instanceId ?? inst.instanceId
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
             badge.title = activatable.costLabel

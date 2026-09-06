@@ -1,8 +1,9 @@
 // smoke パート288（BS12 バッチ1・赤：指定アタック（canDirectAttack targetHighestBp）／lifeCoresBySymbolDiff／symbolAddGrant／
 // byOpponentEffectOnly（ownSpiritExhausted）／removeOneOfAnyType の types 絞り込み）
-import { assert, act, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, act, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { instanceSymbolCount, countSymbols } from "../../shared/rules"
+import { instanceSymbolCount, countSymbols, activatableAbility } from "../../shared/rules"
+import { attachBrave } from "../../server/src/logic/removal"
 import { exhaustSpirit } from "../../server/src/logic/EffectModules"
 
 const CASTLE = "BS12-008" // グランド・ドラグキャッスル（赤・指定アタック）
@@ -189,6 +190,31 @@ console.log("=== §G removeOneOfAnyType：types絞り込みとmaxBpFromSelf ==="
     })
     assert(s.players.p2.field.spirits.length === 1 && s.players.p2.field.spirits[0]!.instanceId === strongEnemy.instanceId, "自身のBP以下の相手のみが対象（BPが高い方は残る）")
     assert(s.players.p2.field.nexuses.length === 1, "ネクサスはtypesに含まれないため対象にならない")
+}
+
+
+console.log("=== §H BS12-050：【合体時】フラッシュの起動能力（自分のスピリット1体を疲労させてBP+3000） ===")
+{
+    const s = game("brave-activated")
+    // 合体条件「コスト3以上」のブレイヴを、コスト3以上のホストへ合体させる
+    const host = createInstance("BS12-004", s.turn, 3) // ドラゴン・フェゼント（コスト4）
+    s.players.p1.field.spirits.push(host)
+    const brave = createInstance("BS12-050", s.turn, 0)
+    attachBrave(s, "p1", host, brave)
+    const fodder = createInstance(VANILLA, s.turn, 1) // 疲労させる用の回復状態スピリット
+    s.players.p1.field.spirits.push(fodder)
+    refreshLevelAsOverrides(s)
+    // timing:"flash" は自分のメインステップ（バトル外）でも使える
+    // バッジはホストに出るが、起動対象は効果を持つブレイヴの instanceId になる
+    const found = activatableAbility(s, "p1", host)
+    assert(found?.instanceId === brave.instanceId, "【合体時】の起動能力はブレイヴの instanceId で起動する")
+    const before = effectiveBp(s, "p1", host)
+    assert(
+        act(s, "p1", { type: "activateAbility", instanceId: brave.instanceId, effectId: "BS12-050-e3" }) === null,
+        "合体中は発動できる",
+    )
+    assert(fodder.isRested === true, "コストとして自分のスピリット1体が疲労する")
+    assert(effectiveBp(s, "p1", host) === before + 3000, "合体スピリット（ホスト）がBP+3000される")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part288）")

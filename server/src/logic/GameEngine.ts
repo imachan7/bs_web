@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -1272,10 +1272,17 @@ function doActivateAbility(
     if (error) return error
 
     const player = state.players[pid]
-    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）も通す
+    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）と、【合体時】の起動能力を持つ
+    // 合体中のブレイヴ（BS12-050 突機竜アーケランサー）も通す
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === instanceId)
     const inst =
-        findSpirit(player, instanceId) ?? player.field.nexuses.find((n) => n.instanceId === instanceId)
+        findSpirit(player, instanceId) ??
+        player.field.nexuses.find((n) => n.instanceId === instanceId) ??
+        brave
     if (!inst) return "対象のカードが見つかりません"
+    // 効果文の「このスピリット」は合体スピリット（ホスト）を指すので、self にはホストを渡す
+    const host = brave ? hostsOf(player, brave)[0] : inst
+    if (!host) return "合体先のスピリットが見つかりません"
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
@@ -1286,14 +1293,14 @@ function doActivateAbility(
     if (effect.cost === undefined) {
         log(state, `${player.name}の${getCard(inst.cardId).name}の効果を発動した。`)
     } else if ("exhaustSelf" in effect.cost) {
-        exhaustSpirit(state, pid, inst)
+        exhaustSpirit(state, pid, host)
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
         )
     } else if ("selfCoresToTrash" in effect.cost) {
         const n = effect.cost.selfCoresToTrash
-        inst.cores -= n
+        host.cores -= n
         player.trashCores += n
         log(
             state,
@@ -1319,7 +1326,7 @@ function doActivateAbility(
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
-    resolveAction(state, pid, inst, effect.action)
+    resolveAction(state, pid, host, effect.action)
     if (effect.oncePerTurn && cancelable) {
         if (state.activationFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする

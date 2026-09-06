@@ -2252,6 +2252,25 @@ export function activatableAbility(
     board: Board,
     pid: PlayerId,
     inst: CardInstance,
+): { effectId: string; costLabel: string; instanceId?: string } | null {
+    // 【合体時】の起動能力は**合体しているブレイヴ**が持つ（BS12-050 突機竜アーケランサー）。
+    // バッジはホスト（合体スピリット）に出すので、ホストを見にきたらブレイヴのぶんも探し、
+    // 起動対象としてブレイヴの instanceId を返す
+    for (const brave of bravesOf(board.players[pid], inst)) {
+        const found = activatableAbilityOf(board, pid, brave, inst, true)
+        if (found) return { ...found, instanceId: brave.instanceId }
+    }
+    return activatableAbilityOf(board, pid, inst, inst, false)
+}
+
+// activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
+// （合体中のブレイヴは、レベルもバトル参加もホストのものを見る）
+function activatableAbilityOf(
+    board: Board,
+    pid: PlayerId,
+    source: CardInstance,
+    host: CardInstance,
+    whileCombinedOnly: boolean,
 ): { effectId: string; costLabel: string } | null {
     // バトル中のフラッシュ窓（優先権が要る）と、自分のメインステップ（バトル外）の2つがありうる
     const inBattleFlash = board.battle !== null && board.isFlashTiming && board.priorityPlayer === pid
@@ -2259,11 +2278,13 @@ export function activatableAbility(
     if (!inBattleFlash && !inOwnMain) return null
     const inBattle =
         board.battle !== null &&
-        (board.battle.attackerInstanceId === inst.instanceId ||
-            board.battle.blockerInstanceId === inst.instanceId)
-    const level = currentLevel(inst).level
-    for (const e of card(inst.cardId).effects) {
+        (board.battle.attackerInstanceId === host.instanceId ||
+            board.battle.blockerInstanceId === host.instanceId)
+    const level = currentLevel(host).level
+    for (const e of card(source.cardId).effects) {
         if (e.kind !== "activated") continue
+        // 【合体時】の起動能力は合体しているブレイヴからのみ、それ以外はホスト自身からのみ拾う
+        if ((e.whileCombined === true) !== whileCombinedOnly) continue
         if (!effectActiveAtLevel(e.levels, level)) continue
         // 発動可能タイミング（validateActivateAbility と同じ切り分け）
         if (e.timing === "flashBattle" && !inBattleFlash) continue
@@ -2271,16 +2292,16 @@ export function activatableAbility(
         if (e.timing === "main" && !inOwnMain) continue
         if (e.condition === "selfInBattle" && !inBattle) continue
         // 「ターンに1回」：発生源1体につきターン1回
-        if (e.oncePerTurn && inst.activatedUsedTurn?.[e.id] === board.turn) continue
+        if (e.oncePerTurn && source.activatedUsedTurn?.[e.id] === board.turn) continue
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {
-            if (inst.isRested) continue
+            if (host.isRested) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
         }
         if ("selfCoresToTrash" in e.cost) {
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
-            if (inst.cores < e.cost.selfCoresToTrash) continue
+            if (host.cores < e.cost.selfCoresToTrash) continue
             return { effectId: e.id, costLabel: `このカードの上のコア${e.cost.selfCoresToTrash}個を払って効果を発動` }
         }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue

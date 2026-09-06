@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -746,15 +746,23 @@ export function validateActivateAbility(
 ): string | null {
     // ネクサスの起動能力もある（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）ので、
     // スピリットで見つからなければネクサスも探す
+    // 【合体時】の起動能力は合体しているブレイヴが持つ（BS12-050 突機竜アーケランサー）ので、
+    // combinedBraves も探す。その場合レベル・バトル参加・疲労はホスト（合体スピリット）を見る
+    const brave = state.players[pid].field.combinedBraves.find((b) => b.instanceId === instanceId)
     const inst =
         findSpirit(state.players[pid], instanceId) ??
-        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId)
+        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId) ??
+        brave
     if (!inst) return "対象のカードが見つかりません"
-    const level = currentLevel(inst).level
+    const host = brave ? hostsOf(state.players[pid], brave)[0] : inst
+    if (!host) return "合体先のスピリットが見つかりません"
+    const level = currentLevel(host).level
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
+    if (effect.whileCombined && !brave) return "合体しているときだけ発動できます"
+    if (!effect.whileCombined && brave) return "この効果は合体中のブレイヴからは発動できません"
     if (!effectActiveAtLevel(effect.levels, level)) {
         return "現在のレベルでは発動できません"
     }
@@ -803,10 +811,10 @@ export function validateActivateAbility(
     // cost 省略時は追加コストなし（BS08帝竜騎サイクル）
     if (effect.cost !== undefined) {
         if ("exhaustSelf" in effect.cost) {
-            if (inst.isRested) return "すでに疲労しています"
+            if (host.isRested) return "すでに疲労しています"
         } else if ("selfCoresToTrash" in effect.cost) {
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
-            if (inst.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
+            if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }

@@ -386,7 +386,7 @@ export type EffectAction =
     | { type: "destroyPer"; counter: EffectCounter; filter?: TargetFilter } // カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する（filterで絞り込み。0ならログのみ。BS08魔帝龍騎ダーク・クリムゾン＝系統「龍帝」を持つ自分のスピリット1体につき）
     | { type: "destroyDownToOwnCount" } // 相手のスピリットを、その数が自分のフィールドのスピリット数と同じになるまで破壊する（相手のほうが少ない/同数なら不発。BS08ジャッジメントフレア）。// 効果文が「**相手は**、相手のスピリットを〜破壊する」なので**破壊する側（相手）が1体ずつ選ぶ**（CHOOSER_RULES.md。解決は発生源の持ち主の効果＝PendingChoice.actorPid）。非対話では相手が選ぶであろう実効BP最小から破壊する。残り体数は毎回「相手の体数−自分の体数」で数え直すので、action に持ち回る内部フィールドは要らない
     | { type: "destroyByCostBudget"; budget: number; choosing?: true; chosenIds?: string[] } // 相手スピリットを、コスト合計がbudgetを超えない範囲で好きなだけ破壊する。// 対話モードでは**トグル式で選ばせる**（クリックで選択／もう一度クリックで解除。合計は prompt に出し、「これで破壊する」で確定。2026-08-24 ユーザー確定）。choosing / chosenIds はその途中経過を持ち回る内部専用フィールドで、cards.jsonには書かない。非対話（テスト・自動解決）は残り予算内でコスト最大から貪欲に選ぶ（同コストは実効BP最大）。BS05-X19聖皇ジークフリーデン：[龍皇ジークフリード]/[要塞皇オーディーン]で【転召】したときの上限8への切替は、転召対象の記録が必要になるため簡略化しbudget=5固定とする
-    | { type: "selfBuffByExhaustFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外・回復状態の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最大＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**疲労させるスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
+    | { type: "selfBuffByExhaustFamily"; familyFilter?: FamilyFilter; amount?: number; sacrificeChosen?: true } // familyFilter一致・self以外・回復状態の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最大＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**疲労させるスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByDestroyFamily"; familyFilter: FamilyFilter; sacrificeChosen?: true } // familyFilter一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）を破壊し、このスピリット自身を回復させる（該当なしはno-op。BS02-X07巨神機トール）。// sacrificeChosen は**破壊するスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "refreshSelfByReturnToDeckTopName"; nameIncludes: string; sacrificeChosen?: true } // nameIncludes一致・self以外の自分のスピリット1体（候補2体以上なら interactiveTargets でプレイヤーが選ぶ。非対話は実効BP最小＝犠牲を最小化する簡略化）をデッキの一番上に戻し、このスピリット自身を回復させる（refreshSelfByDestroyFamilyの「破壊」を「デッキの上に戻す」に差し替えた版。該当なしはno-op。BS08勇者フェニックスペンタン）。// sacrificeChosen は**デッキの上に戻すスピリットを選び終えて再入したこと**を示す内部フラグ（cards.jsonには書かない）。これが無い targetInstanceId は誘発が渡すイベント対象なので、犠牲と取り違えないためのもの。COST_MODEL.md §2
     | { type: "disableOwnArmorThisTurn"; side?: "opponent" } // このターンの間、発生源の持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。side:"opponent"指定時は**相手**のスピリットの【装甲】を働かなくする（BS11-049 ジャンビ・オレピス＝「相手のスピリットすべては、【装甲】をないものとして扱い、新たに得ることもない」）
@@ -1261,6 +1261,9 @@ export type EffectDef =
     | {
           id: string
           kind: "activated"
+          whileCombined?: true // 【合体時】＝**このブレイヴが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          // 起動の対象は合体中のブレイヴ自身の instanceId だが、効果の self には**ホスト（合体スピリット）**が渡る
+          // （効果文の「このスピリット」は合体スピリットを指すため。BS12-050 突機竜アーケランサー）
           timing: "flashBattle" | "flash" | "main" // 発動可能タイミング。flashBattle＝フラッシュ中のバトルのみ／flash＝フラッシュで使えるタイミング全般（バトル外も含む。BS08機人フィアラル）／
           // main＝**自分のメインステップ中の任意のタイミング**（バトル中は不可。フラッシュ優先権も見ない）。
           // 『自分のメインステップ』としか書かれておらず「ステップ開始時」の指定が無い効果はこちら。
