@@ -26,8 +26,24 @@
 【合体時】の起動能力＝[BRAVE.md](./docs/design/BRAVE.md) §12.3、バッチ2ぶんは
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §5 と SPEC.md §データを書くときの原則・§globalConstraint）。
 
-緑で新しく要る器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2（F/I/R/S と U/W/X）。
-**実装前にユーザーへ解釈を確認すること**（CLAUDE.md の「ゲームルールの解釈」）。
+### バッチ3（緑）の確定スキーマ（2026-09-06 ユーザー確認。完了したら手順書へ移してここから消す）
+
+対象14枚: 017 / 019-024 / 053 / 054 / 065 / 066 / 077 / 078 / X03（018 はバニラで投入済み）。
+
+| 器 | 形 | 対象 |
+| :-- | :-- | :-- |
+| U | 既存 `globalConstraint: noLifeDamageByCost` に `symbolCount?: number` と `combinedOnly?: true` を足す。**両陣営**の合体スピリットのアタックで、お互いのライフが減らない | 020 |
+| W | 新 `globalConstraint: coresCantBeRemovedByOpponent { nameContains: string }` — 発生源の持ち主の、名前に指定文字列を含むスピリット上のコアは、**相手のスピリット/ブレイヴ/マジックの効果**では取り除けない（既存 `coresCantBeRemoved` は両陣営・無条件なので別枠） | 022 |
+| X | 新アクション `revealTopSummonFreeByFamily { familyFilter }` — 自分のデッキを上から1枚オープンし、その系統のスピリットカードならコストを支払わずに召喚できる（任意）。召喚しない／他のカードのときは**破棄**する。既存 `revealTopSummonFreeOrHand`（外れは手札へ）の兄弟。**回数制限は付けない**（アタックのたび毎回） | 065 |
+| R | 新カウンタ `opponentHandCount`（`draw` の `countCounter`）。**破棄を完全に解決した後**に数える（「そうしたとき」＝前後関係。CONJUNCTION.md） | 053 |
+| I | `CardInstance.noRefreshUntilOwnEndSteps: number` — 自分のエンドステップを5回数えるまで回復しない。**デッキ横のコア5個はボイドから出さずカウンタだけ持つ**（BS12_PLAN §1 #3。`data/card-notes.json` に理由を書く） | 078 |
+| — | 「ボイドからコア1個を、自分のリザーブか、そのスピリット上に置く」は**効果の使用者が毎回選ぶ**（PendingChoice。非対話はリザーブ側に倒す） | 077 / X03 |
+
+既存で足りるもの: 017/021/022 の全体BP+＝`bpBuffAll` familyFilter ／ 019＝`detachOpponentBrave`（BRAVE.md §12.5.1）＋【神速】／
+020 Lv2・024【合体時】・X03【合体時】＝`battleWon` 系 ／ 023＝【暴風】＋`ownSpiritDestroyed` byOpponentEffectOnly ／
+024/054 召喚時＝`summonFromHandFree`（054 は `skipOnSummon`）／ 053【合体中】＝`opponentDrew`（実装済み）／
+065 Lv1・X03 Lv1＝`coreFloorByCost`（065 は `ownOnly` ＋『相手のターン』）／ 066＝バッチ0の `tenshoCoreSubstitute.familyFilter` ／
+078 のトラッシュ耐性＝`trashImmunity`
 
 C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。
