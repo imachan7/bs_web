@@ -253,6 +253,7 @@ export type EffectAction =
     | { type: "recoverNexusFromTrash"; colors?: Color[] } // recoverMagicFromTrashのネクサス版。自分のトラッシュにあるネクサスカード1枚（末尾＝新しい方）を手札に戻す（colors指定時はそのいずれかの色を持つネクサスカードだけを対象。BS10-112ネクサスエクステンション）
     | { type: "castMagicFromTrashByColor"; colorFilter?: Color } // 自分のトラッシュにある指定色（省略時は色不問）のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する（interactiveTargets時はcard choiceで選択、自動時はコストが払える中で最もコストが高いものを自動選択。該当・支払い可能なカードがなければ不発）。この効果ではフィールドのコアは使えずリザーブのみで支払う簡略化。発動タイミングはこの効果自体の発火位置で決まる（バトル中ならflash、それ以外はメイン優先。BS08堕天使ミカファール）
     | { type: "magicMirrorRepeat" } // このフラッシュタイミングで相手が直前に使用したマジックカードの効果を、自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCastを参照し、相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止。BS08マジックミラー）
+    | { type: "magicFreeUseFromHandOrTegamoto" } // 自分の手札/手元(tegamoto。要tegamotoPlayable)にあるマジックカード1枚を選び、コストを支払わずに使用する（任意。候補0なら不発）。interactiveTargets時はkind:"option"の選択（ラベル「手札：カード名」/「手元：カード名」）で選ばせ、非対話時は手札→手元の順でコスト最大を自動選択（決定的簡略化）。resolveMagicへpaidCost=falseを渡すため、この使用からownMagicUsedのpaidCostOnlyは連鎖しない。カード側でoptional:trueと併用する（BS11-X05 魔導双神ジェミナイズLv2-3）
     | { type: "trashCoresToSpirit"; count?: number } // 自分のトラッシュのコアを対象スピリットへ置く（count省略=全部、不足時は可能な分。対象はtargetInstanceId優先、フォールバックはself→自分フィールド先頭）
     | { type: "grantKeywordAll"; keyword: Keyword; colors?: Color[]; costFilter?: number; vanillaFilter?: true } // 自分のスピリット全員（costFilter指定時はコスト一致のみ、vanillaFilter指定時は効果の記述を持たないスピリットのみ）に、このターンの間キーワードを付与する（リフレクションアーマー／BS05サーキュラーソー・アーム）
     | { type: "banActByCostThisTurn"; maxCost?: number; costs?: number[]; blockOnly?: true; side?: "opponent"; nonVanillaOnly?: true } // side:"opponent"指定時は相手のスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけを止める（BS11-082 ウィッグバインド）。maxCost省略時はコストを問わない。costs指定時は「そのいずれかと一致するコスト」だけを止める（BS11-057 バタホルン＝コスト4/6/8）。blockOnly指定時はブロックだけ止める（アタックは通す）
@@ -1148,6 +1149,11 @@ export type EffectDef =
           minEventCount?: number // eventCount がこの値以上のときのみ発火（「一度に◯枚以上破棄したとき」。BS04アリゲイド＝5枚以上）
           magicCostEquals?: number // event: "opponentMagicUsed" 限定：使用されたマジックのコストがこれと一致するときのみ発火（BS04氷の女神フリッグ）
           magicTiming?: "main" | "flash" // event: "opponentMagicUsed" 限定：使用タイミングが一致するときのみ発火
+          paidCostOnly?: true // event: "ownMagicUsed" 限定：「コストを支払って」使用されたときのみ発火（eventInfo.paidCostで判定）。
+          // 「支払った」＝通常の使用手続きを踏んだか（軽減で実質0コストでも支払った扱い）。
+          // 「コストを支払わずに使用」と書かれた効果経由の使用（本カード自身の無償使用も含む）だけが除外される（BS11-X05 魔導双神ジェミナイズ Lv2-3。2026-09-07 ユーザー確認）
+          magicFreeUseMaxPerTurn?: number // event: "ownMagicUsed" 限定：発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount。ターン基準はmagicFreeUseTurn）がこの値未満のときのみ発火。
+          // 発動確認で「使わない」を選んだときや候補が無く不発だったときは消費しない（実際に無償使用した回数だけを数える。BS11-X05 魔導双神ジェミナイズ Lv2-3。2026-09-07 ユーザー確認）
           familyFilter?: FamilyFilter // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "ownSpiritExhausted" | "anySpiritExhausted" 限定：破壊/召喚/疲労したスピリットの系統がこれを含むときのみ発火（配列＝いずれかの系統でOR。英雄の喪失／BS04七龍帝の玉座・鋼葉の樹林）
           // ※ 破壊/召喚は eventInfo.families（**カード静的な系統**）で判定する。疲労イベントは families を渡さないため、
           //    selfOverride のインスタンスに対して matchesFamilyFilter で**継続付与された系統も含めて**判定する
@@ -2006,6 +2012,8 @@ export interface CardInstance {
     activatedUsedTurn?: Record<string, number> // kind:"activated" の oncePerTurn 用。effectId -> 最後に発動したターン番号（state.turn と一致する間は再発動できない。BS08帝竜騎サイクル）
     magicNegateUsedTurn?: number // kind:"magicNegate" の oncePerTurn 用。この個体が最後にマジックを無効にしたターン番号（state.turn と一致する間は再使用できない。BS02鏡の回廊Lv2）
     reviveOnDestroyUsedTurn?: number // kind:"reviveOnDestroy" の oncePerTurn 用。この発生源が最後に復活を成立させたターン番号（magicNegateUsedTurnと同型。BS06暴かれた墓石Lv2）
+    magicFreeUseTurn?: number // BS11-X05 魔導双神ジェミナイズ Lv2-3用。magicFreeUseCount が最後に更新されたターン番号（一致しない間はcount実質0扱い＝ターンをまたいだ暗黙のリセット。magicNegateUsedTurnと同じ形）
+    magicFreeUseCount?: number // 同上：magicFreeUseTurn === state.turn の間だけ有効な、そのターンに実際に無償使用した回数（「ターンに2回しか使えない」の実測カウント。confirmで断った・候補が無かった場合は増えない）
     triggeredUsedTurn?: Record<string, number> // kind:"triggered" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（stepUsedTurnと同型。BS11-032 天王神獣スレイ・ウラノス）
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
@@ -2250,6 +2258,7 @@ export interface PendingChoice {
         timing: "main" | "flash"
         targetInstanceId: string | undefined
         sourceInstanceId: string // 無効化する側の発生源（コストの支払い元）
+        paidCost: boolean // 使用者が「コストを支払って」使用したか（BS11-X05 魔導双神ジェミナイズ用。中断をまたいで持ち回す）
     }
     handFreeSummon?: {
         // 手札のカード自身による無償召喚（kind:"freeSummonFromHandOnLifeDamaged"）の確認待ち。
@@ -2340,6 +2349,7 @@ export interface PendingChoice {
         timing: "main" | "flash"
         targetInstanceId: string | undefined
         sourceInstanceId: string // 絞り込み先＝確認を出す側の発生源
+        paidCost: boolean // magicNegate と同じ（BS11-X05 用）
     }
     magicSideChoice?: {
         // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の対象変更の確認待ち。
@@ -2351,6 +2361,7 @@ export interface PendingChoice {
         targetInstanceId: string | undefined
         sourceInstanceId: string // 魔導書＝確認を出す側の発生源
         ownerPid: PlayerId // 魔導書の持ち主（＝選ぶ人）
+        paidCost: boolean // magicNegate と同じ（BS11-X05 用）
     }
     magicRepeat?: {
         // 「マジックの効果発揮後、同じ効果をもう1度だけ発揮できる」（kind:"magicRepeatGrant"）の確認待ち。
@@ -2361,6 +2372,7 @@ export interface PendingChoice {
         timing: "main" | "flash"
         targetInstanceId: string | undefined
         sourceInstanceId: string // 再発揮を与えている発生源
+        paidCost: boolean // magicNegate と同じ（BS11-X05 用）
     }
     magicFreeChoice?: {
         // 「マジックをコストを支払わずに使用できる」（kind:"magicFreeGrant"）の使用時確認。

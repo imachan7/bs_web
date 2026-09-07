@@ -5286,6 +5286,21 @@
     "action": {
      "type": "revealTopSummonFreeOrHand"
     }
+   },
+   {
+    "id": "BS11-X05-e2",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "levels": [
+     2,
+     3
+    ],
+    "paidCostOnly": true,
+    "magicFreeUseMaxPerTurn": 2,
+    "optional": true,
+    "action": {
+     "type": "magicFreeUseFromHandOrTegamoto"
+    }
    }
   ]
  },
