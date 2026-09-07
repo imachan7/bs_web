@@ -109,6 +109,7 @@ import {
     isOnFieldAnyZone,
     instIsCombined,
     bravesOf,
+    combinedBraveColorsOk,
     hostsOf,
 } from "../../../shared/rules"
 export {
@@ -283,6 +284,13 @@ export function fireTrigger(
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
         if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
+        // 【合体時】の色条件（X008）。ホストは selfInstance 側（合体スピリットは1体）
+        if (
+            effect.kind === "triggered" &&
+            !combinedBraveColorsOk(state.players[owner], selfInstance, effect.combinedBraveColors)
+        ) {
+            return false
+        }
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
         if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
@@ -953,6 +961,8 @@ export function fireFieldEventTriggers(
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveOn(inst, effect, level)) continue
+            // 【合体時】の色条件（X008）
+            if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
             if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue

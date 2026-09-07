@@ -2600,6 +2600,95 @@
     ]
   },
   {
+    "cardId": "BS12-040",
+    "name": "天王神龍スレイ・カエルス",
+    "type": "spirit",
+    "colors": [
+      "yellow",
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "white",
+      "white"
+    ],
+    "family": [
+      "神星",
+      "戯狩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "yellow",
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【転召：星魂/ボイド】\n召喚コスト支払い後、系統：「星魂」を持つ自分のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3\n相手がマジックの効果を使用したとき、相手のスピリット1体を手札に戻す。\n【合体時】Lv2･Lv3\n相手のスピリットが手札に戻ったとき、戻ったスピリット1体につき、ボイドからコア1個を自分のライフに置く。",
+    "effects": [
+      {
+        "id": "BS12-040-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": null,
+        "familyFilter": [
+          "星魂"
+        ],
+        "dest": "void"
+      },
+      {
+        "id": "BS12-040-e2",
+        "kind": "fieldEvent",
+        "event": "opponentMagicUsed",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "returnToHand",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS12-040-e3",
+        "kind": "fieldEvent",
+        "event": "anySpiritReturnedToHand",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "subjectSide": "opponent",
+        "selfMode": "source",
+        "ignoreEventTarget": true,
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-041",
     "name": "スタッガー",
     "type": "spirit",
@@ -5775,6 +5864,98 @@
           3
         ],
         "target": "ownAll"
+      }
+    ]
+  },
+  {
+    "cardId": "X008",
+    "name": "神星皇ストライク・アポロドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red",
+      "white"
+    ],
+    "cost": 8,
+    "reduction": [
+      "red",
+      "red",
+      "white",
+      "white"
+    ],
+    "family": [
+      "神星"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 13000
+      }
+    ],
+    "symbol": [
+      "red",
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "【合体時】Lv1･Lv2･Lv3『相手のアタックステップ』\n緑/白/黄のブレイヴとの合体時、相手のスピリットがアタックしたとき、このスピリットは回復する。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n赤/紫/青のブレイヴとの合体時、BP10000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "X008-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "combinedBraveColors": [
+          "green",
+          "white",
+          "yellow"
+        ],
+        "subjectSide": "opponent",
+        "phase": "attack",
+        "turn": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refreshSelf"
+        }
+      },
+      {
+        "id": "X008-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "combinedBraveColors": [
+          "red",
+          "purple",
+          "blue"
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 10000
+          }
+        }
       }
     ]
   }

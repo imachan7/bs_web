@@ -1,7 +1,7 @@
 # BS12「星座編 第三弾：月の咆哮」の取り込み計画
 
 - 取り込み: 2026-09-03（`data/staging/BS12.json`。91枚）
-- 進捗: **76 / 91枚 投入済み**（バッチ0＝器 A/B/D、赤15／紫14／緑14／白12／黄13枚）
+- 進捗: **91 / 91枚 投入済み（完了）**。赤15／紫14／緑14／白12／黄13／青13／多色2枚
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色2枚：BS12-040 黄白 / X008 赤白）
 - 弾の `refer` は **「星座編 第三弾：月の咆哮」**（Wiki のカードリストから確定）
 - 関連: [BS11_PLAN.md](./BS11_PLAN.md)／[BRAVE.md](./BRAVE.md)
@@ -243,3 +243,14 @@ BS12-X05 が「相手によって」と書き分けているのが根拠。
 | :-- | :-- | :-- |
 | BK | **合体しているブレイヴの色による発揮条件**（§1 #17）。`whileCombined` を持つエントリに `combinedBraveColors?: Color[]` を足し、`bravesOf` で合流させた各ブレイヴを `instHasColor` で見て**いずれか1つ**が該当すれば成立とする | X008 の2節 |
 | BL | 新 FieldEvent `anySpiritReturnedToHand` ＋ 既存の `subjectSide:"opponent"` で絞る（既存は `ownSpiritReturnedToHand` しか無い。緑バッチの `anySpiritAttacked` ＋ `subjectSide` と同じ形に揃える）。「1体につき」は既存 `repeatPerCount` | 040【合体時】 |
+
+バッチ6（青）・バッチ7（多色）で確定した器: §7・§8 のとおり実装。多色は**新規2つだけ**だった。
+
+- **`combinedBraveColors`（`triggered` / `fieldEvent` の兄弟フィールド）** — 【合体時】の色条件。
+  `condition` のユニオンに入れてはいけない（**`magic` が同じユニオンを共有していて壊れる**）。
+  `whileCombined` と同じ「兄弟フィールド」の位置に置き、判定は `shared/rules.ts` の
+  `combinedBraveColorsOk`（未指定なら常に成立＝既存カードの挙動は変わらない）に一本化した
+- **`anySpiritReturnedToHand`** — 既存 `ownSpiritReturnedToHand` は**持ち主側にしか発火しない**ので、
+  「相手のスピリットが手札に戻ったとき」が書けなかった。`anySpiritAttacked` と同じく両者へ配り、
+  `subjectSide` で主体の陣営を絞る形にした
+

@@ -2077,6 +2077,11 @@ export function fireBounceTriggers(
         // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
         if (m.to === "hand") {
             fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+            // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る
+            // （subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形。BS12-040 天王神龍スレイ・カエルス）
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+            }
         }
         if (state.pendingChoice) {
             if (i + 1 < moved.length) {

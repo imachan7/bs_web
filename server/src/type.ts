@@ -507,6 +507,7 @@ export type FieldEvent =
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド）
     | "ownNexusDeployed" // 自分のフィールドにネクサスが配置されたとき（通常の配置・効果による配置・復活のいずれからも発火。BS04栄光の表彰台）
     | "opponentMagicUsed" // 相手がマジックの効果を使用したとき（resolveMagicから発火。eventInfoにcost/timingを載せ、magicCostEquals・magicTimingで絞る。BS04氷の女神フリッグ）
+    | "anySpiritReturnedToHand" // 両陣営どちらかのスピリットがフィールドから手札に戻ったとき、**両者の**フィールド発生源から発火する（`subjectSide` で主体の陣営を絞る。anySpiritAttacked と同じ形）。ownSpiritReturnedToHand が持ち主側にしか発火しないため、「**相手の**スピリットが手札に戻ったとき」を書くにはこちらが要る（BS12-040 天王神龍スレイ・カエルス【合体時】）
     | "ownSpiritReturnedToHand" // 自分のスピリットがフィールドから手札に戻ったとき、持ち主のフィールド発生源から発火（returnSpiritToHand から。破壊は含まない。**self には戻ったスピリットが渡る**。BS01リターンドロー）
     | "ownSpiritExhausted" // 自分のスピリットが疲労したとき、持ち主のフィールド発生源から発火（**self には疲労したスピリットが渡る**。BS02生み出される尖兵Lv2／BS02スクルディア）
     | "anySpiritExhausted" // 両陣営どちらかのスピリットが疲労したとき、両者のフィールド発生源から発火（**self には疲労したスピリットが渡る**。BS05藍紫の虚空Lv1）
@@ -794,6 +795,7 @@ export type EffectDef =
           trigger: TriggerEvent
           levels: number[] | null
           whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          combinedBraveColors?: Color[] // 【合体時】と併用：合体しているブレイヴの**いずれか1つ**がこの色のどれかを持つときだけ発揮する（多色ブレイヴは1色でも含めば該当＝instHasColor と同じ判定。2026-09-07 ユーザー確認）。X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」。緑のブレイヴと赤のブレイヴを両方付ければ、色違いの2つの効果が両方成立する
           // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
           // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
           // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
@@ -1088,6 +1090,7 @@ export type EffectDef =
           event: FieldEvent
           levels: number[] | null
           whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
+          combinedBraveColors?: Color[] // 【合体時】と併用：合体しているブレイヴの**いずれか1つ**がこの色のどれかを持つときだけ発火する（triggered の同名軸と同じ判定。X008＝「緑/白/黄のブレイヴとの合体時」）
           // ホスト側のスピリット（braveRefs を持つ）と、合体中のブレイヴ自身（braveCombined）の両方で成立する。
           // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
           // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）

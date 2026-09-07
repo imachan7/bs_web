@@ -107,6 +107,19 @@ export function effectActiveOn(
     return effect.whileCombined !== true || instIsCombined(inst)
 }
 
+// 【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
+// 合体しているブレイヴの**いずれか1つ**が指定色のどれかを持てば成立する（多色ブレイヴは1色でも含めば該当。
+// 2026-09-07 ユーザー確認）。色違いのブレイヴを両方付ければ、色違いの2つの効果が両方成立する。
+// colors 未指定なら常に成立＝既存カードの挙動は変わらない
+export function combinedBraveColorsOk(
+    player: BoardPlayer,
+    host: CardInstance,
+    colors: Color[] | undefined,
+): boolean {
+    if (colors === undefined) return true
+    return bravesOf(player, host).some((b) => colors.some((c) => instHasColor(b, c)))
+}
+
 // カードに効果の記述を持たない（バニラ）か
 export function isVanillaCard(cardData: CardData): boolean {
     return cardData.effect === ""
