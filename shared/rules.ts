@@ -336,6 +336,12 @@ function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: 
     // 載っていれば、カード静的な levels ではなく上書きされた levels で判定する。
     // ネクサスのLv1コア数は全カード0のため、これが無いとコア0でもLv1のまま消滅しない
     const levels = instLevels(inst)
+    // 器N：破壊処理中、「最高Lvとして破壊される」判定のためLvをそのカードの最大Lvとして扱う
+    // （destroySpiritがdestroyAsMaxLevel を立てる。BS12-057/069）
+    if (inst.destroyAsMaxLevel) {
+        const maxLv = levels.reduce((m, l) => (l.level > m.level ? l : m), levels[0] ?? { level: 0, cores: 0, bp: 0 })
+        return { level: maxLv.level, bp: maxLv.bp + (maxLv.level > 0 ? buff : 0) }
+    }
     // 効果の発揮判定にだけ効く置き換えは、他から見えるレベル（forEffects=false）では無視する
     const continuous = inst.levelAsEffectsOnly && !forEffects ? undefined : inst.levelAsContinuous
     const override = inst.levelOverrideThisTurn ?? continuous
@@ -636,6 +642,36 @@ export function spiritHasKeyword(
     }
     if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
+// 効果でコアが0個になったとき、最高Lvとして破壊される」を持つか。destroySpiritが cause:"deplete" の
+// 直前にこれを見て、通常の維持コア割れ（消滅・onDestroy不発火）ではなく破壊（onDestroy誘発あり・最大Lv扱い）に切り替える
+export function hasDestroyAsMaxLevelGrant(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    if (instEffectsSuppressed(inst)) return false
+    // target:"self"：発生源自身（【合体時】なら bravesOf で合体中ブレイヴの効果もホストへ合流させる。
+    // spiritHasKeyword と同じホスト合流パターン。BS12-057）
+    for (const src of [inst, ...bravesOf(board.players[ownerPid], inst)]) {
+        for (const effect of card(src.cardId).effects) {
+            if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "self") continue
+            if (effect.whileCombined === true && !instIsCombined(inst)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(src).level)) continue
+            return true
+        }
+    }
+    // target:"ownAll"：持ち主のフィールドの継続付与源から（BS12-069：ネクサスがスピリットすべてへ与える）
+    for (const source of effectSources(board, ownerPid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return true
+        }
+    }
+    return false
 }
 
 // 継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）
@@ -1375,6 +1411,9 @@ export function effectiveBp(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): number {
+    // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）：実効BPそのものを固定値へ上書きする。
+    // 既存battleBpAsLevel（バトルのBP比較のときだけ）より広く、対象条件（「BP◯以下」）の判定にも効く
+    if (inst.battleBpFixed !== undefined) return inst.battleBpFixed
     // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
     let total = currentLevel(inst).bp + braveBpBonus(board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -1462,6 +1501,7 @@ export function matchesTarget(
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
+    if (filter.refreshed !== undefined && inst.isRested === filter.refreshed) return false
     // BS11-X04：合体していないスピリットだけ（合体中のブレイヴ自身も「合体している」側）
     if (filter.uncombined === true && instIsCombined(inst)) return false
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
@@ -1900,6 +1940,25 @@ export function instCostCantAct(board: Board, inst: CardInstance): boolean {
     return levelCantAct(board, currentLevel(inst).level)
 }
 
+// BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主から見た**相手**のスピリットのうち、コストが
+// 配列のいずれかと完全一致するものはアタックできない（ブロックは可能。片側限定。cantSpiritStateBraveと同じ
+// 「相手側だけを見る」パターン）
+export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId, inst: CardInstance): boolean {
+    const opp = attackerPid === "p1" ? "p2" : "p1"
+    const attackerCosts = instAllCosts(inst)
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            const constraint = effect.constraint
+            if (constraint.type !== "opponentCantAttackByCost") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (attackerCosts.some((cost) => constraint.costs.includes(cost))) return true
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
 // アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
 export function levelCantAct(board: Board, level: number): boolean {
@@ -1920,7 +1979,7 @@ export function levelCantAct(board: Board, level: number): boolean {
 // フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
 // お互いのライフが減らされない（BS07の「勇傑」各色に共通。天槍の勇者アーク等）。
 // costCantAct と同じ「しきい値を比較する専用判定」の形。道化師クランの付与コストも見る（instAllCosts）
-export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolean {
+export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker: CardInstance): boolean {
     // keywordExclude の判定に持ち主が要る（spiritHasKeyword は付与キーワードを持ち主基準で見る）
     const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -1931,11 +1990,18 @@ export function noLifeDamageByCost(board: Board, attacker: CardInstance): boolea
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly } = effect.constraint
+                // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
+                if (ownOnly && pid !== defenderPid) continue
                 // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
                 // かつ合体スピリット」のアタックだけを保護する専用条件。maxCost等とは併用しない
                 if (symbolCount !== undefined && combinedOnly) {
                     if (instanceSymbolCount(attacker) === symbolCount && instIsCombined(attacker)) return true
+                    continue
+                }
+                // symbolCountのみ（combinedOnlyなし。BS12-069定規山脈Lv2）：シンボル数がちょうど一致するアタックのみ保護
+                if (symbolCount !== undefined) {
+                    if (instanceSymbolCount(attacker) === symbolCount) return true
                     continue
                 }
                 // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
@@ -1983,7 +2049,7 @@ export function lifeDamageLimit(
         return { max: 0, reason: "このターンはライフが減らない" }
     }
     // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
-    if (noLifeDamageByCost(board, attacker)) {
+    if (noLifeDamageByCost(board, defenderPid, attacker)) {
         return { max: 0, reason: "コスト条件によりライフが減らない" }
     }
     // BS07秘密の花園Lv2：このターン、コスト条件のアタックでは**この防御側だけ**が減らない
@@ -2011,6 +2077,11 @@ export function lifeDamageLimit(
         if (c.byAttackMinCost !== undefined && attackerCost < c.byAttackMinCost) continue
         max = Math.min(max, Math.max(0, board.players[defenderPid].life - c.floor))
     }
+    // 常在のライフ下限（BS12-070天の階Lv2）
+    const continuousFloor = ownLifeFloorContinuous(board, defenderPid)
+    if (continuousFloor > 0) {
+        max = Math.min(max, Math.max(0, board.players[defenderPid].life - continuousFloor))
+    }
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
@@ -2028,6 +2099,8 @@ export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType
         if (c.byEffectSourceTypes !== undefined && (srcType === undefined || !c.byEffectSourceTypes.includes(srcType))) continue
         floor = Math.max(floor, c.floor)
     }
+    // 常在のライフ下限（BS12-070天の階Lv2）
+    floor = Math.max(floor, ownLifeFloorContinuous(board, pid))
     return floor
 }
 
@@ -2048,6 +2121,30 @@ export function cantReduceOpponentLife(board: Board, attackerPid: PlayerId): boo
 
 export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
     return board.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === pid)
+}
+
+// BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
+// 自分のライフは0にならない」。globalConstraint "ownLifeFloor" を持つ発生源から、pid自身の
+// フィールドだけを見て発揮条件（ownFamilyCountAtLeast）を判定する（cantReduceOpponentLifeと同じ片側パターン）
+export function ownLifeFloorContinuous(board: Board, pid: PlayerId): number {
+    let floor = 0
+    for (const source of effectSources(board, pid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeFloor") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.whileCombined === true && !instIsCombined(source)) continue
+            const fam = effect.condition?.ownFamilyCountAtLeast
+            if (fam !== undefined) {
+                const wanted = Array.isArray(fam.family) ? fam.family : [fam.family]
+                const count = board.players[pid].field.spirits.filter((s) =>
+                    wanted.some((f) => spiritHasFamily(board, pid, s, f)),
+                ).length
+                if (count < fam.count) continue
+            }
+            floor = Math.max(floor, effect.constraint.floor)
+        }
+    }
+    return floor
 }
 
 export function lifeProtectedByCostThisTurn(

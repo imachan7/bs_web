@@ -1,13 +1,14 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, EffectAction } from "../../type"
+import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, findInstanceAnywhere, getCard, log, suspend } from "../GameState"
 import {
     bothSidesRedirectKeepPid,
     findSpiritAny,
     getAllFamilies,
     pickAnySideCandidates,
+    pickAnySideByBp,
     pickEnemyByBp,
     pickEnemyCandidates,
     exhaustSpirit,
@@ -1007,6 +1008,59 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
     )
 }
 
+// BS12-081メロディアスハープ：「スピリット1体は」＝どちらの陣営でもよい1体を選び、
+// このターンの間その1体だけへ継続効果を貸す（colorChoiceLendThisTurnの「選ぶもの」を色でなく
+// 対象インスタンスにした版。仮想発生源にlentChoiceInstanceIdを載せ、以後は
+// kind:"vanillaAsGrant"/"spiritEffectsDisabledGrant"のtarget:"chosenInstance"がそれを読む）
+const targetChoiceLendThisTurnHandler: ActionHandler<"targetChoiceLendThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceCardId, targetInstanceId } = ctx
+    if (targetInstanceId === undefined) {
+        const candidates = pickAnySideCandidates(state, owner, () => true)
+        if (candidates.length === 0) {
+            log(state, "効果：対象がいなかった。")
+            return
+        }
+        if (state.interactiveTargets && candidates.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                "効果を与えるスピリットを選んでください",
+                candidates.map((s) => s.instanceId),
+                false,
+                { type: "targetChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+                null,
+            )
+            return
+        }
+        const found = pickAnySideByBp(state, owner, Infinity, () => true)
+        if (!found) {
+            log(state, "効果：対象がいなかった。")
+            return
+        }
+        doTargetChoiceLendThisTurn(state, owner, sourceCardId, found.inst.instanceId)
+        return
+    }
+    doTargetChoiceLendThisTurn(state, owner, sourceCardId, targetInstanceId)
+}
+
+function doTargetChoiceLendThisTurn(
+    state: GameState,
+    owner: PlayerId,
+    sourceCardId: string | undefined,
+    targetInstanceId: string,
+): void {
+    const virtual = pushVirtualSource(state, owner, sourceCardId)
+    if (!virtual) return
+    virtual.lentChoiceInstanceId = targetInstanceId
+    const targetInst =
+        state.players.p1.field.spirits.find((s) => s.instanceId === targetInstanceId) ??
+        state.players.p2.field.spirits.find((s) => s.instanceId === targetInstanceId)
+    log(
+        state,
+        `${getCard(sourceCardId!).name}：このターンの間、${targetInst ? getCard(targetInst.cardId).name : "対象"}へ効果を与えた。`,
+    )
+}
+
 // BS06ヒナペンタン：「このスピリットを疲労させることで、このターンの間〜」。
 // 疲労（任意コスト）と貸与（効果）を1つのアクションで行う。**分けてはいけない**：
 // optional エントリを2つに割ると確認が2回になり、実際に「疲労だけして効果が出ない」状態になっていた
@@ -1234,6 +1288,7 @@ const handlers = {
     ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
+    targetChoiceLendThisTurn: targetChoiceLendThisTurnHandler,
     lendSelfThisBattle: lendSelfThisBattleHandler,
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,

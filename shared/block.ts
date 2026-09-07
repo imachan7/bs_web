@@ -80,6 +80,11 @@ export function canBlock(
     if (blockerInst.cantBlockThisBattle) {
         return "このスピリットはこのバトルの間ブロックできません"
     }
+    // このターンの間だけブロックできない（BS12-038オリンピアの天使ファレグ。器YB）。
+    // cantBlockThisBattleと同じく効果で直接付けた印なので blockConstraintNegatedThisTurn では消えない
+    if (blockerInst.cantBlockThisTurn) {
+        return "このスピリットはこのターンの間ブロックできません"
+    }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {
             return "このスピリットはブロックできません"

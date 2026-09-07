@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -857,6 +857,10 @@ export function validateAttack(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためアタックできません"
     }
+    // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）：相手が指定したコストのスピリットはアタックできない
+    if (instCantAttackByOpponentCost(state, pid, inst)) {
+        return "コストによりアタックできません"
+    }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
@@ -988,6 +992,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
         if (instCostCantAct(state, inst)) continue
+        // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
+        if (instCantAttackByOpponentCost(state, pid, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)

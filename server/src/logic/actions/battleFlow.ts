@@ -1181,6 +1181,49 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             )
             return
         }
+        // BS12-057ハイドランディア：count指定時は「コスト2のスピリットカード3枚」のような
+        // 枚数指定で複数枚を召喚する（costBudgetと違いcostFilterが有効。コスト最大から貪欲に選ぶ
+        // 決定的簡略化、count枚に満たなければ可能な分だけ。対象選択を伴わないため
+        // choseCardIndex / interactiveTargets 分岐は不要）
+        if (action.count !== undefined) {
+            let remaining = action.count
+            const summonedNames: string[] = []
+            while (remaining > 0) {
+                let bestIndex = -1
+                let bestCost = -1
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    const candidateId = player.trashCards[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const candidate = getCard(candidateId)
+                    if (minLevelCores(candidate) > player.reserve) continue
+                    if (candidate.cost > bestCost) {
+                        bestCost = candidate.cost
+                        bestIndex = i
+                    }
+                }
+                if (bestIndex === -1) break
+                const cardId = player.trashCards[bestIndex]!
+                const cardData = getCard(cardId)
+                const maintain = minLevelCores(cardData)
+                player.trashCards.splice(bestIndex, 1)
+                player.reserve -= maintain
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.spirits.push(inst)
+                summonedNames.push(cardData.name)
+                remaining -= 1
+                if (!state.winner) resolveTensho(state, owner, inst)
+                if (state.pendingChoice) break
+            }
+            if (summonedNames.length === 0) {
+                log(state, `${sourceName}：召喚できる対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
+            )
+            return
+        }
         if (chosenCardIndex !== undefined) {
             summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
             return
@@ -1628,6 +1671,84 @@ const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> =
     log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
 }
 
+// BS12-058【合体時】：フィールドイベント（ownMagicUsed。「その効果発揮後」）が渡すtargetInstanceIdの
+// 対象1体の実効BPを、このバトルの間amountに固定する（器J）。BS12-037はanySpiritAttackedのselfOverride＝
+// アタックしたスピリットがそのままtargetInstanceIdとして渡る
+const setBattleBpFixedHandler: ActionHandler<"setBattleBpFixed"> = (ctx, action) => {
+    const { state, sourceName, targetInstanceId } = ctx
+    const inst =
+        targetInstanceId === undefined
+            ? undefined
+            : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].find(
+                  (s) => s.instanceId === targetInstanceId,
+              )
+    if (!inst) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    inst.battleBpFixed = action.amount
+    log(state, `${getCard(inst.cardId).name}のBPは、このバトルの間${action.amount}として扱う。`)
+}
+
+// BS12-038オリンピアの天使ファレグ：markCantBlockThisBattleの**ターン限定・複数体版**（器YB）。
+// counterで体数を解決し、1体選ぶたびにremainingを1減らして自分自身へ再帰する（対話時はrequestChoiceが
+// 選択結果を持ってこのハンドラをtargetInstanceId付きで再開する。markCantBlockThisBattleの単発版を繰り返しに拡張した形）
+const markCantBlockThisTurnHandler: ActionHandler<"markCantBlockThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    // targetInstanceIdが渡された＝直前のrequestChoiceで1体選ばれた
+    if (targetInstanceId !== undefined) {
+        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+        if (found) {
+            found.cantBlockThisTurn = true
+            log(state, `${getCard(found.cardId).name}は、このターンの間ブロックできない。`)
+        } else {
+            log(state, `${sourceName}：対象がいなかった。`)
+        }
+        const rest = (action.remaining ?? 1) - 1
+        if (rest > 0) {
+            ctx.resolve(
+                { type: "markCantBlockThisTurn", counter: action.counter, remaining: rest },
+                { sourceColors: srcColors, sourceType: srcType },
+            )
+        }
+        return
+    }
+    const remaining = action.remaining ?? countEffectCounter(state, owner, self, action.counter, srcType)
+    if (remaining <= 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：ブロックできなくする相手のスピリットを選んでください（残り${remaining}体）`,
+            candidates.map((s: CardInstance) => s.instanceId),
+            false,
+            { type: "markCantBlockThisTurn", counter: action.counter, remaining },
+            self,
+        )
+        return
+    }
+    // 非対話時は実効BP最大を自動選択（プレイヤー選択の決定的簡略化）
+    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
+        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+    )
+    chosen.cantBlockThisTurn = true
+    log(state, `${getCard(chosen.cardId).name}は、このターンの間ブロックできない。`)
+    if (remaining > 1) {
+        ctx.resolve(
+            { type: "markCantBlockThisTurn", counter: action.counter, remaining: remaining - 1 },
+            { sourceColors: srcColors, sourceType: srcType },
+        )
+    }
+}
+
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
@@ -1733,6 +1854,8 @@ const handlers = {
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
+    markCantBlockThisTurn: markCantBlockThisTurnHandler,
+    setBattleBpFixed: setBattleBpFixedHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,

@@ -2120,6 +2120,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 純粋述語なので、対象の CardInstance.treatedAsVanillaContinuous へ毎回再構築して反映する
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // chosenInstance（BS12-081メロディアスハープ）：陣営を問わず選んだ1体だけ
+                    if (effect.target === "chosenInstance") {
+                        const chosenId = source.lentChoiceInstanceId
+                        const chosen =
+                            chosenId === undefined
+                                ? undefined
+                                : (state.players.p1.field.spirits.find((s) => s.instanceId === chosenId) ??
+                                  state.players.p2.field.spirits.find((s) => s.instanceId === chosenId))
+                        if (chosen) chosen.treatedAsVanillaContinuous = true
+                        continue
+                    }
                     for (const spirit of player.field.spirits) {
                         if (
                             effect.familyFilter &&
@@ -2151,6 +2162,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 4か所が CardInstance.effectsDisabledContinuous を見て実際に発揮を止める
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // chosenInstance（BS12-081メロディアスハープ）：陣営を問わず選んだ1体だけ
+                    if (effect.target === "chosenInstance") {
+                        const chosenId = source.lentChoiceInstanceId
+                        const chosen =
+                            chosenId === undefined
+                                ? undefined
+                                : (state.players.p1.field.spirits.find((s) => s.instanceId === chosenId) ??
+                                  state.players.p2.field.spirits.find((s) => s.instanceId === chosenId))
+                        if (chosen) chosen.effectsDisabledContinuous = true
+                        continue
+                    }
                     const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
                     for (const spirit of state.players[targetPid].field.spirits) {
                         if (
@@ -3139,6 +3161,18 @@ export function countEffectCounter(
     // ownBraveSpirits：自分のフィールドでスピリット状態のブレイヴ数（BS12-004ドラゴン・フェゼント）
     if (counter === "ownBraveSpirits") {
         return state.players[owner].field.spirits.filter((s) => getCard(s.cardId).type === "brave").length
+    }
+    // battlingOpponentCombinedSymbols：selfが参加しているバトルの相手側が合体スピリットのときだけそのシンボル数（BS12-036星犬ポメラン）
+    if (counter === "battlingOpponentCombinedSymbols") {
+        if (!state.battle || !self) return 0
+        const otherId =
+            state.battle.attackerInstanceId === self.instanceId
+                ? state.battle.blockerInstanceId
+                : state.battle.attackerInstanceId
+        if (!otherId) return 0
+        const otherInst = state.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        if (!otherInst || !instIsCombined(otherInst)) return 0
+        return instanceSymbolCount(otherInst)
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {

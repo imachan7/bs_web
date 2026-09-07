@@ -44,11 +44,11 @@ console.log("=== U: globalConstraint noLifeDamageByCost（symbolCount+combinedOn
     const brave = createInstance(oneSymbolBrave!.cardId, s.turn, 0)
     attachBrave(s, "p1", host, brave)
     refreshLevelAsOverrides(s)
-    assert(noLifeDamageByCost(s, host) === true, "シンボル2つの合体スピリットのアタックはライフ保護される")
+    assert(noLifeDamageByCost(s, "p2", host) === true, "シンボル2つの合体スピリットのアタックはライフ保護される")
 
     const uncombined = createInstance(oneSymbolSpirit!.cardId, s.turn, 1)
     s.players.p1.field.spirits.push(uncombined)
-    assert(noLifeDamageByCost(s, uncombined) === false, "合体していなければ（シンボル1つ）保護されない")
+    assert(noLifeDamageByCost(s, "p2", uncombined) === false, "合体していなければ（シンボル1つ）保護されない")
 }
 
 console.log("=== W: globalConstraint coresCantBeRemovedByOpponent（相手の効果限定・カード名一致） ===")

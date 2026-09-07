@@ -86,6 +86,7 @@ import {
     braveKeepCores,
     cantSpiritStateBrave,
     coresCantBeRemoved,
+    hasDestroyAsMaxLevelGrant,
     coresToOpponentReserveGoToTrash,
     bravesOf,
     hostsOf,
@@ -546,6 +547,19 @@ export function destroySpirit(
     // deferCommit（呼び出し元が待機を管理している同じ破壊）は通す
     if (inst.pendingDestruction && !options?.skipRevive && !options?.deferCommit) return false
     const master = getCard(inst.cardId)
+
+    // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
+    // 効果でコアが0個になったとき」は、通常の維持コア割れ（cause:"deplete"＝消滅・onDestroy不発火）ではなく、
+    // 最高Lvとして破壊される（onDestroy誘発あり）。currentEffectSourceは resolveAction が効果解決中ずっと
+    // 立てているので、ここで「誰の・どの種別の効果の解決中か」を読める（EFFECT_SOURCE_CONTEXT.md）
+    if (cause === "deplete" && inst.cores === 0) {
+        const src = state.currentEffectSource
+        const bySpiritBraveOrMagic = src?.type === "spirit" || src?.type === "brave" || src?.type === "magic"
+        if (src !== undefined && src.pid !== ownerPid && bySpiritBraveOrMagic && hasDestroyAsMaxLevelGrant(state, ownerPid, inst)) {
+            inst.destroyAsMaxLevel = true
+            cause = "destroy"
+        }
+    }
 
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
@@ -1348,6 +1362,7 @@ function tryReviveOnDestroy(
 
     const matchesWhen = (when: {
         byOpponentEffect?: boolean
+        byOpponent?: boolean
         byBattleVsArmorColor?: boolean
         byBattle?: boolean
         byBattleKillerLevel?: number
@@ -1355,6 +1370,12 @@ function tryReviveOnDestroy(
     }): boolean => {
         if (when.byOpponentEffect) {
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
+        }
+        // 「相手によって破壊されたとき」＝相手の効果 **または** バトルのBP比較（BS12-X05）。
+        // 自分の効果で自分を破壊した場合は含まない
+        if (when.byOpponent) {
+            const byOppEffect = context?.sourcePid !== undefined && context.sourcePid !== ownerPid
+            if (!byOppEffect && context?.battle === undefined) return false
         }
         if (when.byBattleVsArmorColor) {
             const attackerColors = context?.battle?.attackerColors

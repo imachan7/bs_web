@@ -1787,6 +1787,45 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
         return
 }
 
+// BS12-037オリンピアの天使ベトールLv2-3：selfCoreToOwnLifeの「このスピリット」限定を、
+// 「自分のフィールドのコア」＝場のどこからでもよい版に広げたもの。ネクサス（コア最多）を優先し、
+// 足りなければスピリット（実効BP最小）から取る。スピリットから取って維持コアを割ったら消滅処理を通す
+const fieldCoreToLifeHandler: ActionHandler<"fieldCoreToLife"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    let remaining = action.count
+    let moved = 0
+    while (remaining > 0) {
+        const nexusCandidates = player.field.nexuses.filter((n) => n.cores > 0)
+        if (nexusCandidates.length > 0) {
+            const target = nexusCandidates.reduce((most, n) => (n.cores > most.cores ? n : most))
+            const taken = Math.min(remaining, target.cores)
+            target.cores -= taken
+            remaining -= taken
+            moved += taken
+            continue
+        }
+        const spirits = player.field.spirits.filter((s) => s.cores > 0)
+        if (spirits.length === 0) break
+        const target = spirits.reduce((worst, s) =>
+            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+        )
+        const taken = Math.min(remaining, target.cores)
+        target.cores -= taken
+        remaining -= taken
+        moved += taken
+        if (target.cores < instMinLevelCores(target)) {
+            destroySpirit(state, owner, target.instanceId, "deplete")
+        }
+    }
+    if (moved === 0) {
+        log(state, `${sourceName}：フィールドに置けるコアがなかった。`)
+        return
+    }
+    player.life += moved
+    log(state, `${player.name}は自分のフィールドのコア${moved}個をライフに置いた。（現在ライフ${player.life}）`)
+}
+
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -2555,6 +2594,7 @@ const handlers = {
     voidCoreToOwnTrash: voidCoreToOwnTrashHandler,
     lifeCharge: lifeChargeHandler,
     selfCoreToOwnLife: selfCoreToOwnLifeHandler,
+    fieldCoreToLife: fieldCoreToLifeHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
     voidCoresToNexusLevel: voidCoresToNexusLevelHandler,
     opponentNexusOrReserveCoreToTrash: opponentNexusOrReserveCoreToTrashHandler,

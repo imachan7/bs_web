@@ -406,6 +406,9 @@ export function fireTrigger(
                 // BS10-047赤ずきん妖精ルージュLv3：直前のアタック宣言が発生源の持ち主自身の
                 // 合体スピリットによるものだったときのみ発火（doAttackがスライドさせるprevAttackerCombinedPid）
                 if (state.prevAttackerCombinedPid !== owner) return false
+            } else if ("ownLifeAtMost" in effect.condition) {
+                // BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主のライフがこの数以下のときのみ発火
+                if (state.players[owner].life > effect.condition.ownLifeAtMost) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -1026,6 +1029,13 @@ export function fireFieldEventTriggers(
                 effect.maxBp !== undefined &&
                 (selfOverride === undefined ||
                     effectiveBp(state, selfOverride.pid, selfOverride.inst) > effect.maxBp)
+            ) {
+                continue
+            }
+            // アタックしたスピリット（selfOverride）のシンボル数で絞る（BS12-037オリンピアの天使ベトール：シンボル2つ）
+            if (
+                effect.symbolCount !== undefined &&
+                (selfOverride === undefined || instanceSymbolCount(selfOverride.inst) !== effect.symbolCount)
             ) {
                 continue
             }

@@ -2185,6 +2185,421 @@
     "effects": []
   },
   {
+    "cardId": "BS12-034",
+    "name": "天文学者ペンタン",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 2,
+    "reduction": [
+      "yellow"
+    ],
+    "family": [
+      "歌鳥",
+      "漂精"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のスタートステップ』\nこのターンの間、系統：「歌鳥」を持つ自分のスピリットすべてに、系統：「星魂」を与える。",
+    "effects": [
+      {
+        "id": "BS12-034-e1",
+        "kind": "step",
+        "step": "start",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS12-034-e1-cont",
+        "kind": "familyGrant",
+        "levels": null,
+        "target": "ownAll",
+        "family": "星魂",
+        "familyFilter": [
+          "歌鳥"
+        ],
+        "lentOnly": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-035",
+    "name": "オリンピアの天使フル",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow"
+    ],
+    "family": [
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの破壊時』\nこのスピリットのコア1個を自分のライフに置くことができる。",
+    "effects": [
+      {
+        "id": "BS12-035-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "selfCoreToOwnLife",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-036",
+    "name": "星犬ポメラン",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow",
+      "white"
+    ],
+    "family": [
+      "戯狩",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nバトルしている相手の合体スピリットのシンボル1つにつき、このスピリットをBP+3000する。",
+    "effects": [
+      {
+        "id": "BS12-036-e1",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "selfBuffPer",
+          "counter": "battlingOpponentCombinedSymbols",
+          "amountPer": 3000
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-037",
+    "name": "オリンピアの天使ベトール",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nシンボル2つを持つ相手のスピリットがアタックしたとき、そのバトルの間、そのスピリットのLv1/Lv2/Lv3BPを2000として扱う。\nLv2･Lv3『お互いのアタックステップ』\n系統：「天霊」を持つ自分のスピリットが破壊されたとき、自分のフィールドのコア1個を自分のライフに置くことができる。",
+    "effects": [
+      {
+        "id": "BS12-037-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "subjectSide": "opponent",
+        "phase": "attack",
+        "turn": "opponent",
+        "symbolCount": 2,
+        "action": {
+          "type": "setBattleBpFixed",
+          "amount": 2000
+        }
+      },
+      {
+        "id": "BS12-037-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "familyFilter": [
+          "天霊"
+        ],
+        "phase": "attack",
+        "optional": true,
+        "action": {
+          "type": "fieldCoreToLife",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-038",
+    "name": "オリンピアの天使ファレグ",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「天霊」を持つ自分のスピリット1体につき、相手のスピリット1体を指定する。\nこのターンの間、指定された相手のスピリットすべてはブロックできない。\nLv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+    "effects": [
+      {
+        "id": "BS12-038-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "markCantBlockThisTurn",
+          "counter": {
+            "ownFamily": "天霊"
+          }
+        }
+      },
+      {
+        "id": "BS12-038-e2",
+        "kind": "keyword",
+        "keyword": "seimei",
+        "levels": [
+          3
+        ]
+      },
+      {
+        "id": "BS12-038-e3",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-039",
+    "name": "導化姫トリックスター",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "道化",
+      "導魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": true,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローし、自分のトラッシュにあるカード1枚を手札に戻す。\nLv2『このスピリットのブロック時』\nバトルしている回復状態の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS12-039-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS12-039-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "recoverSpiritFromTrash",
+          "count": 1,
+          "anyCardType": true
+        }
+      },
+      {
+        "id": "BS12-039-e3",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "refreshed": true
+          }
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-041",
     "name": "スタッガー",
     "type": "spirit",
@@ -2852,6 +3267,142 @@
     ]
   },
   {
+    "cardId": "BS12-057",
+    "name": "ハイドランディア",
+    "type": "brave",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 2,
+    "reduction": [],
+    "family": [
+      "楽族"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにあるコスト2のスピリットカード3枚をコストを支払わずに召喚する。\n合体条件：コスト2以上\n【合体時】\n相手のスピリット/ブレイヴ/マジックの効果でこのスピリットのコアが0個になったとき、このスピリットは最高Lvとして破壊される。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveConditionText": "コスト2以上",
+    "braveCondition": {
+      "minCost": 2
+    },
+    "effects": [
+      {
+        "id": "BS12-057-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "summonFromTrashFree",
+          "costFilter": {
+            "max": 2,
+            "min": 2
+          },
+          "count": 3
+        }
+      },
+      {
+        "id": "BS12-057-e2",
+        "kind": "destroyAsMaxLevelGrant",
+        "levels": null,
+        "target": "self",
+        "whileCombined": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-058",
+    "name": "神聖鳥サンダ・バード",
+    "type": "brave",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "white",
+      "white"
+    ],
+    "family": [
+      "戯狩"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにあるマジックカード1枚を手札に戻す。\n合体条件：神星/光導/星魂\n【合体時】『このスピリットの合体アタック時』\n自分がマジックカードを使用したとき、その効果発揮後、このバトルの間、ブロックしている相手のスピリットのLv1/Lv2/Lv3BPを2000として扱う。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "神星/光導/星魂",
+    "braveCondition": [
+      {
+        "family": "神星"
+      },
+      {
+        "family": "光導"
+      },
+      {
+        "family": "星魂"
+      }
+    ],
+    "effects": [
+      {
+        "id": "BS12-058-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "recoverMagicFromTrash"
+        }
+      },
+      {
+        "id": "BS12-058-e2",
+        "kind": "fieldEvent",
+        "event": "ownMagicUsed",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "setBattleBpFixed",
+          "amount": 2000
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-061",
     "name": "剣の誕生地",
     "type": "nexus",
@@ -3387,6 +3938,138 @@
     ]
   },
   {
+    "cardId": "BS12-069",
+    "name": "定規山脈",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n相手のスピリット/ブレイヴ/マジックの効果で自分のスピリットのコアが0個になったとき、そのスピリットは最高Lvとして破壊される。\nLv2『相手のアタックステップ』\nシンボル2つを持つ相手のスピリットのアタックでは、自分のライフは減らない。",
+    "effects": [
+      {
+        "id": "BS12-069-e1",
+        "kind": "destroyAsMaxLevelGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll"
+      },
+      {
+        "id": "BS12-069-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": {
+          "type": "noLifeDamageByCost",
+          "symbolCount": 2,
+          "ownOnly": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-070",
+    "name": "天の階",
+    "type": "nexus",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2\n系統：「天霊」を持つ自分のスピリットが召喚されたとき、自分のトラッシュにある系統：「天霊」を持つコスト4以下のスピリットカード1枚を手札に戻す。\nLv2\n自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、自分のライフは0にならない。",
+    "effects": [
+      {
+        "id": "BS12-070-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          1,
+          2
+        ],
+        "familyFilter": [
+          "天霊"
+        ],
+        "action": {
+          "type": "recoverSpiritFromTrash",
+          "count": 1,
+          "familyFilter": [
+            "天霊"
+          ],
+          "costFilter": {
+            "max": 4
+          }
+        }
+      },
+      {
+        "id": "BS12-070-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": {
+          "type": "ownLifeFloor",
+          "floor": 1
+        },
+        "condition": {
+          "ownFamilyCountAtLeast": {
+            "family": [
+              "天霊"
+            ],
+            "count": 5
+          }
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-073",
     "name": "ネクサスコラプス",
     "type": "magic",
@@ -3710,6 +4393,105 @@
         "action": {
           "type": "grantSymbolLossThisTurn",
           "side": "opponent"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-081",
+    "name": "メロディアスハープ",
+    "type": "magic",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "reduction": [
+      "yellow"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、スピリット1体は効果すべてを失い、新たに得ることもない。\nそのスピリットは効果の記述を持たないスピリットとして扱う。",
+    "effects": [
+      {
+        "id": "BS12-081-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "targetChoiceLendThisTurn"
+        }
+      },
+      {
+        "id": "BS12-081-e2",
+        "kind": "spiritEffectsDisabledGrant",
+        "levels": null,
+        "lentOnly": true,
+        "target": "chosenInstance"
+      },
+      {
+        "id": "BS12-081-e3",
+        "kind": "vanillaAsGrant",
+        "levels": null,
+        "lentOnly": true,
+        "target": "chosenInstance"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-082",
+    "name": "セブンスヘヴン",
+    "type": "magic",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "トラッシュにあるこのマジックカードは、一切の効果を受けない。\nメイン：\n自分のライフが7になるように、ボイドからコアを置く。\nこの効果は、自分のフィールドに系統：「天霊」を持つスピリットが7体以上いないと使えない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+5000する。",
+    "effects": [
+      {
+        "id": "BS12-082-e1",
+        "kind": "trashImmunity"
+      },
+      {
+        "id": "BS12-082-e2",
+        "kind": "magic",
+        "timing": "main",
+        "condition": {
+          "ownFamilyCountAtLeast": {
+            "family": "天霊",
+            "count": 7
+          }
+        },
+        "action": {
+          "type": "lifeCharge",
+          "count": 0,
+          "from": "void",
+          "upTo": 7
+        }
+      },
+      {
+        "id": "BS12-082-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 5000,
+          "anySide": true
         }
       }
     ]
@@ -4080,6 +4862,107 @@
           "type": "returnToHand",
           "count": 1,
           "maxBpFromSelf": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-X05",
+    "name": "戦神乙女ヴィエルジェ",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 6,
+    "reduction": [
+      "yellow",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "光導",
+      "天霊"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のライフが5以下のとき、ボイドからコア1個を自分のライフに置く。\nLv1･Lv2･Lv3『相手のアタックステップ』\nコスト2/3/5/7/11の相手のスピリットはアタックできない。\nLv2･Lv3\n系統：「光導」/「天霊」を持つ自分のスピリットすべては、相手によって破壊されたとき手札に戻る。",
+    "effects": [
+      {
+        "id": "BS12-X05-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "condition": {
+          "ownLifeAtMost": 5
+        },
+        "optional": false,
+        "action": {
+          "type": "lifeCharge",
+          "count": 1,
+          "from": "void"
+        }
+      },
+      {
+        "id": "BS12-X05-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "opponentCantAttackByCost",
+          "costs": [
+            2,
+            3,
+            5,
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "id": "BS12-X05-e3",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "scope": "ownAll",
+        "familyFilter": [
+          "光導",
+          "天霊"
+        ],
+        "when": {
+          "byOpponent": true
+        },
+        "revived": {
+          "toHand": true
         }
       }
     ]

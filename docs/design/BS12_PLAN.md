@@ -1,7 +1,7 @@
 # BS12「星座編 第三弾：月の咆哮」の取り込み計画
 
 - 取り込み: 2026-09-03（`data/staging/BS12.json`。91枚）
-- 進捗: **63 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚、バッチ2＝紫14枚、バッチ3＝緑14枚、バッチ4＝白12枚）
+- 進捗: **76 / 91枚 投入済み**（バッチ0＝器 A/B/D、赤15／紫14／緑14／白12／黄13枚）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色2枚：BS12-040 黄白 / X008 赤白）
 - 弾の `refer` は **「星座編 第三弾：月の咆哮」**（Wiki のカードリストから確定）
 - 関連: [BS11_PLAN.md](./BS11_PLAN.md)／[BRAVE.md](./BRAVE.md)
@@ -171,6 +171,21 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 バトルしている相手のシンボル数カウンタ（036）／コスト配列でのアタック禁止（X05 Lv2）。
 
 **034 の「系統：「星魂」を与える」は既存 `familyGrant` で足りる**（2026-09-07 調査。ターン限定にする軸だけ確認する）。
+
+
+バッチ5（黄）で確定した器: 「Lv1/Lv2/Lv3BPを2000として扱う」＝`setBattleBpFixed`（`CardInstance.battleBpFixed`。
+`effectiveBp` が最優先で返すので**対象条件からも2000に見える**）／「コア0で最高Lv破壊」＝`destroyAsMaxLevelGrant`
+（`destroySpirit` が `destroyAsMaxLevel` を立て、`currentLevel` が最大Lvを返す）／`globalConstraint: ownLifeFloor`／
+`markCantBlockThisTurn`／EffectCounter `battlingOpponentCombinedSymbols`／`globalConstraint: opponentCantAttackByCost`。
+
+**「相手によって破壊されたとき」と「相手の効果で破壊されたとき」は書き分けられている**（2026-09-07 ユーザー確認）。
+前者は**相手の効果による破壊 または バトルのBP比較による破壊**で、`reviveOnDestroy.when.byOpponent`。
+後者は効果だけで、既存の `when.byOpponentEffect`（チャガマル／紫水晶の森／ブラックリチュアルの3枚はすべて
+「相手のスピリット/ネクサス/マジックの**効果で**」と明記している）。同じ弾の BS12-023 が「効果で」、
+BS12-X05 が「相手によって」と書き分けているのが根拠。
+
+**「コア0で最高Lv破壊」の発火は `currentEffectSource` を見る**（`DestroyContext` ではない。EFFECT_SOURCE_CONTEXT.md）。
+テストから起こすときは `state.currentEffectSource` を立ててから `destroySpirit(..., "deplete")` を呼ぶ。
 
 ## 7. バッチ6（青）の下ごしらえ（設計のみ。実装は黄バッチの後）
 
