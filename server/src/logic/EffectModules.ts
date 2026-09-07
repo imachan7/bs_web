@@ -932,6 +932,23 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
     return total
 }
 
+// 発生源の持ち主（targetPid）の**手札**が、相手のスピリット/ブレイヴ/マジックの効果を受けないか
+// （globalConstraint:"handImmuneForPid"。ネクサスの効果は防がない＝sourceType:"nexus"は素通しする。
+// BS12-067月光集める塔Lv1）。discardOpponent等の手札を対象に取る処理の冒頭で呼ぶ
+export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType: CardType | undefined): boolean {
+    if (sourceType === "nexus") return false
+    for (const source of effectSources(state, targetPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "handImmuneForPid") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true
+        }
+    }
+    return false
+}
+
 // 持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
 // funsaiBonusTotal と同じ考え方（effectSources経由でlendSelfThisTurnによる貸与にも対応）
 function bofuCountBonusFor(state: GameState, ownerPid: PlayerId): number {
@@ -1926,6 +1943,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
             delete inst.symbolsForSummonReduction
             delete inst.armorColorsGranted
             delete inst.heavyArmorColorsGranted
+            delete inst.braveImmuneAll
+            delete inst.braveImmuneMatchArmorColors
+            delete inst.grantedMagicNegate
             delete inst.alsoCostsContinuous
             delete inst.costDeltaContinuous
             delete inst.alsoCostsWhenDestroyed
@@ -2047,6 +2067,37 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
+                if (effect.kind === "braveImmuneGrant") {
+                    // 第3の耐性軸（BS12初出）：相手のブレイヴの効果を受けない。target:"self"は発生源自身、
+                    // target:"ownAll"は持ち主のスピリットすべて（colorFilter/keywordFilter/phase/turnで絞る）
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                    if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                    if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                    const targets = effect.target === "self" ? [source] : player.field.spirits
+                    for (const spirit of targets) {
+                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
+                        if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (effect.scope === "all") spirit.braveImmuneAll = true
+                        else spirit.braveImmuneMatchArmorColors = true
+                    }
+                    continue
+                }
+                if (effect.kind === "effectEntryGrant") {
+                    // 誘発でなく効果エントリ本体を継続付与する（BS12-068光の聖剣Lv1）。
+                    // grantedMagicNegateへ積み、triggers.findMagicNegateSourceがcard自身のeffectsと合わせて走査する
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (
+                            effect.keywordFilterAny &&
+                            !effect.keywordFilterAny.some((k) => spiritHasKeyword(state, pid, spirit, k))
+                        ) {
+                            continue
+                        }
+                        ;(spirit.grantedMagicNegate ??= []).push(effect.granted)
+                    }
+                    continue
+                }
                 if (effect.kind === "keyword" && effect.keyword === "heavyArmor" && effect.colorsFrom === "selfColors") {
                     // 【重装甲：可変】＝「このスピリットの色の相手の効果を受けない」（BS12-X04 月光神龍ルナテック・
                     // ストライクヴルム）。**付与色も含めて毎回算出する**（2026-09-03 ユーザー確認。BS12-027 Lv2 が
@@ -2142,7 +2193,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
                     const targets = effect.target === "ownAll" ? player.field.spirits : [source]
+                    if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                    if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     for (const target of targets) {
+                        if (effect.nameIncludes !== undefined && !cardNameContains(target, effect.nameIncludes)) continue
                         if (!target.colorsAsContinuous) target.colorsAsContinuous = []
                         for (const c of effect.colors) {
                             if (!target.colorsAsContinuous.includes(c)) target.colorsAsContinuous.push(c)
@@ -2398,6 +2452,33 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                         }
                     }
+                }
+            }
+        }
+    }
+    // ---- 2パス目：armorEffectiveGrant（BS12-031メカニフォンLv2） ----
+    // 「このスピリットが持つ【装甲】（付与された分も含めた実効の色）を自分のスピリットすべてに与える」。
+    // ①の静的＋通常付与（armorColorsGranted/heavyArmorColorsGrantedの再構築）が全て終わったあとに
+    // 発生源自身の実効【装甲】色を算出して配る（②は①の結果だけを読み、②が書いた結果は読まない＝循環回避）
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const source of effectSources(state, pid)) {
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "armorEffectiveGrant") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
+                const level = currentLevel(source).level
+                const ownArmorColors: Color[] = []
+                for (const e of getCard(source.cardId).effects) {
+                    if (e.kind !== "keyword" || e.keyword !== "armor") continue
+                    if (!effectActiveAtLevel(e.levels, level)) continue
+                    for (const c of e.colors ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
+                }
+                for (const c of source.armorColorsGranted ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
+                if (ownArmorColors.length === 0) continue
+                for (const spirit of player.field.spirits) {
+                    const granted = (spirit.armorColorsGranted ??= [])
+                    for (const c of ownArmorColors) if (!granted.includes(c)) granted.push(c)
                 }
             }
         }

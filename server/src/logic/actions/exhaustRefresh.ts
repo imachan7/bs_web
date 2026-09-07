@@ -797,6 +797,21 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
             )
         }
+        // costSelfCoresToTrash（BS12-032蹴激皇ヴィーザル）：costSelfCoresToVoidのトラッシュ版。
+        // 自身のコアを持ち主のトラッシュへ置く。支払うとLv1コア数を下回るなら不発
+        if (action.costSelfCoresToTrash !== undefined) {
+            const minCores = instMinLevelCores(self)
+            if (self.cores - action.costSelfCoresToTrash < minCores) {
+                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
+                return
+            }
+            self.cores -= action.costSelfCoresToTrash
+            state.players[owner].trashCores += action.costSelfCoresToTrash
+            log(
+                state,
+                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToTrash}個を自分のトラッシュに置いた。`,
+            )
+        }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return

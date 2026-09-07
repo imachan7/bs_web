@@ -1625,6 +1625,65 @@
     ]
   },
   {
+    "cardId": "BS12-025",
+    "name": "ザニーガン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "武装",
+      "空魚"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nこのスピリットは赤のスピリットとしても扱う。\nLv2【重装甲：赤】\nこのスピリットは、相手の赤のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS12-025-e1",
+        "kind": "colorAs",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "red"
+        ]
+      },
+      {
+        "id": "BS12-025-e2",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "red"
+        ]
+      }
+    ]
+  },
+  {
     "cardId": "BS12-026",
     "name": "ウリボーグ",
     "type": "spirit",
@@ -1659,6 +1718,221 @@
     "limited": false,
     "effect": "",
     "effects": []
+  },
+  {
+    "cardId": "BS12-027",
+    "name": "近衛機クリザンテMk-VIII",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2\nコスト0/1/3のスピリットのアタックでは、お互いのライフは減らされない。\nLv1･Lv2【重装甲：紫】\nこのスピリットは、相手の紫のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2『相手のターン』\n自分の[月光神龍ルナテック・ストライクヴルム]すべてを紫/緑のスピリットとしても扱う。",
+    "effects": [
+      {
+        "id": "BS12-027-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noLifeDamageByCost",
+          "costs": [
+            0,
+            1,
+            3
+          ]
+        }
+      },
+      {
+        "id": "BS12-027-e2",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "purple"
+        ]
+      },
+      {
+        "id": "BS12-027-e3",
+        "kind": "colorAs",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "colors": [
+          "purple",
+          "green"
+        ],
+        "nameIncludes": "月光神龍ルナテック・ストライクヴルム",
+        "turn": "opponent"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-028",
+    "name": "セイルフィッシュ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "空魚",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【重装甲：白】\nこのスピリットは、相手の白のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2『相手のメインステップ』\n自分の白のスピリットすべては、相手のブレイヴの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS12-028-e1",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "white"
+        ]
+      },
+      {
+        "id": "BS12-028-e2",
+        "kind": "braveImmuneGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "scope": "all",
+        "colorFilter": "white",
+        "phase": "main",
+        "turn": "opponent"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-029",
+    "name": "氷の淑女スノトラ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "yellow"
+    ],
+    "family": [
+      "氷姫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【氷壁：緑/黄】『相手のターン』\n相手が緑/黄のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2【装甲：紫/白】\nこのスピリットは、相手の紫/白のスピリット/ネクサス/マジックの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS12-029-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS12-029-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "green",
+          "yellow"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "BS12-029-e3",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "purple",
+          "white"
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS12-030",
@@ -1725,6 +1999,153 @@
             "phase": "attack",
             "turn": "opponent"
           }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-031",
+    "name": "メカニフォン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【装甲：緑】\nこのスピリットは、相手の緑のスピリット/ネクサス/マジックの効果を受けない。\n【合体時】Lv2\n自分のスピリットすべてにこのスピリットが持つ【装甲】を与える。",
+    "effects": [
+      {
+        "id": "BS12-031-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "green"
+        ]
+      },
+      {
+        "id": "BS12-031-e2",
+        "kind": "armorEffectiveGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "whileCombined": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-032",
+    "name": "蹴激皇ヴィーザル",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 7,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【氷壁：紫/緑/白/黄】『相手のターン』\n相手が紫/緑/白/黄のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2･Lv3\nこのスピリットの【氷壁】の効果を使用したとき、このスピリット上のコア1個を自分のトラッシュに置くことで、このスピリットは回復する。",
+    "effects": [
+      {
+        "id": "BS12-032-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS12-032-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "purple",
+          "green",
+          "white",
+          "yellow"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "BS12-032-e3",
+        "kind": "fieldEvent",
+        "event": "ownHyohekiUsed",
+        "levels": [
+          2,
+          3
+        ],
+        "eventTargetIsSelf": true,
+        "optional": true,
+        "action": {
+          "type": "refreshSelf",
+          "costSelfCoresToTrash": 1
         }
       }
     ]
@@ -2292,6 +2713,145 @@
     ]
   },
   {
+    "cardId": "BS12-055",
+    "name": "ゲッコ・グライダー",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "yellow"
+    ],
+    "family": [
+      "甲竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、このブレイヴと合体しているスピリットはブロックされない。\n合体条件：神星/光導/星魂\n【合体時】【重装甲：紫/黄】\nこのスピリットは、相手の紫/黄のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "神星/光導/星魂",
+    "braveCondition": [
+      {
+        "family": "神星"
+      },
+      {
+        "family": "光導"
+      },
+      {
+        "family": "星魂"
+      }
+    ],
+    "effects": [
+      {
+        "id": "BS12-055-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "grantHostUnblockableThisTurn"
+        }
+      },
+      {
+        "id": "BS12-055-e2",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          1
+        ],
+        "whileCombined": true,
+        "colors": [
+          "purple",
+          "yellow"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-056",
+    "name": "ジェット・レイ",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装",
+      "空魚"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "手札にあるこのブレイヴカードは、相手のスピリットによって自分のライフが減ったとき、自分のライフが3以下なら、コストを支払わずに召喚できる。\n合体条件：コスト5以上\n【合体時】『このスピリットのブロック時』\n相手のスピリット2体を疲労させる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [
+      {
+        "id": "BS12-056-e1",
+        "kind": "freeSummonFromHandOnLifeDamaged",
+        "levels": null,
+        "condition": {
+          "ownLifeAtMost": 3
+        }
+      },
+      {
+        "id": "BS12-056-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          1
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 2
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-061",
     "name": "剣の誕生地",
     "type": "nexus",
@@ -2684,6 +3244,135 @@
     ]
   },
   {
+    "cardId": "BS12-067",
+    "name": "月光集める塔",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2\n自分の手札は相手のスピリット/ブレイヴ/マジックの効果を受けない。\nLv2\n【装甲】を持つ自分のスピリットすべては、その【装甲】と同じ色の相手のブレイヴの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS12-067-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "handImmuneForPid"
+        }
+      },
+      {
+        "id": "BS12-067-e2",
+        "kind": "braveImmuneGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "scope": "matchArmorColors",
+        "keywordFilter": "armor"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-068",
+    "name": "光の聖剣",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n【装甲】/【重装甲】を持つ自分のスピリットすべてに“【氷壁：紫/白】『相手のターン』相手が紫/白のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする”という効果を与える。\nLv2\n自分の合体スピリットが破壊されたとき、その合体スピリットのブレイヴを残し、スピリットだけを手札に戻す。",
+    "effects": [
+      {
+        "id": "BS12-068-e1",
+        "kind": "effectEntryGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "keywordFilterAny": [
+          "armor",
+          "heavyArmor"
+        ],
+        "granted": {
+          "id": "BS12-068-e1-granted",
+          "kind": "magicNegate",
+          "levels": null,
+          "cost": {
+            "exhaustSelf": true
+          },
+          "colors": [
+            "purple",
+            "white"
+          ],
+          "turn": "opponent"
+        }
+      },
+      {
+        "id": "BS12-068-e2",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2
+        ],
+        "scope": "ownAll",
+        "combinedOnly": true,
+        "when": {},
+        "revived": {
+          "toHand": true
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-073",
     "name": "ネクサスコラプス",
     "type": "magic",
@@ -2941,6 +3630,72 @@
           "type": "bpBuff",
           "amount": 3000,
           "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-079",
+    "name": "アブソリュートストライク",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のスピリットを好きなだけ指定する。\nこのターンの間、指定されたスピリットすべては可能ならば必ずアタックする。\nこの効果は、自分のフィールドにカード名に「ストライク」と入っているスピリットがいないと使えない。",
+    "effects": [
+      {
+        "id": "BS12-079-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "forceAttackThisTurn",
+          "side": "opponent",
+          "count": "any",
+          "requireOwnNameIncludes": "ストライク"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-080",
+    "name": "バキュームシンボル",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\n色1色を指定する。\nこのターンの間、相手のスピリットすべては指定した色のシンボル1つを失う。\nこの効果は、『自分のターン』で使えない。",
+    "effects": [
+      {
+        "id": "BS12-080-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "ownTurnForbidden": true,
+        "action": {
+          "type": "grantSymbolLossThisTurn",
+          "side": "opponent"
         }
       }
     ]

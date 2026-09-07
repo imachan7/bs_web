@@ -18,6 +18,7 @@ import {
     instHasColor,
     instHasCost,
     instColors,
+    bravesOf,
     instIsCombined,
     instIsVanilla,
     instMatchesCostFilter,
@@ -109,6 +110,14 @@ export function canBlock(
             if (c.type !== "unblockableByLevelThisTurn" || c.pid !== attackerPid) continue
             if (c.levels.includes(currentLevel(blockerInst).level)) {
                 return `このスピリットはLv${c.levels.join("/")}のスピリットにブロックされません`
+            }
+        }
+        // BS12-055ゲッコ・グライダー『このブレイヴの召喚時』：このターンの間、このブレイヴといま
+        // 合体しているホストはブロックされない（毎回いまのホストをbravesOf経由で引き直す。分離したら効かない）
+        for (const c of board.turnConstraints) {
+            if (c.type !== "braveHostUnblockableThisTurn" || c.pid !== attackerPid) continue
+            if (bravesOf(board.players[attackerPid], attackerInst).some((b) => b.instanceId === c.braveInstanceId)) {
+                return "このスピリットはブロックされません"
             }
         }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {

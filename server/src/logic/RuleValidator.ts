@@ -577,6 +577,14 @@ export function validateCastMagic(
         }
     }
 
+    // ownTurnForbidden（BS12-080バキュームシンボル）：発生源の持ち主のターン中はこのマジックを使用できない。
+    // battle/main どちらの経路から使おうとしていても、使用宣言そのものを拒否する
+    if (
+        state.turnPlayer === pid &&
+        card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.ownTurnForbidden)
+    ) {
+        return "このマジックは自分のターンでは使用できません"
+    }
     if (state.battle) {
         // バトル中のフラッシュ：優先権を持つプレイヤーのみ（攻撃側も優先権があれば使用可）
         if (!state.isFlashTiming) return "フラッシュタイミングは終了しています"

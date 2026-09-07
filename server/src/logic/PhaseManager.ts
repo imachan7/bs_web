@@ -233,6 +233,7 @@ export function endTurn(state: GameState): void {
             delete inst.unblockableOnceThisTurn
             delete inst.countAsThisTurn
             delete inst.tempGrantedTriggers
+            delete inst.tempSymbolLoss
         }
     }
     // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。

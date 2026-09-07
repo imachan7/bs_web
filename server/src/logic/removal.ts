@@ -109,6 +109,7 @@ import {
     instEffectsSuppressed,
     instHasColor,
     instHasCost,
+    instIsCombined,
     isUntargetableByOpponent,
     instIsVanilla,
     isVirtualSource,
@@ -1650,6 +1651,8 @@ function tryReviveOnDestroy(
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
+            // BS12-068光の聖剣Lv2：合体スピリットのみ対象
+            if (effect.combinedOnly && !instIsCombined(inst)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesReviveCondition(effect.condition)) continue

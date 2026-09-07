@@ -1583,8 +1583,15 @@ export function findMagicNegateSource(
     for (const inst of effectSources(state, defenderPid)) {
         const level = currentLevel(inst).level
         const isHyoheki = hasKeyword(inst.cardId, "hyoheki")
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "magicNegate") continue
+        // grantedMagicNegate（kind:"effectEntryGrant"。BS12-068光の聖剣Lv1）：継続付与された
+        // magicNegateエントリもcard自身のeffectsと合わせて走査する（levelsは常に有効扱い）
+        const entries: Extract<EffectDef, { kind: "magicNegate" }>[] = [
+            ...getCard(inst.cardId).effects.filter(
+                (e): e is Extract<EffectDef, { kind: "magicNegate" }> => e.kind === "magicNegate",
+            ),
+            ...(inst.grantedMagicNegate ?? []),
+        ]
+        for (const effect of entries) {
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 【氷壁】を持つスピリットだけ、発揮タイミングを置き換えられる
@@ -1631,6 +1638,11 @@ function payMagicNegate(
             log(state, `${getCard(found.nexusPayer.cardId).name}（ネクサス）を代わりに疲労させた。`)
         } else {
             exhaustSpirit(state, pid, inst)
+            // ownHyohekiUsed（BS12-032蹴激皇ヴィーザル）：【氷壁】を発揮して自身を疲労させた時点で発火する。
+            // 無効化が実際に成功したかは問わない（2026-09-07 ユーザー確認）
+            if (hasKeyword(inst.cardId, "hyoheki")) {
+                fireFieldEventTriggers(state, pid, "ownHyohekiUsed", { pid, inst })
+            }
         }
     } else if ("selfCoresToVoid" in effect.cost) {
         // ボイド行きなので、リザーブにもトラッシュにも戻らない

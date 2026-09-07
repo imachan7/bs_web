@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction } from "../../type"
-import { createInstance, currentLevel, findInstanceAnywhere, getCard, log } from "../GameState"
+import { createInstance, currentLevel, findInstanceAnywhere, getCard, log, suspend } from "../GameState"
 import {
     bothSidesRedirectKeepPid,
     findSpiritAny,
@@ -713,8 +713,85 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
         return
 }
 
+// BS12-055ゲッコ・グライダー『このブレイヴの召喚時』：このターンの間、このブレイヴといま合体している
+// ホストはブロックされない。selfはブレイヴ自身のインスタンス（毎回いまのホストをshared/block.tsが引き直す）
+const grantHostUnblockableThisTurnHandler: ActionHandler<"grantHostUnblockableThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    state.turnConstraints.push({ type: "braveHostUnblockableThisTurn", pid: owner, braveInstanceId: self.instanceId })
+    log(state, `${sourceName}：このターンの間、このブレイヴと合体しているスピリットはブロックされない。`)
+}
+
 const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // requireOwnNameIncludes（BS12-079アブソリュートストライク）：**使用宣言の時点**で自分のフィールドに
+        // カード名にこの文字列を含むスピリットがいなければ不発（撃った後に場を離れても効果は継続する。2026-09-07 ユーザー確認）
+        if (
+            action.requireOwnNameIncludes !== undefined &&
+            !action.choosing &&
+            !state.players[owner].field.spirits.some((s) => getCard(s.cardId).name.includes(action.requireOwnNameIncludes!))
+        ) {
+            log(state, `${sourceName}：カード名に「${action.requireOwnNameIncludes}」と入っているスピリットがいないため使用できない。`)
+            return
+        }
+        // count:"any"（BS12-079）：好きなだけ指定する。トグル選択（budgetToggleDestroyと同型）
+        if (action.count === "any") {
+            const onField = (id: string): CardInstance | undefined =>
+                state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
+            const combinedOk = (s: CardInstance) => !action.excludeCombined || !instIsCombined(s)
+            let chosen = [...(action.chosenIds ?? [])]
+            if (action.choosing && targetInstanceId !== undefined) {
+                chosen = chosen.includes(targetInstanceId)
+                    ? chosen.filter((id) => id !== targetInstanceId)
+                    : [...chosen, targetInstanceId]
+            }
+            chosen = chosen.filter((id) => onField(id) !== undefined)
+            if (state.interactiveTargets) {
+                if (!(action.choosing && targetInstanceId === undefined)) {
+                    const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
+                    if (candidates.length > 0) {
+                        suspend(state, {
+                            pid: owner,
+                            kind: "target",
+                            prompt: `${sourceName}：必ずアタックさせる相手のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
+                            candidates: candidates.map((sp) => sp.instanceId),
+                            selectedIds: chosen,
+                            skipLabel: chosen.length > 0 ? `これで確定する（${chosen.length}体）` : "指定しない",
+                            optional: true,
+                            resolveOnSkip: true,
+                            action: { ...action, choosing: true as const, chosenIds: chosen },
+                            selfInstanceId: self ? self.instanceId : null,
+                        })
+                        return
+                    }
+                }
+                if (chosen.length === 0) {
+                    log(state, `${sourceName}：対象がいなかった。`)
+                    return
+                }
+                for (const id of chosen) {
+                    const target = onField(id)
+                    if (!target) continue
+                    state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
+                    log(state, `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`)
+                }
+                return
+            }
+            // 非対話：候補すべてに課す
+            const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            for (const target of candidates) {
+                state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
+            }
+            log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
+            return
+        }
         // maxCost指定時：コスト条件を満たす相手スピリットすべてに一括で課す（BS08アンブッシュブロッカー）
         if (action.maxCost !== undefined) {
             state.turnConstraints.push({ type: "mustAttackByCost", pid: opp, maxCost: action.maxCost })
@@ -1018,6 +1095,35 @@ const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhen
     log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
 }
 
+// BS12-080バキュームシンボル：色1色を指定し、このターンの間、相手のスピリットすべてはその色の
+// シンボル1つを失う（CardInstance.tempSymbolLoss。使えないターンの制限はRuleValidatorのownTurnForbiddenが見る）
+const grantSymbolLossThisTurnHandler: ActionHandler<"grantSymbolLossThisTurn"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, chosenOption } = ctx
+    const targets = state.players[opp].field.spirits
+    const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+    const apply = (color: Color): void => {
+        for (const sp of targets) (sp.tempSymbolLoss ??= []).push(color)
+        log(
+            state,
+            `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${state.players[opp].name}のスピリットすべてはそのシンボル1つを失う。`,
+        )
+    }
+    if (state.interactiveTargets) {
+        if (chosenOption === undefined) {
+            requestChoice(state, owner, "指定する色を選んでください", [], false, action, null, "option", allColors.map((c) => COLOR_LABELS[c]))
+            return
+        }
+        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
+        if (!colorEntry) return
+        apply(colorEntry[0])
+        return
+    }
+    // 非対話：相手フィールドに最も多い色（同数は定義順の先頭）
+    const counts = allColors.map((c) => [c, targets.filter((sp) => instHasColor(sp, c)).length] as const)
+    const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
+    apply(best[0])
+}
+
 const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
     const { state, owner, sourceCardId, chosenOption } = ctx
         if (chosenOption === undefined) {
@@ -1131,6 +1237,8 @@ const handlers = {
     lendSelfThisBattle: lendSelfThisBattleHandler,
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
+    grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
+    grantSymbolLossThisTurn: grantSymbolLossThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     costBuffThisTurn: costBuffThisTurnHandler,
 } satisfies Partial<ActionRegistry>

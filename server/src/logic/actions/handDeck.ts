@@ -14,6 +14,7 @@ import {
     detachBravesOnLeave,
     drawDoubleMultiplier,
     findSpiritAny,
+    handImmuneFor,
     payCost,
     fireSummonTrigger,
     isResisted,
@@ -202,6 +203,12 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 時点で対象プレイヤーIdをactionに固定して持ち回す
         const targetPid = action.forcedTargetPid ?? opp
         const target = state.players[targetPid]
+        // BS12-067月光集める塔Lv1：発生源の持ち主の手札は、相手のスピリット/ブレイヴ/マジックの効果を受けない
+        // （ネクサスの効果は防がない）。自分自身の効果はそもそもtargetPid===ownerで弾かれない
+        if (owner !== targetPid && handImmuneFor(state, targetPid, srcType)) {
+            log(state, `${sourceName}の手札破棄：${target.name}の手札は効果を受けなかった。`)
+            return
+        }
         // chooserIsSource の選択から戻ってきた：公開ゾーンから1枚をトラッシュへ、**残りは手札へ戻す**。
         // 公開ゾーンは手札からカードを移して作る（コピーではない）。コピーにすると
         // 同じカードが手札と公開ゾーンに二重に数えられ、保存則チェックが落ちる

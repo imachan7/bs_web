@@ -483,14 +483,37 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：継続的な「シンボルを追加する」は
     // **固定値に対しても加算する**（symbolsOverrideContinuousが勝つ既存の規則は変えない。2026-09-04ユーザー確認）
     const added = inst.symbolsAddedContinuous?.length ?? 0
+    // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
+    const lost = symbolLossCountOf(inst)
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added - lost
     }
     // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
     // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added - lost
+}
+
+// tempSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
+// 1個ずつ減らした数を返す（持たない色を指定していても0扱い＝無変化）。
+// instanceSymbolCount / countSymbols の両方から呼ぶ共通判定
+function symbolLossCountOf(inst: CardInstance): number {
+    const colors = inst.tempSymbolLoss
+    if (!colors || colors.length === 0) return 0
+    const pool = inst.symbolsOverrideContinuous
+        ? [...inst.symbolsOverrideContinuous]
+        : [...card(inst.cardId).symbol, ...(inst.braveComposite?.symbols ?? [])]
+    pool.push(...(inst.symbolsAddedContinuous ?? []))
+    let lost = 0
+    for (const c of colors) {
+        const idx = pool.indexOf(c)
+        if (idx >= 0) {
+            pool.splice(idx, 1)
+            lost++
+        }
+    }
+    return lost
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
@@ -517,6 +540,13 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                     : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])),
             ...(inst.symbolsAddedContinuous ?? []),
         ]
+        // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
+        if (inst.tempSymbolLoss) {
+            for (const c of inst.tempSymbolLoss) {
+                const idx = cardSymbols.indexOf(c)
+                if (idx >= 0) cardSymbols.splice(idx, 1)
+            }
+        }
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
@@ -851,6 +881,7 @@ export function matchesFamilyFilter(
 // 耐性の分類。**分岐用ではなくログ・UI表示用**（呼び出し側は「防がれたかどうか」だけ見ればよい）
 export type ResistanceCategory =
     | "armor" // 【装甲：色】＝発生源の色で決まる（keyword:"armor"）
+    | "braveImmune" // 相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"。装甲/重装甲とは別枠の第3の耐性軸。BS12初出）
     | "fullImmune" // 相手の効果を受けない（constraint:"immuneToOpponentEffects"／このターンの間の immuneToOpponentThisTurn）
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
@@ -940,6 +971,11 @@ export function boardResistanceAgainst(
     // 【重装甲】は装甲より先に見る。**sourceType を問わない**＝ブレイヴの効果も防ぐのが装甲との差。
     // ⚠️ armorDisabled（アーマーパージ＝「【装甲】を無いものとして扱う」）では**消えない**。
     // 重装甲は装甲と別枠と確定したため（BS12_PLAN.md §1 の1）、「装甲」を名指しする効果は届かない
+    // 第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"。BS12初出）。
+    // 重装甲と同じく sourceType を問わず判定するが、実際に防ぐのは attempt.sourceType==="brave" のときだけ
+    if (attempt.sourceType === "brave" && hasBraveImmuneAgainst(target, attempt.sourceColors)) {
+        return { category: "braveImmune", label: "相手のブレイヴの効果を受けない状態" }
+    }
     if (hasHeavyArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.heavyArmor.label}】` }
     }
@@ -1718,6 +1754,26 @@ export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] |
     // 毎回算出ぶん（合体中のブレイヴが持つ静的【重装甲】のホストへの反映と、【重装甲：可変】＝colorsFrom:"selfColors"）。
     // refreshLevelAsOverrides が heavyArmorColorsGranted へ都度再構築する
     return (inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))
+}
+
+// 第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
+// （BS12_PLAN.md §1 の1と同じ線引き）。scope:"all"は色不問、scope:"matchArmorColors"は
+// **対象自身が持つ【装甲】の色**と一致するときだけ防ぐ（このスピリット自身の装甲色を都度参照する）
+export function hasBraveImmuneAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+    if (inst.braveImmuneAll) return true
+    if (inst.braveImmuneMatchArmorColors) {
+        if (sourceColors === undefined || sourceColors.length === 0) return false
+        const level = currentLevel(inst).level
+        const ownArmorColors: Color[] = []
+        for (const e of card(inst.cardId).effects) {
+            if (e.kind !== "keyword" || e.keyword !== "armor") continue
+            if (!effectActiveOn(inst, e, level)) continue
+            for (const c of e.colors ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
+        }
+        for (const c of inst.armorColorsGranted ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
+        return ownArmorColors.some((c) => sourceColors.includes(c))
+    }
+    return false
 }
 export function hasGlobalConstraint(
     board: Board,
