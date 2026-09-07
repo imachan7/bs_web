@@ -1,0 +1,537 @@
+[
+  {
+    "cardId": "BS13-001",
+    "name": "ヒクイック",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "空牙"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS13-002",
+    "name": "鎧竜人アンキロング",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "地竜",
+      "竜人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のスタートステップ』\n【超覚醒】を持つ自分のスピリット1体を手札に戻すことができる。\nLv2\n自分のスピリットの【超覚醒】の効果を使用するとき、自分のスピリット上からコアを置くかわりに、自分のリザーブからコアを置くことができる。",
+    "effects": [
+      {
+        "id": "BS13-002-e1",
+        "kind": "step",
+        "step": "start",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "returnOwnSpiritToHand",
+          "filter": {
+            "keyword": "superAwaken"
+          }
+        }
+      },
+      {
+        "id": "BS13-002-e2",
+        "kind": "awakenFromReserve",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "superAwakenOnly": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-003",
+    "name": "カメレオプス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "爬獣",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のメインステップ』\n自分が本来のコストが7以上のスピリットカードを召喚するとき、このスピリットに赤のシンボル2つを追加する。",
+    "effects": [
+      {
+        "id": "BS13-003-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          1,
+          2
+        ],
+        "costFilter": {
+          "min": 7
+        },
+        "action": {
+          "type": "addSymbolPermanent",
+          "count": 2,
+          "color": "red"
+        },
+        "selfMode": "source"
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-004",
+    "name": "フォボス・ドラグーン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "星竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv3『このスピリットのアタック時』\nバトル終了時、このスピリットと自分のコスト3以上のスピリット1体を破壊することで、自分の手札にある系統：「神星」を持つスピリットカード1枚を、コストを支払わずに召喚する。",
+    "effects": [
+      {
+        "id": "BS13-004-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS13-004-e2",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "battleRole": "attacker",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "summonFromHandFree",
+          "familyFilter": [
+            "神星"
+          ],
+          "costDestroySelfAndCostFilter": {
+            "min": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-005",
+    "name": "強暴竜ディラノ・レックス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n【超覚醒】を持つ自分の合体スピリットすべては分離できず、お互い、その上のコアは取り除くことができない。\n【合体時】Lv3\n系統：「地竜」を持つ自分の合体スピリットすべてに“フラッシュ【超覚醒】自分のスピリット上から、コアを好きなだけこのスピリット上に置くことができる。この効果でコア1個以上を置かれるたび、このスピリットは回復する”という効果を与える。",
+    "effects": [
+      {
+        "id": "BS13-005-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "combinedFilter": true,
+        "keywordFilter": "superAwaken",
+        "constraint": {
+          "type": "cantSeparate"
+        }
+      },
+      {
+        "id": "BS13-005-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "combinedFilter": true,
+        "keywordFilter": "superAwaken",
+        "constraint": {
+          "type": "coresCantBeRemoved"
+        }
+      },
+      {
+        "id": "BS13-005-e3",
+        "kind": "keywordGrant",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "keyword": "superAwaken",
+        "target": "ownAll",
+        "combinedFilter": true,
+        "familyFilter": [
+          "地竜"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-006",
+    "name": "炎獣ファイオリック",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "white"
+    ],
+    "family": [
+      "皇獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nBP4000以下の相手のスピリットがアタックしたとき、そのスピリットを破壊する。\nLv2･Lv3『このスピリットのアタック時』\n自分のフィールドにスピリット状態のブレイヴがいる間、このスピリットに赤のシンボル1つを追加する。",
+    "effects": [
+      {
+        "id": "BS13-006-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "subjectSide": "opponent",
+        "maxBp": 4000,
+        "action": {
+          "type": "destroySelf"
+        }
+      },
+      {
+        "id": "BS13-006-e2",
+        "kind": "symbolAddGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "self",
+        "color": "red",
+        "count": 1,
+        "condition": {
+          "ownFieldHasBraveInSpiritState": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-007",
+    "name": "豹竜パンドランサー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "翼竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のスピリット状態のブレイヴ1体と合体できる。\nその後、このスピリットが持つ『このスピリットの合体アタック時』効果を発揮させる。\nLv3『このスピリットのバトル時』\nBP5000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS13-007-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "combineOwnBrave",
+          "hostSelf": true,
+          "thenFireWhileCombinedTrigger": "onAttack"
+        }
+      },
+      {
+        "id": "BS13-007-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 5000
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-008",
+    "name": "恐竜王メガロ・ザウル",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 7,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜",
+      "竜人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP合計(系統：「竜人」を持つ自分のスピリットのBP合計)まで、相手のスピリットを好きなだけ破壊できる。\nLv2『このスピリットのアタック時』\nこのスピリットがブロックされたとき、系統：「地竜」を持つ自分のスピリット1体を手札に戻すことで、このスピリットは回復する。",
+    "effects": [
+      {
+        "id": "BS13-008-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "destroyByBpBudget",
+          "budgetFromFamilyBpSum": [
+            "竜人"
+          ]
+        }
+      },
+      {
+        "id": "BS13-008-e2",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "refreshSelfByReturnToHandFamily",
+          "familyFilter": [
+            "地竜"
+          ]
+        }
+      }
+    ]
+  }
+]

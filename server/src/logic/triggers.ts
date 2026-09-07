@@ -508,6 +508,48 @@ export function fireTrigger(
     }
 }
 
+// BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
+// 『このスピリットの合体アタック時』効果を発揮させる」。fireTriggerの`entries`は呼び出し時点でのbravesOf
+// スナップショットなので、その最中に新たに合体したブレイヴが持ち込む【合体時】onAttackエントリは自然には
+// 拾われない。合体が実際に成立したときだけ、ここで改めてbravesOf(host)を取り直して発揮させる
+// （合体しなかった／できなかったときは呼ばれないので発揮しない。2026-09-07ユーザー確認）
+export function fireCombinedAttackTrigger(
+    state: GameState,
+    owner: PlayerId,
+    host: CardInstance,
+    event: TriggerEvent,
+): void {
+    const entries = bravesOf(state.players[owner], host).flatMap((brave) =>
+        getCard(brave.cardId)
+            .effects.filter(
+                (e): e is Extract<EffectDef, { kind: "triggered" }> =>
+                    e.kind === "triggered" &&
+                    e.trigger === event &&
+                    e.whileCombined === true &&
+                    effectActiveAtLevel(e.levels, currentLevel(brave).level),
+            )
+            .map((effect) => ({ effect, src: brave })),
+    )
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        if (!entry) continue
+        const { effect } = entry
+        if (effect.optional && state.interactiveTargets) {
+            requestActivationConfirm(state, owner, `${getCard(host.cardId).name}の効果を発動しますか？`, effect.action, host)
+        } else {
+            resolveAction(state, owner, host, effect.action, undefined)
+        }
+        if (state.pendingChoice) {
+            const remaining = entries.slice(i + 1)
+            pushResumeFrames(
+                state,
+                remaining.map((x) => ({ kind: "action" as const, selfInstanceId: host.instanceId, action: x.effect.action })),
+            )
+            return
+        }
+    }
+}
+
 // fireTrigger 用: 持ち主(owner)フィールドの kind:"effectGrant" 発生源から、selfInstance に
 // 継続付与された誘発効果（trigger一致）のアクション一覧を集める（アルカナビースト・ケン）
 function collectGrantedTriggerActions(

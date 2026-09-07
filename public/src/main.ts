@@ -1137,7 +1137,9 @@ async function init(): Promise<void> {
     byId("my-info").addEventListener("click", (e) => {
         if (ui.awakenTarget === null) return
         if (!closestData(e, "data-reserve")) return
-        if (!view || !canAwakenFromReserve(view, view.you)) return
+        if (!view) return
+        const awakenInst = view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
+        if (!canAwakenFromReserve(view, view.you, awakenInst)) return
         send({
             type: "awaken",
             instanceId: ui.awakenTarget,

@@ -683,7 +683,8 @@ export function render(view: GameView, ui: UiState): void {
             $("targeting-info").textContent = base
         }
     } else if (ui.awakenTarget !== null) {
-        const fromReserve = canAwakenFromReserve(view, view.you)
+        const awakenInst = view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
+        const fromReserve = canAwakenFromReserve(view, view.you, awakenInst)
         $("targeting-info").textContent = fromReserve
             ? "🔄 覚醒: コアの移動元にする自分のスピリットまたはリザーブを選んでください"
             : "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
@@ -796,9 +797,12 @@ function renderInfo(
     const el = $(id)
     el.innerHTML = ""
     // 覚醒モード中にリザーブからコアを移せるか（ディノゾールLv2の効果）
+    const awakenInstForHighlight = ui.awakenTarget !== null
+        ? view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
+        : undefined
     const reserveHighlight = isSelf
         && ui.awakenTarget !== null
-        && canAwakenFromReserve(view, view.you)
+        && canAwakenFromReserve(view, view.you, awakenInstForHighlight)
         && p.reserve >= 1
     // 効果解決の選択待ちで「相手のリザーブ」が候補になっているか（犬人マードック）
     const oppReserveChoice = !isSelf

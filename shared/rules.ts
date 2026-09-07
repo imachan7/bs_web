@@ -502,16 +502,19 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：継続的な「シンボルを追加する」は
     // **固定値に対しても加算する**（symbolsOverrideContinuousが勝つ既存の規則は変えない。2026-09-04ユーザー確認）
     const added = inst.symbolsAddedContinuous?.length ?? 0
+    // extraSymbolsPermanent（kind:"addSymbolPermanent"。BS13初出）：トリガーで永続的に蓄積するシンボル。
+    // symbolsAddedContinuousと同じく固定値に対しても加算する
+    const addedPermanent = inst.extraSymbolsPermanent?.length ?? 0
     // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
     const lost = symbolLossCountOf(inst)
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added - lost
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added + addedPermanent - lost
     }
     // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
     // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added - lost
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added + addedPermanent - lost
 }
 
 // tempSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
@@ -558,6 +561,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                     ? card(inst.cardId).symbol
                     : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])),
             ...(inst.symbolsAddedContinuous ?? []),
+            ...(inst.extraSymbolsPermanent ?? []),
         ]
         // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
         if (inst.tempSymbolLoss) {
@@ -728,7 +732,10 @@ export function continuousKeywordGrantCount(
             if (effect.kind !== "keywordGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
+            if (!effectActiveOn(source, effect, sourceLevel)) continue
+            // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
+            if (effect.combinedFilter && !instIsCombined(inst)) continue
             if (
                 effect.familyFilter &&
                 !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
@@ -2452,12 +2459,16 @@ export const AWAKEN_FROM_RESERVE = "reserve"
 // 【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
 // 持ち主のフィールドにあるか。ディノゾールLv2が自分のスピリットすべての【覚醒】を書き換える）。
 // サーバー validateAwaken とクライアントの覚醒UIが共用する
-export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean {
+export function canAwakenFromReserve(board: Board, ownerPid: PlayerId, inst?: CardInstance): boolean {
     for (const source of effectSources(board, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "awakenFromReserve") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
+            // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
+            if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            return true
         }
     }
     return false

@@ -243,6 +243,11 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
 // 分離したブレイヴはホストの疲労状態を引き継ぐ（§12.5：ルール改定で移動元が疲労していると移動先も疲労になる）
 export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
     const player = state.players[ownerPid]
+    // BS13-005強暴竜ディラノ・レックス：【超覚醒】を持つ自分の合体スピリットは分離できない（全入口共通の最終防波堤）
+    if (activeConstraints(state, ownerPid, host).some((c) => c.type === "cantSeparate")) {
+        log(state, `${getCard(host.cardId).name}は分離できなかった。`)
+        return
+    }
     host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
     if (host.braveRefs.length === 0) delete host.braveRefs
     const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
@@ -259,6 +264,11 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
 // ホストはそのまま場に残るので、バトル中でもブレイヴがバトルを引き継ぐことはない
 export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
     const player = state.players[ownerPid]
+    // BS13-005強暴竜ディラノ・レックス：【超覚醒】を持つ自分の合体スピリットは分離できない（相手の効果でも同じ）
+    if (activeConstraints(state, ownerPid, host).some((c) => c.type === "cantSeparate")) {
+        log(state, `${getCard(host.cardId).name}は分離できなかった。`)
+        return
+    }
     host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
     if (host.braveRefs.length === 0) delete host.braveRefs
     const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)

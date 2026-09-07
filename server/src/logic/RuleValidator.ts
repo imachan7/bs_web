@@ -707,6 +707,10 @@ export function validateDetachBrave(
     // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
     const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (hosts.length !== 1) return "このブレイヴは分離できません"
+    // BS13-005強暴竜ディラノ・レックス：【超覚醒】を持つ自分の合体スピリットすべては分離できない
+    if (activeConstraints(state, pid, hosts[0]!).some((c) => c.type === "cantSeparate")) {
+        return "この合体スピリットは分離できません"
+    }
     // BS11-X02 Lv3：相手はブレイヴをスピリット状態にできない（分離した先がスピリット状態になる）
     if (cantSpiritStateBrave(state, pid)) return "相手の効果により、ブレイヴをスピリット状態にできません"
     return validatePaySources(state, pid, braveKeepCores(brave), paySources)
@@ -766,7 +770,7 @@ export function validateAwaken(
     // ディノゾールLv2：【覚醒】の効果が「自分のスピリット上か自分のリザーブから」に書き換わっている間だけ、
     // リザーブを移動元にできる（番兵 AWAKEN_FROM_RESERVE）
     if (fromInstanceId === AWAKEN_FROM_RESERVE) {
-        if (!canAwakenFromReserve(state, pid)) {
+        if (!canAwakenFromReserve(state, pid, target)) {
             return "リザーブから【覚醒】できる効果がありません"
         }
         if (player.reserve < count) return "リザーブのコアが足りません"

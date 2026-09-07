@@ -60,6 +60,7 @@ import { attachBrave, destroySpirit, flushBounces, returnSpiritToHand } from "./
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
+    fireCombinedAttackTrigger,
     fireFieldEventTriggers,
     fireSummonTrigger,
     fireTrigger,
@@ -1202,6 +1203,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
+            // costFilter用：**カード静的なコスト（本来のコスト）**。軽減後の支払いコストではない（BS13-003カメレオプス）
+            costs: [getCard(inst.cardId).cost],
             byFushi,
             // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
             bySoku: state.summoningBySoku === true,
@@ -2258,6 +2261,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 継続的な「シンボルを追加する」（BS12初出。BS12-006竜拳士アルディ・バロン／
                     // BS12-X01金牛龍神ドラゴニック・タウラス）。盤面のシンボル数に効く（軽減計算・ライフダメージ両方）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // condition.ownFieldHasBraveInSpiritState（BS13-006炎獣ファイオリックLv2-3）：
+                    // 持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効
+                    if (
+                        effect.condition?.ownFieldHasBraveInSpiritState &&
+                        !player.field.spirits.some((sp) => getCard(sp.cardId).type === "brave")
+                    ) {
+                        continue
+                    }
                     if (effect.phaseTurn) {
                         if (state.phase !== effect.phaseTurn.phase) continue
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
@@ -3608,6 +3619,7 @@ export {
     isTriggerSuppressed,
     fireSummonTrigger,
     fireTrigger,
+    fireCombinedAttackTrigger,
     fireBattleWonTriggers,
     fireStepTriggers,
     fireFieldEventTriggers,

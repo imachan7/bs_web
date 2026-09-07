@@ -909,8 +909,15 @@ function budgetToggleDestroy(
 // destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
 const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）
-        let remaining = action.budgetFromSelfBp && self ? effectiveBp(state, owner, self) : (action.budget ?? 0)
+        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）。
+        // budgetFromFamilyBpSum（BS13-008恐竜王メガロ・ザウル）：予算は指定系統を持つ自分のスピリットの実効BP合計
+        let remaining = action.budgetFromSelfBp && self
+            ? effectiveBp(state, owner, self)
+            : action.budgetFromFamilyBpSum !== undefined
+                ? state.players[owner].field.spirits
+                    .filter((s) => matchesFamilyFilter(state, owner, s, action.budgetFromFamilyBpSum!))
+                    .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
+                : (action.budget ?? 0)
         const budgetForLog = remaining
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
         if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp))) return

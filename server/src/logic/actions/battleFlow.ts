@@ -18,6 +18,7 @@ import {
     emitEvent,
     findSpiritAny,
     matchesFamilyFilter,
+    fireCombinedAttackTrigger,
     fireFieldEventTriggers,
     fireSummonSequence,
     fireSummonTrigger,
@@ -34,7 +35,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -884,6 +885,73 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 return
             }
         }
+        // costDestroySelfAndCostFilter：**このスピリット自身**と、コストがmin以上の自分のスピリット1体の
+        // 両方を破壊することがコスト（BS13-004フォボス・ドラグーンLv3：バトル終了時、自身とコスト3以上の
+        // 自分のスピリット1体を破壊することで系統「神星」を手札から無償召喚）。
+        // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする（破壊できる相手がいない／
+        // 召喚できる手札が無ければどちらも発動しない＝selfも破壊されない）
+        if (
+            action.costDestroySelfAndCostFilter !== undefined &&
+            chosenCardIndex === undefined &&
+            !action.costSacrificeChosen
+        ) {
+            if (!self) {
+                log(state, `${sourceName}：コストとして破壊する自分自身がいなかった。`)
+                return
+            }
+            if (!player.hand.some(matchesCardId)) {
+                log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
+                return
+            }
+            const min = action.costDestroySelfAndCostFilter.min
+            const sacrifices = player.field.spirits.filter(
+                (s) => s.instanceId !== self.instanceId && instBaseCost(s) >= min,
+            )
+            if (sacrifices.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            const { costDestroySelfAndCostFilter: _paidSac, costSacrificeChosen: _flagSac, ...restSac } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(
+                    state,
+                    `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(chosen.cardId).name}を破壊した。`,
+                )
+                destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
+                ctx.resolve(restSac)
+                return
+            }
+            // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
+            if (state.interactiveTargets && sacrifices.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    sacrifices.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
+            let victim = sacrifices[0]!
+            for (const s of sacrifices) {
+                if (instBaseCost(s) < instBaseCost(victim)) victim = s
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(victim.cardId).name}を破壊した。`,
+            )
+            destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+        }
         // costDestroyOwnSpiritSameCost：自分のスピリット1体を破壊することがコストで、
         // 破壊したスピリットと**同じコスト**のブレイヴカードだけが召喚候補になる（BS10-096最後の優勝旗）。
         // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする
@@ -1348,6 +1416,51 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
 const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const player = state.players[owner]
+
+    // hostSelf：合体先を発生源自身に固定する（BS13-007豹竜パンドランサー：「自分のスピリット状態の
+    // ブレイヴ1体と合体できる」）。host選択を省き、発生源に合体できるブレイヴだけを選ばせる
+    if (action.hostSelf) {
+        if (!self) {
+            log(state, `${sourceName}：合体先がいなかった。`)
+            return
+        }
+        if (
+            (self.braveRefs ?? []).length > 0 ||
+            activeConstraints(state, owner, self).some((c) => c.type === "cantCombine")
+        ) {
+            log(state, `${sourceName}：合体できないため発動しなかった。`)
+            return
+        }
+        const braves = player.field.spirits.filter(
+            (sp) => getCard(sp.cardId).type === "brave" && matchesBraveCondition(state, owner, self, sp.cardId),
+        )
+        if (braves.length === 0) {
+            log(state, `${sourceName}：合体できるスピリット状態のブレイヴがいなかった。`)
+            return
+        }
+        const brave =
+            (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ??
+            (state.interactiveTargets && braves.length >= 2
+                ? undefined
+                : braves[0]!)
+        if (!brave) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：合体させるブレイヴを選んでください`,
+                braves.map((b) => b.instanceId),
+                false,
+                action,
+                self,
+            )
+            return
+        }
+        attachBrave(state, owner, self, brave)
+        if (action.thenFireWhileCombinedTrigger && !state.pendingChoice) {
+            fireCombinedAttackTrigger(state, owner, self, action.thenFireWhileCombinedTrigger)
+        }
+        return
+    }
 
     // 合体先の選択から再開（ブレイヴは既に選んである）
     if (action.chosenBraveInstanceId !== undefined) {
