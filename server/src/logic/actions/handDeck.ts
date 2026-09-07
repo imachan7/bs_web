@@ -39,7 +39,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -172,6 +172,11 @@ const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom">
 
 const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
     const { state, owner, opp, sourceName } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         const player = state.players[owner]
         const count = player.hand.length
         // thenDrawOpponentHand（BS12-053オオヅツナナフシ：「そうしたとき、相手の手札と同じ枚数ドローする」）は
@@ -203,6 +208,11 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 時点で対象プレイヤーIdをactionに固定して持ち回す
         const targetPid = action.forcedTargetPid ?? opp
         const target = state.players[targetPid]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, targetPid)) {
+        log(state, `${state.players[targetPid].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // revealAllHandIfNone（BS12-072海賊王の秘宝島Lv2）：破棄できないときのフォールバック。
         // その場で見せて終わり＝ゲーム状態は変えずログにだけ出す（§1 #15。2026-09-07ユーザー確認）
         const revealAllHandFallback = (): void => {
@@ -388,6 +398,11 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
 // （フィルタしてから選ぶと必ずマジックが当たってしまい、印刷テキストの「内容を見ないで」に反する）
 const randomOpponentHandMagicDiscardHandler: ActionHandler<"randomOpponentHandMagicDiscard"> = (ctx) => {
     const { state, owner, opp, sourceName, srcType } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, opp)) {
+        log(state, `${state.players[opp].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     const target = state.players[opp]
     if (target.hand.length === 0) {
         log(state, `${sourceName}：${target.name}の手札がなかった。`)
@@ -421,6 +436,11 @@ const discardOpponentDownToHandler: ActionHandler<"discardOpponentDownTo"> = (ct
 
 const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // 自分の手札1枚をトラッシュへ（手札0ならno-op）。
         // interactiveTargets時は選択式（選択者＝効果所有者本人。cardZone:"hand"）
         const player = state.players[owner]
@@ -474,6 +494,11 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
     if (action.count <= 0) return
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残りは queue 側が処理する）
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
@@ -528,6 +553,11 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
 const costDiscardHandTypeThenCoreRemoveHandler: ActionHandler<"costDiscardHandTypeThenCoreRemove"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（コア除去は remainingAction 側）
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
@@ -576,6 +606,11 @@ const costDiscardHandTypeThenCoreRemoveHandler: ActionHandler<"costDiscardHandTy
 const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残り／ドローは remainingAction 側が処理する）
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
@@ -627,6 +662,11 @@ const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> =
 const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     if (!self) return
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     const player = state.players[owner]
     const nexusIndices = player.hand.map((id, i) => ({ id, i })).filter(({ id }) => getCard(id).type === "nexus").map(({ i }) => i)
     if (nexusIndices.length === 0) {
@@ -666,6 +706,11 @@ const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVo
 // （ドロー枚数が最大になる選択なので、プレイヤーの不利にはならない）
 const discardHandNexusesThenDrawHandler: ActionHandler<"discardHandNexusesThenDraw"> = (ctx) => {
     const { state, owner, sourceName } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     const player = state.players[owner]
     const nexusIndices: number[] = []
     for (let i = 0; i < player.hand.length; i++) {
@@ -1760,6 +1805,11 @@ const magicMirrorRepeatHandler: ActionHandler<"magicMirrorRepeat"> = (ctx, _acti
 // awaitingSkip＝「選択をスキップして戻ってきた＝破棄終了」の目印）
 const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         const player = state.players[owner]
         const discarded = action.discardedSoFar ?? 0
         // まとめてドローして終える共通処理
@@ -2545,6 +2595,11 @@ const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBo
 // 選び方が情報を持たない＝どれを選んでも公平なので、決定的にしても不利益はない）
 const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek"> = (ctx, action) => {
     const { state, owner, opp, sourceName } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     const player = state.players[owner]
     const index = player.hand.findIndex((id) => getCard(id).name === action.cardName)
     if (index === -1) {
@@ -2573,6 +2628,11 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
 const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
     // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有・種別で判定する。
     // cardType 省略時はスピリットカード（従来どおり）
     const eligible = (cardId: string): boolean =>

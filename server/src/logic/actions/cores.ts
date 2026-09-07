@@ -42,7 +42,7 @@ import {
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, canDiscardHand, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -1556,6 +1556,11 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
 
 const coreRemovePerHandDiscardHandler: ActionHandler<"coreRemovePerHandDiscard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体
         // （実効BP最大を自動選択。同一解決内で既に選んだ個体は除外して異なる個体へ広げる）の
         // コアを1個、相手のトラッシュへ置く（王蛇ケツァルカトル／ダンスマカブル）

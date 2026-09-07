@@ -1853,6 +1853,15 @@ export function hasGlobalConstraint(
     }
     return false
 }
+
+// 手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
+// pid は破棄しようとしている本人（両陣営に効く制約なので現状は参照しないが、片側限定の制約が
+// 増えたときのために引数を持たせてある）。手札破棄は約18種のアクションに散っているため、
+// 共通ヘルパー化はせず各ハンドラの先頭でこの述語を見て早期リターンする形にする
+export function canDiscardHand(board: Board, pid: PlayerId): boolean {
+    if (board.phase === "main" && hasGlobalConstraint(board, "noHandDiscardInMain")) return false
+    return true
+}
 // pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
 // 発生源の持ち主から見た相手だけに効くので、pid 以外のフィールドの発生源を見る
 export function cantSpiritStateBrave(board: Board, pid: PlayerId): boolean {

@@ -85,6 +85,7 @@ import {
     countAuraCounter,
     braveKeepCores,
     cantSpiritStateBrave,
+    canDiscardHand,
     coresCantBeRemoved,
     hasDestroyAsMaxLevelGrant,
     coresToOpponentReserveGoToTrash,
@@ -1466,6 +1467,8 @@ function tryReviveOnDestroy(
             return false
         }
         if (effect.cost?.handDiscardOne) {
+            // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない（コストとしての破棄も止まる。COST_MODEL.md §1）
+            if (!canDiscardHand(state, ownerPid)) return false
             const cardType = effect.cost.handDiscardCardType
             if (cardType !== undefined) {
                 // BS10-046龍仙公主：手札の末尾から指定種別のカードを探して破棄する。

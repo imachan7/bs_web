@@ -86,6 +86,7 @@ import {
     auraAmount,
     boardResistanceAgainst,
     auraAppliesTo,
+    canDiscardHand,
     checkAuraCondition,
     costCantAct,
     countAuraCounter,
@@ -360,8 +361,9 @@ function tryPayableTargetNegate(
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
             if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
-            // 支払えないなら受ける（手札が足りないときは耐性が成立しない）
-            if (player.hand.length < effect.discardCount) continue
+            // 支払えないなら受ける（手札が足りないときは耐性が成立しない）。
+            // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
+            if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
             const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
             player.trashCards.push(...discarded)
             log(
@@ -412,8 +414,9 @@ export function askPayToNegateIfNeeded(
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
             if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
-            // 払えないなら聞かない（そのまま効果を受ける）
-            if (player.hand.length < effect.discardCount) continue
+            // 払えないなら聞かない（そのまま効果を受ける）。
+            // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
+            if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
             requestCardChoice(
                 state,
                 // pid は**効果の実行者**（解決の主体。actorPid に入る）。

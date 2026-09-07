@@ -25,7 +25,7 @@ import {
     tryInteractiveTargetChoice,
     spiritHasKeyword,
 } from "../EffectModules"
-import { instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { canDiscardHand, instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
 
@@ -550,6 +550,11 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
 
 const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
         if (!self) {
             log(state, `${sourceName}：バフ対象がいなかった。`)

@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
+import { canDiscardHand, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -200,6 +200,8 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
 // サーバーは player.hand.length、クライアントは view の handCount を使う。
 // どちらも「召喚するカード自身」は破棄に使えないので1枚引くこと）
 export function canPaySummonCostByHandDiscard(board: Board, pid: PlayerId): boolean {
+    // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1：払えないコストは発揮できない）
+    if (!canDiscardHand(board, pid)) return false
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "summonCostHandDiscardPay") continue

@@ -3944,6 +3944,17 @@
     }
    },
    {
+    "id": "BS11-065-e1b",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noHandDiscardInMain"
+    }
+   },
+   {
     "id": "BS11-065-e2",
     "kind": "fieldEvent",
     "event": "ownSpiritSummoned",
