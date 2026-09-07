@@ -161,6 +161,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         life: INITIAL_LIFE,
         reserve: INITIAL_RESERVE,
         trashCores: 0,
+        deckSideCores: 0,
         deck,
         hand,
         trashCards: [],
@@ -262,7 +263,7 @@ function boardFingerprint(state: GameState): string {
         parts.push(
             `${p.deck.length},${p.hand.length},${p.trashCards.length},${p.tegamoto.length}`,
             `${p.field.spirits.length},${p.field.nexuses.length}`,
-            `${p.life},${p.reserve},${p.trashCores}`,
+            `${p.life},${p.reserve},${p.trashCores},${p.deckSideCores}`,
             [...p.field.spirits, ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
         )
     }
@@ -576,6 +577,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         life: player.life,
         reserve: player.reserve,
         trashCores: player.trashCores,
+        deckSideCores: player.deckSideCores,
         deckCount: player.deck.length,
         hand: isSelf ? [...player.hand] : null,
         handCount: player.hand.length,

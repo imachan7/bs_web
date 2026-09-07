@@ -2,7 +2,8 @@
 //   #1 BS11-036 冥土の魔女ヘレン: handMagicToTegamotoDraw に max:3 の上限を足す（既存カードは無制限のまま）
 //   #2 BS11-042 海賊ラッコルセア: fieldEvent ownFunsaiMilled に lastFunsaiHasSpirit 条件を足す（既存カードは条件なしのまま）
 //   #4 BS08-062 超時空重力炉: reductionGrant に replace 軸を足す（既存カードは加算のまま）
-import { act, assert, createGame, createInstance, effectiveCost, getCard, runTurnStart } from "./helpers"
+//   #3 BS12-078 カシオペアシール: デッキ横のコアを実際に持つ（voidCoreToDeckSide／エンドステップに1個ずつ戻す）
+import { act, assert, createGame, createInstance, effectiveCost, endTurn, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { fireSummonTrigger, resolveFunsai } from "../../server/src/logic/EffectModules"
 import { reductionGrantSymbols } from "../../shared/cost"
@@ -138,6 +139,39 @@ console.log("=== #4 置換を指定しない既存カード（天使バーチュ
     const granted = reductionGrantSymbols(s, "p1", getCard("BS02-030"))
     assert(granted.replace === null, "置換を指定しないカードはreplaceがnullのまま")
     assert(JSON.stringify(granted.extra) === JSON.stringify(["green"]), "従来どおり加算ぶんがextraに積まれる")
+}
+
+console.log("=== #3 BS12-078 カシオペアシール：デッキ横のコアを5個持ち、自分のエンドステップに1個ずつ戻す ===")
+{
+    const s = game("078-deckside")
+    assert(s.players.p1.deckSideCores === 0, "前提: 初期状態ではデッキ横のコアは0")
+
+    const reserveBefore = s.players.p1.reserve
+    resolveAction(s, "p1", null, { type: "voidCoreToDeckSide", count: 5 })
+    assert(s.players.p1.deckSideCores === 5, "ボイドからコア5個がデッキの横に置かれる")
+    // 「このコアは、この効果以外に使用することはできない」＝どのゾーンにも属さない
+    assert(s.players.p1.reserve === reserveBefore, "デッキ横のコアはリザーブに入らない（コストの支払いに使えない）")
+
+    // 自分のターンを終える（＝自分のエンドステップを通す）と1個ずつ減る
+    s.turnPlayer = "p1"
+    endTurn(s)
+    assert(
+        s.players.p1.deckSideCores === 4,
+        `自分のエンドステップでデッキ横のコアが1個ボイドへ戻る（実際 ${s.players.p1.deckSideCores}）`,
+    )
+
+    // 相手のターンを終えても自分のぶんは減らない（『自分のエンドステップ』限定）
+    s.turnPlayer = "p2"
+    endTurn(s)
+    assert(s.players.p1.deckSideCores === 4, "相手のエンドステップでは自分のデッキ横のコアは減らない")
+
+    // 5回の自分のエンドステップで0になり、それ以上は減らない
+    for (let i = 0; i < 8; i++) {
+        s.turnPlayer = "p1"
+        endTurn(s)
+    }
+    assert(s.players.p1.deckSideCores === 0, "自分のエンドステップを重ねると0になる")
+    assert(s.players.p1.deckSideCores >= 0, "0を下回らない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part297）")

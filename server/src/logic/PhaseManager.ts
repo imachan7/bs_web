@@ -183,6 +183,16 @@ export function endTurn(state: GameState): void {
         state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
     }
 
+    // デッキ横のコア（BS12-078カシオペアシール）：持ち主のエンドステップに1個ずつボイドへ戻す。
+    // ボイドは残量を持たない無限の供給源なので、減らすだけでよい
+    {
+        const p = state.players[state.turnPlayer]
+        if (p.deckSideCores > 0) {
+            p.deckSideCores -= 1
+            log(state, `${p.name}は、デッキの横のコア1個をボイドに置いた。（残り${p.deckSideCores}個）`)
+        }
+    }
+
     // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
     for (const inst of state.players[state.turnPlayer].field.spirits) {
         if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue

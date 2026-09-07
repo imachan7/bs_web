@@ -172,6 +172,7 @@ export type EffectAction =
     | { type: "refreshSelf"; costReserveToVoid?: number; costSelfCoresToVoid?: number; costSelfCoresToTrash?: number; costDestroyOwnVanillaSpirit?: true; costSacrificeChosen?: true } // このスピリット自身を回復させる（selfがnull/既に回復状態ならno-op）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから回復する（lifeCrush.costReserveToVoidと同じ方針。「〜することで」は任意コストなのでカード側でoptional:trueを立てる。BS06-X23天帝ホウオウガ：効果文は「[ソウルコア]以外のコア」限定だが、**ソウルコアが未実装のいまはリザーブのコアがすべて通常コアなのでこれで正しい**。ソウルコアを入れるときに通常コア限定の支払いへ差し替えること＝docs/design/SOULCORE.md §10）。costSelfCoresToVoid指定時は、リザーブでなく**このスピリット自身**の上のコアから支払う（自身のコアが不足／支払うとLv1コア数を下回るなら不発。BS08ブラックタウロス大王：このスピリット上のコア2個をボイドに置くことで回復する） costDestroyOwnVanillaSpirit指定時は、効果の記述を持たない（バニラ）自分のスピリット1体を破壊することがコストで、該当がなければ不発（COST_MODEL.md：AとBの両方が完全に解決できるときだけ発揮）。候補2体以上ならプレイヤーが選ぶ（costSacrificeChosenは選択の再入用の内部フラグ。cards.jsonには書かない。BS12-X06海賊王レヴィアダンLv2-3：バトル終了時）
     | { type: "exhaustSelf" } // このスピリット自身を疲労させる（selfがnull/既に疲労状態ならno-op。exhaustSpirit経由なのでownSpiritExhausted等が正しく発火する。BS06雪ん子イエティ／天使長ファニム）
     | { type: "lifeCrush"; count: number; costReserveToVoid?: number; countCounter?: EffectCounter; dest?: "trash" } // 相手のライフのコアcount個を相手のリザーブへ（dest:"trash"指定時は相手のトラッシュへ。リザーブと違い再利用されないので相手のリソースがそのぶん減る。BS08機神獣インフェニット・ヴォルスLv3）（ライフ0以下で勝敗決定）。costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」は任意コストなので、カード側で optional:true を立てて発動確認を出すこと。BS04カイザーアトラス皇帝）。countCounter指定時はcountを無視しEffectCounterの値を個数として使う（0ならログのみ。BS08メテオストーム：このスピリットのシンボルと同じ数）
+    | { type: "voidCoreToDeckSide"; count: number } // ボイドからコアcount個を持ち主の「デッキの横」へ置く（BS12-078 カシオペアシール：「この効果発揮後、自分はボイドからコア5個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」）。PlayerState.deckSideCores を増やすだけ（ボイドは無限のため引かない）。減らすのは PhaseManager のエンドステップ
     | { type: "voidCoreToSelf"; count: number; orReserve?: true } // ボイドからコアcount個をこのスピリット上に置く（selfがnullならno-op。selfがネクサスのときも同じくネクサス上に置く＝placeCoresOnSpiritはCardInstance汎用。BS02-080等で既に実績あり）。orReserve指定時は「自分のリザーブか、このスピリット上か」を効果の使用者が毎回選ぶ（interactiveTargets時はPendingChoice、非対話時はリザーブ側に倒す。BS12-077/BS12-X03）
     | { type: "voidCoreToSelfPer"; counter: EffectCounter } // カウント値ぶんボイドからこのスピリット上にコアを置く（0ならno-op）
     | { type: "voidCoreToSelfPerBofuCount" } // このスピリット（self）自身が持つ【暴風】の指定数（keywordエントリのcount。省略時1）ぶん、ボイドからこのスピリット上にコアを置く（selfがnull/【暴風】を持たないならno-op。BS06颶風高原：召喚されたスピリットに乗せる）
@@ -2142,6 +2143,11 @@ export interface PlayerState {
     life: number
     reserve: number
     trashCores: number
+    // 「デッキの横に置く」コア（BS12-078 カシオペアシール）。個々のコアを区別しないので個数だけ持つ。
+    // **どのゾーンにも属さない**ので、コストの支払い・コア移動・効果の対象から自然に見えない
+    // （「このコアは、この効果以外に使用することはできない」）。持ち主のエンドステップに1個ずつボイドへ戻す。
+    // ボイドは残量を持たない無限の供給源として実装しているため、置くときも戻すときもボイド側の増減は無い
+    deckSideCores: number
     deck: string[] // cardId の配列（先頭がデッキトップ）
     hand: string[]
     trashCards: string[]
@@ -2716,6 +2722,7 @@ export interface PlayerView {
     life: number
     reserve: number
     trashCores: number
+    deckSideCores: number // デッキの横に置かれたコア（BS12-078）。公開情報なので両者分を配信する
     deckCount: number
     hand: string[] | null // 自分のみ。相手は null
     handCount: number

@@ -810,6 +810,8 @@ function renderInfo(
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         ["reserve", `🔵 リザーブ ${p.reserve}`],
         ["", `トラッシュコア ${p.trashCores}`],
+        // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
+        ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
         ["", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
         ["", `トラッシュ ${p.trashCards.length}枚`],

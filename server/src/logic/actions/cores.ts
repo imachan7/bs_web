@@ -584,6 +584,19 @@ const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
         return
 }
 
+// ボイドからコアを持ち主の「デッキの横」へ置く（BS12-078 カシオペアシール）。
+// デッキ横はどのゾーンにも属さないので、コストの支払いにもコア移動にも使えない
+// （効果文の「このコアは、この効果以外に使用することはできない」）。
+// ボイドは残量を持たない無限の供給源なので、ボイド側から引く処理は無い。
+// 減らすのは PhaseManager のエンドステップ（1個ずつ）
+const voidCoreToDeckSideHandler: ActionHandler<"voidCoreToDeckSide"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (action.count <= 0) return
+    const player = state.players[owner]
+    player.deckSideCores += action.count
+    log(state, `${sourceName}：ボイドからコア${action.count}個をデッキの横に置いた。`)
+}
+
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
@@ -2578,6 +2591,7 @@ const handlers = {
     coreGain: coreGainHandler,
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreGainPer: coreGainPerHandler,
+    voidCoreToDeckSide: voidCoreToDeckSideHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
     voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,
