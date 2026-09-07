@@ -46,7 +46,8 @@ const VALID_KINDS = new Set([
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
-    "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity",
+    "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
+    "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant",
 ])
 
 export interface ValidationIssue {
@@ -141,15 +142,21 @@ function checkLentEffects(
             add(c.cardId, `貸与効果 ${e.id ?? e.kind} の aura target が "self"（仮想発生源では成立しない）`)
         }
 
-        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない
-        const lent: { type?: unknown }[] = []
-        collectActions([e], lent)
-        for (const a of lent) {
-            if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
-                add(
-                    c.cardId,
-                    `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
-                )
+        // §4.1: self 参照アクションは仮想発生源（self=null）では意味を成さない。
+        // ただし kind:"effectGrant" の granted.action は例外：貸与の対象は仮想発生源自身ではなく
+        // **誘発を受けた側の実在インスタンス**（fireTriggerがresolveActionへselfInstanceを渡す。
+        // triggers.ts collectGrantedTriggerActions/fireTrigger）なので self は常に非null になる
+        // （BS12-077インセクトオーラ：voidCoreToSelf を effectGrant 経由でアタックしたスピリットに渡す）
+        if (e.kind !== "effectGrant") {
+            const lent: { type?: unknown }[] = []
+            collectActions([e], lent)
+            for (const a of lent) {
+                if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
+                    add(
+                        c.cardId,
+                        `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
+                    )
+                }
             }
         }
     }
@@ -196,12 +203,14 @@ function checkCostSetEffects(
             !(
                 typeof e.condition === "object" &&
                 e.condition !== null &&
-                ("ownNexusAtLeast" in e.condition || "ownLifeAtMost" in e.condition)
+                ("ownNexusAtLeast" in e.condition ||
+                    "ownLifeAtMost" in e.condition ||
+                    "ownTrashFamilyCountAtLeast" in e.condition)
             )
         ) {
             add(
                 c.cardId,
-                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost / ownTrashFamilyCountAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
             )
         }
         if ("amount" in e) {
@@ -222,7 +231,7 @@ function checkCostSetEffects(
 const LEGACY_FILTER_FIELDS = [
     "maxBp", "maxBpFromSelf", "bpEqualsSelf", "keywordFilter", "colorFilter",
     "colorExclude", "familyFilter", "costFilter", "levelFilter", "vanillaFilter",
-    "minSymbols", "excludeSelf",
+    "minSymbols", "symbolCount", "excludeSelf",
 ] as const
 
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
@@ -234,7 +243,7 @@ const FILTER_ACTIONS = new Set([
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "keyword", "vanilla", "minSymbols", "excludeSelf", "cores", "maxCores", "rested",
+    "level", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested", "refreshed",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
@@ -245,7 +254,7 @@ const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     exhaustAll: ["cores", "excludeSelf", "cost", "sameCostAsEventTarget"], // BS05双剣虎ジェン・フー／SD02-002 ミザール（同じコスト）。他の軸は exhaustAll ハンドラが見ない
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
-    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family"],
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla"],
 }
 
 function checkTargetFilters(

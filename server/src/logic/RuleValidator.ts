@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -215,6 +215,10 @@ export function validateSummon(
     const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
     if (summonLimitError) return summonLimitError
 
+    // 相手からの「効果の記述を持つスピリットはターンにN枚まで」制限（BS12-071未完成の古代戦艦：帆Lv2）
+    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
+    if (summonLimitByEffectError) return summonLimitByEffectError
+
     // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
     // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
     // 許可したインスタンスの上のコアだけ、例外的に使える
@@ -260,8 +264,12 @@ export function validateSummon(
     // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
     const tensho = tenshoSpecOf(card, level ?? 1)
     if (tensho) {
-        const candidates = tenshoCandidates(state, pid, tensho.minCost)
+        const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
+            if (tensho.familyFilter) {
+                const families = [tensho.familyFilter].flat().join("/")
+                return `【転召】でコアを置く、系統：「${families}」を持つ自分のスピリットがいません`
+            }
             return tensho.minCost > 0
                 ? `【転召】でコアを置く、コスト${tensho.minCost}以上の自分のスピリットがいません`
                 : "【転召】でコアを置く自分のスピリットがいません"
@@ -338,6 +346,29 @@ function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card
             ).length
             if (countThisTurn >= limit) {
                 return `効果により、コスト${maxCost}以下のスピリットはこのターンあと召喚できません`
+            }
+        }
+    }
+    return null
+}
+
+// globalConstraint "summonLimitByEffectForOpponent"（BS12-071未完成の古代戦艦：帆Lv2）：
+// summonLimitByCostForOpponentの兄弟。コストでなく「効果の記述を持つ」スピリットカードで絞る
+function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
+    const opponent = state.players[opponentOf(pid)]
+    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "summonLimitByEffectForOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (isVanillaCard(card)) continue
+            const { limit } = effect.constraint
+            const countThisTurn = state.players[pid].field.spirits.filter(
+                (s) => s.summonedTurn === state.turn && !isVanillaCard(getCard(s.cardId)),
+            ).length
+            if (countThisTurn >= limit) {
+                return "効果により、効果の記述を持つスピリットはこのターンあと召喚できません"
             }
         }
     }
@@ -520,6 +551,14 @@ export function validateCastMagic(
     if (hasMagicRestriction(state, pid, "reserveOnlyOpponent") && (paySources ?? []).length > 0) {
         return "このマジックのコストはすべてリザーブから支払わなくてはなりません"
     }
+    // BS12-046ナタ・ゴレムLv1：相手フィールドに発生源があれば、マジックのコストをスピリット上のコアでは支払えない
+    // （reserveOnlyOpponentと違いネクサス上のコアは支払える。paySourcesはスピリット/ネクサスどちらのinstanceIdも受け付けるためfindSpiritで判定）
+    if (
+        hasMagicRestriction(state, pid, "noSpiritCoresOpponent") &&
+        (paySources ?? []).some((src) => findSpirit(player, src.instanceId) !== undefined)
+    ) {
+        return "このマジックのコストは、相手のスピリット上のコアでは支払えません"
+    }
     // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない色のマジックは使用できない
     const fieldSymbolColors = ownFieldSymbolColors(state, pid)
     if (
@@ -573,6 +612,14 @@ export function validateCastMagic(
         }
     }
 
+    // ownTurnForbidden（BS12-080バキュームシンボル）：発生源の持ち主のターン中はこのマジックを使用できない。
+    // battle/main どちらの経路から使おうとしていても、使用宣言そのものを拒否する
+    if (
+        state.turnPlayer === pid &&
+        card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.ownTurnForbidden)
+    ) {
+        return "このマジックは自分のターンでは使用できません"
+    }
     if (state.battle) {
         // バトル中のフラッシュ：優先権を持つプレイヤーのみ（攻撃側も優先権があれば使用可）
         if (!state.isFlashTiming) return "フラッシュタイミングは終了しています"
@@ -742,15 +789,23 @@ export function validateActivateAbility(
 ): string | null {
     // ネクサスの起動能力もある（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）ので、
     // スピリットで見つからなければネクサスも探す
+    // 【合体時】の起動能力は合体しているブレイヴが持つ（BS12-050 突機竜アーケランサー）ので、
+    // combinedBraves も探す。その場合レベル・バトル参加・疲労はホスト（合体スピリット）を見る
+    const brave = state.players[pid].field.combinedBraves.find((b) => b.instanceId === instanceId)
     const inst =
         findSpirit(state.players[pid], instanceId) ??
-        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId)
+        state.players[pid].field.nexuses.find((n) => n.instanceId === instanceId) ??
+        brave
     if (!inst) return "対象のカードが見つかりません"
-    const level = currentLevel(inst).level
+    const host = brave ? hostsOf(state.players[pid], brave)[0] : inst
+    if (!host) return "合体先のスピリットが見つかりません"
+    const level = currentLevel(host).level
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
+    if (effect.whileCombined && !brave) return "合体しているときだけ発動できます"
+    if (!effect.whileCombined && brave) return "この効果は合体中のブレイヴからは発動できません"
     if (!effectActiveAtLevel(effect.levels, level)) {
         return "現在のレベルでは発動できません"
     }
@@ -799,10 +854,10 @@ export function validateActivateAbility(
     // cost 省略時は追加コストなし（BS08帝竜騎サイクル）
     if (effect.cost !== undefined) {
         if ("exhaustSelf" in effect.cost) {
-            if (inst.isRested) return "すでに疲労しています"
+            if (host.isRested) return "すでに疲労しています"
         } else if ("selfCoresToTrash" in effect.cost) {
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
-            if (inst.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
+            if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -837,6 +892,10 @@ export function validateAttack(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためアタックできません"
     }
+    // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）：相手が指定したコストのスピリットはアタックできない
+    if (instCantAttackByOpponentCost(state, pid, inst)) {
+        return "コストによりアタックできません"
+    }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
@@ -855,7 +914,11 @@ export function validateAttack(
         const target = findSpirit(state.players[opponentOf(pid)], targetSpiritInstanceId)
         if (!target) return "指定した相手スピリットが見つかりません"
         // 対象条件の判定はクライアントの指定アタック対象ハイライトと同一の共有実装を使う
-        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid))
+        // アタッカーを渡す＝【装甲】/【重装甲】で効果を受けない個体は指定できない
+        const filterError = matchesDirectedAttackFilter(targetFilter, target, state, opponentOf(pid), {
+            pid,
+            inst,
+        })
         if (filterError) return filterError
     }
     return null
@@ -964,6 +1027,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
         if (instCostCantAct(state, inst)) continue
+        // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
+        if (instCantAttackByOpponentCost(state, pid, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)

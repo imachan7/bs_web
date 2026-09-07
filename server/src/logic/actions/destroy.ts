@@ -24,6 +24,7 @@ import {
     pickAnySideCandidates,
     millDeck,
     pickEnemyByBp,
+    pickEnemyLowestCost,
     pickEnemyCandidates,
     requestChoice,
     returnNexusToHand,
@@ -31,7 +32,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instAllCosts, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -249,7 +250,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             return
         }
         for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            const target = action.lowestCost
+                ? pickEnemyLowestCost(state, opp, matchesFilter, srcColors, srcType)
+                : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
@@ -344,6 +347,48 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         if (state.winner) return
         applyDestroyBatchAfter(state, owner, destroyed, after)
         return
+}
+
+// BS12-X06海賊王レヴィアダン『召喚時』：自分の familyFilter 一致スピリット（self自身も含む）の
+// コストの集合に、コストが一致する相手のスピリットすべてを破壊する（器BH）
+const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, destroyContext } = ctx
+    const costSet = new Set<number>()
+    for (const s of state.players[owner].field.spirits) {
+        if (!matchesFamilyFilter(state, owner, s, action.familyFilter)) continue
+        for (const c of instAllCosts(s)) costSet.add(c)
+    }
+    if (costSet.size === 0) {
+        log(state, `${sourceName}：コストの参照元がいなかった。`)
+        return
+    }
+    const targets = state.players[opp].field.spirits
+        .filter(
+            (s) =>
+                instAllCosts(s).some((c) => costSet.has(c)) &&
+                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
+        )
+        .map((s) => ({ pid: opp, instanceId: s.instanceId }))
+    if (targets.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, destroyContext)
+    if (stoppedAt < targets.length) {
+        pushResumeFrames(state, [{
+            kind: "destroyBatch",
+            ownerPid: owner,
+            targets,
+            index: stoppedAt,
+            destroyed,
+            ...(destroyContext ? { context: destroyContext } : {}),
+            after: {},
+        }])
+        return
+    }
+    if (state.winner) return
+    applyDestroyBatchAfter(state, owner, destroyed, {})
+    return
 }
 
 // ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
@@ -1534,6 +1579,146 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
     return
 }
 
+// mutualDestroyChoiceの否定版（BS12-015冥王神龍クロノ・ハデス【合体時】『破壊時』）：
+// 「お互い、それぞれのスピリット1体を指定する。指定されなかったスピリットすべてを破壊する」。
+// 二段階choiceパターンは同じだが、各自は**自分の**フィールドから1体だけを指定できる
+// （mutualDestroyChoiceは相手フィールドも選べる点が違う）。破壊待機中の発生源自身（self）は
+// 指定候補に含めない（2026-09-06ユーザー確認：クロノ・ハデス自身は既に破壊待機中でこの効果を解決している）。
+// 指定された2体を除く両陣営のスピリットすべてを破壊する
+const mutualKeepChoiceHandler: ActionHandler<"mutualKeepChoice"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const candidatesOf = (pid: PlayerId): string[] =>
+        state.players[pid].field.spirits
+            .filter((s) => !self || s.instanceId !== self.instanceId)
+            .map((s) => s.instanceId)
+
+    let chosenOwn = action.chosenOwn
+    let chosenOpp = action.chosenOpp
+
+    if (state.interactiveTargets) {
+        if (action.awaiting === "own" && targetInstanceId !== undefined) chosenOwn = targetInstanceId
+        if (action.awaiting === "opponent" && targetInstanceId !== undefined) chosenOpp = targetInstanceId
+
+        if (chosenOwn === undefined) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：残す自分のスピリットを指定してください`,
+                candidatesOf(owner),
+                false,
+                { ...action, awaiting: "own", ...(chosenOpp !== undefined ? { chosenOpp } : {}) },
+                self,
+            )
+            return
+        }
+        if (chosenOpp === undefined) {
+            requestChoice(
+                state,
+                opp,
+                `${sourceName}：残す自分のスピリットを指定してください`,
+                candidatesOf(opp),
+                false,
+                { ...action, awaiting: "opponent", chosenOwn },
+                self,
+            )
+            // 選ぶのは相手だが、実行者は発生源の持ち主のまま（mutualDestroyChoiceと同じ）
+            if (state.pendingChoice) state.pendingChoice.actorPid = owner
+            return
+        }
+    } else {
+        // 非対話時：各自が自分のフィールドの実効BP最大を自動選択（決定的簡略化）
+        const pickMaxBp = (pid: PlayerId): string | undefined => {
+            const spirits = state.players[pid].field.spirits.filter((s) => !self || s.instanceId !== self.instanceId)
+            if (spirits.length === 0) return undefined
+            return spirits.reduce((best, s) =>
+                effectiveBp(state, pid, s) > effectiveBp(state, pid, best) ? s : best,
+            ).instanceId
+        }
+        if (chosenOwn === undefined) chosenOwn = pickMaxBp(owner)
+        if (chosenOpp === undefined) chosenOpp = pickMaxBp(opp)
+    }
+
+    const keep = new Set([chosenOwn, chosenOpp].filter((id): id is string => id !== undefined))
+    const batch: { pid: PlayerId; instanceId: string }[] = []
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const sp of state.players[pid].field.spirits) {
+            if (self && sp.instanceId === self.instanceId) continue // 破壊待機中の発生源自身は対象外
+            if (keep.has(sp.instanceId)) continue
+            batch.push({ pid, instanceId: sp.instanceId })
+        }
+    }
+    if (batch.length > 0) destroyTargetsBatch(state, owner, batch, destroyContext)
+    else log(state, `${sourceName}：破壊されるスピリットがいなかった。`)
+    return
+}
+
+// BS12-052デス・ヘイズ：召喚時「自分のスピリットを好きなだけ破壊し、破壊したスピリット1体につき
+// 自分はデッキから1枚ドローする。ただし『このスピリットの破壊時』効果は発揮されない」。
+// budgetToggleDestroyと同じ「クリックで選択/解除、確定でまとめて破壊」のトグル選択を自分のフィールドに使う
+const destroyOwnFreelyThenDrawHandler: ActionHandler<"destroyOwnFreelyThenDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const onField = (id: string): CardInstance | undefined =>
+        state.players[owner].field.spirits.find((sp) => sp.instanceId === id)
+
+    if (state.interactiveTargets) {
+        let chosen = [...(action.chosenIds ?? [])]
+        if (action.choosing && targetInstanceId !== undefined) {
+            chosen = chosen.includes(targetInstanceId)
+                ? chosen.filter((id) => id !== targetInstanceId)
+                : [...chosen, targetInstanceId]
+        }
+        chosen = chosen.filter((id) => onField(id) !== undefined)
+
+        // スキップ（＝「これで破壊する」）で戻ってきたときだけ、聞き直さずに確定する
+        if (!(action.choosing && targetInstanceId === undefined)) {
+            const candidates = state.players[owner].field.spirits.map((sp) => sp.instanceId)
+            if (candidates.length > 0) {
+                suspend(state, {
+                    pid: owner,
+                    kind: "target",
+                    prompt: `${sourceName}：破壊する自分のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
+                    candidates,
+                    selectedIds: chosen,
+                    skipLabel: chosen.length > 0 ? `これで破壊する（${chosen.length}体）` : "破壊しない",
+                    optional: true,
+                    resolveOnSkip: true,
+                    action: { ...action, choosing: true as const, chosenIds: chosen },
+                    selfInstanceId: self ? self.instanceId : null,
+                })
+                return
+            }
+        }
+        if (chosen.length === 0) {
+            log(state, `${sourceName}：スピリットを破壊しなかった。`)
+            return
+        }
+        let destroyed = 0
+        for (const id of chosen) {
+            if (destroySpirit(state, owner, id, "destroy", undefined, { suppressOnDestroy: true })) destroyed++
+        }
+        if (destroyed > 0) {
+            draw(state, owner, destroyed)
+            log(state, `${sourceName}：スピリット${destroyed}体を破壊し、デッキから${destroyed}枚ドローした。`)
+        }
+        return
+    }
+    // 非対話時：自分のフィールドのスピリットすべてを破壊する決定的簡略化
+    const ids = state.players[owner].field.spirits.map((sp) => sp.instanceId)
+    if (ids.length === 0) {
+        log(state, `${sourceName}：破壊できるスピリットがいなかった。`)
+        return
+    }
+    let destroyed = 0
+    for (const id of ids) {
+        if (destroySpirit(state, owner, id, "destroy", undefined, { suppressOnDestroy: true })) destroyed++
+    }
+    if (destroyed > 0) {
+        draw(state, owner, destroyed)
+        log(state, `${sourceName}：スピリット${destroyed}体を破壊し、デッキから${destroyed}枚ドローした。`)
+    }
+    return
+}
+
 // BS01-104 千本槍の古戦場Lv2：このネクサス上のコア1個をトラッシュに置くことで、
 // 相手のブロックしたスピリット1体を「バトル終了後に破壊する」予約を立てる（BattleState.endBattleDestroy）。
 // **ここでは破壊しない**。実際の破壊は GameEngine のバトル解決＞７（【呪撃】の直後）で
@@ -1582,7 +1767,10 @@ const handlers = {
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
+    mutualKeepChoice: mutualKeepChoiceHandler,
+    destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,
     destroyAll: destroyAllHandler,
+    destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,

@@ -443,6 +443,42 @@ input[type="text"] {
     line-height: 24px;
 }
 
+/* ブレイヴ: 菱形の角を削った八角形（縦横は同じ長さ。スピリットの丸と見分けが付くように） */
+.cost-badge.cost-brave,
+.row-cost.cost-brave {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background: #475569;
+    clip-path: polygon(38% 3%, 62% 3%, 97% 38%, 97% 62%, 62% 97%, 38% 97%, 3% 62%, 3% 38%);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+/* 内側を暗くして「縁取り」に見せる（ネクサスの六角形と同じ作り） */
+.cost-badge.cost-brave::before,
+.row-cost.cost-brave::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: #1e293b;
+    clip-path: polygon(38% 3%, 62% 3%, 97% 38%, 97% 62%, 62% 97%, 38% 97%, 3% 62%, 3% 38%);
+    z-index: -1;
+}
+
+/* 丸より一回り大きく取る（八角形は角が落ちるぶん小さく見えるため） */
+.cost-badge.cost-brave {
+    width: 30px;
+    height: 30px;
+    top: -7px;
+    left: -7px;
+}
+
+.row-cost.cost-brave {
+    width: 26px;
+    height: 26px;
+    line-height: 26px;
+}
+
 /* マジック: 二重菱形（角と辺をずらして重ねた2枚のひし形） */
 .cost-badge.cost-magic,
 .row-cost.cost-magic {

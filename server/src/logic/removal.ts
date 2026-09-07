@@ -86,7 +86,10 @@ import {
     braveKeepCores,
     cantSpiritStateBrave,
     coresCantBeRemoved,
+    hasDestroyAsMaxLevelGrant,
+    coresToOpponentReserveGoToTrash,
     bravesOf,
+    hostsOf,
     countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
@@ -107,6 +110,7 @@ import {
     instEffectsSuppressed,
     instHasColor,
     instHasCost,
+    instIsCombined,
     isUntargetableByOpponent,
     instIsVanilla,
     isVirtualSource,
@@ -522,7 +526,11 @@ export function destroySpirit(
     // deferCommit: 破壊待機の設定と確定（トラッシュ行き）を**呼び出し元が管理する**印。
     // 【不死】のように「破壊時の誘発」として同じ待機の窓の中で解決したいものがあるときに使う
     // （resolveDestroyOne。docs/design/TIMING_CHART.md §1.5）
-    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true },
+    // suppressOnDestroy: この破壊では『このスピリットの破壊時』（onDestroy）トリガーを発揮させない。
+    // 「自分のスピリットが破壊されたとき」フィールドイベント（fireOwnSpiritDestroyed）は通常どおり発火する
+    // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない。
+    // BS12-052デス・ヘイズ：召喚時に自分のスピリットを好きなだけ破壊するがそれらの破壊時効果は出さない）
+    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true; suppressOnDestroy?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -539,6 +547,19 @@ export function destroySpirit(
     // deferCommit（呼び出し元が待機を管理している同じ破壊）は通す
     if (inst.pendingDestruction && !options?.skipRevive && !options?.deferCommit) return false
     const master = getCard(inst.cardId)
+
+    // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
+    // 効果でコアが0個になったとき」は、通常の維持コア割れ（cause:"deplete"＝消滅・onDestroy不発火）ではなく、
+    // 最高Lvとして破壊される（onDestroy誘発あり）。currentEffectSourceは resolveAction が効果解決中ずっと
+    // 立てているので、ここで「誰の・どの種別の効果の解決中か」を読める（EFFECT_SOURCE_CONTEXT.md）
+    if (cause === "deplete" && inst.cores === 0) {
+        const src = state.currentEffectSource
+        const bySpiritBraveOrMagic = src?.type === "spirit" || src?.type === "brave" || src?.type === "magic"
+        if (src !== undefined && src.pid !== ownerPid && bySpiritBraveOrMagic && hasDestroyAsMaxLevelGrant(state, ownerPid, inst)) {
+            inst.destroyAsMaxLevel = true
+            cause = "destroy"
+        }
+    }
 
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
@@ -572,19 +593,22 @@ export function destroySpirit(
     // BS10-012アントイーター/BS10-014闇騎士マリス
     const bySpiritEffect = context?.sourceType === "spirit" && context?.sourcePid !== undefined && context.sourcePid !== ownerPid
     const sourceInstanceId = context?.sourceInstanceId
+    // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
+    // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
+    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
     if (cause === "destroy") {
-        fireTrigger(state, ownerPid, inst, "onDestroy")
+        if (!options?.suppressOnDestroy) fireTrigger(state, ownerPid, inst, "onDestroy")
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId, options?.deferCommit)
+            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
             return true
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId)
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, sourceInstanceId, options?.deferCommit)
+        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
         return true
     }
 
@@ -604,6 +628,7 @@ function suspendDestroyCommit(
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
+    byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
     deferCommit?: true,
 ): void {
@@ -621,6 +646,7 @@ function suspendDestroyCommit(
             byBattle,
             wasAttacker,
             bySpiritEffect,
+            byOpponentEffect,
             ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
             ...(deferCommit ? { deferCommit } : {}),
         },
@@ -639,6 +665,7 @@ function fireOwnSpiritDestroyed(
     byBattle: boolean,
     wasAttacker: boolean,
     bySpiritEffect: boolean,
+    byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
 ): void {
     const master = getCard(inst.cardId)
@@ -647,6 +674,8 @@ function fireOwnSpiritDestroyed(
         byBattle,
         wasAttacker,
         bySpiritEffect,
+        // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
+        byOpponentEffect,
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
@@ -663,9 +692,9 @@ export function resumeDestroyCommit(
     // 誘発の解決中に復活した／場から居なくなったなら、破壊は成立しない
     if (!inst || !inst.pendingDestruction) return
     if (frame.step <= 1) {
-        fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.sourceInstanceId)
+        fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.sourceInstanceId, frame.deferCommit)
+            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId, frame.deferCommit)
             return
         }
     }
@@ -1333,6 +1362,7 @@ function tryReviveOnDestroy(
 
     const matchesWhen = (when: {
         byOpponentEffect?: boolean
+        byOpponent?: boolean
         byBattleVsArmorColor?: boolean
         byBattle?: boolean
         byBattleKillerLevel?: number
@@ -1340,6 +1370,12 @@ function tryReviveOnDestroy(
     }): boolean => {
         if (when.byOpponentEffect) {
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
+        }
+        // 「相手によって破壊されたとき」＝相手の効果 **または** バトルのBP比較（BS12-X05）。
+        // 自分の効果で自分を破壊した場合は含まない
+        if (when.byOpponent) {
+            const byOppEffect = context?.sourcePid !== undefined && context.sourcePid !== ownerPid
+            if (!byOppEffect && context?.battle === undefined) return false
         }
         if (when.byBattleVsArmorColor) {
             const attackerColors = context?.battle?.attackerColors
@@ -1599,6 +1635,22 @@ function tryReviveOnDestroy(
         if (tryEffect(effect, getCard(inst.cardId).name)) return true
     }
 
+    // 合体中ブレイヴの scope:"self" + whileCombined 由来（BS12-052デス・ヘイズ：
+    // 合体しているホスト＝instが破壊されるとき、ブレイヴ自身が持つ「このスピリットは戻る」を代わりに適用する）。
+    // effectSources() は合体中ブレイヴも含むが、あちらは scope:"ownAll"（複数対象への一般則）用の走査。
+    // scope:"self" はカードの持ち主＝ブレイヴ自身を指すため、ホストと一致するかをここで別途見る。
+    // レベルはブレイヴ自身のレベルで判定し（ホストのlevelではない）、tryEffectの内部再判定はlevels:nullで無効化する
+    for (const brave of state.players[ownerPid].field.combinedBraves) {
+        if (!hostsOf(state.players[ownerPid], brave).some((h) => h.instanceId === inst.instanceId)) continue
+        const braveLevel = currentLevel(brave).level
+        for (const effect of getCard(brave.cardId).effects) {
+            if (effect.kind !== "reviveOnDestroy") continue
+            if (effect.scope !== "self" || effect.whileCombined !== true) continue
+            if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
+            if (tryEffect({ ...effect, levels: null }, getCard(brave.cardId).name)) return true
+        }
+    }
+
     // ownAll由来（持ち主フィールドの発生源から）。levelsは発生源のレベル条件のため、
     // instのlevelを見るtryEffectは使わず発生源のsourceLevelで判定する。
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
@@ -1620,6 +1672,8 @@ function tryReviveOnDestroy(
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
+            // BS12-068光の聖剣Lv2：合体スピリットのみ対象
+            if (effect.combinedOnly && !instIsCombined(inst)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             if (!matchesReviveCondition(effect.condition)) continue
@@ -2023,6 +2077,11 @@ export function fireBounceTriggers(
         // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
         if (m.to === "hand") {
             fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+            // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る
+            // （subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形。BS12-040 天王神龍スレイ・カエルス）
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+            }
         }
         if (state.pendingChoice) {
             if (i + 1 < moved.length) {
@@ -2094,6 +2153,9 @@ export function removeCores(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
+    // このコア除去を引き起こした効果の種別（BS12-X02魔羯邪神シュタイン・ボルグ：
+    // coresToOpponentReserveGoToTrash の判定に使う。省略時＝ネクサス扱いと同じ「対象外」に倒す）
+    srcType?: CardType,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
     // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
@@ -2112,11 +2174,21 @@ export function removeCores(
     const floor = coreFloorFor(state, inst, ownerPid)
     const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
-    player.reserve += removed
-    log(
-        state,
-        `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
-    )
+    // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
+    // 発生源の持ち主から見た相手（＝ownerPid）のトラッシュへ振り替える
+    if (removed > 0 && coresToOpponentReserveGoToTrash(state, ownerPid, srcType)) {
+        player.trashCores += removed
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除き、リザーブの代わりにトラッシュに置いた。`,
+        )
+    } else {
+        player.reserve += removed
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}からコア${removed}個を取り除いた。`,
+        )
+    }
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < instMinLevelCores(inst)) {
         destroySpirit(state, ownerPid, inst.instanceId, "deplete")
@@ -2218,6 +2290,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
+                // colorFilter（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）：この色を持たなければ守らない
+                if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。
                 // 以前はカードの召喚コストとして実装していた（BS08-059聖なる柱状彫刻の挙動もここで変わる）
                 return instMinLevelCores(inst)

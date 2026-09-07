@@ -240,7 +240,7 @@ export function activatableAbility(
     view: GameView,
     you: PlayerId,
     inst: CardInstance,
-): { effectId: string; costLabel: string } | null {
+): { effectId: string; costLabel: string; instanceId?: string } | null {
     return sharedActivatableAbility(view, you, inst)
 }
 
@@ -360,8 +360,9 @@ export function matchesDirectedAttackFilter(
     target: CardInstance,
     view: GameView,
     targetPid: PlayerId,
+    attacker?: { pid: PlayerId; inst: CardInstance },
 ): boolean {
-    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid) === null
+    return sharedMatchesDirectedAttackFilter(filter, target, view, targetPid, attacker) === null
 }
 
 // ---- DOM ヘルパー ----
@@ -1225,7 +1226,8 @@ function fieldCardEl(
         if (activatable) {
             const badge = document.createElement("button")
             badge.className = "activate-badge"
-            badge.dataset.activate = inst.instanceId
+            // 【合体時】の起動能力はブレイヴが持つので、起動対象はそのブレイヴの instanceId になる
+            badge.dataset.activate = activatable.instanceId ?? inst.instanceId
             badge.dataset.effect = activatable.effectId
             badge.textContent = "起動"
             badge.title = activatable.costLabel
@@ -1276,7 +1278,11 @@ function fieldCardEl(
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
         if (ui.directedAttack !== null) {
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid)) {
+            const attackerInst = view.players[view.you].field.spirits.find(
+                (s) => s.instanceId === ui.directedAttack?.attackerInstanceId,
+            )
+            const attacker = attackerInst ? { pid: view.you, inst: attackerInst } : undefined
+            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid, attacker)) {
                 el.classList.add("targetable", "clickable")
             }
             return el

@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -37,6 +37,7 @@ import {
     TENSHO_SUBSTITUTE_REST,
     TENSHO_SUBSTITUTE_HAND,
     applyTenshoSubstitute,
+    applyTenshoSubstituteCrossSource,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
@@ -116,11 +117,13 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             }
         }
         // 維持コア割れの消滅処理はremoveCores/removeCoresToVoidが担う。
-        // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）
+        // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）。dest:"trash"指定時はトラッシュへ（BS12-012戦車皇ディルガン）
         if (action.dest === "void") {
             removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
+        } else if (action.dest === "trash") {
+            removeCoresToTrash(state, found.pid, found.inst, removeCount, owner)
         } else {
-            removeCores(state, found.pid, found.inst, removeCount, owner)
+            removeCores(state, found.pid, found.inst, removeCount, owner, srcType)
         }
         // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
         // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
@@ -130,6 +133,123 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             log(state, `${sourceName}：コアが0個になったので${state.players[owner].name}は1枚引いた。`)
         }
         return
+}
+
+// BS12-012戦車皇ディルガン『相手のアタックステップ』ステップ開始時：
+// 「このスピリットのコアを好きなだけ自分のトラッシュに置くことで、置いたコア1個につき、
+// filter一致の相手スピリットのコア1個を相手のトラッシュに置く」。
+// selfのコア数（0〜self.cores）をbpBuff.extraPerCoreToTrashと同じ増減式stepperで選ばせ、
+// 支払った数nをcoreRemove（count:n, dest:"trash", filter）へ委譲する（装甲・効果耐性・維持コア割れの判定を1箇所に保つ）
+const coreRemoveByPayingSelfCoresHandler: ActionHandler<"coreRemoveByPayingSelfCores"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+    if (!self) {
+        log(state, `${sourceName}：発生源がいなかった。`)
+        return
+    }
+    // stepperの回答（0〜selfのコア数）が戻ってきた経路
+    if (chosenOption !== undefined) {
+        const n = Number(chosenOption)
+        if (!Number.isFinite(n) || n <= 0) {
+            log(state, `${sourceName}：コアを置かなかった。`)
+            return
+        }
+        self.cores -= n
+        state.players[owner].trashCores += n
+        log(state, `${sourceName}：自分のコア${n}個をトラッシュに置いた。`)
+        if (self.cores < instMinLevelCores(self)) {
+            destroySpirit(state, owner, self.instanceId, "deplete")
+        }
+        ctx.resolve({ type: "coreRemove", count: n, dest: action.dest, ...(action.filter ? { filter: action.filter } : {}) })
+        return
+    }
+    if (self.cores <= 0) {
+        log(state, `${sourceName}：コアが無いため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：自分のコアをトラッシュに置く数を選んでください（1個につき対象のコアを1個トラッシュへ）`,
+            [],
+            true,
+            action,
+            self,
+            "option",
+            Array.from({ length: self.cores + 1 }, (_, i) => String(i)),
+            undefined,
+            true,
+        )
+        return
+    }
+    // 非対話時：0個（何もしない）に倒す
+    log(state, `${sourceName}：コアを置かなかった。`)
+    return
+}
+
+// BS12-015冥王神龍クロノ・ハデス：召喚時「自分のフィールドのコアcostOwnFieldCoresToVoid個をボイドに
+// 置くことで、sideのフィールドのコアcount個をボイドに置く」。「フィールドのコア」はスピリット/ネクサス
+// 上のコアのみ（リザーブは含まない）。「〜することで」はコストなので、自分のフィールド合計が
+// costOwnFieldCoresToVoid以上・side側のフィールド合計がcount以上の両方を満たすときだけ発揮する
+// （COST_MODEL.md §1）。どちらもコアの多い個体から順に自動で取る（範囲効果のため対象選択は挟まない）
+function fieldCoresTotal(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    return (
+        player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
+        player.field.nexuses.reduce((sum, n) => sum + n.cores, 0)
+    )
+}
+
+function takeFieldCoresToVoid(state: GameState, pid: PlayerId, count: number, actorPid: PlayerId): number {
+    const player = state.players[pid]
+    let remaining = count
+    let taken = 0
+    while (remaining > 0) {
+        let richest: CardInstance | undefined
+        let richestKind: "spirit" | "nexus" | undefined
+        for (const s of player.field.spirits) {
+            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+                richest = s
+                richestKind = "spirit"
+            }
+        }
+        for (const n of player.field.nexuses) {
+            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
+                richest = n
+                richestKind = "nexus"
+            }
+        }
+        if (!richest || !richestKind) break
+        if (richestKind === "spirit") {
+            const removed = removeCoresToVoid(state, pid, richest, Math.min(remaining, richest.cores), actorPid)
+            if (removed === 0) break
+            remaining -= removed
+            taken += removed
+        } else {
+            const take = Math.min(remaining, richest.cores)
+            richest.cores -= take
+            remaining -= take
+            taken += take
+        }
+    }
+    return taken
+}
+
+const voidCoresFromFieldHandler: ActionHandler<"voidCoresFromField"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    const targetPid = action.side === "own" ? owner : opp
+    const costRequired = action.costOwnFieldCoresToVoid ?? 0
+    if (fieldCoresTotal(state, owner) < costRequired || fieldCoresTotal(state, targetPid) < action.count) {
+        log(state, `${sourceName}：コアが足りず発動しなかった。`)
+        return
+    }
+    if (costRequired > 0) {
+        takeFieldCoresToVoid(state, owner, costRequired, owner)
+        log(state, `${sourceName}：自分のフィールドのコア${costRequired}個をボイドに置いた。`)
+    }
+    const taken = takeFieldCoresToVoid(state, targetPid, action.count, owner)
+    log(state, `${sourceName}：${state.players[targetPid].name}のフィールドのコア${taken}個をボイドに置いた。`)
+    return
 }
 
 // BS06-096レベルドレイン：相手のスピリット1体の上のコアを、1つ下のLvに必要なコア数と同じになるまで
@@ -211,7 +331,7 @@ function applyCoreRemoveMultiTarget(
     }
     if (action.dest === "void") removeCoresToVoid(state, opp, found, action.count, owner)
     else if (action.dest === "trash") removeCoresToTrash(state, opp, found, action.count, owner)
-    else removeCores(state, opp, found, action.count, owner)
+    else removeCores(state, opp, found, action.count, owner, srcType)
 }
 
 const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) => {
@@ -300,7 +420,7 @@ const coreRemoveSelfHandler: ActionHandler<"coreRemoveSelf"> = (ctx, action) => 
             log(state, `${sourceName}のコア除去：対象がいなかった。`)
             return
         }
-        removeCores(state, owner, self, action.count)
+        removeCores(state, owner, self, action.count, undefined, srcType)
         return
 }
 
@@ -351,6 +471,13 @@ const tenshoSubstituteChoiceHandler: ActionHandler<"tenshoSubstituteChoice"> = (
         // 【転召】置換（BS05の竜使い）の任意発動のpendingChoice再開専用（cards.jsonには書かない）。
         // selfには転召の対象になった自分のスピリットが渡る
         if (!self) return
+        if (chosenOption === TENSHO_SUBSTITUTE_REST && action.exhaustInstanceId !== undefined) {
+            const sourceInst = findSpirit(state.players[owner], action.exhaustInstanceId) ?? findNexus(state.players[owner], action.exhaustInstanceId)
+            if (sourceInst) {
+                applyTenshoSubstituteCrossSource(state, owner, self, sourceInst)
+                return
+            }
+        }
         if (chosenOption === TENSHO_SUBSTITUTE_REST || chosenOption === TENSHO_SUBSTITUTE_HAND) {
             applyTenshoSubstitute(state, owner, self, chosenOption === TENSHO_SUBSTITUTE_HAND)
             return
@@ -376,6 +503,13 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
         )
         placeCoresOnSpirit(state, target, amount, owner)
         return
+}
+
+const capOpponentTrashCoreReturnNextRefreshHandler: ActionHandler<"capOpponentTrashCoreReturnNextRefresh"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    state.players[opp].trashCoreReturnCapNext = action.max
+    log(state, `${sourceName}：次の${state.players[opp].name}のリフレッシュステップでは、トラッシュのコアは${action.max}個までしかリザーブに戻せない。`)
+    return
 }
 
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
@@ -451,7 +585,7 @@ const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
 }
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, self, sourceName, chosenOption } = ctx
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
         if (voidCorePlacementBlocked(state)) {
             log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
@@ -460,6 +594,29 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
         if (!self) {
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
+        }
+        // orReserve（BS12-077/BS12-X03）：「自分のリザーブか、このスピリット上か」を効果の使用者が毎回選ぶ
+        if (action.orReserve) {
+            if (chosenOption === "このスピリット上に置く") {
+                // 下の通常経路（スピリット上に置く）へ落ちる
+            } else if (chosenOption === "リザーブに置く" || !state.interactiveTargets) {
+                const player = state.players[owner]
+                player.reserve += action.count
+                log(state, `${player.name}はボイドからコア${action.count}個をリザーブに置いた。（リザーブ${player.reserve}）`)
+                return
+            } else {
+                suspend(state, {
+                    pid: owner,
+                    kind: "option",
+                    prompt: `${sourceName}：ボイドからコア${action.count}個を、自分のリザーブか、このスピリット上のどちらに置きますか？`,
+                    candidates: [],
+                    options: ["リザーブに置く", "このスピリット上に置く"],
+                    optional: false,
+                    action,
+                    selfInstanceId: self.instanceId,
+                })
+                return
+            }
         }
         log(
             state,
@@ -574,7 +731,7 @@ const coreSqueezeAllHandler: ActionHandler<"coreSqueezeAll"> = (ctx, action) => 
                 }
                 // removeCores を通すことで、バトル中のコア保護（BS05茨の決戦地Lv1）・コア下限
                 // （BS08聖なる柱状彫刻）・チャウーLv2の加算・維持コア割れの消滅がまとめて効く
-                const removed = removeCores(state, pid, inst, inst.cores - 1, owner)
+                const removed = removeCores(state, pid, inst, inst.cores - 1, owner, srcType)
                 if (removed === 0) continue
                 squeezed++
                 affectedByPid[pid]++
@@ -611,7 +768,7 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
             // （BS05茨の決戦地Lv1）・維持コア割れの消滅・極光の大地への通知がまとめて効く
             const removed = toTrash
                 ? removeCoresToTrash(state, pid, target, excess, owner)
-                : removeCores(state, pid, target, excess, owner)
+                : removeCores(state, pid, target, excess, owner, srcType)
             if (removed === 0) {
                 log(state, `${getCard(target.cardId).name}のコアは取り除けなかった。`)
             }
@@ -900,7 +1057,7 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
             )
             if (!inst) continue // 途中の誘発等ですでにフィールドから消えている場合はスキップ
             const before = state.players[pid].field.spirits.length
-            removeCores(state, pid, inst, 1, owner)
+            removeCores(state, pid, inst, 1, owner, srcType)
             if (state.players[pid].field.spirits.length < before) destroyed++
         }
         log(
@@ -1637,6 +1794,45 @@ const selfCoreToOwnLifeHandler: ActionHandler<"selfCoreToOwnLife"> = (ctx, actio
         return
 }
 
+// BS12-037オリンピアの天使ベトールLv2-3：selfCoreToOwnLifeの「このスピリット」限定を、
+// 「自分のフィールドのコア」＝場のどこからでもよい版に広げたもの。ネクサス（コア最多）を優先し、
+// 足りなければスピリット（実効BP最小）から取る。スピリットから取って維持コアを割ったら消滅処理を通す
+const fieldCoreToLifeHandler: ActionHandler<"fieldCoreToLife"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    let remaining = action.count
+    let moved = 0
+    while (remaining > 0) {
+        const nexusCandidates = player.field.nexuses.filter((n) => n.cores > 0)
+        if (nexusCandidates.length > 0) {
+            const target = nexusCandidates.reduce((most, n) => (n.cores > most.cores ? n : most))
+            const taken = Math.min(remaining, target.cores)
+            target.cores -= taken
+            remaining -= taken
+            moved += taken
+            continue
+        }
+        const spirits = player.field.spirits.filter((s) => s.cores > 0)
+        if (spirits.length === 0) break
+        const target = spirits.reduce((worst, s) =>
+            effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+        )
+        const taken = Math.min(remaining, target.cores)
+        target.cores -= taken
+        remaining -= taken
+        moved += taken
+        if (target.cores < instMinLevelCores(target)) {
+            destroySpirit(state, owner, target.instanceId, "deplete")
+        }
+    }
+    if (moved === 0) {
+        log(state, `${sourceName}：フィールドに置けるコアがなかった。`)
+        return
+    }
+    player.life += moved
+    log(state, `${player.name}は自分のフィールドのコア${moved}個をライフに置いた。（現在ライフ${player.life}）`)
+}
+
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -2363,6 +2559,8 @@ const handlers = {
     swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,
     coreRemove: coreRemoveHandler,
+    coreRemoveByPayingSelfCores: coreRemoveByPayingSelfCoresHandler,
+    voidCoresFromField: voidCoresFromFieldHandler,
     coreDrainToLowerLevel: coreDrainToLowerLevelHandler,
     coreRemoveMulti: coreRemoveMultiHandler,
     protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
@@ -2373,6 +2571,7 @@ const handlers = {
     tenshoSubstituteChoice: tenshoSubstituteChoiceHandler,
     coreCharge: coreChargeHandler,
     coreGain: coreGainHandler,
+    capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreGainPer: coreGainPerHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
@@ -2403,6 +2602,7 @@ const handlers = {
     voidCoreToOwnTrash: voidCoreToOwnTrashHandler,
     lifeCharge: lifeChargeHandler,
     selfCoreToOwnLife: selfCoreToOwnLifeHandler,
+    fieldCoreToLife: fieldCoreToLifeHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
     voidCoresToNexusLevel: voidCoresToNexusLevelHandler,
     opponentNexusOrReserveCoreToTrash: opponentNexusOrReserveCoreToTrashHandler,

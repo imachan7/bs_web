@@ -441,6 +441,8 @@ export function clearBattle(state: GameState): void {
         // 「このバトルの間」のBP増減（bpBuff の scope:"battle"）も同じ寿命（BS07ニードルショット）
         for (const inst of state.players[pid].field.spirits) {
             if (inst.battleBpBuff) inst.battleBpBuff = 0
+            // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
+            delete inst.battleBpFixed
         }
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない

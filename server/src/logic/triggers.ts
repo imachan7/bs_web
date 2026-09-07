@@ -109,6 +109,7 @@ import {
     isOnFieldAnyZone,
     instIsCombined,
     bravesOf,
+    combinedBraveColorsOk,
     hostsOf,
 } from "../../../shared/rules"
 export {
@@ -283,6 +284,13 @@ export function fireTrigger(
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
         if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
+        // 【合体時】の色条件（X008）。ホストは selfInstance 側（合体スピリットは1体）
+        if (
+            effect.kind === "triggered" &&
+            !combinedBraveColorsOk(state.players[owner], selfInstance, effect.combinedBraveColors)
+        ) {
+            return false
+        }
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
         if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
@@ -406,6 +414,9 @@ export function fireTrigger(
                 // BS10-047赤ずきん妖精ルージュLv3：直前のアタック宣言が発生源の持ち主自身の
                 // 合体スピリットによるものだったときのみ発火（doAttackがスライドさせるprevAttackerCombinedPid）
                 if (state.prevAttackerCombinedPid !== owner) return false
+            } else if ("ownLifeAtMost" in effect.condition) {
+                // BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主のライフがこの数以下のときのみ発火
+                if (state.players[owner].life > effect.condition.ownLifeAtMost) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -514,6 +525,7 @@ function collectGrantedTriggerActions(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "effectGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effect.whileCombined && !instIsCombined(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.granted.trigger !== event) continue
             if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
@@ -575,6 +587,7 @@ export function fireBattleWonTriggers(
             if (effect.selfOnly && inst.instanceId !== winnerInst.instanceId) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
+            if (effect.whileCombined && !instIsCombined(inst)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
             // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
@@ -806,6 +819,8 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
+                // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
+                if (effect.cost?.exhaustSelf && inst.isRested) continue
                 firing.push({ pid, inst, effect })
             }
         }
@@ -817,6 +832,11 @@ export function fireStepTriggers(
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             if (e.effect.oncePerTurn === true) {
                 e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
+            }
+            // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
+            // interactiveTargetsの確認を断った場合も疲労する簡略化）
+            if (e.effect.cost?.exhaustSelf) {
+                exhaustSpirit(state, e.pid, e.inst)
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
@@ -884,6 +904,8 @@ export function fireFieldEventTriggers(
         wasAttacker?: boolean
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
+        // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
+        // （ネクサスの効果による疲労は含まない。fireExhaustedTriggers が計算する。BS12-062白煙の大山脈）
         byOpponentEffect?: boolean
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
@@ -939,6 +961,8 @@ export function fireFieldEventTriggers(
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveOn(inst, effect, level)) continue
+            // 【合体時】の色条件（X008）
+            if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 「ドローステップ以外で」（BS08ダークアンキラーザウルス）：指定ステップでは発火しない
             if (effect.excludePhase !== undefined && state.phase === effect.excludePhase) continue
@@ -1022,6 +1046,13 @@ export function fireFieldEventTriggers(
                 effect.maxBp !== undefined &&
                 (selfOverride === undefined ||
                     effectiveBp(state, selfOverride.pid, selfOverride.inst) > effect.maxBp)
+            ) {
+                continue
+            }
+            // アタックしたスピリット（selfOverride）のシンボル数で絞る（BS12-037オリンピアの天使ベトール：シンボル2つ）
+            if (
+                effect.symbolCount !== undefined &&
+                (selfOverride === undefined || instanceSymbolCount(selfOverride.inst) !== effect.symbolCount)
             ) {
                 continue
             }
@@ -1579,8 +1610,15 @@ export function findMagicNegateSource(
     for (const inst of effectSources(state, defenderPid)) {
         const level = currentLevel(inst).level
         const isHyoheki = hasKeyword(inst.cardId, "hyoheki")
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "magicNegate") continue
+        // grantedMagicNegate（kind:"effectEntryGrant"。BS12-068光の聖剣Lv1）：継続付与された
+        // magicNegateエントリもcard自身のeffectsと合わせて走査する（levelsは常に有効扱い）
+        const entries: Extract<EffectDef, { kind: "magicNegate" }>[] = [
+            ...getCard(inst.cardId).effects.filter(
+                (e): e is Extract<EffectDef, { kind: "magicNegate" }> => e.kind === "magicNegate",
+            ),
+            ...(inst.grantedMagicNegate ?? []),
+        ]
+        for (const effect of entries) {
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 【氷壁】を持つスピリットだけ、発揮タイミングを置き換えられる
@@ -1627,6 +1665,11 @@ function payMagicNegate(
             log(state, `${getCard(found.nexusPayer.cardId).name}（ネクサス）を代わりに疲労させた。`)
         } else {
             exhaustSpirit(state, pid, inst)
+            // ownHyohekiUsed（BS12-032蹴激皇ヴィーザル）：【氷壁】を発揮して自身を疲労させた時点で発火する。
+            // 無効化が実際に成功したかは問わない（2026-09-07 ユーザー確認）
+            if (hasKeyword(inst.cardId, "hyoheki")) {
+                fireFieldEventTriggers(state, pid, "ownHyohekiUsed", { pid, inst })
+            }
         }
     } else if ("selfCoresToVoid" in effect.cost) {
         // ボイド行きなので、リザーブにもトラッシュにも戻らない

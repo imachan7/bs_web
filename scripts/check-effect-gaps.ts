@@ -101,6 +101,8 @@ const LEVEL_MISMATCH_VERIFIED: Record<string, string> = {
         "鉄槌のオズワルド：Lv1『ネクサス破壊』とLv2『ネクサス破壊＋相手が手札1枚破棄』を別エントリに分け、レベルごとに片方だけ発火させている",
     "BS07-033":
         "六花の司書長サーガ：Lv1-3の『デッキ1枚破棄でライフを守る』とLv2-3の『破棄したマジックを手札に加える』は同じ1回の破棄を共有するため、1エントリにまとめられない。levels [1] と [2,3] に分け、常にどちらか一方だけが有効になる",
+    "BS12-005":
+        "星角獣ユニゴーント：Lv1-3の『ブレイヴ無償召喚』とLv2-3の『召喚できたら1ドロー』を分けるため、levels [1] と [2,3] の2エントリに分け、常にどちらか一方だけが有効になる（[2,3]側がthenDrawを持つ）",
 }
 
 /**
@@ -431,7 +433,10 @@ interface Baseline {
 const baselinePath = path.join(dataDir, "effect-gaps-baseline.json")
 
 if (updateBaseline) {
-    const blocks = gaps.filter((g) => g.category === "block_count")
+    // --check 側（新規ギャップ判定）が card-notes.json 登録済みを除外しているので、こちらも同じ条件で除く。
+    // 除かないと、notes で宣言済みのカードがベースラインにも載って**二重に帳簿を持つ**ことになる
+    // （2026-09-07 に BS11-X05 魔導双神ジェミナイズで実際に混入した）
+    const blocks = gaps.filter((g) => g.category === "block_count" && !(g.cardId in cardNotes.notes))
     const known: Baseline["known"] = {}
     for (const g of blocks.slice().sort((a, b) => a.cardId.localeCompare(b.cardId))) {
         known[g.cardId] = {

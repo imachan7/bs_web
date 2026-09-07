@@ -285,7 +285,7 @@ function readContinuousEffects(s: GameState): void {
         for (const inst of s.players[pid].field.spirits) {
             effectiveBp(s, pid, inst)
             activeConstraints(s, pid, inst)
-            noLifeDamageByCost(s, inst)
+            noLifeDamageByCost(s, pid === "p1" ? "p2" : "p1", inst)
             for (const kw of Object.keys(KEYWORDS)) spiritHasKeyword(s, pid, inst, kw as never)
             for (const col of ["red", "purple", "green", "white", "yellow", "blue"] as const) instHasColor(inst, col)
         }

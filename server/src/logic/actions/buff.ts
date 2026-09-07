@@ -135,6 +135,8 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                         action.filter?.nameContains,
                         action.filter?.attackingOnly,
                         action.filter?.family,
+                        action.filter?.combined,
+                        action.filter?.vanilla,
                     ),
                 srcColors,
                 srcType,
@@ -165,6 +167,8 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             action.filter?.nameContains,
             action.filter?.attackingOnly,
             action.filter?.family,
+            action.filter?.combined,
+            action.filter?.vanilla,
         )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
@@ -483,15 +487,20 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
             log(state, `${sourceName}：バフ対象がいなかった。`)
             return
         }
+        // familyFilter 省略時は系統を問わない（BS12-050 突機竜アーケランサー＝「自分のスピリット1体」）
         const candidates = state.players[owner].field.spirits.filter(
-            (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.familyFilter),
+            (s) =>
+                !s.isRested &&
+                (action.familyFilter === undefined ||
+                    matchesFamilyFilter(state, owner, s, action.familyFilter)),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
             return
         }
         const applyTo = (target: CardInstance): void => {
-            const amount = effectiveBp(state, owner, target)
+            // amount 指定時は固定値（BS12-050＝BP+3000）。省略時は疲労させた個体の実効BP（巨神機トール）
+            const amount = action.amount ?? effectiveBp(state, owner, target)
             exhaustSpirit(state, owner, target)
             self.tempBpBuff += amount
             log(
@@ -523,9 +532,17 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
         ) {
             return
         }
+        // 非対話の自動選択：バフ量が疲労させた個体のBPに比例するならBP最大、
+        // 固定値なら犠牲が最小になるようBP最小を選ぶ
         applyTo(
             candidates.reduce((best, s) =>
-                effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                action.amount === undefined
+                    ? effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
+                        ? s
+                        : best
+                    : effectiveBp(state, owner, s) < effectiveBp(state, owner, best)
+                      ? s
+                      : best,
             ),
         )
         return

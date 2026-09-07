@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -907,11 +907,15 @@ function doAttack(
     // 指定アタックの場合、blockerInstanceId を強制的に指定スピリットにセットする
     // （既存の「blockerInstanceId あり＝ブロック済み」ロジックにより、takeLife も他のブロックも
     // 自動的に拒否される。onBlock トリガーはブロック宣言ではないため発火させない）
+    // 指定アタックでも**アタック宣言の時点ではブロックを確定させない**（2026-09-06 ユーザー確認）。
+    // 確定するのはアタック時効果と【バースト】をすべて解決した後＝フラッシュ①を閉じる doPass の時点で、
+    // そこまでに指定先が場を離れたり耐性を得たりしたら通常のアタックに戻る
     state.battle = {
         attackerInstanceId: instanceId,
-        blockerInstanceId: targetSpiritInstanceId ?? null,
+        blockerInstanceId: null,
         flashLockedPlayer: null,
         directed: targetSpiritInstanceId !== undefined,
+        ...(targetSpiritInstanceId !== undefined ? { directedTargetInstanceId: targetSpiritInstanceId } : {}),
     }
     // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
     state.battleAttackerRef = inst
@@ -941,8 +945,10 @@ function doAttack(
 
     if (!state.winner) fireTrigger(state, pid, inst, "onAttack")
 
-    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない
-    if (!state.winner) fireTrigger(state, pid, inst, "onBattleStart")
+    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない。
+    // **指定アタックのときはここでは発火させない**（ブロックの確定が後ろにずれ、この時点では相手が
+    // 決まっていないため。resolveDirectedBlock がブロック確定後に発火させる）
+    if (!state.winner && targetSpiritInstanceId === undefined) fireTrigger(state, pid, inst, "onBattleStart")
 
     // フィールドイベント誘発「スピリットがアタックを宣言したとき」（魔帝の墓標Lv2）。
     // 発生源の持ち主に関わらずアタックしたスピリットに作用させるため、
@@ -1266,10 +1272,17 @@ function doActivateAbility(
     if (error) return error
 
     const player = state.players[pid]
-    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）も通す
+    // ネクサスの起動能力（BS11-067 白き楯の長城Lv2）と、【合体時】の起動能力を持つ
+    // 合体中のブレイヴ（BS12-050 突機竜アーケランサー）も通す
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === instanceId)
     const inst =
-        findSpirit(player, instanceId) ?? player.field.nexuses.find((n) => n.instanceId === instanceId)
+        findSpirit(player, instanceId) ??
+        player.field.nexuses.find((n) => n.instanceId === instanceId) ??
+        brave
     if (!inst) return "対象のカードが見つかりません"
+    // 効果文の「このスピリット」は合体スピリット（ホスト）を指すので、self にはホストを渡す
+    const host = brave ? hostsOf(player, brave)[0] : inst
+    if (!host) return "合体先のスピリットが見つかりません"
     const effect = getCard(inst.cardId).effects.find(
         (e) => e.kind === "activated" && e.id === effectId,
     )
@@ -1280,14 +1293,14 @@ function doActivateAbility(
     if (effect.cost === undefined) {
         log(state, `${player.name}の${getCard(inst.cardId).name}の効果を発動した。`)
     } else if ("exhaustSelf" in effect.cost) {
-        exhaustSpirit(state, pid, inst)
+        exhaustSpirit(state, pid, host)
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このスピリットを疲労）`,
         )
     } else if ("selfCoresToTrash" in effect.cost) {
         const n = effect.cost.selfCoresToTrash
-        inst.cores -= n
+        host.cores -= n
         player.trashCores += n
         log(
             state,
@@ -1313,7 +1326,7 @@ function doActivateAbility(
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
-    resolveAction(state, pid, inst, effect.action)
+    resolveAction(state, pid, host, effect.action)
     if (effect.oncePerTurn && cancelable) {
         if (state.activationFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
@@ -1799,11 +1812,51 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
+        } else if (state.battle && state.battle.directedTargetInstanceId) {
+            // 指定アタック：アタック時効果と【バースト】の解決がすべて終わり、ブロック宣言に入る
+            // 時点＝ここで自動的にブロックを確定させる（防御側に選ばせない）
+            resolveDirectedBlock(state)
         }
         // ブロック未宣言なら isFlashTiming を下ろすのみ（防御側の block/takeLife 待ち）。
         // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
     }
     return null
+}
+
+// 指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
+// 自動的に成立させる。validateBlock/doBlock を経由しないため**疲労状態でもブロックさせられる**
+// （2026-09-06 ユーザー確認：指定された側は疲労のままブロック宣言する）。
+// 指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もしない＝**通常のアタックに戻る**
+// （このあと防御側の block/takeLife 待ちに落ちる。アタック宣言後のフラッシュタイミングは消さない）
+function resolveDirectedBlock(state: GameState): void {
+    if (!state.battle) return
+    const id = state.battle.directedTargetInstanceId
+    delete state.battle.directedTargetInstanceId
+    const defenderPid = opponentOf(state.turnPlayer)
+    const attacker = findSpirit(state.players[state.turnPlayer], state.battle.attackerInstanceId)
+    const target = id !== undefined ? findSpirit(state.players[defenderPid], id) : undefined
+    // アタッカーが場を離れた／指定アタックの効果そのものを失った場合も通常のアタックに戻る
+    // （2026-09-04 ユーザー確認。BS12-008 は Lv1-3 すべてで発揮するのでレベル低下は見なくてよい）
+    const resisted =
+        target && attacker
+            ? boardResistanceAgainst(state, defenderPid, target, {
+                  actorPid: state.turnPlayer,
+                  op: "other",
+                  scope: "targeted",
+                  sourceType: "spirit",
+                  sourceColors: instColors(attacker),
+              })
+            : null
+    if (target && attacker && !instEffectsSuppressed(attacker) && !resisted) {
+        finishBlockDeclaration(state, defenderPid, id!)
+    }
+    // アタッカーの『このスピリットのバトル時』は、指定アタックでは**ブロックが確定したこの時点**で
+    // 発揮する（アタック宣言の時点ではまだ相手が決まっていないため。BS11-X02 滅神星龍ダークヴルム・ノヴァの
+    // 「相手の合体スピリットとバトルしたとき」がブロッカーを見る）。通常のアタックでは doAttack の中で
+    // 発揮するので、二重には発揮しない
+    if (!state.winner && state.battle && attacker) {
+        fireTrigger(state, state.turnPlayer, attacker, "onBattleStart")
+    }
 }
 
 // ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）

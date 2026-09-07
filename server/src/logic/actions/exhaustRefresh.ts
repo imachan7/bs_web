@@ -24,7 +24,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -110,8 +110,13 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid)
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
+            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+            if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+            }
             return
         }
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
@@ -163,7 +168,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
                 // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target, action.bofuSourcePid)
+                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
                 exhausted += 1
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             }
@@ -208,8 +213,13 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            exhaustSpirit(state, opp, target, action.bofuSourcePid)
+            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
+            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+            if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                target.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                log(state, `${getCard(target.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+            }
         }
         return
 }
@@ -241,7 +251,7 @@ const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
                 if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
                 if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
                 if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s)
+                exhaustSpirit(state, pid, s, undefined, owner, srcType)
                 exhausted++
             }
         }
@@ -271,7 +281,7 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
     while (remaining > 0) {
         const target = pickEnemyByBp(state, opp, Infinity, (sp) => !sp.isRested, srcColors, srcType, "exhaust")
         if (!target) break
-        exhaustSpirit(state, opp, target)
+        exhaustSpirit(state, opp, target, undefined, owner, srcType)
         exhausted++
         remaining--
     }
@@ -306,7 +316,7 @@ const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, actio
                 if (s.isRested) continue
                 // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
                 if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s)
+                exhaustSpirit(state, pid, s, undefined, owner, srcType)
                 count++
             }
         }
@@ -381,7 +391,7 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
             if (!instHasColor(s, chosen)) continue
             // 装甲・疲労免疫・範囲免疫は「相手の効果」を防ぐものなので、自分側のスピリットには適用しない
             if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-            exhaustSpirit(state, pid, s)
+            exhaustSpirit(state, pid, s, undefined, owner, srcType)
             exhausted++
         }
     }
@@ -786,6 +796,59 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 state,
                 `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
             )
+        }
+        // costSelfCoresToTrash（BS12-032蹴激皇ヴィーザル）：costSelfCoresToVoidのトラッシュ版。
+        // 自身のコアを持ち主のトラッシュへ置く。支払うとLv1コア数を下回るなら不発
+        if (action.costSelfCoresToTrash !== undefined) {
+            const minCores = instMinLevelCores(self)
+            if (self.cores - action.costSelfCoresToTrash < minCores) {
+                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
+                return
+            }
+            self.cores -= action.costSelfCoresToTrash
+            state.players[owner].trashCores += action.costSelfCoresToTrash
+            log(
+                state,
+                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToTrash}個を自分のトラッシュに置いた。`,
+            )
+        }
+        // costDestroyOwnVanillaSpirit（BS12-X06海賊王レヴィアダンLv2-3）：効果の記述を持たない
+        // 自分のスピリット1体を破壊することがコスト（COST_MODEL.md：AとBの両方が完全に解決できるときだけ発揮）。
+        // 該当がなければ不発。候補2体以上なら破壊するスピリットをプレイヤーが選ぶ（coreGain.costDestroyOwnSpiritと同じ考え方）
+        if (action.costDestroyOwnVanillaSpirit) {
+            const player = state.players[owner]
+            const candidates = player.field.spirits.filter((s) => instIsVanilla(s))
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+                for (const s of candidates) {
+                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+                }
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            if (state.winner) return
         }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)

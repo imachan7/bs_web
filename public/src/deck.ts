@@ -1,6 +1,6 @@
 // デッキビルダーページのロジック
 // カードプールの表示・フィルタ、デッキ編集、制約検証、保存・書き出しを担当する
-import type { CardData, CardType, Color, Keyword } from "../../server/src/type"
+import type { CardData, CardType, Color, Keyword, BraveCondition } from "../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
 import { KEYWORDS } from "../../shared/rules"
 
@@ -30,8 +30,19 @@ const SERIES_LABELS: Record<string, string> = {
     "BS07": "天醒",
     "BS08": "戦嵐",
     "BS09": "超星",
-    "X003": "プロモ",
-    "X004": "プロモ",
+    "BS10": "八星龍降臨",
+    "BS11": "灼熱の太陽",
+    "BS12": "月の咆哮",
+    "SD01": "構築済みデッキ",
+    "SD02": "構築済みデッキ",
+    "SD04": "構築済みデッキ",
+}
+
+// 弾の表示名。プロモは cardId の枝番（X003A / X005R 等）が弾ごとに違うので、
+// 一覧に並べず「X」始まりをまとめて「プロモ」と呼ぶ
+function seriesLabel(series: string): string {
+    if (series.startsWith("X")) return "プロモ"
+    return SERIES_LABELS[series] ?? ""
 }
 
 // ---- 状態 ----
@@ -85,10 +96,31 @@ function master(cardId: string): CardData {
     return card
 }
 
-// スピリットの最高レベルBP（ネクサス・マジックは null）
+// スピリット状態の最高レベルBP（ネクサス・マジックは null）。ブレイヴもスピリット状態のBPを表示する
 function maxBp(card: CardData): number | null {
-    if (card.type !== "spirit" || card.levels.length === 0) return null
+    if ((card.type !== "spirit" && card.type !== "brave") || card.levels.length === 0) return null
     return Math.max(...card.levels.map((lv) => lv.bp))
+}
+
+// 合体条件の表示文言（例: "系統：「神星」" "コスト3以上" "「○○」" "効果の記述を持たないスピリット"）
+function braveConditionText(condition: BraveCondition): string {
+    const terms = Array.isArray(condition) ? condition : [condition]
+    return terms
+        .map((term) => {
+            if (term.family !== undefined) return `系統：「${term.family}」`
+            if (term.minCost !== undefined) return `コスト${term.minCost}以上`
+            if (term.cardName !== undefined) return `「${term.cardName}」`
+            if (term.vanilla) return "効果の記述を持たないスピリット"
+            return ""
+        })
+        .filter((t) => t !== "")
+        .join(" / ")
+}
+
+// 合体時に加算されるBP（braveLevels の最高値。cores は常に0なので levels は1件想定）
+function braveBpGain(card: CardData): number | null {
+    if (card.type !== "brave" || !card.braveLevels || card.braveLevels.length === 0) return null
+    return Math.max(...card.braveLevels.map((lv) => lv.bp))
 }
 
 function deckTotal(): number {
@@ -214,6 +246,8 @@ function renderPool(): void {
         const bp = maxBp(card)
         const parts = [TYPE_LABELS[card.type]]
         if (bp !== null) parts.push(`BP${bp}`)
+        const braveGain = braveBpGain(card)
+        if (braveGain !== null) parts.push(`合体時BP+${braveGain}`)
         if (card.rarity !== "") parts.push(card.rarity)
         txt.textContent = parts.join(" / ")
         info.appendChild(txt)
@@ -332,19 +366,29 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
     ]
     if (card.family.length > 0) parts.push(`系統: ${card.family.join("・")}`)
     if (bp !== null && card.type !== "nexus") parts.push(`BP${bp}`)
+    const braveGain = braveBpGain(card)
+    if (braveGain !== null) parts.push(`合体時BP+${braveGain}`)
+    if (card.braveCondition) parts.push(`合体条件: ${braveConditionText(card.braveCondition)}`)
     if (card.rarity !== "") parts.push(`レアリティ: ${card.rarity}`)
     if (card.limited) parts.push("【禁止カード】デッキに入れられません")
     meta.textContent = parts.join("　")
     panel.appendChild(meta)
 
-    if (card.type === "spirit" && card.levels.length > 0) {
+    if ((card.type === "spirit" || card.type === "brave") && card.levels.length > 0) {
         const lvDiv = document.createElement("div")
         lvDiv.className = "detail-meta"
         lvDiv.textContent = card.levels
             .map((lv) => `Lv${lv.level}(コア${lv.cores}) BP${lv.bp}`)
             .join(" / ")
         panel.appendChild(lvDiv)
-    } else if (card.type === "nexus" && card.levels.length > 0) {
+    }
+    if (card.type === "brave" && card.braveLevels && card.braveLevels.length > 0) {
+        const braveLvDiv = document.createElement("div")
+        braveLvDiv.className = "detail-meta"
+        braveLvDiv.textContent = `合体状態: ${card.braveLevels.map((lv) => `BP+${lv.bp}`).join(" / ")}`
+        panel.appendChild(braveLvDiv)
+    }
+    if (card.type === "nexus" && card.levels.length > 0) {
         const lvDiv = document.createElement("div")
         lvDiv.className = "detail-meta"
         lvDiv.textContent = card.levels
@@ -1001,7 +1045,8 @@ function setupFilterChips(): void {
     for (const s of sortedSeries) {
         const option = document.createElement("option")
         option.value = s
-        option.textContent = SERIES_LABELS[s] ? `${s} ${SERIES_LABELS[s]}` : s
+        const label = seriesLabel(s)
+        option.textContent = label === "" ? s : `${s} ${label}`
         seriesSelect.appendChild(option)
     }
     seriesSelect.addEventListener("change", () => {
@@ -1190,6 +1235,19 @@ async function init(): Promise<void> {
     cards = (await res.json()) as CardData[]
     cards.sort((a, b) => a.cardId.localeCompare(b.cardId))
     db = new Map(cards.map((c) => [c.cardId, c]))
+
+    // 収録範囲の表示。手で書くと弾を足すたびにずれるのでカードデータから出す
+    // （「BS01〜BS04（全521枚）」のまま1286枚になっていた）
+    const note = document.getElementById("topbar-note")
+    if (note !== null) {
+        const sets = cards.map((c) => c.cardId.split("-")[0] ?? "").filter((s) => s.startsWith("BS")).sort()
+        const first = sets[0]
+        const last = sets[sets.length - 1]
+        note.textContent =
+            first !== undefined && last !== undefined
+                ? `${first}〜${last}（全${cards.length}枚）`
+                : `全${cards.length}枚`
+    }
 
     setupFilterChips()
     setupDeckIo()

@@ -815,8 +815,8 @@ process.on("exit", () => {
         const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
         patch(
             coresFile,
-            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
-            `import { coresForLevel, draw, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
+            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend } from "../GameState"`,
+            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend, __covRecord } from "../GameState"`,
         )
         patch(
             coresFile,
@@ -974,10 +974,10 @@ process.on("exit", () => {
         patch(
             em,
             `    if (!spec) return
-    const { minCost, dest } = spec`,
+    const { minCost, familyFilter, dest } = spec`,
             `    if (!spec) return
     __covRecord("cont\\t" + String((spec.entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-    const { minCost, dest } = spec`,
+    const { minCost, familyFilter, dest } = spec`,
         )
         // colorAs: refreshLevelAsOverrides の colorsAsContinuous 代入点
         patch(
@@ -985,12 +985,22 @@ process.on("exit", () => {
             `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
-                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits
+                            : effect.target === "ownNexusesAll"
+                              ? player.field.nexuses
+                              : [source]`,
             `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
-                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits
+                            : effect.target === "ownNexusesAll"
+                              ? player.field.nexuses
+                              : [source]`,
         )
         // alsoCostGrant: 付与時点ではなく**読む側**（rules.ts の instHasCost / instMatchesCostFilter）で
         // 計測する。ただし alsoCostsContinuous は付与元を残さないため、ここで付与元の __eid を
@@ -1162,10 +1172,10 @@ process.on("exit", () => {
         patch(
             em,
             // ※ 2026-08-07 に疲労の代入が exhaustSpirit() へ一元化された（誘発点を1箇所にするため）
-            `                exhaustSpirit(state, affectedPid, affectedInst)
+            `                exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return`,
             `                __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                exhaustSpirit(state, affectedPid, affectedInst)
+                exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return`,
         )
 

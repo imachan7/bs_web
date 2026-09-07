@@ -50,8 +50,8 @@ console.log("=== BS09-031 守護巨獣ガラパーゾ：BP3000以下のアタッ
     put(s, "p1", "BS09-031", 1) // Lv1
     const small = put(s, "p2", PLAIN, 1) // BP1000
     const big = put(s, "p2", "BS09-035", 7) // 巨獣皇スミドロード Lv3＝BP8000
-    assert(noLifeDamageByCost(s, small) === true, "BP1000のアタックではライフが減らない")
-    assert(noLifeDamageByCost(s, big) === false, "BP8000のアタックは通る")
+    assert(noLifeDamageByCost(s, "p1", small) === true, "BP1000のアタックではライフが減らない")
+    assert(noLifeDamageByCost(s, "p1", big) === false, "BP8000のアタックは通る")
 }
 
 console.log("=== BS09-033 槍戦騎ガウト：黄のスピリット3体を回復させる ===")

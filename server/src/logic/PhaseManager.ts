@@ -71,9 +71,18 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "refresh"
             if (player.trashCores > 0) {
-                player.reserve += player.trashCores
-                log(state, `トラッシュのコア${player.trashCores}個をリザーブに戻した。`)
-                player.trashCores = 0
+                // trashCoreReturnCapNext（BS12-047海王神龍トライ・メルクリウス）：次の1回のリフレッシュ
+                // ステップだけ、トラッシュ→リザーブの戻しをこの数に制限する（超過分はトラッシュに残る）
+                const cap = player.trashCoreReturnCapNext
+                delete player.trashCoreReturnCapNext
+                const moved = cap !== undefined ? Math.min(player.trashCores, cap) : player.trashCores
+                player.reserve += moved
+                player.trashCores -= moved
+                if (cap !== undefined && player.trashCores > 0) {
+                    log(state, `トラッシュのコア${moved}個をリザーブに戻した（制限により${player.trashCores}個は戻せなかった）。`)
+                } else {
+                    log(state, `トラッシュのコア${moved}個をリザーブに戻した。`)
+                }
             }
             const refreshedInstanceIds = new Set<string>()
             // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）
@@ -174,6 +183,12 @@ export function endTurn(state: GameState): void {
         state.endStepLocks = state.endStepLocks.filter((l) => l.remaining > 0)
     }
 
+    // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：持ち主のエンドステップごとに1減らす
+    for (const inst of state.players[state.turnPlayer].field.spirits) {
+        if ((inst.noRefreshUntilOwnEndSteps ?? 0) <= 0) continue
+        inst.noRefreshUntilOwnEndSteps = (inst.noRefreshUntilOwnEndSteps ?? 0) - 1
+    }
+
     // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
     // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
     // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances・turnConstraints 等）より**前**。
@@ -215,6 +230,7 @@ export function endTurn(state: GameState): void {
             inst.cantAttackThisTurn = false
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
+            delete inst.cantBlockThisTurn
             delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
@@ -227,6 +243,7 @@ export function endTurn(state: GameState): void {
             delete inst.unblockableOnceThisTurn
             delete inst.countAsThisTurn
             delete inst.tempGrantedTriggers
+            delete inst.tempSymbolLoss
         }
     }
     // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。

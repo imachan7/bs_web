@@ -14,6 +14,7 @@ import {
     detachBravesOnLeave,
     drawDoubleMultiplier,
     findSpiritAny,
+    handImmuneFor,
     payCost,
     fireSummonTrigger,
     isResisted,
@@ -33,11 +34,12 @@ import {
     flushBounces,
     returnSpiritToDeckTop,
     returnSpiritToHand,
+    removeCoresToVoid,
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -47,21 +49,30 @@ const noopHandler: ActionHandler<"noop"> = () => {
 }
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcType } = ctx
         // costSkipCoreStep：「ボイドからコアを自分のリザーブに置かないことで」＝そのコアステップの
         // コア置きを支払いに使う（step.beforeStepAction と対。BS10-087戦場に息づく命）。
         // コア置き区間がこのフラグを見て置かずに進む
         if (action.costSkipCoreStep === true) state.coreStepSkipped = true
+        // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：countを無視しEffectCounterの値を枚数とする
+        const count =
+            action.countCounter !== undefined
+                ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+                : action.count
+        if (action.countCounter !== undefined && count === 0) {
+            log(state, `${sourceName}：カウントが0のためドローしなかった。`)
+            return
+        }
         // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
         // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {
             const pids = bothSidesPids(state, srcType, true)
             for (const pid of [owner, opp]) {
                 if (!pids.includes(pid)) continue
-                draw(state, pid, action.count * drawDoubleMultiplier(state, pid))
+                draw(state, pid, count * drawDoubleMultiplier(state, pid))
             }
         } else {
-            draw(state, owner, action.count * drawDoubleMultiplier(state, owner))
+            draw(state, owner, count * drawDoubleMultiplier(state, owner))
         }
         return
 }
@@ -160,12 +171,26 @@ const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom">
 }
 
 const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, sourceName } = ctx
         const player = state.players[owner]
         const count = player.hand.length
+        // thenDrawOpponentHand（BS12-053オオヅツナナフシ：「そうしたとき、相手の手札と同じ枚数ドローする」）は
+        // 手札が0枚（＝破棄が起きない）なら発揮しない。「そうしたとき」＝破棄を完全に解決した後に数える
+        if (count === 0) {
+            log(state, `${sourceName}：手札がないため破棄しなかった。`)
+            return
+        }
         player.trashCards.push(...player.hand)
         player.hand = []
         log(state, `${player.name}は手札${count}枚をすべて破棄した。`)
+        if (action.thenDrawOpponentHand) {
+            const n = state.players[opp].hand.length
+            if (n === 0) {
+                log(state, `${sourceName}：相手の手札が0枚のためドローしなかった。`)
+                return
+            }
+            draw(state, owner, n)
+        }
         return
 }
 
@@ -178,6 +203,25 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 時点で対象プレイヤーIdをactionに固定して持ち回す
         const targetPid = action.forcedTargetPid ?? opp
         const target = state.players[targetPid]
+        // revealAllHandIfNone（BS12-072海賊王の秘宝島Lv2）：破棄できないときのフォールバック。
+        // その場で見せて終わり＝ゲーム状態は変えずログにだけ出す（§1 #15。2026-09-07ユーザー確認）
+        const revealAllHandFallback = (): void => {
+            if (!action.revealAllHandIfNone) return
+            if (target.hand.length === 0) {
+                log(state, `${sourceName}：${target.name}の手札は無かった。`)
+                return
+            }
+            log(
+                state,
+                `${sourceName}：${target.name}は手札すべてを公開した「${target.hand.map((id) => getCard(id).name).join("、")}」。`,
+            )
+        }
+        // BS12-067月光集める塔Lv1：発生源の持ち主の手札は、相手のスピリット/ブレイヴ/マジックの効果を受けない
+        // （ネクサスの効果は防がない）。自分自身の効果はそもそもtargetPid===ownerで弾かれない
+        if (owner !== targetPid && handImmuneFor(state, targetPid, srcType)) {
+            log(state, `${sourceName}の手札破棄：${target.name}の手札は効果を受けなかった。`)
+            return
+        }
         // chooserIsSource の選択から戻ってきた：公開ゾーンから1枚をトラッシュへ、**残りは手札へ戻す**。
         // 公開ゾーンは手札からカードを移して作る（コピーではない）。コピーにすると
         // 同じカードが手札と公開ゾーンに二重に数えられ、保存則チェックが落ちる
@@ -212,6 +256,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         }
         if (target.hand.length === 0) {
             log(state, `${sourceName}の手札破棄：${target.name}の手札がなかった。`)
+            revealAllHandFallback()
             return
         }
         // cardTypeFilter（BS08関将龍皇ドラグロン：相手の手札を見てスピリットカード1枚を破棄）：
@@ -283,6 +328,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             const indices = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
             if (indices.length === 0) {
                 log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                revealAllHandFallback()
                 return
             }
             if (
@@ -327,6 +373,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         }
         if (discarded.length === 0) {
             log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+            revealAllHandFallback()
             return
         }
         log(
@@ -1029,6 +1076,45 @@ const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFami
         return
 }
 
+// BS12-074 スターリードロー：デッキ上からcount枚をオープンし、系統一致のスピリット/（includeBraves時は）
+// ブレイヴカードすべてを手札に加える。残りはトラッシュへ破棄する（召喚せず手札に加えるだけの版）
+const revealTopFamilyToHandHandler: ActionHandler<"revealTopFamilyToHand"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const revealed = player.deck.splice(0, action.count)
+    if (revealed.length === 0) {
+        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        return
+    }
+    log(
+        state,
+        `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+    )
+    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+    let gainedCount = 0
+    let discardedCount = 0
+    for (const cardId of revealed) {
+        const card = getCard(cardId)
+        const typeOk = card.type === "spirit" || (action.includeBraves && card.type === "brave")
+        if (!typeOk || !wanted.some((f) => card.family.includes(f))) {
+            player.trashCards.push(cardId)
+            discardedCount++
+            continue
+        }
+        player.hand.push(cardId)
+        gainedCount++
+        log(state, `${player.name}は${sourceName}の効果で、${card.name}を手札に加えた。`)
+    }
+    if (gainedCount === 0) {
+        log(state, `${sourceName}：条件を満たすカードがなかった。`)
+    }
+    if (discardedCount > 0) {
+        log(state, `${player.name}は残り${discardedCount}枚をトラッシュに置いた。`)
+    }
+    if (gainedCount > 0) notifyHandGained(state, owner, gainedCount)
+    return
+}
+
 // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
 function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: string): void {
     const zone = state.revealedCards
@@ -1056,6 +1142,12 @@ function summonRevealedFree(
 ): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
+    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
+    if (summonByEffectBlocked(state)) {
+        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
+        player.trashCards.push(cardId)
+        return
+    }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
     if (player.reserve < maintain) {
@@ -1075,11 +1167,106 @@ function summonRevealedFree(
     fireSummonTrigger(state, owner, inst)
 }
 
+// BS12-083マジックランプ：公開ゾーンから選んだ1枚のネクサスカードを、維持コアのみリザーブから払って
+// フィールドへ配置する（コストは支払わない）。summonRevealedFreeのネクサス版
+function placeNexusRevealedFree(ctx: ActionCtx, cardId: string): void {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const card = getCard(cardId)
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
+        player.trashCards.push(cardId)
+        return
+    }
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.nexuses.push(inst)
+    log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに配置した。`)
+    notifyNexusDeployed(state, owner)
+}
+
+const revealAndPlaceNexusFreeHandler: ActionHandler<"revealAndPlaceNexusFree"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+
+    // 公開ゾーン経由の再入：選ばれた1枚を配置し、残りは選択待ちの queue（revealDiscardRest）が破棄する
+    if (chosenCardIndex !== undefined && state.revealedCards) {
+        const zone = state.revealedCards.cardIds
+        const pickedId = zone[chosenCardIndex]
+        if (pickedId !== undefined) {
+            zone.splice(chosenCardIndex, 1)
+            placeNexusRevealedFree(ctx, pickedId)
+        }
+        return
+    }
+
+    const revealed = player.deck.splice(0, action.count)
+    if (revealed.length === 0) {
+        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        return
+    }
+    log(
+        state,
+        `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+    )
+    const indices = revealed.map((id, i) => ({ id, i })).filter((x) => getCard(x.id).type === "nexus").map((x) => x.i)
+    if (indices.length === 0) {
+        for (const id of revealed) player.trashCards.push(id)
+        log(state, `${sourceName}：ネクサスカードがなかった。残り${revealed.length}枚をトラッシュに置いた。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        state.revealedCards = { pid: owner, cardIds: [...revealed] }
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：コストを支払わずに配置するネクサスを選んでください`,
+            "reveal",
+            indices,
+            true,
+            action,
+            self,
+            true,
+        )
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
+        } else {
+            discardRevealedZone(state, owner, sourceName)
+        }
+        return
+    }
+    // 自動時（テスト）はコスト最大の1枚を選ぶ決定的簡略化
+    let bestIndex = indices[0]!
+    for (const i of indices) {
+        if (getCard(revealed[i]!).cost > getCard(revealed[bestIndex]!).cost) bestIndex = i
+    }
+    const [pickedId] = revealed.splice(bestIndex, 1)
+    placeNexusRevealedFree(ctx, pickedId!)
+    for (const id of revealed) player.trashCards.push(id)
+    if (revealed.length > 0) {
+        log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+    }
+    return
+}
+
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
         if (hasGlobalConstraint(state, "noTrashRecovery")) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+            return
+        }
+        // countCounter指定時はcountを無視しEffectCounterの値を戻す枚数として使う（BS12-X02魔羯邪神シュタイン・ボルグ）。
+        // 一度だけ解決し、countCounterを落としたactionへ入り直す（coreRemove.countCounterと同じ考え方）
+        if (action.countCounter !== undefined) {
+            const resolvedCount = countEffectCounter(state, owner, self, action.countCounter, srcType)
+            if (resolvedCount === 0) {
+                log(state, `${sourceName}のスピリット回収：カウントが0のため発動しなかった。`)
+                return
+            }
+            const { countCounter: _cc, ...rest } = action
+            ctx.resolve({ ...rest, count: resolvedCount })
             return
         }
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
@@ -1122,6 +1309,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）。
         // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
         const typeOk = (cardId: string): boolean => {
+            if (action.anyCardType) return true // BS12-X02：「紫のカード」＝種別を問わない
             const t = getCard(cardId).type
             if (action.bravesOnly) return t === "brave"
             return t === "spirit" || (action.includeBraves === true && t === "brave")
@@ -1201,6 +1389,43 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
             notifyHandGained(state, owner, 1)
             followUp([cardId])
+            return
+        }
+        // costBudget指定時はcountを無視し、summonFromTrashFree.costBudgetと同じ貪欲選択
+        // （コスト最大から順に、合計がbudget以下になる範囲で好きなだけ）で複数枚を手札に戻す
+        // （BS12-016骸巨人ギ・ガッシャ：系統「無魔」をコスト合計13まで）
+        if (action.costBudget !== undefined) {
+            let remaining = action.costBudget
+            const recoveredIds: string[] = []
+            for (;;) {
+                let bestIdx = -1
+                let bestCost = -1
+                for (let j = 0; j < player.trashCards.length; j++) {
+                    const id = player.trashCards[j]!
+                    if (!isRecoverable(id)) continue
+                    const cost = getCard(id).cost
+                    if (cost <= remaining && cost > bestCost) {
+                        bestIdx = j
+                        bestCost = cost
+                    }
+                }
+                if (bestIdx === -1) break
+                const cardId = player.trashCards[bestIdx]!
+                player.trashCards.splice(bestIdx, 1)
+                player.hand.push(cardId)
+                recoveredIds.push(cardId)
+                remaining -= bestCost
+            }
+            if (recoveredIds.length === 0) {
+                log(state, `${sourceName}のスピリット回収：トラッシュに対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は「${recoveredIds.map((id) => getCard(id).name).join("、")}」をトラッシュから手札に戻した。`,
+            )
+            notifyHandGained(state, owner, recoveredIds.length)
+            followUp(recoveredIds)
             return
         }
         // all指定時はcountを無視し、該当カードすべてを手札に戻す（BS03ネクロマンシー：系統「無魔」すべて）
@@ -1887,6 +2112,66 @@ const revealTopSummonFreeOrHandHandler: ActionHandler<"revealTopSummonFreeOrHand
     player.deck.shift()
     player.hand.push(top)
     log(state, `${sourceName}：${card.name}を手札に加えた。`)
+}
+
+// BS12-065大樹茂る天守閣Lv2／BS12-X03独眼武神マンティクス・マサムネ：デッキ上から1枚オープンし、
+// その系統を持つスピリットカードなら任意でコストを支払わず召喚する。召喚しない／対象でないときは破棄する
+// （revealTopSummonFreeOrHandと違い外れは手札でなくトラッシュ）。
+const revealTopSummonFreeByFamilyHandler: ActionHandler<"revealTopSummonFreeByFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+
+    // 公開ゾーンからの再入：選ばれれば召喚（転召・召喚時効果とも通常どおり発揮）、残り0枚の後始末はキューが担う
+    if (chosenCardIndex !== undefined && state.revealedCards) {
+        const zone = state.revealedCards.cardIds
+        const pickedId = zone[chosenCardIndex]
+        if (pickedId !== undefined) {
+            zone.splice(chosenCardIndex, 1)
+            player.trashCards.push(pickedId)
+            summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+        }
+        return
+    }
+
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：デッキが0枚のため何も起きなかった。`)
+        return
+    }
+    const cardData = getCard(top)
+    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+    const eligible = cardData.type === "spirit" && wanted.some((f) => cardData.family.includes(f))
+    if (!eligible) {
+        player.deck.shift()
+        player.trashCards.push(top)
+        log(state, `${sourceName}：デッキの上から${cardData.name}をオープンし、破棄した。`)
+        return
+    }
+    player.deck.shift()
+    log(state, `${sourceName}：デッキの上から${cardData.name}をオープンした。`)
+    if (state.interactiveTargets) {
+        state.revealedCards = { pid: owner, cardIds: [top] }
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：${cardData.name}をコストを支払わずに召喚しますか？（召喚しない場合は破棄します）`,
+            "reveal",
+            [0],
+            true,
+            action,
+            self,
+            true,
+        )
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
+        } else {
+            discardRevealedZone(state, owner, sourceName)
+        }
+        return
+    }
+    // 非対話は召喚する側に倒す
+    player.trashCards.push(top)
+    summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
 }
 
 const revealTopCastMagicFreeOrHandHandler: ActionHandler<"revealTopCastMagicFreeOrHand"> = (ctx, action) => {
@@ -2815,6 +3100,63 @@ const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTe
         return
 }
 
+// discardOpponentTegamotoDestroyPerの兄弟。相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ
+// 破棄し、破棄した枚数ぶん、相手のフィールド（スピリット/ネクサス上）またはリザーブから
+// ソウルコア以外のコアをボイドへ置く（ソウルコア未実装のいまはリザーブ・フィールドとも通常コアのみなので
+// 絞り込み不要）。リザーブ優先で取る（autoTakeCoresToVoidと同じ順）。相手の手元が0枚ならno-op。
+// BS12-011ミイラバード：召喚時
+const discardOpponentTegamotoVoidCoresPerHandler: ActionHandler<"discardOpponentTegamotoVoidCoresPer"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const target = state.players[opp]
+    const count = target.tegamoto.length
+    if (count === 0) {
+        log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
+        return
+    }
+    const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
+    target.trashCards.push(...target.tegamoto)
+    target.tegamoto = []
+    target.tegamotoPlayable = []
+    log(state, `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`)
+
+    let remaining = count
+    const fromReserve = Math.min(remaining, target.reserve)
+    target.reserve -= fromReserve
+    remaining -= fromReserve
+    let fromField = 0
+    while (remaining > 0) {
+        let richest: CardInstance | undefined
+        let richestKind: "spirit" | "nexus" | undefined
+        for (const s of target.field.spirits) {
+            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
+                richest = s
+                richestKind = "spirit"
+            }
+        }
+        for (const n of target.field.nexuses) {
+            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
+                richest = n
+                richestKind = "nexus"
+            }
+        }
+        if (!richest || !richestKind) break
+        if (richestKind === "spirit") {
+            const removed = removeCoresToVoid(state, opp, richest, Math.min(remaining, richest.cores), owner)
+            if (removed === 0) break
+            remaining -= removed
+            fromField += removed
+        } else {
+            const take = Math.min(remaining, richest.cores)
+            richest.cores -= take
+            remaining -= take
+            fromField += take
+        }
+    }
+    const voided = fromReserve + fromField
+    if (voided > 0) log(state, `${sourceName}：${target.name}のコア${voided}個をボイドに置いた。`)
+    return
+}
+
 // BS08-055 竜騎集う円卓Lv2「系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、
 // 相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない」の**確認専用**。
 //
@@ -2871,7 +3213,9 @@ const handlers = {
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealAndSummonKeyword: revealAndSummonKeywordHandler,
+    revealAndPlaceNexusFree: revealAndPlaceNexusFreeHandler,
     revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
+    revealTopFamilyToHand: revealTopFamilyToHandHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     revealDiscardRest: revealDiscardRestHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
@@ -2888,6 +3232,7 @@ const handlers = {
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     revealTopSummonFreeOrHand: revealTopSummonFreeOrHandHandler,
+    revealTopSummonFreeByFamily: revealTopSummonFreeByFamilyHandler,
     revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
@@ -2907,6 +3252,7 @@ const handlers = {
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
     revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
     discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,
+    discardOpponentTegamotoVoidCoresPer: discardOpponentTegamotoVoidCoresPerHandler,
     payNegateDecide: payNegateDecideHandler,
 } satisfies Partial<ActionRegistry>
 

@@ -115,7 +115,8 @@ export function hasMagicRestriction(
         | "noFreeCastOpponent"
         | "reserveOnlyOpponent"
         | "noFlashAll"
-        | "noFlashOpponent",
+        | "noFlashOpponent"
+        | "noSpiritCoresOpponent",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         // noFlashAll（BS06軍師ショウジョウジ）はoncePerTurnAllと同じく「お互い」に効くため、
@@ -127,6 +128,7 @@ export function hasMagicRestriction(
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "magicRestriction") continue
                 if (effect.restriction !== restriction) continue
+                if (effect.whileCombined === true && !instIsCombined(source)) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
@@ -309,6 +311,16 @@ export function costSetOverride(
         if (effect.condition !== undefined && "ownLifeAtMost" in effect.condition) {
             if (board.players[pid].life > effect.condition.ownLifeAtMost) continue
         }
+        // BS12-016骸巨人ギ・ガッシャ：自分のトラッシュに指定系統（配列＝OR）を持つスピリットカードがcount枚以上
+        if (effect.condition !== undefined && "ownTrashFamilyCountAtLeast" in effect.condition) {
+            const { family, count } = effect.condition.ownTrashFamilyCountAtLeast
+            const wanted = Array.isArray(family) ? family : [family]
+            const trashCount = board.players[pid].trashCards.filter((id) => {
+                const c = card(id)
+                return c.type === "spirit" && wanted.some((f) => c.family.includes(f))
+            }).length
+            if (trashCount < count) continue
+        }
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
     const sources = effectSources(board, pid)
@@ -390,7 +402,16 @@ export function effectiveCost(
     if (setOverride !== undefined) {
         base = setOverride
     } else {
-        const reductionColors = [...cardData.reduction, ...reductionGrantSymbols(board, pid, cardData)]
+        // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の
+        // 軽減シンボルすべてを指定色1色として扱う（printed reduction の色を置き換え。件数は変えない）
+        const handColorOverride = board.turnConstraints.find(
+            (c) => c.type === "handReductionColorAsForPid" && c.pid === pid && c.cardType === cardData.type,
+        )
+        const baseReduction =
+            handColorOverride && "color" in handColorOverride
+                ? cardData.reduction.map(() => handColorOverride.color)
+                : cardData.reduction
+        const reductionColors = [...baseReduction, ...reductionGrantSymbols(board, pid, cardData)]
         const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
         // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
