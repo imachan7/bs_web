@@ -146,15 +146,16 @@ function checkLentEffects(
         // **誘発を受けた側の実在インスタンス**（fireTriggerがresolveActionへselfInstanceを渡す。
         // triggers.ts collectGrantedTriggerActions/fireTrigger）なので self は常に非null になる
         // （BS12-077インセクトオーラ：voidCoreToSelf を effectGrant 経由でアタックしたスピリットに渡す）
-        if (e.kind === "effectGrant") continue
-        const lent: { type?: unknown }[] = []
-        collectActions([e], lent)
-        for (const a of lent) {
-            if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
-                add(
-                    c.cardId,
-                    `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
-                )
+        if (e.kind !== "effectGrant") {
+            const lent: { type?: unknown }[] = []
+            collectActions([e], lent)
+            for (const a of lent) {
+                if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
+                    add(
+                        c.cardId,
+                        `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
+                    )
+                }
             }
         }
     }

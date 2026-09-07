@@ -433,7 +433,10 @@ interface Baseline {
 const baselinePath = path.join(dataDir, "effect-gaps-baseline.json")
 
 if (updateBaseline) {
-    const blocks = gaps.filter((g) => g.category === "block_count")
+    // --check 側（新規ギャップ判定）が card-notes.json 登録済みを除外しているので、こちらも同じ条件で除く。
+    // 除かないと、notes で宣言済みのカードがベースラインにも載って**二重に帳簿を持つ**ことになる
+    // （2026-09-07 に BS11-X05 魔導双神ジェミナイズで実際に混入した）
+    const blocks = gaps.filter((g) => g.category === "block_count" && !(g.cardId in cardNotes.notes))
     const known: Baseline["known"] = {}
     for (const g of blocks.slice().sort((a, b) => a.cardId.localeCompare(b.cardId))) {
         known[g.cardId] = {
