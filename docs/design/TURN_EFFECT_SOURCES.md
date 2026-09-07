@@ -228,7 +228,10 @@ state.players[owner].turnVirtualInstances.push(inst)
 - `resolveAction` に渡す `self` は **`null`** にする（`isVirtualSource()` で判定）
 - `aura` の `target:"self"` は仮想発生源では**常に不成立**として扱う
 - **`validate-cards.ts` に検査を足す**: `lendSelfThisTurn` を持つカードの継続効果エントリが
-  すべて `levels: null` であること、および self 参照アクションを含まないこと
+  すべて `levels: null` であること、および self 参照アクションを含まないこと。
+  **例外は `kind:"effectGrant"` の `granted.action`**：貸与の対象は仮想発生源自身ではなく
+  **誘発を受けた側の実在インスタンス**なので `self` は常に非null になる（BS12-077 インセクトオーラ＝
+  `voidCoreToSelf` をアタックしたスピリットに配る）。`validate-cards.ts` はこの kind を検査から外す
   （データで踏みやすい罠なので、実行時ではなく検証で落とす）
 
 ### 4.2 リセット位置

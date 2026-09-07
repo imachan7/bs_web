@@ -1,7 +1,7 @@
 # BS12「星座編 第三弾：月の咆哮」の取り込み計画
 
 - 取り込み: 2026-09-03（`data/staging/BS12.json`。91枚）
-- 進捗: **29 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚、バッチ2＝紫14枚）
+- 進捗: **51 / 91枚 投入済み**（バッチ0＝器 A/B/D、バッチ1＝赤15枚、バッチ2＝紫14枚、バッチ3＝緑14枚）
 - 内訳: スピリット55 / ブレイヴ12 / ネクサス12 / マジック12（多色2枚：BS12-040 黄白 / X008 赤白）
 - 弾の `refer` は **「星座編 第三弾：月の咆哮」**（Wiki のカードリストから確定）
 - 関連: [BS11_PLAN.md](./BS11_PLAN.md)／[BRAVE.md](./BRAVE.md)
@@ -101,3 +101,14 @@ BS10・BS11 に続くブレイヴ弾の3作目。**シンボルの数**を数え
 「相手のリザーブ行きのコアをトラッシュへ」＝`globalConstraint: coresToOpponentReserveGoToTrash`（両陣営の効果）／
 『破壊時』の「疲労状態でフィールドに戻る」＝既存 `reviveOnDestroy` に `whileCombined` を足すだけ／
 「色とシンボルは◯としても扱う」は **`colorAs` 1件で足りる**（`symbolFix` は置換なので使わない。SPEC.md §データを書くときの原則）。
+
+バッチ3（緑）で確定した器: 「シンボル◯つの合体スピリットのアタックではライフが減らない」＝既存
+`noLifeDamageByCost` に `symbolCount` ＋ `combinedOnly`／「カード名で絞ったコア除去耐性」＝
+`coresCantBeRemovedByOpponent`（既存 `coresCantBeRemoved` は両陣営・無条件なので別枠）／
+「デッキ1枚オープンして系統一致なら召喚、外れは破棄」＝`revealTopSummonFreeByFamily`／
+「5回のエンドステップ回復不可」＝`CardInstance.noRefreshUntilOwnEndSteps`／
+「ボイドからコアをリザーブか対象スピリット上へ」＝既存 `voidCoreToSelf` に `orReserve`（使用者が毎回選ぶ）。
+
+**「破棄できる。そうしたとき〜」は1つのアクションに畳む**（BS12-053＝`discardHandAll.thenDrawOpponentHand`）。
+2エントリに割ると、破棄しなかったときにドローだけが独立して走る余地が残る。
+「そうしたとき」＝前後関係（CONJUNCTION.md）を1アクション内の文の並びで保証する。

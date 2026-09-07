@@ -18,38 +18,38 @@
 
 ## 1. いまの本線と次の一手
 
-**BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚。実装は未着手）。
+**BS12「星座編 第三弾：月の咆哮」の取り込みが本線**（2026-09-03 に staging へ91枚）。
 → [BS12_PLAN.md](./docs/design/BS12_PLAN.md)。§1 に確定済みの解釈4件、§2 に新しく要る器の一覧、§4 にバッチ割り
 
-**次の一手: バッチ3（緑14枚）を入れる。** バッチ0（器 A/B/D）／1（赤15枚）／2（紫14枚）は投入済み。
-確定した規則は手順書へ移した（指定アタック＝[TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.10、
-【合体時】の起動能力＝[BRAVE.md](./docs/design/BRAVE.md) §12.3、バッチ2ぶんは
-[BS12_PLAN.md](./docs/design/BS12_PLAN.md) §5 と SPEC.md §データを書くときの原則・§globalConstraint）。
+**次の一手: バッチ4（白12枚）を入れる。** バッチ0（器 A/B/D）／1（赤15枚）／2（紫14枚）／3（緑14枚）は投入済み（51/91枚）。
+バッチ3で確定した規則は手順書へ移した（[BS12_PLAN.md](./docs/design/BS12_PLAN.md) §5 と
+[TURN_EFFECT_SOURCES.md](./docs/design/TURN_EFFECT_SOURCES.md) §4.1）。
 
-### バッチ3（緑）の確定スキーマ（2026-09-06 ユーザー確認。完了したら手順書へ移してここから消す）
+### バッチ4（白）の確定スキーマ（2026-09-07 ユーザー確認。完了したら手順書へ移してここから消す）
 
-対象14枚: 017 / 019-024 / 053 / 054 / 065 / 066 / 077 / 078 / X03（018 はバニラで投入済み）。
+対象12枚: 025 / 027 / 028 / 029 / 031 / 032 / 055 / 056 / 067 / 068 / 079 / 080（026・030・X04 は投入済み）。
 
 | 器 | 形 | 対象 |
 | :-- | :-- | :-- |
-| U | 既存 `globalConstraint: noLifeDamageByCost` に `symbolCount?: number` と `combinedOnly?: true` を足す。**両陣営**の合体スピリットのアタックで、お互いのライフが減らない | 020 |
-| W | 新 `globalConstraint: coresCantBeRemovedByOpponent { nameContains: string }` — 発生源の持ち主の、名前に指定文字列を含むスピリット上のコアは、**相手のスピリット/ブレイヴ/マジックの効果**では取り除けない（既存 `coresCantBeRemoved` は両陣営・無条件なので別枠） | 022 |
-| X | 新アクション `revealTopSummonFreeByFamily { familyFilter }` — 自分のデッキを上から1枚オープンし、その系統のスピリットカードならコストを支払わずに召喚できる（任意）。召喚しない／他のカードのときは**破棄**する。既存 `revealTopSummonFreeOrHand`（外れは手札へ）の兄弟。**回数制限は付けない**（アタックのたび毎回） | 065 |
-| R | `draw` に `countCounter?: EffectCounter` を足し、**既存の** `"opponentHand"` を使う（新カウンタは要らない）。**破棄を完全に解決した後**に数える（「そうしたとき」＝前後関係。CONJUNCTION.md） | 053 |
-| I | `CardInstance.noRefreshUntilOwnEndSteps: number` — 自分のエンドステップを5回数えるまで回復しない。**デッキ横のコア5個はボイドから出さずカウンタだけ持つ**（BS12_PLAN §1 #3。`data/card-notes.json` に理由を書く） | 078 |
-| — | 「ボイドからコア1個を、自分のリザーブか、そのスピリット上に置く」＝既存 `voidCoreToSelf` に `orReserve?: true` を足す。**効果の使用者が毎回選ぶ**（PendingChoice。count個をまとめて片方へ。非対話はリザーブ側に倒す） | 077 / X03 |
+| Y | **新軸 `braveImmuneGranted`。【装甲】【重装甲】とは別枠の第3の軸**（BS12_PLAN §1 #1 と同じ線を引く）。`scope:"all"`＝色を問わず相手のブレイヴの効果を受けない／`scope:"matchArmorColors"`＝その個体の【装甲】色と一致する相手のブレイヴだけ | 028 Lv2 / 067 Lv2 |
+| AC | 031【合体時】は**付与ぶんも含めた実効の【装甲】**を配る。`refreshLevelAsOverrides` を2パスに分ける（①静的＋通常付与を確定 → ②「実効を配る」系を適用。②は①の結果だけを読み②の結果は読まない＝循環回避。配布元自身も対象に含む） | 031 |
+| Z | `effectGrant` の兄弟で「キーワードでなく**効果エントリまるごと**」を配る器（既存 `keywordGrant` はキーワードしか配れない）。【氷壁：紫/白】の `magicNegate` を装甲/重装甲持ちに配る。**疲労コストは配られた側自身**を疲労させる | 068 Lv1 |
+| P | 合体スピリット破壊時、ブレイヴを残しスピリットだけ手札へ（`detachBravesOnLeave` の隣） | 068 Lv2 |
+| M | `globalConstraint: handImmuneForPid` — 発生源の持ち主の手札は相手のスピリット/ブレイヴ/マジックの効果を受けない。**ネクサスは防がない**（効果文の列挙どおり） | 067 Lv1 |
+| C' | `CardInstance.tempSymbolLoss: Color[]` — `countSymbols` が引く（ターン終了で消える）。指定色のシンボルを**1つだけ**失う。持たない個体は無変化 | 080 |
+| AA | 新 event `ownHyohekiUsed` — **【氷壁】を発揮して自身を疲労させた時点**で発火する。**無効化の成否は問わない** | 032 Lv2 |
+| AD | `forceAttackThisTurn` に「対象を好きなだけ指定する」と使用条件 `requireOwnNameIncludes: string` を足す。条件は**使用宣言の時点だけ**見る（撃った後にストライクが場を離れても強制は続く） | 079 |
+| AE | 055 Lv1「このターンの間、このブレイヴと合体しているスピリットはブロックされない」は**毎回いまのホストを見る**（分離すると誰にも乗らない） | 055 |
 
-既存で足りるもの: 017/021/022 の全体BP+＝`bpBuffAll` familyFilter ／ 019＝`detachOpponentBrave`（BRAVE.md §12.5.1）＋【神速】／
-024【合体時】・X03【合体時】＝`battleWon` 系 ／ **020 Lv2 は `battleWon` ではなく** `triggered` onAttack ＋
-`condition:{firstAttackOfTurn:true}` ＋ `refreshSelf`（BS04ダックルと同型）／ 023＝【暴風】＋`ownSpiritDestroyed` byOpponentEffectOnly ／
-024/054 召喚時＝`summonFromHandFree`（054 は `skipOnSummon`）／ 053【合体中】＝`opponentDrew`（実装済み）／
-065 Lv1・X03 Lv1＝`coreFloorByCost`（065 は `ownOnly`＋`turn:"opponent"`、X03 は `phase:"attack"`＋`turn:"both"`。BS09-059翡翠の社と同型）／
-065 Lv2 の誘発＝`fieldEvent` `anySpiritAttacked` ＋ `subjectSide:"opponent"` ＋ `phase:"attack"` ＋ `turn:"opponent"` ＋ `optional:true` ／
-077 の器＝BS03-143ブリッツ型（`magic` main で `lendSelfThisTurn` ＋ `effectGrant` `lentOnly` の granted onAttack）／
-066＝バッチ0の `tenshoCoreSubstitute.familyFilter` ／
-078 のトラッシュ耐性＝`trashImmunity`
+既存で足りるもの: 025 Lv1・027 Lv2＝`colorAs`（027 Lv2 は `nameIncludes` ＋ `turn:"opponent"`）／
+025 Lv2・028 Lv1・055【合体時】＝バッチ0の【重装甲】（器A）／027 Lv1＝`noLifeDamageByCost` の `costs:[0,1,3]`／
+029 Lv1・032 Lv1＝既存 `magicNegate`（`cost:{exhaustSelf:true}`＋colors＋`turn:"opponent"`）／029 Lv2・031 Lv1＝既存【装甲】／
+**056 は新規実装ゼロ**＝既存 `freeSummonFromHandOnLifeDamaged` ＋ `condition:{ownLifeAtMost:3}`（BS09-035 巨獣皇スミドロードと同型。
+「相手のスピリットによって」の限定は発火点が既にバトル中なので追加が要るか実装時に確認する）／056【合体時】＝`triggered` onBlock ＋ `exhaust count:2`
 
-C（シンボルの追加＝BS12-006／喪失＝BS12-080）は該当色のバッチで入れる。残りの器は
+**【バースト】は未実装。実装するとき、056 の手札からの割り込み召喚は【バースト】より前に置くこと**（2026-09-07 ユーザー確認）。
+
+C（シンボルの追加＝BS12-006）は投入済み。C'（喪失＝080）はこのバッチで入る。残りの器は
 [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §2。
 
 BS11 は91枚すべて投入済み。残る2節は [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5（どちらも横断的な下ごしらえが先）。
