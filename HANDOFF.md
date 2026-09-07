@@ -21,7 +21,8 @@
 **BS12「星座編 第三弾：月の咆哮」は91枚すべて投入済み（2026-09-07 完了）。**
 確定した解釈18件と全バッチの器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §1 と §5〜§8 にある。
 
-**次の一手は未定。** SPEC.md の課題リストか [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5 の残る2節から選ぶ。
+**次の一手: 未実装の2枚（BS11-065 / BS11-X05）を片付ける**（2026-09-07 ユーザー指示）。
+残作業の全体像は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md)（未実装2件・簡略化5件・検証の穴80件＋α）。
 
 BS11 は91枚すべて投入済み。残る2節は [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5（どちらも横断的な下ごしらえが先）。
 
