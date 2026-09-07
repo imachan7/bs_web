@@ -2126,7 +2126,8 @@
      3
     ],
     "action": {
-     "type": "handMagicToTegamotoDraw"
+     "type": "handMagicToTegamotoDraw",
+     "max": 3
     },
     "optional": true
    }

@@ -3093,25 +3093,26 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 
 const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // マジックブック：自分の手札にあるマジックカードを好きなだけ手元(tegamoto)に置き、
+        // マジックブック：自分の手札にあるマジックカードを好きなだけ（max指定時はmax枚まで）手元(tegamoto)に置き、
         // 置いた枚数ぶんデッキから引く。**置き終わってからまとめて引く**のが要点で、
         // 1枚ごとに引くと引いたマジックカードをそのまま次に置けてしまう
         // （drawPerHandDiscard と同じ不具合。2026-08-10 修正）
         const player = state.players[owner]
         const placed = action.placedSoFar ?? 0
-        const finish = (): void => {
-            if (placed === 0) {
+        const max = action.max
+        const finish = (count: number): void => {
+            if (count === 0) {
                 log(state, `${sourceName}：手元に置かなかった。`)
                 return
             }
-            log(state, `${sourceName}：手元に置いた${placed}枚ぶんデッキから引く。`)
-            draw(state, owner, placed)
+            log(state, `${sourceName}：手元に置いた${count}枚ぶんデッキから引く。`)
+            draw(state, owner, count)
         }
         if (chosenCardIndex !== undefined) {
             const cardId = player.hand[chosenCardIndex]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
-                finish()
+                finish(placed)
                 return
             }
             player.hand.splice(chosenCardIndex, 1)
@@ -3119,12 +3120,18 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
             log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
             // ここでは引かない。続けて置くか再度尋ねる（awaitingSkip は落とす）
             const { awaitingSkip: _dropped, ...rest } = action
-            ctx.resolve({ ...rest, placedSoFar: placed + 1 })
+            const nextPlaced = placed + 1
+            if (max !== undefined && nextPlaced >= max) {
+                // 上限に達したらここで打ち切ってまとめて引く
+                finish(nextPlaced)
+                return
+            }
+            ctx.resolve({ ...rest, placedSoFar: nextPlaced })
             return
         }
         // スキップされて戻ってきた＝これ以上置かない。ここで初めて引く
         if (action.awaitingSkip) {
-            finish()
+            finish(placed)
             return
         }
         const indices: number[] = []
@@ -3134,7 +3141,7 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
         if (indices.length === 0) {
             // 手札のマジックを出し切った場合もここへ来る（置いたぶんは引く）
             if (placed === 0) log(state, `${sourceName}：手札にマジックカードがなかった。`)
-            else finish()
+            else finish(placed)
             return
         }
         if (state.interactiveTargets) {
@@ -3154,9 +3161,10 @@ const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> =
             )
             return
         }
-        // 非interactive時：手札のマジックカードすべてを一括で手元へ移動し、同数ドロー（決定的簡略化）
+        // 非interactive時：手札のマジックカードを（max指定時はmax枚まで、未指定なら全部）一括で手元へ移動し、同数ドロー（決定的簡略化）
         const movedNames: string[] = []
         for (let i = player.hand.length - 1; i >= 0; i--) {
+            if (max !== undefined && movedNames.length >= max) break
             const cardId = player.hand[i]!
             if (getCard(cardId).type !== "magic") continue
             player.hand.splice(i, 1)
