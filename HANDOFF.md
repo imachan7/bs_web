@@ -22,9 +22,10 @@
 確定した解釈18件と全バッチの器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §1 と §5〜§8 にある。
 
 **BS11-065 満天の牧草地／BS11-X05 魔導双神ジェミナイズ Lv2-3の未実装2枚は完了（2026-09-07）。**
-確定した規則は COST_MODEL.md §6（paidCostの判定）に移した。smoke part295 / part296。
-次は BS11_PLAN.md §5 の残作業（横断的な下ごしらえが先）か、REMAINING_WORK.md の残課題
-（簡略化5件・検証の穴80件＋α）から選ぶ。
+確定した規則は COST_MODEL.md §8（「支払った」の判定）に移した。smoke part295 / part296。
+**これで未実装の節は全弾でゼロになった**（BS02-063 は禁止カードのため対象外）。
+次は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md) の残課題から選ぶ。
+本命は §4「検証の穴」（未発火80件＋計測点の無い kind 10種）。
 
 BS11 は91枚すべて投入済み。
 

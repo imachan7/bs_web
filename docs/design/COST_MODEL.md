@@ -181,12 +181,7 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 
 ---
 
-## 関連
-
-- [INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) — 選択を挟める層と3つのパターン
-- [CHOOSER_RULES.md](./CHOOSER_RULES.md) — 誰が選ぶか
-
-## 5. 「コストを支払わずに使用できる」は、使用時に**払う道も残す**（2026-08-15 ユーザー確認）
+## 7. 「コストを支払わずに使用できる」は、使用時に**払う道も残す**（2026-08-15 ユーザー確認）
 
 マジックの無償化（`kind:"magicFreeGrant"`）は「使用**できる**」なので、
 **無償化を持つカードすべてで、使用のたびに聞く**。あえてコストを払う選択を残すのは、
@@ -204,7 +199,7 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 **非対話（テスト・自動解決）では従来どおり**自動で無償・自動で2回発揮する。
 実装は `effectiveCost` の `ignoreFreeGrant` 引数と `GameState.magicFreeDeclined`。
 
-## 6. 「コストを支払って〜したとき」の“支払った”の判定（2026-09-07 ユーザー確認）
+## 8. 「コストを支払って〜したとき」の“支払った”の判定（2026-09-07 ユーザー確認）
 
 「自分がコストを支払ってマジックカードを使用したとき」のような誘発条件は、
 **通常の使用手続きを踏んだか**で判定する。軽減で実質0コストになっても「支払った」扱い。
@@ -212,3 +207,9 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 （無償化・無償使用アクション自身。BS11-X05 魔導双神ジェミナイズLv2-3）。
 実装は `resolveMagic` の `paidCost` 引数（既定 true）で、中断（無効化・対象絞り込み・
 封印された魔導書・再発揮）の各 PendingChoice にも `paidCost` を持たせて再開経路をまたぐ。
+
+
+## 関連
+
+- [INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) — 選択を挟める層と3つのパターン
+- [CHOOSER_RULES.md](./CHOOSER_RULES.md) — 誰が選ぶか
