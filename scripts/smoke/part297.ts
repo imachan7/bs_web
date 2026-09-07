@@ -1,8 +1,9 @@
 // smoke パート297（簡略化5件を原作どおりにする。2026-09-07 ユーザー指示）
 //   #1 BS11-036 冥土の魔女ヘレン: handMagicToTegamotoDraw に max:3 の上限を足す（既存カードは無制限のまま）
+//   #2 BS11-042 海賊ラッコルセア: fieldEvent ownFunsaiMilled に lastFunsaiHasSpirit 条件を足す（既存カードは条件なしのまま）
 import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireSummonTrigger } from "../../server/src/logic/EffectModules"
+import { fireSummonTrigger, resolveFunsai } from "../../server/src/logic/EffectModules"
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "purple" })
@@ -63,6 +64,50 @@ console.log("=== #1 上限を指定しない既存カード（マジックブッ
     assert(act(s, "p1", { type: "castMagic", handIndex: 4 }) === null, "マジックブックを使用できる")
     assert(s.players.p1.tegamoto.length === 4, "手札にあったマジック4枚すべてを手元へ置ける（上限なし）")
     assert(s.players.p1.deck.length === deckBefore - 4, "4枚ぶんドローする")
+}
+
+console.log("=== #2 BS11-042 海賊ラッコルセア：【粉砕】でスピリットカードが出たときのみ発火 ===")
+{
+    const s = game("rakko-spirit-milled")
+    const inst = createInstance("BS11-042", s.turn, 2)
+    s.players.p1.field.spirits.push(inst)
+    // 適当な【粉砕】持ちスピリット（BS04-071 スチーム・ゴレム）で解決。相手デッキの先頭をスピリットカードにする
+    const funsaiSpirit = createInstance("BS04-071", s.turn, 3)
+    s.players.p1.field.spirits.push(funsaiSpirit)
+    s.players.p2.deck = ["BS01-001", "BS01-002", "BS01-003"] // 先頭はスピリットカード
+    const totalCoresBefore = inst.cores + funsaiSpirit.cores
+    resolveFunsai(s, "p1", funsaiSpirit)
+    const totalCoresAfter = inst.cores + funsaiSpirit.cores
+    assert(totalCoresAfter === totalCoresBefore + 1, "スピリットカードが破棄されたのでコアが1個置かれる")
+}
+
+console.log("=== #2 【粉砕】でスピリットカードが出なかったときは発火しない ===")
+{
+    const s = game("rakko-no-spirit-milled")
+    const inst = createInstance("BS11-042", s.turn, 2)
+    s.players.p1.field.spirits.push(inst)
+    const funsaiSpirit = createInstance("BS04-071", s.turn, 3)
+    s.players.p1.field.spirits.push(funsaiSpirit)
+    // 相手デッキの先頭をマジック/ネクサスだけにする（スピリットカードなし）
+    s.players.p2.deck = ["BS02-108", "BS02-108", "BS02-108"]
+    const totalCoresBefore = inst.cores + funsaiSpirit.cores
+    resolveFunsai(s, "p1", funsaiSpirit)
+    const totalCoresAfter = inst.cores + funsaiSpirit.cores
+    assert(totalCoresAfter === totalCoresBefore, "スピリットカードが出ていないのでコアは置かれない")
+}
+
+console.log("=== #2 条件を書いていない他カードは lastFunsai の記録に影響を受けない（回帰確認） ===")
+{
+    // BS03巨人王ランドルフ等の lastFunsaiTotal 参照カードは種別を問わないので、
+    // condition の有無で lastFunsai の記録そのものが変わっていないことだけ確認する
+    // （BS04-071スチーム・ゴレム Lv1＝素の【粉砕】1枚。cores=1で level1）
+    const s = game("landolf-unaffected")
+    s.players.p2.deck = ["BS02-108"] // スピリットが出ない粉砕（マジック1枚のみ）
+    const funsaiSpirit = createInstance("BS04-071", s.turn, 1)
+    s.players.p1.field.spirits.push(funsaiSpirit)
+    resolveFunsai(s, "p1", funsaiSpirit)
+    assert(s.lastFunsai?.total === 1, "lastFunsai.total は種別を問わず記録される（他カードの参照は影響を受けない）")
+    assert((s.lastFunsai?.spirits ?? 0) === 0, "今回はスピリットカードが0枚だった")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part297）")

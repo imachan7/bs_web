@@ -1164,6 +1164,10 @@ export function fireFieldEventTriggers(
                     const found = findSpiritAny(state, targetInstanceId)
                     if (!found) continue
                     if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCostOfEventTarget })) continue
+                } else if ("lastFunsaiHasSpirit" in effect.condition) {
+                    // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
+                    // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
+                    if ((state.lastFunsai?.spirits ?? 0) === 0) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue

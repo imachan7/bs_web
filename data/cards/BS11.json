@@ -2516,6 +2516,9 @@
     ],
     "phase": "attack",
     "turn": "own",
+    "condition": {
+     "lastFunsaiHasSpirit": true
+    },
     "action": {
      "type": "voidCoreToOther",
      "count": 1
