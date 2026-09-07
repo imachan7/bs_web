@@ -24,6 +24,34 @@
 **次の一手: 未実装の2枚（BS11-065 / BS11-X05）を片付ける**（2026-09-07 ユーザー指示）。
 残作業の全体像は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md)（未実装2件・簡略化5件・検証の穴80件＋α）。
 
+### 未実装2枚の確定スキーマ（2026-09-07 ユーザー確認。完了したら手順書へ移してここから消す）
+
+**BS11-065 満天の牧草地「手札を破棄できない」**
+
+- 新 `globalConstraint: { type: "noHandDiscardInMain" }`（`noDrawInMain` の隣に並べる）。
+  BS11-065-e1 は2エントリになる（1節に「ドローできず」「破棄できない」の2つが入っているため）
+- 関門は `shared/rules.ts` の `canDiscardHand(board, pid)` 1つに寄せる
+  （`board.phase === "main"` かつその制約があるとき false）。**手札破棄の共通ヘルパーは無く、
+  破棄は約18種のアクションに散っている**ので、各ハンドラの先頭でこの述語を見る形にする
+- **コストとしての破棄も止まる**（`handDiscardOne` / `handDiscardCardType` /
+  `summonCostHandDiscardPay` / `targetNegateByHandDiscard` / `costDiscard*`）。
+  払えない＝その効果は発揮しない（COST_MODEL.md の一般則）
+- **対象外**: `revealDiscardRest`（公開ゾーンの破棄で手札ではない）／デッキ破棄（`mill` 系）／
+  **【神速】**（リザーブからの支払いであって破棄ではない。2026-09-07 ユーザー指摘）
+
+**BS11-X05 魔導双神ジェミナイズ Lv2-3**
+
+- `fireMagicUsedTriggers` に「コストを支払ったか」を足し、`ownMagicUsed` の eventInfo に載せる。
+  `fieldEvent` 側は `paidCostOnly?: true` で絞る
+- **「支払った」の判定は通常の使用手続きを踏んだかどうか。軽減で実質0コストでも「支払った」扱い**
+  （2026-09-07 ユーザー確認）。除外されるのは「コストを支払わずに使用」と書かれた効果経由の使用だけ。
+  これによりこのカード自身の無償使用からは連鎖しない
+- 新アクション：自分の**手札/手元**のマジック1枚を選んでコストを支払わず使用する（任意。候補0なら不発）
+- 「ターンに2回」は **実際に無償使用した回数**を数える（2026-09-07 ユーザー確認。
+  確認を出して「使わない」を選んだときや、候補が無くて不発のときは消費しない）。
+  発生源1つにつきの回数なので `CardInstance` に持つ（`magicNegateUsedTurn` と同じ形）
+- 「その効果発揮後」＝前後関係。`ownMagicUsed` は `resolveMagic` の効果実行後に発火するので順序は満たしている
+
 BS11 は91枚すべて投入済み。残る2節は [BS11_PLAN.md](./docs/design/BS11_PLAN.md) §5（どちらも横断的な下ごしらえが先）。
 
 BS10（121枚）とブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9）。
