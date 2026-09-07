@@ -71,9 +71,18 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "refresh"
             if (player.trashCores > 0) {
-                player.reserve += player.trashCores
-                log(state, `トラッシュのコア${player.trashCores}個をリザーブに戻した。`)
-                player.trashCores = 0
+                // trashCoreReturnCapNext（BS12-047海王神龍トライ・メルクリウス）：次の1回のリフレッシュ
+                // ステップだけ、トラッシュ→リザーブの戻しをこの数に制限する（超過分はトラッシュに残る）
+                const cap = player.trashCoreReturnCapNext
+                delete player.trashCoreReturnCapNext
+                const moved = cap !== undefined ? Math.min(player.trashCores, cap) : player.trashCores
+                player.reserve += moved
+                player.trashCores -= moved
+                if (cap !== undefined && player.trashCores > 0) {
+                    log(state, `トラッシュのコア${moved}個をリザーブに戻した（制限により${player.trashCores}個は戻せなかった）。`)
+                } else {
+                    log(state, `トラッシュのコア${moved}個をリザーブに戻した。`)
+                }
             }
             const refreshedInstanceIds = new Set<string>()
             // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）

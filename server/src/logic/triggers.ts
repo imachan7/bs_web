@@ -811,6 +811,8 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
+                // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
+                if (effect.cost?.exhaustSelf && inst.isRested) continue
                 firing.push({ pid, inst, effect })
             }
         }
@@ -822,6 +824,11 @@ export function fireStepTriggers(
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             if (e.effect.oncePerTurn === true) {
                 e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
+            }
+            // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
+            // interactiveTargetsの確認を断った場合も疲労する簡略化）
+            if (e.effect.cost?.exhaustSelf) {
+                exhaustSpirit(state, e.pid, e.inst)
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {

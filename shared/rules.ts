@@ -2152,12 +2152,17 @@ export function lifeProtectedByCostThisTurn(
     defenderPid: PlayerId,
     attacker: CardInstance,
 ): boolean {
-    return board.turnConstraints.some(
-        (c) =>
-            c.type === "noLifeDamageByCostForPid" &&
-            c.pid === defenderPid &&
-            instAllCosts(attacker).some((cost) => cost <= c.maxCost),
-    )
+    return board.turnConstraints.some((c) => {
+        if (c.type !== "noLifeDamageByCostForPid" || c.pid !== defenderPid) return false
+        // symbolCount+combinedOnly（BS12-043大地の狩人コンドラッドLv1）：maxCostの代わりに
+        // 「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックだけを保護する
+        if (c.symbolCount !== undefined) {
+            if (instanceSymbolCount(attacker) !== c.symbolCount) return false
+            if (c.combinedOnly && !instIsCombined(attacker)) return false
+            return true
+        }
+        return c.maxCost !== undefined && instAllCosts(attacker).some((cost) => cost <= c.maxCost!)
+    })
 }
 
 // このターンだけの強制アタック（TurnConstraintDef "mustAttackByCost" / "mustAttackByInstance"。
@@ -2248,6 +2253,25 @@ export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean
     return false
 }
 
+// フィールド全体制約 noSummonByEffect（両陣営・主語なし）：スピリット/ブレイヴ/ネクサス/マジックの
+// 効果でスピリット/ブレイヴを召喚できない（BS12-072海賊王の秘宝島Lv1。通常のdoSummonは対象外）。
+// summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（EffectModules.ts）が冒頭で呼ぶ
+export function summonByEffectBlocked(board: Board): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noSummonByEffect") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
 // 召喚するとき、軽減シンボルによるコスト軽減ができなくなる（BS08超時空重力炉）。
 // **カード静的なコスト**（軽減前の値）で判定する。effectiveCost（shared/cost.ts）から呼ぶ
@@ -2304,6 +2328,11 @@ function hasImmunityAgainst(
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && ownerPid === board.turnPlayer) continue
+            }
             // target:"self"＝**発生源自身だけ**（「このスピリットは〜受けない」。SD01-005 タルタルガー）
             if (effect.target === "self" && inst.instanceId !== source.instanceId) continue
             // familyFilter一致（配列＝OR。matchesFamilyFilterで判定） ‖ includeSelf指定時は発生源自身も対象
@@ -2318,6 +2347,8 @@ function hasImmunityAgainst(
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             // combinedFilter（BS10-079そびえる机山群Lv2＝合体スピリットのみ）
             if (effect.combinedFilter === true && !instIsCombined(inst)) continue
+            // vanillaFilter（BS12-071未完成の古代戦艦：帆＝効果の記述を持たないスピリットのみ）
+            if (effect.vanillaFilter === true && !instIsVanilla(inst)) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）

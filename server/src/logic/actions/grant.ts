@@ -704,12 +704,16 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
         }
         state.turnConstraints.push({
             type: "noLifeDamageByCostForPid",
-            maxCost: action.maxCost,
             pid: owner,
+            ...(action.symbolCount !== undefined
+                ? { symbolCount: action.symbolCount, ...(action.combinedOnly ? { combinedOnly: true as const } : {}) }
+                : { maxCost: action.maxCost! }),
         })
         log(
             state,
-            `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
+            action.symbolCount !== undefined
+                ? `${sourceName}：このターンの間、シンボル${action.symbolCount}つを持つ${action.combinedOnly ? "合体" : ""}スピリットのアタックでは${state.players[owner].name}のライフは減らされない。`
+                : `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
         )
         return
 }
@@ -855,6 +859,21 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
         if (marked === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
         }
+        return
+}
+
+const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        state.turnConstraints.push({
+            type: "handReductionColorAsForPid",
+            pid: owner,
+            color: action.color,
+            cardType: action.cardType,
+        })
+        log(
+            state,
+            `${sourceName}：このターンの間、${state.players[owner].name}の手札にある${action.cardType === "nexus" ? "ネクサス" : action.cardType}カードすべての軽減シンボルは${COLOR_LABELS[action.color]}として扱う。`,
+        )
         return
 }
 
@@ -1295,6 +1314,7 @@ const handlers = {
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
     grantSymbolLossThisTurn: grantSymbolLossThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
+    handReductionColorAsThisTurn: handReductionColorAsThisTurnHandler,
     costBuffThisTurn: costBuffThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 

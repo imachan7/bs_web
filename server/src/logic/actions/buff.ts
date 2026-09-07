@@ -136,6 +136,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                         action.filter?.attackingOnly,
                         action.filter?.family,
                         action.filter?.combined,
+                        action.filter?.vanilla,
                     ),
                 srcColors,
                 srcType,
@@ -167,6 +168,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             action.filter?.attackingOnly,
             action.filter?.family,
             action.filter?.combined,
+            action.filter?.vanilla,
         )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)

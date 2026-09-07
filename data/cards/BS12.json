@@ -2635,6 +2635,146 @@
     "effects": []
   },
   {
+    "cardId": "BS12-042",
+    "name": "ヒノキ・ゴレム",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、自分の手札にあるネクサスカードすべての軽減シンボルすべてを[青]として扱う。\nLv2･Lv3\n自分のネクサスすべては青のネクサスとしても扱う。",
+    "effects": [
+      {
+        "id": "BS12-042-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "handReductionColorAsThisTurn",
+          "color": "blue",
+          "cardType": "nexus"
+        }
+      },
+      {
+        "id": "BS12-042-e2",
+        "kind": "colorAs",
+        "levels": [
+          2,
+          3
+        ],
+        "colors": [
+          "blue"
+        ],
+        "target": "ownNexusesAll"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-043",
+    "name": "大地の狩人コンドラッド",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、このスピリットを疲労させることで、このターンの間、シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない。\nLv2『相手のメインステップ』\nコスト3以下のスピリットすべての『このスピリットの召喚時』効果は発揮されない。",
+    "effects": [
+      {
+        "id": "BS12-043-e1",
+        "kind": "step",
+        "step": "attack",
+        "turn": "opponent",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "cost": {
+          "exhaustSelf": true
+        },
+        "action": {
+          "type": "protectLifeByCostThisTurn",
+          "symbolCount": 2,
+          "combinedOnly": true
+        }
+      },
+      {
+        "id": "BS12-043-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "turn": "opponent",
+        "constraint": {
+          "type": "noSummonTriggerByCost",
+          "maxCost": 3
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-044",
     "name": "シュモンゴ",
     "type": "spirit",
@@ -2671,6 +2811,264 @@
     "limited": false,
     "effect": "",
     "effects": []
+  },
+  {
+    "cardId": "BS12-045",
+    "name": "黒獣王ケフェウス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "green",
+      "green"
+    ],
+    "family": [
+      "獣頭",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2\n系統：「獣頭」を持つ自分のスピリットすべてを効果の記述を持たないスピリットとして扱う。\nLv2『自分のアタックステップ』\n効果の記述を持たない自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
+    "effects": [
+      {
+        "id": "BS12-045-e1",
+        "kind": "vanillaAsGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "familyFilter": "獣頭"
+      },
+      {
+        "id": "BS12-045-e2",
+        "kind": "levelAs",
+        "levels": null,
+        "target": "ownSpiritsVanilla",
+        "treatAs": "max",
+        "phase": "attack",
+        "turn": "own",
+        "sourceLevels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-046",
+    "name": "ナタ・ゴレム",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n相手は、マジックカードのコストを支払うとき、相手のスピリット上のコアでは支払えない。\n【合体時】Lv2\nこのスピリットは効果の記述を持たないスピリットとして扱う。",
+    "effects": [
+      {
+        "id": "BS12-046-e1",
+        "kind": "magicRestriction",
+        "levels": [
+          1,
+          2
+        ],
+        "restriction": "noSpiritCoresOpponent",
+        "phase": "attack",
+        "turn": "own"
+      },
+      {
+        "id": "BS12-046-e2",
+        "kind": "vanillaAsGrant",
+        "levels": [
+          2
+        ],
+        "target": "self",
+        "whileCombined": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-047",
+    "name": "海王神龍トライ・メルクリウス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "神星",
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【転召：星魂/ボイド】\n召喚コスト支払い後、系統：「星魂」を持つ自分のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手は、次の『相手のリフレッシュステップ』で、相手のトラッシュのコアを3個しか相手のリザーブに戻せない。\n【合体時】Lv2･Lv3\n相手は、マジックカードのコストを支払うとき、相手のフィールドのコアでは支払えない。",
+    "effects": [
+      {
+        "id": "BS12-047-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": null,
+        "familyFilter": [
+          "星魂"
+        ],
+        "dest": "void"
+      },
+      {
+        "id": "BS12-047-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "capOpponentTrashCoreReturnNextRefresh",
+          "max": 3
+        }
+      },
+      {
+        "id": "BS12-047-e3",
+        "kind": "magicRestriction",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "restriction": "reserveOnlyOpponent"
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-048",
+    "name": "キャプテン・オルカード",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のコスト11以下の合体スピリットすべてを破壊する。",
+    "effects": [
+      {
+        "id": "BS12-048-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroyAll",
+          "filter": {
+            "cost": {
+              "max": 11
+            },
+            "combined": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS12-049",
@@ -3403,6 +3801,135 @@
     ]
   },
   {
+    "cardId": "BS12-059",
+    "name": "ショゴルス",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "white"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト3以上\n【合体時】\nこのスピリットは効果の記述を持たないスピリットとして扱う。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト3以上",
+    "braveCondition": {
+      "minCost": 3
+    },
+    "effects": [
+      {
+        "id": "BS12-059-e1",
+        "kind": "vanillaAsGrant",
+        "levels": null,
+        "target": "self",
+        "whileCombined": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-060",
+    "name": "バルカン・アームズ",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "green",
+      "green"
+    ],
+    "family": [
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分はデッキから3枚ドローする。\nその後、自分は手札2枚を破棄する。\n合体条件：神星/光導/星魂",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "神星/光導/星魂",
+    "braveCondition": [
+      {
+        "family": "神星"
+      },
+      {
+        "family": "光導"
+      },
+      {
+        "family": "星魂"
+      }
+    ],
+    "effects": [
+      {
+        "id": "BS12-060-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 3
+        }
+      },
+      {
+        "id": "BS12-060-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "discardSelfChoose",
+          "count": 2
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-061",
     "name": "剣の誕生地",
     "type": "nexus",
@@ -4070,6 +4597,131 @@
     ]
   },
   {
+    "cardId": "BS12-071",
+    "name": "未完成の古代戦艦：帆",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n効果の記述を持たない自分のスピリットすべては、相手のマジックの効果を受けない。\nLv2『相手のメインステップ』\n相手は、相手の手札にある効果の記述を持つスピリットカードはターンに1枚しか召喚できない。",
+    "effects": [
+      {
+        "id": "BS12-071-e1",
+        "kind": "immunityGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "vanillaFilter": true,
+        "against": "magic",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        }
+      },
+      {
+        "id": "BS12-071-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "turn": "opponent",
+        "constraint": {
+          "type": "summonLimitByEffectForOpponent",
+          "limit": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-072",
+    "name": "海賊王の秘宝島",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのメインステップ』\nスピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない。\nLv2『このネクサスの破壊時』\n相手は、相手の手札にあるマジックカード1枚を破棄する。\n破棄できないとき、相手は、相手の手札すべてを公開する。",
+    "effects": [
+      {
+        "id": "BS12-072-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "main",
+        "constraint": {
+          "type": "noSummonByEffect"
+        }
+      },
+      {
+        "id": "BS12-072-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "discardOpponent",
+          "count": 1,
+          "cardTypeFilter": "magic",
+          "revealAllHandIfNone": true
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS12-073",
     "name": "ネクサスコラプス",
     "type": "magic",
@@ -4492,6 +5144,83 @@
           "type": "bpBuff",
           "amount": 5000,
           "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-083",
+    "name": "マジックランプ",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中のネクサスカード1枚をコストを支払わずに配置できる。残ったカードは破棄する。\nフラッシュ：\nこのターンの間、効果の記述を持たないスピリット1体をBP+5000する。",
+    "effects": [
+      {
+        "id": "BS12-083-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "revealAndPlaceNexusFree",
+          "count": 3
+        }
+      },
+      {
+        "id": "BS12-083-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 5000,
+          "filter": {
+            "vanilla": true
+          },
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-084",
+    "name": "マーキュリーゴブレット",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のフィールドで最もコストが低いスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS12-084-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "lowestCost": true
         }
       }
     ]
@@ -4964,6 +5693,88 @@
         "revived": {
           "toHand": true
         }
+      }
+    ]
+  },
+  {
+    "cardId": "BS12-X06",
+    "name": "海賊王レヴィアダン",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭",
+      "勇傑"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 12000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「獣頭」を持つ自分のスピリットと同じコストの相手のスピリットすべてを破壊する。\nLv2･Lv3『このスピリットのアタック時』\nバトル終了時、効果の記述を持たない自分のスピリット1体を破壊することで、このスピリットは回復する。\nLv3\n自分のスピリットすべてを効果の記述を持たないスピリットとして扱う。",
+    "effects": [
+      {
+        "id": "BS12-X06-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroyByOwnFamilyCostSet",
+          "familyFilter": "獣頭"
+        }
+      },
+      {
+        "id": "BS12-X06-e2",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "refreshSelf",
+          "costDestroyOwnVanillaSpirit": true
+        }
+      },
+      {
+        "id": "BS12-X06-e3",
+        "kind": "vanillaAsGrant",
+        "levels": [
+          3
+        ],
+        "target": "ownAll"
       }
     ]
   }

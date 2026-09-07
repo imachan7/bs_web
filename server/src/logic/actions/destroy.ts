@@ -24,6 +24,7 @@ import {
     pickAnySideCandidates,
     millDeck,
     pickEnemyByBp,
+    pickEnemyLowestCost,
     pickEnemyCandidates,
     requestChoice,
     returnNexusToHand,
@@ -31,7 +32,7 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instAllCosts, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -249,7 +250,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             return
         }
         for (let i = 0; i < resolvedCount; i++) {
-            const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            const target = action.lowestCost
+                ? pickEnemyLowestCost(state, opp, matchesFilter, srcColors, srcType)
+                : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
@@ -344,6 +347,48 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         if (state.winner) return
         applyDestroyBatchAfter(state, owner, destroyed, after)
         return
+}
+
+// BS12-X06海賊王レヴィアダン『召喚時』：自分の familyFilter 一致スピリット（self自身も含む）の
+// コストの集合に、コストが一致する相手のスピリットすべてを破壊する（器BH）
+const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, destroyContext } = ctx
+    const costSet = new Set<number>()
+    for (const s of state.players[owner].field.spirits) {
+        if (!matchesFamilyFilter(state, owner, s, action.familyFilter)) continue
+        for (const c of instAllCosts(s)) costSet.add(c)
+    }
+    if (costSet.size === 0) {
+        log(state, `${sourceName}：コストの参照元がいなかった。`)
+        return
+    }
+    const targets = state.players[opp].field.spirits
+        .filter(
+            (s) =>
+                instAllCosts(s).some((c) => costSet.has(c)) &&
+                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
+        )
+        .map((s) => ({ pid: opp, instanceId: s.instanceId }))
+    if (targets.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, destroyContext)
+    if (stoppedAt < targets.length) {
+        pushResumeFrames(state, [{
+            kind: "destroyBatch",
+            ownerPid: owner,
+            targets,
+            index: stoppedAt,
+            destroyed,
+            ...(destroyContext ? { context: destroyContext } : {}),
+            after: {},
+        }])
+        return
+    }
+    if (state.winner) return
+    applyDestroyBatchAfter(state, owner, destroyed, {})
+    return
 }
 
 // ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
@@ -1725,6 +1770,7 @@ const handlers = {
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,
     destroyAll: destroyAllHandler,
+    destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,

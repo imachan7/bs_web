@@ -68,7 +68,7 @@ console.log("=== N: destroyAsMaxLevelGrant（コア0で最高Lvとして破壊�
     // （EFFECT_SOURCE_CONTEXT.md）。効果の解決中であることを立ててから破壊する
     s.currentEffectSource = { pid: "p2", type: "spirit" }
     destroySpirit(s, "p1", victim.instanceId, "deplete")
-    s.currentEffectSource = undefined
+    delete s.currentEffectSource
     assert(victim.destroyAsMaxLevel === true, "コア0でもレベル表の最大Lvとして破壊される（Lv0扱いにならない）")
     assert(
         currentLevel(victim).level === maxLevel,
@@ -81,7 +81,7 @@ console.log("=== N: destroyAsMaxLevelGrant（コア0で最高Lvとして破壊�
     own.cores = 0
     s.currentEffectSource = { pid: "p1", type: "spirit" }
     destroySpirit(s, "p1", own.instanceId, "deplete")
-    s.currentEffectSource = undefined
+    delete s.currentEffectSource
     assert(own.destroyAsMaxLevel !== true, "自分の効果でコア0になったときは最高Lv破壊にならない")
 }
 

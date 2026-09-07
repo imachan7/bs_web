@@ -119,9 +119,11 @@ import {
     matchesCostFilter,
     matchesFamilyFilter,
     noSummonTriggerByCost,
+    summonByEffectBlocked,
     spiritHasFamily,
     spiritHasKeyword,
     bravesOf,
+    hostsOf,
     isEndStepLocked,
     instIsCombined,
     isOnFieldAnyZone,
@@ -2131,6 +2133,18 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (chosen) chosen.treatedAsVanillaContinuous = true
                         continue
                     }
+                    // self（BS12-046ナタ・ゴレム／BS12-059ショゴルス）：発生源自身。
+                    // 合体中ブレイヴ自身の効果なら「このスピリット」はホストを指す（BRAVE.md §12.3。destroyAsMaxLevelGrantと同じ考え方）
+                    if (effect.target === "self") {
+                        if (effect.whileCombined && !instIsCombined(source)) continue
+                        const isBrave = player.field.combinedBraves.some((b) => b.instanceId === source.instanceId)
+                        if (isBrave) {
+                            for (const host of hostsOf(player, source)) host.treatedAsVanillaContinuous = true
+                        } else {
+                            source.treatedAsVanillaContinuous = true
+                        }
+                        continue
+                    }
                     for (const spirit of player.field.spirits) {
                         if (
                             effect.familyFilter &&
@@ -2220,7 +2234,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
-                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits
+                            : effect.target === "ownNexusesAll"
+                              ? player.field.nexuses
+                              : [source]
                     if (effect.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     for (const target of targets) {
@@ -2649,6 +2668,25 @@ export function pickEnemyByBp(
     )
 }
 
+// destroy.lowestCost（BS12-084マーキュリーゴブレット）：相手スピリットからコスト最小のものを1体選ぶ
+// （同コストは実効BP最大。pickEnemyByBpのBP最大既定を裏返した版）
+export function pickEnemyLowestCost(
+    state: GameState,
+    targetPid: PlayerId,
+    extraPredicate: (s: CardInstance) => boolean = () => true,
+    sourceColors?: Color[],
+    sourceType?: CardType,
+): CardInstance | null {
+    const candidates = pickEnemyCandidates(state, targetPid, Infinity, extraPredicate, sourceColors, sourceType, "other")
+    if (candidates.length === 0) return null
+    return candidates.reduce((best, s) => {
+        const sCost = getCard(s.cardId).cost
+        const bestCost = getCard(best.cardId).cost
+        if (sCost !== bestCost) return sCost < bestCost ? s : best
+        return effectiveBp(state, targetPid, s) > effectiveBp(state, targetPid, best) ? s : best
+    })
+}
+
 // interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
 // returnToHand）の対象選択を requestChoice に委ねる共通ヘルパー。
 // candidates が2件以上のときだけ pendingChoice を立てて true を返す（呼び出し側はそのまま return する）。
@@ -2794,6 +2832,11 @@ export function summonFreeFromHandIndex(
     },
 ): void {
     const player = state.players[owner]
+    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
+    if (summonByEffectBlocked(state)) {
+        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
+        return
+    }
     const cardId = player.hand[handIndex]
     if (cardId === undefined) {
         log(state, `${sourceName}：対象がいなかった。`)
@@ -2874,6 +2917,11 @@ export function summonFreeFromTrashIndex(
     opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true },
 ): void {
     const player = state.players[owner]
+    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
+    if (summonByEffectBlocked(state)) {
+        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
+        return
+    }
     const cardId = player.trashCards[trashIndex]
     if (cardId === undefined) {
         log(state, `${sourceName}：対象がいなかった。`)
@@ -2994,6 +3042,7 @@ export function bpBuffTargetPasses(
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
+    vanillaFilter?: boolean,
 ): boolean {
     if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
     if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
@@ -3004,6 +3053,8 @@ export function bpBuffTargetPasses(
     if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
     if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
     if (combinedFilter !== undefined && instIsCombined(inst) !== combinedFilter) return false
+    // vanillaFilter（BS12-083マジックランプ「効果の記述を持たないスピリット1体をBP+」）
+    if (vanillaFilter === true && !instIsVanilla(inst)) return false
     return true
 }
 
@@ -3023,9 +3074,10 @@ export function pickBpBuffTarget(
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
+    vanillaFilter?: boolean,
 ): CardInstance | null {
     const passes = (inst: CardInstance): boolean =>
-        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter)
+        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter)
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null

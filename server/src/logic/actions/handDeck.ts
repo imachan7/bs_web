@@ -38,8 +38,8 @@ import {
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, trashCardNameMatches } from "../../../../shared/rules"
+import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
+import { KEYWORDS, cardHasColor, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -203,6 +203,19 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 時点で対象プレイヤーIdをactionに固定して持ち回す
         const targetPid = action.forcedTargetPid ?? opp
         const target = state.players[targetPid]
+        // revealAllHandIfNone（BS12-072海賊王の秘宝島Lv2）：破棄できないときのフォールバック。
+        // その場で見せて終わり＝ゲーム状態は変えずログにだけ出す（§1 #15。2026-09-07ユーザー確認）
+        const revealAllHandFallback = (): void => {
+            if (!action.revealAllHandIfNone) return
+            if (target.hand.length === 0) {
+                log(state, `${sourceName}：${target.name}の手札は無かった。`)
+                return
+            }
+            log(
+                state,
+                `${sourceName}：${target.name}は手札すべてを公開した「${target.hand.map((id) => getCard(id).name).join("、")}」。`,
+            )
+        }
         // BS12-067月光集める塔Lv1：発生源の持ち主の手札は、相手のスピリット/ブレイヴ/マジックの効果を受けない
         // （ネクサスの効果は防がない）。自分自身の効果はそもそもtargetPid===ownerで弾かれない
         if (owner !== targetPid && handImmuneFor(state, targetPid, srcType)) {
@@ -243,6 +256,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         }
         if (target.hand.length === 0) {
             log(state, `${sourceName}の手札破棄：${target.name}の手札がなかった。`)
+            revealAllHandFallback()
             return
         }
         // cardTypeFilter（BS08関将龍皇ドラグロン：相手の手札を見てスピリットカード1枚を破棄）：
@@ -314,6 +328,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             const indices = target.hand.map((_, i) => i).filter((i) => matchesType(target.hand[i]!))
             if (indices.length === 0) {
                 log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+                revealAllHandFallback()
                 return
             }
             if (
@@ -358,6 +373,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         }
         if (discarded.length === 0) {
             log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
+            revealAllHandFallback()
             return
         }
         log(
@@ -1126,6 +1142,12 @@ function summonRevealedFree(
 ): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
+    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
+    if (summonByEffectBlocked(state)) {
+        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
+        player.trashCards.push(cardId)
+        return
+    }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
     if (player.reserve < maintain) {
@@ -1143,6 +1165,89 @@ function summonRevealedFree(
             "（【転召】を発揮したものとして扱うため、コアを置く必要はない）",
     )
     fireSummonTrigger(state, owner, inst)
+}
+
+// BS12-083マジックランプ：公開ゾーンから選んだ1枚のネクサスカードを、維持コアのみリザーブから払って
+// フィールドへ配置する（コストは支払わない）。summonRevealedFreeのネクサス版
+function placeNexusRevealedFree(ctx: ActionCtx, cardId: string): void {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const card = getCard(cardId)
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
+        player.trashCards.push(cardId)
+        return
+    }
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.nexuses.push(inst)
+    log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに配置した。`)
+    notifyNexusDeployed(state, owner)
+}
+
+const revealAndPlaceNexusFreeHandler: ActionHandler<"revealAndPlaceNexusFree"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+
+    // 公開ゾーン経由の再入：選ばれた1枚を配置し、残りは選択待ちの queue（revealDiscardRest）が破棄する
+    if (chosenCardIndex !== undefined && state.revealedCards) {
+        const zone = state.revealedCards.cardIds
+        const pickedId = zone[chosenCardIndex]
+        if (pickedId !== undefined) {
+            zone.splice(chosenCardIndex, 1)
+            placeNexusRevealedFree(ctx, pickedId)
+        }
+        return
+    }
+
+    const revealed = player.deck.splice(0, action.count)
+    if (revealed.length === 0) {
+        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        return
+    }
+    log(
+        state,
+        `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+    )
+    const indices = revealed.map((id, i) => ({ id, i })).filter((x) => getCard(x.id).type === "nexus").map((x) => x.i)
+    if (indices.length === 0) {
+        for (const id of revealed) player.trashCards.push(id)
+        log(state, `${sourceName}：ネクサスカードがなかった。残り${revealed.length}枚をトラッシュに置いた。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        state.revealedCards = { pid: owner, cardIds: [...revealed] }
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：コストを支払わずに配置するネクサスを選んでください`,
+            "reveal",
+            indices,
+            true,
+            action,
+            self,
+            true,
+        )
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { type: "revealDiscardRest" } }])
+        } else {
+            discardRevealedZone(state, owner, sourceName)
+        }
+        return
+    }
+    // 自動時（テスト）はコスト最大の1枚を選ぶ決定的簡略化
+    let bestIndex = indices[0]!
+    for (const i of indices) {
+        if (getCard(revealed[i]!).cost > getCard(revealed[bestIndex]!).cost) bestIndex = i
+    }
+    const [pickedId] = revealed.splice(bestIndex, 1)
+    placeNexusRevealedFree(ctx, pickedId!)
+    for (const id of revealed) player.trashCards.push(id)
+    if (revealed.length > 0) {
+        log(state, `${player.name}は残り${revealed.length}枚をトラッシュに置いた。`)
+    }
+    return
 }
 
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
@@ -3108,6 +3213,7 @@ const handlers = {
     drawThenDiscard: drawThenDiscardHandler,
     deckReveal: deckRevealHandler,
     revealAndSummonKeyword: revealAndSummonKeywordHandler,
+    revealAndPlaceNexusFree: revealAndPlaceNexusFreeHandler,
     revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
     revealTopFamilyToHand: revealTopFamilyToHandHandler,
     revealReturnToDeck: revealReturnToDeckHandler,

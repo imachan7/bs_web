@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -215,6 +215,10 @@ export function validateSummon(
     const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
     if (summonLimitError) return summonLimitError
 
+    // 相手からの「効果の記述を持つスピリットはターンにN枚まで」制限（BS12-071未完成の古代戦艦：帆Lv2）
+    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
+    if (summonLimitByEffectError) return summonLimitByEffectError
+
     // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
     // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
     // 許可したインスタンスの上のコアだけ、例外的に使える
@@ -342,6 +346,29 @@ function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card
             ).length
             if (countThisTurn >= limit) {
                 return `効果により、コスト${maxCost}以下のスピリットはこのターンあと召喚できません`
+            }
+        }
+    }
+    return null
+}
+
+// globalConstraint "summonLimitByEffectForOpponent"（BS12-071未完成の古代戦艦：帆Lv2）：
+// summonLimitByCostForOpponentの兄弟。コストでなく「効果の記述を持つ」スピリットカードで絞る
+function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
+    const opponent = state.players[opponentOf(pid)]
+    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "summonLimitByEffectForOpponent") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (isVanillaCard(card)) continue
+            const { limit } = effect.constraint
+            const countThisTurn = state.players[pid].field.spirits.filter(
+                (s) => s.summonedTurn === state.turn && !isVanillaCard(getCard(s.cardId)),
+            ).length
+            if (countThisTurn >= limit) {
+                return "効果により、効果の記述を持つスピリットはこのターンあと召喚できません"
             }
         }
     }
@@ -523,6 +550,14 @@ export function validateCastMagic(
     // （フィールドのコアを支払い元に指定できない）
     if (hasMagicRestriction(state, pid, "reserveOnlyOpponent") && (paySources ?? []).length > 0) {
         return "このマジックのコストはすべてリザーブから支払わなくてはなりません"
+    }
+    // BS12-046ナタ・ゴレムLv1：相手フィールドに発生源があれば、マジックのコストをスピリット上のコアでは支払えない
+    // （reserveOnlyOpponentと違いネクサス上のコアは支払える。paySourcesはスピリット/ネクサスどちらのinstanceIdも受け付けるためfindSpiritで判定）
+    if (
+        hasMagicRestriction(state, pid, "noSpiritCoresOpponent") &&
+        (paySources ?? []).some((src) => findSpirit(player, src.instanceId) !== undefined)
+    ) {
+        return "このマジックのコストは、相手のスピリット上のコアでは支払えません"
     }
     // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない色のマジックは使用できない
     const fieldSymbolColors = ownFieldSymbolColors(state, pid)

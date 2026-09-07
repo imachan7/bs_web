@@ -985,12 +985,22 @@ process.on("exit", () => {
             `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
-                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits
+                            : effect.target === "ownNexusesAll"
+                              ? player.field.nexuses
+                              : [source]`,
             `                    if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
-                    const targets = effect.target === "ownAll" ? player.field.spirits : [source]`,
+                    const targets =
+                        effect.target === "ownAll"
+                            ? player.field.spirits
+                            : effect.target === "ownNexusesAll"
+                              ? player.field.nexuses
+                              : [source]`,
         )
         // alsoCostGrant: 付与時点ではなく**読む側**（rules.ts の instHasCost / instMatchesCostFilter）で
         // 計測する。ただし alsoCostsContinuous は付与元を残さないため、ここで付与元の __eid を

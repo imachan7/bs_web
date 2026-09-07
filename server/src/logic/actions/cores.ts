@@ -505,6 +505,13 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
         return
 }
 
+const capOpponentTrashCoreReturnNextRefreshHandler: ActionHandler<"capOpponentTrashCoreReturnNextRefresh"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    state.players[opp].trashCoreReturnCapNext = action.max
+    log(state, `${sourceName}：次の${state.players[opp].name}のリフレッシュステップでは、トラッシュのコアは${action.max}個までしかリザーブに戻せない。`)
+    return
+}
+
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
     const { state, owner, self, sourceName, destroyContext, targetInstanceId } = ctx
         if (voidCorePlacementBlocked(state)) {
@@ -2564,6 +2571,7 @@ const handlers = {
     tenshoSubstituteChoice: tenshoSubstituteChoiceHandler,
     coreCharge: coreChargeHandler,
     coreGain: coreGainHandler,
+    capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreGainPer: coreGainPerHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,

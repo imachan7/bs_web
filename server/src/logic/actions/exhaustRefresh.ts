@@ -24,7 +24,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
 
@@ -811,6 +811,44 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 state,
                 `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToTrash}個を自分のトラッシュに置いた。`,
             )
+        }
+        // costDestroyOwnVanillaSpirit（BS12-X06海賊王レヴィアダンLv2-3）：効果の記述を持たない
+        // 自分のスピリット1体を破壊することがコスト（COST_MODEL.md：AとBの両方が完全に解決できるときだけ発揮）。
+        // 該当がなければ不発。候補2体以上なら破壊するスピリットをプレイヤーが選ぶ（coreGain.costDestroyOwnSpiritと同じ考え方）
+        if (action.costDestroyOwnVanillaSpirit) {
+            const player = state.players[owner]
+            const candidates = player.field.spirits.filter((s) => instIsVanilla(s))
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+                for (const s of candidates) {
+                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+                }
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            if (state.winner) return
         }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)
