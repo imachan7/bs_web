@@ -15,7 +15,7 @@ import {
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/removal"
 import { refreshLevelAsOverrides, resolveMagic } from "../../server/src/logic/EffectModules"
-import { boardResistanceAgainst, hasBraveImmuneAgainst, instanceSymbolCount } from "../../shared/rules"
+import { boardResistanceAgainst, hasBraveImmuneAgainst, instanceSymbolCount, spiritHasKeyword } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 
 function game(seed: string): GameState {
@@ -186,6 +186,21 @@ console.log("=== §J AE braveHostUnblockableThisTurn：BS12-055ゲッコ・グ�
     refreshLevelAsOverrides(s)
     const reasonAfter = canBlock(s, "p2", blocker, "p1", host)
     assert(reasonAfter === null, "分離した後はホストだったスピリットも通常どおりブロックされる")
+}
+
+// BS12-068 は「“【氷壁：紫/白】〜”という効果を与える」なので、無効化の振る舞いだけでなく
+// **【氷壁】のキーワード宣言そのものも配る**（2026-09-07 ユーザー確認）。
+// これを配らないと BS11-074 ソーラーブレイカー（【氷壁】持ちを全破壊）等の参照から見えなくなる
+{
+    const s = game("068-hyoheki-keyword")
+    const seiken = createInstance("BS12-068", s.turn, 1) // 光の聖剣（ネクサス）
+    s.players.p1.field.nexuses.push(seiken)
+    const armored = createInstance("BS12-031", s.turn, 1) // 機人フォルセティ＝【装甲：緑】持ち
+    const plain = createInstance("BS01-001", s.turn, 1) // 装甲も重装甲も持たない
+    s.players.p1.field.spirits.push(armored, plain)
+    refreshLevelAsOverrides(s)
+    assert(spiritHasKeyword(s, "p1", armored, "hyoheki"), "【装甲】持ちは光の聖剣から【氷壁】を得る")
+    assert(!spiritHasKeyword(s, "p1", plain, "hyoheki"), "【装甲】も【重装甲】も持たないスピリットは対象外")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part291）")

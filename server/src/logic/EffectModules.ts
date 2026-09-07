@@ -2044,6 +2044,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (
+                            effect.keywordFilterAny &&
+                            !effect.keywordFilterAny.some((k) => spiritHasKeyword(state, pid, spirit, k))
+                        ) {
+                            continue
+                        }
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
                         if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []

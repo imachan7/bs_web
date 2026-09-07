@@ -694,6 +694,13 @@ export function continuousKeywordGrantCount(
             if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) continue
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
+            // keywordFilter の OR 版（BS12-068光の聖剣Lv1＝【装甲】/【重装甲】のいずれかを持つスピリットに【氷壁】を配る）
+            if (
+                effect.keywordFilterAny &&
+                !effect.keywordFilterAny.some((k) => spiritHasKeyword(board, ownerPid, inst, k))
+            ) {
+                continue
+            }
             if (effect.phase && board.phase !== effect.phase) continue
             // turn（BS07龍星皇メテオヴルムLv2-3：『自分のアタックステップ』）は phase と併用する
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue

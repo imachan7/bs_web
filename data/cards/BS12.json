@@ -3358,6 +3358,20 @@
         }
       },
       {
+        "id": "BS12-068-e1b",
+        "kind": "keywordGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "keyword": "hyoheki",
+        "target": "ownAll",
+        "keywordFilterAny": [
+          "armor",
+          "heavyArmor"
+        ]
+      },
+      {
         "id": "BS12-068-e2",
         "kind": "reviveOnDestroy",
         "levels": [
