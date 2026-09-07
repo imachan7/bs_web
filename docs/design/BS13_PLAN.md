@@ -87,9 +87,16 @@ BS12 と同じく**色ごと**。X005 系6色（A/D/E/S/T の5枚。**赤の X00
 `awakenFromReserve` の `superAwakenOnly`（器N）／`cantSeparate`（器O）／
 `returnOwnSpiritToHand`／`refreshSelfByReturnToHandFamily`。
 
-⚠️ **`refreshSelfByReturnToHandFamily` と `returnOwnSpiritToHand` は、既存の器を広げる形でも書けた**
-（前者は `refreshSelf` のコスト軸＋`costSacrificeChosen`、後者は `returnToHand` に自分側限定の軸）。
-今回は独立アクションになったが、**次に似たカードが来たら新しいアクションを足さず既存を広げること**。
-「〜することで回復する」は `refreshSelf` のコスト軸に集約してあるので、そこから離すと
-COST_MODEL の一般則や中断の扱いを二重に持つことになる。
+**`refreshSelfByReturnToHandFamily` は独立アクションで正しい。** 2026-09-08 に一度
+「`refreshSelf` のコスト軸へ畳むべきだった」と書いたが、**これは誤り**だった。
+`refreshSelfByDestroyFamily`（「破壊することで回復する」）が BS08 の頃から独立アクションとして
+存在しており（BS02-X07 巨神機トールが使用）、「〜することで回復する」を独立アクションで表すのは
+**この codebase の確立されたパターン**。コスト軸へ畳むと同じ形に2通りの書き方ができて不整合になる。
+
+⚠️ 一方 **`returnOwnSpiritToHand` は `returnToHand` に自分側限定の軸を足すほうが小さく済んだ**
+（既存は `anySide` があるだけで自陣限定が無い）。差は小さいので作り直してはいないが、
+次に自陣限定の手札戻しが来たら `returnToHand` を広げること。
+
+**教訓: 「既存の器を広げるべきか、兄弟アクションを足すべきか」は、その形に前例があるかで決まる。**
+前例（兄弟アクション）があるならそれに揃える。無いなら既存を広げる。
 
