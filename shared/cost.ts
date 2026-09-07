@@ -53,8 +53,15 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
 // pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
 // 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
-export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: CardData): Color[] {
+export function reductionGrantSymbols(
+    board: Board,
+    pid: PlayerId,
+    cardData: CardData,
+): { extra: Color[]; replace: Color[] | null } {
     const extra: Color[] = []
+    // replace:true（BS08超時空重力炉Lv2）指定のエントリが1つでも成立したら、
+    // 素の印刷軽減シンボルを丸ごとこの色配列へ置き換える（加算とは別に持つ）
+    let replace: Color[] | null = null
     // effectSources：このターンだけの仮想発生源（マジックが lendSelfThisTurn で貸した継続効果）も含める
     // （BS07リボーンフレイム。従来は field だけを見ており、貸与された reductionGrant が無言で効かなかった）
     const sources = effectSources(board, pid)
@@ -93,10 +100,14 @@ export function reductionGrantSymbols(board: Board, pid: PlayerId, cardData: Car
                     if (total < count) continue
                 }
             }
-            extra.push(...effect.symbols)
+            if (effect.replace) {
+                replace = effect.symbols
+            } else {
+                extra.push(...effect.symbols)
+            }
         }
     }
-    return extra
+    return { extra, replace }
 }
 // マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
 // レベル有効・restriction一致・turn条件成立の発生源があるか調べる。
@@ -413,7 +424,11 @@ export function effectiveCost(
             handColorOverride && "color" in handColorOverride
                 ? cardData.reduction.map(() => handColorOverride.color)
                 : cardData.reduction
-        const reductionColors = [...baseReduction, ...reductionGrantSymbols(board, pid, cardData)]
+        const grantedReduction = reductionGrantSymbols(board, pid, cardData)
+        const reductionColors =
+            grantedReduction.replace !== null
+                ? grantedReduction.replace
+                : [...baseReduction, ...grantedReduction.extra]
         const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
         // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で

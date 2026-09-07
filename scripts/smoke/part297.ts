@@ -1,9 +1,11 @@
 // smoke パート297（簡略化5件を原作どおりにする。2026-09-07 ユーザー指示）
 //   #1 BS11-036 冥土の魔女ヘレン: handMagicToTegamotoDraw に max:3 の上限を足す（既存カードは無制限のまま）
 //   #2 BS11-042 海賊ラッコルセア: fieldEvent ownFunsaiMilled に lastFunsaiHasSpirit 条件を足す（既存カードは条件なしのまま）
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+//   #4 BS08-062 超時空重力炉: reductionGrant に replace 軸を足す（既存カードは加算のまま）
+import { act, assert, createGame, createInstance, effectiveCost, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { fireSummonTrigger, resolveFunsai } from "../../server/src/logic/EffectModules"
+import { reductionGrantSymbols } from "../../shared/cost"
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "purple" })
@@ -108,6 +110,34 @@ console.log("=== #2 条件を書いていない他カードは lastFunsai の記
     resolveFunsai(s, "p1", funsaiSpirit)
     assert(s.lastFunsai?.total === 1, "lastFunsai.total は種別を問わず記録される（他カードの参照は影響を受けない）")
     assert((s.lastFunsai?.spirits ?? 0) === 0, "今回はスピリットカードが0枚だった")
+}
+
+console.log("=== #4 BS08-062 超時空重力炉：軽減シンボルは白3つに置換される（加算ではない） ===")
+{
+    const s = createGame("juryokuro-replace", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "white" })
+    runTurnStart(s)
+    const nexus = createInstance("BS08-062", s.turn, 4) // Lv2（cores足りることを確認する必要はなく現在レベルの判定のみ使う）
+    s.players.p1.field.nexuses.push(nexus)
+    const granted = reductionGrantSymbols(s, "p1", getCard("BS01-001"))
+    assert(granted.replace !== null, "replace指定のエントリなのでreplaceが立つ")
+    assert(
+        JSON.stringify(granted.replace) === JSON.stringify(["white", "white", "white"]),
+        "置換後は白3つ（素の軽減シンボルとは無関係の値）",
+    )
+}
+
+console.log("=== #4 置換を指定しない既存カード（天使バーチュ等）は従来どおり加算 ===")
+{
+    // BS02-030（兵隊アントマン）は素のreductionが空。BS06-079神葉樹の森（既存の加算型reductionGrant、
+    // 【神速】持ちに緑1つ付与）で確認する。ここではエンジンの共通関数レベルで
+    // 「replace未指定ならreplace:null、extraに積まれる」ことだけを直接確認する
+    const s = createGame("shinyoku-still-additive", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
+    runTurnStart(s)
+    const nexus = createInstance("BS06-079", s.turn, 0)
+    s.players.p1.field.nexuses.push(nexus)
+    const granted = reductionGrantSymbols(s, "p1", getCard("BS02-030"))
+    assert(granted.replace === null, "置換を指定しないカードはreplaceがnullのまま")
+    assert(JSON.stringify(granted.extra) === JSON.stringify(["green"]), "従来どおり加算ぶんがextraに積まれる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part297）")

@@ -155,11 +155,11 @@ console.log("=== BS06-079：手札の【神速】持ちに軽減シンボル[緑
     runTurnStart(s)
     putNexus(s, "p1", "BS06-079", 0) // Lv1
     assert(
-        JSON.stringify(reductionGrantSymbols(s, "p1", getCard("BS02-030"))) === JSON.stringify(["green"]),
+        JSON.stringify(reductionGrantSymbols(s, "p1", getCard("BS02-030")).extra) === JSON.stringify(["green"]),
         "神速持ち（兵隊アントマン）には軽減シンボル[緑]が付与される",
     )
     assert(
-        reductionGrantSymbols(s, "p1", getCard("BS01-001")).length === 0,
+        reductionGrantSymbols(s, "p1", getCard("BS01-001")).extra.length === 0,
         "神速を持たないカード（ゴラドン）には付与されない",
     )
 }

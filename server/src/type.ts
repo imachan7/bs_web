@@ -1530,6 +1530,7 @@ export type EffectDef =
           keywordFilter?: Keyword // 対象手札カードがこのキーワードエントリを静的に持つ場合のみ付与（hasKeyword判定。フルミンゴ）
           familyFilter?: FamilyFilter // 対象カードが持つ系統（カード静的な family のみ＝手札のカードが対象のため付与系統は考慮しない）。配列＝いずれかの系統でOR（BS04七龍帝の玉座＝古竜/龍帝）
           symbols: Color[] // 与える軽減シンボル
+          replace?: true // 指定時は素の印刷軽減シンボル（cardData.reduction）を**置き換える**（加算ではなく置換。効果文「シンボルを◯にする」。BS08超時空重力炉Lv2：軽減シンボルを白3つにする＝白1つ＋白2つ追加ではなく白3つに置換）。省略時は従来どおり加算
           vanillaFilter?: true // 指定時は対象カードが効果の記述を持たない（バニラ）ときのみ付与（isVanillaCardで判定。BS10-080炎の結晶石：効果の記述を持たないスピリットカード）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS07リボーンフレイム）
           phase?: Phase // 指定時はこのステップ中のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』。BS06賢獣アイベリックス＝アタックステップ）
