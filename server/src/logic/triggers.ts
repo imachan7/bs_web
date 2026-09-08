@@ -952,6 +952,20 @@ export function fireStepTriggers(
 // destroySpirit 自身への再入となる。現対象カードの action は draw / coreGain のみで
 // destroySpirit を呼ばないため安全だが、将来 destroy 系アクションを組み合わせる場合は
 // 無限ループ（破壊→誘発→破壊→…）が起きないよう設計時に確認すること。
+// 上の extraItems の1件分。fieldEvent の誘発と同じ列に並ぶ
+export interface FieldEventExtraItem {
+    key: string // 「同じ効果か」の判定用（askOrder.key と同じ役目）
+    label: string // 選択肢の表示
+    action: EffectAction // 解決するアクション（内部専用アクションを渡す）
+    selfInstanceId: string | null
+    actorPid: PlayerId
+    requiresPendingDestructionOf?: string // このフレームのガード
+    // 非対話（テスト・AI）で順番を聞かないときの既定位置。true なら fieldEvent の誘発より前に置く。
+    // 実対戦では askOrder が並べ替えるので効かない。**従来の解決順を変えないため**に要る
+    // （破壊されたカード自身の『破壊時』は、もともと他カードの誘発より先だった）
+    first?: true
+}
+
 export function fireFieldEventTriggers(
     state: GameState,
     pid: PlayerId,
@@ -999,6 +1013,10 @@ export function fireFieldEventTriggers(
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
     // これが無いと自分自身の破壊では無言で発火しない。BS07の各色ネクサス6枚。2026-08-10 修正）
     extraSources?: CardInstance[],
+    // 破壊で誘発した効果を1列に並べるための外部項目（docs/design/TIMING_CHART.md）。
+    // ownSpiritDestroyed から、破壊されたカード自身の『破壊時』と「フィールドに残る／戻る」を
+    // **同じ列**に混ぜてターンプレイヤーに順番を選ばせるために使う。他のイベントでは使わない
+    extraItems?: FieldEventExtraItem[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1293,11 +1311,29 @@ export function fireFieldEventTriggers(
         return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
     }
 
-    resolveInOrder(state, queue, {
+    // extraItems（破壊で誘発した効果の列）を同じプールに混ぜる。
+    // 混ぜることで「自身の『破壊時』→他カードの誘発→フィールドに残る」の順番を
+    // ターンプレイヤーが1つずつ選べるようになる（docs/design/TIMING_CHART.md）
+    type PoolItem =
+        | { extra?: undefined; inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }> }
+        | { extra: FieldEventExtraItem }
+    const extras = extraItems ?? []
+    const pool: PoolItem[] = [
+        ...extras.filter((e) => e.first === true).map((extra) => ({ extra })),
+        ...queue,
+        ...extras.filter((e) => e.first !== true).map((extra) => ({ extra })),
+    ]
+
+    resolveInOrder(state, pool, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
-        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
+        skip: (e) =>
+            e.extra === undefined && !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
         resolve: (e) => {
+            if (e.extra !== undefined) {
+                resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
+                return
+            }
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
@@ -1308,6 +1344,17 @@ export function fireFieldEventTriggers(
             }
         },
         frame: (e) => {
+            if (e.extra !== undefined) {
+                return {
+                    kind: "action" as const,
+                    selfInstanceId: e.extra.selfInstanceId,
+                    action: e.extra.action,
+                    actorPid: e.extra.actorPid,
+                    ...(e.extra.requiresPendingDestructionOf !== undefined
+                        ? { requiresPendingDestructionOf: e.extra.requiresPendingDestructionOf }
+                        : {}),
+                }
+            }
             const c = contextOf(e.inst, e.effect)
             return {
                 kind: "action" as const,
@@ -1323,8 +1370,10 @@ export function fireFieldEventTriggers(
         // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
         askOrder: {
             pid: state.turnPlayer,
-            label: (e) => getCard(e.inst.cardId).name,
-            key: (e) => `${e.inst.cardId}:${e.effect.id}`,
+            label: (e) => (e.extra !== undefined ? e.extra.label : `${state.players[pid].name}の${getCard(e.inst.cardId).name}`),
+            // ⚠️ **持ち主込みのカード単位**で見る。相手の同名ネクサスと混ざらないように pid を入れる
+            // （step 版と同じ形。2026-09-08 に効果エントリ単位＋pid無しから直した）
+            key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
     })
 }

@@ -384,7 +384,11 @@ export function resumeTriggerBatch(
     frame: Extract<ResumeFrame, { kind: "triggerBatch" }>,
 ): void {
     const groups = [...frame.groups]
-    if (groups.length === 0) return
+    // 列を使い切った：あとに続くフレーム（破壊の確定など）があればここで積む
+    if (groups.length === 0) {
+        if (frame.after !== undefined) pushResumeFrames(state, [frame.after])
+        return
+    }
     let index = 0
     if (groups.length >= 2) {
         const pick = state.triggerOrderPick
@@ -410,7 +414,11 @@ export function resumeTriggerBatch(
     const picked = groups.splice(index, 1)[0]
     if (picked === undefined) return
     // 選ばれたグループ（中は元の順） → その後に残りのバッチ、の順で積む
-    const rest: ResumeFrame[] = groups.length > 0 ? [{ kind: "triggerBatch", askPid: frame.askPid, groups }] : []
+    // 残りが無くても after があるなら、バッチ自体を積み直して after を必ず通す
+    const rest: ResumeFrame[] =
+        groups.length > 0 || frame.after !== undefined
+            ? [{ kind: "triggerBatch", askPid: frame.askPid, groups, ...(frame.after !== undefined ? { after: frame.after } : {}) }]
+            : []
     pushResumeFrames(state, [...picked.frames, ...rest])
 }
 

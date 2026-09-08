@@ -1776,6 +1776,13 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             resumeTriggerBatch(state, frame)
             continue
         }
+        // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
+        // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
+        // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
+        if (frame.requiresPendingDestructionOf !== undefined) {
+            const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
+            if (target == null || target.pendingDestruction !== true) continue
+        }
         // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
         if (frame.logText !== undefined) log(state, frame.logText)
         const frameSelf = frame.selfInstanceId

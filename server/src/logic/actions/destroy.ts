@@ -12,6 +12,7 @@ import {
     destroySpirit,
     destroySpiritsFrom,
     destroyTargetsBatch,
+    applyReviveEntry,
     applyDestroyBatchAfter,
     fireTrigger,
     findSpiritAny,
@@ -1813,7 +1814,28 @@ const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle
     )
 }
 
+// 破壊で誘発した効果を1列に並べたときの、「破壊されたカード自身の『破壊時』ぜんぶ」1グループ分。
+// 同じカードの複数エントリはテキスト順で解決する（＝同時発揮ではない。TIMING_CHART.md §0-3 の粒度）
+const resolveOwnDestroyTriggersHandler: ActionHandler<"resolveOwnDestroyTriggers"> = (ctx, action) => {
+    const { state } = ctx
+    const found = findSpiritAny(state, action.instanceId)
+    // 列に並べたあとで場から消えた／破壊が無かったことになった個体は発揮しない
+    if (!found || found.inst.pendingDestruction !== true) return
+    fireTrigger(state, found.pid, found.inst, "onDestroy", undefined, undefined, undefined, action.byOpponent === true)
+}
+
+// 同じ列の「フィールドに残る／戻る」1グループ分。適用できたらその破壊は無かったことになり、
+// 列に残っている項目は requiresPendingDestructionOf のガードで空振りする
+const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx, action) => {
+    const { state } = ctx
+    const found = findSpiritAny(state, action.instanceId)
+    if (!found || found.inst.pendingDestruction !== true) return
+    applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
+}
+
 const handlers = {
+    resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
+    applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroyOnePerCost: destroyOnePerCostHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,

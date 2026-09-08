@@ -3669,6 +3669,8 @@ export {
     declineBraveKeep,
     destroySpiritsFrom,
     destroyTargetsBatch,
+    applyReviveEntry,
+    collectReviveEntries,
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,

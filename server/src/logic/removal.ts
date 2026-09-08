@@ -64,6 +64,7 @@ import {
     notifySpiritCoresRemovedByOpponent,
     resolveMagicEffects,
 } from "./triggers"
+import type { FieldEventExtraItem } from "./triggers"
 import ACTION_HANDLERS from "./actions"
 import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
@@ -615,15 +616,40 @@ export function destroySpirit(
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
-    // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
-    if (cause === "destroy") {
-        if (!options?.suppressOnDestroy) fireTrigger(state, ownerPid, inst, "onDestroy", undefined, undefined, undefined, byOpponentEffect)
-        if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
-            return true
+    // （数・シンボル・効果の対象・【転召】の生贄に数えられる）。
+    //
+    // この破壊で誘発するものは**すべて1つの列**に並べ、ターンプレイヤーが1つずつ選んで解決する
+    // （docs/design/TIMING_CHART.md）。列に入るのは
+    //   ①破壊されたカード自身の『破壊時』（カードで1グループ）
+    //   ②他のカードの「〜が破壊されたとき」（fireOwnSpiritDestroyed が集める）
+    //   ③「フィールドに残る／戻る」（発生源ごとに1グループ）
+    // ③が解決した時点でこの破壊は無かったことになり、列の残りは
+    // requiresPendingDestructionOf のガードで空振りする
+    const extraItems: FieldEventExtraItem[] = []
+    if (cause === "destroy" && !options?.suppressOnDestroy && hasOwnDestroyTrigger(inst)) {
+        extraItems.push({
+            key: `selfOnDestroy:${inst.instanceId}`,
+            label: `${player.name}の${master.name}（破壊時）`,
+            action: { type: "resolveOwnDestroyTriggers", instanceId: inst.instanceId, ...(byOpponentEffect ? { byOpponent: true } : {}) },
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
+            requiresPendingDestructionOf: inst.instanceId,
+            first: true,
+        })
+    }
+    if (cause === "destroy" && !inst.skipReviveOnCommit) {
+        for (const entry of collectReviveEntries(state, ownerPid, inst, context)) {
+            extraItems.push({
+                key: `revive:${entry.effectId}`,
+                label: `${entry.sourceName}（フィールドに残る）`,
+                action: { type: "applyReviveOnDestroy", instanceId: inst.instanceId, effectId: entry.effectId },
+                selfInstanceId: inst.instanceId,
+                actorPid: ownerPid,
+                requiresPendingDestructionOf: inst.instanceId,
+            })
         }
     }
-    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
+    fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
     if (state.pendingChoice || state.winner) {
         suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
         return true
@@ -654,20 +680,27 @@ function suspendDestroyCommit(
         if (!deferCommit) commitPendingDestruction(state, ownerPid, inst)
         return
     }
-    pushResumeFrames(state, [
-        {
-            kind: "destroyCommit",
-            pid: ownerPid,
-            instanceId: inst.instanceId,
-            step,
-            byBattle,
-            wasAttacker,
-            bySpiritEffect,
-            byOpponentEffect,
-            ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
-            ...(deferCommit ? { deferCommit } : {}),
-        },
-    ])
+    // ⚠️ 破壊で誘発した効果の列（triggerBatch）が**この中断で既に積まれている**場合、
+    // 破壊の確定はその**あと**に来なければならない。resumeTriggerBatch は
+    // 「フレームを積んでから suspend する」ので、suspend が resumeInsertAt を0へ戻したあとに
+    // ここ（外側）が積むと、pushResumeFrames では列より**前**に入ってしまい、
+    // 誘発を1つも解決しないままトラッシュ行きが確定する（docs/design/RESUME_STACK.md §3）
+    const batchAt = state.resumeStack.map((f) => f.kind).lastIndexOf("triggerBatch")
+    const commitFrame: ResumeFrame = {
+        kind: "destroyCommit",
+        pid: ownerPid,
+        instanceId: inst.instanceId,
+        step,
+        byBattle,
+        wasAttacker,
+        bySpiritEffect,
+        byOpponentEffect,
+        ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
+        ...(deferCommit ? { deferCommit } : {}),
+    }
+    const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
+    if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
+    else pushResumeFrames(state, [commitFrame])
 }
 
 // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
@@ -684,6 +717,7 @@ function fireOwnSpiritDestroyed(
     bySpiritEffect: boolean,
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
+    extraItems?: FieldEventExtraItem[],
 ): void {
     const master = getCard(inst.cardId)
     fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
@@ -697,7 +731,7 @@ function fireOwnSpiritDestroyed(
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
-    })
+    }, undefined, extraItems)
 }
 
 // 中断していた破壊処理の続き（drainResumeStack から呼ぶ）
@@ -719,6 +753,11 @@ export function resumeDestroyCommit(
     if (!frame.deferCommit) commitPendingDestruction(state, frame.pid, inst)
 }
 
+// この個体が『このスピリットの破壊時』エントリを1つでも持つか（列に並べるかの判定）
+function hasOwnDestroyTrigger(inst: CardInstance): boolean {
+    return getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")
+}
+
 // 破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
 // **順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
 // 誘発の解決中に復活した／場から居なくなった場合は何もしない
@@ -728,19 +767,9 @@ export function commitPendingDestruction(
     inst: CardInstance,
 ): void {
     if (!inst.pendingDestruction) return
-    // 「フィールドに残る／戻る」：トラッシュに置かれる**代わり**に場へ戻す。ここまで来ている＝
-    // 『破壊時』の誘発はすべて解決済みなので、戻ったスピリット自身の『破壊時』も発揮したあとになる
-    // （2026-09-08 ユーザー確認。TIMING_CHART.md）。applyRevived が pendingDestruction を消すので、
-    // 復活が成立したらこの関数は何もせず抜ける
-    if (!inst.skipReviveOnCommit) {
-        const reviveContext = inst.pendingDestroyContext
-        const allowSuspend = inst.pendingDestroyAllowSuspend === true
-        if (tryReviveOnDestroy(state, ownerPid, inst, reviveContext, undefined, allowSuspend)) {
-            delete inst.pendingDestroyContext
-            delete inst.pendingDestroyAllowSuspend
-            return
-        }
-    }
+    // ⚠️ ここでは「フィールドに残る／戻る」を試さない。**破壊で誘発した効果の列の1項目**として
+    // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
+    // applyRevived が pendingDestruction を消しているので、この関数は上の行で抜けている
     delete inst.pendingDestroyContext
     delete inst.pendingDestroyAllowSuspend
     delete inst.skipReviveOnCommit
@@ -979,6 +1008,32 @@ export function wouldAskReviveConfirm(
     const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
     if (!inst) return false
     return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
+}
+
+// この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用なし**）。
+// 破壊で誘発した効果を1列に並べるとき、列の項目として出すために使う（docs/design/TIMING_CHART.md）
+export function collectReviveEntries(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    context?: DestroyContext,
+): { effectId: string; sourceName: string }[] {
+    const found: { effectId: string; sourceName: string }[] = []
+    tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
+    return found
+}
+
+// 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
+// optional（「〜できる」）なら従来どおり持ち主に確認を出す。断れば破壊はそのまま進み、
+// 列に残っている項目も解決される（pendingDestruction が消えないため）
+export function applyReviveEntry(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effectId: string,
+    context?: DestroyContext,
+): boolean {
+    return tryReviveOnDestroy(state, ownerPid, inst, context, { effectId }, true)
 }
 
 // この個体を今このコンテキストで破壊しようとしたとき、
@@ -1356,7 +1411,7 @@ export function applyReviveConfirm(
     if (!inst) return // 確認を出したあとに場から居なくなっていたら何もしない
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
-    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId })) {
+    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true })) {
         declineReviveConfirm(state, entry)
         return
     }
@@ -1393,7 +1448,9 @@ function tryReviveOnDestroy(
     context?: DestroyContext,
     // 指定時は「このエントリだけを、確認済みとして確定させる」モード。
     // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
-    forced?: { effectId: string },
+    // skipConfirm 指定時は optional の確認をスキップして即適用する（applyReviveConfirm＝
+    // 既に持ち主が「はい」と答えたあとの経路。指定しなければ optional は従来どおり確認を出す）
+    forced?: { effectId: string; skipConfirm?: true },
     // true なら「破壊される代わりに復活できる」の確認を**その場で**出す（保留リストに積まない）。
     // ①の破壊（destroySpirits のバッチ経由）だけが立てる。②は渡さず保留へ（destroySpirit の注記）
     allowSuspend?: boolean,
@@ -1402,6 +1459,9 @@ function tryReviveOnDestroy(
     //   "any"     ＝任意・強制を問わず、そもそも復活が成立しうるか（【不死】との解決順の判定に使う）
     // ⚠️ "any" はコストが払えるかまでは見ない近似（副作用なしで確かめられないため）
     probe?: "confirm" | "any",
+    // 指定時は**適用せず、条件を満たすエントリを集めるだけ**（破壊で誘発した効果を1列に並べるとき、
+    // 「フィールドに残る／戻る」を列の項目として出すために使う。docs/design/TIMING_CHART.md）
+    collect?: { effectId: string; sourceName: string }[],
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -1650,7 +1710,12 @@ function tryReviveOnDestroy(
         // allowSuspend（destroySpirits のバッチ経由）なら**その場で**確認を出す。
         // それ以外の呼び出し元はまだ中断を受け止められないので、従来どおり保留へ積む
         // （移行の途中。残りの呼び出し元は docs/design/RESUME_STACK.md §7）
-        if (effect.optional && state.interactiveTargets && !forced) {
+        // collect：条件を満たしたのでここで拾う。適用はせず、次のエントリも見に行く（false を返す）
+        if (collect) {
+            collect.push({ effectId: effect.id, sourceName })
+            return false
+        }
+        if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
             if (probe) return true // 下見：ここで確認が出る
             if (allowSuspend) {
                 suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
@@ -1727,9 +1792,14 @@ function tryReviveOnDestroy(
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
             if (oncePerTurnBlocked(effect, source)) continue
+            // collect：条件を満たしたのでここで拾う。適用はせず、次の発生源も見に行く
+            if (collect) {
+                collect.push({ effectId: effect.id, sourceName: getCard(source.cardId).name })
+                continue
+            }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
             // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
-            if (effect.optional && state.interactiveTargets && !forced) {
+            if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
                 if (probe) return true // 下見：ここで確認が出る
                 if (allowSuspend) {
                     suspendReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)

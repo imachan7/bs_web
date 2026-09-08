@@ -249,6 +249,8 @@ export type EffectAction =
     // interactiveTargets では**両プレイヤーが順に**色を選ぶ。選択の進捗は chosenOwn / chosenOpp / awaiting に持たせて再入する
     // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
     // 非対話時は従来どおり、お互い自分フィールドで最多の色を自動指定する
+    | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**（cards.jsonには書かない）。破壊されたカード自身の『破壊時』効果を発揮する。破壊で誘発した効果を1列に並べて順番を選ばせるとき、「自身の破壊時ぜんぶ」を1グループとして列に入れるために使う（docs/design/TIMING_CHART.md）
+    | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } // **内部専用**（cards.jsonには書かない）。指定した reviveOnDestroy エントリを適用する（「フィールドに残る／戻る」）。上と同じ列に1グループとして入る
     | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
     | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword } // keywordExclude指定時は、そのキーワードを**持たない**スピリットだけが候補（spiritHasKeyword判定＝一時付与・継続付与も見る。BS09-016闇騎士モルドレッド＝【転召】を持たない）。// 「お互い、フィールドのスピリット1体を選び、破壊する」（BS05吸血女王カーミラLv3）。destroyAllExceptChosenColorsと同じ二段階choiceパターン：発生源の持ち主（own）→相手（opponent）の順に、フィールド（両陣営どちらでも可）から1体を指定させ、選ばれた2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaitingに持たせて再入する。非対話時は各プレイヤーが相手フィールドの実効BP最大を自動選択（プレイヤー選択の決定的簡略化。pickEnemyByBpと同じ考え方）
     | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版（BS12-015冥王神龍クロノ・ハデス【合体時】『破壊時』：「お互い、それぞれのスピリット1体を指定する。指定されなかったスピリットすべてを破壊する」）。二段階choiceパターンは同じだが、各自は**自分の**フィールドから1体を指定する（mutualDestroyChoiceは相手フィールドも選べるのに対しこちらは自陣のみ）。破壊待機中の発生源自身（self）は指定候補に含めない。指定された2体を除く**両陣営のスピリットすべて**を破壊する。非対話時は各自が自分のフィールドの実効BP最大を自動選択（決定的簡略化）
@@ -2480,11 +2482,21 @@ export type ResumeFrame =
           confirmPrompt?: string
           // 解決の直前に出すログ（ステップ誘発の「〜の効果が発動した」を再開経路でも残すため）
           logText?: string
+          // この instanceId が**破壊待機状態でなければ何もしない**（docs/design/TIMING_CHART.md）。
+          // 破壊で誘発した効果を1列に並べたとき、途中で「フィールドに残る／戻る」が解決すると
+          // その破壊は無かったことになり、列の残りは空振りする。
+          // ⚠️ 再開スタックからフレームを**消さない**のが要点。resolveInOrder の「残りは必ず積む」保証は
+          // 積み忘れで実バグ4件を出して作られたものなので穴を開けず、消化時に無効化する
+          requiresPendingDestructionOf?: string
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）
       }
     | {
+          // 列を**使い切ったあと**に実行するフレーム（省略可）。破壊で誘発した効果の列では
+          // 「破壊の確定（トラッシュ行き）」をここに入れる。バッチは解決のたびに自分を積み直すので、
+          // 外側から固定位置に積むと追い越されてしまう（docs/design/RESUME_STACK.md §3）
+          after?: ResumeFrame
           kind: "triggerBatch" // 同時に発揮する誘発の束。1グループずつ解決し、2グループ以上残っていれば
           // そのたびにターンプレイヤーへ解決順を聞く（docs/design/TIMING_CHART.md §0-3）
           askPid: PlayerId // 解決順を決める側（＝ターンプレイヤー）
