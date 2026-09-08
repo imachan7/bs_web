@@ -538,14 +538,15 @@ export function destroySpirit(
     //   ② 「破壊する"ことで"〜する」＝同時発揮     → 恩恵の後に聞く（＝渡さずに
     //      pendingReviveConfirms へ積み、アクションの末尾で確認する）
     // どちらも必要なので、片方を消してはいけない
-    // deferCommit: 破壊待機の設定と確定（トラッシュ行き）を**呼び出し元が管理する**印。
     // 【不死】のように「破壊時の誘発」として同じ待機の窓の中で解決したいものがあるときに使う
-    // （resolveDestroyOne。docs/design/TIMING_CHART.md §1.5）
+    // （docs/design/TIMING_CHART.md §1.5）
     // suppressOnDestroy: この破壊では『このスピリットの破壊時』（onDestroy）トリガーを発揮させない。
     // 「自分のスピリットが破壊されたとき」フィールドイベント（fireOwnSpiritDestroyed）は通常どおり発火する
     // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない。
     // BS12-052デス・ヘイズ：召喚時に自分のスピリットを好きなだけ破壊するがそれらの破壊時効果は出さない）
-    options?: { skipRevive?: true; allowSuspend?: true; deferCommit?: true; suppressOnDestroy?: true },
+    // includeFushi: この破壊で誘発する【不死】も**同じ列**に並べる（docs/design/TIMING_CHART.md）。
+    // 破壊のバッチ経由（destroySpiritsFrom）だけが立てる。従来は破壊の外側で別に2択を出していた
+    options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: true },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -558,9 +559,8 @@ export function destroySpirit(
     const inst = player.field.spirits[index]
     if (!inst) return false
     // 破壊待機状態のカードは、**そこからさらに破壊されることはない**（TIMING_CHART.md §1.5）。
-    // ただし skipRevive（復活を断ったあとの同じ破壊の続き）と
-    // deferCommit（呼び出し元が待機を管理している同じ破壊）は通す
-    if (inst.pendingDestruction && !options?.skipRevive && !options?.deferCommit) return false
+    // ただし skipRevive（復活を断ったあとの同じ破壊の続き）は通す
+    if (inst.pendingDestruction && !options?.skipRevive) return false
     const master = getCard(inst.cardId)
 
     // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
@@ -583,8 +583,8 @@ export function destroySpirit(
     inst.coresAtDestruction = inst.cores
     // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
-    // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**『破壊時』の誘発をすべて解決したあと**、
-    // トラッシュ行きの確定地点（commitPendingDestruction）で判定する
+    // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**破壊で誘発した効果の列の1項目**として
+    // 並べ、ターンプレイヤーが選んだ順で解決する
     // （2026-09-08 ユーザー確認。TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）。
     // 中断・再開の経路もすべて commitPendingDestruction を通るので、そこ1か所で拾える
     if (cause === "destroy" && !options?.skipRevive) {
@@ -649,15 +649,31 @@ export function destroySpirit(
             })
         }
     }
+    // 【不死】：トラッシュの【不死】持ちも**同じ列**に並べる。先に「フィールドに残る」が解決すると
+    // 破壊が無かったことになるので、requiresPendingDestructionOf のガードで自動的に空振りする
+    // （＝「残るを先に解決したら【不死】は撃てない」。従来は破壊の外側の2択で表していた）
+    if (cause === "destroy" && options?.includeFushi) {
+        for (const trashIndex of fushiCandidates(state, ownerPid, destroyedCostsOf(inst), destroyedFamiliesOf(inst))) {
+            const cardId = player.trashCards[trashIndex]
+            if (cardId === undefined) continue
+            extraItems.push({
+                key: `fushi:${cardId}`,
+                label: `${getCard(cardId).name}（【不死】）`,
+                action: { type: "resolveFushiSummon", pid: ownerPid, cardId },
+                selfInstanceId: null,
+                actorPid: ownerPid,
+                requiresPendingDestructionOf: inst.instanceId,
+            })
+        }
+    }
     fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
     if (state.pendingChoice || state.winner) {
-        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
+        suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
         return true
     }
 
-    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ。
-    // deferCommit のときは呼び出し元が同じ窓の中で続きを解決するので、ここでは確定しない
-    if (!options?.deferCommit) commitPendingDestruction(state, ownerPid, inst)
+    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
+    commitPendingDestruction(state, ownerPid, inst)
     return true
 }
 
@@ -673,11 +689,10 @@ function suspendDestroyCommit(
     bySpiritEffect: boolean,
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
-    deferCommit?: true,
 ): void {
     // 勝敗が決まっているならもう盤面は動かさない（待機のまま終わってよい）
     if (state.winner) {
-        if (!deferCommit) commitPendingDestruction(state, ownerPid, inst)
+        commitPendingDestruction(state, ownerPid, inst)
         return
     }
     // ⚠️ 破壊で誘発した効果の列（triggerBatch）が**この中断で既に積まれている**場合、
@@ -696,7 +711,6 @@ function suspendDestroyCommit(
         bySpiritEffect,
         byOpponentEffect,
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
-        ...(deferCommit ? { deferCommit } : {}),
     }
     const batch = batchAt >= 0 ? state.resumeStack[batchAt] : undefined
     if (batch !== undefined && batch.kind === "triggerBatch") batch.after = commitFrame
@@ -745,12 +759,11 @@ export function resumeDestroyCommit(
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
         if (state.pendingChoice || state.winner) {
-            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId, frame.deferCommit)
+            suspendDestroyCommit(state, frame.pid, inst, 2, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
             return
         }
     }
-    // deferCommit のときは、外側（destroyOne フレーム）が【不死】を解決してから確定させる
-    if (!frame.deferCommit) commitPendingDestruction(state, frame.pid, inst)
+    commitPendingDestruction(state, frame.pid, inst)
 }
 
 // この個体が『このスピリットの破壊時』エントリを1つでも持つか（列に並べるかの判定）
@@ -1036,20 +1049,6 @@ export function applyReviveEntry(
     return tryReviveOnDestroy(state, ownerPid, inst, context, { effectId }, true)
 }
 
-// この個体を今このコンテキストで破壊しようとしたとき、
-// **そもそも「フィールドに残る」が成立しうるか**（任意・強制を問わない。副作用なし）。
-// 【不死】と「フィールドに残る」の解決順をターンプレイヤーに聞くべきかの判定に使う
-export function wouldRevive(
-    state: GameState,
-    ownerPid: PlayerId,
-    instanceId: string,
-    context?: DestroyContext,
-): boolean {
-    const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
-    if (!inst) return false
-    return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "any")
-}
-
 // ── 【不死】（BS09）──────────────────────────────────────────────────────
 // トラッシュにある【不死】持ちのスピリットカードは、指定コストの自分のスピリットが破壊されたとき、
 // **通常のコストを支払って**召喚できる（『お互いのアタックステップ』限定）。
@@ -1119,6 +1118,18 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
 }
 
 // 【不死】の確認で「召喚する」が選ばれたときの後処理。**コストはここで支払う**
+// 【不死】1枚を解決する。実対戦では「召喚しますか？」の確認を出し、非対話では確認せず召喚する
+// （既存の任意効果と同じ簡略化）。破壊で誘発した効果の列から呼ばれる
+export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trashIndex: number): void {
+    if (state.interactiveTargets) {
+        suspendFushiSummon(state, ownerPid, trashIndex)
+        return
+    }
+    const cardId = state.players[ownerPid].trashCards[trashIndex]
+    if (cardId === undefined) return
+    applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex })
+}
+
 export function applyFushiSummon(
     state: GameState,
     info: NonNullable<PendingChoice["fushiSummon"]>,
@@ -1160,92 +1171,6 @@ export function applyFushiSummon(
     fireSummonSequence(state, info.pid, inst, true)
 }
 
-// 【不死】が絡む1体ぶんの破壊を、確定した順番どおりに解決する。
-// 中断したら destroyOne フレームを積んで抜ける（続きは drainResumeStack が回す）。
-// 破壊の結果は state.lastReviveDestroyed に残す（バッチが「破壊できた数」に算入するため）
-export function resolveDestroyOne(
-    state: GameState,
-    frame: Extract<ResumeFrame, { kind: "destroyOne" }>,
-): void {
-    let fushiDone = frame.fushiDone
-    for (let s = frame.step; s < frame.order.length; s++) {
-        if (frame.order[s] === "destroy") {
-            // deferCommit：破壊待機状態を解かずに戻ってくる。こうすることで
-            // 続く【不死】の解決が**同じ待機の窓の中**で走る（TIMING_CHART.md §1.5）。
-            // 破壊された個体はまだ場にいるので、シンボルは軽減にそのまま数えられ、
-            // 【転召】の生贄にも取れる
-            state.lastReviveDestroyed = destroySpirit(
-                state,
-                frame.pid,
-                frame.instanceId,
-                "destroy",
-                frame.context,
-                { allowSuspend: true, deferCommit: true },
-            )
-        } else {
-            // ⚠️「破壊」を先に解決していて、そこで**場に残った**（＝破壊されなかった）なら、
-            // 【不死】の引き金（「破壊されたとき」）が成立しないので発揮しない。
-            // これが「残るを先に解決したら【不死】は撃てない」の実体（BS09_PLAN.md §3）
-            const destroyIndex = frame.order.indexOf("destroy")
-            if (destroyIndex >= 0 && destroyIndex < s && state.lastReviveDestroyed !== true) continue
-            // 【不死】：候補を1枚ずつ確認する（確認のたびに中断しうる）。
-            // 候補は解決のたびに数え直す（召喚でトラッシュが減るため）。
-            // 破壊された個体は破壊待機状態でまだ場にいるので、
-            // **その個体のシンボルも軽減にそのまま数えられる**（特別扱いは要らない）
-            while (true) {
-                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost, frame.destroyedFamily)
-                const next = candidates[fushiDone]
-                if (next === undefined) break
-                fushiDone++
-                if (state.interactiveTargets) {
-                    suspendFushiSummon(state, frame.pid, next)
-                    break
-                }
-                // 非対話（テスト・自動解決）では確認せずに召喚する（既存の任意効果と同じ簡略化）
-                const cardId = state.players[frame.pid].trashCards[next]
-                if (cardId === undefined) break
-                applyFushiSummon(state, { pid: frame.pid, cardId, trashIndex: next })
-                if (state.pendingChoice || state.winner) break
-            }
-        }
-        if (state.winner) return
-        if (state.pendingChoice) {
-            // 「破壊」で中断したときはそのステップは終わっている（確認の答えが決着させる）ので次から。
-            // 【不死】で中断したときは同じステップの続き（残りの候補）から再開する
-            const nextStep = frame.order[s] === "destroy" ? s + 1 : s
-            pushResumeFrames(state, [{ ...frame, step: nextStep, fushiDone }])
-            return
-        }
-    }
-    // すべて解決し終えた。破壊待機状態を解いてカードをトラッシュへ
-    // （deferCommit で先送りしていたぶん。復活していれば印は消えているので何もしない）
-    const inst = state.players[frame.pid].field.spirits.find((x) => x.instanceId === frame.instanceId)
-    if (inst) commitPendingDestruction(state, frame.pid, inst)
-}
-
-// 「破壊そのもの」と【不死】のどちらを先に解決するかを、ターンプレイヤーに聞いて中断する
-function suspendDestroyEffectOrder(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): void {
-    suspend(state, {
-        pid: state.turnPlayer,
-        kind: "option",
-        prompt: `${state.players[ownerPid].name}の${getCard(inst.cardId).name}の破壊：どちらを先に解決しますか？`,
-        candidates: [],
-        options: ["フィールドに残る", "【不死】で召喚する"],
-        optional: false,
-        destroyEffectOrder: {
-            pid: ownerPid,
-            instanceId: inst.instanceId,
-            slots: ["destroy", "fushi"],
-        },
-        action: { type: "noop" },
-        selfInstanceId: null,
-    })
-}
-
 // 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
 // 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 // 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
@@ -1267,49 +1192,11 @@ export function destroySpiritsFrom(
         const t = targets[i]
         if (!t) continue
         const ctx = t.context ?? context
-        // 【不死】（BS09）：この破壊を引き金にトラッシュから召喚できるカードがあるか。
-        // **絡まなければ従来どおり destroySpirit を直接呼ぶ**（ほぼ全てのケース）
-        const target = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
-        const fushi = target ? fushiCandidates(state, t.pid, destroyedCostsOf(target), destroyedFamiliesOf(target)) : []
-        if (fushi.length === 0) {
-            if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true })) {
-                destroyed++
-            }
-        } else if (target) {
-            // 「フィールドに残る」と【不死】が同時発揮するなら、ターンプレイヤーが解決順を決める
-            // （残るを先に解決すると破壊されなかったことになり、【不死】は発動できない）
-            let order: ("destroy" | "fushi")[] = ["destroy", "fushi"]
-            if (wouldRevive(state, t.pid, t.instanceId, ctx)) {
-                const pick = state.destroyEffectOrderPick
-                if (pick === undefined) {
-                    if (state.interactiveTargets) {
-                        suspendDestroyEffectOrder(state, t.pid, target)
-                        return { destroyed, stoppedAt: i }
-                    }
-                    // 非対話（テスト・自動解決）は「破壊を先に」で決定的に進める簡略化
-                } else {
-                    delete state.destroyEffectOrderPick
-                    order = pick === "fushi" ? ["fushi", "destroy"] : ["destroy", "fushi"]
-                }
-            }
-            delete state.lastReviveDestroyed
-            resolveDestroyOne(state, {
-                kind: "destroyOne",
-                pid: t.pid,
-                instanceId: t.instanceId,
-                destroyedCost: destroyedCostsOf(target),
-                destroyedFamily: destroyedFamiliesOf(target),
-                order,
-                step: 0,
-                fushiDone: 0,
-                ...(ctx ? { context: ctx } : {}),
-            })
-            // 中断せずに終わったなら、破壊できたかをここで算入する
-            // （中断した場合は destroyOne フレームが決着させ、resumeDestroyBatch が算入する）
-            if (!state.pendingChoice && state.lastReviveDestroyed === true) {
-                destroyed++
-                delete state.lastReviveDestroyed
-            }
+        // 【不死】（BS09）も「フィールドに残る」も、いまは destroySpirit の中で
+        // **破壊で誘発した効果の1つの列**として解決される（docs/design/TIMING_CHART.md）。
+        // かつてここにあった「破壊 or 不死」の2択は、その列に統合したので消した（2026-09-08）
+        if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true, includeFushi: true })) {
+            destroyed++
         }
         if (state.winner) return { destroyed, stoppedAt: targets.length }
         // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する

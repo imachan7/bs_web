@@ -3,6 +3,7 @@
 // ③「フィールドに残る／戻る」。③が解決した時点でその破壊は無かったことになり、列の残りは空振りする。
 // docs/design/TIMING_CHART.md ／ docs/design/RULES_BATSPI_WIKI.md §1
 import { act, assert, createGame, createInstance, destroySpirit, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { destroySpiritsFrom } from "../../server/src/logic/removal"
 import type { GameState } from "./helpers"
 
 function game(seed: string): GameState {
@@ -77,6 +78,27 @@ console.log("=== 「フィールドに残る」を先に選ぶ：破壊が無か
     assert(
         enemy.cores === before,
         "先に残ったので、以降の破壊誘発（自身の『破壊時』）は処理されない（RULES_BATSPI_WIKI §1）",
+    )
+}
+
+console.log("=== 【不死】も同じ列に並ぶ（かつては破壊の外側で別の2択だった） ===")
+{
+    const { s } = setup("order-fushi")
+    s.phase = "attack" // 【不死】は『お互いのアタックステップ』限定
+    // BS13-012 ジャイナガンは【不死：コスト7/8】。引き金はコスト7/8の自分のスピリットの破壊
+    s.players.p1.trashCards.push("BS13-012")
+    // コスト7の自分のスピリット（恐竜王メガロ・ザウル）を破壊する
+    const bait = createInstance("BS13-008", s.turn, 1)
+    s.players.p1.field.spirits.push(bait)
+    refreshLevelAsOverrides(s)
+    destroySpiritsFrom(s, [{ pid: "p1", instanceId: bait.instanceId }], 0, 0)
+    // メガロ・ザウルは『破壊時』を持たず、この破壊で誘発するのは【不死】だけ＝列は1件。
+    // 1件なら順番を聞かずにそのまま解決するので、出るのは【不死】の召喚確認になる
+    assert(s.pendingChoice !== null, "【不死】の確認が出る")
+    assert(s.pendingChoice!.fushiSummon !== undefined, "【不死】がこの破壊の列から解決された")
+    assert(
+        s.pendingChoice!.destroyOrder === undefined,
+        "かつての「破壊と【不死】のどちらを先に」の2択はもう出ない（列に統合した）",
     )
 }
 

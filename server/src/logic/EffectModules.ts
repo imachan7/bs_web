@@ -3671,6 +3671,7 @@ export {
     destroyTargetsBatch,
     applyReviveEntry,
     collectReviveEntries,
+    fushiSummonOrConfirm,
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,

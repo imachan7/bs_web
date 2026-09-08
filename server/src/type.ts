@@ -250,7 +250,8 @@ export type EffectAction =
     // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
     // 非対話時は従来どおり、お互い自分フィールドで最多の色を自動指定する
     | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**（cards.jsonには書かない）。破壊されたカード自身の『破壊時』効果を発揮する。破壊で誘発した効果を1列に並べて順番を選ばせるとき、「自身の破壊時ぜんぶ」を1グループとして列に入れるために使う（docs/design/TIMING_CHART.md）
-    | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } // **内部専用**（cards.jsonには書かない）。指定した reviveOnDestroy エントリを適用する（「フィールドに残る／戻る」）。上と同じ列に1グループとして入る
+    | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } 
+    | { type: "resolveFushiSummon"; pid: PlayerId; cardId: string } // **内部専用**（cards.jsonには書かない）。破壊で誘発した効果の列に並ぶ【不死】1枚分。解決時にトラッシュからカードIDで引き直すので、先に別の【不死】が召喚されて位置がずれていても正しく動く // **内部専用**（cards.jsonには書かない）。指定した reviveOnDestroy エントリを適用する（「フィールドに残る／戻る」）。上と同じ列に1グループとして入る
     | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
     | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword } // keywordExclude指定時は、そのキーワードを**持たない**スピリットだけが候補（spiritHasKeyword判定＝一時付与・継続付与も見る。BS09-016闇騎士モルドレッド＝【転召】を持たない）。// 「お互い、フィールドのスピリット1体を選び、破壊する」（BS05吸血女王カーミラLv3）。destroyAllExceptChosenColorsと同じ二段階choiceパターン：発生源の持ち主（own）→相手（opponent）の順に、フィールド（両陣営どちらでも可）から1体を指定させ、選ばれた2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaitingに持たせて再入する。非対話時は各プレイヤーが相手フィールドの実効BP最大を自動選択（プレイヤー選択の決定的簡略化。pickEnemyByBpと同じ考え方）
     | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版（BS12-015冥王神龍クロノ・ハデス【合体時】『破壊時』：「お互い、それぞれのスピリット1体を指定する。指定されなかったスピリットすべてを破壊する」）。二段階choiceパターンは同じだが、各自は**自分の**フィールドから1体を指定する（mutualDestroyChoiceは相手フィールドも選べるのに対しこちらは自陣のみ）。破壊待機中の発生源自身（self）は指定候補に含めない。指定された2体を除く**両陣営のスピリットすべて**を破壊する。非対話時は各自が自分のフィールドの実効BP最大を自動選択（決定的簡略化）
@@ -2370,14 +2371,6 @@ export interface PendingChoice {
         cardId: string
         trashIndex: number // 同名カードが複数あるときにどれを出したかを固定する
     }
-    destroyEffectOrder?: {
-        // 1体の破壊に対して**同時に発揮する効果**が2つ以上あるときの、解決順の選択待ち。
-        // 今のところ「フィールドに残る（＝破壊そのもの）」と【不死】の2種類。
-        // 選ばれた側を GameState.destroyEffectOrderPick に記録する（TIMING_CHART.md §0-3）
-        pid: PlayerId // 破壊される個体の持ち主（表示用。選ぶのはターンプレイヤー）
-        instanceId: string
-        slots: ("destroy" | "fushi")[] // PendingChoice.options と同順
-    }
     triggerOrder?: {
         // 同時に発揮する**誘発**のうち「どれから解決するか」の選択待ち。destroyOrder と同じく
         // **action は解決しない**。選ぶのは常にターンプレイヤーで、選ばれた番号は
@@ -2558,9 +2551,6 @@ export type ResumeFrame =
           bySpiritEffect: boolean // 同上（byOpponentSpiritEffectOnly）。相手のスピリットの効果による破壊だったか
           byOpponentEffect: boolean // 同上（byOpponentEffectOnly）。相手によって破壊された（効果 or バトル敗北）か。BS12-005星角獣ユニゴーント
           sourceInstanceId?: string // 同上。その効果を発揮したスピリットのインスタンスID（DestroyContext.sourceInstanceId）
-          // 破壊の確定（トラッシュ行き）を**呼び出し元（destroyOne フレーム）が行う**印。
-          // 【不死】を同じ待機の窓の中で解決するときに立つ
-          deferCommit?: true
       }
     | {
           // バウンス待機状態の続き。**移動はすでに済んでいて、残りの誘発だけ**を後へ送る。
@@ -2577,22 +2567,6 @@ export type ResumeFrame =
           instanceId: string
           step: number
           byOpponentEffect: boolean // 「相手の効果で破壊されたとき」限定エントリの判定材料
-      }
-    | {
-          // **1体の破壊に伴って同時に発揮する効果**の解決の続き。
-          // 今のところ「破壊そのもの（＝『フィールドに残る』の確認を含む）」と【不死】の2種類で、
-          // 順番はターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3 / BS09_PLAN.md §3）。
-          // **【不死】が絡むときだけ通る道**で、絡まなければ destroySpiritsFrom は従来どおり
-          // destroySpirit を直接呼ぶ（ほぼ全てのケース）
-          kind: "destroyOne"
-          pid: PlayerId // 破壊される個体の持ち主
-          instanceId: string
-          destroyedCost: number[] // 破壊される個体のコスト（【不死】の引き金判定に使う。破壊前に読む）。「破壊されたとき、コスト3/4としても扱う」ぶんを含むので配列（BS11-064 闇の聖剣Lv1）
-          destroyedFamily: string[] // 破壊される個体の系統（【不死：系統】の引き金判定に使う。BS13-014 闇騎士アグラヴェイン）
-          order: ("destroy" | "fushi")[] // 確定した解決順
-          step: number // 次に解決する order の位置
-          fushiDone: number // 【不死】の候補を何枚ぶん確認し終えたか
-          context?: DestroyContext
       }
     | {
           // バトル解決（＞５のBP比較が終わった後 〜 ＞７のバトル終了宣言）の続き。
@@ -2706,9 +2680,7 @@ export interface GameState {
     // 直前の「どの誘発から解決するか」（PendingChoice.triggerOrder）でターンプレイヤーが選んだ番号。
     // 誘発バッチ（ResumeFrame の triggerBatch）が再開時に読み取り、読んだら消す
     triggerOrderPick?: number
-    // 直前の「破壊とその同時発揮の効果、どちらを先に解決するか」（PendingChoice.destroyEffectOrder）で
     // ターンプレイヤーが選んだ側。destroySpiritsFrom が読み取って解決順を組み立て、読んだら消す
-    destroyEffectOrderPick?: "destroy" | "fushi"
     // 召喚の途中で、**まだ場に出していない**スピリットの instanceId（2026-08-20）。
     // 【転召】は「召喚コスト支払い後・維持コアを置く前」に解決するため、その間だけ立つ。
     // これが立っている間は『転召したとき』の誘発を保留する（下の pendingTenshoEvent）

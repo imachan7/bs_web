@@ -20,7 +20,7 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
@@ -1502,19 +1502,6 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
-    // 1体の破壊に対して同時に発揮する効果（「フィールドに残る」と【不死】）の解決順。
-    // action は解決せず、選ばれた側を記録して破壊バッチの再開へ戻す（TIMING_CHART.md §0-3）
-    if (pending.destroyEffectOrder) {
-        const options = pending.options ?? []
-        if (option === undefined) return "どちらを先に解決するか選んでください"
-        const index = options.indexOf(option)
-        const picked = pending.destroyEffectOrder.slots[index]
-        if (index < 0 || picked === undefined) return "選択できない候補です"
-        state.pendingChoice = null
-        state.destroyEffectOrderPick = picked
-        return finishChoiceResolution(state, pending.pid)
-    }
-
     // 同時に発揮する誘発のうち「どれから解決するか」（ターンプレイヤーが決める）。
     // action は解決せず、選ばれた番号を記録して誘発バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
     if (pending.triggerOrder) {
@@ -1755,11 +1742,6 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "destroyCommit") {
             // 破壊待機状態のまま中断していた破壊処理（誘発の残り＋トラッシュ行き）を続ける
             resumeDestroyCommit(state, frame)
-            continue
-        }
-        if (frame.kind === "destroyOne") {
-            // 1体の破壊に伴う同時発揮（「フィールドに残る」と【不死】）の続きを回す
-            resolveDestroyOne(state, frame)
             continue
         }
         if (frame.kind === "bounceFlush") {

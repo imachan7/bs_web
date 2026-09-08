@@ -22,6 +22,7 @@
 | **破壊されたカード自身の『破壊時』効果** | **カードで1グループ**（同じカードの複数エントリはテキスト順。§0-3 の粒度の表どおり） |
 | 他のカードの「〜が破壊されたとき」（`fieldEvent` の `ownSpiritDestroyed`） | 発生源のカードごとに1グループ（`pid:cardId` で分ける） |
 | **「フィールドに残る／戻る」**（`reviveOnDestroy`） | 発生源ごとに1グループ |
+| **【不死】**（トラッシュの【不死】持ちスピリットカード） | カードごとに1グループ。破壊のバッチ経由（`destroySpiritsFrom`）のときだけ列に入る |
 
 **相手が持つ効果も同じ列に並び、順番を決めるのはターンプレイヤー**（§0-3）。
 自分が相手のスピリットを破壊した場合、発揮するのは相手の効果だが、解決順は自分が決める。
@@ -63,6 +64,16 @@
 
 **5. 内部専用アクションは `scripts/validate-cards.ts` の `INTERNAL_ONLY_ACTIONS` に理由つきで登録する。**
 登録しないと「どのカードにも使われていない」で `validate:cards` が落ちる（この検査は正しい）。
+
+### 【不死】も同じ列に入れた（2026-09-08）
+
+**かつては「破壊そのもの」と【不死】の2択を、破壊の"外側"で別に聞いていた**
+（`PendingChoice.destroyEffectOrder` ／ `GameState.destroyEffectOrderPick` ／
+`ResumeFrame.destroyOne` ／ `resolveDestroyOne`）。
+列に統合したのでこれらは**すべて削除した**。「残るを先に解決したら【不死】は撃てない」は、
+`requiresPendingDestructionOf` のガードで**自動的に**そうなる（専用の判定が要らなくなった）。
+
+`destroySpirit` の `deferCommit` も、`resolveDestroyOne` が唯一の利用者だったので消えた。
 
 ### 実装（2026-09-08 に直した）
 

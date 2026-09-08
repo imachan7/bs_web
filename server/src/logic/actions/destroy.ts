@@ -13,6 +13,7 @@ import {
     destroySpiritsFrom,
     destroyTargetsBatch,
     applyReviveEntry,
+    fushiSummonOrConfirm,
     applyDestroyBatchAfter,
     fireTrigger,
     findSpiritAny,
@@ -1833,7 +1834,17 @@ const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx,
     applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
 }
 
+// 同じ列の【不死】1枚分。トラッシュの位置ではなくカードIDで引き直す
+// （先に別の【不死】が召喚されているとトラッシュがずれるため）
+const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, action) => {
+    const { state } = ctx
+    const trashIndex = state.players[action.pid].trashCards.indexOf(action.cardId)
+    if (trashIndex < 0) return
+    fushiSummonOrConfirm(state, action.pid, trashIndex)
+}
+
 const handlers = {
+    resolveFushiSummon: resolveFushiSummonHandler,
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,

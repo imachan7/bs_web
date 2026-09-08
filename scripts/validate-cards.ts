@@ -496,6 +496,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
+    ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
     // ⚠️ **先に仕組みだけ入れてある枠**。BS10 を data/cards へ入れて構造化したら、
     // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）
     ["extraAttackStep", "BS10-008 火星神龍アレス・ドラグーンが使う。BS10 は data/staging にあり data/cards 未投入のため、仕組みだけ先行（2026-08-25）"],
