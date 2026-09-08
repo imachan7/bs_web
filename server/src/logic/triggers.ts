@@ -205,7 +205,12 @@ export function isTriggerSuppressed(
 // 『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
 // 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
 // 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
-export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstance: CardInstance): void {
+export function fireSummonTrigger(
+    state: GameState,
+    owner: PlayerId,
+    selfInstance: CardInstance,
+    byFushi = false,
+): void {
     // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
     // 『このスピリットの召喚時』効果は発揮されない
     if (noSummonTriggerByCost(state, selfInstance)) {
@@ -213,7 +218,7 @@ export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstanc
         return
     }
     state.resolvingSummonTriggerPid = owner
-    fireTrigger(state, owner, selfInstance, "onSummon")
+    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi)
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
 }
 
@@ -224,6 +229,8 @@ export function fireTrigger(
     event: TriggerEvent,
     battleRole?: "attacker" | "blocker",
     targetInstanceId?: string,
+    byFushi?: boolean, // 【不死】の効果で召喚されたときの召喚か（onSummon限定。condition.selfSummonedByFushi の判定に使う。BS13-014 闇騎士アグラヴェイン）
+    byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -292,6 +299,9 @@ export function fireTrigger(
             return false
         }
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
+        // turn（BS13-010スカルザードLv2＝『相手のターン』）：発生源の持ち主基準でown/opponentを絞る
+        if (effect.turn === "own" && owner !== state.turnPlayer) return false
+        if (effect.turn === "opponent" && owner === state.turnPlayer) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
         if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
         if (effect.condition) {
@@ -417,6 +427,12 @@ export function fireTrigger(
             } else if ("ownLifeAtMost" in effect.condition) {
                 // BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主のライフがこの数以下のときのみ発火
                 if (state.players[owner].life > effect.condition.ownLifeAtMost) return false
+            } else if ("selfSummonedByFushi" in effect.condition) {
+                // BS13-014闇騎士アグラヴェイン：その召喚が【不死】によるものだったときのみ発火
+                if (byFushi !== true) return false
+            } else if ("selfDestroyedByOpponent" in effect.condition) {
+                // BS13-010スカルザード：相手によって破壊されたときのみ発火
+                if (byOpponent !== true) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -502,6 +518,48 @@ export function fireTrigger(
             pushResumeFrames(
                 state,
                 remaining.map((a) => ({ kind: "action" as const, selfInstanceId: selfInstance.instanceId, action: a })),
+            )
+            return
+        }
+    }
+}
+
+// BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
+// 『このスピリットの合体アタック時』効果を発揮させる」。fireTriggerの`entries`は呼び出し時点でのbravesOf
+// スナップショットなので、その最中に新たに合体したブレイヴが持ち込む【合体時】onAttackエントリは自然には
+// 拾われない。合体が実際に成立したときだけ、ここで改めてbravesOf(host)を取り直して発揮させる
+// （合体しなかった／できなかったときは呼ばれないので発揮しない。2026-09-07ユーザー確認）
+export function fireCombinedAttackTrigger(
+    state: GameState,
+    owner: PlayerId,
+    host: CardInstance,
+    event: TriggerEvent,
+): void {
+    const entries = bravesOf(state.players[owner], host).flatMap((brave) =>
+        getCard(brave.cardId)
+            .effects.filter(
+                (e): e is Extract<EffectDef, { kind: "triggered" }> =>
+                    e.kind === "triggered" &&
+                    e.trigger === event &&
+                    e.whileCombined === true &&
+                    effectActiveAtLevel(e.levels, currentLevel(brave).level),
+            )
+            .map((effect) => ({ effect, src: brave })),
+    )
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        if (!entry) continue
+        const { effect } = entry
+        if (effect.optional && state.interactiveTargets) {
+            requestActivationConfirm(state, owner, `${getCard(host.cardId).name}の効果を発動しますか？`, effect.action, host)
+        } else {
+            resolveAction(state, owner, host, effect.action, undefined)
+        }
+        if (state.pendingChoice) {
+            const remaining = entries.slice(i + 1)
+            pushResumeFrames(
+                state,
+                remaining.map((x) => ({ kind: "action" as const, selfInstanceId: host.instanceId, action: x.effect.action })),
             )
             return
         }
@@ -626,6 +684,11 @@ export function fireBattleWonTriggers(
             }
             // BS11-062 オールトの竜巣Lv2：勝利したのが**合体スピリット**のときのみ発火
             if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
+                continue
+            }
+            // BS13-050輝竜シャイン・ブレイザー【合体時】：敗北して破壊された側の実効BPがこれ以上のときのみ発火
+            // （state.lastBattleDestroyedBpは破壊直前に測った実効BP。GameEngine.resolveBattleが記録する）
+            if (effect.loserMinBp !== undefined && state.lastBattleDestroyedBp < effect.loserMinBp) {
                 continue
             }
             firing.push({ inst, effect })
@@ -889,6 +952,20 @@ export function fireStepTriggers(
 // destroySpirit 自身への再入となる。現対象カードの action は draw / coreGain のみで
 // destroySpirit を呼ばないため安全だが、将来 destroy 系アクションを組み合わせる場合は
 // 無限ループ（破壊→誘発→破壊→…）が起きないよう設計時に確認すること。
+// 上の extraItems の1件分。fieldEvent の誘発と同じ列に並ぶ
+export interface FieldEventExtraItem {
+    key: string // 「同じ効果か」の判定用（askOrder.key と同じ役目）
+    label: string // 選択肢の表示
+    action: EffectAction // 解決するアクション（内部専用アクションを渡す）
+    selfInstanceId: string | null
+    actorPid: PlayerId
+    requiresPendingDestructionOf?: string // このフレームのガード
+    // 非対話（テスト・AI）で順番を聞かないときの既定位置。true なら fieldEvent の誘発より前に置く。
+    // 実対戦では askOrder が並べ替えるので効かない。**従来の解決順を変えないため**に要る
+    // （破壊されたカード自身の『破壊時』は、もともと他カードの誘発より先だった）
+    first?: true
+}
+
 export function fireFieldEventTriggers(
     state: GameState,
     pid: PlayerId,
@@ -929,11 +1006,17 @@ export function fireFieldEventTriggers(
         bySoku?: boolean
         // 同上：手札からの召喚だったか（fromHandOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ）
         fromHand?: boolean
+        // event: "ownMagicUsed" 限定：そのマジックが「コストを支払って」使用されたか（paidCostOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ Lv2-3）
+        paidCost?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
     // これが無いと自分自身の破壊では無言で発火しない。BS07の各色ネクサス6枚。2026-08-10 修正）
     extraSources?: CardInstance[],
+    // 破壊で誘発した効果を1列に並べるための外部項目（docs/design/TIMING_CHART.md）。
+    // ownSpiritDestroyed から、破壊されたカード自身の『破壊時』と「フィールドに残る／戻る」を
+    // **同じ列**に混ぜてターンプレイヤーに順番を選ばせるために使う。他のイベントでは使わない
+    extraItems?: FieldEventExtraItem[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -988,6 +1071,8 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
+            // subjectMaxCores（BS13-063血塗られた魔具）：アタックしたスピリット自身のコア数で絞る
+            if (effect.subjectMaxCores !== undefined && (selfOverride === undefined || selfOverride.inst.cores > effect.subjectMaxCores)) continue
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             // sourceColorFilter：「**相手の**この色のスピリット/ネクサス/マジックの**効果によって**起きたとき」
             // だけ発火する（SD01-029 蠢く地下墓地Lv1＝緑／SD01-031 朝焼け岬Lv1＝紫）。
@@ -1102,6 +1187,14 @@ export function fireFieldEventTriggers(
             if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
             if (effect.sokuSummonOnly && eventInfo?.bySoku !== true) continue
             if (effect.fromHandOnly && eventInfo?.fromHand !== true) continue
+            // 「コストを支払って」使用されたときのみ（BS11-X05 魔導双神ジェミナイズLv2-3）。
+            // このカード自身の無償使用（paidCost:false）からは連鎖しない
+            if (effect.paidCostOnly && eventInfo?.paidCost !== true) continue
+            // 「ターンに2回しか使えない」：実際に無償使用した回数（confirmで断った・候補が無かった場合は含まない）で絞る
+            if (effect.magicFreeUseMaxPerTurn !== undefined) {
+                const usedSoFar = inst.magicFreeUseTurn === state.turn ? (inst.magicFreeUseCount ?? 0) : 0
+                if (usedSoFar >= effect.magicFreeUseMaxPerTurn) continue
+            }
             // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
             // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
             // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
@@ -1154,6 +1247,10 @@ export function fireFieldEventTriggers(
                     const found = findSpiritAny(state, targetInstanceId)
                     if (!found) continue
                     if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCostOfEventTarget })) continue
+                } else if ("lastFunsaiHasSpirit" in effect.condition) {
+                    // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
+                    // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
+                    if ((state.lastFunsai?.spirits ?? 0) === 0) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue
@@ -1214,11 +1311,29 @@ export function fireFieldEventTriggers(
         return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
     }
 
-    resolveInOrder(state, queue, {
+    // extraItems（破壊で誘発した効果の列）を同じプールに混ぜる。
+    // 混ぜることで「自身の『破壊時』→他カードの誘発→フィールドに残る」の順番を
+    // ターンプレイヤーが1つずつ選べるようになる（docs/design/TIMING_CHART.md）
+    type PoolItem =
+        | { extra?: undefined; inst: CardInstance; effect: Extract<EffectDef, { kind: "fieldEvent" }> }
+        | { extra: FieldEventExtraItem }
+    const extras = extraItems ?? []
+    const pool: PoolItem[] = [
+        ...extras.filter((e) => e.first === true).map((extra) => ({ extra })),
+        ...queue,
+        ...extras.filter((e) => e.first !== true).map((extra) => ({ extra })),
+    ]
+
+    resolveInOrder(state, pool, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
-        skip: (e) => !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
+        skip: (e) =>
+            e.extra === undefined && !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
         resolve: (e) => {
+            if (e.extra !== undefined) {
+                resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
+                return
+            }
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
@@ -1229,6 +1344,17 @@ export function fireFieldEventTriggers(
             }
         },
         frame: (e) => {
+            if (e.extra !== undefined) {
+                return {
+                    kind: "action" as const,
+                    selfInstanceId: e.extra.selfInstanceId,
+                    action: e.extra.action,
+                    actorPid: e.extra.actorPid,
+                    ...(e.extra.requiresPendingDestructionOf !== undefined
+                        ? { requiresPendingDestructionOf: e.extra.requiresPendingDestructionOf }
+                        : {}),
+                }
+            }
             const c = contextOf(e.inst, e.effect)
             return {
                 kind: "action" as const,
@@ -1244,8 +1370,10 @@ export function fireFieldEventTriggers(
         // 同時発揮の解決順はターンプレイヤーが決める（TIMING_CHART.md §0-3）
         askOrder: {
             pid: state.turnPlayer,
-            label: (e) => getCard(e.inst.cardId).name,
-            key: (e) => `${e.inst.cardId}:${e.effect.id}`,
+            label: (e) => (e.extra !== undefined ? e.extra.label : `${state.players[pid].name}の${getCard(e.inst.cardId).name}`),
+            // ⚠️ **持ち主込みのカード単位**で見る。相手の同名ネクサスと混ざらないように pid を入れる
+            // （step 版と同じ形。2026-09-08 に効果エントリ単位＋pid無しから直した）
+            key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
     })
 }
@@ -1704,6 +1832,9 @@ export function resolveMagic(
     cardId: string,
     timing: "main" | "flash",
     targetInstanceId?: string,
+    // 「コストを支払って」使用されたか（BS11-X05 魔導双神ジェミナイズ用。既定はtrue＝通常の使用手続き。
+    // 軽減で実質0コストでも支払った扱い。「コストを支払わずに使用」の経路だけがfalseを渡す）
+    paidCost = true,
 ): void {
     // 【光芒】用: バトル中の使用ならアタッカー側の usedMagicCardIds に記録する
     // （バトル終了時にこの中からトラッシュ→手札へ戻す）
@@ -1744,6 +1875,7 @@ export function resolveMagic(
                     timing,
                     targetInstanceId,
                     sourceInstanceId: negate.inst.instanceId,
+                    paidCost,
                 },
                 action: { type: "noop" },
                 selfInstanceId: negate.inst.instanceId,
@@ -1751,7 +1883,7 @@ export function resolveMagic(
             return
         }
         payMagicNegate(state, negate, card)
-        fireMagicUsedTriggers(state, owner, card, timing)
+        fireMagicUsedTriggers(state, owner, card, timing, paidCost)
         return
     }
 
@@ -1776,6 +1908,7 @@ export function resolveMagic(
                     timing,
                     targetInstanceId,
                     sourceInstanceId: redirectSource.instanceId,
+                    paidCost,
                 },
                 action: { type: "noop" },
                 selfInstanceId: redirectSource.instanceId,
@@ -1784,8 +1917,8 @@ export function resolveMagic(
         }
     }
 
-    if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId)) return
-    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId)
+    if (askBothSidesRedirect(state, owner, card, timing, targetInstanceId, paidCost)) return
+    resolveMagicEffects(state, owner, cardId, timing, targetInstanceId, paidCost)
 }
 
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
@@ -1797,6 +1930,7 @@ function askBothSidesRedirect(
     card: CardData,
     timing: "main" | "flash",
     targetInstanceId: string | undefined,
+    paidCost: boolean,
 ): boolean {
     delete state.magicSideDecision
     if (!state.interactiveTargets) return false
@@ -1820,6 +1954,7 @@ function askBothSidesRedirect(
             targetInstanceId,
             sourceInstanceId: found.inst.instanceId,
             ownerPid: found.pid,
+            paidCost,
         },
         action: { type: "noop" },
         selfInstanceId: found.inst.instanceId,
@@ -1867,7 +2002,7 @@ export function applyMagicSideChoice(
         const name = source ? getCard(source.cardId).name : "効果"
         log(state, `${name}：${getCard(info.cardId).name}の効果の対象を変更しなかった。`)
     }
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
 }
 
 // このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
@@ -1896,8 +2031,8 @@ export function applyMagicRedirectChoice(
 ): void {
     state.magicRedirectDecision = { sourceInstanceId: info.sourceInstanceId, approved }
     // 絞り込みの確認で中断していた場合も、封印された魔導書の確認はここで出す（解決へ直行させない）
-    if (askBothSidesRedirect(state, info.casterPid, getCard(info.cardId), info.timing, info.targetInstanceId)) return
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+    if (askBothSidesRedirect(state, info.casterPid, getCard(info.cardId), info.timing, info.targetInstanceId, info.paidCost)) return
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
 }
 
 // pendingChoice（無効化の確認）で「無効にする」が選ばれたときの後処理。
@@ -1910,11 +2045,11 @@ export function applyMagicNegateChoice(
     const found = findMagicNegateSource(state, info.casterPid, card)
     // 確認を出したあとに盤面が変わってコストを払えなくなった場合は、無効化せず通常どおり解決する
     if (!found || found.inst.instanceId !== info.sourceInstanceId) {
-        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+        resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
         return
     }
     payMagicNegate(state, found, card)
-    fireMagicUsedTriggers(state, info.casterPid, card, info.timing)
+    fireMagicUsedTriggers(state, info.casterPid, card, info.timing, info.paidCost)
 }
 
 // pendingChoice（無効化の確認）で「無効にしない」が選ばれたときの後処理。中断していた解決を続ける
@@ -1922,7 +2057,7 @@ export function declineMagicNegateChoice(
     state: GameState,
     info: NonNullable<PendingChoice["magicNegate"]>,
 ): void {
-    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId)
+    resolveMagicEffects(state, info.casterPid, info.cardId, info.timing, info.targetInstanceId, info.paidCost)
 }
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
@@ -1933,6 +2068,7 @@ export function resolveMagicEffects(
     cardId: string,
     timing: "main" | "flash",
     targetInstanceId?: string,
+    paidCost = true,
 ): void {
     // BS07大天使イスフィール：使用者のフィールドに magicRepeatGrant が有効な発生源があれば、
     // 効果の並びをもう1周する。判定は1周目を始める前に固定する（1周目の結果で発生源が場を離れても
@@ -1958,6 +2094,7 @@ export function resolveMagicEffects(
                     timing,
                     targetInstanceId,
                     sourceInstanceId: repeatSource.instanceId,
+                    paidCost,
                 },
                 action: { type: "noop" },
                 selfInstanceId: repeatSource.instanceId,
@@ -1969,7 +2106,7 @@ export function resolveMagicEffects(
         runMagicActions(state, owner, cardId, timing, targetInstanceId)
         if (state.pendingChoice) return
     }
-    fireMagicUsedTriggers(state, owner, getCard(cardId), timing)
+    fireMagicUsedTriggers(state, owner, getCard(cardId), timing, paidCost)
 }
 
 // 使用者pidのフィールドにある、kind:"magicRepeatGrant" の有効な発生源を返す（BS07大天使イスフィール）。
@@ -2024,7 +2161,7 @@ export function applyMagicRepeatChoice(
     } else {
         log(state, `${card.name}の効果をもう1度は発揮しなかった。`)
     }
-    fireMagicUsedTriggers(state, info.casterPid, card, info.timing)
+    fireMagicUsedTriggers(state, info.casterPid, card, info.timing, info.paidCost)
 }
 
 // oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
@@ -2212,11 +2349,12 @@ function fireMagicUsedTriggers(
     owner: PlayerId,
     card: CardData,
     timing: "main" | "flash",
+    paidCost: boolean,
 ): void {
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
-    // （opponentDrewの実装を踏襲。緑芽吹く原野）
+    // （opponentDrewの実装を踏襲。緑芽吹く原野）。paidCost はBS11-X05のpaidCostOnly判定用
     if (!state.winner) {
-        fireFieldEventTriggers(state, owner, "ownMagicUsed")
+        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost })
     }
     // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
     // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む

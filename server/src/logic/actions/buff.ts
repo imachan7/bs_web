@@ -25,7 +25,8 @@ import {
     tryInteractiveTargetChoice,
     spiritHasKeyword,
 } from "../EffectModules"
-import { instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { canDiscardHand, instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
 
@@ -66,6 +67,14 @@ const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
             state,
             `${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
         )
+        return
+}
+
+const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, action) => {
+    const { state, self } = ctx
+        if (!self) return
+        self.colorlessThisBattle = true
+        log(state, `${getCard(self.cardId).name}は、このバトルの間色を無いものとして扱う。`)
         return
 }
 
@@ -206,6 +215,14 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             `${getCard(target.cardId).name}はBP+${action.amount}（${untilLabel}）。`,
         )
         applyMagicBuffBonus(state, target, srcType, srcColors)
+        // thenAddSymbolThisBattle（BS13-062光り輝く大銀河Lv2）：BP増加に続けて、このバトルの間だけ
+        // 指定色のシンボルを対象へ追加する（CardInstance.battleSymbolsAdded。clearBattleでリセット）
+        if (action.thenAddSymbolThisBattle) {
+            const { color, count } = action.thenAddSymbolThisBattle
+            if (!target.battleSymbolsAdded) target.battleSymbolsAdded = []
+            for (let i = 0; i < count; i++) target.battleSymbolsAdded.push(color)
+            log(state, `${getCard(target.cardId).name}は${COLOR_LABELS[color]}のシンボルを${count}つ追加した（このバトルの間）。`)
+        }
         // extraPerCoreToTrash（BS10-103グロウイングソード）：「さらに、自分のフィールド/リザーブのコアを
         // 自分のトラッシュに好きなだけ置くことで、置いたコア1個につき、そのスピリットをBP+1000する」。
         // 対話時は0〜払える総量の増減式（stepper）で選ばせる。非対話（テスト・AI）は0個に倒す
@@ -550,6 +567,11 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
 
 const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
         if (!self) {
             log(state, `${sourceName}：バフ対象がいなかった。`)
@@ -613,6 +635,7 @@ const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, acti
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     selfBuff,
+    colorlessSelfThisBattle,
     selfBuffPer,
     bpBuff,
     bpBuffAll,

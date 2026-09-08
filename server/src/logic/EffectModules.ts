@@ -60,6 +60,7 @@ import { attachBrave, destroySpirit, flushBounces, returnSpiritToHand } from "./
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
+    fireCombinedAttackTrigger,
     fireFieldEventTriggers,
     fireSummonTrigger,
     fireTrigger,
@@ -86,6 +87,7 @@ import {
     auraAmount,
     boardResistanceAgainst,
     auraAppliesTo,
+    canDiscardHand,
     checkAuraCondition,
     costCantAct,
     countAuraCounter,
@@ -360,8 +362,9 @@ function tryPayableTargetNegate(
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
             if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
-            // 支払えないなら受ける（手札が足りないときは耐性が成立しない）
-            if (player.hand.length < effect.discardCount) continue
+            // 支払えないなら受ける（手札が足りないときは耐性が成立しない）。
+            // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
+            if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
             const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
             player.trashCards.push(...discarded)
             log(
@@ -412,8 +415,9 @@ export function askPayToNegateIfNeeded(
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
             if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
-            // 払えないなら聞かない（そのまま効果を受ける）
-            if (player.hand.length < effect.discardCount) continue
+            // 払えないなら聞かない（そのまま効果を受ける）。
+            // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
+            if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
             requestCardChoice(
                 state,
                 // pid は**効果の実行者**（解決の主体。actorPid に入る）。
@@ -1186,7 +1190,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // ⚠️ **ダイレクトブレイヴは field.combinedBraves に入る**ので、spirits だけを見ると
     // ここで打ち切られて『このブレイヴの召喚時』効果が丸ごと発火しない（2026-08-25 に実際に踏んだ）
     if (!isOnFieldAnyZone(player, inst.instanceId)) return
-    fireSummonTrigger(state, pid, inst)
+    fireSummonTrigger(state, pid, inst, byFushi)
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
     // 合体した状態で出たブレイヴは対象にならない（合体スピリットは既に場にいたものが状態を変えただけ）。
@@ -1199,6 +1203,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
         fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
             families: getCard(inst.cardId).family,
+            // costFilter用：**カード静的なコスト（本来のコスト）**。軽減後の支払いコストではない（BS13-003カメレオプス）
+            costs: [getCard(inst.cardId).cost],
             byFushi,
             // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
             bySoku: state.summoningBySoku === true,
@@ -1936,6 +1942,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.combinedBraves,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.bpAsContinuous
             delete inst.levelAsEffectsOnly
             delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
@@ -2255,6 +2262,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 継続的な「シンボルを追加する」（BS12初出。BS12-006竜拳士アルディ・バロン／
                     // BS12-X01金牛龍神ドラゴニック・タウラス）。盤面のシンボル数に効く（軽減計算・ライフダメージ両方）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // condition.ownFieldHasBraveInSpiritState（BS13-006炎獣ファイオリックLv2-3）：
+                    // 持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効
+                    if (
+                        effect.condition?.ownFieldHasBraveInSpiritState &&
+                        !player.field.spirits.some((sp) => getCard(sp.cardId).type === "brave")
+                    ) {
+                        continue
+                    }
                     if (effect.phaseTurn) {
                         if (state.phase !== effect.phaseTurn.phase) continue
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
@@ -2361,6 +2376,16 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             if (!spirit[key]) spirit[key] = []
                             if (!spirit[key].includes(v)) spirit[key].push(v)
                         }
+                    }
+                    continue
+                }
+                if (effect.kind === "bpAs") {
+                    // 継続的な「BPを◯として扱う」（levelAsのBP版。器Q。BS13-X011）
+                    if (effect.whileCombined === true && !instIsCombined(source)) continue
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        spirit.bpAsContinuous = effect.amount
                     }
                     continue
                 }
@@ -3153,6 +3178,8 @@ export function countEffectCounter(
         return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId, sourceType)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
+    if (counter === "ownLife") return state.players[owner].life
+    if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
     if (counter === "allNexuses") {
         return (
@@ -3605,6 +3632,7 @@ export {
     isTriggerSuppressed,
     fireSummonTrigger,
     fireTrigger,
+    fireCombinedAttackTrigger,
     fireBattleWonTriggers,
     fireStepTriggers,
     fireFieldEventTriggers,
@@ -3641,6 +3669,9 @@ export {
     declineBraveKeep,
     destroySpiritsFrom,
     destroyTargetsBatch,
+    applyReviveEntry,
+    collectReviveEntries,
+    fushiSummonOrConfirm,
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,

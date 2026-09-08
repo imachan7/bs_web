@@ -20,6 +20,7 @@ export interface BoardPlayer {
     life: number
     reserve: number
     trashCores: number
+    deckSideCores: number // デッキの横に置かれたコア（BS12-078）。公開情報
     trashCards: string[]
     // 手札。**相手の手札は隠匿情報なので GameView では null になる**（PlayerView.hand と同じ形）。
     // 共有層でこれを読む関数は「自分の手札についてだけ答える」ものに限り、null は

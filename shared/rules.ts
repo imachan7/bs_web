@@ -135,6 +135,13 @@ export function isTrashCardProtected(cardId: string): boolean {
     return card(cardId).effects.some((e) => e.kind === "trashImmunity")
 }
 
+// トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
+// isTrashCardProtectedと同じくカード静的なデータだけで判定する（BS13-015冥総裁ハーゲン：
+// 「自分のトラッシュにあるこのスピリットカードは、『自分のエンドステップ』に手札に戻る。」）
+export function isTrashReturnAtEndStep(cardId: string): boolean {
+    return card(cardId).effects.some((e) => e.kind === "trashReturnAtEndStep")
+}
+
 // インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 // （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
 // **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
@@ -301,7 +308,10 @@ export function cardHasColor(cardData: CardData, color: Color): boolean {
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
+// ⚠️ colorlessThisBattle（器S。BS13-011/015/052「色を無いものとして扱う」）が立っている間は、
+//    付与色も含めて常に無色（false）を返す
 export function instHasColor(inst: CardInstance, color: Color): boolean {
+    if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
@@ -309,7 +319,9 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 // （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+// colorlessThisBattle が立っている間は常に空配列（instHasColorと同じ扱い）
 export function instColors(inst: CardInstance): Color[] {
+    if (inst.colorlessThisBattle) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
@@ -502,16 +514,22 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：継続的な「シンボルを追加する」は
     // **固定値に対しても加算する**（symbolsOverrideContinuousが勝つ既存の規則は変えない。2026-09-04ユーザー確認）
     const added = inst.symbolsAddedContinuous?.length ?? 0
+    // extraSymbolsPermanent（kind:"addSymbolPermanent"。BS13初出）：トリガーで永続的に蓄積するシンボル。
+    // symbolsAddedContinuousと同じく固定値に対しても加算する
+    const addedPermanent = inst.extraSymbolsPermanent?.length ?? 0
+    // battleSymbolsAdded（kind:"bpBuff" thenAddSymbolThisBattle。BS13初出）：このバトルの間だけの追加シンボル。
+    // symbolsAddedContinuous/extraSymbolsPermanentと同じく固定値に対しても加算する
+    const addedBattle = inst.battleSymbolsAdded?.length ?? 0
     // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
     const lost = symbolLossCountOf(inst)
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added - lost
+        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
     }
     // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
     // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added - lost
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
 }
 
 // tempSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
@@ -547,6 +565,9 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // **バウンス待機中のカードのシンボルは軽減に使えない**（バトスピ Wiki「バウンスについて」）。
         // 破壊待機中は使えるので、そこだけ扱いが違う
         if (inst.pendingBounce) continue
+        // colorlessThisBattle（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
+        // （BS13-011/015/052。docs/design/BS13_PLAN.md §1 #10）
+        if (inst.colorlessThisBattle) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
         // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：固定・召喚軽減用の置き換えを受けていても
@@ -558,6 +579,8 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                     ? card(inst.cardId).symbol
                     : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])),
             ...(inst.symbolsAddedContinuous ?? []),
+            ...(inst.extraSymbolsPermanent ?? []),
+            ...(inst.battleSymbolsAdded ?? []),
         ]
         // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
         if (inst.tempSymbolLoss) {
@@ -728,7 +751,10 @@ export function continuousKeywordGrantCount(
             if (effect.kind !== "keywordGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
+            if (!effectActiveOn(source, effect, sourceLevel)) continue
+            // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
+            if (effect.combinedFilter && !instIsCombined(inst)) continue
             if (
                 effect.familyFilter &&
                 !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
@@ -1427,8 +1453,14 @@ export function effectiveBp(
     // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）：実効BPそのものを固定値へ上書きする。
     // 既存battleBpAsLevel（バトルのBP比較のときだけ）より広く、対象条件（「BP◯以下」）の判定にも効く
     if (inst.battleBpFixed !== undefined) return inst.battleBpFixed
+    // 継続的な「BPを◯として扱う」（器Q。BS13-X011）：効果文が「Lv1/Lv2/Lv3**BP**を12000として扱う」と
+    // 印刷BPを名指ししているので、**基礎BPだけを置き換える**（battleBpFixedのような全上書きではない）。
+    // このあとのBP+（ブレイヴの合体時BP+・オーラ・一時BP+）は通常どおり上に乗る
     // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
-    let total = currentLevel(inst).bp + braveBpBonus(board.players[ownerPid], inst)
+    // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるのは印刷BPのぶんだけ
+    const bpBuffsOnInst = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
+    const baseBp = inst.bpAsContinuous !== undefined ? inst.bpAsContinuous + bpBuffsOnInst : currentLevel(inst).bp
+    let total = baseBp + braveBpBonus(board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
@@ -1483,6 +1515,8 @@ export function matchesTarget(
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
+    // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
+    if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
     // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る
     // （instMatchesCostFilter。以前はcard本来のコストのみを見ており、汎用ターゲットフィルタ経由の
     // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
@@ -1654,6 +1688,8 @@ export function activeConstraintsWithSource(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
+            // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
+            if (effect.whileCombined === true && !instIsCombined(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
@@ -1852,6 +1888,15 @@ export function hasGlobalConstraint(
         }
     }
     return false
+}
+
+// 手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
+// pid は破棄しようとしている本人（両陣営に効く制約なので現状は参照しないが、片側限定の制約が
+// 増えたときのために引数を持たせてある）。手札破棄は約18種のアクションに散っているため、
+// 共通ヘルパー化はせず各ハンドラの先頭でこの述語を見て早期リターンする形にする
+export function canDiscardHand(board: Board, pid: PlayerId): boolean {
+    if (board.phase === "main" && hasGlobalConstraint(board, "noHandDiscardInMain")) return false
+    return true
 }
 // pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
 // 発生源の持ち主から見た相手だけに効くので、pid 以外のフィールドの発生源を見る
@@ -2443,12 +2488,16 @@ export const AWAKEN_FROM_RESERVE = "reserve"
 // 【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
 // 持ち主のフィールドにあるか。ディノゾールLv2が自分のスピリットすべての【覚醒】を書き換える）。
 // サーバー validateAwaken とクライアントの覚醒UIが共用する
-export function canAwakenFromReserve(board: Board, ownerPid: PlayerId): boolean {
+export function canAwakenFromReserve(board: Board, ownerPid: PlayerId, inst?: CardInstance): boolean {
     for (const source of effectSources(board, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "awakenFromReserve") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
+            // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
+            if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            return true
         }
     }
     return false
@@ -2578,6 +2627,15 @@ function activatableAbilityOf(
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
             if (host.cores < e.cost.selfCoresToTrash) continue
             return { effectId: e.id, costLabel: `このカードの上のコア${e.cost.selfCoresToTrash}個を払って効果を発動` }
+        }
+        if ("discardHandFamily" in e.cost) {
+            // 手札に指定系統のスピリットカードが無ければ発動できない（BS13-062光り輝く大銀河Lv2）
+            const wanted = Array.isArray(e.cost.discardHandFamily) ? e.cost.discardHandFamily : [e.cost.discardHandFamily]
+            const hasCard = (board.players[pid].hand ?? []).some(
+                (cardId) => card(cardId).type === "spirit" && wanted.some((f) => card(cardId).family.includes(f)),
+            )
+            if (!hasCard) continue
+            return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
         }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }

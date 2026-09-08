@@ -4473,7 +4473,6 @@
     "when": {
      "byOpponentEffect": true
     },
-    "fireDestroyTriggerFirst": true,
     "revived": {
      "toHand": true
     }

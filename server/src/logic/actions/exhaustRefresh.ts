@@ -19,6 +19,7 @@ import {
     pickEnemyCandidates,
     requestChoice,
     returnSpiritToDeckTop,
+    returnSpiritToHand,
     tryInteractiveTargetChoice,
     hasBofuChooserSelf,
     bofuCountFor,
@@ -606,6 +607,63 @@ const refreshSelfByDestroyFamilyHandler: ActionHandler<"refreshSelfByDestroyFami
         return
 }
 
+// refreshSelfByDestroyFamilyの「破壊」を「持ち主の手札に戻す」に差し替えた版（BS13-008恐竜王メガロ・ザウルLv2：
+// このスピリットがブロックされたとき、系統「地竜」1体を手札に戻すことで回復する）。
+// **何を犠牲にするかはプレイヤーが選ぶ**（COST_MODEL.md §2）。非対話は実効BP最小＝犠牲を最小化する簡略化
+const refreshSelfByReturnToHandFamilyHandler: ActionHandler<"refreshSelfByReturnToHandFamily"> = (ctx, action) => {
+    const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
+        if (!self) {
+            log(state, `${sourceName}：回復対象がいなかった。`)
+            return
+        }
+        const candidates = state.players[owner].field.spirits.filter(
+            (s) => s.instanceId !== self.instanceId && matchesFamilyFilter(state, owner, s, action.familyFilter),
+        )
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：手札に戻せる対象がいなかったため発動しなかった。`)
+            return
+        }
+        const applyTo = (target: CardInstance): void => {
+            const name = getCard(target.cardId).name
+            returnSpiritToHand(state, owner, target, sourceName)
+            if (!self.isRested) {
+                log(state, `${name}は手札に戻ったが、${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
+                return
+            }
+            refreshSpirit(state, owner, self, srcType)
+            log(state, `${name}は手札に戻り、${getCard(self.cardId).name}は回復した。`)
+        }
+        // 犠牲を選び終えて再入した経路（sacrificeChosen が無い targetInstanceId は誘発のイベント対象）
+        if (action.sacrificeChosen && targetInstanceId !== undefined) {
+            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
+            if (!chosen) {
+                log(state, `${sourceName}：手札に戻せる対象がいなかったため発動しなかった。`)
+                return
+            }
+            applyTo(chosen)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コストとして手札に戻すスピリットを選んでください`,
+                candidates,
+                { ...action, sacrificeChosen: true },
+                null,
+            )
+        ) {
+            return
+        }
+        applyTo(
+            candidates.reduce((worst, s) =>
+                effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+            ),
+        )
+        return
+}
+
 // BS08勇者フェニックスペンタンLv2-3（refreshSelfByDestroyFamilyの「破壊」を「デッキの一番上に戻す」に
 // 差し替えた版）。**何を犠牲にするかはプレイヤーが選ぶ**（COST_MODEL.md §2）。
 // 非対話は従来どおり実効BP最小＝犠牲を最小化する簡略化
@@ -1123,6 +1181,7 @@ const handlers = {
     refreshOne: refreshOneHandler,
     refreshAllByKeyword: refreshAllByKeywordHandler,
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,
+    refreshSelfByReturnToHandFamily: refreshSelfByReturnToHandFamilyHandler,
     refreshSelfByReturnToDeckTopName: refreshSelfByReturnToDeckTopNameHandler,
     refreshAllOwn: refreshAllOwnHandler,
     refreshAllOwnByFilter: refreshAllOwnByFilterHandler,

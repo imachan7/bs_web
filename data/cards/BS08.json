@@ -4159,8 +4159,10 @@
     "cardType": "spirit",
     "symbols": [
      "white",
+     "white",
      "white"
-    ]
+    ],
+    "replace": true
    }
   ]
  },

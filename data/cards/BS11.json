@@ -2126,7 +2126,8 @@
      3
     ],
     "action": {
-     "type": "handMagicToTegamotoDraw"
+     "type": "handMagicToTegamotoDraw",
+     "max": 3
     },
     "optional": true
    }
@@ -2515,6 +2516,9 @@
     ],
     "phase": "attack",
     "turn": "own",
+    "condition": {
+     "lastFunsaiHasSpirit": true
+    },
     "action": {
      "type": "voidCoreToOther",
      "count": 1
@@ -3944,6 +3948,17 @@
     }
    },
    {
+    "id": "BS11-065-e1b",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noHandDiscardInMain"
+    }
+   },
+   {
     "id": "BS11-065-e2",
     "kind": "fieldEvent",
     "event": "ownSpiritSummoned",
@@ -5274,6 +5289,21 @@
     "fromHandOnly": true,
     "action": {
      "type": "revealTopSummonFreeOrHand"
+    }
+   },
+   {
+    "id": "BS11-X05-e2",
+    "kind": "fieldEvent",
+    "event": "ownMagicUsed",
+    "levels": [
+     2,
+     3
+    ],
+    "paidCostOnly": true,
+    "magicFreeUseMaxPerTurn": 2,
+    "optional": true,
+    "action": {
+     "type": "magicFreeUseFromHandOrTegamoto"
     }
    }
   ]

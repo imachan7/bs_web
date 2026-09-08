@@ -161,6 +161,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         life: INITIAL_LIFE,
         reserve: INITIAL_RESERVE,
         trashCores: 0,
+        deckSideCores: 0,
         deck,
         hand,
         trashCards: [],
@@ -262,7 +263,7 @@ function boardFingerprint(state: GameState): string {
         parts.push(
             `${p.deck.length},${p.hand.length},${p.trashCards.length},${p.tegamoto.length}`,
             `${p.field.spirits.length},${p.field.nexuses.length}`,
-            `${p.life},${p.reserve},${p.trashCores}`,
+            `${p.life},${p.reserve},${p.trashCores},${p.deckSideCores}`,
             [...p.field.spirits, ...p.field.nexuses].map((i) => `${i.instanceId}:${i.cores}`).join("|"),
         )
     }
@@ -383,7 +384,11 @@ export function resumeTriggerBatch(
     frame: Extract<ResumeFrame, { kind: "triggerBatch" }>,
 ): void {
     const groups = [...frame.groups]
-    if (groups.length === 0) return
+    // 列を使い切った：あとに続くフレーム（破壊の確定など）があればここで積む
+    if (groups.length === 0) {
+        if (frame.after !== undefined) pushResumeFrames(state, [frame.after])
+        return
+    }
     let index = 0
     if (groups.length >= 2) {
         const pick = state.triggerOrderPick
@@ -409,7 +414,11 @@ export function resumeTriggerBatch(
     const picked = groups.splice(index, 1)[0]
     if (picked === undefined) return
     // 選ばれたグループ（中は元の順） → その後に残りのバッチ、の順で積む
-    const rest: ResumeFrame[] = groups.length > 0 ? [{ kind: "triggerBatch", askPid: frame.askPid, groups }] : []
+    // 残りが無くても after があるなら、バッチ自体を積み直して after を必ず通す
+    const rest: ResumeFrame[] =
+        groups.length > 0 || frame.after !== undefined
+            ? [{ kind: "triggerBatch", askPid: frame.askPid, groups, ...(frame.after !== undefined ? { after: frame.after } : {}) }]
+            : []
     pushResumeFrames(state, [...picked.frames, ...rest])
 }
 
@@ -443,6 +452,10 @@ export function clearBattle(state: GameState): void {
             if (inst.battleBpBuff) inst.battleBpBuff = 0
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
             delete inst.battleBpFixed
+            // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
+            delete inst.battleSymbolsAdded
+            // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
+            delete inst.colorlessThisBattle
         }
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
@@ -576,6 +589,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         life: player.life,
         reserve: player.reserve,
         trashCores: player.trashCores,
+        deckSideCores: player.deckSideCores,
         deckCount: player.deck.length,
         hand: isSelf ? [...player.hand] : null,
         handCount: player.hand.length,

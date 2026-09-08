@@ -565,6 +565,23 @@ const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, actio
         return
 }
 
+const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, action) => {
+    const { state, self, sourceName } = ctx
+    // BS13-003カメレオプス：本来のコストが7以上のスピリットカードを召喚するたび、自身に永続的にシンボルを追加する。
+    // symbolAddGrant（継続の再計算式）と異なりトリガーで蓄積するため、専用フィールドextraSymbolsPermanentへ加算する
+    if (!self) {
+        log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
+        return
+    }
+    if (!self.extraSymbolsPermanent) self.extraSymbolsPermanent = []
+    for (let i = 0; i < action.count; i++) self.extraSymbolsPermanent.push(action.color)
+    log(
+        state,
+        `${sourceName}：${getCard(self.cardId).name}に${COLOR_LABELS[action.color]}のシンボル${action.count}個を追加した。`,
+    )
+    return
+}
+
 const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ユーサネイジア：このターンの間、相手のスピリットの指定トリガーを発揮させない
@@ -1289,6 +1306,7 @@ const handlers = {
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
+    addSymbolPermanent: addSymbolPermanentHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,

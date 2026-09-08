@@ -14,7 +14,7 @@ import {
 } from "./GameState"
 import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { battleSwapSummonCheck, braveCombineCandidates, isSummonableCardType } from "../../../shared/summon"
+import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -152,7 +152,7 @@ export function validateSummon(
         if (card.type !== "brave") return "ブレイヴカードではありません"
         const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
-        if ((host.braveRefs ?? []).length > 0) return "そのスピリットには既にブレイヴが合体しています"
+        if ((host.braveRefs ?? []).length >= combineLimitFor(state, pid, host)) return "そのスピリットには既にブレイヴが合体しています"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
         if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"
@@ -707,6 +707,10 @@ export function validateDetachBrave(
     // 異魔神ブレイヴ（実体1つ・参照2本）は片方だけ外す形が未確定なので、当面は対象外にする（§11.6）
     const hosts = player.field.spirits.filter((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === braveInstanceId))
     if (hosts.length !== 1) return "このブレイヴは分離できません"
+    // BS13-005強暴竜ディラノ・レックス：【超覚醒】を持つ自分の合体スピリットすべては分離できない
+    if (activeConstraints(state, pid, hosts[0]!).some((c) => c.type === "cantSeparate")) {
+        return "この合体スピリットは分離できません"
+    }
     // BS11-X02 Lv3：相手はブレイヴをスピリット状態にできない（分離した先がスピリット状態になる）
     if (cantSpiritStateBrave(state, pid)) return "相手の効果により、ブレイヴをスピリット状態にできません"
     return validatePaySources(state, pid, braveKeepCores(brave), paySources)
@@ -766,7 +770,7 @@ export function validateAwaken(
     // ディノゾールLv2：【覚醒】の効果が「自分のスピリット上か自分のリザーブから」に書き換わっている間だけ、
     // リザーブを移動元にできる（番兵 AWAKEN_FROM_RESERVE）
     if (fromInstanceId === AWAKEN_FROM_RESERVE) {
-        if (!canAwakenFromReserve(state, pid)) {
+        if (!canAwakenFromReserve(state, pid, target)) {
             return "リザーブから【覚醒】できる効果がありません"
         }
         if (player.reserve < count) return "リザーブのコアが足りません"
@@ -858,6 +862,15 @@ export function validateActivateAbility(
         } else if ("selfCoresToTrash" in effect.cost) {
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
             if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
+        } else if ("discardHandFamily" in effect.cost) {
+            // 手札に指定系統のスピリットカードが無ければ発動できない（BS13-062光り輝く大銀河Lv2）
+            const wanted = Array.isArray(effect.cost.discardHandFamily)
+                ? effect.cost.discardHandFamily
+                : [effect.cost.discardHandFamily]
+            const hasCard = state.players[pid].hand.some(
+                (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
+            )
+            if (!hasCard) return "破棄できるカードが手札にありません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }

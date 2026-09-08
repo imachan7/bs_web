@@ -1,7 +1,7 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, EffectAction } from "../../type"
+import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     attachBrave,
@@ -18,6 +18,7 @@ import {
     emitEvent,
     findSpiritAny,
     matchesFamilyFilter,
+    fireCombinedAttackTrigger,
     fireFieldEventTriggers,
     fireSummonSequence,
     fireSummonTrigger,
@@ -34,7 +35,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -663,6 +664,11 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             if (action.thenDraw && !state.winner && player.hand.length < beforeHandLen) {
                 draw(state, owner, action.thenDraw)
             }
+            // thenRefreshCombinedHost（BS13-073バーニングサン）：実際に合体できたときだけ合体先を回復させる
+            if (action.thenRefreshCombinedHost && combineTargetInstanceId !== undefined && !state.winner) {
+                const host = player.field.spirits.find((sp) => sp.instanceId === combineTargetInstanceId)
+                if (host) refreshSpirit(state, owner, host, srcType)
+            }
         }
         const resolveBraveSummon = (handIndex: number): void => {
             const cardId = player.hand[handIndex]
@@ -670,7 +676,35 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             }
-            const combineCandidates = braveCombineCandidates(state, owner, cardId)
+            let combineCandidates = braveCombineCandidates(state, owner, cardId)
+            // combineNameIncludes（BS13-073バーニングサン）：合体先をカード名で絞る。
+            // 「直接合体するように召喚し」＝合体が必須なので、候補が無ければこのカードは召喚しない
+            if (action.combineNameIncludes !== undefined) {
+                const wantedName = action.combineNameIncludes
+                combineCandidates = combineCandidates.filter((id) => {
+                    const sp = player.field.spirits.find((s) => s.instanceId === id)
+                    return sp !== undefined && cardNameContains(sp, wantedName)
+                })
+                if (combineCandidates.length === 0) {
+                    log(state, `${sourceName}：合体させられるスピリットがいなかった。`)
+                    return
+                }
+                if (state.interactiveTargets && combineCandidates.length >= 2) {
+                    const { combineHandIndex: _resumeIdx2, ...restForNamedCombine } = action
+                    suspend(state, {
+                        pid: owner,
+                        kind: "target",
+                        prompt: `${sourceName}：${getCard(cardId).name}を合体させるスピリットを選んでください`,
+                        candidates: combineCandidates,
+                        optional: false,
+                        action: { ...restForNamedCombine, combineHandIndex: handIndex },
+                        selfInstanceId: self ? self.instanceId : null,
+                    })
+                    return
+                }
+                finishBraveSummon(handIndex, combineCandidates[0])
+                return
+            }
             // spiritStateOnly（BS12-005星角獣ユニゴーント）：合体先を選ばせず、必ずスピリット状態で出す
             if (action.spiritStateOnly) {
                 finishBraveSummon(handIndex)
@@ -883,6 +917,73 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
                 return
             }
+        }
+        // costDestroySelfAndCostFilter：**このスピリット自身**と、コストがmin以上の自分のスピリット1体の
+        // 両方を破壊することがコスト（BS13-004フォボス・ドラグーンLv3：バトル終了時、自身とコスト3以上の
+        // 自分のスピリット1体を破壊することで系統「神星」を手札から無償召喚）。
+        // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする（破壊できる相手がいない／
+        // 召喚できる手札が無ければどちらも発動しない＝selfも破壊されない）
+        if (
+            action.costDestroySelfAndCostFilter !== undefined &&
+            chosenCardIndex === undefined &&
+            !action.costSacrificeChosen
+        ) {
+            if (!self) {
+                log(state, `${sourceName}：コストとして破壊する自分自身がいなかった。`)
+                return
+            }
+            if (!player.hand.some(matchesCardId)) {
+                log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
+                return
+            }
+            const min = action.costDestroySelfAndCostFilter.min
+            const sacrifices = player.field.spirits.filter(
+                (s) => s.instanceId !== self.instanceId && instBaseCost(s) >= min,
+            )
+            if (sacrifices.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            const { costDestroySelfAndCostFilter: _paidSac, costSacrificeChosen: _flagSac, ...restSac } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(
+                    state,
+                    `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(chosen.cardId).name}を破壊した。`,
+                )
+                destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
+                ctx.resolve(restSac)
+                return
+            }
+            // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
+            if (state.interactiveTargets && sacrifices.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    sacrifices.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
+            let victim = sacrifices[0]!
+            for (const s of sacrifices) {
+                if (instBaseCost(s) < instBaseCost(victim)) victim = s
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(victim.cardId).name}を破壊した。`,
+            )
+            destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
         }
         // costDestroyOwnSpiritSameCost：自分のスピリット1体を破壊することがコストで、
         // 破壊したスピリットと**同じコスト**のブレイヴカードだけが召喚候補になる（BS10-096最後の優勝旗）。
@@ -1133,10 +1234,27 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             }
             return true
         }
-        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定）
+        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定／召喚時効果の抑止）
         const trashSummonOpts = {
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+            ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
+        }
+        // costReserveCoreToTrash（BS13-075スネイクスレイヴ）：自分のリザーブのコア1個を自分のトラッシュに
+        // 置くことがコスト。「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する
+        // （COST_MODEL.md §1）ので、コアを1個引いた残りリザーブでも召喚できる候補が無ければ払わない
+        if (action.costReserveCoreToTrash) {
+            const affordableAfterCost = player.trashCards.some((cardId) => {
+                if (!matchesCardId(cardId)) return false
+                return minLevelCores(getCard(cardId)) <= player.reserve - 1
+            })
+            if (player.reserve < 1 || !affordableAfterCost) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            player.reserve -= 1
+            player.trashCores += 1
+            log(state, `${player.name}は${sourceName}のコストとして、リザーブのコア1個を自分のトラッシュに置いた。`)
         }
         // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
         // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
@@ -1349,6 +1467,58 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const player = state.players[owner]
 
+    // hostSelf：合体先を発生源自身に固定する（BS13-007豹竜パンドランサー：「自分のスピリット状態の
+    // ブレイヴ1体と合体できる」）。host選択を省き、発生源に合体できるブレイヴだけを選ばせる
+    if (action.hostSelf) {
+        if (!self) {
+            log(state, `${sourceName}：合体先がいなかった。`)
+            return
+        }
+        if (
+            (self.braveRefs ?? []).length > 0 ||
+            activeConstraints(state, owner, self).some((c) => c.type === "cantCombine")
+        ) {
+            log(state, `${sourceName}：合体できないため発動しなかった。`)
+            return
+        }
+        const braves = player.field.spirits.filter(
+            (sp) =>
+                getCard(sp.cardId).type === "brave" &&
+                // 発生源自身は合体先であって合体するブレイヴではない（自分自身とは合体できない）
+                sp.instanceId !== self.instanceId &&
+                // 既に他のブレイヴが合体している「塊」は、さらに別のブレイヴを合体させられない
+                // （実体の入れ子を2段で止める。docs/design/BRAVE.md §12。2026-09-08ユーザー確認）
+                (sp.braveRefs ?? []).length === 0 &&
+                matchesBraveCondition(state, owner, self, sp.cardId),
+        )
+        if (braves.length === 0) {
+            log(state, `${sourceName}：合体できるスピリット状態のブレイヴがいなかった。`)
+            return
+        }
+        const brave =
+            (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ??
+            (state.interactiveTargets && braves.length >= 2
+                ? undefined
+                : braves[0]!)
+        if (!brave) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：合体させるブレイヴを選んでください`,
+                braves.map((b) => b.instanceId),
+                false,
+                action,
+                self,
+            )
+            return
+        }
+        attachBrave(state, owner, self, brave)
+        if (action.thenFireWhileCombinedTrigger && !state.pendingChoice) {
+            fireCombinedAttackTrigger(state, owner, self, action.thenFireWhileCombinedTrigger)
+        }
+        return
+    }
+
     // 合体先の選択から再開（ブレイヴは既に選んである）
     if (action.chosenBraveInstanceId !== undefined) {
         const brave = player.field.spirits.find((sp) => sp.instanceId === action.chosenBraveInstanceId)
@@ -1382,7 +1552,9 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
         return
     }
     const brave = (targetInstanceId !== undefined ? braves.find((b) => b.instanceId === targetInstanceId) : undefined) ?? braves[0]!
-    const hosts = braveCombineCandidates(state, owner, brave.cardId)
+    // スピリット状態のブレイヴは他のブレイヴの合体先にもなれる（BS13-049イリテバン）ので、
+    // 候補には自分自身が混ざる。自分自身とは合体できないので外す
+    const hosts = braveCombineCandidates(state, owner, brave.cardId).filter((id) => id !== brave.instanceId)
     if (state.interactiveTargets && hosts.length >= 2) {
         requestChoice(
             state,
@@ -1401,6 +1573,125 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
         return
     }
     attachBrave(state, owner, host, brave)
+}
+
+// 器G：自分のスピリット状態のブレイヴ／自分の合体スピリットのブレイヴ（発生源自身を含む）が持つ
+// 『このスピリットの合体アタック時』（kind:"triggered" trigger:"onAttack" whileCombined:true）効果を
+// 1つ選んで、発生源自身（self＝合体スピリット）の効果として発揮する（BS13-049イリテバン【合体時】）。
+// 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
+// （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
+const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (!self) {
+        log(state, `${sourceName}：発揮する対象がいなかった。`)
+        return
+    }
+    const player = state.players[owner]
+    const level = currentLevel(self).level
+    type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
+    const candidates: Candidate[] = []
+    const collect = (inst: CardInstance): void => {
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "triggered" || effect.trigger !== "onAttack" || effect.whileCombined !== true) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            candidates.push({ inst, effect })
+        }
+    }
+    // 自分のスピリット状態のブレイヴ
+    for (const sp of player.field.spirits) {
+        if (getCard(sp.cardId).type === "brave") collect(sp)
+    }
+    // 自分の合体スピリットのブレイヴ（発生源自身が合体しているホストも含むため、
+    // イリテバン自身がここで拾われる＝2026-09-07 ユーザー確認）
+    for (const host of player.field.spirits) {
+        for (const brave of bravesOf(player, host)) collect(brave)
+    }
+    // 「自身を選ぶ」＝候補の中に、この借用アクション自身と同じ種類（type:"borrowCombinedAttackEffect"）の
+    // エントリを持つカードが含まれる場合（イリテバン自身がこの効果のエントリを持つため候補に入る）。
+    // 選ぶと同じ効果がもう1回発揮される（2026-09-08ユーザー確認）が、**2回まで**で止める
+    // （再帰的にまた自身を選べてしまうと無限に連鎖するため。BS13-049）
+    const isSelfBorrow = (c: Candidate): boolean => c.effect.action.type === "borrowCombinedAttackEffect"
+    const effectiveCandidates = self.borrowedAttackEffectOnce
+        ? candidates.filter((c) => !isSelfBorrow(c))
+        : candidates
+    if (effectiveCandidates.length === 0) {
+        log(state, `${sourceName}：借りられる『合体アタック時』効果がなかった。`)
+        return
+    }
+    const fire = (chosen: Candidate): void => {
+        log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
+        const wasSelfBorrow = isSelfBorrow(chosen)
+        if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
+        resolveAction(state, owner, self, chosen.effect.action)
+        if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
+    }
+    if (targetInstanceId !== undefined) {
+        const chosen = effectiveCandidates.find((c) => c.inst.instanceId === targetInstanceId)
+        if (!chosen) return
+        fire(chosen)
+        return
+    }
+    const uniqueIds = [...new Set(effectiveCandidates.map((c) => c.inst.instanceId))]
+    if (state.interactiveTargets && uniqueIds.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：借りる『合体アタック時』効果を選んでください`,
+            uniqueIds,
+            false,
+            { type: "borrowCombinedAttackEffect" },
+            self,
+        )
+        return
+    }
+    fire(effectiveCandidates[0]!)
+}
+
+// 器V：自分のスピリット1体が持つ『このスピリットの破壊時』効果を、そのスピリット自身を破壊させずに
+// そのスピリット自身の効果として発揮させる（BS13-052イビルグライダー）。BS13-049の借用（器G）と違い、
+// 「このスピリット」＝借り元自身を指す（docs/design/BS13_PLAN.md §1 #12）ので、resolveActionへ渡す
+// self は借り元のインスタンス（発生源であるブレイヴ自身ではない）。候補は借り元自身の現在Lvで判定する
+const borrowDestroyEffectHandler: ActionHandler<"borrowDestroyEffect"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+    type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
+    const candidates: Candidate[] = []
+    for (const sp of player.field.spirits) {
+        const level = currentLevel(sp).level
+        for (const effect of getCard(sp.cardId).effects) {
+            if (effect.kind !== "triggered" || effect.trigger !== "onDestroy") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            candidates.push({ inst: sp, effect })
+        }
+    }
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：借りられる『破壊時』効果がなかった。`)
+        return
+    }
+    const fire = (chosen: Candidate): void => {
+        log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の『破壊時』効果を、破壊させずに発揮させた。`)
+        resolveAction(state, owner, chosen.inst, chosen.effect.action)
+    }
+    if (targetInstanceId !== undefined) {
+        const chosen = candidates.find((c) => c.inst.instanceId === targetInstanceId)
+        if (!chosen) return
+        fire(chosen)
+        return
+    }
+    const uniqueIds = [...new Set(candidates.map((c) => c.inst.instanceId))]
+    if (state.interactiveTargets && uniqueIds.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：借りる『破壊時』効果を選んでください`,
+            uniqueIds,
+            false,
+            { type: "borrowDestroyEffect" },
+            null,
+        )
+        return
+    }
+    fire(candidates[0]!)
 }
 
 // 相手のスピリット/ブレイヴ/ネクサスのどれか1つを破壊する／手札に戻す（BS11-056／BS11-X01 Lv3）。
@@ -1876,6 +2167,8 @@ const handlers = {
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
+    borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
+    borrowDestroyEffect: borrowDestroyEffectHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,

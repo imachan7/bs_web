@@ -42,7 +42,7 @@ import {
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { KEYWORDS, OPPONENT_RESERVE_TARGET, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
+import { KEYWORDS, OPPONENT_RESERVE_TARGET, canDiscardHand, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
@@ -50,7 +50,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
-        if (count === 0) {
+        if (count === 0 && !action.all) {
             log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
             return
         }
@@ -103,9 +103,10 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
             return
         }
+        // all指定時はcountを無視し、対象上のコアすべてを取り除く（BS13-X02蛇皇神帝アスクレピオーズLv3）
         // leaveAtLeast指定時は、対象のコアがこの数を下回らないところまでに抑える
         // （BS04王蛇の住処Lv2：この効果では相手のスピリット上のコアを0個にできない）
-        let removeCount = count
+        let removeCount = action.all ? found.inst.cores : count
         if (action.leaveAtLeast !== undefined) {
             removeCount = Math.min(removeCount, Math.max(0, found.inst.cores - action.leaveAtLeast))
             if (removeCount === 0) {
@@ -582,6 +583,19 @@ const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
             `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
         )
         return
+}
+
+// ボイドからコアを持ち主の「デッキの横」へ置く（BS12-078 カシオペアシール）。
+// デッキ横はどのゾーンにも属さないので、コストの支払いにもコア移動にも使えない
+// （効果文の「このコアは、この効果以外に使用することはできない」）。
+// ボイドは残量を持たない無限の供給源なので、ボイド側から引く処理は無い。
+// 減らすのは PhaseManager のエンドステップ（1個ずつ）
+const voidCoreToDeckSideHandler: ActionHandler<"voidCoreToDeckSide"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (action.count <= 0) return
+    const player = state.players[owner]
+    player.deckSideCores += action.count
+    log(state, `${sourceName}：ボイドからコア${action.count}個をデッキの横に置いた。`)
 }
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
@@ -1556,6 +1570,11 @@ const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx,
 
 const coreRemovePerHandDiscardHandler: ActionHandler<"coreRemovePerHandDiscard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
         // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体
         // （実効BP最大を自動選択。同一解決内で既に選んだ個体は除外して異なる個体へ広げる）の
         // コアを1個、相手のトラッシュへ置く（王蛇ケツァルカトル／ダンスマカブル）
@@ -2573,6 +2592,7 @@ const handlers = {
     coreGain: coreGainHandler,
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreGainPer: coreGainPerHandler,
+    voidCoreToDeckSide: voidCoreToDeckSideHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
     voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,

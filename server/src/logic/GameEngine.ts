@@ -20,7 +20,7 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, destroyTargetsBatch, resolveDestroyOne, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
@@ -1306,6 +1306,27 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このカードの上のコア${n}個をトラッシュ）`,
         )
+    } else if ("discardHandFamily" in effect.cost) {
+        // 手札の指定系統のスピリットカード1枚を破棄する（BS13-062光り輝く大銀河Lv2）。
+        // 候補2枚以上なら実対戦では持ち主が選ぶ（COST_MODEL.md §2）。ここは非対話（AI・テスト）の
+        // 決定的簡略化として、コスト最大の1枚を自動選択する（validateActivateが手札の存在を保証済み）
+        const wanted = Array.isArray(effect.cost.discardHandFamily)
+            ? effect.cost.discardHandFamily
+            : [effect.cost.discardHandFamily]
+        const indices = player.hand
+            .map((_, i) => i)
+            .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
     } else {
         const n = effect.cost.reserveToTrash
         player.reserve -= n
@@ -1478,19 +1499,6 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}：【不死】で召喚しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 1体の破壊に対して同時に発揮する効果（「フィールドに残る」と【不死】）の解決順。
-    // action は解決せず、選ばれた側を記録して破壊バッチの再開へ戻す（TIMING_CHART.md §0-3）
-    if (pending.destroyEffectOrder) {
-        const options = pending.options ?? []
-        if (option === undefined) return "どちらを先に解決するか選んでください"
-        const index = options.indexOf(option)
-        const picked = pending.destroyEffectOrder.slots[index]
-        if (index < 0 || picked === undefined) return "選択できない候補です"
-        state.pendingChoice = null
-        state.destroyEffectOrderPick = picked
         return finishChoiceResolution(state, pending.pid)
     }
 
@@ -1736,11 +1744,6 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             resumeDestroyCommit(state, frame)
             continue
         }
-        if (frame.kind === "destroyOne") {
-            // 1体の破壊に伴う同時発揮（「フィールドに残る」と【不死】）の続きを回す
-            resolveDestroyOne(state, frame)
-            continue
-        }
         if (frame.kind === "bounceFlush") {
             // バウンス待機から実際に戻したあとの誘発が中断していた。残りの体ぶんを続ける
             fireBounceTriggers(state, frame.moved, frame.index)
@@ -1754,6 +1757,13 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "triggerBatch") {
             resumeTriggerBatch(state, frame)
             continue
+        }
+        // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
+        // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
+        // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
+        if (frame.requiresPendingDestructionOf !== undefined) {
+            const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
+            if (target == null || target.pendingDestruction !== true) continue
         }
         // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
         if (frame.logText !== undefined) log(state, frame.logText)
@@ -2293,7 +2303,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd")
+                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker")
                 // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
                 // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
                 if (instIsCombined(survivingAttacker)) {
@@ -2313,7 +2323,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) {
-                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd")
+                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker")
                 if (instIsCombined(survivingBlocker)) {
                     fireFieldEventTriggers(
                         state,

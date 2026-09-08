@@ -5061,6 +5061,15 @@
         }
       },
       {
+        "id": "BS12-078-e1b",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "voidCoreToDeckSide",
+          "count": 5
+        }
+      },
+      {
         "id": "BS12-078-e2",
         "kind": "magic",
         "timing": "flash",

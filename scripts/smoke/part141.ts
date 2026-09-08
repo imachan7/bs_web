@@ -268,8 +268,13 @@ console.log("=== BS07 紫：デッキを1枚破棄し、紫のスピリットな
 
 console.log("=== BS07 紫：相手の効果で破壊されたとき、破壊時効果を発揮してから手札に戻る（ブラックリチュアル） ===")
 {
+    // 『破壊時』を先に発揮するのは 2026-09-08 以降**すべての「フィールドに残る／戻る」の既定**なので、
+    // かつての fireDestroyTriggerFirst 軸は消した（TIMING_CHART.md）。ここは手札へ戻す版で観測する
     const ritual = findByEffect(
-        (e) => e["kind"] === "reviveOnDestroy" && e["fireDestroyTriggerFirst"] === true,
+        (e) =>
+            e["kind"] === "reviveOnDestroy" &&
+            (e["revived"] as Record<string, unknown> | undefined)?.["toHand"] === true &&
+            (e["when"] as Record<string, unknown> | undefined)?.["byOpponentEffect"] === true,
     )
     // 『破壊時』効果を持つ自分のスピリット（効果が発揮されたことを観測する）
     const withTrigger = findByEffect(

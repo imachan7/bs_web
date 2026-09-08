@@ -12,6 +12,8 @@ import {
     destroySpirit,
     destroySpiritsFrom,
     destroyTargetsBatch,
+    applyReviveEntry,
+    fushiSummonOrConfirm,
     applyDestroyBatchAfter,
     fireTrigger,
     findSpiritAny,
@@ -97,6 +99,49 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
         const filter = normalizeFilter(ctx, action)
+        // costDestroyOwnSpirit：自分のスピリット1体を破壊することがコスト（BS13-051ズガネーク）。
+        // 「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する（COST_MODEL.md §1）ので、
+        // 対象条件を満たす相手のスピリットが1体もいなければコストも払わない。
+        // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。coreGain.costDestroyOwnSpiritと同じ考え方）
+        if (action.costDestroyOwnSpirit && filter !== SELF_REQUIRED) {
+            const player = state.players[owner]
+            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+            if (!hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            const candidates = player.field.spirits
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            const { costDestroyOwnSpirit: _cdos, costSacrificeChosen: _csc, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
             return
@@ -157,7 +202,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
         // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
-        const resolvedCount = action.countPerOpponentTrashMagicColors
+        const resolvedCount = action.countCounter !== undefined
+            ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+            : action.countPerOpponentTrashMagicColors
             ? distinctOpponentTrashMagicColors(state, opp)
             : action.count
         if (resolvedCount === 0) {
@@ -909,8 +956,15 @@ function budgetToggleDestroy(
 // destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
 const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）
-        let remaining = action.budgetFromSelfBp && self ? effectiveBp(state, owner, self) : (action.budget ?? 0)
+        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）。
+        // budgetFromFamilyBpSum（BS13-008恐竜王メガロ・ザウル）：予算は指定系統を持つ自分のスピリットの実効BP合計
+        let remaining = action.budgetFromSelfBp && self
+            ? effectiveBp(state, owner, self)
+            : action.budgetFromFamilyBpSum !== undefined
+                ? state.players[owner].field.spirits
+                    .filter((s) => matchesFamilyFilter(state, owner, s, action.budgetFromFamilyBpSum!))
+                    .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
+                : (action.budget ?? 0)
         const budgetForLog = remaining
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
         if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp))) return
@@ -1761,7 +1815,38 @@ const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle
     )
 }
 
+// 破壊で誘発した効果を1列に並べたときの、「破壊されたカード自身の『破壊時』ぜんぶ」1グループ分。
+// 同じカードの複数エントリはテキスト順で解決する（＝同時発揮ではない。TIMING_CHART.md §0-3 の粒度）
+const resolveOwnDestroyTriggersHandler: ActionHandler<"resolveOwnDestroyTriggers"> = (ctx, action) => {
+    const { state } = ctx
+    const found = findSpiritAny(state, action.instanceId)
+    // 列に並べたあとで場から消えた／破壊が無かったことになった個体は発揮しない
+    if (!found || found.inst.pendingDestruction !== true) return
+    fireTrigger(state, found.pid, found.inst, "onDestroy", undefined, undefined, undefined, action.byOpponent === true)
+}
+
+// 同じ列の「フィールドに残る／戻る」1グループ分。適用できたらその破壊は無かったことになり、
+// 列に残っている項目は requiresPendingDestructionOf のガードで空振りする
+const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx, action) => {
+    const { state } = ctx
+    const found = findSpiritAny(state, action.instanceId)
+    if (!found || found.inst.pendingDestruction !== true) return
+    applyReviveEntry(state, found.pid, found.inst, action.effectId, found.inst.pendingDestroyContext)
+}
+
+// 同じ列の【不死】1枚分。トラッシュの位置ではなくカードIDで引き直す
+// （先に別の【不死】が召喚されているとトラッシュがずれるため）
+const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, action) => {
+    const { state } = ctx
+    const trashIndex = state.players[action.pid].trashCards.indexOf(action.cardId)
+    if (trashIndex < 0) return
+    fushiSummonOrConfirm(state, action.pid, trashIndex)
+}
+
 const handlers = {
+    resolveFushiSummon: resolveFushiSummonHandler,
+    resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
+    applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroyOnePerCost: destroyOnePerCostHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,

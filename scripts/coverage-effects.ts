@@ -552,12 +552,18 @@ const __covEid = (e: unknown): string =>
     patch(
         f,
         `            if (effect.kind !== "awakenFromReserve") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true`,
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
+            // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
+            if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            return true`,
         `            if (effect.kind !== "awakenFromReserve") continue
-            if (effectActiveAtLevel(effect.levels, level)) {
-                __covRec2("cont\\t" + __covEid(effect))
-                return true
-            }`,
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
+            // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
+            if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
     )
     // flashLockWhileAttackingFamily（BS07ウィリアンスラッシュ）：フラッシュ封印が成立した時点
     patch(
