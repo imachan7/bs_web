@@ -50,7 +50,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
-        if (count === 0) {
+        if (count === 0 && !action.all) {
             log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
             return
         }
@@ -103,9 +103,10 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
             return
         }
+        // all指定時はcountを無視し、対象上のコアすべてを取り除く（BS13-X02蛇皇神帝アスクレピオーズLv3）
         // leaveAtLeast指定時は、対象のコアがこの数を下回らないところまでに抑える
         // （BS04王蛇の住処Lv2：この効果では相手のスピリット上のコアを0個にできない）
-        let removeCount = count
+        let removeCount = action.all ? found.inst.cores : count
         if (action.leaveAtLeast !== undefined) {
             removeCount = Math.min(removeCount, Math.max(0, found.inst.cores - action.leaveAtLeast))
             if (removeCount === 0) {

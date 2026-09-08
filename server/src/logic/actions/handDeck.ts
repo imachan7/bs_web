@@ -41,7 +41,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -51,7 +51,49 @@ const noopHandler: ActionHandler<"noop"> = () => {
 }
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType } = ctx
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+        // costDestroyOwnFamily（BS13-X02蛇皇神帝アスクレピオーズ）：指定系統の自分のスピリット1体を
+        // 破壊することがコスト。破壊できる対象がいなければ不発（COST_MODEL.md §1）。
+        // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。summonFromHandFreeと同じ考え方）
+        if (action.costDestroyOwnFamily !== undefined) {
+            const player = state.players[owner]
+            const sacrifices = player.field.spirits.filter((s) =>
+                matchesFamilyFilter(state, owner, s, action.costDestroyOwnFamily!),
+            )
+            if (sacrifices.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            const { costDestroyOwnFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
+                destroySpirit(state, owner, chosen.instanceId, "destroy", undefined)
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && sacrifices.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    sacrifices.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            const victim = sacrifices[0]!
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", undefined)
+            ctx.resolve(rest)
+            return
+        }
         // costSkipCoreStep：「ボイドからコアを自分のリザーブに置かないことで」＝そのコアステップの
         // コア置きを支払いに使う（step.beforeStepAction と対。BS10-087戦場に息づく命）。
         // コア置き区間がこのフラグを見て置かずに進む
@@ -203,6 +245,16 @@ const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => 
 
 const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // countAttackerSymbols（BS13-064蛇教徒の宮殿Lv2）：countを無視し、targetInstanceIdが指す
+        // スピリット（fieldEvent event:"ownLifeDamaged"が渡すアタッカー）のシンボル数を破棄枚数として使う。
+        // 一度だけ解決し、countAttackerSymbolsを落としたactionへ入り直す（他のcountCounter系と同じ考え方）
+        if (action.countAttackerSymbols) {
+            const attacker = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
+            const resolvedCount = attacker ? instanceSymbolCount(attacker.inst) : 0
+            const { countAttackerSymbols: _cas, ...rest } = action
+            ctx.resolve({ ...rest, count: resolvedCount })
+            return
+        }
         // interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPid指定時＝
         // 選択式の再突入呼び出し。選択者=破棄される相手本人のため、pendingChoice解決時に
         // resolveActionへ渡るowner引数は常にpending.pid（=破棄される側）になり、
@@ -1361,9 +1413,11 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             return wanted.some((f) => getCard(cardId).family.includes(f))
         }
         // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
-        // カード静的なキーワード保有（hasKeyword）で判定する
+        // カード静的なキーワード保有（hasKeyword）で判定する。
+        // keywordFilterAny（BS13-015冥総裁ハーゲン＝【呪撃】/【不死】）はいずれか1つ持てばよいOR判定
         const keywordOk = (cardId: string): boolean =>
-            action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)
+            (action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)) &&
+            (action.keywordFilterAny === undefined || action.keywordFilterAny.some((kw) => hasKeyword(cardId, kw)))
         // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
         // カード静的な名前（cardId基準。trashNameAsによる別名も一致する）で判定する
         const nameOk = (cardId: string): boolean =>
@@ -2789,9 +2843,12 @@ const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywo
     }
     // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有・種別で判定する。
     // cardType 省略時はスピリットカード（従来どおり）
-    const eligible = (cardId: string): boolean =>
-        getCard(cardId).type === (action.cardType ?? "spirit") &&
-        (action.keyword === undefined || hasKeyword(cardId, action.keyword))
+    const eligible = (cardId: string): boolean => {
+        if (getCard(cardId).type !== (action.cardType ?? "spirit")) return false
+        if (action.keyword === undefined) return true
+        const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
+        return wanted.some((kw) => hasKeyword(cardId, kw))
+    }
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
         if (cardId === undefined || !eligible(cardId)) {
@@ -2808,7 +2865,7 @@ const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywo
     if (indices.length === 0) {
         const what =
             action.keyword !== undefined
-                ? `【${KEYWORDS[action.keyword].label}】を持つ${action.cardType ?? "スピリット"}カード`
+                ? `【${(Array.isArray(action.keyword) ? action.keyword : [action.keyword]).map((kw) => KEYWORDS[kw].label).join("】/【")}】を持つ${action.cardType ?? "スピリット"}カード`
                 : `${action.cardType === "nexus" ? "ネクサス" : action.cardType === "magic" ? "マジック" : "スピリット"}カード`
         log(state, `${sourceName}：${what}が手札になく、発動しなかった。`)
         return

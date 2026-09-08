@@ -135,6 +135,13 @@ export function isTrashCardProtected(cardId: string): boolean {
     return card(cardId).effects.some((e) => e.kind === "trashImmunity")
 }
 
+// トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
+// isTrashCardProtectedと同じくカード静的なデータだけで判定する（BS13-015冥総裁ハーゲン：
+// 「自分のトラッシュにあるこのスピリットカードは、『自分のエンドステップ』に手札に戻る。」）
+export function isTrashReturnAtEndStep(cardId: string): boolean {
+    return card(cardId).effects.some((e) => e.kind === "trashReturnAtEndStep")
+}
+
 // インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 // （kind:"vanillaAsGrant"。refreshLevelAsOverrides が CardInstance.treatedAsVanillaContinuous を都度再構築する）。
 // **場のインスタンスを判定するときは必ずこちらを使う**（isVanillaCard を直接呼ぶと付与が無言で無視される）
@@ -301,7 +308,10 @@ export function cardHasColor(cardData: CardData, color: Color): boolean {
 
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
+// ⚠️ colorlessThisBattle（器S。BS13-011/015/052「色を無いものとして扱う」）が立っている間は、
+//    付与色も含めて常に無色（false）を返す
 export function instHasColor(inst: CardInstance, color: Color): boolean {
+    if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.tempColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
@@ -309,7 +319,9 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 // （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+// colorlessThisBattle が立っている間は常に空配列（instHasColorと同じ扱い）
 export function instColors(inst: CardInstance): Color[] {
+    if (inst.colorlessThisBattle) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
     for (const c of inst.tempColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
@@ -553,6 +565,9 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // **バウンス待機中のカードのシンボルは軽減に使えない**（バトスピ Wiki「バウンスについて」）。
         // 破壊待機中は使えるので、そこだけ扱いが違う
         if (inst.pendingBounce) continue
+        // colorlessThisBattle（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
+        // （BS13-011/015/052。docs/design/BS13_PLAN.md §1 #10）
+        if (inst.colorlessThisBattle) continue
         // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
         // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
         // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：固定・召喚軽減用の置き換えを受けていても

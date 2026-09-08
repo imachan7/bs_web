@@ -1234,10 +1234,27 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             }
             return true
         }
-        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定）
+        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定／召喚時効果の抑止）
         const trashSummonOpts = {
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+            ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
+        }
+        // costReserveCoreToTrash（BS13-075スネイクスレイヴ）：自分のリザーブのコア1個を自分のトラッシュに
+        // 置くことがコスト。「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する
+        // （COST_MODEL.md §1）ので、コアを1個引いた残りリザーブでも召喚できる候補が無ければ払わない
+        if (action.costReserveCoreToTrash) {
+            const affordableAfterCost = player.trashCards.some((cardId) => {
+                if (!matchesCardId(cardId)) return false
+                return minLevelCores(getCard(cardId)) <= player.reserve - 1
+            })
+            if (player.reserve < 1 || !affordableAfterCost) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            player.reserve -= 1
+            player.trashCores += 1
+            log(state, `${player.name}は${sourceName}のコストとして、リザーブのコア1個を自分のトラッシュに置いた。`)
         }
         // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
         // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
@@ -1628,6 +1645,53 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         return
     }
     fire(effectiveCandidates[0]!)
+}
+
+// 器V：自分のスピリット1体が持つ『このスピリットの破壊時』効果を、そのスピリット自身を破壊させずに
+// そのスピリット自身の効果として発揮させる（BS13-052イビルグライダー）。BS13-049の借用（器G）と違い、
+// 「このスピリット」＝借り元自身を指す（docs/design/BS13_PLAN.md §1 #12）ので、resolveActionへ渡す
+// self は借り元のインスタンス（発生源であるブレイヴ自身ではない）。候補は借り元自身の現在Lvで判定する
+const borrowDestroyEffectHandler: ActionHandler<"borrowDestroyEffect"> = (ctx) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+    type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
+    const candidates: Candidate[] = []
+    for (const sp of player.field.spirits) {
+        const level = currentLevel(sp).level
+        for (const effect of getCard(sp.cardId).effects) {
+            if (effect.kind !== "triggered" || effect.trigger !== "onDestroy") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            candidates.push({ inst: sp, effect })
+        }
+    }
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：借りられる『破壊時』効果がなかった。`)
+        return
+    }
+    const fire = (chosen: Candidate): void => {
+        log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の『破壊時』効果を、破壊させずに発揮させた。`)
+        resolveAction(state, owner, chosen.inst, chosen.effect.action)
+    }
+    if (targetInstanceId !== undefined) {
+        const chosen = candidates.find((c) => c.inst.instanceId === targetInstanceId)
+        if (!chosen) return
+        fire(chosen)
+        return
+    }
+    const uniqueIds = [...new Set(candidates.map((c) => c.inst.instanceId))]
+    if (state.interactiveTargets && uniqueIds.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：借りる『破壊時』効果を選んでください`,
+            uniqueIds,
+            false,
+            { type: "borrowDestroyEffect" },
+            null,
+        )
+        return
+    }
+    fire(candidates[0]!)
 }
 
 // 相手のスピリット/ブレイヴ/ネクサスのどれか1つを破壊する／手札に戻す（BS11-056／BS11-X01 Lv3）。
@@ -2104,6 +2168,7 @@ const handlers = {
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
     borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
+    borrowDestroyEffect: borrowDestroyEffectHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,

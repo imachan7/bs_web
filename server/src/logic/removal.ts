@@ -614,7 +614,7 @@ export function destroySpirit(
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）
     if (cause === "destroy") {
-        if (!options?.suppressOnDestroy) fireTrigger(state, ownerPid, inst, "onDestroy")
+        if (!options?.suppressOnDestroy) fireTrigger(state, ownerPid, inst, "onDestroy", undefined, undefined, undefined, byOpponentEffect)
         if (state.pendingChoice || state.winner) {
             suspendDestroyCommit(state, ownerPid, inst, 1, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, options?.deferCommit)
             return true
@@ -991,7 +991,17 @@ function destroyedCostsOf(inst: CardInstance): number[] {
     return [getCard(inst.cardId).cost, ...(inst.alsoCostsWhenDestroyed ?? [])]
 }
 
-export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedCosts: number[]): number[] {
+// 破壊された個体が【不死：系統】の引き金として持つ系統の一覧（静的な系統。BS13-014 闇騎士アグラヴェイン）
+function destroyedFamiliesOf(inst: CardInstance): string[] {
+    return getCard(inst.cardId).family
+}
+
+export function fushiCandidates(
+    state: GameState,
+    ownerPid: PlayerId,
+    destroyedCosts: number[],
+    destroyedFamilies: string[] = [],
+): number[] {
     // 『お互いのアタックステップ』：アタックステップ以外では発揮しない
     if (state.phase !== "attack") return []
     const player = state.players[ownerPid]
@@ -1001,12 +1011,14 @@ export function fushiCandidates(state: GameState, ownerPid: PlayerId, destroyedC
         if (cardId === undefined) continue
         const card = getCard(cardId)
         if (card.type !== "spirit") continue
-        const hit = card.effects.some(
-            (e) =>
-                e.kind === "keyword" &&
-                e.keyword === "fushi" &&
-                (e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c)),
-        )
+        const hit = card.effects.some((e) => {
+            if (e.kind !== "keyword" || e.keyword !== "fushi") return false
+            if ((e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c))) return true
+            const triggerFamilies = e.triggerFamilies
+            if (triggerFamilies === undefined) return false
+            const families = Array.isArray(triggerFamilies) ? triggerFamilies : [triggerFamilies]
+            return families.some((f) => destroyedFamilies.includes(f))
+        })
         if (!hit) continue
         if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
         found.push(i)
@@ -1107,7 +1119,7 @@ export function resolveDestroyOne(
             // 破壊された個体は破壊待機状態でまだ場にいるので、
             // **その個体のシンボルも軽減にそのまま数えられる**（特別扱いは要らない）
             while (true) {
-                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost)
+                const candidates = fushiCandidates(state, frame.pid, frame.destroyedCost, frame.destroyedFamily)
                 const next = candidates[fushiDone]
                 if (next === undefined) break
                 fushiDone++
@@ -1184,7 +1196,7 @@ export function destroySpiritsFrom(
         // 【不死】（BS09）：この破壊を引き金にトラッシュから召喚できるカードがあるか。
         // **絡まなければ従来どおり destroySpirit を直接呼ぶ**（ほぼ全てのケース）
         const target = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
-        const fushi = target ? fushiCandidates(state, t.pid, destroyedCostsOf(target)) : []
+        const fushi = target ? fushiCandidates(state, t.pid, destroyedCostsOf(target), destroyedFamiliesOf(target)) : []
         if (fushi.length === 0) {
             if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true })) {
                 destroyed++
@@ -1212,6 +1224,7 @@ export function destroySpiritsFrom(
                 pid: t.pid,
                 instanceId: t.instanceId,
                 destroyedCost: destroyedCostsOf(target),
+                destroyedFamily: destroyedFamiliesOf(target),
                 order,
                 step: 0,
                 fushiDone: 0,

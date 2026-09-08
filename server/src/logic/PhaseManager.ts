@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { draw, getCard, log, pushResumeFrames } from "./GameState"
-import { instIsCombined, refreshRestrictionsFor } from "../../../shared/rules"
+import { instIsCombined, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
@@ -220,6 +220,19 @@ export function endTurn(state: GameState): void {
     for (const pid of ["p1", "p2"] as const) {
         for (const inst of [...state.players[pid].field.spirits]) {
             if (inst.returnToDeckBottomAtEndStep) returnSpiritToDeckBottom(state, pid, inst)
+        }
+    }
+
+    // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
+    // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
+    {
+        const p = state.players[state.turnPlayer]
+        for (let i = p.trashCards.length - 1; i >= 0; i--) {
+            const cardId = p.trashCards[i]
+            if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
+            p.trashCards.splice(i, 1)
+            p.hand.push(cardId)
+            log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
         }
     }
 

@@ -1190,7 +1190,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // ⚠️ **ダイレクトブレイヴは field.combinedBraves に入る**ので、spirits だけを見ると
     // ここで打ち切られて『このブレイヴの召喚時』効果が丸ごと発火しない（2026-08-25 に実際に踏んだ）
     if (!isOnFieldAnyZone(player, inst.instanceId)) return
-    fireSummonTrigger(state, pid, inst)
+    fireSummonTrigger(state, pid, inst, byFushi)
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
     // 合体した状態で出たブレイヴは対象にならない（合体スピリットは既に場にいたものが状態を変えただけ）。

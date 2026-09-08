@@ -70,6 +70,14 @@ const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
         return
 }
 
+const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, action) => {
+    const { state, self } = ctx
+        if (!self) return
+        self.colorlessThisBattle = true
+        log(state, `${getCard(self.cardId).name}は、このバトルの間色を無いものとして扱う。`)
+        return
+}
+
 const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット自身を「カウント値×amountPer」だけBP+
@@ -627,6 +635,7 @@ const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, acti
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     selfBuff,
+    colorlessSelfThisBattle,
     selfBuffPer,
     bpBuff,
     bpBuffAll,

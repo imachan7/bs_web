@@ -1122,5 +1122,1077 @@
         "amount": 12000
       }
     ]
+  },
+  {
+    "cardId": "BS13-009",
+    "name": "ケムリス",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "reduction": [
+      "purple"
+    ],
+    "family": [
+      "幽魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS13-010",
+    "name": "スカルザード",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 2,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2『相手のターン』\n相手によってこのスピリットが破壊されたとき、自分のトラッシュにあるコスト1以下のスピリットカード2枚までをコストを支払わずに召喚できる。",
+    "effects": [
+      {
+        "id": "BS13-010-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2
+        ],
+        "turn": "opponent",
+        "condition": {
+          "selfDestroyedByOpponent": true
+        },
+        "optional": true,
+        "action": {
+          "type": "summonFromTrashFree",
+          "count": 2,
+          "costFilter": {
+            "max": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-011",
+    "name": "暗殺者ドラゴナーガ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "red"
+    ],
+    "family": [
+      "妖蛇",
+      "竜人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットのアタック時』\nこのスピリットの色を無いものとして扱う。",
+    "effects": [
+      {
+        "id": "BS13-011-e1",
+        "kind": "keyword",
+        "keyword": "jugeki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS13-011-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "colorlessSelfThisBattle"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-012",
+    "name": "ジャイナガン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple",
+      "white",
+      "white"
+    ],
+    "family": [
+      "妖蛇",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "【不死：コスト7/8】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト7/8の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットの破壊時』\n相手のスピリットのコア1個を相手のトラッシュに置く。",
+    "effects": [
+      {
+        "id": "BS13-012-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": "BS13-012-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 1,
+          "dest": "trash"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-013",
+    "name": "スカリオン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のコスト3以下のスピリットすべての上のコア1個ずつを相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS13-013-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemoveMulti",
+          "targets": 0,
+          "allTargets": true,
+          "count": 1,
+          "costFilter": {
+            "max": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-014",
+    "name": "闇騎士アグラヴェイン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "魔影"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "【不死：妖蛇】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、系統：「妖蛇」を持つ自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n【不死】の効果で召喚されたとき、自分のトラッシュにあるコスト7以上のスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない。",
+    "effects": [
+      {
+        "id": "BS13-014-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerFamilies": "妖蛇"
+      },
+      {
+        "id": "BS13-014-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "condition": {
+          "selfSummonedByFushi": true
+        },
+        "action": {
+          "type": "summonFromTrashFree",
+          "count": 1,
+          "costFilter": {
+            "min": 7
+          },
+          "skipOnSummon": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-015",
+    "name": "冥総裁ハーゲン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 6,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "冥主"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "自分のトラッシュにあるこのスピリットカードは、『自分のエンドステップ』に手札に戻る。\nLv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにある【呪撃】/【不死】を持つスピリットカード1枚を手札に戻す。\nLv2『自分のアタックステップ』\nアタックしている【呪撃】/【不死】を持つ自分のスピリットすべての色を無いものとして扱う。",
+    "effects": [
+      {
+        "id": "BS13-015-e1",
+        "kind": "trashReturnAtEndStep"
+      },
+      {
+        "id": "BS13-015-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "recoverSpiritFromTrash",
+          "count": 1,
+          "keywordFilterAny": [
+            "jugeki",
+            "fushi"
+          ]
+        }
+      },
+      {
+        "id": "BS13-015-e3",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2
+        ],
+        "ownOnly": true,
+        "subjectKeywordFilter": [
+          "jugeki",
+          "fushi"
+        ],
+        "action": {
+          "type": "colorlessSelfThisBattle"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-016",
+    "name": "呪王ドラゴナーガ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 7,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "red",
+      "red"
+    ],
+    "family": [
+      "妖蛇",
+      "竜人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n系統：「妖蛇」を持つ自分のスピリットが召喚されたとき、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3『お互いのアタックステップ』\n系統：「竜人」を持つ自分のスピリットが疲労したとき、相手のスピリット上のコア1個を相手のリザーブに置く。\nLv2･Lv3『このスピリットの破壊時』\n自分のトラッシュにある、カード名に「ドラゴナーガ」と入っているスピリットカードすべてを手札に戻す。",
+    "effects": [
+      {
+        "id": "BS13-016-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "familyFilter": "妖蛇",
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS13-016-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritExhausted",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "familyFilter": "竜人",
+        "action": {
+          "type": "coreRemove",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS13-016-e3",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "recoverSpiritFromTrash",
+          "count": 0,
+          "all": true,
+          "nameIncludes": "ドラゴナーガ"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-051",
+    "name": "ズガネーク",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のスピリット1体を破壊することで、相手は、相手のスピリット1体を破壊する。\n合体条件：コスト4以上",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS13-051-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "chooserIsTarget": true,
+          "costDestroyOwnSpirit": true
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    }
+  },
+  {
+    "cardId": "BS13-052",
+    "name": "イビルグライダー",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "魔影"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のスピリット1体が持つ『このスピリットの破壊時』効果1つを、スピリットを破壊させずに発揮させる。\n合体条件：コスト3以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットの色を無いものとして扱う。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト3以上",
+    "effects": [
+      {
+        "id": "BS13-052-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "borrowDestroyEffect"
+        }
+      },
+      {
+        "id": "BS13-052-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "colorlessSelfThisBattle"
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 3
+    }
+  },
+  {
+    "cardId": "BS13-063",
+    "name": "血塗られた魔具",
+    "type": "nexus",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\nコアが2個以下しか置かれていないスピリットがアタックしたとき、そのスピリットを破壊する。\nLv2『自分のドローステップ』\nステップ開始時、自分の手札にある【呪撃】/【不死】を持つスピリットカード1枚を破棄することで、ドローの枚数を+2枚する。",
+    "limitCount": 1,
+    "effects": [
+      {
+        "id": "BS13-063-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "subjectMaxCores": 2,
+        "action": {
+          "type": "destroySelf"
+        }
+      },
+      {
+        "id": "BS13-063-e2",
+        "kind": "step",
+        "step": "draw",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "costDiscardHandKeywordThenDraw",
+          "keyword": [
+            "jugeki",
+            "fushi"
+          ],
+          "count": 2
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-064",
+    "name": "蛇教徒の宮殿",
+    "type": "nexus",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「妖蛇」を持つLv2以上の自分のスピリットのアタックによって相手のライフを減らすとき、相手のライフのコアはリザーブではなくボイドに置かれる。\nLv2『相手のアタックステップ』\n相手のスピリットのアタックによって自分のライフが減らされたとき、アタックしたスピリットのシンボル1つにつき、相手は手札1枚を破棄する。",
+    "effects": [
+      {
+        "id": "BS13-064-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "minLevel": 2,
+        "familyFilter": "妖蛇",
+        "constraint": {
+          "type": "lifeDamageToVoid"
+        }
+      },
+      {
+        "id": "BS13-064-e2",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          2
+        ],
+        "turn": "opponent",
+        "action": {
+          "type": "discardOpponent",
+          "count": 0,
+          "countAttackerSymbols": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-075",
+    "name": "スネイクスレイヴ",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\nこのターンの間、自分のスピリットが破壊されたとき、自分のリザーブのコア1個を自分のトラッシュに置くことで、自分のトラッシュにある系統：「妖蛇」を持つスピリットカード1枚をコストを支払わずに召喚する。\nただし、『このスピリットの召喚時』効果は発揮されない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
+    "effects": [
+      {
+        "id": "BS13-075-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS13-075-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": null,
+        "lentOnly": true,
+        "action": {
+          "type": "summonFromTrashFree",
+          "count": 1,
+          "familyFilter": "妖蛇",
+          "costReserveCoreToTrash": true,
+          "skipOnSummon": true
+        }
+      },
+      {
+        "id": "BS13-075-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 2000,
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-076",
+    "name": "アサシネイト",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ：\n疲労状態の相手の合体スピリット1体を破壊する。\nまたは、疲労状態の相手のコスト3以下のスピリット2体を破壊する。",
+    "effects": [
+      {
+        "id": "BS13-076-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "疲労状態の相手の合体スピリット1体を破壊",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "count": 1,
+                  "filter": {
+                    "rested": true,
+                    "combined": true
+                  }
+                }
+              ]
+            },
+            {
+              "label": "疲労状態の相手のコスト3以下2体を破壊",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "count": 2,
+                  "filter": {
+                    "rested": true,
+                    "cost": {
+                      "max": 3
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-X02",
+    "name": "蛇皇神帝アスクレピオーズ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 9,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "光導",
+      "魔神"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 12000
+      },
+      {
+        "level": 3,
+        "cores": 9,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「星魂」を持つ自分のスピリット1体を破壊することで、自分はデッキから3枚ドローする。\nLv2･Lv3『自分のアタックステップ』\n系統：「光導」/「妖蛇」を持つ自分のスピリットすべては、BPを比べ破壊されたとき、回復状態でフィールドに残る。\nLv3『このスピリットのブロック時』\nこのスピリットがブロックした相手のスピリットの[ソウルコア]以外のコアすべてをボイドに置く。",
+    "effects": [
+      {
+        "id": "BS13-X02-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 3,
+          "costDestroyOwnFamily": "星魂"
+        }
+      },
+      {
+        "id": "BS13-X02-e2",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "scope": "ownAll",
+        "familyFilter": [
+          "光導",
+          "妖蛇"
+        ],
+        "when": {
+          "byBattle": true
+        },
+        "revived": {
+          "rested": false
+        }
+      },
+      {
+        "id": "BS13-X02-e3",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 0,
+          "all": true,
+          "dest": "void"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "X005A",
+    "name": "北斗七星龍ジーク・アポロドラゴン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 6,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "神星",
+      "星竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるブレイヴカード1枚を、コストを支払わずに召喚できる。\nこの効果でブレイヴが召喚されたとき、自分はデッキから1枚ドローする。\n【合体時】Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "X005A-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "bravesOnly": true,
+          "thenDraw": 1
+        }
+      },
+      {
+        "id": "X005A-e2",
+        "kind": "battleWon",
+        "role": "attacker",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1
+        }
+      }
+    ]
   }
 ]

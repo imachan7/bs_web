@@ -205,7 +205,12 @@ export function isTriggerSuppressed(
 // 『このスピリットの召喚時』効果の発火。解決中だけ GameState.resolvingSummonTriggerPid を立て、
 // 「相手のスピリットの召喚時効果を受けない」（BS05リトルナイト・ランスロットLv3）が isEffectBlocked で判定できるようにする。
 // 選択待ちで中断した場合はフラグを残し、handleAction の事後フックが選択の解決後にクリアする
-export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstance: CardInstance): void {
+export function fireSummonTrigger(
+    state: GameState,
+    owner: PlayerId,
+    selfInstance: CardInstance,
+    byFushi = false,
+): void {
     // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
     // 『このスピリットの召喚時』効果は発揮されない
     if (noSummonTriggerByCost(state, selfInstance)) {
@@ -213,7 +218,7 @@ export function fireSummonTrigger(state: GameState, owner: PlayerId, selfInstanc
         return
     }
     state.resolvingSummonTriggerPid = owner
-    fireTrigger(state, owner, selfInstance, "onSummon")
+    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi)
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
 }
 
@@ -224,6 +229,8 @@ export function fireTrigger(
     event: TriggerEvent,
     battleRole?: "attacker" | "blocker",
     targetInstanceId?: string,
+    byFushi?: boolean, // 【不死】の効果で召喚されたときの召喚か（onSummon限定。condition.selfSummonedByFushi の判定に使う。BS13-014 闇騎士アグラヴェイン）
+    byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -292,6 +299,9 @@ export function fireTrigger(
             return false
         }
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
+        // turn（BS13-010スカルザードLv2＝『相手のターン』）：発生源の持ち主基準でown/opponentを絞る
+        if (effect.turn === "own" && owner !== state.turnPlayer) return false
+        if (effect.turn === "opponent" && owner === state.turnPlayer) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
         if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
         if (effect.condition) {
@@ -417,6 +427,12 @@ export function fireTrigger(
             } else if ("ownLifeAtMost" in effect.condition) {
                 // BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主のライフがこの数以下のときのみ発火
                 if (state.players[owner].life > effect.condition.ownLifeAtMost) return false
+            } else if ("selfSummonedByFushi" in effect.condition) {
+                // BS13-014闇騎士アグラヴェイン：その召喚が【不死】によるものだったときのみ発火
+                if (byFushi !== true) return false
+            } else if ("selfDestroyedByOpponent" in effect.condition) {
+                // BS13-010スカルザード：相手によって破壊されたときのみ発火
+                if (byOpponent !== true) return false
             } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
                 // BS07マカロニペンタン：持ち主のフィールドに[皇帝アンプルール]/[女帝ペンプレス]がいるときのみ発火
                 const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -1037,6 +1053,8 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
+            // subjectMaxCores（BS13-063血塗られた魔具）：アタックしたスピリット自身のコア数で絞る
+            if (effect.subjectMaxCores !== undefined && (selfOverride === undefined || selfOverride.inst.cores > effect.subjectMaxCores)) continue
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             // sourceColorFilter：「**相手の**この色のスピリット/ネクサス/マジックの**効果によって**起きたとき」
             // だけ発火する（SD01-029 蠢く地下墓地Lv1＝緑／SD01-031 朝焼け岬Lv1＝紫）。

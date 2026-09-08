@@ -97,6 +97,49 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
         const filter = normalizeFilter(ctx, action)
+        // costDestroyOwnSpirit：自分のスピリット1体を破壊することがコスト（BS13-051ズガネーク）。
+        // 「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する（COST_MODEL.md §1）ので、
+        // 対象条件を満たす相手のスピリットが1体もいなければコストも払わない。
+        // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。coreGain.costDestroyOwnSpiritと同じ考え方）
+        if (action.costDestroyOwnSpirit && filter !== SELF_REQUIRED) {
+            const player = state.players[owner]
+            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+            if (!hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            const candidates = player.field.spirits
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+            }
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
+            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            const { costDestroyOwnSpirit: _cdos, costSacrificeChosen: _csc, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
             return
