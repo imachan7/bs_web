@@ -17,6 +17,8 @@ import {
     handImmuneFor,
     payCost,
     fireSummonTrigger,
+    fireSummonSequence,
+    resolveTensho,
     isResisted,
     millCapBonusFor,
     millDeck,
@@ -1021,12 +1023,22 @@ const revealAndSummonKeywordHandler: ActionHandler<"revealAndSummonKeyword"> = (
             state,
             `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
         )
-        const matches = (id: string): boolean =>
-            getCard(id).type === "spirit" && hasKeyword(id, action.keyword)
+        // familyFilter指定時（BS13-074ゾディアックコンダクト）はkeywordの代わりに系統（配列＝OR）で絞る
+        const matches = (id: string): boolean => {
+            if (getCard(id).type !== "spirit") return false
+            if (action.familyFilter !== undefined) {
+                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+                return wanted.some((f) => getCard(id).family.includes(f))
+            }
+            return action.keyword !== undefined && hasKeyword(id, action.keyword)
+        }
         const indices = revealed.map((id, i) => ({ id, i })).filter((x) => matches(x.id)).map((x) => x.i)
         if (indices.length === 0) {
             for (const id of revealed) player.trashCards.push(id)
-            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットカードがなかった。残り${revealed.length}枚をトラッシュに置いた。`)
+            const label = action.familyFilter !== undefined
+                ? "指定系統を持つスピリットカード"
+                : `【${KEYWORDS[action.keyword!].label}】を持つスピリットカード`
+            log(state, `${sourceName}：${label}がなかった。残り${revealed.length}枚をトラッシュに置いた。`)
             return
         }
         if (state.interactiveTargets) {
@@ -1182,7 +1194,7 @@ function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: stri
 // **この一文を持つカードだけが例外**という関係になる
 function summonRevealedFree(
     ctx: ActionCtx,
-    action: { returnToDeckBottomAtEndStep?: true },
+    action: { returnToDeckBottomAtEndStep?: true; familyFilter?: unknown },
     cardId: string,
 ): void {
     const { state, owner, sourceName } = ctx
@@ -1204,6 +1216,15 @@ function summonRevealedFree(
     const inst = createInstance(cardId, state.turn, maintain)
     if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
     player.field.spirits.push(inst)
+    // familyFilter指定時（BS13-074ゾディアックコンダクト）は系統版なので、キーワード版のような
+    // 「【転召】を発揮したものとして扱う」特例は無い。**通常どおり【転召】を解決し**、
+    // 召喚時効果・fieldEvent（ownSpiritSummoned等）も通常の召喚と同じく発揮させる
+    if (action.familyFilter !== undefined) {
+        log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。`)
+        if (!state.winner) resolveTensho(state, owner, inst)
+        if (!state.winner) fireSummonSequence(state, owner, inst)
+        return
+    }
     log(
         state,
         `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。` +

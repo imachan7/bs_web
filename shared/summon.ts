@@ -5,7 +5,7 @@
 //  依存が一方向になるよう、両者を使う判定は下流のこのファイルへ分ける）
 //
 // 制約は rules.ts と同じ: node 組み込みモジュールを import しないこと（クライアントへバンドルするため）。
-import type { CardData, PlayerId } from "../server/src/type"
+import type { CardData, CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
@@ -30,11 +30,19 @@ export function isSummonableCardType(type: CardData["type"]): type is "spirit" |
 export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId: string): string[] {
     if (card(braveCardId).type !== "brave") return []
     return board.players[pid].field.spirits
-        .filter((host) => (host.braveRefs ?? []).length === 0)
+        .filter((host) => (host.braveRefs ?? []).length < combineLimitFor(board, pid, host))
         // 「このスピリットは合体できない」（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
         .filter((host) => !activeConstraints(board, pid, host).some((c) => c.type === "cantCombine"))
         .filter((host) => matchesBraveCondition(board, pid, host, braveCardId))
         .map((host) => host.instanceId)
+}
+
+// このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
+// 「ブレイヴ2つまでと合体できる」＝ constraint combineLimit で上限を上げる。
+// RuleValidator（ダイレクトブレイヴの召喚検証）とbraveCombineCandidatesの両方がここを読む
+export function combineLimitFor(board: Board, pid: PlayerId, host: CardInstance): number {
+    const c = activeConstraints(board, pid, host).find((c) => c.type === "combineLimit")
+    return c && c.type === "combineLimit" ? c.limit : 1
 }
 
 // ---- 入れ替え召喚（kind:"battleSwapSummon"。BS07ブラックカラカロッサム） ----

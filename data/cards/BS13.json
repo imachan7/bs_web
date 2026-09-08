@@ -533,5 +533,594 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS13-049",
+    "name": "イリテバン",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜",
+      "機竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1\nこのブレイヴがスピリット状態の間、このスピリットに自分のブレイヴ1つを合体させることができる。\n合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\n自分のスピリット状態のブレイヴ1体か、自分の合体スピリットのブレイヴ1つに記述されている『このスピリットの合体アタック時』効果1つを、このスピリットの効果として発揮できる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 2000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS13-049-e1",
+        "kind": "activated",
+        "timing": "main",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "combineOwnBrave",
+          "hostSelf": true
+        }
+      },
+      {
+        "id": "BS13-049-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "borrowCombinedAttackEffect"
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    }
+  },
+  {
+    "cardId": "BS13-050",
+    "name": "輝竜シャイン・ブレイザー",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "星竜",
+      "機竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\nBP8000以上の相手のスピリットを破壊したとき、破壊したスピリット1体につき、相手のライフのコア1個を相手のリザーブに置く。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": [
+      {
+        "id": "BS13-050-e1",
+        "kind": "battleWon",
+        "role": "attacker",
+        "levels": [
+          1
+        ],
+        "whileCombined": true,
+        "loserMinBp": 8000,
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    }
+  },
+  {
+    "cardId": "BS13-061",
+    "name": "戴冠する活火山",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\nBP4000以下のスピリットがアタックしたとき、そのスピリットを破壊する。\nLv2『自分のアタックステップ』\n自分のライフのコア1個につき、系統：「地竜」と系統：「竜人」両方を持つ自分のスピリットすべてをBP+1000する。",
+    "effects": [
+      {
+        "id": "BS13-061-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "maxBp": 4000,
+        "action": {
+          "type": "destroySelf"
+        }
+      },
+      {
+        "id": "BS13-061-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "bpBuffAllPer",
+          "counter": "ownLife",
+          "amountPer": 1000,
+          "filter": {
+            "familyAll": [
+              "地竜",
+              "竜人"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-062",
+    "name": "光り輝く大銀河",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のメインステップ』\n自分の手札にある系統：「光導」を持つスピリットカードすべてをコスト5にする。\nLv2：フラッシュ『お互いのアタックステップ』\n自分の手札にある系統：「神星」/「光導」を持つスピリットカード1枚を破棄することで、このバトルの間、自分のスピリット1体をBP+6000し、赤のシンボル1つを追加する。\nこの効果はターンに1回しか使えない。",
+    "limitCount": 1,
+    "effects": [
+      {
+        "id": "BS13-062-e1",
+        "kind": "costMod",
+        "levels": [
+          1,
+          2
+        ],
+        "mode": "set",
+        "setTo": 5,
+        "familyFilter": "光導",
+        "cardTypeFilter": "spirit"
+      },
+      {
+        "id": "BS13-062-e2",
+        "kind": "activated",
+        "timing": "flashBattle",
+        "levels": [
+          2
+        ],
+        "oncePerTurn": true,
+        "cost": {
+          "discardHandFamily": [
+            "神星",
+            "光導"
+          ]
+        },
+        "action": {
+          "type": "bpBuff",
+          "amount": 6000,
+          "scope": "battle",
+          "thenAddSymbolThisBattle": {
+            "color": "red",
+            "count": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-073",
+    "name": "バーニングサン",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n自分の手札にあるブレイヴカード1枚を、カード名に「アポロ」と入っている自分のスピリット1体に直接合体するように、コストを支払わずに召喚し、そのスピリットを回復させる。",
+    "effects": [
+      {
+        "id": "BS13-073-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "summonFromHandFree",
+          "bravesOnly": true,
+          "combineNameIncludes": "アポロ",
+          "thenRefreshCombinedHost": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-074",
+    "name": "ゾディアックコンダクト",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\n自分のデッキを上から4枚オープンする。\nその中の系統：「光導」を持つスピリットカード1枚を、コストを支払わずに召喚する。\n残ったカードは破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS13-074-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "revealAndSummonKeyword",
+          "count": 4,
+          "familyFilter": "光導"
+        }
+      },
+      {
+        "id": "BS13-074-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpBuff",
+          "amount": 3000,
+          "anySide": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS13-X01",
+    "name": "光龍騎神サジット・アポロドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 8,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "光導",
+      "神星"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 13000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nこのスピリットはブレイヴ2つまでと合体できる。\nLv1･Lv2･Lv3\n系統：「光導」/「星魂」を持つ自分のスピリットすべては、相手のスピリット1体を指定してアタックできる。\n【合体中】Lv3『このスピリットのアタック時』\nこのスピリットのブレイヴ1つにつき、BP10000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS13-X01-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "combineLimit",
+          "limit": 2
+        }
+      },
+      {
+        "id": "BS13-X01-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "familyFilter": [
+          "光導",
+          "星魂"
+        ],
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any"
+        }
+      },
+      {
+        "id": "BS13-X01-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": "selfBraveCount",
+          "filter": {
+            "maxBp": 10000
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "X006",
+    "name": "太陽極龍セブンス・アポロドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 7,
+    "reduction": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+    ],
+    "family": [
+      "神星",
+      "星竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 9000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるカード名に「アポロ」と入ったスピリットカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「神星」を持つ自分のスピリットすべては、アタックするとき相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+    "effects": [
+      {
+        "id": "X006-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "nameIncludes": "アポロ"
+        }
+      },
+      {
+        "id": "X006-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "target": "ownAll",
+        "familyFilter": "神星",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "X011",
+    "name": "光導龍騎ゾディアックアポロクリムゾン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 12,
+    "reduction": [
+      "red",
+      "purple",
+      "green",
+      "white",
+      "yellow",
+      "blue"
+    ],
+    "family": [
+      "神星",
+      "竜騎"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 12000
+      },
+      {
+        "level": 2,
+        "cores": 5,
+        "bp": 24000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から12枚オープンする。\nその中の系統：「神星」/「光導」を持つスピリットカードを好きなだけ、コストを支払わず、【転召】させずに召喚する。\nただし、それらの『このスピリットの召喚時』効果は発揮されない。\n残ったカードは破棄する。\n【合体時】Lv2『自分のアタックステップ』\n系統：「光導」を持つ自分のスピリットすべてのLv1/Lv2/Lv3BPを12000として扱う。",
+    "effects": [
+      {
+        "id": "X011-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "revealAndSummonAllByFamily",
+          "count": 12,
+          "familyFilter": [
+            "神星",
+            "光導"
+          ]
+        }
+      },
+      {
+        "id": "X011-e2",
+        "kind": "bpAs",
+        "levels": [
+          2
+        ],
+        "whileCombined": true,
+        "target": "ownSpiritsByFamily",
+        "familyFilter": "光導",
+        "amount": 12000
+      }
+    ]
   }
 ]

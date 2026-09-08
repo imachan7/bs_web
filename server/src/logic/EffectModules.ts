@@ -1942,6 +1942,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             ...state.players[pid].field.combinedBraves,
         ]) {
             delete inst.levelAsContinuous
+            delete inst.bpAsContinuous
             delete inst.levelAsEffectsOnly
             delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
@@ -2375,6 +2376,16 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             if (!spirit[key]) spirit[key] = []
                             if (!spirit[key].includes(v)) spirit[key].push(v)
                         }
+                    }
+                    continue
+                }
+                if (effect.kind === "bpAs") {
+                    // 継続的な「BPを◯として扱う」（levelAsのBP版。器Q。BS13-X011）
+                    if (effect.whileCombined === true && !instIsCombined(source)) continue
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    for (const spirit of player.field.spirits) {
+                        if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        spirit.bpAsContinuous = effect.amount
                     }
                     continue
                 }
@@ -3167,6 +3178,8 @@ export function countEffectCounter(
         return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId, sourceType)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
+    if (counter === "ownLife") return state.players[owner].life
+    if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
     if (counter === "allNexuses") {
         return (

@@ -670,6 +670,11 @@ export function fireBattleWonTriggers(
             if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
                 continue
             }
+            // BS13-050輝竜シャイン・ブレイザー【合体時】：敗北して破壊された側の実効BPがこれ以上のときのみ発火
+            // （state.lastBattleDestroyedBpは破壊直前に測った実効BP。GameEngine.resolveBattleが記録する）
+            if (effect.loserMinBp !== undefined && state.lastBattleDestroyedBp < effect.loserMinBp) {
+                continue
+            }
             firing.push({ inst, effect })
         }
     }

@@ -220,6 +220,9 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
 // placeSummonedSpirit と EffectModules.ts の summonFreeFromHandIndex に同じ処理が
 // 2箇所書かれていた（2026-08-28、効果による再合体で3箇所目になる前にここへ寄せた）
 export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    // スピリット状態のブレイヴは合体先にもなれる（BS13-049イリテバン）ため、候補の絞り込みを
+    // 1か所でも忘れると「自分自身と合体した」壊れた盤面ができる。全入口の最終防波堤
+    if (host.instanceId === brave.instanceId) return
     const player = state.players[pid]
     // 分離してスピリット状態で field.spirits にいるブレイヴを再合体させる経路（detachBrave.combineToChosenSpirit）
     // では、まずそこから抜く。ダイレクトブレイヴ・召喚直後のインスタンスはそもそも spirits にいないので no-op

@@ -26,6 +26,7 @@ import {
     spiritHasKeyword,
 } from "../EffectModules"
 import { canDiscardHand, instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
 
@@ -206,6 +207,14 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             `${getCard(target.cardId).name}はBP+${action.amount}（${untilLabel}）。`,
         )
         applyMagicBuffBonus(state, target, srcType, srcColors)
+        // thenAddSymbolThisBattle（BS13-062光り輝く大銀河Lv2）：BP増加に続けて、このバトルの間だけ
+        // 指定色のシンボルを対象へ追加する（CardInstance.battleSymbolsAdded。clearBattleでリセット）
+        if (action.thenAddSymbolThisBattle) {
+            const { color, count } = action.thenAddSymbolThisBattle
+            if (!target.battleSymbolsAdded) target.battleSymbolsAdded = []
+            for (let i = 0; i < count; i++) target.battleSymbolsAdded.push(color)
+            log(state, `${getCard(target.cardId).name}は${COLOR_LABELS[color]}のシンボルを${count}つ追加した（このバトルの間）。`)
+        }
         // extraPerCoreToTrash（BS10-103グロウイングソード）：「さらに、自分のフィールド/リザーブのコアを
         // 自分のトラッシュに好きなだけ置くことで、置いたコア1個につき、そのスピリットをBP+1000する」。
         // 対話時は0〜払える総量の増減式（stepper）で選ばせる。非対話（テスト・AI）は0個に倒す

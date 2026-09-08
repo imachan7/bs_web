@@ -444,6 +444,8 @@ export function clearBattle(state: GameState): void {
             if (inst.battleBpBuff) inst.battleBpBuff = 0
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
             delete inst.battleBpFixed
+            // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
+            delete inst.battleSymbolsAdded
         }
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない

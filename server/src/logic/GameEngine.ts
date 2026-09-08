@@ -1306,6 +1306,27 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（このカードの上のコア${n}個をトラッシュ）`,
         )
+    } else if ("discardHandFamily" in effect.cost) {
+        // 手札の指定系統のスピリットカード1枚を破棄する（BS13-062光り輝く大銀河Lv2）。
+        // 候補2枚以上なら実対戦では持ち主が選ぶ（COST_MODEL.md §2）。ここは非対話（AI・テスト）の
+        // 決定的簡略化として、コスト最大の1枚を自動選択する（validateActivateが手札の存在を保証済み）
+        const wanted = Array.isArray(effect.cost.discardHandFamily)
+            ? effect.cost.discardHandFamily
+            : [effect.cost.discardHandFamily]
+        const indices = player.hand
+            .map((_, i) => i)
+            .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
     } else {
         const n = effect.cost.reserveToTrash
         player.reserve -= n

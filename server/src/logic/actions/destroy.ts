@@ -157,7 +157,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
         // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
-        const resolvedCount = action.countPerOpponentTrashMagicColors
+        const resolvedCount = action.countCounter !== undefined
+            ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+            : action.countPerOpponentTrashMagicColors
             ? distinctOpponentTrashMagicColors(state, opp)
             : action.count
         if (resolvedCount === 0) {
