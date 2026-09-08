@@ -96,7 +96,10 @@ console.log("=== §E P reviveOnDestroy.combinedOnly：BS12-068Lv2＝合体スピ
     attachBrave(s, "p1", host, brave)
     refreshLevelAsOverrides(s)
     const ok = destroySpirit(s, "p1", host.instanceId)
-    assert(ok === false, "destroySpiritの戻り値は「復活（代替）が成立した」のfalse")
+    // 「フィールドに残る／戻る」は破壊を無効にするのではなく、トラッシュに置かれる代わりに
+    // 場へ戻す効果なので、**破壊自体は成立している**（2026-09-08 ユーザー確認。TIMING_CHART.md）。
+    // よって destroySpirit は true を返す
+    assert(ok === true, "destroySpiritの戻り値は「破壊は成立した」のtrue（残っても破壊自体は起きている）")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === host.instanceId), "ホストは場から離れた")
     assert(s.players.p1.hand.includes(host.cardId), "スピリットカードはトラッシュでなく手札へ戻る")
     assert(

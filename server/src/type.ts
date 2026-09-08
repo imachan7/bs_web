@@ -1446,7 +1446,6 @@ export type EffectDef =
               exhaustOwnFamilyOne?: FamilyFilter // 持ち主のフィールドの、この系統（配列＝OR）を持つ回復状態のスピリット1体（実効BP最小＝犠牲を最小化する簡略化。破壊される個体自身は除く）を疲労させる。該当なしなら支払い不可＝不発（BS07パオ・ペイール＝「想獣」）
               ownLifeOneToVoid?: boolean // 持ち主のライフのコア1個をボイドへ（リザーブへは戻らない）。ライフ0枚なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる（BS08太陽石の神殿）
           }
-          fireDestroyTriggerFirst?: true // 指定時、場に留める前に『このスピリットの破壊時』効果を先に発揮させる
           // （既定は復活が成立すると破壊時効果は発揮されない。「破壊時効果を発揮した自分のスピリットは手札に戻る」の忠実化。BS07ブラックリチュアル）
           oncePerTurn?: boolean // 発生源1つにつきターン1回だけ（CardInstance.reviveOnDestroyUsedTurnで管理。同じ考え方はkind:"magicNegate"のoncePerTurnと同型。BS06暴かれた墓石Lv2）
           condition?: { opponentFieldSymbolColorsAtMost: number } // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下のときのみ有効（shared/cost.ownFieldSymbolColorsで判定。BS06夢中漂う桃幻郷Lv2＝1色以下）
@@ -2087,6 +2086,13 @@ export interface CardInstance {
     // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
     pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
+    // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
+    // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。
+    // 「フィールドに残る」は破壊待機からトラッシュへ置かれる**代わり**に働くので、
+    // 判定はトラッシュ行きの確定地点まで持ち越す必要がある（TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）
+    pendingDestroyContext?: DestroyContext
+    pendingDestroyAllowSuspend?: true
+    skipReviveOnCommit?: true // 消滅（維持コア割れ）・skipRevive 指定の破壊では「フィールドに残る」を見ない印
     cantBlockThisBattle?: true // このバトルの間ブロックできない（markCantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーター）
     cantBlockThisTurn?: true // このターンの間ブロックできない（markCantBlockThisTurn。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）

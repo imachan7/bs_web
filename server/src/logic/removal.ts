@@ -580,17 +580,20 @@ export function destroySpirit(
     inst.pendingDestruction = true
     // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
-
-    // 復活チェック（cause==="destroy"のときのみ。維持コア割れ＝消滅は対象外）。
-    // 破壊されるかわりに場に留まる。複数ソースがある場合は self由来→ownAll由来の順で最初の1つだけ適用。
-    // ⚠️ ここで true が返るのは「復活した」「確認を保留した」の両方。
-    //    確認待ちの間も破壊待機状態のままなので、印はここでは消さない（applyRevived が消す）
-    if (
-        cause === "destroy" &&
-        !options?.skipRevive &&
-        tryReviveOnDestroy(state, ownerPid, inst, context, undefined, options?.allowSuspend === true)
-    ) {
-        return false
+    // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。
+    // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
+    // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**『破壊時』の誘発をすべて解決したあと**、
+    // トラッシュ行きの確定地点（commitPendingDestruction）で判定する
+    // （2026-09-08 ユーザー確認。TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）。
+    // 中断・再開の経路もすべて commitPendingDestruction を通るので、そこ1か所で拾える
+    if (cause === "destroy" && !options?.skipRevive) {
+        if (context !== undefined) inst.pendingDestroyContext = context
+        if (options?.allowSuspend === true) inst.pendingDestroyAllowSuspend = true
+    } else {
+        // 消滅（維持コア割れ）と skipRevive のときは復活しない。控えを残さないことで印にする
+        delete inst.pendingDestroyContext
+        delete inst.pendingDestroyAllowSuspend
+        inst.skipReviveOnCommit = true
     }
 
     log(
@@ -725,6 +728,22 @@ export function commitPendingDestruction(
     inst: CardInstance,
 ): void {
     if (!inst.pendingDestruction) return
+    // 「フィールドに残る／戻る」：トラッシュに置かれる**代わり**に場へ戻す。ここまで来ている＝
+    // 『破壊時』の誘発はすべて解決済みなので、戻ったスピリット自身の『破壊時』も発揮したあとになる
+    // （2026-09-08 ユーザー確認。TIMING_CHART.md）。applyRevived が pendingDestruction を消すので、
+    // 復活が成立したらこの関数は何もせず抜ける
+    if (!inst.skipReviveOnCommit) {
+        const reviveContext = inst.pendingDestroyContext
+        const allowSuspend = inst.pendingDestroyAllowSuspend === true
+        if (tryReviveOnDestroy(state, ownerPid, inst, reviveContext, undefined, allowSuspend)) {
+            delete inst.pendingDestroyContext
+            delete inst.pendingDestroyAllowSuspend
+            return
+        }
+    }
+    delete inst.pendingDestroyContext
+    delete inst.pendingDestroyAllowSuspend
+    delete inst.skipReviveOnCommit
     const player = state.players[ownerPid]
     const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
     if (index === -1) {
@@ -1648,7 +1667,6 @@ function tryReviveOnDestroy(
         const name = getCard(inst.cardId).name
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
-        if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
         applyRevived(effect.revived)
         log(
             state,
@@ -1727,7 +1745,6 @@ function tryReviveOnDestroy(
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
-            if (effect.fireDestroyTriggerFirst) fireTrigger(state, ownerPid, inst, "onDestroy")
             applyRevived(effect.revived)
             log(
                 state,
