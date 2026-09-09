@@ -56,7 +56,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToHand } from "./removal"
+import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToHand, spiritMillFreeSummonOrConfirm } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -751,6 +751,8 @@ function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, milled: s
 // 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
 // millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
 function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
+    // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
+    if (state.turnConstraints.some((c) => c.type === "noDeckMillForPidThisTurn" && c.pid === pid)) return true
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -917,6 +919,12 @@ function resolveMilledFromDeck(
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
             const idx = player.trashCards.lastIndexOf(cardId)
             if (idx === -1) continue
+            // 器AR：summonThisSpiritFree（BS13-034）は「できる」＝任意なので、トラッシュに置いたまま
+            // 確認（非対話は自動召喚）に回す。他の2つ（無条件）とは違いここではまだ取り除かない
+            if (effect.then === "summonThisSpiritFree") {
+                spiritMillFreeSummonOrConfirm(state, pid, idx)
+                break
+            }
             player.trashCards.splice(idx, 1)
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {
@@ -2272,6 +2280,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
+                        // 器BK：target:"self"は発生源自身にだけ付与する
+                        if (effect.target === "self" && spirit.instanceId !== source.instanceId) continue
                         // 「コストNの自分のスピリット」は付与コスト（道化師クラン）も込みで判定する
                         if (effect.costFilter !== undefined && !instHasCost(spirit, effect.costFilter)) continue
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
@@ -2410,6 +2420,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         // familyFilter（SD02-013 転召の祭壇Lv2＝召喚するカードと同じ系統のみ）
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        // 器AY：combinedOnly（BS13-069星空のコンサートホールLv2）＝合体スピリットのみ対象
+                        if (effect.combinedOnly && !instIsCombined(spirit)) continue
                         // plus 指定時は「元のコスト+plus としても扱う」（相対値版。固定値の cost と排他）
                         const value = effect.plus !== undefined
                             ? getCard(spirit.cardId).cost + effect.plus

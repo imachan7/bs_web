@@ -226,6 +226,8 @@ function restedNexusEffectsDisabled(board: Board): boolean {
 // ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
 function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
+    // 器BC：ターン限定版（TurnConstraintDef "nexusEffectsDisabledForPid"。BS13-039神獣バーロン）
+    if (board.turnConstraints.some((c) => c.type === "nexusEffectsDisabledForPid" && c.pid === pid)) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
         ...opp.field.spirits,
@@ -463,6 +465,8 @@ export function matchesBraveCondition(
     host: CardInstance,
     braveCardId: string,
 ): boolean {
+    // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
+    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return true
     const cond = card(braveCardId).braveCondition
     if (cond === undefined) return false
     const terms = Array.isArray(cond) ? cond : [cond]
@@ -896,9 +900,19 @@ export function spiritHasFamily(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "familyGrant") continue
-            // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
-            const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
-            if (granted !== family) continue
+            // 【合体時】＝発生源自身が合体しているときだけ（BS13-X05Lv3）
+            if (effect.whileCombined && !instIsCombined(source)) continue
+            // target:"self"（器BH）：発生源自身にしか付与しない
+            if (effect.target === "self" && source.instanceId !== inst.instanceId) continue
+            // 器BH：familiesFromOwnField＝持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与する
+            // （付与系統の再帰を避けるため getCard(...).family の静的系統だけを見る）
+            if (effect.familiesFromOwnField) {
+                if (!player.field.spirits.some((s) => card(s.cardId).family.includes(family))) continue
+            } else {
+                // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
+                const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
+                if (granted !== family) continue
+            }
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
@@ -2070,6 +2084,25 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
     return false
 }
 
+// 器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
+// 持ち主を問わずアタックできない（ブロックは可能。opponentCantAttackByCostの両陣営版。BS13-035オリンピアの天使オク）
+export function instCantAttackByCost(board: Board, inst: CardInstance): boolean {
+    const costsOfAttacker = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "cantAttackByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) return true
+            }
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
 // アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
 export function levelCantAct(board: Board, level: number): boolean {
@@ -2101,7 +2134,7 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel } = effect.constraint
                 // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
                 if (ownOnly && pid !== defenderPid) continue
                 // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
@@ -2125,7 +2158,14 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 }
                 // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
                 if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
-                if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
+                // attackerLevel（器BA）：maxCostと**両方**満たすときだけ保護する（BS13-070：コスト3以下かつLv1）
+                if (
+                    maxCost !== undefined &&
+                    costsOfAttacker.some((cost) => cost <= maxCost) &&
+                    (attackerLevel === undefined || currentLevel(attacker).level === attackerLevel)
+                ) {
+                    return true
+                }
             }
         }
     }
@@ -2342,6 +2382,9 @@ export function noOpponentTriggerByColor(
 // フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
 // 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
 export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {
+    // 器AU：endStepLock("summonTrigger")。BS13-081ドリームシール「『自分のエンドステップ』を3回行うまで、
+    // 『このスピリットの召喚時』効果は発揮されない」（お互い＝両陣営。BS13_PLAN.md §1 #21と同じ書き分け）
+    if (isEndStepLocked(board, "summonTrigger")) return true
     const costs = instAllCosts(inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, pid)) {
@@ -2569,7 +2612,7 @@ export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInsta
 // **両陣営に効く**（誰が発揮したかを問わない）。クライアントもこれを読んでボタンを落とす
 export function isEndStepLocked(
     board: Board,
-    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve",
+    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve" | "summonTrigger",
 ): boolean {
     return board.endStepLocks.some((l) => l.remaining > 0 && l.locks.includes(lock))
 }

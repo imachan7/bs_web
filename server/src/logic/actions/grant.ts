@@ -671,6 +671,13 @@ const bounceToDeckTopThisTurnHandler: ActionHandler<"bounceToDeckTopThisTurn"> =
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}の効果で手札に戻るスピリットは持ち主のデッキの上に戻る。`)
 }
 
+// 器BC：このターンの間、発生源の持ち主から見た相手のネクサスすべての効果は発揮されない（BS13-039神獣バーロン『このスピリットの召喚時』）
+const opponentNexusEffectsDisabledThisTurnHandler: ActionHandler<"opponentNexusEffectsDisabledThisTurn"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+    state.turnConstraints.push({ type: "nexusEffectsDisabledForPid", pid: opp })
+    log(state, `${sourceName}：このターンの間、${state.players[opp].name}のネクサスすべての効果は発揮されない。`)
+}
+
 // このターンの間、持ち主のライフが指定の下限を下回らないようにする（BS11-080 デルタバリア）。
 // 「減らない」（lifeImmuneThisTurn）とは別物で、**下限まではふつうに減る**
 const lifeFloorThisTurnHandler: ActionHandler<"lifeFloorThisTurn"> = (ctx, action) => {
@@ -1355,6 +1362,7 @@ const handlers = {
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
     bounceToDeckTopThisTurn: bounceToDeckTopThisTurnHandler,
+    opponentNexusEffectsDisabledThisTurn: opponentNexusEffectsDisabledThisTurnHandler,
     lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,

@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -909,6 +909,10 @@ export function validateAttack(
     if (instCantAttackByOpponentCost(state, pid, inst)) {
         return "コストによりアタックできません"
     }
+    // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）：指定コストのスピリットは両陣営アタックできない
+    if (instCantAttackByCost(state, inst)) {
+        return "コストによりアタックできません"
+    }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
@@ -1046,6 +1050,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (instCostCantAct(state, inst)) continue
         // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
         if (instCantAttackByOpponentCost(state, pid, inst)) continue
+        // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
+        if (instCantAttackByCost(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)

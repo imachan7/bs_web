@@ -1050,6 +1050,11 @@ export function fireFieldEventTriggers(
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveOn(inst, effect, level)) continue
+            // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
+            // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
+            // 既存の kind:"triggered" の oncePerTurn と同じ挙動（下の firing.push 手前で同様に記録している）。
+            // ルール上は払えなければ発揮していないので消費すべきでない＝既知のズレ（HANDOFF §2）
+            if (effect.oncePerTurn === true && inst.triggeredUsedTurn?.[effect.id] === state.turn) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -1275,6 +1280,7 @@ export function fireFieldEventTriggers(
                       ? eventCount
                       : 1
                 : 1
+            if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
             firing.push({ inst, effect, repeatTimes })
         }
     }

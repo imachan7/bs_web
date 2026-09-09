@@ -126,6 +126,13 @@ export function canBlock(
         ) {
             return `このスピリットはBP${attackerInst.unblockableMinBpThisBattle}以上のスピリットにブロックされません`
         }
+        // 器BF：このバトルの間、指定Lvの相手からブロックされない（BS13-058シユウ）
+        if (
+            attackerInst.unblockableLevelsThisBattle !== undefined &&
+            attackerInst.unblockableLevelsThisBattle.includes(currentLevel(blockerInst).level)
+        ) {
+            return `このスピリットはLv${attackerInst.unblockableLevelsThisBattle.join("/")}のスピリットにブロックされません`
+        }
         // このターンの間、指定Lvの相手からブロックされない（BS10-073 エンジェドール＝Lv2）。
         // アタッカーの持ち主にかかっているターン制約を見る
         for (const c of board.turnConstraints) {

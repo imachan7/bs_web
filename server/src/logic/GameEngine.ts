@@ -20,7 +20,7 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
@@ -1493,6 +1493,22 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 器AR（BS13-034）：デッキ破棄効果で破棄されたこのカードを、コストを支払わず召喚するかの確認。action は解決しない
+    if (pending.spiritMillFreeSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.spiritMillFreeSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applySpiritMillFreeSummon(state, info)
+        } else {
+            declineSpiritMillFreeSummon(state, info)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 【不死】（BS09）：トラッシュのこのカードを、コストを支払って召喚するかの確認。action は解決しない
     if (pending.fushiSummon) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
@@ -2042,12 +2058,18 @@ function resolveBattle(state: GameState): void {
     // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
     // （docs/design/TIMING_CHART.md §2。『BPを比べ相手のスピリットだけを破壊したとき』は
     // 敗者が生き残っても発揮する）
-    const outcome: BattleOutcome =
-        attackerValue > blockerValue
+    // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
+    // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
+    const outcome: BattleOutcome = state.battle.skipBpCompare
+        ? "none"
+        : attackerValue > blockerValue
             ? "attackerWins"
             : attackerValue < blockerValue
               ? "blockerWins"
               : "mutual"
+    if (state.battle.skipBpCompare) {
+        log(state, "バトル解決：BPを比べずにバトルを終了させる。")
+    }
     if (outcome === "attackerWins") {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
@@ -2089,7 +2111,7 @@ function resolveBattle(state: GameState): void {
     })
 }
 
-type BattleOutcome = "attackerWins" | "blockerWins" | "mutual"
+type BattleOutcome = "attackerWins" | "blockerWins" | "mutual" | "none"
 type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
 
 // バトル解決の最終ステップ番号（runBattleStep の switch と対応）
@@ -2155,6 +2177,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // （復活の確認が2体に出るなら、バッチがターンプレイヤーに順番を聞く。TIMING_CHART.md §0-3）。
         // 破壊元は対象ごとに違う（ブロッカーを破壊したのはアタッカー、その逆も同様）ため context も対象ごとに渡す
         case 1: {
+            if (f.outcome === "none") return
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
                     { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },

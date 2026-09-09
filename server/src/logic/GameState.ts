@@ -444,6 +444,7 @@ export function clearBattle(state: GameState): void {
     // 「このバトルの間、BP◯以上のスピリットからブロックされない」もここで切れる（器S2。BS13-032光速の騎士ヘルモード【合体時】Lv3）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) delete inst.unblockableMinBpThisBattle
+        for (const inst of state.players[pid].field.spirits) delete inst.unblockableLevelsThisBattle
     }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {

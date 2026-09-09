@@ -398,6 +398,19 @@ BS05プリンセス・スノーホワイト／BS12-068光の聖剣／BS12-X05 �
 | 082 | その後、自分のスピリット1体を回復させる | 回復（「その後」＝前後関係） |
 | X005T | 北斗七星龍ジーク・アポロドラゴン（黄） | **X005A（紫）と同一**。写すだけ |
 
+### 11.3 バッチ完了時に確定したこと（2026-09-09）
+
+- **器AR は白の `reviveOnDestroy` の `when` / `revived` にコストの軸を足す形で済んだ**。足したコストは
+  `ownLifeOneToReserve`（036）・`handDiscardCardType`（038・既存流用）・`millSelfCount`（040）・
+  `exhaustOwnSameFamilyOne`（X05）の4つ。器AT（057）は `revived.braveStay` ＋ `toHand` の組み合わせ
+- **BS13-058 の「Lv1/Lv2からブロックされない」は `lifeCharge.thenUnblockableByLevelThisBattle` に埋めた。**
+  効果文が「デッキ5枚破棄する**ことで**、ライフに置き、ブロックされない」＝**1つのコストで2つの結果**なので、
+  エントリを分けると支払いが二重になる。既存の常在版 `unblockableBy.levelFilter` とは寿命が違う（このバトル限り）
+- **BS13-082 は `skipBpCompareThenRefreshOne` の1アクション。** `BattleOutcome` に `"none"` を足して
+  「BP比較をしていないバトル」を表す。**ライフ減少は通常どおり通す**（§1 #28）
+- **「ターンに1回」はマッチ時点で消費される**（既存の `triggered` と同じ）。ルール上は払えなければ
+  発揮していないので消費すべきでない＝**既知のズレとして HANDOFF §2 に積んだ**（BS13 完了後に着手）
+
 ---
 
 ## 12. バッチ6（青16枚）の設計 — 2026-09-08 確定

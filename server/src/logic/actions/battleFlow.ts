@@ -109,6 +109,17 @@ const endStepLockHandler: ActionHandler<"endStepLock"> = (ctx, action) => {
     log(state, `${sourceName}：${state.players[owner].name}のエンドステップを${action.turns}回行うまで、お互いに制限がかかる。`)
 }
 
+// 器AV：BS13-082ペガサスフラップ「バトル解決時、BPを比べずにバトルを終了させる。その後、
+// 自分のスピリット1体を回復させる」。バトルがなければBP比較を飛ばす対象が無いのでrefreshOneだけ行う
+const skipBpCompareThenRefreshOneHandler: ActionHandler<"skipBpCompareThenRefreshOne"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (state.battle) {
+        state.battle.skipBpCompare = true
+        log(state, `${sourceName}：このバトルはBPを比べずに終了する。`)
+    }
+    ctx.resolve({ type: "refreshOne" })
+}
+
 // BS12-049 アンフィスバエナー：相手側が発揮中の endStepLock（BS10-108ルナティックシール型）のうち、
 // 発生源カード名にnameIncludesを含むものだけを解除する。トラッシュ・手札のカードには何もしない
 const negateContinuousMagicByNameHandler: ActionHandler<"negateContinuousMagicByName"> = (ctx, action) => {
@@ -2189,6 +2200,7 @@ const handlers = {
     blockTriggersAsAttackOwnThisTurn: blockTriggersAsAttackOwnThisTurnHandler,
     grantUnblockableByLevelThisTurn: grantUnblockableByLevelThisTurnHandler,
     endStepLock: endStepLockHandler,
+    skipBpCompareThenRefreshOne: skipBpCompareThenRefreshOneHandler,
     extraAttackStep: extraAttackStepHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,

@@ -69,6 +69,9 @@ export function reductionGrantSymbols(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "reductionGrant") continue
+            // 器BJ：selfOnly（手札にあるこのカード自身への付与）はカード自身が場に無くても発揮するため、
+            // effectSources（場の発生源）経由ではなく下のcardData.effects直読みループで扱う。ここでは対象外にする
+            if (effect.selfOnly) continue
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
@@ -100,11 +103,37 @@ export function reductionGrantSymbols(
                     if (total < count) continue
                 }
             }
+            // 器BJ：symbolCountFromFamily＝固定1組ではなく、持ち主のフィールドの指定系統スピリット数ぶん繰り返す
+            const repeated: Color[] = effect.symbolCountFromFamily
+                ? new Array(
+                      board.players[pid].field.spirits.filter((s) =>
+                          matchesFamilyFilter(board, pid, s, effect.symbolCountFromFamily!),
+                      ).length,
+                  ).fill(effect.symbols[0]!)
+                : effect.symbols
             if (effect.replace) {
-                replace = effect.symbols
+                replace = repeated
             } else {
-                extra.push(...effect.symbols)
+                extra.push(...repeated)
             }
+        }
+    }
+    // 器BJ：selfOnly＝手札にあるこのカード自身の効果として直接見る（effectSourcesを経由しない。
+    // カードがまだ場に無くても発揮する。BS13-039神獣バーロン：「手札にあるこのスピリットカードに
+    // 軽減シンボル[黄]を与える」）
+    for (const effect of cardData.effects) {
+        if (effect.kind !== "reductionGrant" || !effect.selfOnly) continue
+        const repeated: Color[] = effect.symbolCountFromFamily
+            ? new Array(
+                  board.players[pid].field.spirits.filter((s) =>
+                      matchesFamilyFilter(board, pid, s, effect.symbolCountFromFamily!),
+                  ).length,
+              ).fill(effect.symbols[0]!)
+            : effect.symbols
+        if (effect.replace) {
+            replace = repeated
+        } else {
+            extra.push(...repeated)
         }
     }
     return { extra, replace }
@@ -127,7 +156,8 @@ export function hasMagicRestriction(
         | "reserveOnlyOpponent"
         | "noFlashAll"
         | "noFlashOpponent"
-        | "noSpiritCoresOpponent",
+        | "noSpiritCoresOpponent"
+        | "noReductionOpponentNexus",
 ): boolean {
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
         // noFlashAll（BS06軍師ショウジョウジ）はoncePerTurnAllと同じく「お互い」に効くため、
@@ -429,7 +459,10 @@ export function effectiveCost(
             grantedReduction.replace !== null
                 ? grantedReduction.replace
                 : [...baseReduction, ...grantedReduction.extra]
-        const reductionBlocked = cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")
+        const reductionBlocked =
+            (cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")) ||
+            // 器AZ：発生源の持ち主の相手は、ネクサス配置時に軽減シンボルによる軽減ができない（BS13-069）
+            (cardData.type === "nexus" && hasMagicRestriction(board, pid, "noReductionOpponentNexus"))
         // 軽減シンボルは**色ごとに**、その色のフィールドシンボル数までしか適用されない。
         // 全体を1つの集合として数えると、混色の軽減（BS05-X19 聖皇ジークフリーデン＝赤3白3）で
         // 赤シンボルだけを大量に並べたときに白の軽減まで払えてしまい、過剰に軽減される

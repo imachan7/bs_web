@@ -871,6 +871,26 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToTrash}個を自分のトラッシュに置いた。`,
             )
         }
+        // costOwnLifeToReserve（BS13-039神獣バーロン【合体時】Lv3）：持ち主のライフのコアをこの数だけ
+        // リザーブへ置くことがコスト。ライフが足りなければ不発
+        if (action.costOwnLifeToReserve !== undefined) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.life < action.costOwnLifeToReserve) {
+                log(state, `${sourceName}：ライフが足りず発動しなかった。`)
+                return
+            }
+            ownerPlayer.life -= action.costOwnLifeToReserve
+            ownerPlayer.reserve += action.costOwnLifeToReserve
+            log(
+                state,
+                `${ownerPlayer.name}は${sourceName}の効果で、ライフのコア${action.costOwnLifeToReserve}個をリザーブに置いた。（残りライフ${ownerPlayer.life}）`,
+            )
+            if (ownerPlayer.life <= 0 && !state.winner) {
+                state.winner = opp
+                log(state, `${state.players[opp].name}の勝利！`)
+                return
+            }
+        }
         // costDestroyOwnVanillaSpirit（BS12-X06海賊王レヴィアダンLv2-3）：効果の記述を持たない
         // 自分のスピリット1体を破壊することがコスト（COST_MODEL.md：AとBの両方が完全に解決できるときだけ発揮）。
         // 該当がなければ不発。候補2体以上なら破壊するスピリットをプレイヤーが選ぶ（coreGain.costDestroyOwnSpiritと同じ考え方）
