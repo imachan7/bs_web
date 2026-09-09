@@ -27,6 +27,7 @@ import {
 } from "../EffectModules"
 import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { detachBraveByEffect } from "../removal"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 // 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
@@ -906,6 +907,82 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             }
             log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
             destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
+            if (state.winner) return
+        }
+        // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
+        // 手札に戻すことがコスト（該当がなければ不発＝COST_MODEL.md §1）。候補2体以上なら
+        // プレイヤーが選ぶ（§2）。非対話・自動選択はコスト最小（他のcostSacrificeChosen系と同じ方針）
+        if (action.costReturnOwnSpiritKeyword !== undefined) {
+            const kw = action.costReturnOwnSpiritKeyword
+            const candidates = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, kw))
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates[0]!
+                for (const s of candidates) {
+                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+                }
+            }
+            returnSpiritToHand(state, owner, victim, sourceName)
+            if (state.winner) return
+        }
+        // 器AE：costReturnOwnBrave指定時は、自身に合体しているブレイヴ1つを手札に戻すことがコスト
+        // （回復と合体はセット＝BS13_PLAN.md §1 #16と同じ考え方で、合体していなければ不発）。
+        // 候補2体以上（複数のブレイヴが合体している）ならプレイヤーが選ぶ
+        if (action.costReturnOwnBrave) {
+            const refs = self.braveRefs ?? []
+            if (refs.length === 0) {
+                log(state, `${sourceName}：コストにできるブレイヴがいないため発動しなかった。`)
+                return
+            }
+            let chosenId: string | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                chosenId = refs.find((r) => r.instanceId === targetInstanceId)?.instanceId
+                if (!chosenId) {
+                    log(state, `${sourceName}：指定されたブレイヴはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && refs.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして手札に戻すブレイヴを選んでください`,
+                    refs.map((r) => r.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                chosenId = refs[0]!.instanceId
+            }
+            const brave = state.players[owner].field.combinedBraves.find((b) => b.instanceId === chosenId)
+            if (!brave) {
+                log(state, `${sourceName}：コストにできるブレイヴがいなかった。`)
+                return
+            }
+            detachBraveByEffect(state, owner, self, brave)
+            returnSpiritToHand(state, owner, brave, sourceName)
             if (state.winner) return
         }
         refreshSpirit(state, owner, self, srcType)

@@ -577,6 +577,8 @@ export function refreshSpirit(
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
+    // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritRefreshed", { pid: ownerPid, inst })
 }
 
 // 「スピリットが疲労したとき」のフィールドイベント発火。
@@ -1212,6 +1214,9 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             fromHand: state.summoningFromHand === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
+            // 器AG：summonedSpiritAsTarget指定時に、召喚されたスピリット自身をactionTargetIdとして渡す
+            // （selfMode:"source"と組み合わせ、self=発生源自身・target=召喚されたスピリットを両立させる。BS13-053モクバオー）
+            sourceInstanceId: inst.instanceId,
         })
     }
     // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
@@ -3217,6 +3222,8 @@ export function countEffectCounter(
     }
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
+    // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
+    if (counter === "selfCores") return self?.cores ?? 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0

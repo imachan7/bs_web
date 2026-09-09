@@ -674,6 +674,11 @@ export function fireBattleWonTriggers(
             if (effect.winnerIsLentBuffTarget && inst.lentBuffTargetId !== winnerInst.instanceId) {
                 continue
             }
+            // BS13-078ネバーギブアップ：targetChoiceLendThisTurnで選んだ1体に限る。
+            // 貸与のときに仮想発生源へ写した lentChoiceInstanceId と照合する
+            if (effect.winnerIsLentChoiceTarget && inst.lentChoiceInstanceId !== winnerInst.instanceId) {
+                continue
+            }
             // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
             // 配列＝OR（どれか1つ持っていれば発火する。1回だけ）
             if (effect.winnerKeywordFilter !== undefined) {
@@ -986,7 +991,8 @@ export function fireFieldEventTriggers(
         byOpponentEffect?: boolean
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
-        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）
+        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）。
+        // event: "ownSpiritSummoned" 限定：**召喚されたスピリット自身**のインスタンスID（summonedSpiritAsTarget が読む。BS13-053モクバオー）
         sourceInstanceId?: string
         families?: string[]
         magicCost?: number
@@ -1284,7 +1290,7 @@ export function fireFieldEventTriggers(
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
         // byOpponentSpiritEffectOnly：対象をイベント対象ではなく「その効果を発揮したスピリット」にする
         // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
-        const actionTargetId = effect.byOpponentSpiritEffectOnly
+        const actionTargetId = effect.byOpponentSpiritEffectOnly || effect.summonedSpiritAsTarget
             ? eventInfo?.sourceInstanceId
             : effect.ignoreEventTarget
               ? undefined

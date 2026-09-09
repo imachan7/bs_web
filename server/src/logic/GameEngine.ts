@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -504,6 +504,11 @@ function doSummon(
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
     const inst = createInstance(cardId, state.turn, maintain)
+    // 器AB（globalConstraint "summonExhausted"）：条件を満たすカードは疲労状態で召喚する。
+    // 「疲労する」であって「疲労状態になる」ではないため exhaustSpirit を経由しない＝ownSpiritExhaustedは発火しない
+    // （BS13_PLAN.md §1 #24）。ダイレクトブレイヴはこの後 attachBrave の疲労合成（host.isRested||brave.isRested）
+    // が拾うため、召喚するインスタンス自身をここで疲労させれば合体先へ自然に伝播する（同 #14）
+    if (summonExhausted(state, card)) inst.isRested = true
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     const braveNote =

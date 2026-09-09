@@ -225,13 +225,22 @@ export function endTurn(state: GameState): void {
 
     // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
     // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
+    // maxCount指定時は「ターンに1回」等、そのcardIdにつき戻る枚数を上限で絞る（BS13-077ブリーズライド：1枚まで）
     {
         const p = state.players[state.turnPlayer]
+        const trashReturnMaxCount = (cardId: string): number => {
+            const e = getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")
+            return e && e.kind === "trashReturnAtEndStep" ? (e.maxCount ?? Infinity) : Infinity
+        }
+        const returnedCounts = new Map<string, number>()
         for (let i = p.trashCards.length - 1; i >= 0; i--) {
             const cardId = p.trashCards[i]
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
+            const already = returnedCounts.get(cardId) ?? 0
+            if (already >= trashReturnMaxCount(cardId)) continue
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)
+            returnedCounts.set(cardId, already + 1)
             log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
         }
     }

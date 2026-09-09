@@ -2602,6 +2602,61 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
             return
         }
+        // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
+        // 手札に戻すことがコスト（COST_MODEL.md §1：AとBの両方が成立するときだけ払う）。
+        // Bの候補（戻せる相手）が1体もいなければ不発。候補2体以上ならプレイヤーが選ぶ（§2）。
+        // 支払った後は targetInstanceId を落として再入し、以降は通常の対象選択に合流する
+        // （BS13-053モクバオー【合体時】：【神速】持ち1体を戻して相手1体を戻す）
+        if (action.costReturnOwnSpiritKeyword !== undefined) {
+            const kw = action.costReturnOwnSpiritKeyword
+            const costCandidates = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, kw))
+            const hasTarget =
+                pickEnemyCandidates(
+                    state,
+                    opp,
+                    Infinity,
+                    (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
+                    srcColors,
+                    srcType,
+                    "bounce",
+                ).length >= 1
+            if (costCandidates.length === 0 || !hasTarget) {
+                log(state, `${sourceName}：発動しなかった。`)
+                return
+            }
+            const { costReturnOwnSpiritKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = costCandidates.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                returnSpiritToHand(state, owner, chosen, sourceName)
+                if (state.winner) return
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && costCandidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
+                    costCandidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            let victim = costCandidates[0]!
+            for (const s of costCandidates) {
+                if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+            }
+            returnSpiritToHand(state, owner, victim, sourceName)
+            if (state.winner) return
+            ctx.resolve(rest)
+            return
+        }
         // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
         // **A（コスト）と B（効果）の両方が成立するときだけ払う**（COST_MODEL.md §1）。
         // 以前はここで払ってから対象を探していたため、戻せる相手がいなくてもコアを失っていた。

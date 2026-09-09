@@ -35,7 +35,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -1463,6 +1463,27 @@ const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
 // 効果による合体（BRAVE.md §12.5.2。BS11-078 ブレイヴフラッシュ）。
 // スピリット状態のブレイヴを選び、合体先のスピリットを選んで合体させる。
 // メインステップの任意合体（GameAction "combineBrave"）とは別の入口で、タイミング制限はマジック側が持つ
+// 器AG：【神速】を持つ自分のスピリットが召喚されたとき、バトルしていないスピリット状態のこのブレイヴ（self）を
+// 回復させ、その召喚されたスピリット（targetInstanceId＝fieldEventのイベント対象）に合体できる。
+// **回復と合体はセット**（BS13_PLAN.md §1 #16）：合体できないならselfは回復もしない
+const refreshSelfBraveThenCombineHandler: ActionHandler<"refreshSelfBraveThenCombine"> = (ctx) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (!self) {
+        log(state, `${sourceName}：発揮する対象がいなかった。`)
+        return
+    }
+    const player = state.players[owner]
+    // selfがスピリット状態（field.spiritsにいる）でなければ対象外（既に合体済み等）
+    if (!player.field.spirits.some((sp) => sp.instanceId === self.instanceId)) return
+    if (isInBattle(state, self)) return
+    const host = targetInstanceId !== undefined ? player.field.spirits.find((sp) => sp.instanceId === targetInstanceId) : undefined
+    if (!host || !braveCombineCandidates(state, owner, self.cardId).includes(host.instanceId)) {
+        return
+    }
+    if (self.isRested) refreshSpirit(state, owner, self)
+    attachBrave(state, owner, host, self)
+}
+
 const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const player = state.players[owner]
@@ -2167,6 +2188,7 @@ const handlers = {
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
+    refreshSelfBraveThenCombine: refreshSelfBraveThenCombineHandler,
     borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
     borrowDestroyEffect: borrowDestroyEffectHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
