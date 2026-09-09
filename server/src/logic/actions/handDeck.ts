@@ -2593,16 +2593,6 @@ const returnOwnSpiritToHandHandler: ActionHandler<"returnOwnSpiritToHand"> = (ct
     return
 }
 
-// 器AO：casterPid（この効果を発揮した側）が「このターンの間、自分の効果で手札に戻るスピリットは
-// 持ち主のデッキの上に戻る」（turnConstraints "bounceToDeckTopForPid"）を持っていれば"deckTop"、
-// 無ければ従来どおり"hand"（BS13-079ヴァニシングデイ）。returnToHandの最終的な戻し先3箇所だけがこれを見る
-// （コストとして自分のスピリットを戻す経路は対象外の簡略化。COST_MODEL.md的な支払いはそのまま手札へ）
-function bounceDestFor(state: GameState, casterPid: PlayerId): "hand" | "deckTop" {
-    return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === casterPid)
-        ? "deckTop"
-        : "hand"
-}
-
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
@@ -2735,12 +2725,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            if (bounceDestFor(state, owner) === "deckTop") {
-                markBounce(state, found.pid, found.inst, "deckTop", sourceName)
-                flushBounces(state)
-            } else {
-                returnSpiritToHand(state, found.pid, found.inst, sourceName)
-            }
+            returnSpiritToHand(state, found.pid, found.inst, sourceName)
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -2789,7 +2774,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
                 }
-                markBounce(state, target.pid, target.inst, bounceDestFor(state, owner), sourceName)
+                markBounce(state, target.pid, target.inst, "hand", sourceName)
             }
             flushBounces(state)
             return
@@ -2819,12 +2804,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
             }
-            if (bounceDestFor(state, owner) === "deckTop") {
-                markBounce(state, opp, target, "deckTop", sourceName)
-                flushBounces(state)
-            } else {
-                returnSpiritToHand(state, opp, target, sourceName)
-            }
+            returnSpiritToHand(state, opp, target, sourceName)
         }
         return
 }

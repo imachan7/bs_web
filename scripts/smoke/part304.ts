@@ -315,6 +315,26 @@ console.log("=== 器AO：BS13-079メイン「このターンの間、自分の�
         "器AO：手札の代わりに持ち主のデッキの上に戻った")
 }
 
+console.log("=== 器AO：「〜を手札に戻すことで」のコスト支払いもデッキの上へ振り替わる ===")
+{
+    const s = game("ao-bounce-cost")
+    resolveAction(s, "p1", null, { type: "bounceToDeckTopThisTurn" })
+    // コストにする自分のスピリット（【神速】持ち）と、効果の対象になる相手のスピリット
+    const cost = createInstance("BS13-021", s.turn, 1)
+    s.players.p1.field.spirits.push(cost)
+    const target = createInstance(ALL_CARDS.find((c) => c.type === "spirit")!.cardId, s.turn, 1)
+    s.players.p2.field.spirits.push(target)
+    refreshLevelAsOverrides(s)
+    const deckLenBefore = s.players.p1.deck.length
+
+    resolveAction(s, "p1", null, { type: "returnToHand", count: 1, costReturnOwnSpiritKeyword: "soku" }, target.instanceId)
+
+    assert(!s.players.p1.field.spirits.some((x) => x.instanceId === cost.instanceId), "コストのスピリットは場を離れた")
+    assert(!s.players.p1.hand.includes("BS13-021"), "コストのスピリットは手札に加わっていない")
+    assert(s.players.p1.deck.length === deckLenBefore + 1 && s.players.p1.deck[0] === "BS13-021",
+        "器AO：コストとして戻すスピリットも持ち主のデッキの上へ振り替わる")
+}
+
 console.log("=== 器AQ：BS13-068Lv1-2「お互い、シンボル2つを持つスピリットはターンに1回しかアタックできない」 ===")
 {
     const s = game("aq-attack-once")

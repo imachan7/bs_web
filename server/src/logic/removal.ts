@@ -2012,6 +2012,14 @@ export function returnSpiritToHand(
 // そうすると「全部戻ってから、まとめて『戻ったとき』が誘発する」というルールどおりになる
 // （1体ずつ戻すと、1体目の誘発が2体目以降の対象を変えてしまう）。
 // 1体だけ戻す場合は returnSpiritToHand 等がその場で flush するので結果は変わらない
+// 器AO：いま解決中の効果の持ち主に「手札に戻る先をデッキの上へ」が張られているか
+// （GameState.currentEffectSource が効果の持ち主を指す。効果の解決中でなければ常に false）
+function bouncesToDeckTop(state: GameState): boolean {
+    const pid = state.currentEffectSource?.pid
+    if (pid === undefined) return false
+    return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === pid)
+}
+
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
@@ -2022,7 +2030,11 @@ export function markBounce(
     const player = state.players[ownerPid]
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
     if (inst.pendingBounce) return
-    inst.pendingBounce = { to }
+    // 器AO：いま解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは
+    // 持ち主のデッキの上に戻る」を張っていれば、手札への戻しをデッキの上へ振り替える
+    // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
+    // 「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
+    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
 }
 
