@@ -1,8 +1,9 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { log, resolveInOrder } from "../GameState"
+import { log, opponentOf, resolveInOrder } from "../GameState"
 import { requestChoice } from "../EffectModules"
+import { toAttackPhase } from "../PhaseManager"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -62,8 +63,19 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
         return
 }
 
+// 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める
+// （PhaseManager.toAttackPhase。相手がメインステップにいなければ何もしない＝BS13-067光導く巨塔Lv2）
+const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const opp = opponentOf(owner)
+    if (state.turnPlayer !== opp || state.phase !== "main") return
+    log(state, `${sourceName}：${state.players[opp].name}のメインステップを終了させた。`)
+    toAttackPhase(state)
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
+    forceEndMainStep: forceEndMainStepHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -41,7 +41,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -2593,6 +2593,16 @@ const returnOwnSpiritToHandHandler: ActionHandler<"returnOwnSpiritToHand"> = (ct
     return
 }
 
+// 器AO：casterPid（この効果を発揮した側）が「このターンの間、自分の効果で手札に戻るスピリットは
+// 持ち主のデッキの上に戻る」（turnConstraints "bounceToDeckTopForPid"）を持っていれば"deckTop"、
+// 無ければ従来どおり"hand"（BS13-079ヴァニシングデイ）。returnToHandの最終的な戻し先3箇所だけがこれを見る
+// （コストとして自分のスピリットを戻す経路は対象外の簡略化。COST_MODEL.md的な支払いはそのまま手札へ）
+function bounceDestFor(state: GameState, casterPid: PlayerId): "hand" | "deckTop" {
+    return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === casterPid)
+        ? "deckTop"
+        : "hand"
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
@@ -2600,6 +2610,20 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
+            return
+        }
+        // costExhaustSelf指定時は、発生源自身（ネクサス等）を疲労させることがコスト。
+        // 対象はfieldEventが渡すtargetInstanceId固定（自由選択ではない）ため、それが定まらない／
+        // 既に疲労済みなら不発（COST_MODEL.md §1。BS13-068遥かなる衛星砲Lv2）
+        if (action.costExhaustSelf) {
+            if (!self || self.isRested || targetInstanceId === undefined || !findSpiritAny(state, targetInstanceId)) {
+                log(state, `${sourceName}：発動しなかった。`)
+                return
+            }
+            self.isRested = true
+            log(state, `${state.players[owner].name}は${sourceName}を疲労させた。`)
+            const { costExhaustSelf: _paid, ...rest } = action
+            ctx.resolve(rest, { targetInstanceId })
             return
         }
         // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
@@ -2711,7 +2735,12 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
                 return
             }
-            returnSpiritToHand(state, found.pid, found.inst, sourceName)
+            if (bounceDestFor(state, owner) === "deckTop") {
+                markBounce(state, found.pid, found.inst, "deckTop", sourceName)
+                flushBounces(state)
+            } else {
+                returnSpiritToHand(state, found.pid, found.inst, sourceName)
+            }
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -2760,7 +2789,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
                 }
-                markBounce(state, target.pid, target.inst, "hand", sourceName)
+                markBounce(state, target.pid, target.inst, bounceDestFor(state, owner), sourceName)
             }
             flushBounces(state)
             return
@@ -2790,9 +2819,46 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                 break
             }
-            returnSpiritToHand(state, opp, target, sourceName)
+            if (bounceDestFor(state, owner) === "deckTop") {
+                markBounce(state, opp, target, "deckTop", sourceName)
+                flushBounces(state)
+            } else {
+                returnSpiritToHand(state, opp, target, sourceName)
+            }
         }
         return
+}
+
+// 器AJ：BS13-030リーサルウェポンドラゴン【合体時】Lv2「このスピリットが持つ【重装甲】と同じ色の相手のスピリット1体ずつを手札に戻す」。
+// selfが実際に持つ【重装甲】の色（heavyArmorColorsOf。後天的な付与も含む）ごとに、その色を持つ相手のスピリット
+// 1体を手札に戻す。destroyCostsEachOneHandlerと同じ「色ごとにreturnToHand count:1へ委譲」の形
+// （装甲・効果耐性・対象選択・バウンス待機の扱いをreturnToHand側の1箇所に保つため）
+const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHeavyArmorColor"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType } = ctx
+    if (!self) return
+    // remainingColors：選択待ちで中断したときの再開スタック用（cards.jsonには書かない。destroyOnePerCostと同型）
+    const colors = action.remainingColors ?? heavyArmorColorsOf(self)
+    for (let i = 0; i < colors.length; i++) {
+        const color = colors[i]
+        if (color === undefined) continue
+        ctx.resolve({ type: "returnToHand", count: 1, filter: { color } }, {
+            sourceColors: srcColors,
+            sourceType: srcType,
+        })
+        if (state.winner) return
+        if (state.pendingChoice) {
+            const rest = colors.slice(i + 1)
+            if (rest.length > 0) {
+                pushResumeFrames(state, [{
+                    kind: "action",
+                    selfInstanceId: self.instanceId,
+                    actorPid: owner,
+                    action: { type: "returnToHandEachHeavyArmorColor", remainingColors: rest },
+                }])
+            }
+            return
+        }
+    }
 }
 
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
@@ -3574,6 +3640,7 @@ const handlers = {
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
+    returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnOwnSpiritToHand: returnOwnSpiritToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,

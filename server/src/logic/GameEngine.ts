@@ -936,6 +936,8 @@ function doAttack(
 
     // このターンのアタック回数を加算する（「ターンの最初のアタック」判定に使う。誘発より前に更新する）
     state.attacksThisTurn += 1
+    // 器AQ：globalConstraint "attackOncePerTurnBySymbolCount" が見る「このターン既にアタックしたか」の印
+    inst.attackedThisTurn = true
 
     // 直前の【粉砕】の記録をクリアする（アタック宣言のたびに。粉砕を持たないスピリットのアタック時に
     // 前回の値を拾わないようにするため。GameState.lastFunsai）

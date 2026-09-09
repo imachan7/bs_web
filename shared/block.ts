@@ -71,6 +71,16 @@ export function canBlock(
                         return false
                     }
                 }
+                // 器AL：targetMaxBp指定時はアタッカーの実効BPがこれ以下のときのみ（BS13-029剣馬グラニムLv1-3）
+                if (c.targetMaxBp !== undefined) {
+                    if (attackerInst === undefined || effectiveBp(board, attackerPid, attackerInst) > c.targetMaxBp) {
+                        return false
+                    }
+                }
+                // 器AL：targetCombinedOnly指定時はアタッカーが合体スピリットのときのみ（BS13-029Lv2-3／BS13-031Lv1-2）
+                if (c.targetCombinedOnly) {
+                    if (attackerInst === undefined || !instIsCombined(attackerInst)) return false
+                }
                 return true
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
@@ -108,6 +118,13 @@ export function canBlock(
         // （印は次のバトルの終了時に消えるので、同じターンの2回目のアタックはブロックできる）
         if (attackerInst.unblockableOnceThisTurn) {
             return "このスピリットはこのターン1回だけブロックされません"
+        }
+        // BS13-032光速の騎士ヘルモード【合体時】Lv3：このバトルの間、実効BPがminBp以上の相手からブロックされない
+        if (
+            attackerInst.unblockableMinBpThisBattle !== undefined &&
+            effectiveBp(board, blockerPid, blockerInst) >= attackerInst.unblockableMinBpThisBattle
+        ) {
+            return `このスピリットはBP${attackerInst.unblockableMinBpThisBattle}以上のスピリットにブロックされません`
         }
         // このターンの間、指定Lvの相手からブロックされない（BS10-073 エンジェドール＝Lv2）。
         // アタッカーの持ち主にかかっているターン制約を見る

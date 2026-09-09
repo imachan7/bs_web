@@ -1292,9 +1292,11 @@ export function fireFieldEventTriggers(
         // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
         const actionTargetId = effect.byOpponentSpiritEffectOnly || effect.summonedSpiritAsTarget
             ? eventInfo?.sourceInstanceId
-            : effect.ignoreEventTarget
-              ? undefined
-              : targetInstanceId
+            : effect.attackerAsTarget
+              ? selfOverride?.inst.instanceId
+              : effect.ignoreEventTarget
+                ? undefined
+                : targetInstanceId
         if (effect.selfMode === "source") {
             // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
             // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）

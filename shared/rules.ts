@@ -753,6 +753,8 @@ export function continuousKeywordGrantCount(
             if (effect.keyword !== keyword) continue
             // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
             if (!effectActiveOn(source, effect, sourceLevel)) continue
+            // onlyWhileSpiritState＝whileCombinedの逆。発生源自身が合体しているときは発揮しない（BS13-056ホーク・ブレイカー）
+            if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
             // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
             if (effect.combinedFilter && !instIsCombined(inst)) continue
             if (
@@ -1696,6 +1698,8 @@ export function activeConstraintsWithSource(
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
             if (effect.familyFilter && !matchesFamilyFilter(board, pid, inst, effect.familyFilter)) continue
+            // BS13-029剣馬グラニム：この色を持つスピリットのみに付与
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
@@ -1854,6 +1858,21 @@ export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] |
     return (inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))
 }
 
+// 器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
+// hasHeavyArmorAgainstと同じ元データを「含むか」ではなく「一覧」で返す版。BS13-030リーサルウェポンドラゴン：
+// 「このスピリットが持つ【重装甲】と同じ色」を色ごとに1体ずつ選ぶために使う。重複除去して返す）
+export function heavyArmorColorsOf(inst: CardInstance): Color[] {
+    const level = currentLevel(inst).level
+    const colors: Color[] = []
+    for (const e of card(inst.cardId).effects) {
+        if (e.kind !== "keyword" || e.keyword !== "heavyArmor") continue
+        if (!effectActiveOn(inst, e, level)) continue
+        for (const c of e.colors ?? []) if (!colors.includes(c)) colors.push(c)
+    }
+    for (const c of inst.heavyArmorColorsGranted ?? []) if (!colors.includes(c)) colors.push(c)
+    return colors
+}
+
 // 第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
 // （BS12_PLAN.md §1 の1と同じ線引き）。scope:"all"は色不問、scope:"matchArmorColors"は
 // **対象自身が持つ【装甲】の色**と一致するときだけ防ぐ（このスピリット自身の装甲色を都度参照する）
@@ -1887,6 +1906,38 @@ export function hasGlobalConstraint(
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 return true
             }
+        }
+    }
+    return false
+}
+
+// 器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
+// instのシンボル数と一致する制約が両陣営どちらかのfieldにあり、かつinstが既にこのターンアタック済みなら true
+// （RuleValidator.validateAttackが2回目以降のアタック宣言を拒否する）
+export function attackOncePerTurnLimitApplies(board: Board, inst: CardInstance): boolean {
+    if (!inst.attackedThisTurn) return false
+    const count = instanceSymbolCount(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnBySymbolCount") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.constraint.symbolCount === count) return true
+            }
+        }
+    }
+    return false
+}
+
+// globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
+// **発生源の持ち主だけ**を守る片側パターン（ownLifeFloorContinuousと同型）。pid自身のeffectSourcesだけを見る
+export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId): boolean {
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeImmuneToSpiritEffects") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
         }
     }
     return false

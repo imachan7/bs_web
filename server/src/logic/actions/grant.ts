@@ -15,6 +15,7 @@ import {
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
+    returnSpiritToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
@@ -663,6 +664,13 @@ const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => 
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは減らない。`)
 }
 
+// 器AO：このターンの間、発生源の持ち主の効果で手札に戻るスピリットは持ち主のデッキの上に戻る（BS13-079ヴァニシングデイ）
+const bounceToDeckTopThisTurnHandler: ActionHandler<"bounceToDeckTopThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "bounceToDeckTopForPid", pid: owner })
+    log(state, `${sourceName}：このターンの間、${state.players[owner].name}の効果で手札に戻るスピリットは持ち主のデッキの上に戻る。`)
+}
+
 // このターンの間、持ち主のライフが指定の下限を下回らないようにする（BS11-080 デルタバリア）。
 // 「減らない」（lifeImmuneThisTurn）とは別物で、**下限まではふつうに減る**
 const lifeFloorThisTurnHandler: ActionHandler<"lifeFloorThisTurn"> = (ctx, action) => {
@@ -990,7 +998,36 @@ const ignoreUnblockableThisTurnHandler: ActionHandler<"ignoreUnblockableThisTurn
 }
 
 const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        // 器AN：costReturnSelfToHand指定時は、このスピリット自身を手札に戻すことがコスト
+        // （COST_MODEL.md §1：対象になれる相手のスピリットが1体もいなければ不発）。BS13-027ムーンショウウオ。
+        // costPaidは支払い済みの再入を示す内部専用フラグ（cards.jsonには書かない。costSacrificeChosenと同型）
+        if (action.costReturnSelfToHand && !action.costPaid) {
+            if (!self || state.players[opp].field.spirits.length === 0) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            returnSpiritToHand(state, owner, self, sourceName)
+            if (state.winner) return
+            // 呼び出し元が明示的にtargetInstanceIdを渡していた場合（誘発・テスト等）はそのまま引き継ぐ。
+            // 渡していなければ後続のinteractiveTargets分岐でプレイヤーに選ばせる
+            ctx.resolve({ ...action, costPaid: true }, targetInstanceId !== undefined ? { targetInstanceId } : undefined)
+            return
+        }
+        // costReturnSelfToHand持ちは「相手のスピリット1体を指定する」＝プレイヤーが選ぶ（BS13-027）。
+        // 既存のBS04ミストカーテン（costReturnSelfToHand無し）は従来どおり自動選択のまま変えない
+        if (action.costReturnSelfToHand && targetInstanceId === undefined && state.interactiveTargets) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：ライフを守る相手のスピリットを選んでください`,
+                state.players[opp].field.spirits.map((s) => s.instanceId),
+                false,
+                action,
+                self,
+            )
+            return
+        }
         // ミストカーテン：対象の相手スピリットのアタックでは、このターン使用者のライフが減らない
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
@@ -1317,6 +1354,7 @@ const handlers = {
     banHandCardsThisTurn: banHandCardsThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
+    bounceToDeckTopThisTurn: bounceToDeckTopThisTurnHandler,
     lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,

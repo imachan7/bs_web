@@ -35,7 +35,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
 } from "../EffectModules"
-import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, trashCardNameMatches } from "../../../../shared/rules"
+import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -339,6 +339,11 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         // BS11-X06 天秤造神リブラ・ゴレムLv3：回復状態の発生源がある間、この持ち主は相手のライフを減らせない
         if (cantReduceOpponentLife(state, owner)) {
             log(state, `${sourceName}：回復状態の発生源があるため、相手のライフを減らせなかった。`)
+            return
+        }
+        // BS13-027ムーンショウウオLv2：**相手のスピリットの効果では**自分のライフは減らされない（片側・srcType限定）
+        if (srcType === "spirit" && ownLifeImmuneToOpponentSpiritEffects(state, opp)) {
+            log(state, `${sourceName}：${state.players[opp].name}は相手のスピリットの効果ではライフが減らないため発動しなかった。`)
             return
         }
         // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
@@ -1983,6 +1988,15 @@ const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> =
     log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
 }
 
+// BS13-032光速の騎士ヘルモード【合体時】Lv3『このスピリットの合体アタック時』：発生源自身に、
+// このバトルの間「実効BPがminBp以上の相手からブロックされない」印を付ける（BRAVE.md §12.4）
+const unblockableAboveBpThisBattleHandler: ActionHandler<"unblockableAboveBpThisBattle"> = (ctx, action) => {
+    const { state, self, sourceName } = ctx
+    if (!self) return
+    self.unblockableMinBpThisBattle = action.minBp
+    log(state, `${sourceName}：このバトルの間、BP${action.minBp}以上のスピリットからブロックされない。`)
+}
+
 // BS12-058【合体時】：フィールドイベント（ownMagicUsed。「その効果発揮後」）が渡すtargetInstanceIdの
 // 対象1体の実効BPを、このバトルの間amountに固定する（器J）。BS12-037はanySpiritAttackedのselfOverride＝
 // アタックしたスピリットがそのままtargetInstanceIdとして渡る
@@ -2166,6 +2180,7 @@ const handlers = {
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
+    unblockableAboveBpThisBattle: unblockableAboveBpThisBattleHandler,
     markCantBlockThisTurn: markCantBlockThisTurnHandler,
     setBattleBpFixed: setBattleBpFixedHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,

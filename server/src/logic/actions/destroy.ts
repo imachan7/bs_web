@@ -30,6 +30,7 @@ import {
     pickEnemyCandidates,
     requestChoice,
     returnNexusToHand,
+    returnNexusToDeckTop,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
@@ -1408,7 +1409,11 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
         // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
         // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
-            returnNexusToHand(state, pid, nexus.instanceId)
+            if (action.dest === "deckTop") {
+                returnNexusToDeckTop(state, pid, nexus.instanceId)
+            } else {
+                returnNexusToHand(state, pid, nexus.instanceId)
+            }
             if (pid !== owner && action.voidCoreToOwnTrashIfOpponent) {
                 voidCoreToOwnTrash(state, owner, action.voidCoreToOwnTrashIfOpponent)
                 log(

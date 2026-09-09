@@ -98,6 +98,7 @@ import {
     effectiveBp,
     effectSources,
     hasArmorAgainst,
+    hasHeavyArmorAgainst,
     hasContinuousKeywordGrant,
     continuousKeywordGrantCount,
     handSizeOf,
@@ -139,6 +140,7 @@ export {
     effectiveBp,
     effectSources,
     hasArmorAgainst,
+    hasHeavyArmorAgainst,
     hasContinuousKeywordGrant,
     continuousKeywordGrantCount,
     handSizeOf,
@@ -1357,6 +1359,7 @@ function tryReviveOnDestroy(
         byOpponentEffect?: boolean
         byOpponent?: boolean
         byBattleVsArmorColor?: boolean
+        byBattleVsHeavyArmorColor?: boolean
         byBattle?: boolean
         byBattleKillerLevel?: number
         byBattleKillerMaxBp?: number
@@ -1373,6 +1376,11 @@ function tryReviveOnDestroy(
         if (when.byBattleVsArmorColor) {
             const attackerColors = context?.battle?.attackerColors
             if (attackerColors === undefined || !hasArmorAgainst(inst, attackerColors)) return false
+        }
+        // 器AI：byBattleVsArmorColorの【重装甲】版（BS13-067光導く巨塔）
+        if (when.byBattleVsHeavyArmorColor) {
+            const attackerColors = context?.battle?.attackerColors
+            if (attackerColors === undefined || !hasHeavyArmorAgainst(inst, attackerColors)) return false
         }
         if (when.byBattle && context?.battle === undefined) return false
         if (
@@ -1959,6 +1967,27 @@ export function returnNexusToDeckBottom(
     player.reserve += inst.cores
     player.deck.push(inst.cardId)
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの下に戻った。`)
+}
+
+// ネクサスを持ち主のデッキの上へ戻す：returnNexusToDeckBottomのデッキ上版（unshift）。
+// コアはリザーブへ、カードはデッキの一番上へ。破壊ではないため onDestroy は誘発しない
+// （BS13-055重装合体シールド・ドラゴンMk-II：「相手のネクサス1つをデッキの上に戻す」）
+export function returnNexusToDeckTop(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+): void {
+    const player = state.players[ownerPid]
+    const index = player.field.nexuses.findIndex(
+        (n) => n.instanceId === instanceId,
+    )
+    if (index === -1) return
+    const inst = player.field.nexuses[index]
+    if (!inst) return
+    player.field.nexuses.splice(index, 1)
+    player.reserve += inst.cores
+    player.deck.unshift(inst.cardId)
+    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの上に戻った。`)
 }
 
 // スピリットを持ち主の手札へ戻す（バウンス）。
