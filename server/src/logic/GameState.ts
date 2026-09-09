@@ -218,6 +218,7 @@ export function createGame(
         eventSeq: 0,
         magicUsedThisTurn: { p1: 0, p2: 0 },
         millCountThisTurn: { p1: 0, p2: 0 },
+        millCountThisTurnMutual: { p1: 0, p2: 0 },
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
     refreshLevelAsOverrides(state)
@@ -440,6 +441,10 @@ export function clearBattle(state: GameState): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) delete inst.cantBlockThisBattle
     }
+    // 「このバトルの間、BP◯以上のスピリットからブロックされない」もここで切れる（器S2。BS13-032光速の騎士ヘルモード【合体時】Lv3）
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) delete inst.unblockableMinBpThisBattle
+    }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const lent = state.players[pid].battleVirtualInstances
@@ -505,6 +510,10 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
     // eventCount=count：repeatPerCount指定のエントリが「ドローしたカード1枚につき」を表現できるようにする
     // （BS08マンゴース：相手がドローしたカード1枚につき系統「剣獣」を1体回復）
     fireFieldEventTriggers(state, opponentOf(pid), "opponentDrew", undefined, undefined, undefined, count)
+    // フィールドイベント誘発「相手が**効果で**ドローしたとき」（ドローステップの枚数増減は含まない。#26。BS13-067光導く巨塔Lv2）
+    if (!fromDrawStep) {
+        fireFieldEventTriggers(state, opponentOf(pid), "opponentDrewByEffect", undefined, undefined, undefined, count)
+    }
     // フィールドイベント誘発「相手の手札にカードが加えられたとき」（犬人マードック／英雄の喪失）
     notifyHandGained(state, pid, count)
 }
