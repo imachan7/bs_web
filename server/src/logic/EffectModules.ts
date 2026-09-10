@@ -2494,7 +2494,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.target === "self") {
                     source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
                 } else if (effect.target === "ownNexusesAll") {
+                    // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {
+                        if (effect.nameContains !== undefined && !cardNameContains(nexus, effect.nameContains)) continue
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {
@@ -3372,6 +3374,13 @@ export function countEffectCounter(
     if ("ownNexusColor" in counter) {
         return state.players[owner].field.nexuses.filter((n) =>
             instHasColor(n, counter.ownNexusColor),
+        ).length
+    }
+    // { ownNexusNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むネクサス数
+    // （同名重複もそのまま数える。BS13-045巨人船長イアソンLv2：「古代戦艦」ネクサス1つにつき）
+    if ("ownNexusNameIncludes" in counter) {
+        return state.players[owner].field.nexuses.filter((n) =>
+            cardNameContains(n, counter.ownNexusNameIncludes),
         ).length
     }
     // { ownColorSymbols: Color }：自分フィールドの指定色シンボルの合計数。

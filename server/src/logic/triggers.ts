@@ -440,6 +440,16 @@ export function fireTrigger(
                     names.some((n) => cardNameContains(s, n)),
                 ).length
                 if (total < count) return false
+            } else if ("ownNexusNameKindsAtLeast" in effect.condition) {
+                // 器BQ：カード名にnameContainsを含む自分のネクサスの「異なるカード名の種類数」（同名は1種類）
+                // がcount以上のときのみ発火（BS13-048古代戦艦アルゴ・ゴレム：「古代戦艦」が4種類）
+                const { nameContains, count } = effect.condition.ownNexusNameKindsAtLeast
+                const kinds = new Set(
+                    state.players[owner].field.nexuses
+                        .filter((n) => cardNameContains(n, nameContains))
+                        .map((n) => getCard(n.cardId).name),
+                )
+                if (kinds.size < count) return false
             }
         }
         return true

@@ -806,7 +806,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
 const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
+    const { state, owner, opp, self, sourceName, srcType, chosenOption, targetInstanceId } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         // chooseColor（BS11-073 バスターハンマー）：まず色1色を指定させ、その色を colorFilter に
@@ -841,6 +841,54 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
         const matchesLevel = (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             (action.colorFilter === undefined || instHasColor(n, action.colorFilter))
+        // costDestroyOwnNexus：自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコスト
+        // （BS13-045巨人船長イアソン：「自分のネクサス1つを破壊することで、相手のネクサス1つを破壊する」）。
+        // COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮できる（自分のネクサスが無い／
+        // 相手に破壊できるネクサスが無いなら不発）
+        if (action.costDestroyOwnNexus) {
+            const ownNexuses = state.players[owner].field.nexuses
+            const hasTarget = sides.some((pid) => state.players[pid].field.nexuses.some(matchesLevel))
+            if (ownNexuses.length === 0 || !hasTarget) {
+                log(state, `${sourceName}：発揮できなかった。`)
+                return
+            }
+            const { costDestroyOwnNexus: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = ownNexuses.find((n) => n.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたネクサスはコストにできなかった。`)
+                    return
+                }
+                if (!destroyNexus(state, owner, chosen.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                    log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
+                    return
+                }
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && ownNexuses.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして破壊する自分のネクサスを選んでください`,
+                    ownNexuses.map((n) => n.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            let victim = ownNexuses[0]!
+            for (const n of ownNexuses) {
+                if (n.cores < victim.cores) victim = n
+            }
+            if (!destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
+                return
+            }
+            ctx.resolve(rest)
+            return
+        }
         let destroyed = 0
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）

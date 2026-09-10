@@ -85,6 +85,9 @@ console.log("=== パート195：【強襲：N】は、カードごとの回数 N
         const level = activeLevel(card, entry)
         const s = base(`kyoshu-${card.cardId}`)
         const inst = put(s, "p1", card, coresFor(card, level))
+        // whileCombined指定（BS13-X06巨人勇者ペルセウス【合体時】等）は合体スピリット扱いにしないと
+        // 効果自体が発揮されない（effectActiveOnがinstIsCombinedを見る）。ダミーのブレイヴ参照で代用する簡略化
+        if (entry["whileCombined"] === true) inst.braveRefs = [{ slot: "single", instanceId: "dummy-brave" }]
         // 回復のコストに使うネクサスを、上限より1つ多く置く
         //（「回数の上限で止まる」ことを、ネクサス切れと区別して確かめるため）
         for (let i = 0; i < count + 1; i++) putNexus(s, "p1", PLAIN_NEXUS!)

@@ -34,6 +34,7 @@ import {
     resolveTensho,
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
+    tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -500,6 +501,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             const c = getCard(cardId)
             // colors 省略時は色を問わない（SD02-006 鼬の暗殺者ウィゼーブ）
             if (c.type !== "nexus") return false
+            if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
         const deployFromIndex = (idx: number): void => {
@@ -1684,6 +1686,51 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     fire(effectiveCandidates[0]!)
 }
 
+// 器BR：カード名にnameIncludesを含む自分のスピリット1体（現在Lvで有効な『このスピリットの召喚時』効果を
+// 持つもの）を選び、実際に召喚し直さずその『召喚時』効果一式（kind:"triggered" trigger:"onSummon" のエントリ
+// すべて）を発揮させる。器V（borrowDestroyEffect）の召喚時版だが、「このスピリット」＝効果を持つ本人自身
+// （borrowCombinedAttackEffectと同じ向き。BS13_PLAN.md §1 #12の逆）なので、そのままfireTriggerへ渡す。
+// 該当エントリ自身の条件（BS13-048の器BQ等）はfireTrigger内部でいつもどおり判定されるため、
+// 条件未成立なら何も起きない（BS13-084アルゴアタック）
+const borrowSummonEffectHandler: ActionHandler<"borrowSummonEffect"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+    const candidates = player.field.spirits.filter((sp) => {
+        if (!cardNameContains(sp, action.nameIncludes)) return false
+        const level = currentLevel(sp).level
+        return getCard(sp.cardId).effects.some(
+            (e) => e.kind === "triggered" && e.trigger === "onSummon" && effectActiveAtLevel(e.levels, level),
+        )
+    })
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const fire = (inst: CardInstance): void => {
+        log(state, `${player.name}は${sourceName}の効果として、${getCard(inst.cardId).name}の『召喚時』効果を発揮させた。`)
+        fireTrigger(state, owner, inst, "onSummon")
+    }
+    if (targetInstanceId !== undefined) {
+        const chosen = candidates.find((c) => c.instanceId === targetInstanceId)
+        if (!chosen) return
+        fire(chosen)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：召喚時効果を発揮させるスピリットを選んでください`,
+            candidates.map((c) => c.instanceId),
+            false,
+            action,
+            null,
+        )
+        return
+    }
+    fire(candidates[0]!)
+}
+
 // 器V：自分のスピリット1体が持つ『このスピリットの破壊時』効果を、そのスピリット自身を破壊させずに
 // そのスピリット自身の効果として発揮させる（BS13-052イビルグライダー）。BS13-049の借用（器G）と違い、
 // 「このスピリット」＝借り元自身を指す（docs/design/BS13_PLAN.md §1 #12）ので、resolveActionへ渡す
@@ -1735,56 +1782,92 @@ const borrowDestroyEffectHandler: ActionHandler<"borrowDestroyEffect"> = (ctx) =
 // 「ブレイヴ」は合体中もスピリット状態も含む（2026-09-02 ユーザー確認）。スピリット状態のブレイヴは
 // field.spirits にいるので「スピリット」側の候補にそのまま入り、合体中のブレイヴだけ別に集める
 const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId, destroyContext } = ctx
     const oppPlayer = state.players[opp]
     const types = action.types ?? ["spirit", "brave", "nexus"]
-    const spirits = types.includes("spirit") ? oppPlayer.field.spirits : []
-    const braves = types.includes("brave") ? oppPlayer.field.combinedBraves : []
-    const nexuses = types.includes("nexus") ? oppPlayer.field.nexuses : []
-    let candidates: CardInstance[] = [...spirits, ...braves, ...nexuses]
-    // maxBpFromSelf（BS12-003鎧竜人ガストン）：selfの実効BP以下のみ（ネクサスはBPが無いので対象外になる）
-    if (action.maxBpFromSelf && self) {
-        const selfBp = effectiveBp(state, owner, self)
-        const nexusIds = new Set(nexuses.map((n) => n.instanceId))
-        candidates = candidates.filter(
-            (c) => !nexusIds.has(c.instanceId) && effectiveBp(state, opp, c) <= selfBp,
-        )
+    const collect = (): { candidates: CardInstance[]; spirits: CardInstance[]; braves: CardInstance[] } => {
+        // types:["brave"]のみ（"spirit"を含まない）指定時は、field.spiritsのうち**ブレイヴカードだけ**
+        // （スピリット状態のブレイヴ）を候補に含める。"spirit"も指定されていれば従来どおり全スピリットが
+        // 候補になる（ブレイヴ型も自然に含まれるので二重管理にはならない。BS13-X06巨人勇者ペルセウス：
+        // 「相手のスピリット状態のブレイヴ1体か、相手の合体スピリットのブレイヴ1つを破壊する」＝types:["brave"]のみ）
+        const spirits = types.includes("spirit")
+            ? oppPlayer.field.spirits
+            : types.includes("brave")
+              ? oppPlayer.field.spirits.filter((sp) => getCard(sp.cardId).type === "brave")
+              : []
+        const braves = types.includes("brave") ? oppPlayer.field.combinedBraves : []
+        const nexuses = types.includes("nexus") ? oppPlayer.field.nexuses : []
+        let candidates: CardInstance[] = [...spirits, ...braves, ...nexuses]
+        // maxBpFromSelf（BS12-003鎧竜人ガストン）：selfの実効BP以下のみ（ネクサスはBPが無いので対象外になる）
+        if (action.maxBpFromSelf && self) {
+            const selfBp = effectiveBp(state, owner, self)
+            const nexusIds = new Set(nexuses.map((n) => n.instanceId))
+            candidates = candidates.filter(
+                (c) => !nexusIds.has(c.instanceId) && effectiveBp(state, opp, c) <= selfBp,
+            )
+        }
+        return { candidates, spirits, braves }
     }
+    const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
+        if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
+            if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+            else returnSpiritToHand(state, opp, chosen, sourceName)
+            return
+        }
+        if (braves.some((b) => b.instanceId === chosen.instanceId)) {
+            // ホスト探索は絞り込み前の全スピリットから行う（types:["brave"]単独指定時、
+            // candidates用のspiritsはブレイヴ型に絞っているためホスト自身は含まれない）
+            const host = oppPlayer.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
+            if (!host) return
+            if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
+            else returnCombinedBraveToHand(state, opp, host, chosen)
+            return
+        }
+        if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
+        else returnNexusToHand(state, opp, chosen.instanceId)
+    }
+    // count/countCounter（器：BS13-X06巨人勇者ペルセウス「自分のネクサス1つにつき」）：countCounter優先、
+    // どちらも無ければ1回。0なら不発（候補が尽きたぶんは不発＝COST_MODEL.mdの「あるだけ処理」）
+    const resolvedCount =
+        action.countCounter !== undefined
+            ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+            : (action.count ?? 1)
+    if (resolvedCount === 0) {
+        log(state, `${sourceName}：カウントが0のため発動しなかった。`)
+        return
+    }
+    const { candidates, spirits, braves } = collect()
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            action.mode === "destroy"
-                ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
-                : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`,
-            candidates.map((c) => c.instanceId),
-            false,
-            action,
-            self,
-        )
+    const prompt =
+        action.mode === "destroy"
+            ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
+            : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
+    const { count: _c, countCounter: _cc, ...actionForChoice } = action
+    const remainingAction =
+        resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1 } : null
+    if (
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(state, owner, self, prompt, candidates, actionForChoice, remainingAction)
+    ) {
         return
     }
+    // 非対話・候補1体：resolvedCount回、候補を毎回取り直して先頭を自動選択（盤面の変化を反映）
     const chosen =
         (targetInstanceId !== undefined ? candidates.find((c) => c.instanceId === targetInstanceId) : undefined) ??
         candidates[0]!
-    if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
-        if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
-        else returnSpiritToHand(state, opp, chosen, sourceName)
-        return
+    removeOne(chosen, spirits, braves)
+    for (let i = 1; i < resolvedCount; i++) {
+        if (state.winner) return
+        const next = collect()
+        if (next.candidates.length === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        removeOne(next.candidates[0]!, next.spirits, next.braves)
     }
-    if (braves.some((b) => b.instanceId === chosen.instanceId)) {
-        const host = spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
-        if (!host) return
-        if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
-        else returnCombinedBraveToHand(state, opp, host, chosen)
-        return
-    }
-    if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
-    else returnNexusToHand(state, opp, chosen.instanceId)
 }
 
 // BS12-X01 金牛龍神ドラゴニック・タウラス：onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決する。
@@ -2218,6 +2301,7 @@ const handlers = {
     refreshSelfBraveThenCombine: refreshSelfBraveThenCombineHandler,
     borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
     borrowDestroyEffect: borrowDestroyEffectHandler,
+    borrowSummonEffect: borrowSummonEffectHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,
