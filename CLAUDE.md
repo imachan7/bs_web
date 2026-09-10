@@ -216,7 +216,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
 | `docs/design/AI_OPPONENT.md` | **AI対戦相手の設計**。1手評価の点数表・AIに相手の手札を覗かせない仕組み（評価は GameView だけを見る）・安全弁・既知の限界。**AIの強さを変える／AIが変な手を打つのを直すときに読む** |
 | `docs/design/EFFECT_SOURCE_CONTEXT.md` | **「〜の効果で〜されたとき」を条件にする誘発を足すときに読む**。`currentEffectSource` の仕組みと、コア配置の検出を差分で取っている理由 |
-| `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
+| `docs/design/DISCORD_ACTIVITY.md` | **Discord 上で対戦できるようにする計画**（Embedded App SDK）。未着手。外部CDN・カード画像の外部ホスト・helmet の導入は Activity 側を壊すので、そこに触るときも見る |
+| `docs/ops/` | デプロイ・インフラ。**本線は DEPLOY_CLOUDRUN.md**（2026-09-11 に Azure から移行。DEPLOY / AZURE_CLI は旧環境の記録） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 
 ## エージェント間連絡（chatbox）
