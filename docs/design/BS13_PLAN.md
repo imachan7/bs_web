@@ -467,3 +467,23 @@ BS05プリンセス・スノーホワイト／BS12-068光の聖剣／BS12-X05 �
 | 30 | BS13-046「お互い、マジックの効果を使用したとき〜メインステップを終了する」 | **両陣営**。自分がマジックを使えば自分のメインステップも終わる。器AK `forceEndMainStep` に `who?: "opponent" \| "turnPlayer"`（省略時 `opponent`＝既存動作）を足す |
 | 31 | BS13-043「コア1個を置かなければアタックできない」の支払い | **アタック宣言時に確認を出す**（断ればアタックしない）。リザーブにコアが無ければそもそもアタック不可。非対話・AIは払えるかぎり払う |
 | 32 | BS13-046 召喚時「コスト3以下2体 または コスト6を1体」で対象が足りないとき | **いる分だけ破壊**（既存の複数体破壊の枠に合わせる）。2体いなくても選択肢は提示する |
+
+### 12.4 バッチ完了時に確定したこと（2026-09-10）
+
+**青16枚を投入して BS13 は97枚すべて完了**（smoke part306 / part307）。
+
+**設計時に「新規が要る」と見積もった11個のうち3つは既存の器で足りた。** 器を起こす前に必ず grep すること:
+
+| 設計時の器 | 実際 |
+| :-- | :-- |
+| BL アタックステップの強制終了 | **既存 `endAttackStepAfterBattle`**（サイレントウォール用）を `fieldEvent` から呼ぶだけで足りた |
+| BP トラッシュからネクサスを無償配置 | **既存 `deployNexus` の `from:"trash"` + `all:true`**。084 用に `nameContains` を足しただけ |
+| BS 最高Lvとして扱う（このターン） | **既存 `lendSelfThisTurn` + `levelAs treatAs:"max"`**（BS10-056 蒼天大聖モンゴクウと同型） |
+
+新規に起こしたのは BJ `nexusAsSpiritDuringAttackStep` / BM `attackRequiresCoreToll` / BO `opponentCantReturnFromTrashToHand` /
+BQ `condition.ownNexusNameKindsAtLeast`＋`counter.ownNexusNameIncludes` / BR `borrowSummonEffect` /
+BU `grantBlockRequiresMagicDiscardThisTurn` / BV `cantAttackIfFewOwnSpirits` の7つ。
+BK は既存 `forceEndMainStep` に `who?: "opponent" | "turnPlayer"`（省略時 `opponent`）を足す拡張で済んだ。
+
+**【強襲：N】は `keyword` エントリと `triggered`+`refreshSelfByExhaustNexus` の2エントリで1組**（BS07-052 / BS07-X28 と同型）。
+片方だけでは動かないので、キーワードを書いた時点で満足しないこと。

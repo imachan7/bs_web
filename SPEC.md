@@ -24,7 +24,11 @@
 
 ## 1. カードプール
 
-`data/cards.json` に第一弾135枚＋第二弾115枚＋第三弾153枚＋第四弾118枚＋第五弾88枚の全 **609枚** を収録。
+`data/cards/BS01.json`〜`BS13.json` に第一弾〜第十三弾の全 **1464枚** を収録（弾ごとに分割済み。
+読み書きは `data/loadCards.ts` の `loadAllCards()` / `loadCardsBySet()` を通すこと）。
+
+**⚠️ この章の弾ごとの節は第八弾までしか無い。** 第九弾以降は各弾の計画書
+（`docs/design/BS10_PLAN.md`〜`BS13_PLAN.md`）に、確定した解釈と器の一覧がある。
 
 Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した（弾ごとに `--set` / `--refer` / `--pages` を渡す）。
 `--verify` を付けると既存 `data/cards.json` と全項目を突き合わせて差分を報告するので、

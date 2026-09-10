@@ -806,7 +806,7 @@ export type GlobalConstraintDef =
     | { type: "noSummonByEffect" } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常のdoSummon経由の召喚は対象外。フィールド全体・主語なし。BS12-072海賊王の秘宝島Lv1）。
     // エントリの phase を書けばその区間だけ有効（BS12-072＝『お互いのメインステップ』）。summonByEffectBlockedが判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（EffectModules.tsの効果による召喚の共通経路）の冒頭で弾く
-    | { type: "attackRequiresCoreToll"; maxCost: number } // 器BM：両陣営とも、コストがmaxCost以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならそもそもアタック不可＝validateAttackが弾く。払えるかぎり自動で払う＝GameEngine.doAttackが宣言成立時に自動でリザーブ→トラッシュへ移す。「断ればアタックしない」はクライアント側の確認ダイアログの役目で、サーバーは常に払える限り払う。2026-09-10ユーザー確認。BS13-043鳥人イカロッシュ）
+    | { type: "attackRequiresCoreToll"; maxCost: number } // 器BM：両陣営とも、コストがmaxCost以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならそもそもアタック不可＝validateAttackが弾く。払えるかぎり自動で払う＝GameEngine.doAttackが宣言成立時に自動でリザーブ→トラッシュへ移す。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10ユーザー確認。BS13-043鳥人イカロッシュ）
     | { type: "opponentCantReturnFromTrashToHand" } // 器BO：発生源の持ち主から見た**相手**は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版。cantSpiritStateBraveと同じ「相手側だけを見る」パターン。トラッシュ→手札の経路（recoverSpiritFromTrash/recoverMagicFromTrash/recoverAllMagicFromTrashByColorChoice/器AOの各ハンドラ冒頭）が共通ヘルパーで一括して弾く。BS13-044吟遊詩人のオルフェLv2）
     | { type: "cantAttackIfFewOwnSpirits"; atMost: number } // 器BV：両陣営それぞれ独立に判定する：アタックしようとしているスピリットの持ち主のフィールドのスピリット数がatMost体以下のときはアタックできない（自分が3体以下なら自分だけアタック不可、相手が3体以下でも自分には効かない＝attackerPid基準の独立判定。1エントリで両陣営を見る。BS13-071巨人港）
 
