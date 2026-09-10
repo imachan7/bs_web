@@ -44,7 +44,7 @@ console.log("=== BS13-070 Lv2：疲労できないときは「ターンに1回�
     barrier.isRested = false
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")
     assert(s.players.p1.life === lifeBefore + 1, "同じターンでも、払えるようになれば発揮できる")
-    assert(barrier.isRested === true, "コストとして自身が疲労した")
+    assert(s.players.p1.field.nexuses.some((n) => n.isRested), "コストとして自身が疲労した")
     assert(barrier.triggeredUsedTurn?.["BS13-070-e2"] === s.turn, "発揮したので枠を消費する")
 }
 

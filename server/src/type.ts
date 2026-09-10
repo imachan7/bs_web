@@ -2344,7 +2344,7 @@ export interface BattleState {
     // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
     // （既存の処理に手を入れずに済ませるための形。BS10-X03巨蟹武神キャンサード）
     blockCostReserveToTrash?: { pid: PlayerId; count: number } // このバトルで、この pid はリザーブのコアをこの数だけトラッシュに置かなければブロックできない（払えないならブロック自体ができない。BS11-037 ヒポグリフィーLv2-3）。バトル終了で消える
-    blockCostDiscardMagic?: { pid: PlayerId } // 器BU：このバトルで、この pid は手札のマジックカード1枚を破棄しなければブロックできない（手札にマジックが無ければブロック自体ができない。破棄は自動選択＝最初に見つかったマジック1枚。バトル終了で消える。BS13-047深海大帝ノーグ・デンス召喚時）
+    blockCostDiscardMagic?: { pid: PlayerId } // 器BU：このバトルで、この pid は手札のマジックカード1枚を破棄しなければブロックできない（手札にマジックが無ければブロック自体ができない。どれを破棄するかは対話モードではブロックする側が選ぶ＝PendingChoice.blockMagicDiscard。バトル終了で消える。BS13-047深海大帝ノーグ・デンス召喚時）
     handColorBannedFor?: { pid: PlayerId; color: Color } // このバトルの間、この pid は指定色の手札のカードを使えない（BS11-060 雷神砲カノン・アームズ＝破棄したカードと同じ色）。バトル終了（clearBattle）で消える
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（canDirectAttack。通常アタックは false）
@@ -2452,6 +2452,14 @@ export interface PendingChoice {
         instanceId: string
         cardId: string
         need: number // スピリット状態の Lv1 維持コスト（braveKeepCores）
+    }
+    blockMagicDiscard?: {
+        // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コストで破棄する手札のマジックを、
+        // **ブロックする側**が選ぶ待ち（kind:"card" cardZone:"hand"）。**action は解決しない**。
+        // 選ばれた1枚をトラッシュへ置いてから finishBlockDeclaration を続ける。
+        // 候補が1枚のときは選ぶ余地がないので、この待ちは立てずに従来どおり自動で払う
+        blockerPid: PlayerId
+        blockerInstanceId: string
     }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が

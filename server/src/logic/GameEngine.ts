@@ -1048,6 +1048,34 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
         return finishBlockDeclaration(state, pid, battlingId)
     }
 
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コストで破棄する手札のマジックは、
+    // **ブロックする側が選ぶ**（docs/design/CHOOSER_RULES.md の一般則）。払えることは validateBlock で
+    // 確認済み。候補が1枚なら選ぶ余地がないので聞かずに払う（finishBlockDeclaration 側で処理）。
+    // ponytail: 複数体ブロック（blockRequiresCount）と併用されたときは従来どおり自動選択のまま。
+    // 器BU と複数体ブロックを同時に持つカードは無く、来たら blockBattlePick の解決側にも同じ待ちを足す
+    const magicCost = state.battle.blockCostDiscardMagic
+    if (magicCost?.pid === pid && state.interactiveTargets) {
+        const magicIndices = state.players[pid].hand
+            .map((cardId, i) => (getCard(cardId).type === "magic" ? i : -1))
+            .filter((i) => i !== -1)
+        if (magicIndices.length > 1) {
+            suspend(state, {
+                pid,
+                kind: "card",
+                prompt: "ブロックのため破棄するマジックカードを選んでください",
+                candidates: [],
+                cardZone: "hand",
+                cardOwner: pid,
+                cardIndices: magicIndices,
+                optional: false,
+                action: { type: "noop" },
+                selfInstanceId: instanceId,
+                blockMagicDiscard: { blockerPid: pid, blockerInstanceId: instanceId },
+            })
+            return null
+        }
+    }
+
     return finishBlockDeclaration(state, pid, instanceId)
 }
 
@@ -1065,7 +1093,9 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
     }
     // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コスト（手札のマジック1枚を破棄）。
-    // 検証（validateBlock）で払えることは確認済み。どれを捨てるかは自動選択（最初に見つかったマジック1枚）
+    // 検証（validateBlock）で払えることは確認済み。ここへ来るのは「候補が1枚しかない」か
+    // 「非対話（テスト・AI）」のときだけで、どれを捨てるかに選択の余地は無い
+    // （対話モードで候補が2枚以上あるときは doBlock が PendingChoice.blockMagicDiscard で先に聞く）
     const blockMagicCost = state.battle.blockCostDiscardMagic
     if (blockMagicCost && blockMagicCost.pid === pid) {
         const blockerPlayer = state.players[pid]
@@ -1427,6 +1457,25 @@ function doResolveChoice(
             log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
             declineMagicNegateChoice(state, info)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 器BU：ブロックの追加コストとして破棄するマジックの選択待ち。action は解決しない
+    if (pending.blockMagicDiscard) {
+        const { blockerPid, blockerInstanceId } = pending.blockMagicDiscard
+        if (cardIndex === undefined || !(pending.cardIndices ?? []).includes(cardIndex)) {
+            return "選択できないカードです"
+        }
+        const blockerPlayer = state.players[blockerPid]
+        const cardId = blockerPlayer.hand[cardIndex]
+        if (cardId === undefined) return "選択できないカードです"
+        state.pendingChoice = null
+        blockerPlayer.hand.splice(cardIndex, 1)
+        blockerPlayer.trashCards.push(cardId)
+        log(state, `${blockerPlayer.name}はブロックのため手札の${getCard(cardId).name}を破棄した。`)
+        if (state.battle) delete state.battle.blockCostDiscardMagic // 支払い済み（二重に取らない）
+        finishBlockDeclaration(state, blockerPid, blockerInstanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
