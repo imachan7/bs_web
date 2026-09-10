@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { currentLevel, getCard, instMinLevelCores, log, minLevelCores, refundOncePerTurn } from "../GameState"
 import {
     canExhaustNexus,
     bothSidesPids,
@@ -877,6 +877,7 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             const ownerPlayer = state.players[owner]
             if (ownerPlayer.life < action.costOwnLifeToReserve) {
                 log(state, `${sourceName}：ライフが足りず発動しなかった。`)
+                refundOncePerTurn(state) // 払えなかった＝発揮していないので「ターンに1回」を消費しない
                 return
             }
             ownerPlayer.life -= action.costOwnLifeToReserve

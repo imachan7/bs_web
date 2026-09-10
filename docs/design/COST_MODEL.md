@@ -208,6 +208,17 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 実装は `resolveMagic` の `paidCost` 引数（既定 true）で、中断（無効化・対象絞り込み・
 封印された魔導書・再発揮）の各 PendingChoice にも `paidCost` を持たせて再開経路をまたぐ。
 
+## 9. 「ターンに1回」は、コストを払えなかったターンには消費されない（2026-09-10 ユーザー確認）
+
+コストを払えなければ効果は**発揮していない**ので、`oncePerTurn` の枠は残る
+（同じターンのうちに払えるようになれば、改めて発揮できる）。
+
+実装は「発揮の直前に消費を記録し、コスト不発だったハンドラが巻き戻す」形
+（`GameState.oncePerTurnPending` と `refundOncePerTurn()`）。
+先に記録するのは、解決中に中断（PendingChoice）が入ったときに再発揮させないため。
+**新しくコスト不発で早期 return するハンドラを書いたら、その return の直前で
+`refundOncePerTurn(state)` を呼ぶこと**（smoke part308）。
+
 
 ## 関連
 

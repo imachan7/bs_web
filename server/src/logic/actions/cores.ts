@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
     CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend } from "../GameState"
+import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, refundOncePerTurn, suspend } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -1871,6 +1871,7 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         if (action.costExhaustSelf) {
             if (!self || self.isRested) {
                 log(state, `${sourceName}：疲労できないため発動しなかった。`)
+                refundOncePerTurn(state) // 払えなかった＝発揮していないので「ターンに1回」を消費しない
                 return
             }
             exhaustSpirit(state, owner, self)

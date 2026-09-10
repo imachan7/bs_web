@@ -488,6 +488,8 @@ export function fireTrigger(
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）
         if (effect.oncePerTurn === true) {
             entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            // コストが払えず不発だったら消費しない（refundOncePerTurn が巻き戻す）
+            state.oncePerTurnPending = { instanceId: entry.src.instanceId, effectId: effect.id }
         }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
@@ -1368,6 +1370,8 @@ export function fireFieldEventTriggers(
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
+            // コストが払えず不発だったら消費しない（refundOncePerTurn が巻き戻す）
+            if (e.effect.oncePerTurn) state.oncePerTurnPending = { instanceId: e.inst.instanceId, effectId: e.effect.id }
             if (e.effect.optional && state.interactiveTargets) {
                 requestActivationConfirm(state, c.actionPid, activationPrompt(e.inst), e.effect.action, c.actionSelf)
             } else {

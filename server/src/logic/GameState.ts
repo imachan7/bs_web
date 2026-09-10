@@ -235,6 +235,22 @@ export function log(state: GameState, message: string): void {
     state.log.push(message)
 }
 
+// 「ターンに1回」の消費を巻き戻す。**コストが払えず不発だった**ハンドラが、その return の直前に呼ぶ。
+// ルール上、コストを払えなければ効果は発揮していないので枠は消費しない（2026-09-10 ユーザー確認）。
+// 消費は triggers.ts が発揮の直前に記録している（解決中の中断で再発揮させないため）ので、
+// ここで取り消す。同じターンに既に発揮済みなら oncePerTurn の判定ではじかれてここまで来ないため、
+// 記録を消すだけでよい（前のターンの値が消えても判定は `=== state.turn` なので影響しない）
+export function refundOncePerTurn(state: GameState): void {
+    const pending = state.oncePerTurnPending
+    if (!pending) return
+    delete state.oncePerTurnPending
+    const inst =
+        findInstanceAnywhere(state, pending.instanceId) ??
+        findNexus(state.players.p1, pending.instanceId) ??
+        findNexus(state.players.p2, pending.instanceId)
+    if (inst?.triggeredUsedTurn) delete inst.triggeredUsedTurn[pending.effectId]
+}
+
 // ── 中断と再開（docs/design/RESUME_STACK.md）──────────────────────────────
 // 中断を開始する。**pendingChoice を立てる箇所はすべてここを通す**。
 // ここが唯一の入口であることで、再開スタックの挿入境界（resumeInsertAt）のリセットを

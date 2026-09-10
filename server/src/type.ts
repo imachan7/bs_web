@@ -2749,6 +2749,13 @@ export interface GameState {
     // resolveMagic が読んですぐ消す）。**oncePerBattle の無償化の枠を消費させない**ために使う
     // （払って使ったのだから、1枚きりの枠は残る。BS07大天使イスフィール）
     magicFreeDeclined?: boolean
+    // 「ターンに1回」（oncePerTurn）の消費を、コストが払えず不発だったときに取り消すための一時記録。
+    // triggers.ts が**発揮の直前**に立て（解決中の中断で再発揮させないため先に消費する）、
+    // コスト不発を検出したハンドラが refundOncePerTurn() で巻き戻す。
+    // ルール上、コストを払えなければ効果は発揮していないので枠は消費しない（2026-09-10 ユーザー確認）
+    // ponytail: セットしてから最初のコスト不発1回だけ有効。oncePerTurn 効果の解決中に**別の**効果の
+    // コスト不発が先に起きると誤って巻き戻す（現状の該当4枚では起きない）。増えたら発生源の照合を足す
+    oncePerTurnPending?: { instanceId: string; effectId: string }
     // 直前に bpBuff が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
     // 前の文を指しているカードで、後ろの文を対象1体に限定するために使う（BS07ニードルショット）。
     // 直後の lendSelfThisBattle が仮想発生源の lentBuffTargetId へ写して、そこから battleWon が読む
