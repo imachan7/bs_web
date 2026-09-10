@@ -977,6 +977,60 @@ function suspendReviveConfirm(
     })
 }
 
+// 復活のコスト「自分のスピリット1体を疲労させることで」で、どれを疲労させるかを持ち主に選ばせる。
+// 復活が成立するかはこの選択のあとに決まるので、reviveConfirm と同じく **action は解決しない**
+function suspendReviveExhaustPick(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effectId: string,
+    candidateIds: string[],
+    context?: DestroyContext,
+): void {
+    suspend(state, {
+        pid: ownerPid,
+        kind: "target",
+        prompt: `${getCard(inst.cardId).name}：復活のために疲労させるスピリットを選んでください`,
+        candidates: candidateIds,
+        optional: false,
+        reviveExhaustPick: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            effectId,
+            ...(context ? { context } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: inst.instanceId,
+    })
+}
+
+// 疲労させる個体が選ばれた（doResolveChoice から呼ぶ）。選んだ個体で固定して復活を確定させる
+export function applyReviveExhaustPick(
+    state: GameState,
+    entry: NonNullable<PendingChoice["reviveExhaustPick"]>,
+    chosenInstanceId: string,
+): void {
+    const inst = state.players[entry.pid].field.spirits.find((s) => s.instanceId === entry.instanceId)
+    if (!inst) return // 選んでいる間に場から居なくなっていたら何もしない
+    const revived = tryReviveOnDestroy(state, entry.pid, inst, entry.context, {
+        effectId: entry.effectId,
+        skipConfirm: true,
+        chosenExhaustId: chosenInstanceId,
+    })
+    // 選び終えたのに成立しなかった（選んだ個体が居なくなった等）なら、見送っていた破壊をここで行う
+    if (!revived) {
+        declineReviveConfirm(state, {
+            pid: entry.pid,
+            instanceId: entry.instanceId,
+            effectId: entry.effectId,
+            sourceInstanceId: entry.instanceId,
+            ...(entry.context ? { context: entry.context } : {}),
+        })
+        return
+    }
+    state.lastReviveDestroyed = false
+}
+
 // 直前の「どの体から破壊処理をするか」で指名された個体を、残りの先頭（index）へ入れ替える。
 // 指名が無ければ false（＝これから聞く必要があるかもしれない）
 function applyDestroyOrderPick(
@@ -1379,7 +1433,9 @@ export function applyReviveConfirm(
     if (!inst) return // 確認を出したあとに場から居なくなっていたら何もしない
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
-    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true })) {
+    // allowSuspend=true：コストの疲労対象を選ばせる中断をここで受け止められる
+    // （forced 指定なので「復活しますか？」の確認が二重に出ることはない）
+    if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true }, true)) {
         declineReviveConfirm(state, entry)
         return
     }
@@ -1418,7 +1474,9 @@ function tryReviveOnDestroy(
     // optional の保留分岐に入らず、他のエントリも見ない（applyReviveConfirm から渡る）
     // skipConfirm 指定時は optional の確認をスキップして即適用する（applyReviveConfirm＝
     // 既に持ち主が「はい」と答えたあとの経路。指定しなければ optional は従来どおり確認を出す）
-    forced?: { effectId: string; skipConfirm?: true },
+    // chosenExhaustId 指定時は、コスト「自分のスピリット1体を疲労させる」で疲労させる個体を
+    // 持ち主が選んだもので固定する（applyReviveExhaustPick から渡る）
+    forced?: { effectId: string; skipConfirm?: true; chosenExhaustId?: string },
     // true なら「破壊される代わりに復活できる」の確認を**その場で**出す（保留リストに積まない）。
     // ①の破壊（destroySpirits のバッチ経由）だけが立てる。②は渡さず保留へ（destroySpirit の注記）
     allowSuspend?: boolean,
@@ -1484,6 +1542,24 @@ function tryReviveOnDestroy(
         if (phaseTurn.turn === "own" && ownerPid !== state.turnPlayer) return false
         if (phaseTurn.turn === "opponent" && ownerPid === state.turnPlayer) return false
         return true
+    }
+
+    // 復活コスト「自分のスピリット1体を疲労させることで」の候補。
+    // exhaustOwnFamilyOne は指定系統、exhaustOwnSameFamilyOne は**このカード自身の系統**（動的版）。
+    // 破壊されようとしている個体自身と、既に疲労している個体は除く
+    const exhaustCostCandidates = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+    ): CardInstance[] => {
+        const family = effect.cost?.exhaustOwnSameFamilyOne
+            ? getCard(inst.cardId).family
+            : effect.cost?.exhaustOwnFamilyOne
+        if (family === undefined) return []
+        return player.field.spirits.filter(
+            (s) =>
+                s.instanceId !== inst.instanceId &&
+                !s.isRested &&
+                matchesFamilyFilter(state, ownerPid, s, family),
+        )
     }
 
     const applyCost = (
@@ -1586,20 +1662,19 @@ function tryReviveOnDestroy(
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
             return ok
         }
-        if (effect.cost?.exhaustOwnFamilyOne) {
-            // BS07パオ・ペイール：持ち主の「想獣」の回復状態スピリット1体を疲労させる。
-            // 破壊されようとしている個体自身は除く。候補は実効BP最小を選ぶ（犠牲を最小化する簡略化）
-            const family = effect.cost.exhaustOwnFamilyOne
-            const candidates = player.field.spirits.filter(
-                (s) =>
-                    s.instanceId !== inst.instanceId &&
-                    !s.isRested &&
-                    matchesFamilyFilter(state, ownerPid, s, family),
-            )
+        // BS07パオ・ペイール「想獣を持つ自分のスピリット1体を疲労させる」／
+        // 器AR（BS13-X05麒麟星獣リーン）「このスピリットと同じ系統を持つ自分のスピリット1体を疲労させる」。
+        // **どれを疲労させるかは持ち主が選ぶ**（tryEffect が applyCost の前に選択を挟む）。
+        // ここへ来るのは「候補1体」か「選択を受け止められない呼び出し元・非対話」で、
+        // その場合だけ実効BP最小を自動で選ぶ（犠牲を最小化する）
+        if (effect.cost?.exhaustOwnFamilyOne || effect.cost?.exhaustOwnSameFamilyOne) {
+            const candidates = exhaustCostCandidates(effect)
             if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
-            )
+            const chosen =
+                candidates.find((s) => s.instanceId === forced?.chosenExhaustId) ??
+                candidates.reduce((min, s) =>
+                    effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
+                )
             exhaustSpirit(state, ownerPid, chosen)
             return true
         }
@@ -1636,22 +1711,6 @@ function tryReviveOnDestroy(
                 player.trashCards.push(cardId)
             }
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
-            return true
-        }
-        // 器AR：BS13-X05麒麟星獣リーン「このスピリットと同じ系統を持つ自分のスピリット1体を疲労させることで」
-        if (effect.cost?.exhaustOwnSameFamilyOne) {
-            const family = getCard(inst.cardId).family
-            const candidates = player.field.spirits.filter(
-                (s) =>
-                    s.instanceId !== inst.instanceId &&
-                    !s.isRested &&
-                    matchesFamilyFilter(state, ownerPid, s, family),
-            )
-            if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
-            )
-            exhaustSpirit(state, ownerPid, chosen)
             return true
         }
         return true
@@ -1745,6 +1804,25 @@ function tryReviveOnDestroy(
         // 任意でない復活（＝確認を出さずに確定する）。"any" は復活しうるので true、
         // "confirm" は確認が出ないので次のエントリを見に行く
         if (probe) return probe === "any"
+        // コストで疲労させる自分のスピリットは**持ち主が選ぶ**（PROCEDURES_AUDIT.md §5 の一般則）。
+        // 中断を受け止められる呼び出し元（allowSuspend）で候補が2体以上のときだけ聞き、
+        // 選択の解決から applyReviveExhaustPick が chosenExhaustId 付きでここへ戻ってくる。
+        // ponytail: 保留経路（queueReviveConfirm 側）と非対話は従来どおり実効BP最小の自動選択。
+        // 残る呼び出し元の移行は RESUME_STACK.md §7 と同じ流れで進める
+        if (allowSuspend && state.interactiveTargets && forced?.chosenExhaustId === undefined) {
+            const candidates = exhaustCostCandidates(effect)
+            if (candidates.length > 1) {
+                suspendReviveExhaustPick(
+                    state,
+                    ownerPid,
+                    inst,
+                    effect.id,
+                    candidates.map((s) => s.instanceId),
+                    context,
+                )
+                return true // 復活の判定はまだ続いている（この個体を破壊しない）
+            }
+        }
         if (!applyCost(effect, inst)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name

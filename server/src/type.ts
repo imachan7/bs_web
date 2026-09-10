@@ -2453,6 +2453,15 @@ export interface PendingChoice {
         cardId: string
         need: number // スピリット状態の Lv1 維持コスト（braveKeepCores）
     }
+    reviveExhaustPick?: {
+        // 復活のコスト「自分のスピリット1体を疲労させることで」で、**どれを疲労させるか**の選択待ち
+        // （kind:"target"）。reviveConfirm と同じく **action は解決しない**。
+        // 選ばれた個体で固定して復活を確定させる（applyReviveExhaustPick）
+        pid: PlayerId
+        instanceId: string // 破壊されようとしている（＝復活しようとしている）個体
+        effectId: string
+        context?: DestroyContext
+    }
     blockMagicDiscard?: {
         // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コストで破棄する手札のマジックを、
         // **ブロックする側**が選ぶ待ち（kind:"card" cardZone:"hand"）。**action は解決しない**。

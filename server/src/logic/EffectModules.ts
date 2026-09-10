@@ -3760,6 +3760,7 @@ export {
     tryHandFreeSummonOnLifeDamaged,
     applyHandFreeSummon,
     applyReviveConfirm,
+    applyReviveExhaustPick,
     declineReviveConfirm,
     destroyNexus,
     returnNexusToHand,

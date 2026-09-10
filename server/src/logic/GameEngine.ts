@@ -44,6 +44,7 @@ import {
     applyHandFreeSummon,
     applyDeckMillNegate,
     applyReviveConfirm,
+    applyReviveExhaustPick,
     declineDeckMillNegate,
     declineReviveConfirm,
     tryHandFreeSummonOnLifeDamaged,
@@ -1532,6 +1533,18 @@ function doResolveChoice(
 
     // 「破壊される代わりに復活できる」の確認。action は解決せず、
     // 選べばコストを払って復活が確定し、選ばなければ見送っていた破壊をここで行う
+    // 復活のコストで疲労させるスピリットの選択。action は解決しない
+    if (pending.reviveExhaustPick) {
+        if (instanceId === undefined || !pending.candidates.includes(instanceId)) {
+            return "選択できない対象です"
+        }
+        const entry = pending.reviveExhaustPick
+        state.pendingChoice = null
+        applyReviveExhaustPick(state, entry, instanceId)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     if (pending.reviveConfirm) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
             return "選択できない候補です"
