@@ -23,7 +23,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -924,6 +924,18 @@ function doAttack(
     }
     // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
     state.battleAttackerRef = inst
+    // 器BM（BS13-043鳥人イカロッシュ）：コスト以下のアタックはリザーブのコア1個をトラッシュに置くことが要る。
+    // validateAttackで払えることは確認済みなので、ここで自動的に支払う（非対話・AIも同じ経路で払う）
+    if (instAttackRequiresCoreToll(state, inst) && player.reserve >= 1) {
+        player.reserve -= 1
+        player.trashCores += 1
+        log(state, `${player.name}はアタックのためリザーブのコア1個をトラッシュに置いた。`)
+    }
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：召喚時に付与された「このターンの間、アタックしたとき」の
+    // 制約が有効なら、このバトルのブロックにマジック破棄を要求する
+    if (inst.blockRequiresMagicDiscardGrantedTurn === state.turn) {
+        state.battle.blockCostDiscardMagic = { pid: opponentOf(pid) }
+    }
     state.isFlashTiming = true
     state.priorityPlayer = opponentOf(pid)
     if (targetSpiritInstanceId !== undefined) {
@@ -1051,6 +1063,19 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         state.players[pid].reserve -= blockCost.count
         state.players[pid].trashCores += blockCost.count
         log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
+    }
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コスト（手札のマジック1枚を破棄）。
+    // 検証（validateBlock）で払えることは確認済み。どれを捨てるかは自動選択（最初に見つかったマジック1枚）
+    const blockMagicCost = state.battle.blockCostDiscardMagic
+    if (blockMagicCost && blockMagicCost.pid === pid) {
+        const blockerPlayer = state.players[pid]
+        const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
+        if (magicIdx !== -1) {
+            const cardId = blockerPlayer.hand[magicIdx]!
+            blockerPlayer.hand.splice(magicIdx, 1)
+            blockerPlayer.trashCards.push(cardId)
+            log(state, `${blockerPlayer.name}はブロックのため手札の${getCard(cardId).name}を破棄した。`)
+        }
     }
     // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
     const blockedAttackerPid = opponentOf(pid)

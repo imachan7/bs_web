@@ -41,7 +41,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -711,6 +711,59 @@ const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> =
     log(state, `${sourceName}：手札${action.discardCount}枚を破棄し、自分はデッキから${action.drawCount}枚ドローした。`)
 }
 
+// BS13-044吟遊詩人のオルフェ：自分の手札1枚を破棄することで、相手の手札すべてを見て、
+// その中のマジックカード1枚を破棄する（COST_MODEL.md §1：自分の手札1枚以上・相手の手札にマジック1枚以上の
+// 両方が揃うときだけ発揮する）。costDiscardHandThenDrawの兄弟だが、効果側は discardOpponent への委譲
+const costDiscardHandThenDiscardOpponentMagicHandler: ActionHandler<"costDiscardHandThenDiscardOpponentMagic"> = (ctx) => {
+    const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
+    // 選択の解決から戻ってきた場合：選ばれた1枚を自分のコストとして破棄し、相手の手札破棄へ委譲する
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+        ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+        return
+    }
+    // ①コストとBの両方が完全に解決できるときだけ発揮できる（COST_MODEL.md §1）：
+    // 自分の手札が1枚以上、かつ相手の手札にマジックカードが1枚以上
+    if (player.hand.length < 1 || !state.players[opp].hand.some((id) => getCard(id).type === "magic")) {
+        log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
+        return
+    }
+    if (
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストとして破棄するカードを選んでください`,
+            "hand",
+            player.hand.map((_, i) => i),
+            { type: "costDiscardHandThenDiscardOpponentMagic" },
+            null,
+        )
+    ) {
+        return
+    }
+    // 決定的自動選択：手札末尾を破棄してから相手の手札破棄へ委譲
+    const cardId = player.hand.pop()
+    if (cardId !== undefined) {
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+    }
+    ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+}
+
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
 // どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
 const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
@@ -1373,7 +1426,7 @@ const revealAndPlaceNexusFreeHandler: ActionHandler<"revealAndPlaceNexusFree"> =
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -1625,7 +1678,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -1695,7 +1748,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
 // 呼ばれる想定で、末尾（新しい方）から探すのは同じ考え方
 const recoverNexusFromTrashHandler: ActionHandler<"recoverNexusFromTrash"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -2045,7 +2098,7 @@ const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, act
 const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -3589,6 +3642,7 @@ const handlers = {
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
+    costDiscardHandThenDiscardOpponentMagic: costDiscardHandThenDiscardOpponentMagicHandler,
     costDiscardHandTypeThenCoreRemove: costDiscardHandTypeThenCoreRemoveHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,

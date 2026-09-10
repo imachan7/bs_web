@@ -1193,6 +1193,19 @@ const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThis
     )
 }
 
+// 器BU：このターンの間、このスピリットがアタックしたとき、相手は手札のマジック1枚を破棄しなければ
+// ブロックできない、という制約を発生源自身に付与する（kind:"triggered" trigger:"onSummon"専用）。
+// requireCoreToBlockThisBattleと違い「このバトルだけ」でなく「このターンの以後の全アタック」に効くため、
+// state.battleでなく自分自身（self）にターン番号を刻む。実際のブロック要求への橋渡しはGameEngine.doAttackが行う
+// （self.blockRequiresMagicDiscardGrantedTurn === state.turn を見て state.battle.blockCostDiscardMagic を立てる）。
+// BS13-047深海大帝ノーグ・デンス召喚時
+const grantBlockRequiresMagicDiscardThisTurnHandler: ActionHandler<"grantBlockRequiresMagicDiscardThisTurn"> = (ctx) => {
+    const { state, self, sourceName } = ctx
+    if (!self) return
+    self.blockRequiresMagicDiscardGrantedTurn = state.turn
+    log(state, `${sourceName}：このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない。`)
+}
+
 // 色1色を指定し、このターンの間、発生源自身はその色のスピリットにブロックされたとき回復する
 // （BS11-054 武槍鳥スピニード・ハヤト）。非対話は相手のフィールドに最も多い色を自動指定する
 const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx, action) => {
@@ -1354,6 +1367,7 @@ const handlers = {
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
+    grantBlockRequiresMagicDiscardThisTurn: grantBlockRequiresMagicDiscardThisTurnHandler,
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,

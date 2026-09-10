@@ -229,6 +229,8 @@ export type EffectAction =
     | { type: "discardSelfChoose"; count: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄（BS01ストームドロー）
     | { type: "costDiscardHandTypeThenCoreRemove"; cardTypes: CardType[]; count: number } // 自分の手札にある指定種別のカード1枚を破棄することで、相手のスピリットのコアcount個を相手のリザーブに置く（COST_MODEL.md §1：破棄できないときは発揮しない）。BS11-075 トーテンタンツ＝スピリットカードかブレイヴカード1枚
     | { type: "costDiscardHandThenDraw"; discardCount: number; drawCount: number } // 「自分の手札discardCount枚を破棄することで、自分はデッキからdrawCount枚ドローする」（COST_MODEL.md §1：コストと効果の両方が完全に解決できるときだけ発揮できる）。
+    | { type: "costDiscardHandThenDiscardOpponentMagic" } // 「自分の手札1枚を破棄することで、相手の手札すべてを見て、その中のマジックカード1枚を破棄する」。costDiscardHandThenDrawの兄弟で、効果側が discardOpponent（count:1, cardTypeFilter:"magic"）に委譲される。COST_MODEL.md §1：自分の手札が1枚以上、かつ相手の手札にマジックカードが1枚以上あるときだけ発揮する（片方でも欠けたら不発。何も破棄しない）。BS13-044吟遊詩人のオルフェ
+    | { type: "grantBlockRequiresMagicDiscardThisTurn" } // 器BU：このターンの間、このスピリットがアタックしたとき、相手は手札のマジックカード1枚を破棄しなければブロックできない、という制約を自分自身に付与する（kind:"triggered" trigger:"onSummon"専用。CardInstance.blockRequiresMagicDiscardGrantedTurn に付与ターンを記録し、GameEngine.doAttackが自分の攻撃のたびに同ターンかを見てstate.battle.blockCostDiscardMagicへ橋渡しする。requireCoreToBlockThisBattleの「召喚時に付与し、以後の全アタックに効く」版。BS13-047深海大帝ノーグ・デンス）
     // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、非対話時は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
     // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入し、0になった時点でdrawCount枚ドローする）。BS10-019土星神龍クロノ・ボロス
     | { type: "drawThenDiscard"; drawCount: number; discardCount: number } // デッキからdrawCount枚引いたあと、手札からdiscardCount枚を破棄する（BS01ストームドロー）
@@ -438,7 +440,7 @@ export type EffectAction =
     | { type: "lifeImmuneThisTurn" } // このターンの間、発生源の持ち主のライフはあらゆる原因（アタックによる減少・lifeCrushアクションによる効果的な減少の両方）で減らない（GameState.turnConstraints に lifeImmuneForPid を積む。capLifeDamageThisTurnと違いアタック限定ではない全面ロック。negateLifeDamageFromTarget＝対象を限る版とは別物。2026-08-27 ユーザー確認。BS10-093時刻む花時計）
     | { type: "bounceToDeckTopThisTurn" } // 器AO：このターンの間、発生源の持ち主の効果で手札に戻るスピリットすべては持ち主のデッキの上に戻る（GameState.turnConstraints に bounceToDeckTopForPid を積む。**振り替えは removal.ts の markBounce 1箇所**で行うので、「〜を手札に戻すことで」のコスト支払いを含め手札への戻しはすべて対象になる。BS13-079ヴァニシングデイ）
     | { type: "opponentNexusEffectsDisabledThisTurn" } // 器BC：このターンの間、発生源の持ち主から見た**相手**のネクサスすべての効果は発揮されない（GameState.turnConstraints に nexusEffectsDisabledForPid を積む。kind:"nexusEffectsDisabled"（常在・場にある間）のターン限定版。BS13-039神獣バーロン：『このスピリットの召喚時』）
-    | { type: "forceEndMainStep" } // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める（PhaseManager.toAttackPhase。ターンを飛ばすのではなく召喚・ネクサス配置ができなくなるだけ＝BS13_PLAN.md §1 #19）。発動条件（何によって）はこれを使う各fieldEvent/triggered側で持たせる（黄・青バッチが別条件で再利用する想定）。相手がメインステップにいなければ何もしない
+    | { type: "forceEndMainStep"; who?: "opponent" | "turnPlayer" } // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める（PhaseManager.toAttackPhase。ターンを飛ばすのではなく召喚・ネクサス配置ができなくなるだけ＝BS13_PLAN.md §1 #19）。発動条件（何によって）はこれを使う各fieldEvent/triggered側で持たせる（黄・青バッチが別条件で再利用する想定）。相手がメインステップにいなければ何もしない。who省略時は従来どおり"opponent"（発生源の持ち主から見た相手のメインステップだけを狙う）。who:"turnPlayer"指定時は、いま誰のターンかを問わずメインステップにいれば強制終了する（自分がマジックを使っても自分のメインステップが終わる。BS13-046シャンターグ／BS13-071巨人港）
     | { type: "protectLifeByCostThisTurn"; costSacrificeChosen?: true; maxCost?: number; costExhaustFamily?: FamilyFilter; symbolCount?: number; combinedOnly?: true } // このターンの間、コストがmaxCost以下のスピリットのアタックでは**発生源の持ち主のライフだけ**が減らされない（GameState.turnConstraints に片側限定の制約を積む。両陣営に効く globalConstraint:"noLifeDamageByCost" の片側版）。costExhaustFamily指定時は、持ち主のフィールドの指定系統（配列＝OR）の回復状態スピリット1体（実効BP最小＝犠牲を最小化する簡略化）を疲労させることがコストで、該当がなければ不発（BS07秘密の花園Lv2＝「楽族」） symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（BS12-043大地の狩人コンドラッドLv1）
     | { type: "forceAttackThisTurn"; side: "opponent"; maxCost?: number; count?: number | "any"; excludeCombined?: true; requireOwnNameIncludes?: string; choosing?: true; chosenIds?: string[] } // このターンの間、相手のスピリットに「可能ならば必ずアタックする」を課す（GameState.turnConstraints に mustAttack を積む）。maxCost指定時はコストがこれ以下のものすべて（BS08アンブッシュブロッカー：コスト3以下）。excludeCombined指定時は候補から合体スピリットを除く（BS10-X04月光龍ストライク・ジークヴルム：合体していない相手のスピリット1体を指定する）。count指定時は体数を絞って指定する（targetInstanceId優先、interactiveTargets時はpendingChoice、自動時は実効BP最大。BS08獣機合神セイ・ドリガン：相手のスピリット1体を指定）。**簡略化**：原文の「このステップの最初に」という順序指定は持たず、そのターン中アタックが強制されるだけ。count:"any"指定時は「好きなだけ指定する」（BS12-079）：interactiveTargetsはトグル選択（choosing/chosenIdsに選択途中を持ち回る。budgetToggleDestroyと同型）、非対話時は候補すべてに課す。requireOwnNameIncludes指定時は、**使用宣言の時点**で自分のフィールドにカード名にこの文字列を含むスピリットがいなければ不発（撃った後にその個体が場を離れても、いったん課した強制アタックはそのターン継続する。2026-09-07 ユーザー確認）
     | { type: "grantHostUnblockableThisTurn" } // このターンの間、**このブレイヴ（self）がいま合体しているホスト**はブロックされない（GameState.turnConstraintsにbraveHostUnblockableThisTurnを積む。selfが必須＝ブレイヴ自身のinstanceIdを積む。BS12-055ゲッコ・グライダー『このブレイヴの召喚時』）
@@ -801,6 +803,9 @@ export type GlobalConstraintDef =
     | { type: "noSummonByEffect" } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常のdoSummon経由の召喚は対象外。フィールド全体・主語なし。BS12-072海賊王の秘宝島Lv1）。
     // エントリの phase を書けばその区間だけ有効（BS12-072＝『お互いのメインステップ』）。summonByEffectBlockedが判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（EffectModules.tsの効果による召喚の共通経路）の冒頭で弾く
+    | { type: "attackRequiresCoreToll"; maxCost: number } // 器BM：両陣営とも、コストがmaxCost以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならそもそもアタック不可＝validateAttackが弾く。払えるかぎり自動で払う＝GameEngine.doAttackが宣言成立時に自動でリザーブ→トラッシュへ移す。「断ればアタックしない」はクライアント側の確認ダイアログの役目で、サーバーは常に払える限り払う。2026-09-10ユーザー確認。BS13-043鳥人イカロッシュ）
+    | { type: "opponentCantReturnFromTrashToHand" } // 器BO：発生源の持ち主から見た**相手**は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版。cantSpiritStateBraveと同じ「相手側だけを見る」パターン。トラッシュ→手札の経路（recoverSpiritFromTrash/recoverMagicFromTrash/recoverAllMagicFromTrashByColorChoice/器AOの各ハンドラ冒頭）が共通ヘルパーで一括して弾く。BS13-044吟遊詩人のオルフェLv2）
+    | { type: "cantAttackIfFewOwnSpirits"; atMost: number } // 器BV：両陣営それぞれ独立に判定する：アタックしようとしているスピリットの持ち主のフィールドのスピリット数がatMost体以下のときはアタックできない（自分が3体以下なら自分だけアタック不可、相手が3体以下でも自分には効かない＝attackerPid基準の独立判定。1エントリで両陣営を見る。BS13-071巨人港）
 
 // 破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 export interface DestroyContext {
@@ -1206,6 +1211,8 @@ export type EffectDef =
               // 上の targetMaxBp が event:"ownLifeDamaged" 限定なのと同じ形の、コスト版
               | { targetKeywordExclude: Keyword } // event: "ownLifeDamaged" 限定：ライフを減らしたスピリットがそのキーワードを持つときは発火しない（spiritHasKeyword判定＝一時付与も見る。BS08デストラクションバリア：【転召】を持たない相手のスピリットのアタック）
               | { lastFunsaiHasSpirit: true } // event: "ownFunsaiMilled" 限定：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。triggered.conditionの同名軸と同じ判定。BS11-042海賊ラッコルセア：「相手のトラッシュにスピリットカードが1枚以上置かれたとき」）
+              | { opponentHandAtLeastOwnHand: true } // event: "opponentMagicUsed" 限定：発生源の持ち主から見た相手の手札枚数が、自分の手札枚数以上のときのみ発火（state.players[opp].hand.length >= state.players[pid].hand.length。BS13-042ナイト・ゴーンLv2）
+              | { opponentMagicUsedAtLeast: number } // event: "opponentMagicUsed" 限定：発生源の持ち主から見た相手が、このターンにマジックの効果を使用した回数（GameState.magicUsedThisTurn。opponentMagicUsedの発火前に加算済み）がこれ以上のときのみ発火（BS13-071巨人港Lv2：2回以上）
           repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック／SD01-029 蠢く地下墓地＝置かれたコア1個につき）
           countMode?: "cores" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの繰り返し回数を「影響を受けたスピリット数」でなく「取り除かれたコア数」にする（省略時は従来どおりスピリット数。既存の極光の大地はこの指定が無いため挙動は変わらない。BS06希望の大灯台Lv1）
           minEventCount?: number // eventCount がこの値以上のときのみ発火（「一度に◯枚以上破棄したとき」。BS04アリゲイド＝5枚以上）
@@ -2124,6 +2131,7 @@ export interface CardInstance {
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
     refreshOnBlockedByColorThisTurn?: Color // このターンの間、この色のスピリットにブロックされたら回復する（BS11-054 武槍鳥スピニード・ハヤト。ターン終了でリセット）
+    blockRequiresMagicDiscardGrantedTurn?: number // 器BU：召喚時に付与された「このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない」の有効ターン番号（state.turnと一致する間だけ有効。GameEngine.doAttackがこのスピリット自身のアタックのたびに見る。BS13-047深海大帝ノーグ・デンス）
     tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
@@ -2306,6 +2314,7 @@ export interface BattleState {
     // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
     // （既存の処理に手を入れずに済ませるための形。BS10-X03巨蟹武神キャンサード）
     blockCostReserveToTrash?: { pid: PlayerId; count: number } // このバトルで、この pid はリザーブのコアをこの数だけトラッシュに置かなければブロックできない（払えないならブロック自体ができない。BS11-037 ヒポグリフィーLv2-3）。バトル終了で消える
+    blockCostDiscardMagic?: { pid: PlayerId } // 器BU：このバトルで、この pid は手札のマジックカード1枚を破棄しなければブロックできない（手札にマジックが無ければブロック自体ができない。破棄は自動選択＝最初に見つかったマジック1枚。バトル終了で消える。BS13-047深海大帝ノーグ・デンス召喚時）
     handColorBannedFor?: { pid: PlayerId; color: Color } // このバトルの間、この pid は指定色の手札のカードを使えない（BS11-060 雷神砲カノン・アームズ＝破棄したカードと同じ色）。バトル終了（clearBattle）で消える
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
     directed: boolean // 指定アタックか（canDirectAttack。通常アタックは false）

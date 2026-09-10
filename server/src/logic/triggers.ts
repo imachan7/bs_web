@@ -1262,6 +1262,13 @@ export function fireFieldEventTriggers(
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
                     if ((state.lastFunsai?.spirits ?? 0) === 0) continue
+                } else if ("opponentHandAtLeastOwnHand" in effect.condition) {
+                    // BS13-042ナイト・ゴーンLv2：相手の手札枚数が自分の手札枚数以上のときのみ
+                    if (state.players[opponentOf(pid)].hand.length < state.players[pid].hand.length) continue
+                } else if ("opponentMagicUsedAtLeast" in effect.condition) {
+                    // BS13-071巨人港Lv2：このターンに相手がマジックの効果を使用した回数がこれ以上のときのみ
+                    // （state.magicUsedThisTurnはresolveMagicの解決前に加算済み＝この誘発の時点で最新値）
+                    if ((state.magicUsedThisTurn[opponentOf(pid)] ?? 0) < effect.condition.opponentMagicUsedAtLeast) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue

@@ -64,12 +64,19 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
 }
 
 // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める
-// （PhaseManager.toAttackPhase。相手がメインステップにいなければ何もしない＝BS13-067光導く巨塔Lv2）
-const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx) => {
+// （PhaseManager.toAttackPhase。相手がメインステップにいなければ何もしない＝BS13-067光導く巨塔Lv2）。
+// who:"turnPlayer"（BS13-046/071青バッチ）は誰のターンかを問わず、メインステップにいれば終了させる
+// （「お互い、マジックの効果を使用したとき」＝自分がマジックを使っても自分のメインステップが終わる）
+const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
-    const opp = opponentOf(owner)
-    if (state.turnPlayer !== opp || state.phase !== "main") return
-    log(state, `${sourceName}：${state.players[opp].name}のメインステップを終了させた。`)
+    if (state.phase !== "main") return
+    if ((action.who ?? "opponent") === "opponent") {
+        const opp = opponentOf(owner)
+        if (state.turnPlayer !== opp) return
+        log(state, `${sourceName}：${state.players[opp].name}のメインステップを終了させた。`)
+    } else {
+        log(state, `${sourceName}：${state.players[state.turnPlayer].name}のメインステップを終了させた。`)
+    }
     toAttackPhase(state)
 }
 

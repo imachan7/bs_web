@@ -2103,6 +2103,62 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
     return false
 }
 
+// 器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
+// アタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない。
+// instCantAttackByCostと同じ両陣営走査だが、こちらは「不可」でなく「要求」を返す判定なので専用関数にする
+// （BS13-043鳥人イカロッシュ）
+export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): boolean {
+    const costsOfAttacker = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "attackRequiresCoreToll") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (costsOfAttacker.some((cost) => cost <= constraint.maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// 器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
+// attackerPid のフィールドのスピリット数がatMost体以下ならアタックできない（BS13-071巨人港）
+export function instCantAttackByFewOwnSpirits(board: Board, attackerPid: PlayerId, inst: CardInstance): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "cantAttackIfFewOwnSpirits") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (board.players[attackerPid].field.spirits.length <= constraint.atMost) return true
+            }
+        }
+    }
+    return false
+}
+
+// 器BO：globalConstraint "opponentCantReturnFromTrashToHand"。pid は「トラッシュから手札に戻そうとしている本人」。
+// cantSpiritStateBraveと同じ「発生源の持ち主から見た相手だけに効く」パターン（BS13-044吟遊詩人のオルフェLv2）
+export function opponentCantReturnFromTrashToHand(board: Board, pid: PlayerId): boolean {
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === pid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "opponentCantReturnFromTrashToHand") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
 // アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
 export function levelCantAct(board: Board, level: number): boolean {
