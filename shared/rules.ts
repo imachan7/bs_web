@@ -226,6 +226,8 @@ function restedNexusEffectsDisabled(board: Board): boolean {
 // ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
 function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
+    // 器BC：ターン限定版（TurnConstraintDef "nexusEffectsDisabledForPid"。BS13-039神獣バーロン）
+    if (board.turnConstraints.some((c) => c.type === "nexusEffectsDisabledForPid" && c.pid === pid)) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
         ...opp.field.spirits,
@@ -463,6 +465,8 @@ export function matchesBraveCondition(
     host: CardInstance,
     braveCardId: string,
 ): boolean {
+    // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
+    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return true
     const cond = card(braveCardId).braveCondition
     if (cond === undefined) return false
     const terms = Array.isArray(cond) ? cond : [cond]
@@ -753,6 +757,8 @@ export function continuousKeywordGrantCount(
             if (effect.keyword !== keyword) continue
             // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
             if (!effectActiveOn(source, effect, sourceLevel)) continue
+            // onlyWhileSpiritState＝whileCombinedの逆。発生源自身が合体しているときは発揮しない（BS13-056ホーク・ブレイカー）
+            if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
             // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
             if (effect.combinedFilter && !instIsCombined(inst)) continue
             if (
@@ -894,9 +900,19 @@ export function spiritHasFamily(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "familyGrant") continue
-            // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
-            const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
-            if (granted !== family) continue
+            // 【合体時】＝発生源自身が合体しているときだけ（BS13-X05Lv3）
+            if (effect.whileCombined && !instIsCombined(source)) continue
+            // target:"self"（器BH）：発生源自身にしか付与しない
+            if (effect.target === "self" && source.instanceId !== inst.instanceId) continue
+            // 器BH：familiesFromOwnField＝持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与する
+            // （付与系統の再帰を避けるため getCard(...).family の静的系統だけを見る）
+            if (effect.familiesFromOwnField) {
+                if (!player.field.spirits.some((s) => card(s.cardId).family.includes(family))) continue
+            } else {
+                // 付与する系統：固定（family）か、貸与時にプレイヤーが選んだもの（familyFromChoice。音鳥クルーク）
+                const granted = effect.familyFromChoice ? source.lentChoiceFamily : effect.family
+                if (granted !== family) continue
+            }
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
@@ -1027,7 +1043,7 @@ export function boardResistanceAgainst(
     }
     // 「お互い、このスピリットのコアを取り除けない」（BS10-X01 幻羅星龍ガイ・アスラ）。
     // **自分の効果も止める**ので、下の「相手の効果」限定より前で判定する
-    if (attempt.op === "coreRemove" && coresCantBeRemoved(board, targetOwnerPid, target)) {
+    if (attempt.op === "coreRemove" && coresCantBeRemoved(board, targetOwnerPid, target, attempt.actorPid)) {
         return { category: "coresLocked", label: "コアを取り除けない" }
     }
     // ここから下はすべて「相手の効果」限定
@@ -1096,7 +1112,7 @@ function hasUntargetableConstraint(inst: CardInstance): boolean {
 }
 
 // 現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
-function isInBattle(board: Board, inst: CardInstance): boolean {
+export function isInBattle(board: Board, inst: CardInstance): boolean {
     const battle = board.battle
     if (!battle) return false
     return battle.attackerInstanceId === inst.instanceId || battle.blockerInstanceId === inst.instanceId
@@ -1522,6 +1538,8 @@ export function matchesTarget(
     // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
+    // minLevel（BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」。levelの完全一致とは別軸）
+    if (filter.minLevel !== undefined && currentLevel(inst).level < filter.minLevel) return false
     // 合体しているか（BS10。docs/design/BRAVE.md）。true=合体スピリット／false=合体していない
     if (filter.combined !== undefined && instIsCombined(inst) !== filter.combined) return false
     // スピリット状態のブレイヴ＝カード種別がブレイヴで、合体していない個体。
@@ -1694,6 +1712,8 @@ export function activeConstraintsWithSource(
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
             if (effect.familyFilter && !matchesFamilyFilter(board, pid, inst, effect.familyFilter)) continue
+            // BS13-029剣馬グラニム：この色を持つスピリットのみに付与
+            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
             // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
@@ -1852,6 +1872,21 @@ export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] |
     return (inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))
 }
 
+// 器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
+// hasHeavyArmorAgainstと同じ元データを「含むか」ではなく「一覧」で返す版。BS13-030リーサルウェポンドラゴン：
+// 「このスピリットが持つ【重装甲】と同じ色」を色ごとに1体ずつ選ぶために使う。重複除去して返す）
+export function heavyArmorColorsOf(inst: CardInstance): Color[] {
+    const level = currentLevel(inst).level
+    const colors: Color[] = []
+    for (const e of card(inst.cardId).effects) {
+        if (e.kind !== "keyword" || e.keyword !== "heavyArmor") continue
+        if (!effectActiveOn(inst, e, level)) continue
+        for (const c of e.colors ?? []) if (!colors.includes(c)) colors.push(c)
+    }
+    for (const c of inst.heavyArmorColorsGranted ?? []) if (!colors.includes(c)) colors.push(c)
+    return colors
+}
+
 // 第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
 // （BS12_PLAN.md §1 の1と同じ線引き）。scope:"all"は色不問、scope:"matchArmorColors"は
 // **対象自身が持つ【装甲】の色**と一致するときだけ防ぐ（このスピリット自身の装甲色を都度参照する）
@@ -1885,6 +1920,38 @@ export function hasGlobalConstraint(
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 return true
             }
+        }
+    }
+    return false
+}
+
+// 器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
+// instのシンボル数と一致する制約が両陣営どちらかのfieldにあり、かつinstが既にこのターンアタック済みなら true
+// （RuleValidator.validateAttackが2回目以降のアタック宣言を拒否する）
+export function attackOncePerTurnLimitApplies(board: Board, inst: CardInstance): boolean {
+    if (!inst.attackedThisTurn) return false
+    const count = instanceSymbolCount(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnBySymbolCount") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.constraint.symbolCount === count) return true
+            }
+        }
+    }
+    return false
+}
+
+// globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
+// **発生源の持ち主だけ**を守る片側パターン（ownLifeFloorContinuousと同型）。pid自身のeffectSourcesだけを見る
+export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId): boolean {
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeImmuneToSpiritEffects") continue
+            if (effectActiveAtLevel(effect.levels, level)) return true
         }
     }
     return false
@@ -2017,6 +2084,81 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
     return false
 }
 
+// 器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
+// 持ち主を問わずアタックできない（ブロックは可能。opponentCantAttackByCostの両陣営版。BS13-035オリンピアの天使オク）
+export function instCantAttackByCost(board: Board, inst: CardInstance): boolean {
+    const costsOfAttacker = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "cantAttackByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) return true
+            }
+        }
+    }
+    return false
+}
+
+// 器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
+// アタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない。
+// instCantAttackByCostと同じ両陣営走査だが、こちらは「不可」でなく「要求」を返す判定なので専用関数にする
+// （BS13-043鳥人イカロッシュ）
+export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): boolean {
+    const costsOfAttacker = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "attackRequiresCoreToll") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (costsOfAttacker.some((cost) => cost <= constraint.maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// 器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
+// attackerPid のフィールドのスピリット数がatMost体以下ならアタックできない（BS13-071巨人港）
+export function instCantAttackByFewOwnSpirits(board: Board, attackerPid: PlayerId, inst: CardInstance): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "cantAttackIfFewOwnSpirits") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (board.players[attackerPid].field.spirits.length <= constraint.atMost) return true
+            }
+        }
+    }
+    return false
+}
+
+// 器BO：globalConstraint "opponentCantReturnFromTrashToHand"。pid は「トラッシュから手札に戻そうとしている本人」。
+// cantSpiritStateBraveと同じ「発生源の持ち主から見た相手だけに効く」パターン（BS13-044吟遊詩人のオルフェLv2）
+export function opponentCantReturnFromTrashToHand(board: Board, pid: PlayerId): boolean {
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === pid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "opponentCantReturnFromTrashToHand") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
 // アタックとブロックができない（costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
 export function levelCantAct(board: Board, level: number): boolean {
@@ -2048,7 +2190,7 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel } = effect.constraint
                 // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
                 if (ownOnly && pid !== defenderPid) continue
                 // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
@@ -2072,7 +2214,14 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 }
                 // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
                 if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
-                if (maxCost !== undefined && costsOfAttacker.some((cost) => cost <= maxCost)) return true
+                // attackerLevel（器BA）：maxCostと**両方**満たすときだけ保護する（BS13-070：コスト3以下かつLv1）
+                if (
+                    maxCost !== undefined &&
+                    costsOfAttacker.some((cost) => cost <= maxCost) &&
+                    (attackerLevel === undefined || currentLevel(attacker).level === attackerLevel)
+                ) {
+                    return true
+                }
             }
         }
     }
@@ -2289,6 +2438,9 @@ export function noOpponentTriggerByColor(
 // フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
 // 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
 export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {
+    // 器AU：endStepLock("summonTrigger")。BS13-081ドリームシール「『自分のエンドステップ』を3回行うまで、
+    // 『このスピリットの召喚時』効果は発揮されない」（お互い＝両陣営。BS13_PLAN.md §1 #21と同じ書き分け）
+    if (isEndStepLocked(board, "summonTrigger")) return true
     const costs = instAllCosts(inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, pid)) {
@@ -2516,13 +2668,81 @@ export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInsta
 // **両陣営に効く**（誰が発揮したかを問わない）。クライアントもこれを読んでボタンを落とす
 export function isEndStepLocked(
     board: Board,
-    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve",
+    lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve" | "summonTrigger",
 ): boolean {
     return board.endStepLocks.some((l) => l.remaining > 0 && l.locks.includes(lock))
 }
 
-export function coresCantBeRemoved(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
-    return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
+export function coresCantBeRemoved(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    // このコア除去を行っている側。省略時は「持ち主自身の操作」（支払い元・moveCore・【覚醒】の移動元）を意味する
+    // （globalConstraint "coresCantBeRemovedAll" の exceptOwnerEffects が使う）
+    actorPid?: PlayerId,
+): boolean {
+    if (activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")) return true
+    return globalCoresCantBeRemoved(board, ownerPid, actorPid ?? ownerPid)
+}
+
+// globalConstraint "coresCantBeRemovedAll"（BS13緑バッチ 器AC。既存のcoresCantBeRemovedは自身のコアだけを
+// 対象にする個体制約だが、こちらは**フィールド全体**（相手すべて／両陣営すべて）に効く）:
+//   side:"opponent" ＝発生源から見た相手のスピリットのコアだけを対象にする（BS13-065八分儀の祠Lv2）
+//   side:"both"     ＝両陣営のスピリットのコアを対象にする（BS13-X03白羊樹神セフィロ・アリエスLv3）
+//   exceptOwnerEffects ＝持ち主自身の効果・操作は例外で通す（相手の効果だけを止める。065Lv2）
+// 【転召】でコアがすべて外れる経路（dumpAllCoresTensho）はこのチェックを経由しないため、
+// 「【転召】以外」の例外は自然に満たされる（コード上の追加対応は不要）
+function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, actorPid: PlayerId): boolean {
+    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, sourcePid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "coresCantBeRemovedAll") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+                const { side, exceptOwnerEffects } = effect.constraint
+                if (side === "opponent" && targetOwnerPid === sourcePid) continue
+                if (exceptOwnerEffects && actorPid === targetOwnerPid) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// globalConstraint "summonExhausted"（BS13緑バッチ 器AB）：お互い、条件を満たすカードを召喚するとき、
+// 疲労状態で召喚する（BS13-065八分儀の祠Lv1-2／BS13-X03白羊樹神セフィロ・アリエスLv1-3）。
+// **ダイレクトブレイヴでは合体先のスピリットが疲労する**（BS13_PLAN.md §1 #14。attachBraveの疲労合成が
+// host.isRested||brave.isRestedで拾うため、召喚するインスタンス自身をここで疲労させれば自然に伝播する）。
+// 「疲労する」であって「疲労状態になる」ではないため、この強制は ownSpiritExhausted を発火させない
+// （呼び出し側がexhaustSpiritを経由せず直接isRestedを立てる。BS13_PLAN.md §1 #24）
+export function summonExhausted(
+    board: Board,
+    summonedCard: { type: CardType; family: string[]; cost: number },
+): boolean {
+    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, sourcePid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "summonExhausted") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+                const { cardTypes, familyExclude, costFilter } = effect.constraint
+                if (!cardTypes.includes(summonedCard.type)) continue
+                if (familyExclude && summonedCard.family.some((f) => (Array.isArray(familyExclude) ? familyExclude.includes(f) : f === familyExclude))) continue
+                if (costFilter?.max !== undefined && summonedCard.cost > costFilter.max) continue
+                if (costFilter?.min !== undefined && summonedCard.cost < costFilter.min) continue
+                return true
+            }
+        }
+    }
+    return false
 }
 
 // globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：

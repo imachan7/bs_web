@@ -56,7 +56,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { attachBrave, destroySpirit, flushBounces, returnSpiritToHand } from "./removal"
+import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToHand, spiritMillFreeSummonOrConfirm } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -94,6 +94,7 @@ import {
     countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
+    effectActiveOn,
     effectiveBp,
     effectSources,
     hasArmorAgainst,
@@ -140,6 +141,7 @@ export {
     countSpiritsWeighted,
     countSymbols,
     effectActiveAtLevel,
+    effectActiveOn,
     effectiveBp,
     effectSources,
     hasArmorAgainst,
@@ -234,6 +236,8 @@ function millCapFor(state: GameState, pid: PlayerId): number {
     for (const source of sources) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
+            // mutualは器AM専用の別集計（mutualMillCapRemainingFor）へ。既存の4行アンカーは崩さない
+            if (effect.kind === "globalConstraint" && effect.constraint.type === "millCap" && effect.constraint.mutual) continue
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
@@ -241,6 +245,27 @@ function millCapFor(state: GameState, pid: PlayerId): number {
         }
     }
     return cap
+}
+
+// 器AM：globalConstraint "millCap" の mutual:true 版（BS13-026キグナ・スワンMk-II）。
+// 通常のmillCapFor/millCapPerTurnRemainingと違い**両陣営のeffectSourcesを走査**し（発生源がどちらの
+// フィールドにあってもお互いのデッキを守るため）、**発生源の持ち主自身の効果によるミルも含めて**
+// state.millCountThisTurnMutualで累計管理する。戻り値はpidのデッキがこのミルで破棄されてよい残り枚数
+function mutualMillCapRemainingFor(state: GameState, pid: PlayerId): number {
+    let remaining = Infinity
+    const usedSoFar = state.millCountThisTurnMutual[pid] ?? 0
+    for (const scanPid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, scanPid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "millCap" || !effect.constraint.mutual) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
+            }
+        }
+    }
+    return Math.max(remaining, 0)
 }
 
 // globalConstraint "millCap" の perTurn:true 版（BS04侵されざる聖域Lv2）：pidのデッキが
@@ -577,6 +602,8 @@ export function refreshSpirit(
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
+    // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritRefreshed", { pid: ownerPid, inst })
 }
 
 // 「スピリットが疲労したとき」のフィールドイベント発火。
@@ -655,6 +682,9 @@ export function millDeck(
         // ターン累計の上限（BS04侵されざる聖域Lv2：ターンに5枚まで）
         effectiveCount = Math.min(effectiveCount, millCapPerTurnRemaining(state, pid))
     }
+    // 器AM：mutual指定のmillCapは、byOpponentを問わず（自分の効果によるミルも含めて）常に適用する
+    // （BS13-026キグナ・スワンMk-II：「お互いのデッキは〜ターンに3枚までしか破棄されない」）
+    effectiveCount = Math.min(effectiveCount, mutualMillCapRemainingFor(state, pid))
     const player = state.players[pid]
     const actual = Math.min(effectiveCount, player.deck.length)
     const milled: string[] = []
@@ -663,6 +693,10 @@ export function millDeck(
         if (cardId === undefined) break
         player.trashCards.push(cardId)
         milled.push(cardId)
+    }
+    // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
+    if (actual > 0) {
+        state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + actual
     }
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
     if (actorPid !== undefined && actorPid !== pid && actual > 0) {
@@ -717,6 +751,8 @@ function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, milled: s
 // 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
 // millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
 function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
+    // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
+    if (state.turnConstraints.some((c) => c.type === "noDeckMillForPidThisTurn" && c.pid === pid)) return true
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -883,6 +919,12 @@ function resolveMilledFromDeck(
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
             const idx = player.trashCards.lastIndexOf(cardId)
             if (idx === -1) continue
+            // 器AR：summonThisSpiritFree（BS13-034）は「できる」＝任意なので、トラッシュに置いたまま
+            // 確認（非対話は自動召喚）に回す。他の2つ（無条件）とは違いここではまだ取り除かない
+            if (effect.then === "summonThisSpiritFree") {
+                spiritMillFreeSummonOrConfirm(state, pid, idx)
+                break
+            }
             player.trashCards.splice(idx, 1)
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {
@@ -1212,6 +1254,9 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             fromHand: state.summoningFromHand === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
+            // 器AG：summonedSpiritAsTarget指定時に、召喚されたスピリット自身をactionTargetIdとして渡す
+            // （selfMode:"source"と組み合わせ、self=発生源自身・target=召喚されたスピリットを両立させる。BS13-053モクバオー）
+            sourceInstanceId: inst.instanceId,
         })
     }
     // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
@@ -2043,11 +2088,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
         const sources = effectSources(state, pid)
         for (const source of sources) {
             for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind === "keywordGrant" && effect.keyword === "armor") {
-                    // 継続付与の装甲（BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）。
-                    // hasArmorAgainstはstateを受け取らない設計のため、対象スピリットのCardInstance.armorColorsGrantedへ
-                    // 毎回再計算して反映する（levelAsContinuous/colorsAsContinuousと同じ「都度再構築」方式）
+                if (effect.kind === "keywordGrant" && (effect.keyword === "armor" || effect.keyword === "heavyArmor")) {
+                    // 継続付与の装甲（BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）／重装甲（器AP。BS13-056ホーク・ブレイカー）。
+                    // hasArmorAgainst/hasHeavyArmorAgainstはstateを受け取らない設計のため、対象スピリットのCardInstance.
+                    // armorColorsGranted/heavyArmorColorsGrantedへ毎回再計算して反映する（levelAsContinuous等と同じ「都度再構築」方式）
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    // onlyWhileSpiritState：発生源自身が合体しているときは発揮しない（BS13-056：「このブレイヴがスピリット状態の間」）
+                    if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
                     for (const spirit of player.field.spirits) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
@@ -2061,6 +2108,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
                         if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
+                        if (effect.keyword === "heavyArmor") {
+                            // 器AP：重装甲の継続付与（BS13-056ホーク・ブレイカー）
+                            if (!spirit.heavyArmorColorsGranted) spirit.heavyArmorColorsGranted = []
+                            for (const c of effect.colors ?? []) {
+                                if (!spirit.heavyArmorColorsGranted.includes(c)) spirit.heavyArmorColorsGranted.push(c)
+                            }
+                            continue
+                        }
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
@@ -2225,6 +2280,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
+                        // 器BK：target:"self"は発生源自身にだけ付与する
+                        if (effect.target === "self" && spirit.instanceId !== source.instanceId) continue
                         // 「コストNの自分のスピリット」は付与コスト（道化師クラン）も込みで判定する
                         if (effect.costFilter !== undefined && !instHasCost(spirit, effect.costFilter)) continue
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
@@ -2261,7 +2318,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "symbolAddGrant") {
                     // 継続的な「シンボルを追加する」（BS12初出。BS12-006竜拳士アルディ・バロン／
                     // BS12-X01金牛龍神ドラゴニック・タウラス）。盤面のシンボル数に効く（軽減計算・ライフダメージ両方）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!effectActiveOn(source, effect, currentLevel(source).level)) continue
                     // condition.ownFieldHasBraveInSpiritState（BS13-006炎獣ファイオリックLv2-3）：
                     // 持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効
                     if (
@@ -2363,6 +2420,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         // familyFilter（SD02-013 転召の祭壇Lv2＝召喚するカードと同じ系統のみ）
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        // 器AY：combinedOnly（BS13-069星空のコンサートホールLv2）＝合体スピリットのみ対象
+                        if (effect.combinedOnly && !instIsCombined(spirit)) continue
                         // plus 指定時は「元のコスト+plus としても扱う」（相対値版。固定値の cost と排他）
                         const value = effect.plus !== undefined
                             ? getCard(spirit.cardId).cost + effect.plus
@@ -2435,7 +2494,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.target === "self") {
                     source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
                 } else if (effect.target === "ownNexusesAll") {
+                    // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {
+                        if (effect.nameContains !== undefined && !cardNameContains(nexus, effect.nameContains)) continue
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {
@@ -3217,6 +3278,8 @@ export function countEffectCounter(
     }
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
+    // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
+    if (counter === "selfCores") return self?.cores ?? 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
@@ -3252,6 +3315,17 @@ export function countEffectCounter(
         const otherInst = state.players[opp].field.spirits.find((s) => s.instanceId === otherId)
         if (!otherInst || !instIsCombined(otherInst)) return 0
         return instanceSymbolCount(otherInst)
+    }
+    // battlingOpponentSymbols：battlingOpponentCombinedSymbolsの合体限定を外した版（BS13-056ホーク・ブレイカー【合体時】）
+    if (counter === "battlingOpponentSymbols") {
+        if (!state.battle || !self) return 0
+        const otherId =
+            state.battle.attackerInstanceId === self.instanceId
+                ? state.battle.blockerInstanceId
+                : state.battle.attackerInstanceId
+        if (!otherId) return 0
+        const otherInst = state.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        return otherInst ? instanceSymbolCount(otherInst) : 0
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
@@ -3300,6 +3374,13 @@ export function countEffectCounter(
     if ("ownNexusColor" in counter) {
         return state.players[owner].field.nexuses.filter((n) =>
             instHasColor(n, counter.ownNexusColor),
+        ).length
+    }
+    // { ownNexusNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むネクサス数
+    // （同名重複もそのまま数える。BS13-045巨人船長イアソンLv2：「古代戦艦」ネクサス1つにつき）
+    if ("ownNexusNameIncludes" in counter) {
+        return state.players[owner].field.nexuses.filter((n) =>
+            cardNameContains(n, counter.ownNexusNameIncludes),
         ).length
     }
     // { ownColorSymbols: Color }：自分フィールドの指定色シンボルの合計数。
@@ -3682,6 +3763,7 @@ export {
     declineReviveConfirm,
     destroyNexus,
     returnNexusToHand,
+    returnNexusToDeckTop,
     returnNexusToDeckBottom,
     returnSpiritToHand,
     returnSpiritToDeckTop,

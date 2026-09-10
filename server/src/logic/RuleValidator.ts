@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -909,6 +909,19 @@ export function validateAttack(
     if (instCantAttackByOpponentCost(state, pid, inst)) {
         return "コストによりアタックできません"
     }
+    // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）：指定コストのスピリットは両陣営アタックできない
+    if (instCantAttackByCost(state, inst)) {
+        return "コストによりアタックできません"
+    }
+    // 器BV：フィールド全体制約（BS13-071巨人港）：自分のスピリットがatMost体以下のとき、自分はアタックできない
+    if (instCantAttackByFewOwnSpirits(state, pid, inst)) {
+        return "自分のフィールドのスピリットが少ないためアタックできません"
+    }
+    // 器BM：フィールド全体制約（BS13-043鳥人イカロッシュ）：アタックにはリザーブのコア1個の支払いが要る。
+    // リザーブが空ならそもそもアタック不可（払えるかぎり払う＝支払い自体はGameEngine.doAttackが自動で行う）
+    if (instAttackRequiresCoreToll(state, inst) && state.players[pid].reserve < 1) {
+        return "リザーブにコアがないためアタックできません"
+    }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
@@ -916,6 +929,10 @@ export function validateAttack(
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタックできない
     if (cantActByCost(state, inst)) {
         return "このターンの間、このスピリットはアタックできません"
+    }
+    // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
+    if (attackOncePerTurnLimitApplies(state, inst)) {
+        return "このスピリットは既にこのターンアタックしています"
     }
 
     if (targetSpiritInstanceId !== undefined) {
@@ -972,6 +989,11 @@ export function validateBlock(
     const blockCost = state.battle?.blockCostReserveToTrash
     if (blockCost && blockCost.pid === pid && state.players[pid].reserve < blockCost.count) {
         return `リザーブのコアが${String(blockCost.count)}個ないためブロックできません`
+    }
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：手札のマジックカード1枚を破棄しなければブロックできない
+    const blockMagicCost = state.battle?.blockCostDiscardMagic
+    if (blockMagicCost && blockMagicCost.pid === pid && !state.players[pid].hand.some((id) => getCard(id).type === "magic")) {
+        return "手札にマジックカードがないためブロックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
     if (cantActByCost(state, inst, "block")) {
@@ -1042,6 +1064,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (instCostCantAct(state, inst)) continue
         // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
         if (instCantAttackByOpponentCost(state, pid, inst)) continue
+        // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
+        if (instCantAttackByCost(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
         if (cantActByCost(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)

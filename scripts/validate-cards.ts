@@ -48,7 +48,7 @@ const VALID_KINDS = new Set([
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
-    "trashReturnAtEndStep",
+    "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep",
 ])
 
 export interface ValidationIssue {
@@ -244,7 +244,7 @@ const FILTER_ACTIONS = new Set([
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested", "refreshed",
+    "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested", "refreshed",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）

@@ -18,7 +18,7 @@ import {
     hideWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../shared/summon"
 
@@ -41,7 +41,33 @@ let lastErrorText: string = ""
 let joinMode: "room" | "random" | "ai" = "room"
 
 function send(action: GameAction): void {
+    if (!confirmExtraCost(action)) return
     socket.emit("action", action)
+}
+
+// 器BM（BS13-043 鳥人イカロッシュ）／器BU（BS13-047 深海大帝ノーグ・デンス）：
+// アタック・ブロックの宣言そのものに追加コストが要る場面で、押し間違いでコアやマジックを
+// 失わないよう確認をはさむ（2026-09-10 ユーザー確認：断ればアタック／ブロックしない）。
+// サーバーは宣言が成立したら自動で支払う（払えないときは validateAttack / validateBlock が弾く）ので、
+// 「断る＝そもそも宣言しない」をクライアント側で表現する。
+// アタックの送信口が3か所（通常・指定アタックの対象選択・相手プレイヤーへの指定）あるため send() に1つ置く
+function confirmExtraCost(action: GameAction): boolean {
+    if (!view) return true
+    if (action.type === "attack") {
+        const inst = view.players[view.you].field.spirits.find((s) => s.instanceId === action.instanceId)
+        if (!inst || !instAttackRequiresCoreToll(view, inst)) return true
+        return window.confirm(
+            `${master(inst.cardId).name}のアタックには、リザーブのコア1個をトラッシュに置く必要があります。\n\n` +
+                "支払ってアタックしますか？",
+        )
+    }
+    if (action.type === "block") {
+        if (view.battle?.blockCostDiscardMagic?.pid !== view.you) return true
+        return window.confirm(
+            "ブロックするには、手札のマジックカード1枚を破棄する必要があります。\n\n破棄してブロックしますか？",
+        )
+    }
+    return true
 }
 
 // スピリット／ネクサスからコアを1個取り除く。

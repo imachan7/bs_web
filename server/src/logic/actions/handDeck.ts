@@ -41,7 +41,7 @@ import {
     tryInteractiveTargetChoice,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -711,6 +711,59 @@ const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> =
     log(state, `${sourceName}：手札${action.discardCount}枚を破棄し、自分はデッキから${action.drawCount}枚ドローした。`)
 }
 
+// BS13-044吟遊詩人のオルフェ：自分の手札1枚を破棄することで、相手の手札すべてを見て、
+// その中のマジックカード1枚を破棄する（COST_MODEL.md §1：自分の手札1枚以上・相手の手札にマジック1枚以上の
+// 両方が揃うときだけ発揮する）。costDiscardHandThenDrawの兄弟だが、効果側は discardOpponent への委譲
+const costDiscardHandThenDiscardOpponentMagicHandler: ActionHandler<"costDiscardHandThenDiscardOpponentMagic"> = (ctx) => {
+    const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+        return
+    }
+    // 選択の解決から戻ってきた場合：選ばれた1枚を自分のコストとして破棄し、相手の手札破棄へ委譲する
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+        ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+        return
+    }
+    // ①コストとBの両方が完全に解決できるときだけ発揮できる（COST_MODEL.md §1）：
+    // 自分の手札が1枚以上、かつ相手の手札にマジックカードが1枚以上
+    if (player.hand.length < 1 || !state.players[opp].hand.some((id) => getCard(id).type === "magic")) {
+        log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
+        return
+    }
+    if (
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストとして破棄するカードを選んでください`,
+            "hand",
+            player.hand.map((_, i) => i),
+            { type: "costDiscardHandThenDiscardOpponentMagic" },
+            null,
+        )
+    ) {
+        return
+    }
+    // 決定的自動選択：手札末尾を破棄してから相手の手札破棄へ委譲
+    const cardId = player.hand.pop()
+    if (cardId !== undefined) {
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
+    }
+    ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+}
+
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
 // どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
 const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
@@ -988,6 +1041,8 @@ const deckRevealHandler: ActionHandler<"deckReveal"> = (ctx, action) => {
             // colorFilter：カードの色で絞る（SD01-034 エクストラドロー＝赤のスピリットカードのみ）。
             // familyFilter と同じくカード静的な色だけを見る（デッキ内にインスタンスが無いため）
             (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter)) &&
+            // 器BL：costFilter＝カード静的なコストが完全一致するもののみ（BS13-034ミノガメン：コスト2）
+            (action.costFilter === undefined || getCard(id).cost === action.costFilter) &&
             matchesFamily(id)
         // 実対戦（interactiveTargets）では「その中から1枚を選び」をプレイヤーに選ばせる。
         // 公開ゾーン（state.revealedCards）へ積み、cardZone:"reveal" の card choice を出す。
@@ -1371,7 +1426,7 @@ const revealAndPlaceNexusFreeHandler: ActionHandler<"revealAndPlaceNexusFree"> =
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -1623,7 +1678,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -1693,7 +1748,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
 // 呼ばれる想定で、末尾（新しい方）から探すのは同じ考え方
 const recoverNexusFromTrashHandler: ActionHandler<"recoverNexusFromTrash"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -2043,7 +2098,7 @@ const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, act
 const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery")) {
+        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
@@ -2602,6 +2657,75 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
             return
         }
+        // costExhaustSelf指定時は、発生源自身（ネクサス等）を疲労させることがコスト。
+        // 対象はfieldEventが渡すtargetInstanceId固定（自由選択ではない）ため、それが定まらない／
+        // 既に疲労済みなら不発（COST_MODEL.md §1。BS13-068遥かなる衛星砲Lv2）
+        if (action.costExhaustSelf) {
+            if (!self || self.isRested || targetInstanceId === undefined || !findSpiritAny(state, targetInstanceId)) {
+                log(state, `${sourceName}：発動しなかった。`)
+                return
+            }
+            self.isRested = true
+            log(state, `${state.players[owner].name}は${sourceName}を疲労させた。`)
+            const { costExhaustSelf: _paid, ...rest } = action
+            ctx.resolve(rest, { targetInstanceId })
+            return
+        }
+        // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
+        // 手札に戻すことがコスト（COST_MODEL.md §1：AとBの両方が成立するときだけ払う）。
+        // Bの候補（戻せる相手）が1体もいなければ不発。候補2体以上ならプレイヤーが選ぶ（§2）。
+        // 支払った後は targetInstanceId を落として再入し、以降は通常の対象選択に合流する
+        // （BS13-053モクバオー【合体時】：【神速】持ち1体を戻して相手1体を戻す）
+        if (action.costReturnOwnSpiritKeyword !== undefined) {
+            const kw = action.costReturnOwnSpiritKeyword
+            const costCandidates = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, kw))
+            const hasTarget =
+                pickEnemyCandidates(
+                    state,
+                    opp,
+                    Infinity,
+                    (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
+                    srcColors,
+                    srcType,
+                    "bounce",
+                ).length >= 1
+            if (costCandidates.length === 0 || !hasTarget) {
+                log(state, `${sourceName}：発動しなかった。`)
+                return
+            }
+            const { costReturnOwnSpiritKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                const chosen = costCandidates.find((s) => s.instanceId === targetInstanceId)
+                if (!chosen) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+                returnSpiritToHand(state, owner, chosen, sourceName)
+                if (state.winner) return
+                ctx.resolve(rest)
+                return
+            }
+            if (state.interactiveTargets && costCandidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
+                    costCandidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            }
+            let victim = costCandidates[0]!
+            for (const s of costCandidates) {
+                if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
+            }
+            returnSpiritToHand(state, owner, victim, sourceName)
+            if (state.winner) return
+            ctx.resolve(rest)
+            return
+        }
         // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
         // **A（コスト）と B（効果）の両方が成立するときだけ払う**（COST_MODEL.md §1）。
         // 以前はここで払ってから対象を探していたため、戻せる相手がいなくてもコアを失っていた。
@@ -2738,6 +2862,38 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             returnSpiritToHand(state, opp, target, sourceName)
         }
         return
+}
+
+// 器AJ：BS13-030リーサルウェポンドラゴン【合体時】Lv2「このスピリットが持つ【重装甲】と同じ色の相手のスピリット1体ずつを手札に戻す」。
+// selfが実際に持つ【重装甲】の色（heavyArmorColorsOf。後天的な付与も含む）ごとに、その色を持つ相手のスピリット
+// 1体を手札に戻す。destroyCostsEachOneHandlerと同じ「色ごとにreturnToHand count:1へ委譲」の形
+// （装甲・効果耐性・対象選択・バウンス待機の扱いをreturnToHand側の1箇所に保つため）
+const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHeavyArmorColor"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType } = ctx
+    if (!self) return
+    // remainingColors：選択待ちで中断したときの再開スタック用（cards.jsonには書かない。destroyOnePerCostと同型）
+    const colors = action.remainingColors ?? heavyArmorColorsOf(self)
+    for (let i = 0; i < colors.length; i++) {
+        const color = colors[i]
+        if (color === undefined) continue
+        ctx.resolve({ type: "returnToHand", count: 1, filter: { color } }, {
+            sourceColors: srcColors,
+            sourceType: srcType,
+        })
+        if (state.winner) return
+        if (state.pendingChoice) {
+            const rest = colors.slice(i + 1)
+            if (rest.length > 0) {
+                pushResumeFrames(state, [{
+                    kind: "action",
+                    selfInstanceId: self.instanceId,
+                    actorPid: owner,
+                    action: { type: "returnToHandEachHeavyArmorColor", remainingColors: rest },
+                }])
+            }
+            return
+        }
+    }
 }
 
 const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
@@ -3486,6 +3642,7 @@ const handlers = {
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
     costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
+    costDiscardHandThenDiscardOpponentMagic: costDiscardHandThenDiscardOpponentMagicHandler,
     costDiscardHandTypeThenCoreRemove: costDiscardHandTypeThenCoreRemoveHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
@@ -3519,6 +3676,7 @@ const handlers = {
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
+    returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnOwnSpiritToHand: returnOwnSpiritToHandHandler,
     returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,

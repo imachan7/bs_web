@@ -98,6 +98,7 @@ import {
     effectiveBp,
     effectSources,
     hasArmorAgainst,
+    hasHeavyArmorAgainst,
     hasContinuousKeywordGrant,
     continuousKeywordGrantCount,
     handSizeOf,
@@ -139,6 +140,7 @@ export {
     effectiveBp,
     effectSources,
     hasArmorAgainst,
+    hasHeavyArmorAgainst,
     hasContinuousKeywordGrant,
     continuousKeywordGrantCount,
     handSizeOf,
@@ -359,6 +361,27 @@ export function detachBraveVoluntary(
 // 逆順にすると「残せるはずのブレイヴ」がトラッシュへ行く。
 //
 // ここでは合体を解いて**コアを乗せずに脇へ置く**だけで、残すかどうかは flushBraveKeeps が決める。
+// 器AT：BS13-057ポッポール「この合体スピリットのブレイヴを回復状態でフィールドに残し、スピリットだけを
+// 手札に戻す」。detachBravesOnLeave（コアを払って残すか確認する通常の「残す」フロー）とは違い、
+// **無償・強制で・指定した状態のまま**フィールドへ残す（現在のコア数もそのまま。Lv1維持コアへリセットしない）
+function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, host: CardInstance, rested: boolean): void {
+    const player = state.players[ownerPid]
+    const braves = bravesOf(player, host)
+    if (braves.length === 0) return
+    delete host.braveRefs
+    for (const brave of braves) {
+        if (player.field.spirits.some((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId))) {
+            continue // まだ別のホストと合体している
+        }
+        const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+        if (at !== -1) player.field.combinedBraves.splice(at, 1)
+        brave.isRested = rested
+        player.field.spirits.push(brave)
+        log(state, `${player.name}の${getCard(brave.cardId).name}は、${rested ? "疲労" : "回復"}状態でフィールドに残った。`)
+    }
+    refreshLevelAsOverrides(state)
+}
+
 export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
@@ -1171,6 +1194,64 @@ export function applyFushiSummon(
     fireSummonSequence(state, info.pid, inst, true)
 }
 
+// 器AR：BS13-034ミノガメン「相手のデッキ破棄効果で破棄されたこのカードは、コストを支払わずに
+// 召喚できる。さらに、このターンの間、自分のデッキは破棄されない」。「できる」＝任意なので確認を出す
+// （非対話は自動で召喚する。fushiSummonと同じ形）。破棄されたその瞬間にしか呼ばれない
+// （BS13_PLAN.md §1 #27＝トラッシュに残っていてもあとから召喚はできない）
+export function spiritMillFreeSummonOrConfirm(state: GameState, ownerPid: PlayerId, trashIndex: number): void {
+    const cardId = state.players[ownerPid].trashCards[trashIndex]
+    if (cardId === undefined) return
+    if (!state.interactiveTargets) {
+        applySpiritMillFreeSummon(state, { pid: ownerPid, cardId, trashIndex })
+        return
+    }
+    suspend(state, {
+        pid: ownerPid,
+        kind: "option",
+        prompt: `${getCard(cardId).name}：コストを支払わずに召喚しますか？`,
+        candidates: [],
+        options: ["召喚する"],
+        optional: true,
+        confirm: true,
+        spiritMillFreeSummon: { pid: ownerPid, cardId, trashIndex },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+}
+
+export function declineSpiritMillFreeSummon(state: GameState, info: NonNullable<PendingChoice["spiritMillFreeSummon"]>): void {
+    log(state, `${getCard(info.cardId).name}：召喚しなかった。`)
+}
+
+export function applySpiritMillFreeSummon(
+    state: GameState,
+    info: NonNullable<PendingChoice["spiritMillFreeSummon"]>,
+): void {
+    const player = state.players[info.pid]
+    const index =
+        player.trashCards[info.trashIndex] === info.cardId
+            ? info.trashIndex
+            : player.trashCards.indexOf(info.cardId)
+    if (index === -1) return
+    const card = getCard(info.cardId)
+    player.trashCards.splice(index, 1)
+    const inst = createInstance(info.cardId, state.turn, minLevelCores(card))
+    player.field.spirits.push(inst)
+    log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
+    // 「さらに、このターンの間、自分のデッキは破棄されない」＝**この召喚が成立したときだけ**付く（§1 #27）
+    state.turnConstraints.push({ type: "noDeckMillForPidThisTurn", pid: info.pid })
+    log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
+    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (state.winner) return
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [
+            { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+        ])
+        return
+    }
+    fireSummonSequence(state, info.pid, inst)
+}
+
 // 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
 // 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 // 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
@@ -1357,6 +1438,7 @@ function tryReviveOnDestroy(
         byOpponentEffect?: boolean
         byOpponent?: boolean
         byBattleVsArmorColor?: boolean
+        byBattleVsHeavyArmorColor?: boolean
         byBattle?: boolean
         byBattleKillerLevel?: number
         byBattleKillerMaxBp?: number
@@ -1373,6 +1455,11 @@ function tryReviveOnDestroy(
         if (when.byBattleVsArmorColor) {
             const attackerColors = context?.battle?.attackerColors
             if (attackerColors === undefined || !hasArmorAgainst(inst, attackerColors)) return false
+        }
+        // 器AI：byBattleVsArmorColorの【重装甲】版（BS13-067光導く巨塔）
+        if (when.byBattleVsHeavyArmorColor) {
+            const attackerColors = context?.battle?.attackerColors
+            if (attackerColors === undefined || !hasHeavyArmorAgainst(inst, attackerColors)) return false
         }
         if (when.byBattle && context?.battle === undefined) return false
         if (
@@ -1528,6 +1615,45 @@ function tryReviveOnDestroy(
             }
             return true
         }
+        // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
+        if (effect.cost?.ownLifeOneToReserve) {
+            if (player.life <= 0) return false
+            player.life -= 1
+            player.reserve += 1
+            log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
+            if (player.life <= 0 && !state.winner) {
+                state.winner = opponentOf(ownerPid)
+                log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            }
+            return true
+        }
+        // 器AR：BS13-040金星神龍ヴィーナ・フェーザー「自分のデッキを上から3枚破棄することで」。
+        // millSelfOneMatchingと違い一致判定は無く、あるだけ破棄すれば成立する（デッキが空でも0枚破棄で成立）
+        if (effect.cost?.millSelfCount !== undefined) {
+            const n = Math.min(effect.cost.millSelfCount, player.deck.length)
+            for (let i = 0; i < n; i++) {
+                const cardId = player.deck.shift()!
+                player.trashCards.push(cardId)
+            }
+            log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
+            return true
+        }
+        // 器AR：BS13-X05麒麟星獣リーン「このスピリットと同じ系統を持つ自分のスピリット1体を疲労させることで」
+        if (effect.cost?.exhaustOwnSameFamilyOne) {
+            const family = getCard(inst.cardId).family
+            const candidates = player.field.spirits.filter(
+                (s) =>
+                    s.instanceId !== inst.instanceId &&
+                    !s.isRested &&
+                    matchesFamilyFilter(state, ownerPid, s, family),
+            )
+            if (candidates.length === 0) return false
+            const chosen = candidates.reduce((min, s) =>
+                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
+            )
+            exhaustSpirit(state, ownerPid, chosen)
+            return true
+        }
         return true
     }
 
@@ -1545,7 +1671,7 @@ function tryReviveOnDestroy(
 
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
     // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
-    const applyRevived = (revived: { rested: boolean } | { toHand: true }): void => {
+    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): void => {
         // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
@@ -1555,7 +1681,12 @@ function tryReviveOnDestroy(
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
             notifyHandGained(state, ownerPid, 1)
-            detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+            // 器AT：braveStay指定時は、通常の「残す」確認（コア支払い）を経ずに無償・強制で残す
+            if (revived.braveStay !== undefined) {
+                detachBravesOnLeaveFree(state, ownerPid, inst, revived.braveStay === "rested")
+            } else {
+                detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+            }
         } else {
             inst.isRested = revived.rested
             // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
@@ -1566,7 +1697,7 @@ function tryReviveOnDestroy(
         }
     }
 
-    const revivedLabel = (revived: { rested: boolean } | { toHand: true }): string =>
+    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): string =>
         "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
     // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
@@ -1961,6 +2092,27 @@ export function returnNexusToDeckBottom(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの下に戻った。`)
 }
 
+// ネクサスを持ち主のデッキの上へ戻す：returnNexusToDeckBottomのデッキ上版（unshift）。
+// コアはリザーブへ、カードはデッキの一番上へ。破壊ではないため onDestroy は誘発しない
+// （BS13-055重装合体シールド・ドラゴンMk-II：「相手のネクサス1つをデッキの上に戻す」）
+export function returnNexusToDeckTop(
+    state: GameState,
+    ownerPid: PlayerId,
+    instanceId: string,
+): void {
+    const player = state.players[ownerPid]
+    const index = player.field.nexuses.findIndex(
+        (n) => n.instanceId === instanceId,
+    )
+    if (index === -1) return
+    const inst = player.field.nexuses[index]
+    if (!inst) return
+    player.field.nexuses.splice(index, 1)
+    player.reserve += inst.cores
+    player.deck.unshift(inst.cardId)
+    log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの上に戻った。`)
+}
+
 // スピリットを持ち主の手札へ戻す（バウンス）。
 // **その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 // 実際の移動と「手札に戻ったとき」の誘発は、バウンス効果の解決が終わってから
@@ -1983,6 +2135,14 @@ export function returnSpiritToHand(
 // そうすると「全部戻ってから、まとめて『戻ったとき』が誘発する」というルールどおりになる
 // （1体ずつ戻すと、1体目の誘発が2体目以降の対象を変えてしまう）。
 // 1体だけ戻す場合は returnSpiritToHand 等がその場で flush するので結果は変わらない
+// 器AO：いま解決中の効果の持ち主に「手札に戻る先をデッキの上へ」が張られているか
+// （GameState.currentEffectSource が効果の持ち主を指す。効果の解決中でなければ常に false）
+function bouncesToDeckTop(state: GameState): boolean {
+    const pid = state.currentEffectSource?.pid
+    if (pid === undefined) return false
+    return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === pid)
+}
+
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
@@ -1993,7 +2153,11 @@ export function markBounce(
     const player = state.players[ownerPid]
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
     if (inst.pendingBounce) return
-    inst.pendingBounce = { to }
+    // 器AO：いま解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは
+    // 持ち主のデッキの上に戻る」を張っていれば、手札への戻しをデッキの上へ振り替える
+    // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
+    // 「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
+    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
 }
 

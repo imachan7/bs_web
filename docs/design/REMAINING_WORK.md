@@ -60,13 +60,16 @@ BS08-062 もこのネクサスの素のシンボルが白1つ固定なので加�
 | 層 | 件数 | 中身 |
 | :-- | --: | :-- |
 | 場に出ているのに一度も適用されていない効果 | **80件** | triggered 18 / fieldEvent 16 / keyword 13 / ほか |
-| 一度も実行されていない action | 2種 | `destroyOwnFreelyThenDraw`（BS12-052）／`negateContinuousMagicByName`（BS12-049） |
-| テストが手で組んだ action でしか実行されていない（**カードデータ経由が未検証**） | 7種 | `grantHostUnblockableThisTurn` / `markSkipNextRefresh` / `mutualKeepChoice` / `refreshWhenBlockedByChosenColorThisTurn` / `revealTopCastMagicFreeOrHand` / `revealTopSummonFreeOrHand` / `setBattleBpFixed` |
+| 一度も実行されていない action | **4種**（2026-09-10 再測） | `destroyOwnFreelyThenDraw`（BS12-052）／`negateContinuousMagicByName`（BS12-049）／`unblockableAboveBpThisBattle`（BS13-032）／`voidCoreToReserve`（BS13-036） |
+| テストが手で組んだ action でしか実行されていない（**カードデータ経由が未検証**） | **10種**（2026-09-10 再測） | `grantHostUnblockableThisTurn` / `markSkipNextRefresh` / `mutualKeepChoice` / `refreshWhenBlockedByChosenColorThisTurn` / `revealTopCastMagicFreeOrHand` / `revealTopSummonFreeOrHand` / `setBattleBpFixed` ／ 新たに `borrowDestroyEffect`（BS13-052）／`refreshSelfBraveThenCombine`（BS13-053）／`returnToHandEachHeavyArmorColor`（BS13-030） |
 | 継続効果で**計測点が無い** kind | 10種 | `altSummonFromHand` / `armorEffectiveGrant` / `braveImmuneGrant` / `braveStatsAs` / `destroyAsMaxLevelGrant` / `effectEntryGrant` / `symbolAddGrant` / `trashImmunity` / `trashNameAs` / `trashSymbolReduction` |
 
 **最後の行が一番たちが悪い。** 計測点が無い＝「発火したか分からない」ので、
 `coverage` の数字が良く見えても実態が分からない。BS12 で足した器が多く含まれる。
 `scripts/coverage-effects.ts` に差し込み先を足すのが先。
+
+**2026-09-10（BS13 完了時）の再測では、青バッチ16枚の器はすべて実行実績があった。**
+上に増えた3〜4種はいずれも白・黄・緑バッチの積み残しで、`reviveOnDestroy` の未適用2件（BS13-038 / BS13-040）も同じ層。
 
 ⚠️ ブレイヴ経由のキーワード／`globalConstraint` は、実際に動いていても「未実行」と出続けることがある
 （CLAUDE.md の既知の限界）。「未実行」が出たらまず smoke で実際に発火させて確かめる。

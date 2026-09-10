@@ -598,6 +598,17 @@ const voidCoreToDeckSideHandler: ActionHandler<"voidCoreToDeckSide"> = (ctx, act
     log(state, `${sourceName}：ボイドからコア${action.count}個をデッキの横に置いた。`)
 }
 
+// BS13-036星鳥クージャLv3：ボイドからコアcount個を持ち主のリザーブへ直接置く（voidCoreToDeckSideの
+// リザーブ版。voidCoreToPlacementBlocked（コアステップ限定）はここでは適用しない＝リザーブに直接置く
+// 効果に既存の他カード（voidCoreToOwnTrash等）も同様にガードを課していないため揃える）
+const voidCoreToReserveHandler: ActionHandler<"voidCoreToReserve"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (action.count <= 0) return
+    const player = state.players[owner]
+    player.reserve += action.count
+    log(state, `${sourceName}：ボイドからコア${action.count}個を自分のリザーブに置いた。`)
+}
+
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
@@ -1855,6 +1866,25 @@ const fieldCoreToLifeHandler: ActionHandler<"fieldCoreToLife"> = (ctx, action) =
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
+        // costExhaustSelf（BS13-070星宿の障壁Lv2）：発生源自身（ネクサス）を疲労させることがコスト。
+        // 既に疲労状態なら不発（COST_MODEL.md §1）
+        if (action.costExhaustSelf) {
+            if (!self || self.isRested) {
+                log(state, `${sourceName}：疲労できないため発動しなかった。`)
+                return
+            }
+            exhaustSpirit(state, owner, self)
+        }
+        // 器BF：costMillSelfCount（BS13-058シユウ）「デッキを上からN枚破棄することで」。
+        // 破棄はあるだけ処理してコストも払う（COST_MODEL.md）ので、デッキが尽きていても0枚破棄で成立する
+        if (action.costMillSelfCount !== undefined) {
+            const n = Math.min(action.costMillSelfCount, player.deck.length)
+            for (let i = 0; i < n; i++) {
+                const cardId = player.deck.shift()!
+                player.trashCards.push(cardId)
+            }
+            log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
+        }
         // 「お互い、ボイド/リザーブからライフにコアを置けない」（BS10-108 ルナティックシール）。
         // このハンドラの置き元はボイドかリザーブのみ（スピリット上のコアから置く経路は別ハンドラ）
         if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
@@ -1879,18 +1909,34 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             log(state, `${player.name}はボイドからライフにコア${String(need)}個を置いた。（現在ライフ${String(player.life)}）`)
             return
         }
-        // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
-        if (action.from === "void") {
-            player.life += action.count
+        // 器BF：thenUnblockableByLevelThisBattle（BS13-058）：置いた後に発生源自身へブロック不可の印を付ける
+        const grantThenUnblockable = (): void => {
+            if (action.thenUnblockableByLevelThisBattle === undefined || !self) return
+            self.unblockableLevelsThisBattle = action.thenUnblockableByLevelThisBattle
             log(
                 state,
-                `${player.name}はボイドからライフにコア${action.count}個を置いた。（現在ライフ${player.life}）`,
+                `${sourceName}：このバトルの間、Lv${action.thenUnblockableByLevelThisBattle.join("/")}のスピリットからブロックされない。`,
+            )
+        }
+        // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
+        if (action.from === "void") {
+            // countCounter（BS13-040金星神龍ヴィーナ・フェーザー）：EffectCounterの値を枚数として使う（0ならログのみ）
+            const voidCount = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+            if (voidCount <= 0) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            player.life += voidCount
+            log(
+                state,
+                `${player.name}はボイドからライフにコア${voidCount}個を置いた。（現在ライフ${player.life}）`,
             )
             // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」。
             // 発生源が【聖命】持ちのときだけ発火させる（同じ lifeCharge でも他のカードは対象外）
             if (self && spiritHasKeyword(state, owner, self, "seimei")) {
                 fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
             }
+            grantThenUnblockable()
             return
         }
         const amount = Math.min(action.count, player.reserve)
@@ -2593,6 +2639,7 @@ const handlers = {
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreGainPer: coreGainPerHandler,
     voidCoreToDeckSide: voidCoreToDeckSideHandler,
+    voidCoreToReserve: voidCoreToReserveHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
     voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,

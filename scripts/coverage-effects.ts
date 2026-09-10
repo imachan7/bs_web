@@ -324,12 +324,13 @@ const __covEid = (e: unknown): string =>
         `            __covRec2C("cont\t" + __covEid2C(effect))
             if (result === undefined || setTo < result) result = setTo`,
     )
-    // reductionGrant: 軽減シンボルを実際に足す時点
+    // reductionGrant: 軽減シンボルを実際に足す時点（器BJ：symbolCountFromFamily対応でeffect.symbolsを
+    // 直接pushする形からrepeated変数経由に変わった。2026-09-10）
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `            extra.push(...effect.symbols)`,
-        `            __covRec2C("cont\t" + __covEid2C(effect))
-            extra.push(...effect.symbols)`,
+        `                extra.push(...repeated)`,
+        `                __covRec2C("cont\t" + __covEid2C(effect))
+                extra.push(...repeated)`,
     )
     // magicRestriction: 制限が成立して true を返す時点
     patch(
@@ -1046,12 +1047,16 @@ process.on("exit", () => {
         patch(
             em,
             `                } else if (effect.target === "ownNexusesAll") {
+                    // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {
+                        if (effect.nameContains !== undefined && !cardNameContains(nexus, effect.nameContains)) continue
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {`,
             `                } else if (effect.target === "ownNexusesAll") {
+                    // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {
+                        if (effect.nameContains !== undefined && !cardNameContains(nexus, effect.nameContains)) continue
                         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }

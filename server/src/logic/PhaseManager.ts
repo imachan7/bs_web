@@ -1,8 +1,65 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { draw, getCard, log, pushResumeFrames } from "./GameState"
-import { instIsCombined, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
+import { currentLevel, draw, getCard, log, pushResumeFrames } from "./GameState"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+
+// 器BJ：カード名条件・コア条件に合う自分のネクサスを、アタックステップの間だけスピリットとして扱う
+// （BS13-048古代戦艦アルゴ・ゴレムLv2）。treatOwnNexusesAsSpiritsThisTurnHandler（BS03ゴーレムクラフト）と
+// 同じ「同じインスタンスのままfield.nexuses→field.spiritsへ移す」手口だが、asSpiritThisTurnそのものを
+// 積んだうえでasSpiritAttackStepScopedを立てる（戻すタイミングを分けるための目印）。
+// PhaseManager.toAttackPhase から毎回呼ぶ（既に変換済み・別経路でasSpiritThisTurn済みの個体は除外する）
+function applyAttackStepNexusAsSpirit(state: GameState): void {
+    for (const pid of ["p1", "p2"] as const) {
+        const player = state.players[pid]
+        for (const inst of effectSources(state, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of getCard(inst.cardId).effects) {
+                if (effect.kind !== "nexusAsSpiritDuringAttackStep") continue
+                if (!effectActiveOn(inst, effect, level)) continue
+                const minCores = effect.minCores ?? 1
+                const targets = player.field.nexuses.filter(
+                    (n) =>
+                        n.cores >= minCores &&
+                        n.asSpiritThisTurn === undefined &&
+                        (effect.nameContains === undefined || cardNameContains(n, effect.nameContains)),
+                )
+                if (targets.length === 0) continue
+                for (const nexus of targets) {
+                    player.field.nexuses.splice(player.field.nexuses.indexOf(nexus), 1)
+                    nexus.asSpiritThisTurn = {
+                        cost: effect.cost,
+                        family: [...effect.family],
+                        levels: effect.spiritLevels.map((l) => ({ ...l })),
+                    }
+                    nexus.asSpiritAttackStepScoped = true
+                    player.field.spirits.push(nexus)
+                }
+                log(
+                    state,
+                    `${player.name}のネクサス${targets.length}つ（${targets.map((n) => getCard(n.cardId).name).join("・")}）は、アタックステップの間スピリットとして扱われる。`,
+                )
+            }
+        }
+    }
+}
+
+// applyAttackStepNexusAsSpirit の戻し。asSpiritAttackStepScoped が付いた個体だけを field.nexuses へ戻す
+// （通常のasSpiritThisTurn＝ターン限定はこの目印が無いのでここでは戻らず、endTurn側の既存ループが担当する）
+function revertAttackStepNexusAsSpirit(state: GameState): void {
+    for (const pid of ["p1", "p2"] as const) {
+        const field = state.players[pid].field
+        for (const inst of [...field.spirits]) {
+            if (inst.asSpiritAttackStepScoped !== true) continue
+            delete inst.asSpiritThisTurn
+            delete inst.asSpiritAttackStepScoped
+            field.spirits.splice(field.spirits.indexOf(inst), 1)
+            field.nexuses.push(inst)
+            detachBravesOnLeave(state, pid, inst)
+            log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
+        }
+    }
+}
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
 // 各ステップは内部で fireStepTriggers を呼ぶ。ステップ誘発が pendingChoice を立てた場合、
@@ -157,6 +214,8 @@ export function runTurnStart(state: GameState): void {
 export function toAttackPhase(state: GameState): void {
     state.phase = "attack"
     log(state, `${state.players[state.turnPlayer].name}はアタックステップに移行した。`)
+    // 器BJ：アタックステップ開始時に、対象のネクサスをスピリットとして扱う（BS13-048古代戦艦アルゴ・ゴレムLv2）
+    applyAttackStepNexusAsSpirit(state)
     fireStepTriggers(state, "attack")
 }
 
@@ -165,6 +224,11 @@ export function endTurn(state: GameState): void {
     // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
     // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
     if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
+    if (state.winner) return
+    // 器BJ：アタックステップ終了時に、applyAttackStepNexusAsSpiritで変換したネクサスを元へ戻す
+    // （extraAttackStepPendingでもう1回アタックステップへ戻る場合も、いったんここで戻してから
+    // toAttackPhaseが改めて変換し直すので問題ない）
+    revertAttackStepNexusAsSpirit(state)
     if (state.winner) return
 
     state.phase = "end"
@@ -225,13 +289,22 @@ export function endTurn(state: GameState): void {
 
     // トラッシュのカードが持ち主の『自分のエンドステップ』に自動で手札へ戻る（kind:"trashReturnAtEndStep"）。
     // **持ち主のエンドステップだけ**（＝state.turnPlayer側のトラッシュのみ）。BS13-015冥総裁ハーゲン
+    // maxCount指定時は「ターンに1回」等、そのcardIdにつき戻る枚数を上限で絞る（BS13-077ブリーズライド：1枚まで）
     {
         const p = state.players[state.turnPlayer]
+        const trashReturnMaxCount = (cardId: string): number => {
+            const e = getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")
+            return e && e.kind === "trashReturnAtEndStep" ? (e.maxCount ?? Infinity) : Infinity
+        }
+        const returnedCounts = new Map<string, number>()
         for (let i = p.trashCards.length - 1; i >= 0; i--) {
             const cardId = p.trashCards[i]
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
+            const already = returnedCounts.get(cardId) ?? 0
+            if (already >= trashReturnMaxCount(cardId)) continue
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)
+            returnedCounts.set(cardId, already + 1)
             log(state, `${p.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
         }
     }
@@ -251,6 +324,7 @@ export function endTurn(state: GameState): void {
             // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
             if (inst.battleBpBuff) inst.battleBpBuff = 0
             inst.cantAttackThisTurn = false
+            delete inst.attackedThisTurn
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             delete inst.cantBlockThisTurn
@@ -321,6 +395,7 @@ export function endTurn(state: GameState): void {
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
     // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
     state.millCountThisTurn = { p1: 0, p2: 0 }
+    state.millCountThisTurnMutual = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

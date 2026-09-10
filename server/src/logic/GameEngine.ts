@@ -20,10 +20,10 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     attachBrave,
@@ -504,6 +504,11 @@ function doSummon(
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
     const inst = createInstance(cardId, state.turn, maintain)
+    // 器AB（globalConstraint "summonExhausted"）：条件を満たすカードは疲労状態で召喚する。
+    // 「疲労する」であって「疲労状態になる」ではないため exhaustSpirit を経由しない＝ownSpiritExhaustedは発火しない
+    // （BS13_PLAN.md §1 #24）。ダイレクトブレイヴはこの後 attachBrave の疲労合成（host.isRested||brave.isRested）
+    // が拾うため、召喚するインスタンス自身をここで疲労させれば合体先へ自然に伝播する（同 #14）
+    if (summonExhausted(state, card)) inst.isRested = true
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
     const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
     const braveNote =
@@ -919,6 +924,18 @@ function doAttack(
     }
     // アタッカーが場を離れてバトルが終わるときの＞７（【光芒】）で読むために実体参照を控える
     state.battleAttackerRef = inst
+    // 器BM（BS13-043鳥人イカロッシュ）：コスト以下のアタックはリザーブのコア1個をトラッシュに置くことが要る。
+    // validateAttackで払えることは確認済みなので、ここで自動的に支払う（非対話・AIも同じ経路で払う）
+    if (instAttackRequiresCoreToll(state, inst) && player.reserve >= 1) {
+        player.reserve -= 1
+        player.trashCores += 1
+        log(state, `${player.name}はアタックのためリザーブのコア1個をトラッシュに置いた。`)
+    }
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：召喚時に付与された「このターンの間、アタックしたとき」の
+    // 制約が有効なら、このバトルのブロックにマジック破棄を要求する
+    if (inst.blockRequiresMagicDiscardGrantedTurn === state.turn) {
+        state.battle.blockCostDiscardMagic = { pid: opponentOf(pid) }
+    }
     state.isFlashTiming = true
     state.priorityPlayer = opponentOf(pid)
     if (targetSpiritInstanceId !== undefined) {
@@ -931,6 +948,8 @@ function doAttack(
 
     // このターンのアタック回数を加算する（「ターンの最初のアタック」判定に使う。誘発より前に更新する）
     state.attacksThisTurn += 1
+    // 器AQ：globalConstraint "attackOncePerTurnBySymbolCount" が見る「このターン既にアタックしたか」の印
+    inst.attackedThisTurn = true
 
     // 直前の【粉砕】の記録をクリアする（アタック宣言のたびに。粉砕を持たないスピリットのアタック時に
     // 前回の値を拾わないようにするため。GameState.lastFunsai）
@@ -1044,6 +1063,19 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         state.players[pid].reserve -= blockCost.count
         state.players[pid].trashCores += blockCost.count
         log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
+    }
+    // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コスト（手札のマジック1枚を破棄）。
+    // 検証（validateBlock）で払えることは確認済み。どれを捨てるかは自動選択（最初に見つかったマジック1枚）
+    const blockMagicCost = state.battle.blockCostDiscardMagic
+    if (blockMagicCost && blockMagicCost.pid === pid) {
+        const blockerPlayer = state.players[pid]
+        const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
+        if (magicIdx !== -1) {
+            const cardId = blockerPlayer.hand[magicIdx]!
+            blockerPlayer.hand.splice(magicIdx, 1)
+            blockerPlayer.trashCards.push(cardId)
+            log(state, `${blockerPlayer.name}はブロックのため手札の${getCard(cardId).name}を破棄した。`)
+        }
     }
     // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
     const blockedAttackerPid = opponentOf(pid)
@@ -1482,6 +1514,22 @@ function doResolveChoice(
         state.pendingChoice = null
         if (option !== undefined) applyBraveKeep(state, info, paySources)
         else declineBraveKeep(state, info)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 器AR（BS13-034）：デッキ破棄効果で破棄されたこのカードを、コストを支払わず召喚するかの確認。action は解決しない
+    if (pending.spiritMillFreeSummon) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.spiritMillFreeSummon
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applySpiritMillFreeSummon(state, info)
+        } else {
+            declineSpiritMillFreeSummon(state, info)
+        }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -2035,12 +2083,18 @@ function resolveBattle(state: GameState): void {
     // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
     // （docs/design/TIMING_CHART.md §2。『BPを比べ相手のスピリットだけを破壊したとき』は
     // 敗者が生き残っても発揮する）
-    const outcome: BattleOutcome =
-        attackerValue > blockerValue
+    // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
+    // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
+    const outcome: BattleOutcome = state.battle.skipBpCompare
+        ? "none"
+        : attackerValue > blockerValue
             ? "attackerWins"
             : attackerValue < blockerValue
               ? "blockerWins"
               : "mutual"
+    if (state.battle.skipBpCompare) {
+        log(state, "バトル解決：BPを比べずにバトルを終了させる。")
+    }
     if (outcome === "attackerWins") {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
@@ -2082,7 +2136,7 @@ function resolveBattle(state: GameState): void {
     })
 }
 
-type BattleOutcome = "attackerWins" | "blockerWins" | "mutual"
+type BattleOutcome = "attackerWins" | "blockerWins" | "mutual" | "none"
 type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
 
 // バトル解決の最終ステップ番号（runBattleStep の switch と対応）
@@ -2148,6 +2202,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // （復活の確認が2体に出るなら、バッチがターンプレイヤーに順番を聞く。TIMING_CHART.md §0-3）。
         // 破壊元は対象ごとに違う（ブロッカーを破壊したのはアタッカー、その逆も同様）ため context も対象ごとに渡す
         case 1: {
+            if (f.outcome === "none") return
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
                     { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },

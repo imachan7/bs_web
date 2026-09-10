@@ -19,6 +19,7 @@ import {
     pickAnySideCandidates,
     pickBpBuffTarget,
     pickEnemyByBp,
+    refreshSpirit,
     requestCardChoice,
     requestChoice,
     spiritHasFamily,
@@ -101,6 +102,96 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ無条件に破棄することがコスト
+        // （lifeCharge.costMillSelfCountと同型。あるだけ処理してコストも払う＝COST_MODEL.md。対象は常にself固定
+        // 「このスピリットをBP+」）。thenRefreshIfMilledFamily指定時は、破棄した中に指定系統のスピリットカードが
+        // 1枚以上あればselfを回復させる（BS13-060トレス・ベルーガ【合体時】：「自分のデッキを上から6枚破棄する
+        // ことで、このスピリットをBP+6000する。この効果で自分のトラッシュに系統：「光導」を持つスピリットカードが
+        // 1枚以上置かれたとき、このスピリットは回復する」）
+        if (action.costMillSelfCount !== undefined) {
+            if (!self) {
+                log(state, `${sourceName}：発揮する対象がいなかった。`)
+                return
+            }
+            const player = state.players[owner]
+            const n = Math.min(action.costMillSelfCount, player.deck.length)
+            const milledIds: string[] = []
+            for (let i = 0; i < n; i++) {
+                const cardId = player.deck.shift()!
+                player.trashCards.push(cardId)
+                milledIds.push(cardId)
+            }
+            log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
+            if (action.scope === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + action.amount
+            else self.tempBpBuff += action.amount
+            log(
+                state,
+                `${getCard(self.cardId).name}はBP+${action.amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`,
+            )
+            applyMagicBuffBonus(state, self, srcType, srcColors)
+            if (action.thenRefreshIfMilledFamily !== undefined) {
+                const wanted = Array.isArray(action.thenRefreshIfMilledFamily)
+                    ? action.thenRefreshIfMilledFamily
+                    : [action.thenRefreshIfMilledFamily]
+                const matched = milledIds.some((cid) => {
+                    const c = getCard(cid)
+                    return c.type === "spirit" && c.family.some((f) => wanted.includes(f))
+                })
+                if (matched) {
+                    refreshSpirit(state, owner, self)
+                    log(state, `${getCard(self.cardId).name}は回復した。`)
+                }
+            }
+            return
+        }
+        // 器AF：costExhaustFamily+amountFromExhaustedCost指定時は、指定系統の自分のスピリット1体を
+        // 疲労させることがコストで、amountの代わりに疲労させたそのスピリットの実効BPを加算量として使う。
+        // 対象は常にself固定（「このスピリットをBP+」）。該当がなければ不発（COST_MODEL.md §1）。
+        // 候補2体以上ならプレイヤーが選ぶ（§2）。非対話・自動選択は実効BP最大（加算量を最大化する側）
+        if (action.costExhaustFamily !== undefined && action.amountFromExhaustedCost) {
+            if (!self) {
+                log(state, `${sourceName}：発揮する対象がいなかった。`)
+                return
+            }
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
+                return
+            }
+            let victim: CardInstance | undefined
+            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+                victim = candidates.find((s) => s.instanceId === targetInstanceId)
+                if (!victim) {
+                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
+                    return
+                }
+            } else if (state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    { ...action, costSacrificeChosen: true },
+                    self,
+                )
+                return
+            } else {
+                victim = candidates.reduce((best, s) =>
+                    effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
+                )
+            }
+            const amount = effectiveBp(state, owner, victim)
+            exhaustSpirit(state, owner, victim)
+            if (action.scope === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + amount
+            else self.tempBpBuff += amount
+            log(state, `${state.players[owner].name}は${sourceName}のコストとして${getCard(victim.cardId).name}を疲労させた。`)
+            log(state, `${getCard(self.cardId).name}はBP+${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+            applyMagicBuffBonus(state, self, srcType, srcColors)
+            return
+        }
         // extraPerCoreToTrash の第2段（コア数を選び終わって戻ってきた経路）。
         // boostTargetInstanceId が入っている＝amount の適用は済んでいるので、追加ぶんだけ乗せる
         if (action.boostTargetInstanceId !== undefined) {

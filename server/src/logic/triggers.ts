@@ -440,6 +440,16 @@ export function fireTrigger(
                     names.some((n) => cardNameContains(s, n)),
                 ).length
                 if (total < count) return false
+            } else if ("ownNexusNameKindsAtLeast" in effect.condition) {
+                // 器BQ：カード名にnameContainsを含む自分のネクサスの「異なるカード名の種類数」（同名は1種類）
+                // がcount以上のときのみ発火（BS13-048古代戦艦アルゴ・ゴレム：「古代戦艦」が4種類）
+                const { nameContains, count } = effect.condition.ownNexusNameKindsAtLeast
+                const kinds = new Set(
+                    state.players[owner].field.nexuses
+                        .filter((n) => cardNameContains(n, nameContains))
+                        .map((n) => getCard(n.cardId).name),
+                )
+                if (kinds.size < count) return false
             }
         }
         return true
@@ -672,6 +682,11 @@ export function fireBattleWonTriggers(
             // BS07ニードルショット：「**そのスピリットが**、BPを比べ〜」＝直前の文でBP増加した1体に限る。
             // 貸与のときに仮想発生源へ写した lentBuffTargetId と照合する
             if (effect.winnerIsLentBuffTarget && inst.lentBuffTargetId !== winnerInst.instanceId) {
+                continue
+            }
+            // BS13-078ネバーギブアップ：targetChoiceLendThisTurnで選んだ1体に限る。
+            // 貸与のときに仮想発生源へ写した lentChoiceInstanceId と照合する
+            if (effect.winnerIsLentChoiceTarget && inst.lentChoiceInstanceId !== winnerInst.instanceId) {
                 continue
             }
             // BS03熾烈極める最前線Lv2：勝利したスピリットが指定キーワードを持つときのみ発火（＝覚醒持ち）
@@ -986,7 +1001,8 @@ export function fireFieldEventTriggers(
         byOpponentEffect?: boolean
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
-        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）
+        // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）。
+        // event: "ownSpiritSummoned" 限定：**召喚されたスピリット自身**のインスタンスID（summonedSpiritAsTarget が読む。BS13-053モクバオー）
         sourceInstanceId?: string
         families?: string[]
         magicCost?: number
@@ -1044,6 +1060,11 @@ export function fireFieldEventTriggers(
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (!effectActiveOn(inst, effect, level)) continue
+            // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
+            // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
+            // 既存の kind:"triggered" の oncePerTurn と同じ挙動（下の firing.push 手前で同様に記録している）。
+            // ルール上は払えなければ発揮していないので消費すべきでない＝既知のズレ（HANDOFF §2）
+            if (effect.oncePerTurn === true && inst.triggeredUsedTurn?.[effect.id] === state.turn) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -1251,6 +1272,13 @@ export function fireFieldEventTriggers(
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
                     if ((state.lastFunsai?.spirits ?? 0) === 0) continue
+                } else if ("opponentHandAtLeastOwnHand" in effect.condition) {
+                    // BS13-042ナイト・ゴーンLv2：相手の手札枚数が自分の手札枚数以上のときのみ
+                    if (state.players[opponentOf(pid)].hand.length < state.players[pid].hand.length) continue
+                } else if ("opponentMagicUsedAtLeast" in effect.condition) {
+                    // BS13-071巨人港Lv2：このターンに相手がマジックの効果を使用した回数がこれ以上のときのみ
+                    // （state.magicUsedThisTurnはresolveMagicの解決前に加算済み＝この誘発の時点で最新値）
+                    if ((state.magicUsedThisTurn[opponentOf(pid)] ?? 0) < effect.condition.opponentMagicUsedAtLeast) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue
@@ -1269,6 +1297,7 @@ export function fireFieldEventTriggers(
                       ? eventCount
                       : 1
                 : 1
+            if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -1284,11 +1313,13 @@ export function fireFieldEventTriggers(
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
         // byOpponentSpiritEffectOnly：対象をイベント対象ではなく「その効果を発揮したスピリット」にする
         // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
-        const actionTargetId = effect.byOpponentSpiritEffectOnly
+        const actionTargetId = effect.byOpponentSpiritEffectOnly || effect.summonedSpiritAsTarget
             ? eventInfo?.sourceInstanceId
-            : effect.ignoreEventTarget
-              ? undefined
-              : targetInstanceId
+            : effect.attackerAsTarget
+              ? selfOverride?.inst.instanceId
+              : effect.ignoreEventTarget
+                ? undefined
+                : targetInstanceId
         if (effect.selfMode === "source") {
             // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
             // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）
