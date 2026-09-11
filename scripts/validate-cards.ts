@@ -29,8 +29,39 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
-    "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
     "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
+])
+
+// 『』で囲まれた効果は**カテゴリ**で、効果を借りる／発揮させない器は『』付きしか対象にできない
+// （docs/design/SEMANTICS_AUDIT.md §3.17）。`trigger` がそのカテゴリそのものなので、
+// **印刷テキストにそのカテゴリの『』が1つも無いのに triggered で書いている**ものを検出する。
+// カテゴリと trigger は1対多（『バトル時』→ onBattleWin/Lose/End/Start）なので、ここは
+// 「そのカテゴリ系の語が『』の中に1つでもあるか」という**必要条件**だけを見る。
+//
+// ここに載っていない trigger（onRefreshed / onTenshoTarget）は**カテゴリを持たない誘発**。
+// 「このスピリットが回復するたび」「【転召】の対象になったとき」は印刷テキストが『』を
+// 使わないため、借りる／止める器の対象にもならない。
+const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
+    onSummon: ["召喚時"],
+    onDeploy: ["配置時"],
+    onAttack: ["アタック時", "アタック/ブロック"],
+    onDestroy: ["破壊時"],
+    onBlock: ["ブロック時", "バトル時"],
+    onBlocked: ["アタック時", "ブロック時", "バトル時"],
+    onBattleStart: ["バトル時", "アタック時", "ブロック時"],
+    onBattleWin: ["バトル時", "アタック時", "ブロック時"],
+    onBattleLose: ["バトル時", "アタック時", "ブロック時"],
+    onBattleEnd: ["バトル時", "アタック時", "ブロック時"],
+    onLifeDealt: ["アタック時"],
+}
+
+// 上の検査で落ちるが、**直し方が未決**のもの。ここはベースラインではなく「宿題の一覧」で、
+// 直したら消す。放置すると借りる器（イビルグライダー等）に借りられ、破壊時封じでも止まる。
+// ⚠️ 新しいカードをここに足さないこと。落ちたら直すのが原則
+const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
+    ["BS13-010-e1", "印刷は『相手のターン』＋「相手によってこのスピリットが破壊されたとき」で『破壊時』効果ではない。直すには『』を持たない誘発をどう書くかの一般則が要る"],
+    ["BS04-X14-e1", "印刷は『お互いのアタックステップ』＋「相手のスピリットを破壊したとき」で『バトル時』効果ではない。BS13-010 と同じ論点"],
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
@@ -432,6 +463,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
             if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
                 add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            // 『』カテゴリと trigger の一致（SEMANTICS_AUDIT.md §3.17）
+            if (e.kind === "triggered" && e.trigger && !QUOTE_MISMATCH_KNOWN.has(e.id ?? "")) {
+                const words = TRIGGER_QUOTE_WORDS[e.trigger]
+                if (words) {
+                    const quoted = (c.effect ?? "").match(/『[^』]*』/g)?.join("") ?? ""
+                    if (!words.some((w) => quoted.includes(w))) {
+                        add(
+                            id,
+                            `trigger "${e.trigger}"（${e.id}）に対応する『』が印刷テキストに無い。` +
+                                `『』はカテゴリなので、該当しないなら kind:"fieldEvent" / kind:"step" へ振り分ける（SEMANTICS_AUDIT.md §3.17）`,
+                        )
+                    }
+                }
             }
             if (
                 e.kind === "effectGrant" &&

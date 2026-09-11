@@ -4186,7 +4186,7 @@
       {
         "id": "BS12-063-e1",
         "kind": "triggered",
-        "trigger": "onSummon",
+        "trigger": "onDeploy",
         "levels": [
           1,
           2

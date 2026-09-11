@@ -1498,7 +1498,12 @@ export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void 
 // **破壊されたネクサスの復活（destroy.ts）とスピリット化の解除（PhaseManager）は「配置」ではない**ので、
 // ここは通さず notifyNexusDeployed だけを呼ぶ（2026-08-28 ユーザー判断）
 export function fireNexusDeployed(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
-    fireSummonTrigger(state, ownerPid, inst)
+    // ネクサスの『このネクサスの配置時』は `onDeploy`。スピリットの『召喚時』（onSummon）とは
+    // **別のカテゴリ**なので分けている（SEMANTICS_AUDIT.md §3.17）。
+    // `fireSummonTrigger` を通さないのは、そこで見ている noSummonTriggerByCost（コストの低い
+    // **スピリット**の召喚時効果を止める）も resolvingSummonTriggerPid（「相手の**スピリット**の
+    // 召喚時効果を受けない」）も、どちらもスピリット限定の規則だから
+    fireTrigger(state, ownerPid, inst, "onDeploy")
     notifyNexusDeployed(state, ownerPid)
 }
 

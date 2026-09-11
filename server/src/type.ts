@@ -513,7 +513,8 @@ export type EffectCounter =
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
 export type TriggerEvent =
-    | "onSummon" // 召喚時
+    | "onSummon" // 召喚時（スピリット/ブレイヴの『このスピリットの召喚時』。**ネクサスの『配置時』は含まない**＝onDeploy）
+    | "onDeploy" // 『このネクサスの配置時』。onSummon とは**別のカテゴリ**なので分けてある（SEMANTICS_AUDIT.md §3.17。BS10-096 最後の優勝旗／BS12-063 旅団の摩天楼）
     | "onAttack" // アタック時
     | "onDestroy" // 破壊時
     | "onBattleWin" // BPを比べ相手のスピリットだけを破壊したとき（勝利時）。『バトル時』という表記のカードでも、効果文に『BPを比べ〜破壊したとき』が付いているものはこちら
