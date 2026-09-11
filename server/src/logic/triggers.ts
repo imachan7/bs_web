@@ -1444,8 +1444,10 @@ export function fireFieldEventTriggers(
             requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, effect.action, null)
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
-            if (state.pendingChoice) {
-                state.pendingChoice.burstActivate = {
+            // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
+            const pending = state.pendingChoice as PendingChoice | null
+            if (pending) {
+                pending.burstActivate = {
                     pid: holderPid,
                     cardId: burstCardId,
                     ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),

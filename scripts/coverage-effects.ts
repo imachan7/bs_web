@@ -614,12 +614,16 @@ const __covEid = (e: unknown): string =>
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 return true
             }`,
         `            for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 __covRec2("cont\\t" + __covEid(effect))
                 return true
             }`,
