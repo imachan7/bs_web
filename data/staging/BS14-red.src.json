@@ -1,0 +1,726 @@
+[
+ {
+  "cardId": "BS14-001",
+  "name": "リュザード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n自分の赤のスピリット1体につき、このスピリットをBP+1000する。"
+ },
+ {
+  "cardId": "BS14-002",
+  "name": "カキューソ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "BS14-003",
+  "name": "スカートゥース",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のトラッシュにあるカードが赤のカードだけの間、このスピリットをBP+3000する。"
+ },
+ {
+  "cardId": "BS14-004",
+  "name": "レッサー・ドラグサウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n自分のバーストをセットしているとき、相手のネクサス1つを破壊する。"
+ },
+ {
+  "cardId": "BS14-005",
+  "name": "ヒノシシ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるコスト4以下のスピリットカード1枚か、バースト効果を持つスピリットカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "BS14-006",
+  "name": "キング・ゴラドン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "爬獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "BS14-007",
+  "name": "カグツチドラグーン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分はデッキから1枚ドローする。\nLv2【激突】『このスピリットのアタック時』\n相手のスピリットは、可能ならブロックする。"
+ },
+ {
+  "cardId": "BS14-008",
+  "name": "ペンタケラトップ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": ""
+ },
+ {
+  "cardId": "BS14-009",
+  "name": "ウォーリアー・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "戦竜",
+   "竜人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。\nLv2･Lv3『自分のアタックステップ』\n自分のバーストをセットしている間、このスピリットをBP+4000する。"
+ },
+ {
+  "cardId": "BS14-010",
+  "name": "皇牙獣キンタローグ・ベアー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nBP4000以下の相手のスピリット2体を破壊する。\nその後、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP4000以下の相手のスピリット2体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n系統：「皇獣」を持つ自分のスピリットがアタックしたとき、そのスピリットのBP以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS14-011",
+  "name": "焔竜魔皇マ・グー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "竜人",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nステップ開始時、自分のトラッシュのコアを、好きなだけこのスピリットに置くことができる。\nLv1･Lv2･Lv3『自分のアタックステップ』\n系統：「竜人」/「古竜」を持つ自分のスピリットすべてをBP+3000する。\nLv2･Lv3\n系統：「古竜」を持つ自分のスピリットすべてに赤のシンボル1つを追加する。"
+ },
+ {
+  "cardId": "BS14-067",
+  "name": "ラギアン",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "機竜",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上"
+ },
+ {
+  "cardId": "BS14-073",
+  "name": "赤き前方後円墳",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分の赤のスピリットすべてをBP+1000する。\n自分のバーストをセットしている間、さらに、自分の赤のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\nBPを比べ相手のスピリットだけを破壊したとき、そのスピリットのコアすべては相手のトラッシュに置かれる。"
+ },
+ {
+  "cardId": "BS14-074",
+  "name": "千識の渓谷",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のメインステップ』\n自分の手札にある系統：「覇皇」/「古竜」を持つスピリットカードすべてに、軽減シンボル[赤]を与える。\nLv2『自分のドローステップ』\nドローの枚数を+1枚する。"
+ },
+ {
+  "cardId": "BS14-075",
+  "name": "焔竜の城塞都市",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『自分のアタックステップ』\n相手のスピリットを破壊したとき、破壊したスピリット1体につき、自分はデッキから1枚ドローする。"
+ },
+ {
+  "cardId": "BS14-091",
+  "name": "双光気弾",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n自分はデッキから2枚ドローする。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の合体スピリットのブレイヴ1つを破壊する。\nまたは、相手のネクサス1つを破壊する。"
+ },
+ {
+  "cardId": "BS14-092",
+  "name": "烈光閃刃",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP3000以下のスピリットすべてを破壊する。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分のトラッシュにあるブレイヴカード1枚か、赤のスピリットカード1枚を手札に戻す。"
+ },
+ {
+  "cardId": "BS14-093",
+  "name": "リベレイションオーラ",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、アタックしている自分のスピリットすべてをBP+2000する。\nバーストがセットされている間、さらに、アタックしている自分のスピリットすべてをBP+2000する。"
+ },
+ {
+  "cardId": "BS14-094",
+  "name": "天翔龍神覇",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n相手のネクサス2つを破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nBP6000以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "BS14-X01",
+  "name": "龍の覇王ジーク・ヤマト・フリード",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 13000
+   },
+   {
+    "level": 4,
+    "cores": 8,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、BP15000以下の相手のスピリット1体を破壊する。\nこの効果発揮後、このスピリットカードをコストを支払わずに召喚する。\nLv2･Lv3･Lv4『このスピリットのアタック時』\n相手のスピリット1体を指定してアタックできる。\nLv3･Lv4『このスピリットのアタック時』\n自分のバーストをセットしているとき、このスピリットのBP以下の相手のスピリット1体を破壊する。"
+ },
+ {
+  "cardId": "X012R",
+  "name": "英雄皇ロード・ドラゴン・ドミニオン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "戦竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるバースト効果を持つカード1枚をセットすることで、自分はデッキから1枚ドローする。\nLv3『自分のアタックステップ』\n自分のバーストをセットしている間、このスピリットをBP+3000する。"
+ }
+]
