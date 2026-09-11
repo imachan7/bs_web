@@ -369,7 +369,8 @@ BS10-095 俊星流れるコロッセオLv2 で確認した。
 | 『このスピリットのアタック時』 | `kind:"triggered"` + `trigger:"onAttack"` |
 | 『自分のアタックステップ』 | `kind:"step"` |
 | 「〜がアタックしたとき」（ネクサス等が反応する） | `kind:"fieldEvent"` + `anySpiritAttacked` |
-| 『相手のターン』＋「相手によってこのスピリットが破壊されたとき」 | `kind:"fieldEvent"` + `ownSpiritDestroyed`（`triggered` + `onDestroy` **ではない**） |
+| 『相手のターン』＋「相手によってこのスピリットが破壊されたとき」 | `kind:"fieldEvent"` + `ownSpiritDestroyed` + `selfOnly`（`triggered` + `onDestroy` **ではない**。BS13-010 スカルザード） |
+| 『お互いのアタックステップ』＋「相手のスピリットを破壊したとき」 | `kind:"fieldEvent"` + `opponentSpiritDestroyed` + `phase:"attack"` + `selfMode:"source"`（BS04-X14 魔界七将パンデミウム。「このスピリットが」の限定が無いので手段を問わない） |
 
 **カテゴリと `TriggerEvent` は1対多である。** 『』1つが `TriggerEvent` 1つに対応するとは限らない。
 どの `TriggerEvent` を書くかは**効果文の本体が指す発火タイミング**で決め、

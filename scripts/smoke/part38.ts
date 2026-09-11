@@ -169,7 +169,7 @@ console.log("=== BS04-095 ヴェノムショット: フラッシュ効果（BP+1
     assert(target.tempBpBuff === 1000, "ヴェノムショットでBP+1000")
 }
 
-console.log("=== BS04-X14 魔界七将パンデミウム: battleRole省略のためブロッカー勝利でもドロー1枚（onBattle） ===")
+console.log("=== BS04-X14 魔界七将パンデミウム: アタックステップ中に相手のスピリットが破壊されたら1ドロー（fieldEvent） ===")
 {
     const s = createGame(
         "bs04-x14-test",
@@ -195,5 +195,5 @@ console.log("=== BS04-X14 魔界七将パンデミウム: battleRole省略のた
     assert(act(s, "p1", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
 
-    assert(s.players.p1.hand.length === handBefore + 1, "battleRole省略のためブロッカー勝利でも1ドロー")
+    assert(s.players.p1.hand.length === handBefore + 1, "ブロッカーとして勝って相手のスピリットを破壊しても1ドロー（手段を問わない）")
 }

@@ -32,6 +32,9 @@
 **確定した解釈・確定スキーマは [BURST.md](./docs/design/BURST.md) §1 の「確定した解釈」へ移した。**
 smoke は part308（基盤・非公開マスク）／part309（SD06 17種）／part310（`activated.phaseTurn`）。
 
+**『』カテゴリの棚卸しは完了**（2026-09-12。一般則は [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.17、
+`validate:cards` の『』一致検査が常時ゼロを維持する）。
+
 **次の一手は BS14（122種）。** `data/staging/BS14.json` に取り込み済み。
 バースト条件は3種類だけで全て実装済みの器でカバーできる（自分のライフ減少後13枚／
 相手による自分のスピリット破壊後9枚／相手の『召喚時』発揮後6枚）。バースト持ちは28枚。
@@ -64,19 +67,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 | 余分コストは軽減の**あと**に乗る／コスト固定は「後から発揮した方」が優先（実装は最小値） | **着手可**（BS13 完了済み） |
 | **器BU（BS13-047）でブロック時に破棄するマジックを実装が自動で選んでいる**（`GameEngine.ts` の `finishBlockDeclaration`＝手札の最初のマジック1枚）。どれを捨てるかは対戦者が選ぶべき。`npm run audit:choices` で検出（2026-09-10）。ブロック宣言の同期経路なので、クライアントが選んで `block` アクションに載せる形なら [INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) パターンE の枠内で直せる | BS13-047 の1枚だけ |
 | ~~解決の途中で破壊状態が解除されたら、以降の破壊誘発は処理しない~~ | **2026-09-08 に実装済み**（TIMING_CHART。smoke part302） |
-
-### 『』効果のカテゴリ分類（2026-09-12 にほぼ完了。残り1件）
-
-一般則は [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.17 に書いた。
-`onDeploy` 新設・BS13-010 の書き換え・`validate:cards` の『』一致検査は**完了**。
-
-**残り1件：BS04-X14 魔界七将パンデミウム e1**（`scripts/validate-cards.ts` の `QUOTE_MISMATCH_KNOWN`）。
-印刷は『お互いのアタックステップ』＋「相手のスピリットを破壊したとき、自分はデッキから1枚ドローする」。
-現状は `triggered` + `onBattleWin`＝**このスピリット自身がバトルに勝ったときだけ**発火する。
-印刷どおりなら「自分が相手のスピリットを破壊したとき」（手段を問わない）で、
-`fieldEvent` + **新規 FieldEvent**（相手のスピリットが破壊されたとき）＋ `phase:"attack"` になる。
-同じカードの e2 が既にその形（`fieldEvent` + `phase:"attack"`）なので器の前例はある。
-**発火回数が増える＝挙動が変わるので、実装前にユーザー確認が要る。**
 
 ## 3. 決着済み（蒸し返さないこと）
 

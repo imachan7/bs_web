@@ -60,7 +60,6 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
 // 直したら消す。放置すると借りる器（イビルグライダー等）に借りられ、破壊時封じでも止まる。
 // ⚠️ 新しいカードをここに足さないこと。落ちたら直すのが原則
 const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
-    ["BS04-X14-e1", "印刷は『お互いのアタックステップ』＋「相手のスピリットを破壊したとき」で『バトル時』効果ではない。BS13-010 と同じ論点"],
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）

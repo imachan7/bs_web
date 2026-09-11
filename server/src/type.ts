@@ -535,6 +535,7 @@ export type FieldEvent =
     | "ownSeimeiLifeCharged" // 持ち主の【聖命】の効果でライフにコアが置かれたとき（lifeCharge の from:"void" が、【聖命】持ちの発生源から解決されたときだけ発火。BS09-064天駆ける方舟）
     | "ownLifeDamaged" // 相手によって自分のライフが減らされたとき
     | "ownSpiritDestroyed" // 自分のスピリットが破壊されたとき
+    | "opponentSpiritDestroyed" // **相手の**スピリットが破壊されたとき、持ち主から見た相手側のフィールドから発火（手段を問わない＝バトル・効果のどちらでも。BS04-X14 魔界七将パンデミウムLv1-3：『お互いのアタックステップ』「相手のスピリットを破壊したとき」。2026-09-12 ユーザー確認）
     | "anySpiritAttacked" // 両陣営どちらかのスピリットがアタックを宣言したとき（self はアタックしたスピリット。魔帝の墓標Lv2）
     | "opponentDrew" // 持ち主から見て相手がデッキからカードをドローしたとき（GameState.draw から発火。シダフクロウ）
     | "opponentDrewByEffect" // 持ち主から見て相手が**効果で**（ドローステップ以外で）ドローしたとき（GameState.draw の fromDrawStep が false のときだけ発火。#26：ドローステップの枚数+2は該当しない。BS13-067光導く巨塔Lv2）

@@ -787,6 +787,15 @@ function fireOwnSpiritDestroyed(
         // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
         // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
     }, [inst], extraItems)
+    // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
+    // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
+        byBattle,
+        bySpiritEffect,
+        byOpponentEffect,
+        families: master.family,
+        costs: instAllCosts(inst),
+    })
 }
 
 // 中断していた破壊処理の続き（drainResumeStack から呼ぶ）

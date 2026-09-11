@@ -80,4 +80,42 @@ console.log("=== BS13-010：同じ持ち主の別のスピリットが破壊さ�
     )
 }
 
+console.log("=== BS04-X14 パンデミウム：アタックステップ中、手段を問わず相手のスピリットが破壊されたら1ドロー ===")
+{
+    // 印刷は『お互いのアタックステップ』「相手のスピリットを破壊したとき、自分はデッキから1枚ドローする」。
+    // 「このスピリット自身がバトルに勝ったとき」の限定は無い（2026-09-12 ユーザー確認）
+    const card = getCard("BS04-X14")
+    assert(card.name === "魔界七将パンデミウム", "BS04-X14は魔界七将パンデミウム")
+    assert(
+        card.effects.some((e) => e.kind === "fieldEvent" && e.event === "opponentSpiritDestroyed"),
+        "e1 は fieldEvent opponentSpiritDestroyed（onBattleWin ではない）",
+    )
+
+    const s = game("pandemium-draw")
+    s.phase = "attack"
+    const pan = createInstance("BS04-X14", s.turn, 1)
+    s.players.p1.field.spirits.push(pan)
+    const prey = createInstance("BS01-001", s.turn, 1)
+    s.players.p2.field.spirits.push(prey)
+    const before = s.players.p1.hand.length
+
+    // バトルではなく「効果による破壊」でも発火する
+    destroySpirit(s, "p2", prey.instanceId, "destroy", { sourcePid: "p1", sourceType: "spirit" })
+    assert(s.players.p1.hand.length === before + 1, `効果での破壊でも1ドロー（${before} → ${s.players.p1.hand.length}）`)
+}
+
+console.log("=== BS04-X14：アタックステップ以外では発火しない ===")
+{
+    const s = game("pandemium-phase")
+    s.phase = "main"
+    const pan = createInstance("BS04-X14", s.turn, 1)
+    s.players.p1.field.spirits.push(pan)
+    const prey = createInstance("BS01-001", s.turn, 1)
+    s.players.p2.field.spirits.push(prey)
+    const before = s.players.p1.hand.length
+
+    destroySpirit(s, "p2", prey.instanceId, "destroy", { sourcePid: "p1", sourceType: "spirit" })
+    assert(s.players.p1.hand.length === before, "メインステップでは『お互いのアタックステップ』の効果は発火しない")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part311）")
