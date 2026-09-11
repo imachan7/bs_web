@@ -27,70 +27,15 @@
 
 **次の本線はバースト（下のブロック）。** その後 BS14。§2 の3件は保留のまま（いつでも着手できる）。
 
-### 進行中：バースト（2026-09-11 着手）
+### 進行中：バースト（2026-09-11 着手 → 2026-09-12 に段1〜7＋SD06 完了）
 
-**確定した解釈（ユーザー確認済み）** — 詳細は [BURST.md](./docs/design/BURST.md)
+**確定した解釈・確定スキーマは [BURST.md](./docs/design/BURST.md) §1 の「確定した解釈」へ移した。**
+smoke は part308（基盤・非公開マスク）／part309（SD06 17種）／part310（`activated.phaseTurn`）。
 
-| 論点 | 結論 |
-| :-- | :-- |
-| 発動後の行き先 | バーストエリアに**残らない**。スピリットは効果文「このスピリットカードを召喚する」で場へ、マジックはトラッシュへ |
-| 空打ち | **不可**（2026年度改定で「条件を満たしたときのみ宣言可」） |
-| 【相手の『召喚時』発揮後】 | **厳密**。相手のスピリット/ブレイヴの『召喚時』効果が実際に解決したときだけ発火 |
-| バースト効果を持たないカードのセット | **拒否**（公式は敗北。SPEC の簡略化一覧へ記録する） |
-| 同時発動 | **防御側優先**を最初から実装する |
-| 『自分のバースト発動後』 | **発動開始時点で場にいた発生源だけ**に発火（自身のバーストで召喚された直後のスピリットには発火しない） |
-
-**確定スキーマ（実装はこの形で固定。勝手に変えない）**
-
-- `EffectDef` に1件追加:
-  `{ id, kind:"burst", event: FieldEvent, subjectSide?: "own"|"opponent", action: EffectAction, thenPay?: "main"|"flash" }`
-  `thenPay` が「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」（SD06-013〜017 の共通形）
-- `FieldEvent` に3件追加:
-  `opponentSummonEffectResolved` / `ownBurstSet` / `ownBurstActivated`（eventInfo.cost＝発動したカードのコスト）
-- `EffectAction` に2件追加: `{ type:"summonBurstCardFree" }`（バースト元のカード自身をコスト無しで召喚）、
-  `{ type:"setBurstFromHand" }`（ターン1回制限を受けないセット。SD06-009）
-- コストは既存の per-action 方式に合わせる: `refreshSelf` と `bpBuff` に `costDiscardOwnBurst?: true`
-- `TargetFilter` に `hasBurst?: true`（バースト効果を持つカードに限定。SD06-014）
-- 「自分のバーストをセットしている間」の条件軸: `AuraCondition` に `"hasOwnBurstSet"`、
-  `triggered.condition` に `{ ownBurstSet: true }`、`ConstraintDef` / `GlobalConstraintDef` は
-  `whileOwnBurstSet?: true`（`whileCombined` と同じゲート形式。実装時に変更・2026-09-11）
-- `PlayerState`: `burst: string|null` / `burstSetThisTurn: boolean`
-- `PlayerView`: `burst: string|null`（**自分のみ。相手は必ず null**）/ `burstSet: boolean`
-- `GameAction`: `{ type:"setBurst"; handIndex: number }`
-
-**⚠️ マジックバーストは `resolveMagic` を経由させない**（`magicUsedThisTurn` と `ownMagicUsed`/`opponentMagicUsed` が誤発火する）。
-
-**⚠️ 相手のバーストが `viewFor` で漏れないテストを最優先で書く。**
-
-**段1〜5（エンジン基盤）と段7（UI）は実装済み・typecheck / smoke 全緑（b2cedb5）。**
-残りは `scripts/smoke/part308.ts`（バーストの smoke。未着手）と段6＝SD06 17枚投入。
-`validate:cards` は `summonBurstCardFree` / `setBurstFromHand` が未使用で2件落ちるが、
-これは SD06 のデータが入れば解消する（段6 まで落ちたままでよい）。
-
-**段取り**: 段1〜5＝エンジン（合成カードで検証）→ 段6＝SD06 17枚投入 → 段7＝クライアント → その後 BS14（121種）。
-
-**段6（SD06 17枚）で足す器の確定スキーマ（2026-09-12。実装はこの形で固定）**
-
-調査の結果、前セッションで「新規4つ」と見積もったうち2つは既存器へのフィールド追加で足りた。
-
-| 節 | 器（確定） |
-| :-- | :-- |
-| 「合体していない自分のスピリットすべて」（SD06-004/009/011） | **新規**：`AuraDef` に `uncombinedFilter?: true`（`combinedFilter` の逆。`instIsCombined` が false のときのみ有効） |
-| 「自分のライフは、ターンごとに相手のスピリット1体から1までしか減らされない」（SD06-010） | **新規**：`GlobalConstraintDef` に `{ type: "ownLifeDamageCapPerSourcePerTurn"; max: number }`。**発生源の持ち主だけ**を守る片側型（`ownLifeFloor` と同じパターン）。既存の `capLifeDamageThisTurn` / `turnConstraints.lifeDamageMaxForPid` は「**1回のアタック**で max 個」なので別物。アタッカー個体ごとのターン累計が要るので `CardInstance` に `lifeDealtThisTurn?: number` を持たせ、ターン終了処理でリセットする |
-| 「このターンの間、指定された合体スピリットはバトルできない」（SD06-012） | **既存で足りる**：`banAttackTargetThisTurn` に `alsoCantBlock?: true` を足すだけ（`CardInstance.cantBlockThisTurn` は既存・ターン終了リセット済み）。新しい型は作らない |
-| 「カード名に「英雄皇」と入っている自分のネクサスすべては破壊されない」（SD06-012） | **既存で足りる**：`ownNexusIndestructible` に `nameIncludes?: string` を足す（`colors` と同じ絞り方） |
-
-**`{ ownBurstSet: true }` は `{ ownBurstSet: boolean }` に広げる。** SD06-009 Lv2 が
-「自分のバーストをセットして**いない**とき」＝ `false` を要求する。
-
-**接続詞の解釈（CONJUNCTION.md に照らして確定）**
-
-- SD06-005『アタック時』の「自分のバーストをセットしているとき、**さらに**、〜破壊する」＝**同時**。
-  ドローと破壊は対象を先に全部決めてから解決する（1エントリに `draw` → `destroy` を並べる）
-- SD06-011 Lv2 の「BP+3000。**さらに**、〜セットしている間、BP+5000」＝**両方とも常時発揮（aura）で累積**。
-  セット中は合計 **BP+8000**（CONJUNCTION.md「さらに」の補足：BP上昇は常時発揮側）。2エントリに分け、
-  片方だけ `whileOwnBurstSet` を付ける
-
+**次の一手は BS14（122種）。** `data/staging/BS14.json` に取り込み済み。
+バースト条件は3種類だけで全て実装済みの器でカバーできる（自分のライフ減少後13枚／
+相手による自分のスピリット破壊後9枚／相手の『召喚時』発揮後6枚）。バースト持ちは28枚。
+**新規キーワードは【呪滅撃】と【大粉砕】が各1枚。** BS14 着手前に §2 の『』棚卸し3件を片付けること。
 
 ### 済んでいること（参照先を消さないこと）
 
