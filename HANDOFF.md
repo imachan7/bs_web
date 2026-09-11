@@ -69,6 +69,29 @@
 
 **段取り**: 段1〜5＝エンジン（合成カードで検証）→ 段6＝SD06 17枚投入 → 段7＝クライアント → その後 BS14（121種）。
 
+**段6（SD06 17枚）で足す器の確定スキーマ（2026-09-12。実装はこの形で固定）**
+
+調査の結果、前セッションで「新規4つ」と見積もったうち2つは既存器へのフィールド追加で足りた。
+
+| 節 | 器（確定） |
+| :-- | :-- |
+| 「合体していない自分のスピリットすべて」（SD06-004/009/011） | **新規**：`AuraDef` に `uncombinedFilter?: true`（`combinedFilter` の逆。`instIsCombined` が false のときのみ有効） |
+| 「自分のライフは、ターンごとに相手のスピリット1体から1までしか減らされない」（SD06-010） | **新規**：`GlobalConstraintDef` に `{ type: "ownLifeDamageCapPerSourcePerTurn"; max: number }`。**発生源の持ち主だけ**を守る片側型（`ownLifeFloor` と同じパターン）。既存の `capLifeDamageThisTurn` / `turnConstraints.lifeDamageMaxForPid` は「**1回のアタック**で max 個」なので別物。アタッカー個体ごとのターン累計が要るので `CardInstance` に `lifeDealtThisTurn?: number` を持たせ、ターン終了処理でリセットする |
+| 「このターンの間、指定された合体スピリットはバトルできない」（SD06-012） | **既存で足りる**：`banAttackTargetThisTurn` に `alsoCantBlock?: true` を足すだけ（`CardInstance.cantBlockThisTurn` は既存・ターン終了リセット済み）。新しい型は作らない |
+| 「カード名に「英雄皇」と入っている自分のネクサスすべては破壊されない」（SD06-012） | **既存で足りる**：`ownNexusIndestructible` に `nameIncludes?: string` を足す（`colors` と同じ絞り方） |
+
+**`{ ownBurstSet: true }` は `{ ownBurstSet: boolean }` に広げる。** SD06-009 Lv2 が
+「自分のバーストをセットして**いない**とき」＝ `false` を要求する。
+
+**接続詞の解釈（CONJUNCTION.md に照らして確定）**
+
+- SD06-005『アタック時』の「自分のバーストをセットしているとき、**さらに**、〜破壊する」＝**同時**。
+  ドローと破壊は対象を先に全部決めてから解決する（1エントリに `draw` → `destroy` を並べる）
+- SD06-011 Lv2 の「BP+3000。**さらに**、〜セットしている間、BP+5000」＝**両方とも常時発揮（aura）で累積**。
+  セット中は合計 **BP+8000**（CONJUNCTION.md「さらに」の補足：BP上昇は常時発揮側）。2エントリに分け、
+  片方だけ `whileOwnBurstSet` を付ける
+
+
 ### 済んでいること（参照先を消さないこと）
 
 BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚数投入済み。
