@@ -1693,6 +1693,9 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
             (action.anyCardType === true || getCard(cardId).type === "magic") &&
             (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
             (action.hasBurst !== true || getCard(cardId).effects.some((e) => e.kind === "burst")) &&
+            // onlyBurstDestroyedCard：バースト発動のきっかけになった破壊で落ちたカードだけ。
+            // burst.destroyedAsTarget が targetInstanceId の枠に cardId を入れてくる（BS14-103）
+            (action.onlyBurstDestroyedCard !== true || cardId === targetInstanceId) &&
             !isTrashCardProtected(cardId)
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]

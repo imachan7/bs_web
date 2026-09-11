@@ -992,6 +992,33 @@ export interface FieldEventExtraItem {
     first?: true
 }
 
+// kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
+function burstConditionMet(
+    state: GameState,
+    pid: PlayerId,
+    condition: Extract<EffectDef, { kind: "burst" }>["condition"],
+): boolean {
+    if (condition === undefined) return true
+    const player = state.players[pid]
+    if ("ownLifeAtMost" in condition) return player.life <= condition.ownLifeAtMost
+    if ("ownNexusAtLeast" in condition) return player.field.nexuses.length >= condition.ownNexusAtLeast
+    if ("ownTrashColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownTrashColorCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).colors.includes(color)).length >= count
+    }
+    if ("ownTrashCardTypeCountAtLeast" in condition) {
+        const { cardType, count } = condition.ownTrashCardTypeCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).type === cardType).length >= count
+    }
+    // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
+    // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
+    const fieldCores =
+        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
+        player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
+        player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
+    return fieldCores + player.reserve + player.trashCores >= condition.ownCoresTotalAtLeast
+}
+
 export function fireFieldEventTriggers(
     state: GameState,
     pid: PlayerId,
@@ -1449,10 +1476,19 @@ export function fireFieldEventTriggers(
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
+        // byOpponentEffectOnly / destroyedColorFilter：fieldEvent の同名軸と同じ判定（event: "ownSpiritDestroyed" 限定）
+        if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+        if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
+        // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
+        // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
+        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
+        // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
+        // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
+        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.inst.cardId : undefined
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
-            requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, effect.action, null)
+            requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
             // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
@@ -1462,13 +1498,14 @@ export function fireFieldEventTriggers(
                     pid: holderPid,
                     cardId: burstCardId,
                     ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+                    ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
                 }
             }
             return
         }
         const before = fieldInstanceIdsOf(state, holderPid)
-        resolveAction(state, holderPid, null, effect.action, targetInstanceId)
-        finishBurstActivation(state, holderPid, burstCardId, effect.action.type, effect.thenPay)
+        resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId)
+        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay)
         if (state.pendingChoice) return
         fireOwnBurstActivated(state, holderPid, before, burstCardId)
     }

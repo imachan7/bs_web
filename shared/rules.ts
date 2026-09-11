@@ -44,6 +44,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     heavyArmor: { id: "heavyArmor", label: "重装甲" },
     jugeki: { id: "jugeki", label: "呪撃" },
     funsai: { id: "funsai", label: "粉砕" },
+    daifunsai: { id: "daifunsai", label: "大粉砕" },
     kobo: { id: "kobo", label: "光芒" },
     tensho: { id: "tensho", label: "転召" },
     bofu: { id: "bofu", label: "暴風" },
@@ -51,6 +52,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kyoshu: { id: "kyoshu", label: "強襲" },
     hyoheki: { id: "hyoheki", label: "氷壁" },
     fushi: { id: "fushi", label: "不死" },
+    jumetsugeki: { id: "jumetsugeki", label: "呪滅撃" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。

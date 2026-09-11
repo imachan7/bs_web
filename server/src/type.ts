@@ -268,7 +268,7 @@ export type EffectAction =
     | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版（BS12-015冥王神龍クロノ・ハデス【合体時】『破壊時』：「お互い、それぞれのスピリット1体を指定する。指定されなかったスピリットすべてを破壊する」）。二段階choiceパターンは同じだが、各自は**自分の**フィールドから1体を指定する（mutualDestroyChoiceは相手フィールドも選べるのに対しこちらは自陣のみ）。破壊待機中の発生源自身（self）は指定候補に含めない。指定された2体を除く**両陣営のスピリットすべて**を破壊する。非対話時は各自が自分のフィールドの実効BP最大を自動選択（決定的簡略化）
     | { type: "summonSequence"; byFushi?: true } // byFushi指定時は【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnly の判定に使う）。// 召喚が済んだ後の処理（召喚時効果 →「自分のスピリットが召喚されたとき」誘発 → 天使長ファニムの疲労付与）を self に対して行う。**cards.jsonには書かない内部専用**：【転召】の対象選択で中断したときに、GameEngine が pendingChoice.queue へ積んで選択の解決後に合流させるためだけに使う
     | { type: "refireSummonEffect" } // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）のonSummon効果を再発揮する（タイムリープ）
-    | { type: "recoverMagicFromTrash"; colors?: Color[]; anyCardType?: true; hasBurst?: true } // colors指定時は、そのいずれかの色を持つマジックカードだけを対象にする（カード静的な colors で判定。BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）。anyCardType指定時はマジック限定を外し、カード種別を問わず対象にする。hasBurst指定時はkind:"burst"エントリを持つカードだけが対象（SD06-014爆烈十紋刃：「自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す」＝anyCardType+hasBurst）。// 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
+    | { type: "recoverMagicFromTrash"; colors?: Color[]; anyCardType?: true; hasBurst?: true; onlyBurstDestroyedCard?: true } // onlyBurstDestroyedCard指定時は、**そのバースト発動のきっかけになった破壊で落ちたカード**だけが対象（burst.destroyedAsTarget が targetInstanceId の枠に入れた cardId と一致するもの。BS14-103幻影氷結晶）。 // colors指定時は、そのいずれかの色を持つマジックカードだけを対象にする（カード静的な colors で判定。BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）。anyCardType指定時はマジック限定を外し、カード種別を問わず対象にする。hasBurst指定時はkind:"burst"エントリを持つカードだけが対象（SD06-014爆烈十紋刃：「自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す」＝anyCardType+hasBurst）。// 自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す（トリックスター）
     | { type: "recoverNexusFromTrash"; colors?: Color[] } // recoverMagicFromTrashのネクサス版。自分のトラッシュにあるネクサスカード1枚（末尾＝新しい方）を手札に戻す（colors指定時はそのいずれかの色を持つネクサスカードだけを対象。BS10-112ネクサスエクステンション）
     | { type: "castMagicFromTrashByColor"; colorFilter?: Color } // 自分のトラッシュにある指定色（省略時は色不問）のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する（interactiveTargets時はcard choiceで選択、自動時はコストが払える中で最もコストが高いものを自動選択。該当・支払い可能なカードがなければ不発）。この効果ではフィールドのコアは使えずリザーブのみで支払う簡略化。発動タイミングはこの効果自体の発火位置で決まる（バトル中ならflash、それ以外はメイン優先。BS08堕天使ミカファール）
     | { type: "magicMirrorRepeat" } // このフラッシュタイミングで相手が直前に使用したマジックカードの効果を、自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCastを参照し、相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止。BS08マジックミラー）
@@ -598,6 +598,10 @@ export type Keyword =
     | "seimei" // 聖命：このスピリットのアタックで相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く（BS07初出）
     | "kyoshu" // 強襲：アタック時、ターン中に指定数まで、自分のネクサス1つを疲労させることで自身を回復できる（BS07初出）
     | "hyoheki" // 氷壁：相手が指定色のマジックの効果を使用したとき、このスピリットを疲労させることでその効果を無効にする（BS08初出）
+    | "jumetsugeki" // 呪滅撃：効果文に全文が書かれる（相手のライフのコア1個を相手のトラッシュに置くことで、
+    // このスピリットは回復状態でフィールドに残る等）ため、**キーワード固有の処理は無く名前の登録だけ**（BS14初出）
+    | "daifunsai" // 大粉砕：**このキーワードを持つカードはプールに存在しない**（BS14時点）。
+    // 「【粉砕】/【大粉砕】を持つ自分のスピリットすべて」のように**参照する側**にのみ使う（BS14-062）
     | "fushi" // 不死：トラッシュにあるこのスピリットカードは、指定コストの自分のスピリットが破壊されたとき、
     // **通常のコストを支払って**召喚できる（BS09初出）。引き金のコストは keyword エントリの triggerCosts が持つ。
     // 発揮は『お互いのアタックステップ』限定で、破壊処理（＞６）のその場で確認する。
@@ -937,6 +941,18 @@ export type EffectDef =
           // fireFieldEventTriggers の末尾が、両プレイヤーのバーストエリアをこのkindだけ特別に走査する
           event: FieldEvent // 発動条件（既存のFieldEventを流用する）
           subjectSide?: "own" | "opponent" // fieldEvent の同名軸と同じ意味（own=バーストの持ち主自身の事象、opponent=その相手の事象）
+          byOpponentEffectOnly?: true // event: "ownSpiritDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果で破壊されたときのみ発火（fieldEvent の同名軸と同じ判定＝eventInfo.byOpponentEffectを見る。BS14-103幻影氷結晶【バースト：相手による自分のスピリット破壊後】）
+          destroyedColorFilter?: Color // event: "ownSpiritDestroyed" 限定：このバースト発動時に破壊されたスピリットがこの色を持つときのみ発火（fieldEvent の colorFilter と同じくeventColorsで判定。BS14-061ヤギュード・ジューベイ「このバースト発動時に青のスピリットが破壊されていたら」）
+          condition?:
+              | { ownLifeAtMost: number } // 自分のライフがこれ以下（BS14-X01 龍の覇王ジーク・ヤマト・フリード＝ライフ3以下）
+              | { ownNexusAtLeast: number } // 自分のフィールドのネクサス数がこれ以上（BS14-064 レボルシング・ゼヨン＝3つ以上）
+              | { ownTrashColorCountAtLeast: { color: Color; count: number } } // 自分のトラッシュにある指定色のカード枚数がこれ以上（BS14-020 ナスノ・アーチャー＝紫4枚以上）
+              | { ownTrashCardTypeCountAtLeast: { cardType: CardType; count: number } } // 自分のトラッシュにある指定種別のカード枚数がこれ以上（BS14-055 ミスティック・ヒミコ＝マジック3枚以上）
+              | { ownCoresTotalAtLeast: number } // 自分のフィールド/リザーブ/トラッシュのコアの**合計**がこれ以上（BS14-X03 風の覇王ドルクス・ウシワカ＝8個以上）
+          // 「〜のとき、このスピリットカードを召喚する」等の発動条件。
+          // **バーストの宣言自体はeventの時点で成立している**ので、これを満たさないときはactionの解決だけを飛ばす（噛み合わせはBURST.md §1参照）。
+          // 既存の triggered.condition / shared/cost.ts の同名軸を流用（BS14-X01：ownLifeAtMost、BS14-064：ownNexusAtLeast）
+          destroyedAsTarget?: true // 指定時、resolveActionへ渡すtargetInstanceIdの枠に、このバースト発動時に破壊されたスピリットの**cardId**を入れる（破壊済みの個体は場に無く、トラッシュにはcardIdでしか残らないため。受け手は recoverMagicFromTrash の onlyBurstDestroyedCard だけ）（BS14-103幻影氷結晶：「このバースト発動時に破壊された、自分のトラッシュにあるスピリットカード1枚を手札に戻す」）
           action: EffectAction // バースト効果本体
           thenPay?: "main" | "flash" // 「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」。
           // このカード自身の kind:"magic" で timing が一致するエントリを、通常どおりコストを支払えれば追加で発揮できる（任意）
@@ -2594,6 +2610,7 @@ export interface PendingChoice {
         pid: PlayerId
         cardId: string
         thenPay?: "main" | "flash"
+        destroyedCardId?: string // destroyedAsTarget用：このバースト発動時に破壊されたスピリットのcardId。承認後にresolveActionのtargetInstanceIdの枠で渡す
     }
     burstThenPay?: {
         // burstActivate の thenPay：解決後にコストを支払って本来のメイン/フラッシュ効果を追加発揮するかの確認待ち。

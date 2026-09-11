@@ -1716,7 +1716,7 @@ function doResolveChoice(
                     // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
-                    resolveAction(state, actor, self, pending.action)
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId)
                     if (!state.pendingChoice) {
                         finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay)
                         if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
