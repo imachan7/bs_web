@@ -11,6 +11,7 @@ import {
     effectiveBp,
     fireStepTriggers,
     getCard,
+    minLevelCores,
     refreshLevelAsOverrides,
     runTurnStart,
     takeLifeAndResolve,
@@ -221,6 +222,48 @@ console.log("=== SD06-007英雄龍ロード・ドラゴン：ownBurstActivated�
         s2.players.p2.field.spirits.some((sp) => sp.instanceId === weak2.instanceId),
         "発動したバーストのコストが5を超えるときは破壊が発揮されない",
     )
+}
+
+console.log("=== SD06-006 イカヅチ・ヴルム：バーストをセットしている間だけ指定アタックできる ===")
+{
+    // 「自分のバーストをセットしているとき、相手のスピリット1体を指定し、そのスピリットにアタックできる」
+    // ＝このエンジンの canDirectAttack（指定アタック）。セットしていない間は指定できない
+    const s = game("sd06-006-directed")
+    const vurm = createInstance("SD06-006", s.turn, minLevelCores(getCard("SD06-006")))
+    s.players.p1.field.spirits.push(vurm)
+    const prey = createInstance("SD06-001", s.turn, minLevelCores(getCard("SD06-001")))
+    s.players.p2.field.spirits.push(prey)
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: vurm.instanceId, targetSpiritInstanceId: prey.instanceId }) !== null,
+        "バースト未セットなら指定アタックできない",
+    )
+
+    placeBurst(s, "p1", "SD06-007")
+    assert(
+        act(s, "p1", { type: "attack", instanceId: vurm.instanceId, targetSpiritInstanceId: prey.instanceId }) === null,
+        "バーストをセットしている間は指定アタックできる",
+    )
+    assert(s.battle?.directedTargetInstanceId === prey.instanceId, "指定先が控えられる")
+}
+
+console.log("=== SD06-010 海皇龍シーマ・クリーク Lv1-2：このスピリットはアタックできない ===")
+{
+    const s = game("sd06-010-cantattack")
+    // Lv1（コア1個）なので constraint cantAttack が有効
+    const shima = createInstance("SD06-010", s.turn, minLevelCores(getCard("SD06-010")))
+    s.players.p1.field.spirits.push(shima)
+    // 対照はコスト5（「コスト2以下はアタックできない」の globalConstraint に掛からないもの）
+    const other = createInstance("SD06-005", s.turn, minLevelCores(getCard("SD06-005")))
+    s.players.p1.field.spirits.push(other)
+    const small = createInstance("SD06-002", s.turn, minLevelCores(getCard("SD06-002")))
+    s.players.p1.field.spirits.push(small)
+
+    assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ移行")
+    assert(act(s, "p1", { type: "attack", instanceId: shima.instanceId }) !== null, "Lv1のシーマ・クリークはアタックできない")
+    assert(act(s, "p1", { type: "attack", instanceId: small.instanceId }) !== null, "コスト2以下のスピリットもアタックできない")
+    assert(act(s, "p1", { type: "attack", instanceId: other.instanceId }) === null, "コスト3以上のスピリットはアタックできる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part309）")
