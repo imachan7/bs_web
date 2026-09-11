@@ -1218,6 +1218,9 @@ export type EffectDef =
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
           // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
+          selfOnly?: true // event: "ownSpiritDestroyed" 限定：**発生源自身が破壊されたとき**だけ発火する（同じ持ち主の他のスピリットの破壊では発火しない）。
+          // 破壊された個体は effectSources から消えているので、removal.ts の fireOwnSpiritDestroyed が extraSources に自分自身を渡している。
+          // 印刷テキストに『破壊時』が無い＝『』カテゴリを持たない破壊起点の効果をここへ振り分ける（SEMANTICS_AUDIT.md §3.17。BS13-010 スカルザード）
           byOpponentEffectOnly?: true // event: "ownNexusDestroyed" | "ownSpiritDestroyed" | "ownSpiritExhausted" 限定：**相手の**スピリット/ネクサス/マジックの効果で破壊/疲労したときのみ発火（BS07の各色ネクサス6枚／BS12-005星角獣ユニゴーント／BS12-062白煙の大山脈）。ownSpiritDestroyedはバトルのBP比較で敗れた場合も含める（byOpponentEffectOf||byBattle）。ownSpiritExhaustedはネクサスの効果を含まない＝スピリット/ブレイヴ/マジックのみ（fireExhaustedTriggersが判定）。
           // destroyNexus に渡された DestroyContext で判定する（sourceType があり＝効果による破壊、かつ sourcePid が持ち主と異なる）。
           // 発生源不明（context 省略＝テストや将来の経路）のときは**発火しない**側に倒す：

@@ -1077,6 +1077,8 @@ export function fireFieldEventTriggers(
             if (effect.event !== event) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
+            // selfOnly：発生源自身が破壊されたときだけ（ownSpiritDestroyed 限定。BS13-010 スカルザード）
+            if (effect.selfOnly && inst.instanceId !== selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
             // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
             // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、

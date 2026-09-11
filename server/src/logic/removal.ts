@@ -784,7 +784,9 @@ function fireOwnSpiritDestroyed(
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
-    }, undefined, extraItems)
+        // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
+        // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
+    }, [inst], extraItems)
 }
 
 // 中断していた破壊処理の続き（drainResumeStack から呼ぶ）
