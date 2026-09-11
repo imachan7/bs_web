@@ -91,6 +91,26 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 | **器BU（BS13-047）でブロック時に破棄するマジックを実装が自動で選んでいる**（`GameEngine.ts` の `finishBlockDeclaration`＝手札の最初のマジック1枚）。どれを捨てるかは対戦者が選ぶべき。`npm run audit:choices` で検出（2026-09-10）。ブロック宣言の同期経路なので、クライアントが選んで `block` アクションに載せる形なら [INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) パターンE の枠内で直せる | BS13-047 の1枚だけ |
 | ~~解決の途中で破壊状態が解除されたら、以降の破壊誘発は処理しない~~ | **2026-09-08 に実装済み**（TIMING_CHART。smoke part302） |
 
+### 『』効果のカテゴリ分類の穴（2026-09-11 ユーザー確定。着手はバースト＋SD06 の後）
+
+**『』で囲まれた効果は「カテゴリ」で、効果を借りる／発揮させない器は『』付きの効果しか対象にできない。**
+実装ではこれは `kind:"triggered"` の `trigger: TriggerEvent`（12種）が担っている。
+消費側は5つ: `borrowCombinedAttackEffect`（BS13-049 イリテバン）／`borrowSummonEffect`（BS13-084 アルゴアタック）／
+`borrowDestroyEffect`（BS13-052 イビルグライダー）／`suppressTriggerThisTurn`（ユーサネイジア）／
+`kind:"triggerSuppression"`（古代闘技場）。
+
+全906枚の `triggered` 666件を印刷テキストの『』と突き合わせた結果、不一致は6件だけだった。やること3つ:
+
+| やること | 対象 |
+| :-- | :-- |
+| **`TriggerEvent` に `onDeploy`（『このネクサスの配置時』）を新設して `onSummon` から分ける** | BS10-096 最後の優勝旗／BS12-063 旅団の摩天楼の2枚と、ネクサスの onSummon を見ているエンジン箇所 |
+| **BS13-010 スカルザードを `kind:"fieldEvent"` + `ownSpiritDestroyed`（`subjectSide:"opponent"`・自身限定）へ書き換える** | 印刷は『相手のターン』＋「相手によってこのスピリットが破壊されたとき」で**『破壊時』効果ではない**。現状は同じ BS13 のイビルグライダーに借りられ、破壊時封じでも止まってしまう |
+| **`validate:cards` に「`trigger` と印刷テキストの『』が一致するか」の検査を足す** | BS14 で120枚入る前に入れておく。常にゼロを維持する枠 |
+
+**『このスピリットのアタック/ブロック時』を onAttack + onBlock の2エントリに分解する現状は正しい**（2026-09-11 ユーザー確定）。
+複合表記は『アタック時』でも『ブロック時』でもあるので、借りる側・止める側のどちらからも見えてよい。
+該当は BS05-X18 超獣王ベヒードス／BS12-X04 月光神龍ルナテック／BS07-041 天剣の勇者リュート（『バトル時』→ onBlock + onBlocked）。
+
 ## 3. 決着済み（蒸し返さないこと）
 
 - **再開スタック方式を採る**（ジェネレータ化はしない）。理由は [RESUME_STACK.md](./docs/design/RESUME_STACK.md) §8
