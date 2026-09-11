@@ -427,6 +427,21 @@ export function validateSetNexus(
     return null
 }
 
+// バーストのセット（docs/design/BURST.md）：自分のターンのメインステップ限定・ターン1回。
+// 対象カードが kind:"burst" を持たないなら拒否する（公式ルールは敗北だが、誤操作で敗北させるのは
+// 体験が悪いので拒否に簡略化する。2026-09-11 ユーザー確認）。setBurstFromHand（効果によるセット）は
+// この検証を経由しない別経路のため、ターン1回制限を受けない
+export function validateSetBurst(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    const player = state.players[pid]
+    if (player.burstSetThisTurn) return "バーストのセットはターンに1回までです"
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    if (!getCard(cardId).effects.some((e) => e.kind === "burst")) return "バースト効果を持たないカードです"
+    return null
+}
+
 // ネクサスの配置コストをデッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
 // **コア払いとの併用はできない**（2026-08-24 ユーザー確認）。返る値は 0（全額コア）か
 // cost（全額デッキ破棄）のどちらかで、その中間はない。置くコアは常にコア払い。

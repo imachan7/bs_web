@@ -1,8 +1,8 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { log, opponentOf, resolveInOrder } from "../GameState"
-import { requestChoice } from "../EffectModules"
+import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
+import { fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { toAttackPhase } from "../PhaseManager"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -80,9 +80,97 @@ const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action)
     toAttackPhase(state)
 }
 
+// バースト専用（docs/design/BURST.md）：発動中のバーストのカード自身をコストを支払わずに召喚する。
+// スピリット/ネクサスのみ（マジックには書かない。validate:cardsが検査する）。
+// **バースト発動の確認応答は self=null で解決される**ため、対象カードは state.players[owner].burst
+// から読む（burst は承認された時点でもまだ非公開のまま残っている＝この関数がここで空にする）
+const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    if (card.type === "nexus") {
+        player.burst = null
+        player.burstSet = false
+        const inst = createInstance(cardId, state.turn, 0)
+        player.field.nexuses.push(inst)
+        log(state, `${player.name}はバーストとして${card.name}を配置した。`)
+        fireNexusDeployed(state, owner, inst)
+        return
+    }
+    if (card.type !== "spirit") {
+        log(state, `${sourceName}：このカードは召喚できない。`)
+        return
+    }
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}はバーストとして${card.name}を召喚した。`)
+    if (!state.winner) resolveTensho(state, owner, inst)
+    if (!state.winner) fireSummonSequence(state, owner, inst)
+}
+
+// バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
+// setBurst（GameAction）と異なりターン1回制限を受けない
+const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        placeBurst(state, owner, cardId)
+        return
+    }
+    const candidates = player.hand
+        .map((cardId, i) => ({ cardId, i }))
+        .filter(({ cardId }) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：セットできるバースト持ちのカードが手札になかった。`)
+        return
+    }
+    if (
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：セットするバーストを選んでください`,
+            "hand",
+            candidates.map((c) => c.i),
+            { type: "setBurstFromHand" },
+            null,
+        )
+    ) {
+        return
+    }
+    // 非対話：コスト最大の1枚（決定的簡略化）
+    let best = candidates[0]!
+    for (const c of candidates) {
+        if (getCard(c.cardId).cost > getCard(best.cardId).cost) best = c
+    }
+    player.hand.splice(best.i, 1)
+    placeBurst(state, owner, best.cardId)
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     forceEndMainStep: forceEndMainStepHandler,
+    summonBurstCardFree: summonBurstCardFreeHandler,
+    setBurstFromHand: setBurstFromHandHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

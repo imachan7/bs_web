@@ -342,6 +342,8 @@ export interface UiState {
     combineBrave: { braveInstanceId: string; candidateIds: string[] } | null
     // 増減式の選択（PendingChoice.stepper）でいま表示している数。選択が変わったら null に戻す
     stepper: number | null
+    // バーストを再セットするときの確認待ち（既存のバーストはトラッシュへ送られるため確認をはさむ）
+    burstResetConfirm: { handIndex: number } | null
 }
 
 // 指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
@@ -527,7 +529,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -649,6 +651,16 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (ui.burstResetConfirm) {
+        // すでにセットされているバーストを、新しいカードで上書きしていいかの確認
+        const yes = document.createElement("button")
+        yes.dataset.burstConfirm = "yes"
+        yes.textContent = "はい（セットし直す）"
+        const no = document.createElement("button")
+        no.dataset.burstConfirm = "no"
+        no.textContent = "いいえ"
+        choiceOptionsEl.append(yes, no)
+        show("choice-options", true)
     } else {
         show("choice-options", false)
     }
@@ -703,6 +715,9 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.altSummonSelect) {
         $("targeting-info").textContent =
             `🌀 召喚の方法を選んでください（コストを払う／ネクサスをデッキの下に戻す）`
+    } else if (ui.burstResetConfirm) {
+        $("targeting-info").textContent =
+            "🔥 すでにセットしてあるバーストはトラッシュに置かれます。セットし直しますか？"
     } else if (ui.targeting) {
         $("targeting-info").textContent =
             `🎯 対象にする${ui.targeting.side === "opponent" ? "相手" : "自分"}のスピリットを選んでください`
@@ -721,6 +736,10 @@ export function render(view: GameView, ui: UiState): void {
     // フィールド
     renderField("opp-spirits", "opp-nexuses", view, ui, opp, false)
     renderField("my-spirits", "my-nexuses", view, ui, you, true)
+
+    // バーストエリア（docs/design/BURST.md）。相手のバーストは常に裏面のみ（cardIdは来ない）
+    renderBurst("opp-burst", view, opp, false)
+    renderBurst("my-burst", view, you, true)
 
     // 手札
     renderHand(view, ui)
@@ -816,6 +835,10 @@ function renderInfo(
         ["", `トラッシュコア ${p.trashCores}`],
         // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
         ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
+        // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
+        ...((p.burstSet
+            ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
+            : []) as [string, string][]),
         ["", `デッキ ${p.deckCount}枚`],
         ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
         ["", `トラッシュ ${p.trashCards.length}枚`],
@@ -865,6 +888,50 @@ function renderField(
     for (const inst of player.field.nexuses) {
         nexusZone.appendChild(fieldCardEl(view, ui, inst, isMine, pid, true))
     }
+}
+
+// バーストエリア（docs/design/BURST.md）。セットされているか否かは公開情報（burstSet）だが、
+// 中身のcardIdは自分にしか来ない（相手側は view.players[相手].burst が常にnull）。
+// ⚠️ 相手側の分岐では cardId・カード名を一切 DOM に入れないこと
+function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: boolean): void {
+    const player = view.players[pid]
+    const zone = $(id)
+    zone.innerHTML = ""
+
+    if (!player.burstSet) {
+        const empty = document.createElement("div")
+        empty.className = "burst-slot burst-empty"
+        empty.textContent = "バースト"
+        zone.appendChild(empty)
+        return
+    }
+
+    const el = document.createElement("div")
+    el.className = "burst-slot"
+
+    if (isMine && player.burst) {
+        // 自分のバースト：裏向き（相手には見えない）だが、自分にはカード名を出し、
+        // 既存の効果ツールチップ（.card + data-cardId）に乗せてホバーで効果を読めるようにする
+        const m = master(player.burst)
+        el.classList.add("card", "burst-mine")
+        el.dataset.cardId = player.burst
+        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
+        const lock = document.createElement("div")
+        lock.className = "burst-hidden-icon"
+        lock.textContent = "🔒"
+        lock.title = "相手には見えません（裏向き）"
+        el.appendChild(lock)
+        const name = document.createElement("div")
+        name.className = "name"
+        name.textContent = m.name
+        el.appendChild(name)
+    } else {
+        // 相手のバースト：伏せてあることだけが公開情報。中身は絶対に出さない
+        el.classList.add("burst-back")
+    }
+
+    zone.appendChild(el)
 }
 
 // コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
@@ -1503,6 +1570,23 @@ function renderHand(view: GameView, ui: UiState): void {
             const badge = document.createElement("div")
             badge.className = "count-badge"
             badge.textContent = `x${g.count}`
+            el.appendChild(badge)
+        }
+
+        // バーストセットボタン（docs/design/BURST.md）：kind:"burst"を持つカードにだけ出す。
+        // 通常のカード種別ごとの使い方（召喚・配置・使用）とは別枠の操作なので、
+        // カード本体のクリックとは独立したバッジボタンとして重ねる
+        if (m.effects.some((e) => e.kind === "burst")) {
+            const burstSetThisTurn = view.players[view.you].burstSetThisTurn
+            const canSetBurst = myMainFree && !view.pendingChoice && !burstSetThisTurn
+            const badge = document.createElement("button")
+            badge.className = "burst-set-badge" + (canSetBurst ? "" : " disabled")
+            badge.dataset.burstSet = String(index)
+            badge.textContent = "バーストセット"
+            badge.title = burstSetThisTurn
+                ? "このターンはすでにバーストをセットしています"
+                : "バーストエリアに伏せてセットする"
+            badge.disabled = !canSetBurst
             el.appendChild(badge)
         }
 

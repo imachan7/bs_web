@@ -5,6 +5,7 @@ import {
     coresForLevel,
     createInstance,
     currentLevel,
+    fieldInstanceIdsOf,
     findInstanceAnywhere,
     findNexus,
     findSpirit,
@@ -26,6 +27,9 @@ import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
+    placeBurst,
+    finishBurstActivation,
+    fireOwnBurstActivated,
     attachBrave,
     detachBraveVoluntary,
     activeConstraints,
@@ -105,6 +109,7 @@ import {
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
     validatePass,
+    validateSetBurst,
     validateSetNexus,
     validateSummon,
     validateTakeLife,
@@ -255,6 +260,8 @@ function dispatchAction(
     switch (action.type) {
         case "summon":
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
+        case "setBurst":
+            return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
@@ -544,6 +551,20 @@ function doSummon(
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
+    return null
+}
+
+// バーストのセット（docs/design/BURST.md）。既にセット済みなら旧カードをトラッシュへ送ってから
+// 新しいものをセットする。セット成立後は ownBurstSet を発火する
+function doSetBurst(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const error = validateSetBurst(state, pid, handIndex)
+    if (error) return error
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    player.hand.splice(handIndex, 1)
+    placeBurst(state, pid, cardId)
+    player.burstSetThisTurn = true
     return null
 }
 
@@ -1682,7 +1703,26 @@ function doResolveChoice(
             if (pending.confirm) {
                 // 発動を選んだ側もログに残す（発動しなかった場合と対になる。発生源がログから追えるように）
                 log(state, `${self ? getCard(self.cardId).name : "効果"}：効果を発動した。`)
-                resolveAction(state, actor, self, pending.action)
+                if (pending.burstThenPay) {
+                    // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
+                    const info = pending.burstThenPay
+                    state.players[info.pid].reserve -= info.cost
+                    log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
+                    resolveAction(state, actor, self, pending.action)
+                } else if (pending.burstActivate) {
+                    // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
+                    // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
+                    // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
+                    const info = pending.burstActivate
+                    const before = fieldInstanceIdsOf(state, info.pid)
+                    resolveAction(state, actor, self, pending.action)
+                    if (!state.pendingChoice) {
+                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay)
+                        if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
+                    }
+                } else {
+                    resolveAction(state, actor, self, pending.action)
+                }
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
             }

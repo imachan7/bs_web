@@ -170,6 +170,9 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         field: { spirits: [], nexuses: [], combinedBraves: [] },
         turnVirtualInstances: [],
         battleVirtualInstances: [],
+        burst: null,
+        burstSet: false,
+        burstSetThisTurn: false,
     }
 }
 
@@ -568,6 +571,15 @@ export function findNexus(
     return player.field.nexuses.find((n) => n.instanceId === instanceId)
 }
 
+// pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
+// バースト発動（docs/design/BURST.md）で「発動開始時点で場にいた発生源」を特定するための
+// before/after 差分に使う（summonBurstCardFreeで新しく場に出た個体を ownBurstActivated の
+// 発火対象から除くため）
+export function fieldInstanceIdsOf(state: GameState, pid: PlayerId): Set<string> {
+    const p = state.players[pid]
+    return new Set([...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].map((s) => s.instanceId))
+}
+
 // 両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
 // pendingChoice.selfInstanceId の解決用（self は常にスピリットのため）
 export function findInstanceAnywhere(
@@ -612,6 +624,10 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),
+        // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
+        burst: isSelf ? player.burst : null,
+        burstSet: player.burstSet,
+        burstSetThisTurn: player.burstSetThisTurn,
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),

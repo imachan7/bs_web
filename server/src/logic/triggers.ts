@@ -41,6 +41,7 @@ import {
     createInstance,
     currentLevel,
     draw,
+    fieldInstanceIdsOf,
     findInstanceAnywhere,
     getCard,
     log,
@@ -155,6 +156,8 @@ import {
     emitEvent,
     exhaustSpirit,
     findSpiritAny,
+    finishBurstActivation,
+    fireOwnBurstActivated,
     hasAttackTriggersAsBlock,
     hasBlockTriggersAsAttack,
     removeCores,
@@ -450,6 +453,9 @@ export function fireTrigger(
                         .map((n) => getCard(n.cardId).name),
                 )
                 if (kinds.size < count) return false
+            } else if ("ownBurstSet" in effect.condition) {
+                // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）
+                if (!state.players[owner].burstSet) return false
             }
         }
         return true
@@ -1024,6 +1030,8 @@ export function fireFieldEventTriggers(
         fromHand?: boolean
         // event: "ownMagicUsed" 限定：そのマジックが「コストを支払って」使用されたか（paidCostOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ Lv2-3）
         paidCost?: boolean
+        // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（docs/design/BURST.md）
+        burstCost?: number
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -1033,6 +1041,10 @@ export function fireFieldEventTriggers(
     // ownSpiritDestroyed から、破壊されたカード自身の『破壊時』と「フィールドに残る／戻る」を
     // **同じ列**に混ぜてターンプレイヤーに順番を選ばせるために使う。他のイベントでは使わない
     extraItems?: FieldEventExtraItem[],
+    // 発生源から除外する instanceId（docs/design/BURST.md）。ownBurstActivated が
+    // 「発動開始時点で場にいた発生源にだけ発火させる」ために、summonBurstCardFreeで新しく場に出た
+    // 個体をここで除く
+    excludeInstanceIds?: string[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1052,6 +1064,7 @@ export function fireFieldEventTriggers(
         repeatTimes: number
     }[] = []
     for (const inst of instances) {
+        if (excludeInstanceIds?.includes(inst.instanceId)) continue
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
@@ -1407,6 +1420,45 @@ export function fireFieldEventTriggers(
             key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
     })
+
+    // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
+    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。同時に条件を満たした場合は
+    // 防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
+    // （2026-09-11 ユーザー確認）。上の解決で選択待ちが残っている間は割り込まない
+    if (state.pendingChoice) return
+    const order: PlayerId[] = [opponentOf(state.turnPlayer), state.turnPlayer]
+    for (const holderPid of order) {
+        const holder = state.players[holderPid]
+        const burstCardId = holder.burst
+        if (burstCardId === null) continue
+        const effect = getCard(burstCardId).effects.find(
+            (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
+        )
+        if (!effect) continue
+        // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
+        if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
+        if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
+        // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
+        // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
+        if (state.interactiveTargets) {
+            requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, effect.action, null)
+            // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
+            // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
+            if (state.pendingChoice) {
+                state.pendingChoice.burstActivate = {
+                    pid: holderPid,
+                    cardId: burstCardId,
+                    ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+                }
+            }
+            return
+        }
+        const before = fieldInstanceIdsOf(state, holderPid)
+        resolveAction(state, holderPid, null, effect.action, targetInstanceId)
+        finishBurstActivation(state, holderPid, burstCardId, effect.action.type, effect.thenPay)
+        if (state.pendingChoice) return
+        fireOwnBurstActivated(state, holderPid, before, burstCardId)
+    }
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：

@@ -1005,6 +1005,19 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             returnSpiritToHand(state, owner, brave, sourceName)
             if (state.winner) return
         }
+        // costDiscardOwnBurst（docs/design/BURST.md）：自分のバースト1つを破棄（トラッシュへ）することがコスト。
+        // バーストがセットされていなければ不発（COST_MODEL.md §1）
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.burst === null) {
+                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+        }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return

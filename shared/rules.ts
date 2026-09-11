@@ -1275,6 +1275,9 @@ export function checkAuraCondition(
 ): boolean {
     const player = board.players[sourcePid]
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
+    // "hasOwnBurstSet"：自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）。
+    // 文字列リテラル判定は "in" 演算子より前に置く（プリミティブに in を使うと例外になる）
+    if (condition === "hasOwnBurstSet") return player.burstSet
     if ("hasOwnColor" in condition) {
         // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
         // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
@@ -1560,6 +1563,8 @@ export function matchesTarget(
     if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
+    // hasBurst：effectsに kind:"burst" を持つカードだけ（docs/design/BURST.md）
+    if (filter.hasBurst === true && !card(inst.cardId).effects.some((e) => e.kind === "burst")) return false
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.symbolCount !== undefined && instanceSymbolCount(inst) !== filter.symbolCount) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
@@ -1662,7 +1667,11 @@ export function activeConstraintsWithSource(
         .flatMap((src) =>
             card(src.cardId)
                 .effects.filter(
-                    (e) => e.kind === "constraint" && effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level),
+                    (e) =>
+                        e.kind === "constraint" &&
+                        effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level) &&
+                        // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                        (e.whileOwnBurstSet !== true || board.players[pid].burstSet),
                 )
                 .map((e) => (e as { constraint: ConstraintDef }).constraint),
         )
@@ -1918,6 +1927,8 @@ export function hasGlobalConstraint(
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 return true
             }
         }

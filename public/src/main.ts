@@ -33,7 +33,7 @@ declare const io: () => SocketLike
 const socket = io()
 
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null }
+const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -514,6 +514,18 @@ function startChoicePaying(cardIndex: number): boolean {
     }
     rerender()
     return true
+}
+
+// バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
+// 上書き（旧カードがトラッシュへ送られる）ことになるので、押し間違い防止に確認をはさむ
+function onBurstSetClick(handIndex: number): void {
+    if (!view) return
+    if (view.players[view.you].burstSet) {
+        ui.burstResetConfirm = { handIndex }
+        rerender()
+        return
+    }
+    send({ type: "setBurst", handIndex })
 }
 
 function onHandClick(handIndex: number): void {
@@ -1154,6 +1166,12 @@ async function init(): Promise<void> {
     })
 
     byId("hand").addEventListener("click", (e) => {
+        // バーストセットのバッジが先（カード本体のクリックと区別する）
+        const burstBtn = closestData(e, "data-burst-set")
+        if (burstBtn) {
+            onBurstSetClick(Number(burstBtn.dataset.burstSet))
+            return
+        }
         const el = closestData(e, "data-hand-index")
         if (el) onHandClick(Number(el.dataset.handIndex))
     })
@@ -1366,6 +1384,7 @@ async function init(): Promise<void> {
         ui.battleSwapSummon = null
         ui.braveSummonSelect = null
         ui.altSummonSelect = null
+        ui.burstResetConfirm = null
         rerender()
     })
     byId("btn-skip-choice").addEventListener("click", () => {
@@ -1373,6 +1392,17 @@ async function init(): Promise<void> {
         send({ type: "resolveChoice" })
     })
     byId("choice-options").addEventListener("click", (e) => {
+        // バーストの再セット確認（ui.burstResetConfirm）。サーバーへのpendingChoiceではなく
+        // クライアント側だけの確認状態なので、他のdata-optionより先に判定する
+        const burstConfirmEl = closestData(e, "data-burst-confirm")
+        if (burstConfirmEl && ui.burstResetConfirm) {
+            const { handIndex } = ui.burstResetConfirm
+            const answer = burstConfirmEl.dataset.burstConfirm
+            ui.burstResetConfirm = null
+            if (answer === "yes") send({ type: "setBurst", handIndex })
+            rerender()
+            return
+        }
         // 増減式の選択（PendingChoice.stepper）の −／＋。表示を1つ動かして描き直すだけで、
         // サーバーへ送るのは「決定」を押したとき（data-option）だけ
         const stepEl = closestData(e, "data-stepper")
