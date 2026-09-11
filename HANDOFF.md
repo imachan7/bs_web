@@ -52,7 +52,8 @@
 - コストは既存の per-action 方式に合わせる: `refreshSelf` と `bpBuff` に `costDiscardOwnBurst?: true`
 - `TargetFilter` に `hasBurst?: true`（バースト効果を持つカードに限定。SD06-014）
 - 「自分のバーストをセットしている間」の条件軸: `AuraCondition` に `"hasOwnBurstSet"`、
-  `triggered.condition` / `ConstraintDef` / `GlobalConstraintDef` に `{ ownBurstSet: true }`
+  `triggered.condition` に `{ ownBurstSet: true }`、`ConstraintDef` / `GlobalConstraintDef` は
+  `whileOwnBurstSet?: true`（`whileCombined` と同じゲート形式。実装時に変更・2026-09-11）
 - `PlayerState`: `burst: string|null` / `burstSetThisTurn: boolean`
 - `PlayerView`: `burst: string|null`（**自分のみ。相手は必ず null**）/ `burstSet: boolean`
 - `GameAction`: `{ type:"setBurst"; handIndex: number }`
@@ -60,6 +61,11 @@
 **⚠️ マジックバーストは `resolveMagic` を経由させない**（`magicUsedThisTurn` と `ownMagicUsed`/`opponentMagicUsed` が誤発火する）。
 
 **⚠️ 相手のバーストが `viewFor` で漏れないテストを最優先で書く。**
+
+**段1〜5（エンジン基盤）と段7（UI）は実装済み・typecheck / smoke 全緑（b2cedb5）。**
+残りは `scripts/smoke/part308.ts`（バーストの smoke。未着手）と段6＝SD06 17枚投入。
+`validate:cards` は `summonBurstCardFree` / `setBurstFromHand` が未使用で2件落ちるが、
+これは SD06 のデータが入れば解消する（段6 まで落ちたままでよい）。
 
 **段取り**: 段1〜5＝エンジン（合成カードで検証）→ 段6＝SD06 17枚投入 → 段7＝クライアント → その後 BS14（121種）。
 
