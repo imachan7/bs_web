@@ -48,7 +48,7 @@ const VALID_KINDS = new Set([
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
-    "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep",
+    "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst",
 ])
 
 export interface ValidationIssue {

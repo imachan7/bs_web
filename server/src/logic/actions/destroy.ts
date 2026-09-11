@@ -94,6 +94,40 @@ const destroyOnePerCostHandler: ActionHandler<"destroyOnePerCost"> = (ctx, actio
     }
 }
 
+// SD06-014爆烈十紋刃：「BP6000以下の相手のスピリット1体と、相手の合体スピリットのブレイヴ1つと、
+// 相手のネクサス1つを破壊する」。3種はそれぞれ独立（1種でも対象なしで他は成立）。
+// destroyOnePerCostHandler と同じ委譲パターンだが、委譲先の型が異なる（destroy/destroyBrave/destroyNexus）ため
+// 残りは1つのactionへ畳まず、ヘテロな複数frameとしてそのままresumeStackへ積む
+const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexusEach"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType } = ctx
+    const steps: EffectAction[] = [
+        { type: "destroy", count: 1, ...(action.spiritFilter !== undefined ? { filter: action.spiritFilter } : {}) },
+        { type: "destroyBrave" },
+        { type: "destroyNexus", count: 1 },
+    ]
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]
+        if (step === undefined) continue
+        ctx.resolve(step, { sourceColors: srcColors, sourceType: srcType })
+        if (state.winner) return
+        if (state.pendingChoice) {
+            const rest = steps.slice(i + 1)
+            if (rest.length > 0) {
+                pushResumeFrames(
+                    state,
+                    rest.map((a) => ({
+                        kind: "action" as const,
+                        selfInstanceId: self ? self.instanceId : null,
+                        actorPid: owner,
+                        action: a,
+                    })),
+                )
+            }
+            return
+        }
+    }
+}
+
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
@@ -1902,6 +1936,7 @@ const handlers = {
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroyOnePerCost: destroyOnePerCostHandler,
+    destroySpiritBraveNexusEach: destroySpiritBraveNexusEachHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,

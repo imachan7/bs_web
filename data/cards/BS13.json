@@ -798,6 +798,10 @@
       "color": "red",
       "count": 1
      }
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
     }
    }
   ]
@@ -3292,6 +3296,10 @@
       ]
      },
      "amount": 3000
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
     }
    },
    {

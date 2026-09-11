@@ -11,8 +11,11 @@ import {
     detachBraveByEffect,
     detachBraveByOwnerChoice,
     returnCombinedBraveToHand,
+    returnCombinedBraveToDeckBottom,
     returnNexusToHand,
+    returnNexusToDeckBottom,
     returnSpiritToHand,
+    returnSpiritToDeckBottom,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -1811,6 +1814,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
         if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
             if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+            else if (action.mode === "toDeckBottom") returnSpiritToDeckBottom(state, opp, chosen, sourceName)
             else returnSpiritToHand(state, opp, chosen, sourceName)
             return
         }
@@ -1820,10 +1824,12 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
             const host = oppPlayer.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
             if (!host) return
             if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
+            else if (action.mode === "toDeckBottom") returnCombinedBraveToDeckBottom(state, opp, host, chosen)
             else returnCombinedBraveToHand(state, opp, host, chosen)
             return
         }
         if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
+        else if (action.mode === "toDeckBottom") returnNexusToDeckBottom(state, opp, chosen.instanceId)
         else returnNexusToHand(state, opp, chosen.instanceId)
     }
     // count/countCounter（器：BS13-X06巨人勇者ペルセウス「自分のネクサス1つにつき」）：countCounter優先、
@@ -1844,7 +1850,9 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const prompt =
         action.mode === "destroy"
             ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
-            : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
+            : action.mode === "toDeckBottom"
+              ? `${sourceName}：デッキの下に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
+              : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
     const { count: _c, countCounter: _cc, ...actionForChoice } = action
     const remainingAction =
         resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1 } : null

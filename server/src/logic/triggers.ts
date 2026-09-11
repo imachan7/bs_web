@@ -454,8 +454,9 @@ export function fireTrigger(
                 )
                 if (kinds.size < count) return false
             } else if ("ownBurstSet" in effect.condition) {
-                // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）
-                if (!state.players[owner].burstSet) return false
+                // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）。
+                // false指定時は**セットしていない**間だけ発火（SD06-009キジ・トリアLv2）
+                if (state.players[owner].burstSet !== effect.condition.ownBurstSet) return false
             }
         }
         return true
@@ -891,6 +892,10 @@ export function fireStepTriggers(
                     const refreshed = countSpiritsWeighted(state, pid, pid, (s) => !s.isRested, getCard(inst.cardId).type)
                     if (refreshed < effect.condition.ownRefreshedSpiritsAtLeast) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "ownBurstSet" in effect.condition) {
+                    // SD06-009キジ・トリアLv2：自分がバーストをセットしている／していない間だけ発火
+                    if (state.players[pid].burstSet !== effect.condition.ownBurstSet) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -1292,6 +1297,10 @@ export function fireFieldEventTriggers(
                     // BS13-071巨人港Lv2：このターンに相手がマジックの効果を使用した回数がこれ以上のときのみ
                     // （state.magicUsedThisTurnはresolveMagicの解決前に加算済み＝この誘発の時点で最新値）
                     if ((state.magicUsedThisTurn[opponentOf(pid)] ?? 0) < effect.condition.opponentMagicUsedAtLeast) continue
+                } else if ("burstCostAtMost" in effect.condition) {
+                    // event: "ownBurstActivated" 限定：発動したバーストのカードのコストがこれ以下のときのみ
+                    // （SD06-007英雄龍ロード・ドラゴン：「発動したカードがコスト5以下のとき」）
+                    if (eventInfo?.burstCost === undefined || eventInfo.burstCost > effect.condition.burstCostAtMost) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue

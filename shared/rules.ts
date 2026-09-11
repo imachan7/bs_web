@@ -1362,6 +1362,10 @@ export function auraAppliesTo(
     if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
         return false
     }
+    // uncombinedFilter（combinedFilterのちょうど逆。SD06-004ドス・モンキ：合体していないスピリットすべて）
+    if (aura.uncombinedFilter === true && instIsCombined(targetInst)) {
+        return false
+    }
     // braveOnly（BS10-086巨星望む大樹Lv1：自分のスピリット状態のブレイヴすべて）。合体中のブレイヴは
     // field.spiritsに実体が無いため、ownAllの走査に来た時点で自動的に「スピリット状態」を意味する
     if (aura.braveOnly === true && card(targetInst.cardId).type !== "brave") {
@@ -2300,6 +2304,8 @@ export function lifeDamageLimit(
     if (continuousFloor > 0) {
         max = Math.min(max, Math.max(0, board.players[defenderPid].life - continuousFloor))
     }
+    // 常在の「相手のスピリット1体からmaxまでしか減らされない」（アタッカー個体ごとのターン累計。SD06-010）
+    max = Math.min(max, ownLifeDamageCapRemaining(board, defenderPid, attacker))
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
@@ -2320,6 +2326,24 @@ export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType
     // 常在のライフ下限（BS12-070天の階Lv2）
     floor = Math.max(floor, ownLifeFloorContinuous(board, pid))
     return floor
+}
+
+// SD06-010海皇龍シーマ・クリーク：「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか
+// 減らされない」。ownLifeFloorContinuousと同じ片側パターンだが、**アタッカー個体ごとのターン累計**
+// （CardInstance.lifeDealtThisTurn）で判定する点が違う（1回のアタック限定のlifeDamageMaxForPidとは別軸）。
+// 該当する制約が無ければInfinityを返す
+export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker: CardInstance): number {
+    let remaining = Number.POSITIVE_INFINITY
+    for (const source of effectSources(board, pid)) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageCapPerSourcePerTurn") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.whileCombined === true && !instIsCombined(source)) continue
+            const dealt = attacker.lifeDealtThisTurn ?? 0
+            remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
+        }
+    }
+    return remaining
 }
 
 // attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに

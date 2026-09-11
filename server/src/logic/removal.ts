@@ -328,6 +328,22 @@ export function returnCombinedBraveToHand(state: GameState, ownerPid: PlayerId, 
     log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は手札に戻った。`)
 }
 
+// 合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
+// 「相手のスピリット/ブレイヴ/ネクサス、どれか1つをデッキの下に戻す」の**ブレイヴ**が合体中だったとき。
+// ホストは無傷で場に残る（returnCombinedBraveToHandと同じ方針。SD06-017甲竜封絶破）
+export function returnCombinedBraveToDeckBottom(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    player.deck.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    const name = getCard(brave.cardId).name
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」はデッキの一番下に戻った。`)
+    emitEvent(state, { type: "returnToDeck", pid: ownerPid, cardName: name, position: "bottom" })
+}
+
 // メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
 // スピリット状態のLv1維持コスト以上のコアを置く必要がある。支払い可否は
 // RuleValidator.validateDetachBrave が済ませている前提で、ここは実際にコアを動かすだけ。
@@ -1868,6 +1884,11 @@ function hasOwnNexusIndestructible(
             if (effect.constraint.colors !== undefined) {
                 if (!target) continue
                 if (!effect.constraint.colors.some((c) => instHasColor(target, c))) continue
+            }
+            // nameIncludes（SD06-012英雄皇の御盾Lv2＝カード名に「英雄皇」と入っているネクサスだけ）：対象が分からないときは守らない側に倒す
+            if (effect.constraint.nameIncludes !== undefined) {
+                if (!target) continue
+                if (!cardNameContains(target, effect.constraint.nameIncludes)) continue
             }
             // sourceColors / sourceTypes（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）：
             // 破壊しようとしている効果の発生源で絞る。発生源が分からないときは守らない側に倒す

@@ -1236,7 +1236,12 @@ const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> =
             : undefined) ??
         candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
     target.cantAttackThisTurn = true
-    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+    if (action.alsoCantBlock) {
+        target.cantBlockThisTurn = true
+        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間バトルできない）`)
+    } else {
+        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+    }
 }
 
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。

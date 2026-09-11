@@ -76,8 +76,10 @@ console.log("=== セットはターンに1回まで。ターンが変われば�
     const err = handleAction(s, "p1", { type: "setBurst", handIndex: 0 })
     assert(err !== null && err.includes("ターンに1回"), "同じターンの2回目のセットは拒否される")
 
-    endTurn(s, "p1")
-    assert(s.players.p1.burstSetThisTurn === false, "ターン終了でターン1回制限はリセットされる")
+    endTurn(s)
+    // 直前の代入で true に絞られているので、読み直して比較する
+    const resetDone = s.players.p1.burstSetThisTurn as boolean
+    assert(resetDone === false, "ターン終了でターン1回制限はリセットされる")
 }
 
 console.log("=== セットし直すと、前にセットしていたカードはトラッシュへ置かれる ===")

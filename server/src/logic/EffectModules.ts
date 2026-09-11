@@ -2482,6 +2482,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
                         // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
                         if (!player.field.spirits.some((s) => instIsCombined(s))) continue
+                    } else if ("ownBurstSet" in effect.condition) {
+                        // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
+                        if (!player.burstSet) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -3849,6 +3852,7 @@ export {
     detachBraveByEffect,
     detachBraveByOwnerChoice,
     returnCombinedBraveToHand,
+    returnCombinedBraveToDeckBottom,
     destroyCombinedBrave,
     detachBraveVoluntary,
     detachBravesOnLeave,

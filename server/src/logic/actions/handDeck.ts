@@ -1685,10 +1685,14 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // interactiveTargets時は選択式（選択者=使用者。cardZone:"trash"）
         const player = state.players[owner]
         // colors（BS09-039探偵ペンタン＝紫／BS09-043クロックダイル＝紫・黄）：
-        // トラッシュのカードが対象なのでカード静的な colors で判定する（配列＝いずれかでOR）
+        // トラッシュのカードが対象なのでカード静的な colors で判定する（配列＝いずれかでOR）。
+        // anyCardType指定時はマジック限定を外す（hasBurstと組み合わせてカード種別を問わない回収に使う。
+        // SD06-014爆烈十紋刃：「自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す」）。
+        // hasBurst指定時はkind:"burst"エントリを持つカードだけが対象
         const magicOk = (cardId: string): boolean =>
-            getCard(cardId).type === "magic" &&
+            (action.anyCardType === true || getCard(cardId).type === "magic") &&
             (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
+            (action.hasBurst !== true || getCard(cardId).effects.some((e) => e.kind === "burst")) &&
             !isTrashCardProtected(cardId)
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]

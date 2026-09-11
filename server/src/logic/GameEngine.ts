@@ -1246,6 +1246,7 @@ function resolveLifeDamage(state: GameState): void {
     //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
     const damage = Math.min(instanceSymbolCount(attacker), limit.max)
     const dealt = Math.min(damage, defender.life)
+    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt
     if (toVoid) {

@@ -850,6 +850,14 @@ export function validateActivateAbility(
             return "フラッシュタイミングではありません"
         }
     }
+    // ステップ・手番の明示（『自分のアタックステップ』等）。timing だけでは絞れないぶんをここで見る
+    if (effect.phaseTurn) {
+        if (state.phase !== effect.phaseTurn.phase) return "このステップでは発動できません"
+        const turnOk =
+            effect.phaseTurn.turn === "both" ||
+            (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
+        if (!turnOk) return "このターンでは発動できません"
+    }
     // 発動条件: self が現在のバトルの当事者
     if (effect.condition === "selfInBattle") {
         if (
