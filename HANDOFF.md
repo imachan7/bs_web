@@ -25,7 +25,43 @@
 確定した解釈32件・全バッチの器・完了時の知見は [BS13_PLAN.md](./docs/design/BS13_PLAN.md)
 （§1 と §12.3 が解釈、§6〜§12 が各色の器、§12.4 が「設計時に新規と見積もった器のうち3つは既存で足りた」）。
 
-**次の本線は下の §2 の3件。** どれも「BS13 を全部入れ終えてから」で保留していたルール適合の直しで、**いま着手できる**。
+**次の本線はバースト（下のブロック）。** その後 BS14。§2 の3件は保留のまま（いつでも着手できる）。
+
+### 進行中：バースト（2026-09-11 着手）
+
+**確定した解釈（ユーザー確認済み）** — 詳細は [BURST.md](./docs/design/BURST.md)
+
+| 論点 | 結論 |
+| :-- | :-- |
+| 発動後の行き先 | バーストエリアに**残らない**。スピリットは効果文「このスピリットカードを召喚する」で場へ、マジックはトラッシュへ |
+| 空打ち | **不可**（2026年度改定で「条件を満たしたときのみ宣言可」） |
+| 【相手の『召喚時』発揮後】 | **厳密**。相手のスピリット/ブレイヴの『召喚時』効果が実際に解決したときだけ発火 |
+| バースト効果を持たないカードのセット | **拒否**（公式は敗北。SPEC の簡略化一覧へ記録する） |
+| 同時発動 | **防御側優先**を最初から実装する |
+| 『自分のバースト発動後』 | **発動開始時点で場にいた発生源だけ**に発火（自身のバーストで召喚された直後のスピリットには発火しない） |
+
+**確定スキーマ（実装はこの形で固定。勝手に変えない）**
+
+- `EffectDef` に1件追加:
+  `{ id, kind:"burst", event: FieldEvent, subjectSide?: "own"|"opponent", action: EffectAction, thenPay?: "main"|"flash" }`
+  `thenPay` が「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」（SD06-013〜017 の共通形）
+- `FieldEvent` に3件追加:
+  `opponentSummonEffectResolved` / `ownBurstSet` / `ownBurstActivated`（eventInfo.cost＝発動したカードのコスト）
+- `EffectAction` に2件追加: `{ type:"summonBurstCardFree" }`（バースト元のカード自身をコスト無しで召喚）、
+  `{ type:"setBurstFromHand" }`（ターン1回制限を受けないセット。SD06-009）
+- コストは既存の per-action 方式に合わせる: `refreshSelf` と `bpBuff` に `costDiscardOwnBurst?: true`
+- `TargetFilter` に `hasBurst?: true`（バースト効果を持つカードに限定。SD06-014）
+- 「自分のバーストをセットしている間」の条件軸: `AuraCondition` に `"hasOwnBurstSet"`、
+  `triggered.condition` / `ConstraintDef` / `GlobalConstraintDef` に `{ ownBurstSet: true }`
+- `PlayerState`: `burst: string|null` / `burstSetThisTurn: boolean`
+- `PlayerView`: `burst: string|null`（**自分のみ。相手は必ず null**）/ `burstSet: boolean`
+- `GameAction`: `{ type:"setBurst"; handIndex: number }`
+
+**⚠️ マジックバーストは `resolveMagic` を経由させない**（`magicUsedThisTurn` と `ownMagicUsed`/`opponentMagicUsed` が誤発火する）。
+
+**⚠️ 相手のバーストが `viewFor` で漏れないテストを最優先で書く。**
+
+**段取り**: 段1〜5＝エンジン（合成カードで検証）→ 段6＝SD06 17枚投入 → 段7＝クライアント → その後 BS14（121種）。
 
 ### 済んでいること（参照先を消さないこと）
 
