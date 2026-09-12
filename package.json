@@ -25,7 +25,8 @@
     "fuzz": "tsx scripts/fuzz.ts",
     "audit:semantics": "tsx scripts/check-effect-semantics.ts",
     "audit:shared": "tsx scripts/audit-shared-actions.ts",
-    "audit:choices": "tsx scripts/audit-auto-choices.ts"
+    "audit:choices": "tsx scripts/audit-auto-choices.ts",
+    "audit:parity": "tsx scripts/audit-client-server-parity.ts"
   },
   "engines": {
     "node": ">=20"
