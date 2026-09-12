@@ -4660,6 +4660,7 @@
      2
     ],
     "subjectSide": "opponent",
+    "selfMode": "source",
     "phase": "attack",
     "action": {
      "type": "draw",
