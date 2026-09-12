@@ -49,6 +49,16 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
   --role=roles/cloudbuild.builds.builder --condition=None
 ```
 
+## 1.2 GitHub Actions はデプロイしない
+
+`.github/workflows/ci.yml` は **typecheck / カードデータ検査 / smoke / E2E を回すだけ**。
+デプロイは下の `gcloud run deploy` を手元から叩く運用（GitHub に GCP の資格情報を
+置く判断をしていないため）。自動デプロイにするなら Workload Identity Federation を
+設定して `google-github-actions/deploy-cloudrun` を足す。
+
+Azure 時代の `azure-deploy.yml` は 2026-09-12 に `ci.yml` へ改名し、
+Azure へのデプロイ手順を落とした（クレジット切れで宛先が死んでいたため）。
+
 ## 2. デプロイ（毎回これ1本）
 
 ローカルビルドは不要。**イメージの中で `npm run build:client` が走る**ので、
