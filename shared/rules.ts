@@ -2938,6 +2938,17 @@ function activatableAbilityOf(
         if (e.timing === "flashBattle" && !inBattleFlash) continue
         if (e.timing === "flash" && !inBattleFlash && !inOwnMain) continue
         if (e.timing === "main" && !inOwnMain) continue
+        // ステップ・手番の明示（『自分のアタックステップ』等）。timing だけでは絞れないぶん。
+        // **サーバーの validateActivateAbility にはこの判定があり、ここには無かった**ため、
+        // 相手のアタックステップや自分のメインステップでもボタンが出て、押すとサーバーに
+        // 拒否される状態だった（2026-09-13。SD06-005 ツインブレード・ドラゴンで発覚）
+        if (e.phaseTurn) {
+            if (board.phase !== e.phaseTurn.phase) continue
+            const turnOk =
+                e.phaseTurn.turn === "both" ||
+                (e.phaseTurn.turn === "own") === (board.turnPlayer === pid)
+            if (!turnOk) continue
+        }
         if (e.condition === "selfInBattle" && !inBattle) continue
         // 「ターンに1回」：発生源1体につきターン1回
         if (e.oncePerTurn && source.activatedUsedTurn?.[e.id] === board.turn) continue
