@@ -1130,6 +1130,19 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         state.battle = null
         return null
     }
+    // フィールドイベント誘発「スピリットがブロックを宣言したとき」（BS14-083氷結した瀑布）。
+    // 発生源の持ち主に関わらずブロッカーに作用させるため、両プレイヤーのフィールドから
+    // selfOverride（ブロッカー）付きで発火する（anySpiritAttacked と同じ作り）
+    if (blocker && !state.winner) {
+        fireFieldEventTriggers(state, pid, "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
+    }
+    if (blocker && !state.winner) {
+        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
+    }
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
     if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
     if (state.winner) {

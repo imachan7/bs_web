@@ -851,6 +851,20 @@
     }
    },
    {
+    "id": "BS14-083-e3",
+    "kind": "fieldEvent",
+    "event": "anySpiritDeclaredBlock",
+    "maxBp": 3000,
+    "phase": "attack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "endAttackStepAfterBattle"
+    }
+   },
+   {
     "id": "BS14-083-e2",
     "kind": "step",
     "step": "start",
