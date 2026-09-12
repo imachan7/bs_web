@@ -18,6 +18,7 @@ env:
 
 permissions:
   contents: read
+  id-token: write # Workload Identity Federation で GCP に認証するための OIDC トークン
 
 # 同じブランチの古い実行は捨てる（デプロイしないので途中で止めて困らない）
 concurrency:
@@ -69,3 +70,59 @@ jobs:
           done
           PORT=3100 npx tsx scripts/e2e.ts
           kill $SERVER_PID
+
+  # main への push でのみ本番へ出す（PR では動かさない）。verify が通ってからしか走らない。
+  # 認証は Workload Identity Federation＝**鍵ファイルを GitHub に置かない**方式。
+  # サービスアカウントのJSONキーは漏れると永続的に悪用されるため使わない。
+  # 借りられるのは imachan7/bs_web からのみ（プロバイダの attribute-condition で縛ってある）。
+  # 手動で出したいときは Actions 画面から workflow_dispatch で実行する。
+  # フラグの意味は docs/ops/DEPLOY_CLOUDRUN.md §2（消すと本番が壊れる。特に --max-instances=1）
+  deploy:
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # 同時に2つデプロイしない。実行中のものは中断しない（本番が不整合になるため後続を待たせる）
+    concurrency:
+      group: deploy-cloudrun
+      cancel-in-progress: false
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v5
+
+      - name: GCP に認証（Workload Identity Federation）
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: gcloud をセットアップ
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cloud Run へデプロイ
+        run: |
+          gcloud run deploy bs-web \
+            --source . \
+            --project=bs-web-imachan \
+            --region asia-northeast1 \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=1 \
+            --cpu=1 \
+            --memory=512Mi \
+            --cpu-boost \
+            --timeout=3600 \
+            --concurrency=80 \
+            --quiet
+
+      - name: デプロイ後のヘルスチェック
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs "https://bs-web-battle.app/health" > /dev/null; then
+              echo "本番の /health が応答しました"
+              exit 0
+            fi
+            echo "起動待ち... ($i/30)"
+            sleep 10
+          done
+          echo "::error::デプロイ後に /health が応答しませんでした"
+          exit 1
