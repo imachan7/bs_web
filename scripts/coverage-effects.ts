@@ -1471,11 +1471,9 @@ process.on("exit", () => {
         // coreReturnBonus（BS02チャウーLv2）：リザーブへ戻るコアに実際に加算した時点
         patch(
             path.join(tree, "server/src/logic/removal.ts"),
-            `                if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
+            `                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 bonus += e.amount`,
-            `                if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
+            `                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 __covRecord("cont\\t" + String((e as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                 bonus += e.amount`,
         )

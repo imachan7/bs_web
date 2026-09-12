@@ -682,6 +682,14 @@ const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> =
     log(state, `${sourceName}：このターンの間、${state.players[pid].name}のスピリットの【装甲】は働かない。`)
 }
 
+// このターンの**最初の**【不死】召喚だけコストを0にする（BS14-098ダークリボーン）。
+// 維持コアは通常どおり要る。使い切りなので applyFushiSummon 側で制約を取り除く
+const freeFushiSummonThisTurnHandler: ActionHandler<"freeFushiSummonThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "freeFushiSummonForPid", pid: owner })
+    log(state, `${sourceName}：このターン最初の【不死】の召喚はコストを支払わない。`)
+}
+
 // このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
 // 「減るか／減らないか」ではなく**値**で持つので、今後の同種の効果（〇しか減らない）もここに集まる
 const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ctx, action) => {
@@ -1447,6 +1455,7 @@ const handlers = {
     opponentNexusEffectsDisabledThisTurn: opponentNexusEffectsDisabledThisTurnHandler,
     lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
+    freeFushiSummonThisTurn: freeFushiSummonThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,

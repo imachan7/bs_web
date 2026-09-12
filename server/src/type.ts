@@ -1203,6 +1203,7 @@ export interface GameState {
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
     currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[] }
+    resolvingBurstPid?: PlayerId // バースト効果を解決している間だけ、その持ち主を載せる（coreReturnBonus.ownBurstOnly が読む。BS14-019シュテン・ドーガ）
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
@@ -1287,6 +1288,7 @@ export type TurnConstraintDef =
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）
     | { type: "mustAttackByInstance"; pid: PlayerId; instanceId: string } // このターンの間、pidの指定インスタンスは可能ならば必ずアタックする（action:"forceAttackThisTurn"のcount版が積む。BS08獣機合神セイ・ドリガン）
     | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない
+    | { type: "freeFushiSummonForPid"; pid: PlayerId } // このターンの**最初の**【不死】召喚だけコストが0になる（維持コアは通常どおり要る）。applyFushiSummon が使ったら自分でこの制約を取り除く（BS14-098ダークリボーン）
     // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
     //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）
     | { type: "lifeDamageMaxForPid"; max: number; pid: PlayerId } // このターンの間、この pid のライフは1回のアタックで max 個までしか減らない（0 なら減らない）。

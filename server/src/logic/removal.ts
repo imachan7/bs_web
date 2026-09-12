@@ -1120,6 +1120,13 @@ function destroyedFamiliesOf(inst: CardInstance): string[] {
     return getCard(inst.cardId).family
 }
 
+// 【不死】召喚で実際に払うコスト。このターン最初の1回だけ0になる制約があれば0
+// （BS14-098ダークリボーン。維持コアはここに含まない＝通常どおり要る）
+function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): number {
+    if (state.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === ownerPid)) return 0
+    return effectiveCost(state, ownerPid, card)
+}
+
 export function fushiCandidates(
     state: GameState,
     ownerPid: PlayerId,
@@ -1144,7 +1151,7 @@ export function fushiCandidates(
             return families.some((f) => destroyedFamilies.includes(f))
         })
         if (!hit) continue
-        if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
+        if (player.reserve < fushiCostOf(state, ownerPid, card) + minLevelCores(card)) continue
         found.push(i)
     }
     return found
@@ -1157,7 +1164,7 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     suspend(state, {
         pid: ownerPid,
         kind: "option",
-        prompt: `${card.name}：【不死】でトラッシュからコスト${String(effectiveCost(state, ownerPid, card))}を支払って召喚しますか？`,
+        prompt: `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
         candidates: [],
         options: ["召喚する"],
         optional: true,
@@ -1193,13 +1200,16 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = effectiveCost(state, info.pid, card)
+    const cost = fushiCostOf(state, info.pid, card)
     const maintain = minLevelCores(card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
+    // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
+    const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
+    if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
     // 召喚コストはリザーブからトラッシュへ、維持コアはリザーブからスピリットの上へ（通常の召喚と同じ）
     player.reserve -= cost
     player.trashCores += cost
@@ -2407,7 +2417,7 @@ export function removeCores(
     const player = state.players[ownerPid]
     // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
     // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
-    const bonus = coreReturnBonusFor(state)
+    const bonus = coreReturnBonusFor(state, ownerPid)
     if (bonus > 0 && inst.cores > count) {
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
@@ -2457,8 +2467,13 @@ export function removeCoresToTrash(
         return 0
     }
     const player = state.players[ownerPid]
+    // coreReturnBonus の includeTrash 版（BS14-019シュテン・ドーガ）：トラッシュ行きにも加算する
+    const bonus = coreReturnBonusFor(state, ownerPid, true)
+    if (bonus > 0 && inst.cores > count) {
+        log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
+    }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -2545,7 +2560,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
 // 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。
 // 効果文が「お互いのスピリット上に置かれたコアが」と陣営を限定していないため、**両陣営の発生源**を見る。
 // 走査は effectSources 経由＝このターンだけの仮想発生源（マジックが貸した継続効果）も含む
-function coreReturnBonusFor(state: GameState): number {
+// targetOwnerPid＝コアを取り除かれるスピリットの持ち主。toTrash＝行き先がトラッシュか（既定はリザーブ）
+function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash = false): number {
     let bonus = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(state, pid)) {
@@ -2553,6 +2569,12 @@ function coreReturnBonusFor(state: GameState): number {
             for (const e of getCard(source.cardId).effects) {
                 if (e.kind !== "coreReturnBonus") continue
                 if (!effectActiveAtLevel(e.levels, level)) continue
+                // 既定はリザーブ行きだけ。includeTrash 指定時はトラッシュ行きにも効く（BS14-019）
+                if (toTrash && !e.includeTrash) continue
+                // targetSide:"opponent"＝発生源の持ち主から見た相手のスピリットから取り除くときだけ
+                if (e.targetSide === "opponent" && targetOwnerPid === pid) continue
+                // ownBurstOnly＝発生源の持ち主のバースト効果を解決している間だけ
+                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 bonus += e.amount
             }
         }

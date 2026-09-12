@@ -1751,7 +1751,10 @@ function doResolveChoice(
                     // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
+                    // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
+                    state.resolvingBurstPid = info.pid
                     resolveAction(state, actor, self, pending.action, info.destroyedCardId)
+                    delete state.resolvingBurstPid
                     if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
                     if (!state.pendingChoice) {
                         finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay, info.toHand ? { toHand: true } : undefined)

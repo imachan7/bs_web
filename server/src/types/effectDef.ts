@@ -700,6 +700,9 @@ export type EffectDef =
           // （coreBonus の逆向き。removeCores＝リザーブ行きの経路だけが見る。トラッシュ／ボイド行きには効かない。BS02チャウーLv2）
           levels: number[] | null
           amount: number
+          targetSide?: "opponent" // 発生源の持ち主から見た相手のスピリットから取り除くときだけ効く（無指定＝両陣営。BS14-019シュテン・ドーガ）
+          includeTrash?: true // リザーブ行き（removeCores）に加えてトラッシュ行き（removeCoresToTrash）にも効かせる（BS14-019）
+          ownBurstOnly?: true // 発生源の持ち主の**バースト効果**を解決している間だけ効く（GameState.resolvingBurstPid で判定。BS14-019）
       }
     | {
           id: string

@@ -1550,7 +1550,10 @@ export function fireFieldEventTriggers(
             return
         }
         const before = fieldInstanceIdsOf(state, holderPid)
+        // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
+        state.resolvingBurstPid = holderPid
         resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId)
+        delete state.resolvingBurstPid
         if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
         finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
         if (state.pendingChoice) return
