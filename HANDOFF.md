@@ -21,39 +21,32 @@
 
 ## 1. いまの本線と次の一手
 
-**BS13「星座編 第四弾：星空の王者」97枚は全枚数投入済み（2026-09-10。青バッチ＝smoke part306 / part307）。**
-確定した解釈32件・全バッチの器・完了時の知見は [BS13_PLAN.md](./docs/design/BS13_PLAN.md)
-（§1 と §12.3 が解釈、§6〜§12 が各色の器、§12.4 が「設計時に新規と見積もった器のうち3つは既存で足りた」）。
+**本線は BS14「覇王編 第1弾：英雄龍の伝説」121種**（`SD06-007` は SD06 と重複するので取り込まない）。
+作業場所は**ワークツリー `.claude/worktrees/feat-burst`**（ブランチ `worktree-feat-burst`）。
 
-**次の本線はバースト（下のブロック）。** その後 BS14。§2 の3件は保留のまま（いつでも着手できる）。
+| 色 | 状態 |
+| :-- | :-- |
+| 赤21 / 紫20 / 緑20 | **完了・コミット済み**（`63ccaaf`。smoke part313/314/315） |
+| 白20 / 黄20 / 青20 | **2026-09-12 に3体並列で実装中**（smoke part316/317/318、`data/cards/BS14-<色>.json`） |
 
-### 進行中：バースト（2026-09-11 着手 → 2026-09-12 に段1〜7＋SD06 完了）
+**3色そろったら**: `npx tsx scripts/merge-bs14.ts` で `data/cards/BS14.json` に結合し色別ファイルを消す
+→ 定型検証1回 → `npm run gaps:update` → `npm run coverage:effects` と `npm run audit:choices`。
+確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1（**白黄青の6件は 2026-09-12 に追記済み**）、
+バーストの確定スキーマは同 §2。
 
-**確定した解釈・確定スキーマは [BURST.md](./docs/design/BURST.md) §1 の「確定した解釈」へ移した。**
-smoke は part308（基盤・非公開マスク）／part309（SD06 17種）／part310（`activated.phaseTurn`）。
-
-**『』カテゴリの棚卸しは完了**（2026-09-12。一般則は [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §3.17、
-`validate:cards` の『』一致検査が常時ゼロを維持する）。
-
-### 進行中：BS14「覇王編 第1弾：英雄龍の伝説」（2026-09-12 着手）
-
-**確定した解釈・確定スキーマ・バッチ分割は [BS14_PLAN.md](./docs/design/BS14_PLAN.md)。**
-**121種**（staging は122件だが `SD06-007` は SD06 と重複するので取り込まない）。
-
-**先に engine 層を入れる**（バーストの `byOpponentEffectOnly` / `condition` / `destroyedColorFilter` と
-キーワード2つ）。その後、色ごとに `data/staging/BS14-<色>.json` へ書かせて、メインループが結合して
-`data/cards/BS14.json` を作る（**同じ JSON を並行で書かせない**）。
+**⚠️ この worktree には `feat/cloudrun` を取り込み済み**（`20449ad`）。`server/src/type.ts` は
+`types/effectAction.ts` / `types/effectDef.ts` に3分割してある。**型を足すときは置き場を間違えないこと**
+（対応表は CLAUDE.md「設計ドキュメント」と SPEC.md §3）。
 
 ### 済んでいること（参照先を消さないこと）
 
 BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚数投入済み。
 **BS12 で確定した解釈18件と全バッチの器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §1 と §5〜§8。**
+**BS13 の解釈32件と各色の器は [BS13_PLAN.md](./docs/design/BS13_PLAN.md) §1・§12.3・§6〜§12。**
 **「支払った」の判定規則は [COST_MODEL.md](./docs/design/COST_MODEL.md) §8**（smoke part295 / part296）。
 ブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9、確定した規則は §12.5.1〜§12.5.5）。
 **宣言そのものに追加コストが要る効果の作り方は [INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) パターンE**。
 
-**未実装の節は全弾でゼロ**（BS02-063 は禁止カードのため対象外）で、`card-notes.json` の
-`simplified` も0件（残るは BS02-063 の `partial` 1件だけ＝実装しない方針）。
 残課題は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md)（検証の穴80件＋計測点の無い kind 10種）。
 
 ---
@@ -88,5 +81,8 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 - **`createGame(seed, …)` の seed は名前だけで、シャッフルは `Math.random()`**（`GameState.ts` の `shuffle`）。
   **デッキの中身に依存するテストは間欠的に落ちる。** 必要なカードは自分で山札の先頭へ置くこと。
   smoke が1〜2件落ちたら、まず**同じコマンドを再実行**して再現するか見る
+- **`assert` は失敗しても例外を投げず、smoke パートの末尾の成功バナーはそのまま出る。**
+  合否は必ず `npx tsx scripts/smoke/partN.ts 2>&1 | grep -c "❌"` が0であることで見ること。
+  `tail -3` でバナーを見て「通った」と判断すると、実際の失敗を見落とす（2026-09-12 に実際に踏んだ）
 - **再開スタックは `act()` の解決ループでしか消化されない。** 束を積むだけでは `pendingChoice` が立たず、
   呼び出し元からは「何も起きなかった」ように見えて誘発が放置される
