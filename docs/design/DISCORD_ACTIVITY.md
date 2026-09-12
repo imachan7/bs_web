@@ -23,7 +23,7 @@ Discord は全通信を `<client_id>.discordsays.com` のプロキシ経由に�
 | fetch は同一オリジンのみ | `/api/cards` `/api/changelog` `/data/card-notes.json` すべて相対パス | ✅ そのまま |
 | WebSocket のみ可（WebRTC / WebTransport 不可） | socket.io。Azure B1 で WebSocket 有効済み | ✅ そのまま |
 | iframe 埋め込み可 | helmet 等を入れていないので `X-Frame-Options` 無し | ✅ そのまま |
-| HTTPS 必須 | `https://bs-web-910728969072.asia-northeast1.run.app`（[DEPLOY_CLOUDRUN.md](../ops/DEPLOY_CLOUDRUN.md)） | ✅ そのまま |
+| HTTPS 必須 | `https://bs-web-battle.app`（[DEPLOY_CLOUDRUN.md](../ops/DEPLOY_CLOUDRUN.md)） | ✅ そのまま |
 
 **この表を壊す変更に注意する。** 外部CDNからライブラリを読む・カード画像を外部ホストに置く・
 helmet を入れる、のどれかをやった時点で Activity 側が黙って壊れる。
@@ -97,7 +97,7 @@ Cloud Run が返す `*.run.app` が安定ドメインなので追加作業ゼロ
 
 | 段 | 内容 | 規模 |
 | :-- | :-- | :-- |
-| **0. スパイク** | Portal でアプリ作成 → Activities 有効化 → URL Mapping `/` → `bs-web-910728969072.asia-northeast1.run.app`。SDK を入れて `index.html` をそのまま iframe で開き、**socket.io が繋がるか**だけ確認（§3.4 の分岐を確定させる） | 半日。技術リスクはここでほぼ消える |
+| **0. スパイク** | Portal でアプリ作成 → Activities 有効化 → URL Mapping `/` → `bs-web-battle.app`。SDK を入れて `index.html` をそのまま iframe で開き、**socket.io が繋がるか**だけ確認（§3.4 の分岐を確定させる） | 半日。技術リスクはここでほぼ消える |
 | **1. Discord モード** | `public/src/discord.ts` を新規1本（SDK 初期化・authorize・instanceId 取得）、`main.ts` のロビーを「Discord 内なら名前とルームIDを自動で埋めて即 join」に分岐。サーバーに `/api/discord/token` を追加 | 1〜2日・3〜4ファイル |
 | **2. 3人目の扱い** | §3.2 の A 案 | 半日 |
 | **3. 画面調整** | iframe サイズでの盤面確認、必要なら CSS 微調整 | 実機次第 |
