@@ -2932,48 +2932,87 @@ const returnOwnSpiritToHandHandler: ActionHandler<"returnOwnSpiritToHand"> = (ct
 
 // BS14-X04氷の覇王ミブロック・バラガンLv2-3：「自分のスピリット1体を手札に戻すことで、
 // コスト合計(戻したスピリットのコスト)まで、相手のスピリットを好きなだけ手札に戻す」。
-// コストにする自分のスピリットは実効コスト最大の1体を自動選択（予算を最大化する決定的簡略化）。
-// 予算内の相手スピリット選択は recoverSpiritFromTrash.costBudget と同じ貪欲（コスト最大から順に）
+// コストにする自分のスピリットも、戻す相手のスピリットも**対戦者が選ぶ**。
+// 残り予算を action.budget に載せて1体ずつ再入する（INTERRUPTION_POINTS.md パターンB）。
+// 非対話時（interactiveTargets無効）は従来どおり貪欲（コスト最大から順に）で自動選択する
 const returnToHandCostBudgetHandler: ActionHandler<"returnToHandCostBudget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType } = ctx
-    const ownField = state.players[owner].field.spirits
-    if (ownField.length === 0) {
-        log(state, `${sourceName}：コストにできる自分のスピリットがいなかった。`)
-        return
-    }
-    let payer = ownField[0]!
-    for (const s of ownField) {
-        if (getCard(s.cardId).cost > getCard(payer.cardId).cost) payer = s
-    }
-    const budget = getCard(payer.cardId).cost
-    returnSpiritToHand(state, owner, payer, sourceName)
-    if (state.winner) return
-    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce")
-    let remaining = budget
-    const returned: string[] = []
-    for (;;) {
-        let best: CardInstance | undefined
-        let bestCost = -1
-        for (const s of candidates) {
-            if (returned.includes(s.instanceId)) continue
-            if (!state.players[opp].field.spirits.some((f) => f.instanceId === s.instanceId)) continue
-            const cost = getCard(s.cardId).cost
-            if (cost <= remaining && cost > bestCost) {
-                best = s
-                bestCost = cost
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+
+    // 段階1：コストにする自分のスピリットを決める（budget 未設定のとき）
+    if (action.budget === undefined) {
+        const ownField = state.players[owner].field.spirits
+        if (ownField.length === 0) {
+            log(state, `${sourceName}：コストにできる自分のスピリットがいなかった。`)
+            return
+        }
+        const chosen = targetInstanceId !== undefined ? ownField.find((s) => s.instanceId === targetInstanceId) : undefined
+        if (!chosen) {
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
+                    ownField,
+                    action,
+                    null,
+                )
+            ) {
+                return
             }
         }
-        if (!best) break
+        // 非対話・候補1体：コスト最大を選ぶ（予算が最大になる）
+        let payer = chosen ?? ownField[0]!
+        if (!chosen) {
+            for (const s of ownField) {
+                if (getCard(s.cardId).cost > getCard(payer.cardId).cost) payer = s
+            }
+        }
+        const budget = getCard(payer.cardId).cost
+        returnSpiritToHand(state, owner, payer, sourceName)
+        if (state.winner) return
+        log(state, `${sourceName}：コスト合計${budget}まで、相手のスピリットを手札に戻せる。`)
+        ctx.resolve({ ...action, budget })
+        return
+    }
+
+    // 段階2：予算内で相手のスピリットを1体ずつ戻す（対戦者が選ぶ）
+    const remaining = action.budget
+    if (remaining <= 0) return
+    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce").filter(
+        (s) => getCard(s.cardId).cost <= remaining,
+    )
+    if (candidates.length === 0) return
+
+    const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined
+    if (!picked) {
+        // optional：予算が残っていても「もう戻さない」を選べる（「好きなだけ」なので0体でよい）
+        if (state.interactiveTargets && candidates.length >= 2) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：手札に戻す相手のスピリットを選んでください（残りコスト${remaining}）`,
+                candidates.map((s) => s.instanceId),
+                true,
+                action,
+                self,
+            )
+            return
+        }
+        // 非対話／候補1体：貪欲（コスト最大）で1体戻して再入する
+        let best = candidates[0]!
+        for (const s of candidates) {
+            if (getCard(s.cardId).cost > getCard(best.cardId).cost) best = s
+        }
         returnSpiritToHand(state, opp, best, sourceName)
         if (state.winner) return
-        remaining -= bestCost
-        returned.push(best.instanceId)
+        ctx.resolve({ ...action, budget: remaining - getCard(best.cardId).cost })
+        return
     }
-    if (returned.length === 0) {
-        log(state, `${sourceName}：コスト合計${budget}まで、相手のスピリットを手札に戻せなかった。`)
-    } else {
-        log(state, `${sourceName}：コスト合計${budget}まで、相手のスピリット${returned.length}体を手札に戻した。`)
-    }
+
+    returnSpiritToHand(state, opp, picked, sourceName)
+    if (state.winner) return
+    ctx.resolve({ ...action, budget: remaining - getCard(picked.cardId).cost })
 }
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {

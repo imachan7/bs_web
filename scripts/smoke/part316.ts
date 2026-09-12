@@ -335,6 +335,29 @@ console.log("=== BS14-X04 氷の覇王ミブロック・バラガン：バース
     assert(s3.players.p1.field.spirits.some((sp) => sp.instanceId === bulk.instanceId), "発生源自身はコストで劣るため選ばれない")
     assert(!s3.players.p2.field.spirits.some((sp) => sp.instanceId === cheapEnemy.instanceId), "予算(コスト8)内の相手のコスト0スピリットは手札へ戻る")
     assert(s3.players.p2.hand.length === handBefore + 1, "コスト合計まで相手のスピリットを好きなだけ手札に戻す")
+
+    // 対話モードでは、コストにする自分のスピリットも戻す相手のスピリットも対戦者が選ぶ
+    // （自動選択にしない。INTERRUPTION_POINTS.md パターンB＝残り予算を載せて再入する）
+    const s4 = game("t316-x04d")
+    s4.interactiveTargets = true
+    const src4 = put(s4, "p1", "BS14-X04", 1)
+    const own4a = put(s4, "p1", "BS14-044", 5)
+    const own4b = put(s4, "p1", "BS01-002", 1) // コスト1（コスト8の own4a より小さい）
+    put(s4, "p2", "SD01-001", 1) // コスト0
+    put(s4, "p2", "BS01-001", 1) // コスト0（予算1で2体とも候補に入る）
+    resolveAction(s4, "p1", src4, { type: "returnToHandCostBudget" })
+    assert(s4.pendingChoice !== null, "コストにする自分のスピリットを対戦者に選ばせる")
+    assert(
+        s4.pendingChoice?.candidates.includes(own4a.instanceId) === true &&
+            s4.pendingChoice?.candidates.includes(own4b.instanceId) === true,
+        "自分のスピリットが両方とも候補に出る（コスト最大を勝手に選ばない）",
+    )
+    assert(act(s4, "p1", { type: "resolveChoice", instanceId: own4b.instanceId }) === null, "コストの小さい方を選べる")
+    assert(
+        !s4.players.p1.field.spirits.some((sp) => sp.instanceId === own4b.instanceId),
+        "選んだ自分のスピリットが手札へ戻る",
+    )
+    assert(s4.pendingChoice !== null, "続けて、戻す相手のスピリットも対戦者が選ぶ")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part316）")
