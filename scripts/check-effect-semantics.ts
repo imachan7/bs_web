@@ -458,6 +458,15 @@ function collectNumbers(effects: Record<string, unknown>[]): Set<number> {
 // 一致する側と selfOverride 無しの側は、印が無くても主体が入れ替わらないので対象外にする。
 const SELF_SWAP_EVENTS = new Set(["ownBofuExhausted", "anySpiritExhausted", "anySpiritAttacked"])
 
+// S6 で「読んで問題なしと確認した」もの。**理由を必ず添える**（次に見る人が再検証しないため）。
+// 機械的な等価表現に落とせないものだけをここに書く（落とせるなら hasSubjectFixedEvidence へ）
+const S6_VERIFIED: Record<string, string> = {
+    // 効果文の主語が「**相手は**、相手のスピリットのコア1個を相手のリザーブに置く」なので、
+    // 実行者が相手になるのが正しい。chooserIsTarget を書かない実装（coreRemove は実行者側の
+    // 場を操作する）でも actionPid が相手で正解なので、主体の固定は不要
+    "BS11-063-e1": "効果文の主語が「相手は」＝相手が実行者で正しい（2026-09-13 確認）",
+}
+
 // 主体を発生源側に固定する印。どれか1つあればよい
 // - selfMode:"source" … self を発生源自身に差し替える（明示的な固定）
 // - ownOnly / subjectSide:"own" … selfOverride.pid !== pid の回を発火させない
@@ -477,6 +486,17 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         // アタック/疲労したスピリット自身が対象で固定されている
         // （魔帝の墓標／魔力満ちる泉／藍紫の虚空／魔帝の寝所）
         if (a.type === "coreToTrashSelf") return true
+        // 等価表現4（2026-09-13 に S6 を全12件仕分けて追加）：
+        // **イベント対象そのものに作用する／実行者に依存しない action** は、
+        // 主体がどちらでも結果が変わらないので対象外にする。
+        //   destroySelf              … アタックしたスピリット自身を破壊する
+        //                              （BS13-006 炎獣ファイオリック／BS13-061 戴冠する活火山／BS13-063 血塗られた魔具）
+        //   setBattleBpFixed         … そのバトルの間、アタックしたスピリット自身のBPを固定する
+        //                              （BS12-037 オリンピアの天使ベトール）
+        //   endAttackStepAfterBattle … アタックステップの終了はプレイヤーに紐づかない
+        //                              （BS13-059 フォビッド・バルチャー／BS14-083 氷結した瀑布）
+        if (a.type === "destroySelf" || a.type === "setBattleBpFixed" || a.type === "endAttackStepAfterBattle") return true
+
     }
     // 等価表現3: anySpiritAttacked に turn:"own" がある＝自分のターンのアタックに限られる。
     // 自分のターンにアタックするのは自分のスピリットだけなので selfOverride.pid は必ず発生源側になる
@@ -794,6 +814,8 @@ for (const card of cards) {
             const event = typeof eff.event === "string" ? eff.event : ""
             if (!SELF_SWAP_EVENTS.has(event)) continue
             if (hasSubjectFixedEvidence(eff)) continue
+            // 読んで問題なしと判定済みのものは出さない（理由は S6_VERIFIED に書いてある）
+            if (typeof eff.id === "string" && S6_VERIFIED[eff.id] !== undefined) continue
             gaps.push({
                 axis: "S6",
                 cardId: card.cardId,
