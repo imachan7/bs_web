@@ -18,7 +18,7 @@ import {
     returnSpiritToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -125,6 +125,25 @@ const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThis
             { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
         ]
         log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+        return
+}
+
+// BS14-032ヤツノカンゾウLv2：指定キーワードを持つ自分のスピリットすべてに、このターンの間だけ
+// 誘発効果を直接付与する（grantEffectToTargetThisTurnの全体版）
+const grantEffectToAllByKeywordThisTurnHandler: ActionHandler<"grantEffectToAllByKeywordThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        const targets = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, action.keyword))
+        if (targets.length === 0) {
+            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットがいなかった。`)
+            return
+        }
+        for (const target of targets) {
+            target.tempGrantedTriggers = [
+                ...(target.tempGrantedTriggers ?? []),
+                { trigger: action.trigger, action: action.action },
+            ]
+        }
+        log(state, `${sourceName}：このターンの間、【${KEYWORDS[action.keyword].label}】を持つ自分のスピリットすべてに効果を付与した。`)
         return
 }
 
@@ -910,7 +929,36 @@ const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsTh
 }
 
 const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        // singleTarget（BS14-101仁王壁）：colorFilter一致の自分のスピリット1体を指定してから付与する
+        if (action.singleTarget) {
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => action.colorFilter === undefined || instHasColor(s, action.colorFilter),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：疲労状態でブロックできるようにするスピリットを選んでください`,
+                    candidates,
+                    action,
+                    null,
+                )
+            ) {
+                return
+            }
+            const target =
+                (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
+                candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+            state.turnConstraints.push({ type: "canBlockWhileRestedThisTurn", pid: owner, instanceId: target.instanceId })
+            log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}は疲労状態でもブロックできる。`)
+            return
+        }
         state.turnConstraints.push({
             type: "canBlockWhileRestedThisTurn",
             pid: owner,
@@ -1352,6 +1400,7 @@ const handlers = {
     treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeyword: grantKeywordHandler,
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
+    grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,

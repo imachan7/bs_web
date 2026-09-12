@@ -39,6 +39,7 @@ import {
     removeCoresToVoid,
     tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
+    requestActivationConfirm,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
 import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
@@ -1485,9 +1486,20 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
         const typeOk = (cardId: string): boolean => {
             if (action.anyCardType) return true // BS12-X02：「紫のカード」＝種別を問わない
+            // bravesAnyOrSpiritColorFilter（BS14-092烈光閃刃：「ブレイヴカード1枚か、赤のスピリットカード1枚」）：
+            // OR判定なのでtypeOkは通し、braveOrColorOkのほうで絞る
+            if (action.bravesAnyOrSpiritColorFilter !== undefined) return true
             const t = getCard(cardId).type
             if (action.bravesOnly) return t === "brave"
             return t === "spirit" || (action.includeBraves === true && t === "brave")
+        }
+        // bravesAnyOrSpiritColorFilter：ブレイヴカード（色問わず）OR 指定色のスピリットカード。
+        // typeOk側でスピリット/ブレイヴ以外（ネクサス/マジック）は素通りしてしまうため、ここで種別自体も見る
+        const braveOrColorOk = (cardId: string): boolean => {
+            if (action.bravesAnyOrSpiritColorFilter === undefined) return true
+            const card = getCard(cardId)
+            if (card.type === "brave") return true
+            return card.type === "spirit" && card.colors.includes(action.bravesAnyOrSpiritColorFilter)
         }
         // vanillaFilter（BS10-082六分儀天文台：「効果の記述を持たないスピリットカード」）：
         // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
@@ -1503,9 +1515,15 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
                 (action.costFilter.min === undefined || cost >= action.costFilter.min)
             )
         }
+        // costAtMostOrHasBurst（BS14-005ヒノシシ：「コスト4以下のスピリットカード1枚か、バースト効果を持つスピリットカード1枚」）：
+        // コスト条件とバースト所持のOR判定
+        const costOrBurstOk = (cardId: string): boolean =>
+            action.costAtMostOrHasBurst === undefined ||
+            getCard(cardId).cost <= action.costAtMostOrHasBurst ||
+            getCard(cardId).effects.some((e) => e.kind === "burst")
         const isRecoverable = (cardId: string): boolean =>
-            typeOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
-            costOk(cardId) && !isTrashCardProtected(cardId)
+            typeOk(cardId) && braveOrColorOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
+            costOk(cardId) && costOrBurstOk(cardId) && !isTrashCardProtected(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -2448,6 +2466,48 @@ const revealTopSummonFreeByFamilyHandler: ActionHandler<"revealTopSummonFreeByFa
     summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
 }
 
+// BS14-081神樹の切り株都市：デッキから取り除かず先にオープンし、対象でない／召喚しないときは
+// 何もしない（＝取り除いていないのでそのままデッキの上に残る）
+const revealTopSummonFreeOrReturnToDeckHandler: ActionHandler<"revealTopSummonFreeOrReturnToDeck"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    const player = state.players[owner]
+    const top = player.deck[0]
+    if (top === undefined) {
+        log(state, `${sourceName}：デッキが0枚のため何も起きなかった。`)
+        return
+    }
+    const cardData = getCard(top)
+    // 確認から戻ってきた（yes）：ここで初めてデッキから取り除いて召喚する
+    if (action.confirmed) {
+        player.deck.shift()
+        player.trashCards.push(top)
+        summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+        return
+    }
+    const eligible =
+        (action.cardType === undefined || cardData.type === action.cardType) &&
+        (action.colorFilter === undefined || cardHasColor(cardData, action.colorFilter))
+    log(state, `${sourceName}：デッキの上から${cardData.name}をオープンした。`)
+    if (!eligible) {
+        log(state, `${sourceName}：${cardData.name}は対象ではなかったため、デッキの上に残した。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestActivationConfirm(
+            state,
+            owner,
+            `${sourceName}：${cardData.name}をコストを支払わずに召喚しますか？（召喚しない場合はデッキの上に残ります）`,
+            { ...action, confirmed: true },
+            self,
+        )
+        return
+    }
+    // 非対話は召喚する側に倒す
+    player.deck.shift()
+    player.trashCards.push(top)
+    summonFreeFromTrashIndex(state, owner, sourceName, player.trashCards.length - 1)
+}
+
 const revealTopCastMagicFreeOrHandHandler: ActionHandler<"revealTopCastMagicFreeOrHand"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
     const player = state.players[owner]
@@ -3211,6 +3271,41 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
         return
 }
 
+// BS14-032ヤツノカンゾウLv2が付与する誘発効果の本体：このバトル中に**self自身の【暴風】の効果で**
+// 疲労させた相手のスピリットすべてを手札に戻す（returnBofuExhaustedToDeckBottomと違い、
+// 発生源をselfに絞り込み・順番選択は行わない＝効果文に「好きな順番で」の記載が無いため）
+const returnBofuExhaustedToHandHandler: ActionHandler<"returnBofuExhaustedToHand"> = (ctx) => {
+    const { state, self, sourceName } = ctx
+        if (!self) {
+            log(state, `${sourceName}：発生源がいなかった。`)
+            return
+        }
+        const records = state.bofuExhaustedThisBattle.filter((r) => r.bofuSourceInstanceId === self.instanceId)
+        if (records.length === 0) {
+            log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
+            return
+        }
+        const ids: string[] = []
+        let returned = 0
+        for (const rec of records) {
+            const found = findSpiritAny(state, rec.instanceId)
+            if (!found) continue
+            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "area"))
+            if (resisted) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                continue
+            }
+            markBounce(state, found.pid, found.inst, "hand", sourceName)
+            ids.push(found.inst.instanceId)
+            returned += 1
+        }
+        flushBounces(state, ids)
+        if (returned === 0) {
+            log(state, `${sourceName}：手札に戻せるスピリットがいなかった。`)
+        }
+        return
+}
+
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ぶんの処理を count 回繰り返す。
@@ -3676,6 +3771,7 @@ const handlers = {
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     revealTopSummonFreeOrHand: revealTopSummonFreeOrHandHandler,
+    revealTopSummonFreeOrReturnToDeck: revealTopSummonFreeOrReturnToDeckHandler,
     revealTopSummonFreeByFamily: revealTopSummonFreeByFamilyHandler,
     revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
@@ -3689,6 +3785,7 @@ const handlers = {
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
+    returnBofuExhaustedToHand: returnBofuExhaustedToHandHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
     costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
     handToOwnDeckTop: handToOwnDeckTopHandler,

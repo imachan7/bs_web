@@ -1232,6 +1232,10 @@ export function countAuraCounter(
     if (counter === "ownExhausted") {
         return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => s.isRested, countingSourceType)
     }
+    if (counter === "opponentSpirits") {
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return countSpiritsWeighted(board, sourcePid, opp, () => true, countingSourceType)
+    }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
@@ -1280,6 +1284,10 @@ export function checkAuraCondition(
     // "hasOwnBurstSet"：自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）。
     // 文字列リテラル判定は "in" 演算子より前に置く（プリミティブに in を使うと例外になる）
     if (condition === "hasOwnBurstSet") return player.burstSet
+    // { ownTrashOnlyColor: Color }：自分のトラッシュにあるカードがこの色だけの間（トラッシュ0枚は空虚な真で成立。BS14-003スカートゥース）
+    if ("ownTrashOnlyColor" in condition) {
+        return player.trashCards.every((cardId) => card(cardId).colors.includes(condition.ownTrashOnlyColor))
+    }
     if ("hasOwnColor" in condition) {
         // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
         // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
@@ -1496,6 +1504,8 @@ export function effectiveBp(
                 if (effect.kind !== "aura" || effect.aura.type !== "bp") continue
                 // 【合体時】：発生源が合体しているときだけ発揮する
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md。BS14-019シュテン・ドーガLv2）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 // lentOnly：仮想発生源（マジックが lendSelfThisTurn で貸した効果）からのみ有効。
                 // 実在するスピリット/ネクサスがたまたま同じ効果エントリを持っていても恒久化させない
                 if (effect.aura.lentOnly && !isVirtualSource(source)) continue
@@ -2425,6 +2435,7 @@ export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstan
 export function canBlockWhileRestedThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
     return board.turnConstraints.some((c) => {
         if (c.type !== "canBlockWhileRestedThisTurn" || c.pid !== pid) return false
+        if (c.instanceId !== undefined) return c.instanceId === inst.instanceId
         if (c.familyFilter === undefined) return true
         return matchesFamilyFilter(board, pid, inst, c.familyFilter)
     })

@@ -1378,7 +1378,10 @@ export function applyDestroyBatchAfter(
     destroyed: number,
     after: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
 ): void {
-    if (!after || destroyed <= 0) return
+    if (!after) return
+    // thenDrawFixed（BS14-010）：破壊できた数によらず固定枚数ドロー（「その後」）。0体破壊でも発火する
+    if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
+    if (destroyed <= 0) return
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
@@ -1679,6 +1682,22 @@ function tryReviveOnDestroy(
                 effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
             )
             exhaustSpirit(state, ownerPid, chosen)
+            return true
+        }
+        // 器BW：BS14-X02呪の覇王カオティック・セイメイLv3【呪滅撃】「相手のライフのコア1個を相手のトラッシュに置くことで」。
+        // 支払うのは**相手**のライフ（ownLifeOneToVoid等の自分版とは別軸）。相手のライフが0なら支払い不可＝不発。
+        // 支払った結果相手のライフが0になれば、そのまま持ち主の勝利が決まる
+        if (effect.cost?.opponentLifeOneToTrash) {
+            const oppPid = opponentOf(ownerPid)
+            const oppPlayer = state.players[oppPid]
+            if (oppPlayer.life <= 0) return false
+            oppPlayer.life -= 1
+            oppPlayer.trashCores += 1
+            log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
+            if (oppPlayer.life <= 0 && !state.winner) {
+                state.winner = ownerPid
+                log(state, `${player.name}の勝利！`)
+            }
             return true
         }
         return true

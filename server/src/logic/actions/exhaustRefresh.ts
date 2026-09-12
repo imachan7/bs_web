@@ -112,7 +112,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
             // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
             if (action.noRefreshUntilOwnEndSteps !== undefined) {
@@ -170,7 +170,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
                 // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
                 exhausted += 1
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             }
@@ -215,7 +215,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
             if (action.noRefreshUntilOwnEndSteps !== undefined) {

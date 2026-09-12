@@ -82,6 +82,9 @@ export function reductionGrantSymbols(
             if (effect.vanillaFilter === true && !isVanillaCard(cardData)) continue
             // phase指定時はこのステップ中のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』。BS06賢獣アイベリックス）
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            // turn指定時は発生源の持ち主基準でこのturn条件のときのみ有効（『自分の〜ステップ』。BS14-074千識の渓谷）
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             // familyFilter は対象が手札のカードのため、カード静的な family のみで判定する（配列＝OR）
             if (effect.familyFilter !== undefined) {
                 const families = Array.isArray(effect.familyFilter)

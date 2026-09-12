@@ -830,6 +830,13 @@ const coreSqueezeOneHandler: ActionHandler<"coreSqueezeOne"> = (ctx, action) => 
                 return
             }
         }
+        // all指定時はcountを無視し、相手フィールドのスピリットすべてを対象にする（BS14-022幻双龍シェイロンLv1）
+        if (action.all) {
+            for (const target of [...state.players[opp].field.spirits]) {
+                applySqueeze(opp, target)
+            }
+            return
+        }
         // 相手フィールドの実効BP最大のスピリットをcount体選び、コアを1個だけ残す（coreSqueezeAllの単体版）
         const processed = new Set<string>()
         for (let i = 0; i < action.count; i++) {

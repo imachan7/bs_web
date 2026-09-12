@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { createInstance, currentLevel, draw, getCard, instMinLevelCores, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
+import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesPids,
@@ -134,6 +134,28 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
         const filter = normalizeFilter(ctx, action)
+        // costDiscardOwnBurst：自分のバースト1つを破棄（トラッシュへ）することがコスト（BS14-015トウダーLv2）。
+        // bpBuff.costDiscardOwnBurst と同じ考え方。対象条件を満たす相手のスピリットが1体もいなければ
+        // バーストも破棄しない（COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮する）
+        if (action.costDiscardOwnBurst && filter !== SELF_REQUIRED) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.burst === null) {
+                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
+                return
+            }
+            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+            if (!hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+            const { costDiscardOwnBurst: _cdob, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         // costDestroyOwnSpirit：自分のスピリット1体を破壊することがコスト（BS13-051ズガネーク）。
         // 「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する（COST_MODEL.md §1）ので、
         // 対象条件を満たす相手のスピリットが1体もいなければコストも払わない。
@@ -217,13 +239,17 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             }
             // drawPerDestroyed（BS11-006）は「実際に破壊できた数」を数える必要があるので、
             // 数え方と中断の扱いを持っている destroyTargetsBatch を通す
-            if (action.drawPerDestroyed) {
+            if (action.drawPerDestroyed || action.thenDrawFixed) {
                 destroyTargetsBatch(
                     state,
                     owner,
                     [{ pid: found.pid, instanceId: found.inst.instanceId }],
                     destroyContext,
-                    { drawPerDestroyed: true, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+                    {
+                        ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
+                        ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
+                        ...(self ? { selfInstanceId: self.instanceId } : {}),
+                    },
                 )
                 return
             }
@@ -314,7 +340,7 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         }
         // drawPerDestroyed（BS11-006）：候補を先に選び切ってからバッチで破壊する
         // （数え方と中断の扱いを destroyTargetsBatch に任せる）
-        if (action.drawPerDestroyed) {
+        if (action.drawPerDestroyed || action.thenDrawFixed) {
             const picked: { pid: PlayerId; instanceId: string }[] = []
             for (let i = 0; i < resolvedCount; i++) {
                 const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !picked.some((p) => p.instanceId === s.instanceId), srcColors, srcType)
@@ -322,11 +348,14 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
                 picked.push({ pid: opp, instanceId: target.instanceId })
             }
             if (picked.length === 0) {
+                // thenDrawFixed（BS14-010）：対象0体でも「その後」のドローは発火する
+                if (action.thenDrawFixed) draw(state, owner, action.thenDrawFixed)
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 return
             }
             destroyTargetsBatch(state, owner, picked, destroyContext, {
-                drawPerDestroyed: true,
+                ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
+                ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                 ...(self ? { selfInstanceId: self.instanceId } : {}),
             })
             return
@@ -1433,6 +1462,51 @@ const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, actio
         return
 }
 
+const opponentNexusCoresToTrashOneHandler: ActionHandler<"opponentNexusCoresToTrashOne"> = (ctx) => {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+        // 相手のネクサス1つの上のコアすべてを相手のトラッシュへ（nexusCoresToTrashの単体版。BS14-095紫魂葬フラッシュ）
+        const nexuses = state.players[opp].field.nexuses
+        const wipe = (nexus: CardInstance): void => {
+            const player = state.players[opp]
+            if (nexus.cores <= 0) {
+                log(state, `${getCard(nexus.cardId).name}にはコアが置かれていなかった。`)
+                return
+            }
+            player.trashCores += nexus.cores
+            log(state, `${sourceName}：${getCard(nexus.cardId).name}の上のコア${nexus.cores}個を持ち主のトラッシュに置いた。`)
+            nexus.cores = 0
+        }
+        if (targetInstanceId !== undefined) {
+            const found = findNexus(state.players[opp], targetInstanceId)
+            if (!found) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            wipe(found)
+            return
+        }
+        if (nexuses.length === 0) {
+            log(state, `${sourceName}：相手にネクサスがなかった。`)
+            return
+        }
+        if (
+            tryInteractiveTargetChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：コアをトラッシュに置く相手のネクサスを選んでください`,
+                nexuses,
+                { type: "opponentNexusCoresToTrashOne" },
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話：コア数最多（同数はフィールド先頭）を自動選択
+        const chosen = nexuses.reduce((best, n) => (n.cores > best.cores ? n : best))
+        wipe(chosen)
+}
+
 const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexusThenWipeEnemyNexusCores"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // サクリファイス：自分のネクサス1つを破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く。
@@ -1960,6 +2034,7 @@ const handlers = {
     fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
+    opponentNexusCoresToTrashOne: opponentNexusCoresToTrashOneHandler,
     sacrificeNexusThenWipeEnemyNexusCores: sacrificeNexusThenWipeEnemyNexusCoresHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

@@ -565,13 +565,20 @@ export function exhaustSpirit(
     // ownSpiritExhausted の byOpponentEffectOnly（BS12-062白煙の大山脈）が使う
     causePid?: PlayerId,
     causeType?: CardType,
+    // 【暴風】の持ち主自身のinstanceId（BS14-032ヤツノカンゾウLv2の「このスピリットの【暴風】で疲労させた」が
+    // 発生源を特定するために使う。任意＝渡されない呼び出し元では記録されないだけ）
+    bofuSourceInstanceId?: string,
 ): void {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
     if (inst.isRested) return
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
-        state.bofuExhaustedThisBattle.push({ pid: ownerPid, instanceId: inst.instanceId })
+        state.bofuExhaustedThisBattle.push({
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            ...(bofuSourceInstanceId !== undefined ? { bofuSourceInstanceId } : {}),
+        })
         fireFieldEventTriggers(state, bofuSourcePid, "ownBofuExhausted", { pid: ownerPid, inst })
     }
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
@@ -2936,15 +2943,24 @@ export function finishBurstActivation(
     cardId: string,
     actionType: EffectAction["type"],
     thenPay: "main" | "flash" | undefined,
+    opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
-    if (actionType !== "summonBurstCardFree") {
+    // burstDestroyThenSummonSelf（BS14-X01）はsummonBurstCardFreeへ内部委譲して自身を召喚するため、
+    // 同じ扱いにする（そうしないと召喚済みのカードIDがトラッシュにも二重に積まれる）
+    if (actionType !== "summonBurstCardFree" && actionType !== "burstDestroyThenSummonSelf") {
         if (player.burst === cardId) {
             player.burst = null
             player.burstSet = false
         }
-        player.trashCards.push(cardId)
-        log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、トラッシュに置かれた。`)
+        if (opts?.toHand) {
+            player.hand.push(cardId)
+            log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
+            notifyHandGained(state, pid, 1)
+        } else {
+            player.trashCards.push(cardId)
+            log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、トラッシュに置かれた。`)
+        }
     } else if (player.burst === cardId) {
         // 通常はハンドラ自身（summonBurstCardFree）が空にしているはずだが、
         // 不発（コア不足等）だった場合に備えて念のため空にしておく

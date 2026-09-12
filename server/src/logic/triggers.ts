@@ -112,6 +112,7 @@ import {
     bravesOf,
     combinedBraveColorsOk,
     hostsOf,
+    cardHasColor,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -620,7 +621,9 @@ function collectGrantedTriggerActions(
                 if (targetInstanceId === undefined) continue
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) continue
-                if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
+                if ("targetMaxCost" in effect.granted.condition) {
+                    if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
+                } else if (effectiveBp(state, found.pid, found.inst) > effect.granted.condition.targetMaxBp) continue
             }
             actions.push(effect.granted.action)
         }
@@ -876,6 +879,12 @@ export function fireStepTriggers(
                 if (effect.condition && typeof effect.condition === "object" && "opponentDeckNotEmpty" in effect.condition) {
                     // BS09-058魔本収められし書架Lv2：相手のデッキが0枚のときは発揮しない
                     if (state.players[opponentOf(pid)].deck.length === 0) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownTrashOnlyColor" in effect.condition) {
+                    // BS14-024ツチピッグLv1-2：トラッシュにあるカードが指定色だけのときのみ（0枚は満たさない）
+                    const wantColor = effect.condition.ownTrashOnlyColor
+                    const trash = state.players[pid].trashCards
+                    if (trash.length === 0 || !trash.every((id) => cardHasColor(getCard(id), wantColor))) continue
                 }
                 if (effect.condition && typeof effect.condition === "object" && "ownSpiritMinCost" in effect.condition) {
                     // BS09-032飛鋼獣ゲイル・フォッカー：コストが指定値以上の自分のスピリットが1体でもいるときのみ
@@ -1215,7 +1224,13 @@ export function fireFieldEventTriggers(
             if (effect.magicCostEquals !== undefined && eventInfo?.magicCost !== effect.magicCostEquals) continue
             if (effect.magicTiming !== undefined && eventInfo?.magicTiming !== effect.magicTiming) continue
             // 「このスピリットが疲労したとき」（スクルディア）：イベント対象が発生源自身のときだけ
-            if (effect.eventTargetIsSelf && selfOverride?.inst.instanceId !== inst.instanceId) continue
+            // eventTargetIsSelf：「このスピリットが」＝inst自身が対象のとき。inst が合体中のブレイヴ自身なら
+            // 「このスピリット」はホスト（合体スピリット。1体として振る舞う）を指す（selfMode:"source"と同じ考え方。
+            // BS14-068ストラスト【合体時】：「このスピリットが疲労したとき」＝ホストが疲労したとき）
+            if (effect.eventTargetIsSelf) {
+                const selfTarget = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                if (selfOverride?.inst.instanceId !== selfTarget.instanceId) continue
+            }
             // 「[カード名]以外の」の除外（BS06鉄拳のカクタスガルー）：イベント対象が発生源自身のときは発火しない
             if (effect.excludeSelfAsEventTarget && selfOverride?.inst.instanceId === inst.instanceId) continue
             // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）。
@@ -1485,6 +1500,8 @@ export function fireFieldEventTriggers(
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.inst.cardId : undefined
+        // alsoDrawIfDestroyedColor（BS14-X02）：eventColorsはここでしか手に入らないため、宣言時点でbool化しておく
+        const alsoDraw = effect.alsoDrawIfDestroyedColor !== undefined && (eventColors ?? []).includes(effect.alsoDrawIfDestroyedColor)
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
@@ -1499,13 +1516,16 @@ export function fireFieldEventTriggers(
                     cardId: burstCardId,
                     ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
                     ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
+                    ...(alsoDraw ? { alsoDraw: true as const } : {}),
+                    ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
                 }
             }
             return
         }
         const before = fieldInstanceIdsOf(state, holderPid)
         resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId)
-        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay)
+        if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
+        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
         if (state.pendingChoice) return
         fireOwnBurstActivated(state, holderPid, before, burstCardId)
     }

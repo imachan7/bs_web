@@ -1717,8 +1717,9 @@ function doResolveChoice(
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
                     resolveAction(state, actor, self, pending.action, info.destroyedCardId)
+                    if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
                     if (!state.pendingChoice) {
-                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay)
+                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay, info.toHand ? { toHand: true } : undefined)
                         if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
                     }
                 } else {
@@ -2399,7 +2400,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker")
+                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker", f.blockerInstanceId)
                 // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
                 // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
                 if (instIsCombined(survivingAttacker)) {
@@ -2419,7 +2420,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) {
-                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker")
+                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker", f.attackerInstanceId)
                 if (instIsCombined(survivingBlocker)) {
                     fireFieldEventTriggers(
                         state,
