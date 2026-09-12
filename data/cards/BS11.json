@@ -1833,6 +1833,7 @@
      3
     ],
     "subjectSide": "opponent",
+    "selfMode": "source",
     "phase": "attack",
     "turn": "opponent",
     "action": {
@@ -4151,6 +4152,7 @@
      2
     ],
     "subjectSide": "opponent",
+    "selfMode": "source",
     "subjectCombined": false,
     "phase": "attack",
     "turn": "opponent",
