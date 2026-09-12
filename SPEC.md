@@ -1375,7 +1375,16 @@ exhaustAllByColor だけ完全耐性が抜け／クライアントの対象ハ�
 
 [data.md](./data.md) 5章の方針に沿い、以下の手順で追加する。既存処理に影響を与えない。
 
-1. **型を足す**: `server/src/type.ts` の `EffectAction` / `Keyword` / `TriggerEvent` に追加
+1. **型を足す**: 置き場は3つに分かれている（2026-09-12 に `type.ts` の肥大化対策で分割。
+   利用側の import は従来どおり `type.ts` から。`type.ts` が re-export している）
+
+   | 足すもの | ファイル |
+   | :-- | :-- |
+   | `EffectAction`（効果が実際に何をするか） | `server/src/types/effectAction.ts` |
+   | `EffectDef` の `kind`（いつ・どんな条件で発揮するか） | `server/src/types/effectDef.ts` |
+   | `Keyword` / `TriggerEvent` / `TargetFilter` など上記以外 | `server/src/type.ts` |
+
+   **3つとも開かないこと。触る型が入っている1ファイルだけ読む**（各5万トークン級）
 2. **ハンドラを足す**: `server/src/logic/EffectModules.ts` の `resolveAction`（アクション）または `KEYWORDS` レジストリ（キーワード）に処理を追加
 3. **データに書く**: `data/cards.json` の対象カードの `effects` 配列に定義を追加
 

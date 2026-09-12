@@ -186,7 +186,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 ## 設計ドキュメント
 
-仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards/BS0N.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（型 → `server/src/logic/EffectModules.ts` にハンドラ → `data/cards/BS0N.json` にデータ）に従う。
+型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
 **SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
 
@@ -285,12 +286,22 @@ git に載せていた頃に起きたこと:
 
 サブエージェントのコールドスタート読み込みを最小化する。委譲プロンプトに次を明記すること:
 
-- **⚠️ `server/src/type.ts` を Read させない（最大の出血点）**。541KB・2935行あり、
-  Read 1回（先頭2000行＝429KB）で**約12万トークン**を使う。しかも上限に引っかかるので
-  残り935行を読むために2回目を撃つ。`EffectDef` 97KB・`EffectAction` 94KB の2つで大半を占める。
+- **⚠️ 型のファイルを丸ごと Read させない（最大の出血点）**。かつて `server/src/type.ts` は
+  541KB・2935行あり、**丸読みで約16万トークン**（42%が日本語コメント）を使っていた。
+  2026-09-12 に3分割して**各5万トークン級**にしたが、それでも丸読みは高い:
+
+  | ファイル | サイズ | 丸読みの概算 |
+  | :-- | --: | --: |
+  | `server/src/types/effectAction.ts`（`EffectAction`） | 179KB / 370行 | ≈5.4万 tok |
+  | `server/src/types/effectDef.ts`（`EffectDef`） | 169KB / 1301行 | ≈5.1万 tok |
+  | `server/src/type.ts`（残り全部） | 182KB / 1327行 | ≈5.5万 tok |
+  | `server/src/logic/EffectModules.ts` | 218KB | ≈6.3万 tok |
+
   委譲プロンプトには次をそのまま書く:
 
-  > `server/src/type.ts` と `server/src/logic/EffectModules.ts` は **Read 禁止**（各 541KB / 218KB）。
+  > 上記4ファイルは **原則 Read 禁止**。触る型が入っている1ファイルだけ Read してよい
+  > （アクションを足すなら `types/effectAction.ts` だけ、`EffectDef` の kind を足すなら
+  > `types/effectDef.ts` だけ。**3つとも開かない**）。
   > まず次の1行で既存の器の索引を作り、それを見て使う器を決めること:
   >
   > ```
