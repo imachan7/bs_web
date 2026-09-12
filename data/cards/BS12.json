@@ -4332,6 +4332,7 @@
           2
         ],
         "subjectSide": "opponent",
+        "selfMode": "source",
         "phase": "attack",
         "turn": "opponent",
         "optional": true,
