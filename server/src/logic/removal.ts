@@ -167,6 +167,7 @@ export {
 import {
     summonFreeFromTrashIndex,
 checkExhaustOnCoreChange,
+    canExhaustNexus,
     destroyedCoresGoToTrash,
     emitEvent,
     exhaustSpirit,
@@ -1700,6 +1701,26 @@ function tryReviveOnDestroy(
             }
             return true
         }
+        // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」（bpBuff.costDiscardOwnBurstと同型）。
+        // バーストがセットされていなければ支払い不可＝不発
+        if (effect.cost?.discardOwnBurst) {
+            if (player.burst === null) return false
+            player.trashCards.push(player.burst)
+            player.burst = null
+            player.burstSet = false
+            log(state, `${player.name}は${getCard(inst.cardId).name}のコストとして自分のバーストを破棄した。`)
+            return true
+        }
+        // BS14-064レボルシング・ゼヨンLv2：「自分のネクサス1つを疲労させることで」。
+        // 相手のconstraintで疲労させられない間は支払い不可＝不発（canExhaustNexus）
+        if (effect.cost?.exhaustOwnNexusOne) {
+            if (!canExhaustNexus(state, ownerPid)) return false
+            const candidates = player.field.nexuses.filter((n) => !n.isRested)
+            if (candidates.length === 0) return false
+            const chosen = candidates.reduce((min, n) => (n.cores < min.cores ? n : min))
+            chosen.isRested = true
+            return true
+        }
         return true
     }
 
@@ -1852,6 +1873,8 @@ function tryReviveOnDestroy(
             if (effect.combinedOnly && !instIsCombined(inst)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
+            // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）
+            if (effect.minCost !== undefined && !instMatchesCostFilter(inst, { min: effect.minCost })) continue
             if (!matchesReviveCondition(effect.condition)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue

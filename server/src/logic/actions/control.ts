@@ -178,6 +178,17 @@ const summonBurstCardFreeIfCoresAtLeastHandler: ActionHandler<"summonBurstCardFr
 
 // バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
 // setBurst（GameAction）と異なりターン1回制限を受けない
+// バースト専用（BS14-064レボルシング・ゼヨン）：自分のフィールドのネクサス数がnexusAtLeast以上のときだけ、
+// このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastのネクサス数版）
+const summonBurstCardFreeIfOwnNexusAtLeastHandler: ActionHandler<"summonBurstCardFreeIfOwnNexusAtLeast"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (state.players[owner].field.nexuses.length < action.nexusAtLeast) {
+        log(state, `${sourceName}：自分のネクサスが${action.nexusAtLeast}つ未満のため召喚しなかった。`)
+        return
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
+}
+
 const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
@@ -268,13 +279,37 @@ const costSetBurstThenDrawHandler: ActionHandler<"costSetBurstThenDraw"> = (ctx,
     draw(state, owner, action.count)
 }
 
+// BS14-053オリンピアの天使ハギト：自分のバースト1つをオープンできる。マジックカードなら手札に戻し、
+// それ以外は破棄する（burstがnullなら不発。バーストの中身は非公開ゾーンなので選択の余地はない）
+const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSortByType"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    const card = getCard(cardId)
+    if (card.type === "magic") {
+        player.hand.push(cardId)
+        log(state, `${player.name}はバーストの${card.name}をオープンし、手札に戻した。`)
+    } else {
+        player.trashCards.push(cardId)
+        log(state, `${player.name}はバーストの${card.name}をオープンし、トラッシュへ破棄した。`)
+    }
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
+    revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
     burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
     summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,
+    summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
     costSetBurstThenDraw: costSetBurstThenDrawHandler,
 } satisfies Partial<ActionRegistry>

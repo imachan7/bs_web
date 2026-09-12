@@ -1494,6 +1494,7 @@ const voidCoreToTargetHandler: ActionHandler<"voidCoreToTarget"> = (ctx, action)
             (s) =>
                 (action.familyFilter === undefined ||
                     matchesFamilyFilter(state, owner, s, action.familyFilter)) &&
+                (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
                 !(action.excludeSelf === true && s.instanceId === self?.instanceId),
         )
         const target = targetInstanceId

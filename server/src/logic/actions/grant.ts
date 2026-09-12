@@ -414,13 +414,28 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
         return
 }
 
+// BS14-110天災之禍風：levelOverrideOpponentNexusesのスピリット版（コスト・確認なしの単純な一括付与）
+const levelOverrideOpponentSpiritsAllThisTurnHandler: ActionHandler<"levelOverrideOpponentSpiritsAllThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    const oppPlayer = state.players[opp]
+    for (const spirit of oppPlayer.field.spirits) {
+        spirit.levelOverrideThisTurn = action.level
+    }
+    log(
+        state,
+        `${sourceName}：${oppPlayer.name}のスピリットすべてを、このターンの間Lv${action.level}として扱う。`,
+    )
+    return
+}
+
 const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
         // 未指定時は自分のフィールドの候補から選ばせる（マッシブアップ）。
-        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）
-        const ownCandidates = state.players[owner].field.spirits.filter(
+        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）。
+        // side:"opponent" 指定時は相手のフィールドから選ばせる（BS14-051アルカナビーストクィーン）
+        const ownCandidates = state.players[action.side === "opponent" ? opp : owner].field.spirits.filter(
             (s) =>
                 (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
                 (!action.requireLevelExists ||
@@ -443,7 +458,7 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : // 非対話（テスト・AI）と候補1体のときは先頭を自動選択（決定的簡略化）
-              (ownCandidates[0] ? { pid: owner, inst: ownCandidates[0] } : null)
+              (ownCandidates[0] ? { pid: action.side === "opponent" ? opp : owner, inst: ownCandidates[0] } : null)
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -644,12 +659,15 @@ const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx,
         type: "cantUseHandCardsForPid",
         pid: opp,
         ...(action.allowedColor !== undefined ? { allowedColor: action.allowedColor } : {}),
+        ...(action.cardType !== undefined ? { cardType: action.cardType } : {}),
     })
     log(
         state,
-        action.allowedColor !== undefined
-            ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
-            : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
+        action.cardType !== undefined
+            ? `${sourceName}：このターンの間、${state.players[opp].name}は${action.cardType === "magic" ? "マジックカード" : action.cardType}を使用できない。`
+            : action.allowedColor !== undefined
+              ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
+              : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
     )
 }
 
@@ -1408,6 +1426,7 @@ const handlers = {
     blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
+    levelOverrideOpponentSpiritsAllThisTurn: levelOverrideOpponentSpiritsAllThisTurnHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,

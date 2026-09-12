@@ -434,7 +434,9 @@ export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
 
 // 合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
 // braveComposite（レベルに依らない値のキャッシュ）には入れず、ここで都度引く
-export function braveBpBonus(player: BoardPlayer, host: CardInstance): number {
+export function braveBpBonus(board: Board, player: BoardPlayer, host: CardInstance): number {
+    // BS14-090勇壮なる船上都市：両陣営の合体スピリットすべての「合体時BP+」を0にする
+    if (hasGlobalConstraint(board, "braveBpBonusZero")) return 0
     let total = 0
     for (const brave of bravesOf(player, host)) {
         // braveCombined が載っていれば currentLevel が合体状態のレベル表を引く（instLevels）。
@@ -1264,6 +1266,16 @@ export function countAuraCounter(
             countingSourceType,
         )
     }
+    // { ownColor: Color }：発生源自身を含む自分フィールドの指定色スピリット数（BS14-041バスター・フェンリルキャノン）
+    if ("ownColor" in counter) {
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => instHasColor(s, counter.ownColor),
+            countingSourceType,
+        )
+    }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return countSpiritsWeighted(
         board,
@@ -1493,7 +1505,7 @@ export function effectiveBp(
     // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるのは印刷BPのぶんだけ
     const bpBuffsOnInst = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
     const baseBp = inst.bpAsContinuous !== undefined ? inst.bpAsContinuous + bpBuffsOnInst : currentLevel(inst).bp
-    let total = baseBp + braveBpBonus(board.players[ownerPid], inst)
+    let total = baseBp + braveBpBonus(board, board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
@@ -1971,6 +1983,25 @@ export function attackOncePerTurnLimitApplies(board: Board, inst: CardInstance):
     return false
 }
 
+// attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
+// instのコストがmaxCost以下の制約が両陣営どちらかのfieldにあり、かつinstが既にこのターンアタック済みならtrue
+export function attackOncePerTurnByCostLimitApplies(board: Board, inst: CardInstance): boolean {
+    if (!inst.attackedThisTurn) return false
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "attackOncePerTurnByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (instAllCosts(inst).some((cost) => cost <= constraint.maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
 // globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
 // **発生源の持ち主だけ**を守る片側パターン（ownLifeFloorContinuousと同型）。pid自身のeffectSourcesだけを見る
 export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId): boolean {
@@ -2105,6 +2136,14 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
             const constraint = effect.constraint
             if (constraint.type !== "opponentCantAttackByCost") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // phase/turn指定時は発生源の持ち主(opp)基準でのステップ限定（BS14-053オリンピアの天使ハギトLv2：『相手のアタックステップ』＝opp視点では"opponent"）
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (
+                effect.turn !== undefined &&
+                effect.turn !== "both" &&
+                (effect.turn === "own") !== (board.turnPlayer === opp)
+            )
+                continue
             if (attackerCosts.some((cost) => constraint.costs.includes(cost))) return true
         }
     }
@@ -2241,7 +2280,15 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 }
                 // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
                 if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
-                // attackerLevel（器BA）：maxCostと**両方**満たすときだけ保護する（BS13-070：コスト3以下かつLv1）
+                // attackerLevel（器BA）：maxCostと**両方**満たすときだけ保護する（BS13-070：コスト3以下かつLv1）。
+                // maxCost省略時はLvだけで判定する（BS14-110天災之禍風：「Lv1のスピリットのアタックでは」）
+                if (
+                    attackerLevel !== undefined &&
+                    maxCost === undefined &&
+                    currentLevel(attacker).level === attackerLevel
+                ) {
+                    return true
+                }
                 if (
                     maxCost !== undefined &&
                     costsOfAttacker.some((cost) => cost <= maxCost) &&
@@ -2385,6 +2432,10 @@ export function ownLifeFloorContinuous(board: Board, pid: PlayerId): number {
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeFloor") continue
+            // costSelfToTrash版（BS14-084）はここでは無条件の下限として数えない：
+            // ダメージ計算の時点でここが効くと、コストを払わずに0回避が成立してしまう
+            // （tryOwnLifeFloorByCostが life<=0 判定の直後で任意コスト付きで処理する）
+            if (effect.constraint.costSelfToTrash) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             const fam = effect.condition?.ownFamilyCountAtLeast
@@ -2476,7 +2527,7 @@ export function noOpponentTriggerByColor(
             if (effect.constraint.type !== "noOpponentTriggerByColor") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (!effect.constraint.triggers.includes(event)) continue
-            if (!instHasColor(inst, effect.constraint.color)) continue
+            if (effect.constraint.color !== undefined && !instHasColor(inst, effect.constraint.color)) continue
             return true
         }
     }
@@ -2485,7 +2536,7 @@ export function noOpponentTriggerByColor(
 
 // フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
 // 『このスピリットの召喚時』効果は発揮されない（BS08共鳴する音叉の塔）。召喚時トリガーの発火直前に判定する
-export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean {
+export function noSummonTriggerByCost(board: Board, inst: CardInstance, instOwnerPid?: PlayerId): boolean {
     // 器AU：endStepLock("summonTrigger")。BS13-081ドリームシール「『自分のエンドステップ』を3回行うまで、
     // 『このスピリットの召喚時』効果は発揮されない」（お互い＝両陣営。BS13_PLAN.md §1 #21と同じ書き分け）
     if (isEndStepLocked(board, "summonTrigger")) return true
@@ -2497,6 +2548,11 @@ export function noSummonTriggerByCost(board: Board, inst: CardInstance): boolean
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noSummonTriggerByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // side:"opponent"指定時は、発生源の持ち主から見た相手（instOwnerPid）のスピリット/ブレイヴだけを止める
+                // （BS14-088青玉の巨大迷宮Lv2。instOwnerPidが分からなければ安全側＝止めない）
+                if (effect.constraint.side === "opponent" && (instOwnerPid === undefined || instOwnerPid === pid)) {
+                    continue
+                }
                 // エントリに区間の指定（phase / turn）があれば、その区間でだけ効く
                 // （BS11-072 は『相手のメインステップ』限定。coreFloorFor と同じ見方）
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
@@ -2904,6 +2960,15 @@ function activatableAbilityOf(
             )
             if (!hasCard) continue
             return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
+        }
+        if ("exhaustOwnFamilyOne" in e.cost) {
+            // 指定系統の回復状態スピリットが自分のフィールドに無ければ発動できない（BS14-051アルカナビーストクィーンLv2-3）
+            const family = e.cost.exhaustOwnFamilyOne
+            const hasCandidate = board.players[pid].field.spirits.some(
+                (s) => !s.isRested && matchesFamilyFilter(board, pid, s, family),
+            )
+            if (!hasCandidate) continue
+            return { effectId: e.id, costLabel: "スピリットを疲労させて効果を発動" }
         }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }

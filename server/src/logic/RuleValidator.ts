@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -109,7 +109,9 @@ function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string
     }
     for (const c of state.turnConstraints) {
         if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
-        const colors = getCard(cardId).colors
+        const card = getCard(cardId)
+        if (c.cardType !== undefined && card.type !== c.cardType) continue
+        const colors = card.colors
         if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
         if (c.bannedColors !== undefined && !c.bannedColors.some((col) => colors.includes(col))) continue
         return "効果により、このターンはこのカードを使えません"
@@ -894,6 +896,13 @@ export function validateActivateAbility(
                 (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
             )
             if (!hasCard) return "破棄できるカードが手札にありません"
+        } else if ("exhaustOwnFamilyOne" in effect.cost) {
+            // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリットが自分のフィールドに無ければ発動できない
+            const family = effect.cost.exhaustOwnFamilyOne
+            const hasCandidate = state.players[pid].field.spirits.some(
+                (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
+            )
+            if (!hasCandidate) return "疲労させられるスピリットがいません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -955,6 +964,10 @@ export function validateAttack(
     }
     // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
     if (attackOncePerTurnLimitApplies(state, inst)) {
+        return "このスピリットは既にこのターンアタックしています"
+    }
+    // フィールド全体制約（BS14-088青玉の巨大迷宮）：コストがmaxCost以下のスピリットはターンに1回しかアタックできない
+    if (attackOncePerTurnByCostLimitApplies(state, inst)) {
         return "このスピリットは既にこのターンアタックしています"
     }
 

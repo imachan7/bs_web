@@ -612,6 +612,23 @@ export function refreshSpirit(
     fireTrigger(state, ownerPid, inst, "onRefreshed")
     // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
     fireFieldEventTriggers(state, ownerPid, "ownSpiritRefreshed", { pid: ownerPid, inst })
+    // 両陣営から見える版（anySpiritAttackedと同じ形。BS14-085賛美するパイプオルガンLv2：
+    // 「スピリット/マジックの効果で回復した赤/緑/白/青のスピリットすべてを破壊する」＝両陣営が対象）
+    const selfOverride = { pid: ownerPid, inst }
+    const refreshEventInfo = sourceType === undefined ? {} : { refreshSourceType: sourceType }
+    fireFieldEventTriggers(state, ownerPid, "anySpiritRefreshed", selfOverride, instColors(inst), undefined, undefined, refreshEventInfo)
+    if (!state.winner) {
+        fireFieldEventTriggers(
+            state,
+            opponentOf(ownerPid),
+            "anySpiritRefreshed",
+            selfOverride,
+            instColors(inst),
+            undefined,
+            undefined,
+            refreshEventInfo,
+        )
+    }
 }
 
 // 「スピリットが疲労したとき」のフィールドイベント発火。
@@ -670,6 +687,11 @@ export function millDeck(
     // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
     if (isEndStepLocked(state, "deckMill")) {
         log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
+        return 0
+    }
+    // 「お互い、メインステップでデッキは破棄されない」（BS14-085賛美するパイプオルガン）。陣営を問わず止める
+    if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) {
+        log(state, `${state.players[pid].name}のデッキは、メインステップのため破棄されなかった。`)
         return 0
     }
     let effectiveCount = count
@@ -992,13 +1014,14 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
 // （globalConstraint:"handImmuneForPid"。ネクサスの効果は防がない＝sourceType:"nexus"は素通しする。
 // BS12-067月光集める塔Lv1）。discardOpponent等の手札を対象に取る処理の冒頭で呼ぶ
 export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType: CardType | undefined): boolean {
-    if (sourceType === "nexus") return false
     for (const source of effectSources(state, targetPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "handImmuneForPid") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // ネクサスの効果は既定では防がない＝意図的（BS12-067）。includeNexus指定時のみ防ぐ（BS14-082五角形の砦）
+            if (sourceType === "nexus" && !effect.constraint.includeNexus) continue
             return true
         }
     }
@@ -1140,6 +1163,39 @@ export function tryLifeDamageMillGuard(
                 log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             }
             return guarded
+        }
+    }
+    return false
+}
+
+// BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
+// 自分のライフは0にならない」（globalConstraint "ownLifeFloor" の costSelfToTrash 版）。
+// 呼び出し側が life<=0 を検知した直後（勝敗確定の直前）に呼ぶ。払わない理由が無い（払わなければ即敗北）ため
+// 対話確認を省いた自動払いの簡略化。支払えたら true を返し、life を floor まで戻す（0にはならない）
+export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean {
+    const player = state.players[pid]
+    for (const source of effectSources(state, pid)) {
+        // 発生源自身がまだフィールドのネクサスにいなければ支払いようがない（既にトラッシュ等）
+        const index = player.field.nexuses.findIndex((n) => n.instanceId === source.instanceId)
+        if (index === -1) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "ownLifeFloor") continue
+            if (!effect.constraint.costSelfToTrash) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            player.field.nexuses.splice(index, 1)
+            player.trashCards.push(source.cardId)
+            player.reserve += source.cores
+            player.life = effect.constraint.floor
+            log(
+                state,
+                `${player.name}は${getCard(source.cardId).name}を自分のトラッシュに置いた。（ライフは0にならず${effect.constraint.floor}のまま）`,
+            )
+            if (effect.constraint.then) {
+                resolveAction(state, pid, null, effect.constraint.then)
+            }
+            return true
         }
     }
     return false
@@ -1333,6 +1389,7 @@ export function hasBlockTriggersAsAttack(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "blockTriggersAsAttackGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.whileOwnBurstSet === true && !state.players[ownerPid].burstSet) continue
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (state.phase !== phase) continue
@@ -1359,8 +1416,9 @@ export function hasAttackTriggersAsBlock(
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "attackTriggersAsBlockGrant") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                // target:"ownAll" は発生源の持ち主のスピリットのみ
+                // target:"ownAll" は発生源の持ち主のスピリットのみ、target:"self" は発生源自身のみ
                 if (effect.target === "ownAll" && sourcePid !== ownerPid) continue
+                if (effect.target === "self" && source.instanceId !== inst.instanceId) continue
                 if (effect.phaseTurn) {
                     const { phase, turn } = effect.phaseTurn
                     if (state.phase !== phase) continue

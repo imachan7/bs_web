@@ -22,6 +22,7 @@ import {
     instIsCombined,
     instIsVanilla,
     instMatchesCostFilter,
+    matchesFamilyFilter,
     KEYWORDS,
     spiritHasKeyword,
     type DirectAttackFilter,
@@ -167,6 +168,13 @@ export function canBlock(
                 !spiritHasKeyword(board, blockerPid, blockerInst, c.keywordFilterAbsent)
             ) {
                 return `このスピリットは【${KEYWORDS[c.keywordFilterAbsent].label}】を持たないスピリットにブロックされません`
+            }
+            // familyFilterAbsent（BS14-055ミスティック・ヒミコ）：指定系統を持た**ない**スピリットにブロックされない
+            if (
+                c.familyFilterAbsent !== undefined &&
+                !matchesFamilyFilter(board, blockerPid, blockerInst, c.familyFilterAbsent)
+            ) {
+                return "このスピリットは指定の系統を持たないスピリットにブロックされません"
             }
             if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) {
                 return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`

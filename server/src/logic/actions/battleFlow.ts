@@ -38,6 +38,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
     tryInteractiveTargetChoice,
+    tryOwnLifeFloorByCost,
 } from "../EffectModules"
 import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -412,8 +413,13 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
-            state.winner = owner
-            log(state, `${state.players[owner].name}の勝利！`)
+            // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コストで0を回避できる
+            if (tryOwnLifeFloorByCost(state, opp)) {
+                fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+            } else {
+                state.winner = owner
+                log(state, `${state.players[owner].name}の勝利！`)
+            }
         } else if (dealt > 0) {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）
             fireFieldEventTriggers(state, opp, "ownLifeDamaged")

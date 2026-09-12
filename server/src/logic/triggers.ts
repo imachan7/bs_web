@@ -166,6 +166,7 @@ import {
     removeCoresToVoid,
     requestActivationConfirm,
     resolveAction,
+    summonFreeFromHandIndex,
 } from "./EffectModules"
 
 // ---- イベント発火 ----
@@ -217,7 +218,7 @@ export function fireSummonTrigger(
 ): void {
     // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
     // 『このスピリットの召喚時』効果は発揮されない
-    if (noSummonTriggerByCost(state, selfInstance)) {
+    if (noSummonTriggerByCost(state, selfInstance, owner)) {
         log(state, `${getCard(selfInstance.cardId).name}：コストが低いため、召喚時効果は発揮されなかった。`)
         return
     }
@@ -252,6 +253,12 @@ export function fireTrigger(
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
     if (instEffectsSuppressed(selfInstance)) {
+        log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
+        return
+    }
+    // markSuppressTriggerThisTurn：**この個体1体だけ**が対象の一時抑止（BS14-043月光姫マーニLv2）。
+    // trigger:"onAttack"は【合体時】の『合体アタック時』も同時に防ぐ（どちらも内部的にonAttack）
+    if (selfInstance.suppressedTriggersThisTurn?.includes(event)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
@@ -716,6 +723,10 @@ export function fireBattleWonTriggers(
             if (effect.loserMinBp !== undefined && state.lastBattleDestroyedBp < effect.loserMinBp) {
                 continue
             }
+            // BS14-060ティンダロ・ハウンドLv2：破壊された側のコストがこれ以下のときのみ発火
+            if (effect.loserCostAtMost !== undefined && state.lastBattleDestroyedCost > effect.loserCostAtMost) {
+                continue
+            }
             firing.push({ inst, effect })
         }
     }
@@ -1073,6 +1084,9 @@ export function fireFieldEventTriggers(
         paidCost?: boolean
         // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（docs/design/BURST.md）
         burstCost?: number
+        // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別（refreshSpiritのsourceType引数をそのまま渡す。
+        // undefined＝リフレッシュステップ・ネクサスの効果由来。refreshSourceTypeFilterの判定に使う。BS14-085賛美するパイプオルガン）
+        refreshSourceType?: CardType
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -1195,6 +1209,15 @@ export function fireFieldEventTriggers(
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
             // 「相手のスピリットの効果で破壊されたとき」（BS10-012アントイーター/BS10-014闇騎士マリス）
             if (effect.byOpponentSpiritEffectOnly && !eventInfo?.bySpiritEffect) continue
+            // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別で絞る（BS14-085賛美するパイプオルガン：
+            // 「スピリット/マジックの効果で回復した」＝ネクサスの効果・リフレッシュステップ由来（sourceType未指定）は対象外）
+            if (
+                effect.refreshSourceTypeFilter !== undefined &&
+                (eventInfo?.refreshSourceType === undefined ||
+                    !effect.refreshSourceTypeFilter.includes(eventInfo.refreshSourceType))
+            ) {
+                continue
+            }
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
             // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
             if (
@@ -1345,6 +1368,10 @@ export function fireFieldEventTriggers(
                     // event: "ownBurstActivated" 限定：発動したバーストのカードのコストがこれ以下のときのみ
                     // （SD06-007英雄龍ロード・ドラゴン：「発動したカードがコスト5以下のとき」）
                     if (eventInfo?.burstCost === undefined || eventInfo.burstCost > effect.condition.burstCostAtMost) continue
+                } else if ("ownBurstSet" in effect.condition) {
+                    // BS14-X04氷の覇王ミブロック・バラガン：「自分のバーストをセットしていないとき」
+                    // （triggered.conditionの同名軸と同じ判定。falseなら未セットの間だけ発火）
+                    if (state.players[pid].burstSet !== effect.condition.ownBurstSet) continue
                 } else {
                     // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
                     if (targetInstanceId === undefined) continue
@@ -1546,6 +1573,39 @@ export function notifyHandGained(state: GameState, gainerPid: PlayerId, count: n
 export function notifyNexusDeployed(state: GameState, ownerPid: PlayerId): void {
     if (state.winner) return
     fireFieldEventTriggers(state, ownerPid, "ownNexusDeployed")
+    tryHandFreeSummonOnOwnNexusDeployed(state, ownerPid)
+}
+
+// 手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
+// （kind:"freeSummonFromHandOnOwnNexusDeployed"。BS14-060 ティンダロ・ハウンド）。
+// tryHandFreeSummonOnLifeDamaged（removal.ts）と同型：実対戦では確認を出し、非対話では自動召喚する
+function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: PlayerId): void {
+    if (state.pendingChoice || state.winner) return
+    const player = state.players[pid]
+    for (let i = 0; i < player.hand.length; i++) {
+        const cardId = player.hand[i]
+        if (cardId === undefined) continue
+        const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
+        if (!effect) continue
+        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (state.interactiveTargets) {
+            suspend(state, {
+                pid,
+                kind: "option",
+                prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
+                candidates: [],
+                options: ["召喚する"],
+                optional: true,
+                confirm: true,
+                handFreeSummon: { pid, cardId },
+                action: { type: "noop" },
+                selfInstanceId: null,
+            })
+            return
+        }
+        summonFreeFromHandIndex(state, pid, getCard(cardId).name, i)
+        return
+    }
 }
 
 // ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:

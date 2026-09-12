@@ -24,7 +24,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -70,6 +70,7 @@ import {
     hasKoboOnBlock,
     hasLifeDamageNegate,
     tryLifeDamageMillGuard,
+    tryOwnLifeFloorByCost,
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
@@ -1264,8 +1265,14 @@ function resolveLifeDamage(state: GameState): void {
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
 
     if (defender.life <= 0) {
-        state.winner = attackerPid
-        log(state, `${state.players[attackerPid].name}の勝利！`)
+        // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
+        if (tryOwnLifeFloorByCost(state, defenderPid)) {
+            fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+            tryHandFreeSummonOnLifeDamaged(state, defenderPid)
+        } else {
+            state.winner = attackerPid
+            log(state, `${state.players[attackerPid].name}の勝利！`)
+        }
     } else if (dealt > 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
         // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
@@ -1380,6 +1387,21 @@ function doActivateAbility(
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
+    } else if ("exhaustOwnFamilyOne" in effect.cost) {
+        // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリット1体を疲労させる。
+        // 候補2体以上は実効BP最小を自動選択する簡略化（reviveOnDestroy.cost.exhaustOwnFamilyOneと同型）
+        const family = effect.cost.exhaustOwnFamilyOne
+        const candidates = player.field.spirits.filter(
+            (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
+        )
+        const chosen = candidates.reduce((min, s) =>
+            effectiveBp(state, pid, s) < effectiveBp(state, pid, min) ? s : min,
+        )
+        exhaustSpirit(state, pid, chosen)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（${getCard(chosen.cardId).name}を疲労）`,
         )
     } else {
         const n = effect.cost.reserveToTrash

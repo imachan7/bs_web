@@ -868,6 +868,27 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
 
 const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
+// BS14-114雷神轟招来：コスト0〜maxCostから使用者が1つ指定し、そのコストの相手スピリットすべてを破壊する
+const destroyAllByChosenCostHandler: ActionHandler<"destroyAllByChosenCost"> = (ctx, action) => {
+    const { state, owner, opp, sourceName, chosenOption } = ctx
+    if (chosenOption !== undefined) {
+        const n = parseInt(chosenOption, 10)
+        if (!Number.isFinite(n)) return
+        ctx.resolve({ type: "destroyAll", filter: { cost: { min: n, max: n } } })
+        return
+    }
+    const options = Array.from({ length: action.maxCost + 1 }, (_, i) => String(i))
+    if (state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：破壊するスピリットのコストを指定してください`, [], false, action, ctx.self, "option", options)
+        return
+    }
+    // 非対話（テスト・AI）：破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
+    const countFor = (cost: number): number => state.players[opp].field.spirits.filter((s) => instAllCosts(s).includes(cost)).length
+    let best = 0
+    for (let c = 1; c <= action.maxCost; c++) if (countFor(c) > countFor(best)) best = c
+    ctx.resolve({ type: "destroyAll", filter: { cost: { min: best, max: best } } })
+}
+
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, chosenOption, targetInstanceId } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both）
@@ -950,6 +971,40 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
                 return
             }
             ctx.resolve(rest)
+            return
+        }
+        // chooserIsTarget（BS14-111エクスキューションデストロイ＝「相手は、相手のネクサス1つを破壊する」）：
+        // 破壊される側（opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
+        if (action.chooserIsTarget && action.count === 1) {
+            const pid = opp
+            if (targetInstanceId !== undefined) {
+                const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                if (nexus) destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+                else log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                return
+            }
+            const candidates = state.players[pid].field.nexuses.filter(matchesLevel).map((n) => n.instanceId)
+            if (state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：破壊する自分のネクサスを選んでください`,
+                    candidates,
+                    false,
+                    action,
+                    self,
+                    "target",
+                    undefined,
+                    pid,
+                )
+                return
+            }
+            const nexus = state.players[pid].field.nexuses.find(matchesLevel)
+            if (!nexus) {
+                log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                return
+            }
+            destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
             return
         }
         let destroyed = 0
@@ -2024,6 +2079,7 @@ const handlers = {
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusHandler,
+    destroyAllByChosenCost: destroyAllByChosenCostHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyPer: destroyPerHandler,

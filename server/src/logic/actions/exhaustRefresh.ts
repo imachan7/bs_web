@@ -1283,8 +1283,45 @@ const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, a
     log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
 }
 
+const markSuppressTriggerThisTurnHandler: ActionHandler<"markSuppressTriggerThisTurn"> = (ctx, action) => {
+    const { state, opp, self, sourceName } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            matchesTarget(state, opp, s, filter, self?.instanceId) &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            ctx.owner,
+            self,
+            `${sourceName}：効果を発揮させなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.suppressedTriggersThisTurn = [...(target.suppressedTriggersThisTurn ?? []), action.trigger]
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間、効果が発揮されない）`)
+}
+
 const handlers = {
     markSkipNextRefresh: markSkipNextRefreshHandler,
+    markSuppressTriggerThisTurn: markSuppressTriggerThisTurnHandler,
     banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,
