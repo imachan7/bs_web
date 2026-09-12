@@ -182,6 +182,7 @@ checkExhaustOnCoreChange,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
+    tryOwnLifeFloorByCost,
     voidCorePlacementBlocked,
 } from "./EffectModules"
 
@@ -1706,8 +1707,13 @@ function tryReviveOnDestroy(
             oppPlayer.trashCores += 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
             if (oppPlayer.life <= 0 && !state.winner) {
-                state.winner = ownerPid
-                log(state, `${player.name}の勝利！`)
+                // BS14-084永久凍土の王都：**相手の効果で**ライフが0になる瞬間も守る
+                // （効果文「自分のライフが0になるとき」は原因を限定していない。2026-09-13 ユーザー判断）。
+                // コスト自体は支払われた（ライフは実際に0まで減った）うえで、王都が0を回避する
+                if (!tryOwnLifeFloorByCost(state, oppPid)) {
+                    state.winner = ownerPid
+                    log(state, `${player.name}の勝利！`)
+                }
             }
             return true
         }
