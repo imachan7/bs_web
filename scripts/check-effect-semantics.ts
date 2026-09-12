@@ -547,12 +547,29 @@ const CHOICE_BY_PROCEDURE_KINDS = new Set([
 
 // 「相手は」で始まるが選択を伴わないもの＝制約（CHOOSER_RULES.md §1 の例外）。
 // 「〜できない」「〜しなければならない」は選ばせる余地が無いので対象外
-const CONSTRAINT_SUFFIX_RE = /(できない|できなくなる|なければならない|しかできない)/
+// 2026-09-13 に S7 を全9件仕分けて語尾を追加した。「できない」しか見ておらず、
+// 「使えない」「支払えない」「戻せない」の制約文を選択だと誤判定していた（6件）。
+// **可能動詞の否定形は「選ばせる余地が無い」の印**なので、語尾ごとに足していく
+const CONSTRAINT_SUFFIX_RE =
+    /(できない|できなくなる|なければならない|しかできない|使えない|支払えない|戻せない|置けない|得られない|選べない)/
 
 // 「相手は可能ならブロックする」型。**ブロッカーを選ぶのは通常のブロック宣言**であって
 // 効果の中の選択ではないので、効果データに選択者を書く必要がない
 // （燃えさかる戦場／翼持つ者の空域／ワーニングアタック／激神皇カタストロフドラゴン／闘将カタパルドス）
 const FORCED_BLOCK_RE = /ブロック(する|しなければ)/
+
+// S7 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
+// 語尾や kind では機械的に落とせないもの（ハンドラの中で選択者を渡している等）だけをここに書く
+const S7_VERIFIED: Record<string, string> = {
+    // ハンドラが requestChoice に chooserPid＝コアを失う側を渡している
+    // （cores.ts coresDownToLimitHandler「選ぶのはコアを失う側」）。効果文の「相手は」と一致
+    "BS10-019-e2": "ハンドラが chooserPid にコアを失う側を渡している（2026-09-13 確認）",
+    // ハンドラが分岐先の destroy / destroyNexus に chooserIsTarget:true を渡している
+    // （handDeck.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
+    "BS14-111-e1": "ハンドラが chooserIsTarget:true を渡している（2026-09-13 確認）",
+    // fieldEvent の actionPid が相手になる＝効果文の「相手は」と一致（S6 でも確認済み）
+    "BS11-063-e1": "効果文の主語が「相手は」で、actionPid も相手になる（2026-09-13 確認）",
+}
 
 // 選択者が相手に焼き込まれた action を**ノード単位**で集める。
 // 次の2つは主語が「自分は」でも食い違わない:
@@ -838,7 +855,11 @@ for (const card of cards) {
                 !FORCED_BLOCK_RE.test(sen) &&
                 !/デッキを?上から/.test(sen),
         )
-        if (aiteSent && !hasChooserEvidence(card.effects)) {
+        // 読んで問題なしと判定済みのカードは出さない（理由は S7_VERIFIED に書いてある）
+        const s7Verified = card.effects.some(
+            (e) => typeof e.id === "string" && S7_VERIFIED[e.id] !== undefined,
+        )
+        if (aiteSent && !s7Verified && !hasChooserEvidence(card.effects)) {
             gaps.push({
                 axis: "S7",
                 cardId: card.cardId,
