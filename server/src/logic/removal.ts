@@ -167,6 +167,7 @@ export {
 import {
     summonFreeFromTrashIndex,
 checkExhaustOnCoreChange,
+    canExhaustNexus,
     destroyedCoresGoToTrash,
     emitEvent,
     exhaustSpirit,
@@ -326,6 +327,22 @@ export function returnCombinedBraveToHand(state: GameState, ownerPid: PlayerId, 
     player.hand.push(brave.cardId)
     refreshLevelAsOverrides(state)
     log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は手札に戻った。`)
+}
+
+// 合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
+// 「相手のスピリット/ブレイヴ/ネクサス、どれか1つをデッキの下に戻す」の**ブレイヴ**が合体中だったとき。
+// ホストは無傷で場に残る（returnCombinedBraveToHandと同じ方針。SD06-017甲竜封絶破）
+export function returnCombinedBraveToDeckBottom(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+    const player = state.players[ownerPid]
+    host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
+    if (host.braveRefs.length === 0) delete host.braveRefs
+    const at = player.field.combinedBraves.findIndex((b) => b.instanceId === brave.instanceId)
+    if (at !== -1) player.field.combinedBraves.splice(at, 1)
+    player.deck.push(brave.cardId)
+    refreshLevelAsOverrides(state)
+    const name = getCard(brave.cardId).name
+    log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」はデッキの一番下に戻った。`)
+    emitEvent(state, { type: "returnToDeck", pid: ownerPid, cardName: name, position: "bottom" })
 }
 
 // メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、
@@ -768,7 +785,18 @@ function fireOwnSpiritDestroyed(
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
-    }, undefined, extraItems)
+        // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
+        // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
+    }, [inst], extraItems)
+    // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
+    // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
+        byBattle,
+        bySpiritEffect,
+        byOpponentEffect,
+        families: master.family,
+        costs: instAllCosts(inst),
+    })
 }
 
 // 中断していた破壊処理の続き（drainResumeStack から呼ぶ）
@@ -1092,6 +1120,13 @@ function destroyedFamiliesOf(inst: CardInstance): string[] {
     return getCard(inst.cardId).family
 }
 
+// 【不死】召喚で実際に払うコスト。このターン最初の1回だけ0になる制約があれば0
+// （BS14-098ダークリボーン。維持コアはここに含まない＝通常どおり要る）
+function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): number {
+    if (state.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === ownerPid)) return 0
+    return effectiveCost(state, ownerPid, card)
+}
+
 export function fushiCandidates(
     state: GameState,
     ownerPid: PlayerId,
@@ -1116,7 +1151,7 @@ export function fushiCandidates(
             return families.some((f) => destroyedFamilies.includes(f))
         })
         if (!hit) continue
-        if (player.reserve < effectiveCost(state, ownerPid, card) + minLevelCores(card)) continue
+        if (player.reserve < fushiCostOf(state, ownerPid, card) + minLevelCores(card)) continue
         found.push(i)
     }
     return found
@@ -1129,7 +1164,7 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     suspend(state, {
         pid: ownerPid,
         kind: "option",
-        prompt: `${card.name}：【不死】でトラッシュからコスト${String(effectiveCost(state, ownerPid, card))}を支払って召喚しますか？`,
+        prompt: `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
         candidates: [],
         options: ["召喚する"],
         optional: true,
@@ -1165,13 +1200,16 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = effectiveCost(state, info.pid, card)
+    const cost = fushiCostOf(state, info.pid, card)
     const maintain = minLevelCores(card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
+    // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
+    const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
+    if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
     // 召喚コストはリザーブからトラッシュへ、維持コアはリザーブからスピリットの上へ（通常の召喚と同じ）
     player.reserve -= cost
     player.trashCores += cost
@@ -1351,7 +1389,10 @@ export function applyDestroyBatchAfter(
     destroyed: number,
     after: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
 ): void {
-    if (!after || destroyed <= 0) return
+    if (!after) return
+    // thenDrawFixed（BS14-010）：破壊できた数によらず固定枚数ドロー（「その後」）。0体破壊でも発火する
+    if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
+    if (destroyed <= 0) return
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
@@ -1654,6 +1695,42 @@ function tryReviveOnDestroy(
             exhaustSpirit(state, ownerPid, chosen)
             return true
         }
+        // 器BW：BS14-X02呪の覇王カオティック・セイメイLv3【呪滅撃】「相手のライフのコア1個を相手のトラッシュに置くことで」。
+        // 支払うのは**相手**のライフ（ownLifeOneToVoid等の自分版とは別軸）。相手のライフが0なら支払い不可＝不発。
+        // 支払った結果相手のライフが0になれば、そのまま持ち主の勝利が決まる
+        if (effect.cost?.opponentLifeOneToTrash) {
+            const oppPid = opponentOf(ownerPid)
+            const oppPlayer = state.players[oppPid]
+            if (oppPlayer.life <= 0) return false
+            oppPlayer.life -= 1
+            oppPlayer.trashCores += 1
+            log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
+            if (oppPlayer.life <= 0 && !state.winner) {
+                state.winner = ownerPid
+                log(state, `${player.name}の勝利！`)
+            }
+            return true
+        }
+        // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」（bpBuff.costDiscardOwnBurstと同型）。
+        // バーストがセットされていなければ支払い不可＝不発
+        if (effect.cost?.discardOwnBurst) {
+            if (player.burst === null) return false
+            player.trashCards.push(player.burst)
+            player.burst = null
+            player.burstSet = false
+            log(state, `${player.name}は${getCard(inst.cardId).name}のコストとして自分のバーストを破棄した。`)
+            return true
+        }
+        // BS14-064レボルシング・ゼヨンLv2：「自分のネクサス1つを疲労させることで」。
+        // 相手のconstraintで疲労させられない間は支払い不可＝不発（canExhaustNexus）
+        if (effect.cost?.exhaustOwnNexusOne) {
+            if (!canExhaustNexus(state, ownerPid)) return false
+            const candidates = player.field.nexuses.filter((n) => !n.isRested)
+            if (candidates.length === 0) return false
+            const chosen = candidates.reduce((min, n) => (n.cores < min.cores ? n : min))
+            chosen.isRested = true
+            return true
+        }
         return true
     }
 
@@ -1806,6 +1883,8 @@ function tryReviveOnDestroy(
             if (effect.combinedOnly && !instIsCombined(inst)) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
+            // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）
+            if (effect.minCost !== undefined && !instMatchesCostFilter(inst, { min: effect.minCost })) continue
             if (!matchesReviveCondition(effect.condition)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue
@@ -1868,6 +1947,11 @@ function hasOwnNexusIndestructible(
             if (effect.constraint.colors !== undefined) {
                 if (!target) continue
                 if (!effect.constraint.colors.some((c) => instHasColor(target, c))) continue
+            }
+            // nameIncludes（SD06-012英雄皇の御盾Lv2＝カード名に「英雄皇」と入っているネクサスだけ）：対象が分からないときは守らない側に倒す
+            if (effect.constraint.nameIncludes !== undefined) {
+                if (!target) continue
+                if (!cardNameContains(target, effect.constraint.nameIncludes)) continue
             }
             // sourceColors / sourceTypes（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）：
             // 破壊しようとしている効果の発生源で絞る。発生源が分からないときは守らない側に倒す
@@ -2333,7 +2417,7 @@ export function removeCores(
     const player = state.players[ownerPid]
     // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
     // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
-    const bonus = coreReturnBonusFor(state)
+    const bonus = coreReturnBonusFor(state, ownerPid)
     if (bonus > 0 && inst.cores > count) {
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
@@ -2383,8 +2467,13 @@ export function removeCoresToTrash(
         return 0
     }
     const player = state.players[ownerPid]
+    // coreReturnBonus の includeTrash 版（BS14-019シュテン・ドーガ）：トラッシュ行きにも加算する
+    const bonus = coreReturnBonusFor(state, ownerPid, true)
+    if (bonus > 0 && inst.cores > count) {
+        log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
+    }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -2471,7 +2560,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
 // 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。
 // 効果文が「お互いのスピリット上に置かれたコアが」と陣営を限定していないため、**両陣営の発生源**を見る。
 // 走査は effectSources 経由＝このターンだけの仮想発生源（マジックが貸した継続効果）も含む
-function coreReturnBonusFor(state: GameState): number {
+// targetOwnerPid＝コアを取り除かれるスピリットの持ち主。toTrash＝行き先がトラッシュか（既定はリザーブ）
+function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash = false): number {
     let bonus = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(state, pid)) {
@@ -2479,6 +2569,12 @@ function coreReturnBonusFor(state: GameState): number {
             for (const e of getCard(source.cardId).effects) {
                 if (e.kind !== "coreReturnBonus") continue
                 if (!effectActiveAtLevel(e.levels, level)) continue
+                // 既定はリザーブ行きだけ。includeTrash 指定時はトラッシュ行きにも効く（BS14-019）
+                if (toTrash && !e.includeTrash) continue
+                // targetSide:"opponent"＝発生源の持ち主から見た相手のスピリットから取り除くときだけ
+                if (e.targetSide === "opponent" && targetOwnerPid === pid) continue
+                // ownBurstOnly＝発生源の持ち主のバースト効果を解決している間だけ
+                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 bonus += e.amount
             }
         }

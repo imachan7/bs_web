@@ -29,8 +29,37 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
-    "onSummon", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
     "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
+])
+
+// 『』で囲まれた効果は**カテゴリ**で、効果を借りる／発揮させない器は『』付きしか対象にできない
+// （docs/design/SEMANTICS_AUDIT.md §3.17）。`trigger` がそのカテゴリそのものなので、
+// **印刷テキストにそのカテゴリの『』が1つも無いのに triggered で書いている**ものを検出する。
+// カテゴリと trigger は1対多（『バトル時』→ onBattleWin/Lose/End/Start）なので、ここは
+// 「そのカテゴリ系の語が『』の中に1つでもあるか」という**必要条件**だけを見る。
+//
+// ここに載っていない trigger（onRefreshed / onTenshoTarget）は**カテゴリを持たない誘発**。
+// 「このスピリットが回復するたび」「【転召】の対象になったとき」は印刷テキストが『』を
+// 使わないため、借りる／止める器の対象にもならない。
+const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
+    onSummon: ["召喚時"],
+    onDeploy: ["配置時"],
+    onAttack: ["アタック時", "アタック/ブロック"],
+    onDestroy: ["破壊時"],
+    onBlock: ["ブロック時", "バトル時"],
+    onBlocked: ["アタック時", "ブロック時", "バトル時"],
+    onBattleStart: ["バトル時", "アタック時", "ブロック時"],
+    onBattleWin: ["バトル時", "アタック時", "ブロック時"],
+    onBattleLose: ["バトル時", "アタック時", "ブロック時"],
+    onBattleEnd: ["バトル時", "アタック時", "ブロック時"],
+    onLifeDealt: ["アタック時"],
+}
+
+// 上の検査で落ちるが、**直し方が未決**のもの。ここはベースラインではなく「宿題の一覧」で、
+// 直したら消す。放置すると借りる器（イビルグライダー等）に借りられ、破壊時封じでも止まる。
+// ⚠️ 新しいカードをここに足さないこと。落ちたら直すのが原則
+const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
@@ -40,7 +69,7 @@ const VALID_KINDS = new Set([
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
-    "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
+    "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
@@ -48,7 +77,7 @@ const VALID_KINDS = new Set([
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
-    "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep",
+    "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst",
 ])
 
 export interface ValidationIssue {
@@ -100,6 +129,7 @@ const ACTION_BEARING_KINDS = new Set([
     "fieldEvent",
     "battleWon",
     "activated",
+    "burst", // バーストエリアから発動する側のエントリ（levels概念が無く、貸与対象にもならない。BS14-110天災之禍風：同カードにlendSelfThisTurnを持つ）
 ])
 
 // lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。
@@ -433,6 +463,20 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
                 add(id, `未知の trigger: ${String(e.trigger)}`)
             }
+            // 『』カテゴリと trigger の一致（SEMANTICS_AUDIT.md §3.17）
+            if (e.kind === "triggered" && e.trigger && !QUOTE_MISMATCH_KNOWN.has(e.id ?? "")) {
+                const words = TRIGGER_QUOTE_WORDS[e.trigger]
+                if (words) {
+                    const quoted = (c.effect ?? "").match(/『[^』]*』/g)?.join("") ?? ""
+                    if (!words.some((w) => quoted.includes(w))) {
+                        add(
+                            id,
+                            `trigger "${e.trigger}"（${e.id}）に対応する『』が印刷テキストに無い。` +
+                                `『』はカテゴリなので、該当しないなら kind:"fieldEvent" / kind:"step" へ振り分ける（SEMANTICS_AUDIT.md §3.17）`,
+                        )
+                    }
+                }
+            }
             if (
                 e.kind === "effectGrant" &&
                 (!e.granted?.trigger || !VALID_TRIGGERS.has(e.granted.trigger))
@@ -533,11 +577,12 @@ export function findUnusedActions(cards: CardData[]): string[] {
 //     → 『自分のアタックステップ』限定が効かず常時発揮（テストもその状態を固定していた）
 // type.ts を正として読むので、型を直せば検査も自動で追随する（陳腐化しない）。
 export function findUndeclaredEffectKeys(cards: CardData[]): { cardId: string; message: string }[] {
-    const typeSrc = fs.readFileSync(path.resolve(__dirname, "../server/src/type.ts"), "utf-8")
+    // EffectDef は 2026-09-12 に type.ts から types/effectDef.ts へ切り出した（type.ts の肥大化対策）
+    const typeSrc = fs.readFileSync(path.resolve(__dirname, "../server/src/types/effectDef.ts"), "utf-8")
     const start = typeSrc.indexOf("export type EffectDef =")
-    const end = typeSrc.indexOf("export interface CardData", start)
-    if (start === -1 || end === -1) {
-        return [{ cardId: "(全体)", message: "type.ts の EffectDef を読み取れませんでした（検査を追随させてください）" }]
+    const end = typeSrc.length
+    if (start === -1) {
+        return [{ cardId: "(全体)", message: "types/effectDef.ts の EffectDef を読み取れませんでした（検査を追随させてください）" }]
     }
     const declared = new Map<string, Set<string>>()
     for (const block of typeSrc.slice(start, end).split("\n    | {")) {

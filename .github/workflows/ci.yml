@@ -1,0 +1,71 @@
+name: 検証（typecheck / smoke / E2E）
+
+# main への push と、main 宛の PR で回す。
+# **デプロイはしない。** 本番は Cloud Run で、手元から `gcloud run deploy` 1本で出す
+# （docs/ops/DEPLOY_CLOUDRUN.md §2）。2026-09-11 に Azure から移行したとき、
+# GitHub に GCP の資格情報を置く判断をまだしていないため、ここは検証だけに絞ってある。
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+env:
+  NODE_VERSION: "22"
+
+permissions:
+  contents: read
+
+# 同じブランチの古い実行は捨てる（デプロイしないので途中で止めて困らない）
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v5
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: クライアントをビルド
+        run: npm run build
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      # CLAUDE.md の「バッチ完了時の定型」に揃える（カードデータは型検査の対象外なので、
+      # ここを落とすと効果の実装漏れ・注意書きの不整合がすり抜ける）
+      - name: カードデータの検査
+        run: npm run validate:cards && npm run validate:notes && npm run validate:gaps
+
+      - name: スモークテスト（エンジン単体）
+        run: npm run smoke:quiet
+
+      - name: E2Eテスト（サーバー起動 → 疎通確認）
+        # BS_AI_DELAY_MS=0：AI戦の検証で、AIが1手ごとに450ms待つのを止める
+        # （実対戦では人間が目で追えるよう間を空けているが、CIでは待つ意味がない）
+        run: |
+          BS_AI_DELAY_MS=0 PORT=3100 npx tsx server/src/index.ts &
+          SERVER_PID=$!
+          # サーバー起動待ち（/health が 200 を返すまで待機）
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:3100/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          PORT=3100 npx tsx scripts/e2e.ts
+          kill $SERVER_PID

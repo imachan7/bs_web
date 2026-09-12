@@ -6314,18 +6314,19 @@
   "effects": [
    {
     "id": "BS04-X14-e1",
-    "kind": "triggered",
-    "trigger": "onBattleWin",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritDestroyed",
     "levels": [
      1,
      2,
      3
     ],
+    "phase": "attack",
     "action": {
      "type": "draw",
      "count": 1
     },
-    "optional": false
+    "selfMode": "source"
    },
    {
     "id": "BS04-X14-e2",

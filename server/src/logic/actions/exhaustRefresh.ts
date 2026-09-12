@@ -112,7 +112,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 )
                 return
             }
-            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+            exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
             log(state, exhaustLog(sourceName, getCard(found.inst.cardId).name, action.bofuSourcePid !== undefined))
             // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
             if (action.noRefreshUntilOwnEndSteps !== undefined) {
@@ -170,7 +170,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 // anySide なので疲労するのは自分か相手か分からない。「疲労したとき」の誘発を
                 // 正しい持ち主のフィールドから発火させるため、どちらの場にいるかを引き直す
                 const targetPid = state.players[owner].field.spirits.includes(target) ? owner : opp
-                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+                exhaustSpirit(state, targetPid, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
                 exhausted += 1
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             }
@@ -215,7 +215,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, `${sourceName}の疲労付与：対象がいなかった。`)
                 break
             }
-            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType)
+            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
             log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
             // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
             if (action.noRefreshUntilOwnEndSteps !== undefined) {
@@ -1005,6 +1005,19 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             returnSpiritToHand(state, owner, brave, sourceName)
             if (state.winner) return
         }
+        // costDiscardOwnBurst（docs/design/BURST.md）：自分のバースト1つを破棄（トラッシュへ）することがコスト。
+        // バーストがセットされていなければ不発（COST_MODEL.md §1）
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.burst === null) {
+                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+        }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)
         return
@@ -1223,7 +1236,12 @@ const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> =
             : undefined) ??
         candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
     target.cantAttackThisTurn = true
-    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+    if (action.alsoCantBlock) {
+        target.cantBlockThisTurn = true
+        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間バトルできない）`)
+    } else {
+        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
+    }
 }
 
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
@@ -1265,8 +1283,45 @@ const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, a
     log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
 }
 
+const markSuppressTriggerThisTurnHandler: ActionHandler<"markSuppressTriggerThisTurn"> = (ctx, action) => {
+    const { state, opp, self, sourceName } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const candidates = state.players[opp].field.spirits.filter(
+        (s) =>
+            matchesTarget(state, opp, s, filter, self?.instanceId) &&
+            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
+        return
+    }
+    if (
+        ctx.targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            ctx.owner,
+            self,
+            `${sourceName}：効果を発揮させなくするスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (ctx.targetInstanceId !== undefined
+            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
+            : undefined) ??
+        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+    target.suppressedTriggersThisTurn = [...(target.suppressedTriggersThisTurn ?? []), action.trigger]
+    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間、効果が発揮されない）`)
+}
+
 const handlers = {
     markSkipNextRefresh: markSkipNextRefreshHandler,
+    markSuppressTriggerThisTurn: markSuppressTriggerThisTurnHandler,
     banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAll: exhaustAllHandler,

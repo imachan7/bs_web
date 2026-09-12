@@ -316,6 +316,8 @@ export function endTurn(state: GameState): void {
         state.players[pid].turnVirtualInstances = []
         // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
         state.players[pid].noRestWhenBlockingUsedThisTurn = []
+        // バーストのセットはターン1回（docs/design/BURST.md。setBurstFromHandはこの制限を受けない）
+        state.players[pid].burstSetThisTurn = false
         // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
         // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
         state.players[pid].battleVirtualInstances = []
@@ -328,6 +330,7 @@ export function endTurn(state: GameState): void {
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             delete inst.cantBlockThisTurn
+            delete inst.suppressedTriggersThisTurn
             delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
@@ -341,6 +344,7 @@ export function endTurn(state: GameState): void {
             delete inst.countAsThisTurn
             delete inst.tempGrantedTriggers
             delete inst.tempSymbolLoss
+            delete inst.lifeDealtThisTurn
         }
     }
     // このターンの間スピリットとして扱われていたネクサス（BS03ゴーレムクラフト）をネクサスへ戻す。

@@ -1,0 +1,1054 @@
+[
+ {
+  "cardId": "SD06-001",
+  "name": "オードラン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "翼竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "SD06-002",
+  "name": "サラマントル",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "溶魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "SD06-002-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-003",
+  "name": "ワン・ケンゴー",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分のバーストをセットしている間、このスピリットをLv3として扱う。\nLv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならスピリットでブロックする。\nただし、アルティメットでブロックしてもよい。",
+  "effects": [
+   {
+    "id": "SD06-003-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": 3,
+    "condition": {
+     "ownBurstSet": true
+    }
+   },
+   {
+    "id": "SD06-003-e2",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-004",
+  "name": "ドス・モンキ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "white"
+  ],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のバーストをセットしている間、自分の合体していないスピリットすべてをBP+3000する。",
+  "effects": [
+   {
+    "id": "SD06-004-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "uncombinedFilter": true,
+     "amount": 3000,
+     "condition": "hasOwnBurstSet",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-005",
+  "name": "ツインブレード・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "戦竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。\n自分のバーストをセットしているとき、さらに、BP4000以下の相手のスピリット1体を破壊する。\nLv2･Lv3：フラッシュ『自分のアタックステップ』\n自分のバースト1つを破棄することで、このターンの間、自分のスピリット1体をBP+5000する。",
+  "effects": [
+   {
+    "id": "SD06-005-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "SD06-005-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "ownBurstSet": true
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 4000
+     }
+    },
+    "optional": false
+   },
+   {
+    "id": "SD06-005-e3",
+    "kind": "activated",
+    "timing": "flash",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "bpBuff",
+     "amount": 5000,
+     "costDiscardOwnBurst": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-006",
+  "name": "イカヅチ・ヴルム",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "古竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のブレイヴ/ネクサス、どちらか1つを破壊する。\nLv1･Lv2『このスピリットのアタック時』\n自分のバーストをセットしているとき、相手のスピリット1体を指定し、そのスピリットにアタックできる。\nLv2『このスピリットのアタック時』\n系統：「戦竜」を持つ自分のスピリット1体につき、このスピリットをBP+3000する。",
+  "effects": [
+   {
+    "id": "SD06-006-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "removeOneOfAnyType",
+     "mode": "destroy",
+     "types": [
+      "brave",
+      "nexus"
+     ]
+    },
+    "optional": false
+   },
+   {
+    "id": "SD06-006-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "whileOwnBurstSet": true,
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
+    }
+   },
+   {
+    "id": "SD06-006-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amountPer": 3000,
+     "counter": {
+      "ownFamily": "戦竜"
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-007",
+  "name": "英雄龍ロード・ドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "戦竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2･Lv3『自分のバースト発動後』\n発動したカードがコスト5以下のとき、BP9000以下の相手のスピリット1体を破壊する。\nLv2･Lv3『このスピリットのバトル時』\nバトル終了時、自分のバースト1つを破棄することで、このスピリットを回復させる。",
+  "effects": [
+   {
+    "id": "SD06-007-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "summonBurstCardFree"
+    }
+   },
+   {
+    "id": "SD06-007-e2",
+    "kind": "fieldEvent",
+    "event": "ownBurstActivated",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "condition": {
+     "burstCostAtMost": 5
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 9000
+     }
+    }
+   },
+   {
+    "id": "SD06-007-e3",
+    "kind": "triggered",
+    "trigger": "onBattleEnd",
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "refreshSelf",
+     "costDiscardOwnBurst": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-008",
+  "name": "アルマジトカゲ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [
+   "white",
+   "red"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットは赤のスピリットとしても扱う。",
+  "effects": [
+   {
+    "id": "SD06-008-e1",
+    "kind": "colorAs",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-009",
+  "name": "キジ・トリア",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のターン』\n自分のバーストをセットしている間、合体していない自分のスピリットすべてをBP+2000する。\nLv2『相手のスタートステップ』\n自分のバーストをセットしていないとき、自分の手札にあるバースト効果を持つカード1枚をセットできる。",
+  "effects": [
+   {
+    "id": "SD06-009-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "uncombinedFilter": true,
+     "amount": 2000,
+     "condition": "hasOwnBurstSet",
+     "turn": "opponent"
+    }
+   },
+   {
+    "id": "SD06-009-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "ownBurstSet": false
+    },
+    "optional": true,
+    "action": {
+     "type": "setBurstFromHand"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-010",
+  "name": "海皇龍シーマ・クリーク",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "覇皇",
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのスピリットカードを召喚する。\nLv1･Lv2\nこのスピリットとコスト2以下のスピリットはアタックできない。\nLv1･Lv2･Lv3『相手のターン』\n自分のライフは、ターンごとに相手のスピリット1体から1までしか減らされない。",
+  "effects": [
+   {
+    "id": "SD06-010-e1",
+    "kind": "burst",
+    "event": "opponentSummonEffectResolved",
+    "action": {
+     "type": "summonBurstCardFree"
+    }
+   },
+   {
+    "id": "SD06-010-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "SD06-010-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttackByCost",
+     "costs": [
+      0,
+      1,
+      2
+     ]
+    }
+   },
+   {
+    "id": "SD06-010-e4",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "ownLifeDamageCapPerSourcePerTurn",
+     "max": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-011",
+  "name": "英雄皇の神剣",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のバーストをセットしたとき、自分はデッキから1枚ドローする。\nこの効果はターンに1回しか使えない。\nLv2『自分のアタックステップ』\n系統：「覇皇」を持つ合体していない自分のスピリットすべてをBP+3000する。\nさらに、自分のバーストをセットしている間、系統：「覇皇」を持つ合体していない自分のスピリットすべてをBP+5000する。",
+  "effects": [
+   {
+    "id": "SD06-011-e1",
+    "kind": "fieldEvent",
+    "event": "ownBurstSet",
+    "levels": [
+     1,
+     2
+    ],
+    "oncePerTurn": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "SD06-011-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "覇皇",
+     "uncombinedFilter": true,
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "SD06-011-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "覇皇",
+     "uncombinedFilter": true,
+     "amount": 5000,
+     "condition": "hasOwnBurstSet",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-012",
+  "name": "英雄皇の御盾",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nステップ開始時、相手の合体スピリット1体を指定する。\nこのターンの間、指定された合体スピリットはバトルできない。\nLv2\n自分のバーストをセットしている間、カード名に「英雄皇」と入っている自分のネクサスすべては破壊されない。",
+  "effects": [
+   {
+    "id": "SD06-012-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "both",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "banAttackTargetThisTurn",
+     "combinedOnly": true,
+     "alsoCantBlock": true
+    }
+   },
+   {
+    "id": "SD06-012-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "whileOwnBurstSet": true,
+    "constraint": {
+     "type": "ownNexusIndestructible",
+     "nameIncludes": "英雄皇"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-013",
+  "name": "双翼乱舞",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n自分はデッキから2枚ドローする。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分はデッキから2枚ドローする。",
+  "effects": [
+   {
+    "id": "SD06-013-e1",
+    "kind": "burst",
+    "event": "opponentSummonEffectResolved",
+    "action": {
+     "type": "draw",
+     "count": 2
+    },
+    "thenPay": "main"
+   },
+   {
+    "id": "SD06-013-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-014",
+  "name": "爆烈十紋刃",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nBP6000以下の相手のスピリット1体と、相手の合体スピリットのブレイヴ1つと、相手のネクサス1つを破壊する。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す。",
+  "effects": [
+   {
+    "id": "SD06-014-e1",
+    "kind": "burst",
+    "event": "opponentSummonEffectResolved",
+    "action": {
+     "type": "destroySpiritBraveNexusEach",
+     "spiritFilter": {
+      "maxBp": 6000
+     }
+    },
+    "thenPay": "main"
+   },
+   {
+    "id": "SD06-014-e2",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "recoverMagicFromTrash",
+     "anyCardType": true,
+     "hasBurst": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-015",
+  "name": "覇王爆炎撃",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nBP4000以下の相手のスピリット3体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手の合体スピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "SD06-015-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "destroy",
+     "count": 3,
+     "filter": {
+      "maxBp": 4000
+     }
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "SD06-015-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "combined": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-016",
+  "name": "絶甲氷盾",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "C,U",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nボイドからコア1個を自分のライフに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのバトルが終了したとき、アタックステップを終了する。",
+  "effects": [
+   {
+    "id": "SD06-016-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "lifeCharge",
+     "count": 1,
+     "from": "void"
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "SD06-016-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "endAttackStepAfterBattle"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "SD06-017",
+  "name": "甲竜封絶破",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n相手のスピリット/ブレイヴ/ネクサス、どれか1つをデッキの下に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "SD06-017-e1",
+    "kind": "burst",
+    "event": "opponentSummonEffectResolved",
+    "action": {
+     "type": "removeOneOfAnyType",
+     "mode": "toDeckBottom"
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "SD06-017-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "refreshOne"
+    }
+   }
+  ]
+ }
+]

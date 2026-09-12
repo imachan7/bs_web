@@ -1,8 +1,8 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { log, opponentOf, resolveInOrder } from "../GameState"
-import { requestChoice } from "../EffectModules"
+import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
+import { fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { toAttackPhase } from "../PhaseManager"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -63,6 +63,24 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
         return
 }
 
+// 効果文の「Aする。その後、Bする。」。chooseActionModeの選択部分を外し、常にactionsを順番どおり
+// 全部解決する（BS14-100ストームアタック）
+const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType } = ctx
+        resolveInOrder(state, action.actions, {
+            resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
+            frame: (a) => ({
+                kind: "action" as const,
+                selfInstanceId: self ? self.instanceId : null,
+                action: a,
+                actorPid: owner,
+                ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
+                ...(srcType !== undefined ? { sourceType: srcType } : {}),
+            }),
+        })
+        return
+}
+
 // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める
 // （PhaseManager.toAttackPhase。相手がメインステップにいなければ何もしない＝BS13-067光導く巨塔Lv2）。
 // who:"turnPlayer"（BS13-046/071青バッチ）は誰のターンかを問わず、メインステップにいれば終了させる
@@ -80,9 +98,220 @@ const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action)
     toAttackPhase(state)
 }
 
+// バースト専用（docs/design/BURST.md）：発動中のバーストのカード自身をコストを支払わずに召喚する。
+// スピリット/ネクサスのみ（マジックには書かない。validate:cardsが検査する）。
+// **バースト発動の確認応答は self=null で解決される**ため、対象カードは state.players[owner].burst
+// から読む（burst は承認された時点でもまだ非公開のまま残っている＝この関数がここで空にする）
+const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    if (card.type === "nexus") {
+        player.burst = null
+        player.burstSet = false
+        const inst = createInstance(cardId, state.turn, 0)
+        player.field.nexuses.push(inst)
+        log(state, `${player.name}はバーストとして${card.name}を配置した。`)
+        fireNexusDeployed(state, owner, inst)
+        return
+    }
+    if (card.type !== "spirit") {
+        log(state, `${sourceName}：このカードは召喚できない。`)
+        return
+    }
+    const maintain = minLevelCores(card)
+    if (player.reserve < maintain) {
+        log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    player.reserve -= maintain
+    const inst = createInstance(cardId, state.turn, maintain)
+    player.field.spirits.push(inst)
+    log(state, `${player.name}はバーストとして${card.name}を召喚した。`)
+    if (!state.winner) resolveTensho(state, owner, inst)
+    if (!state.winner) fireSummonSequence(state, owner, inst)
+}
+
+// バースト専用（BS14-X01龍の覇王ジーク・ヤマト・フリード）：条件（あれば）を満たすときだけ破壊を解決し、
+// その後**条件の成否によらず必ず**このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。
+// 破壊が復活確認等で中断したら、召喚をresumeStackへ積んで再開後に続ける（COST_MODEL.mdの「その後」＝
+// 前段の発揮の有無を問わず後段は実行する。CONJUNCTION.md「この効果発揮後」）
+const burstDestroyThenSummonSelfHandler: ActionHandler<"burstDestroyThenSummonSelf"> = (ctx, action) => {
+    const { state, owner } = ctx
+    const conditionMet = action.condition === undefined || state.players[owner].life <= action.condition.ownLifeAtMost
+    if (conditionMet) {
+        ctx.resolve({ type: "destroy", count: 1, ...(action.filter ? { filter: action.filter } : {}) })
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [
+                { kind: "action", selfInstanceId: null, actorPid: owner, action: { type: "summonBurstCardFree" } },
+            ])
+            return
+        }
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+// バースト専用（BS14-X03風の覇王ドルクス・ウシワカ）：自分のフィールド/リザーブ/トラッシュのコア合計が
+// coresAtLeast以上のときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。
+// 満たさないときは何もしない（burst.conditionと違い、この1ステップだけがゲートされる。sequenceの後段に混ぜて使う）
+const summonBurstCardFreeIfCoresAtLeastHandler: ActionHandler<"summonBurstCardFreeIfCoresAtLeast"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const fieldCores =
+        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
+        player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
+        player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
+    const total = fieldCores + player.reserve + player.trashCores
+    if (total < action.coresAtLeast) {
+        log(state, `${sourceName}：コア合計が${action.coresAtLeast}個未満のため召喚しなかった。`)
+        return
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+// バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
+// setBurst（GameAction）と異なりターン1回制限を受けない
+// バースト専用（BS14-064レボルシング・ゼヨン）：自分のフィールドのネクサス数がnexusAtLeast以上のときだけ、
+// このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastのネクサス数版）
+const summonBurstCardFreeIfOwnNexusAtLeastHandler: ActionHandler<"summonBurstCardFreeIfOwnNexusAtLeast"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (state.players[owner].field.nexuses.length < action.nexusAtLeast) {
+        log(state, `${sourceName}：自分のネクサスが${action.nexusAtLeast}つ未満のため召喚しなかった。`)
+        return
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        placeBurst(state, owner, cardId)
+        return
+    }
+    const candidates = player.hand
+        .map((cardId, i) => ({ cardId, i }))
+        .filter(({ cardId }) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：セットできるバースト持ちのカードが手札になかった。`)
+        return
+    }
+    if (
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：セットするバーストを選んでください`,
+            "hand",
+            candidates.map((c) => c.i),
+            { type: "setBurstFromHand" },
+            null,
+        )
+    ) {
+        return
+    }
+    // 非対話：コスト最大の1枚（決定的簡略化）
+    let best = candidates[0]!
+    for (const c of candidates) {
+        if (getCard(c.cardId).cost > getCard(best.cardId).cost) best = c
+    }
+    player.hand.splice(best.i, 1)
+    placeBurst(state, owner, best.cardId)
+}
+
+// 「自分の手札にあるバースト効果を持つカード1枚をセットすることで、自分はデッキからN枚ドローする」
+// （X012R英雄皇ロード・ドラゴン・ドミニオン）。setBurstFromHandと同じ候補選択・非対話簡略化（コスト最大の1枚）で
+// セットし、**セットできたときだけ**続けてドローする（COST_MODEL.md §1：コストが払えないなら効果も起きない）
+const costSetBurstThenDrawHandler: ActionHandler<"costSetBurstThenDraw"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        placeBurst(state, owner, cardId)
+        draw(state, owner, action.count)
+        return
+    }
+    const candidates = player.hand
+        .map((cardId, i) => ({ cardId, i }))
+        .filter(({ cardId }) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：セットできるバースト持ちのカードが手札になかったため発動しなかった。`)
+        return
+    }
+    if (
+        tryInteractiveCardChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：コストとしてセットするバーストを選んでください`,
+            "hand",
+            candidates.map((c) => c.i),
+            { type: "costSetBurstThenDraw", count: action.count },
+            null,
+        )
+    ) {
+        return
+    }
+    let best = candidates[0]!
+    for (const c of candidates) {
+        if (getCard(c.cardId).cost > getCard(best.cardId).cost) best = c
+    }
+    player.hand.splice(best.i, 1)
+    placeBurst(state, owner, best.cardId)
+    draw(state, owner, action.count)
+}
+
+// BS14-053オリンピアの天使ハギト：自分のバースト1つをオープンできる。マジックカードなら手札に戻し、
+// それ以外は破棄する（burstがnullなら不発。バーストの中身は非公開ゾーンなので選択の余地はない）
+const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSortByType"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    const card = getCard(cardId)
+    if (card.type === "magic") {
+        player.hand.push(cardId)
+        log(state, `${player.name}はバーストの${card.name}をオープンし、手札に戻した。`)
+    } else {
+        player.trashCards.push(cardId)
+        log(state, `${player.name}はバーストの${card.name}をオープンし、トラッシュへ破棄した。`)
+    }
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
+    sequence: sequenceHandler,
     forceEndMainStep: forceEndMainStepHandler,
+    summonBurstCardFree: summonBurstCardFreeHandler,
+    revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
+    burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
+    summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,
+    summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
+    setBurstFromHand: setBurstFromHandHandler,
+    costSetBurstThenDraw: costSetBurstThenDrawHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

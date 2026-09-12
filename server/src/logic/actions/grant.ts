@@ -18,7 +18,7 @@ import {
     returnSpiritToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -125,6 +125,25 @@ const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThis
             { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
         ]
         log(state, `${getCard(target.cardId).name}に効果を付与した。`)
+        return
+}
+
+// BS14-032ヤツノカンゾウLv2：指定キーワードを持つ自分のスピリットすべてに、このターンの間だけ
+// 誘発効果を直接付与する（grantEffectToTargetThisTurnの全体版）
+const grantEffectToAllByKeywordThisTurnHandler: ActionHandler<"grantEffectToAllByKeywordThisTurn"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+        const targets = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, action.keyword))
+        if (targets.length === 0) {
+            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットがいなかった。`)
+            return
+        }
+        for (const target of targets) {
+            target.tempGrantedTriggers = [
+                ...(target.tempGrantedTriggers ?? []),
+                { trigger: action.trigger, action: action.action },
+            ]
+        }
+        log(state, `${sourceName}：このターンの間、【${KEYWORDS[action.keyword].label}】を持つ自分のスピリットすべてに効果を付与した。`)
         return
 }
 
@@ -395,13 +414,28 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
         return
 }
 
+// BS14-110天災之禍風：levelOverrideOpponentNexusesのスピリット版（コスト・確認なしの単純な一括付与）
+const levelOverrideOpponentSpiritsAllThisTurnHandler: ActionHandler<"levelOverrideOpponentSpiritsAllThisTurn"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    const oppPlayer = state.players[opp]
+    for (const spirit of oppPlayer.field.spirits) {
+        spirit.levelOverrideThisTurn = action.level
+    }
+    log(
+        state,
+        `${sourceName}：${oppPlayer.name}のスピリットすべてを、このターンの間Lv${action.level}として扱う。`,
+    )
+    return
+}
+
 const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
         // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
         // 未指定時は自分のフィールドの候補から選ばせる（マッシブアップ）。
-        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）
-        const ownCandidates = state.players[owner].field.spirits.filter(
+        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）。
+        // side:"opponent" 指定時は相手のフィールドから選ばせる（BS14-051アルカナビーストクィーン）
+        const ownCandidates = state.players[action.side === "opponent" ? opp : owner].field.spirits.filter(
             (s) =>
                 (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
                 (!action.requireLevelExists ||
@@ -424,7 +458,7 @@ const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, a
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : // 非対話（テスト・AI）と候補1体のときは先頭を自動選択（決定的簡略化）
-              (ownCandidates[0] ? { pid: owner, inst: ownCandidates[0] } : null)
+              (ownCandidates[0] ? { pid: action.side === "opponent" ? opp : owner, inst: ownCandidates[0] } : null)
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
@@ -625,12 +659,15 @@ const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx,
         type: "cantUseHandCardsForPid",
         pid: opp,
         ...(action.allowedColor !== undefined ? { allowedColor: action.allowedColor } : {}),
+        ...(action.cardType !== undefined ? { cardType: action.cardType } : {}),
     })
     log(
         state,
-        action.allowedColor !== undefined
-            ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
-            : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
+        action.cardType !== undefined
+            ? `${sourceName}：このターンの間、${state.players[opp].name}は${action.cardType === "magic" ? "マジックカード" : action.cardType}を使用できない。`
+            : action.allowedColor !== undefined
+              ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
+              : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
     )
 }
 
@@ -643,6 +680,14 @@ const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> =
     const pid = action.side === "opponent" ? opp : owner
     state.turnConstraints.push({ type: "armorDisabledForPid", pid })
     log(state, `${sourceName}：このターンの間、${state.players[pid].name}のスピリットの【装甲】は働かない。`)
+}
+
+// このターンの**最初の**【不死】召喚だけコストを0にする（BS14-098ダークリボーン）。
+// 維持コアは通常どおり要る。使い切りなので applyFushiSummon 側で制約を取り除く
+const freeFushiSummonThisTurnHandler: ActionHandler<"freeFushiSummonThisTurn"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    state.turnConstraints.push({ type: "freeFushiSummonForPid", pid: owner })
+    log(state, `${sourceName}：このターン最初の【不死】の召喚はコストを支払わない。`)
 }
 
 // このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
@@ -910,7 +955,36 @@ const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsTh
 }
 
 const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+        // singleTarget（BS14-101仁王壁）：colorFilter一致の自分のスピリット1体を指定してから付与する
+        if (action.singleTarget) {
+            const candidates = state.players[owner].field.spirits.filter(
+                (s) => action.colorFilter === undefined || instHasColor(s, action.colorFilter),
+            )
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象のスピリットがいなかった。`)
+                return
+            }
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：疲労状態でブロックできるようにするスピリットを選んでください`,
+                    candidates,
+                    action,
+                    null,
+                )
+            ) {
+                return
+            }
+            const target =
+                (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
+                candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+            state.turnConstraints.push({ type: "canBlockWhileRestedThisTurn", pid: owner, instanceId: target.instanceId })
+            log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}は疲労状態でもブロックできる。`)
+            return
+        }
         state.turnConstraints.push({
             type: "canBlockWhileRestedThisTurn",
             pid: owner,
@@ -1352,6 +1426,7 @@ const handlers = {
     treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeyword: grantKeywordHandler,
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
+    grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
     grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
@@ -1359,6 +1434,7 @@ const handlers = {
     blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
+    levelOverrideOpponentSpiritsAllThisTurn: levelOverrideOpponentSpiritsAllThisTurnHandler,
     levelOverrideTarget: levelOverrideTargetHandler,
     levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
@@ -1379,6 +1455,7 @@ const handlers = {
     opponentNexusEffectsDisabledThisTurn: opponentNexusEffectsDisabledThisTurnHandler,
     lifeFloorThisTurn: lifeFloorThisTurnHandler,
     disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
+    freeFushiSummonThisTurn: freeFushiSummonThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,

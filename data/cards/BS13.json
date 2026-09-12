@@ -798,6 +798,10 @@
       "color": "red",
       "count": 1
      }
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
     }
    }
   ]
@@ -1200,15 +1204,14 @@
   "effects": [
    {
     "id": "BS13-010-e1",
-    "kind": "triggered",
-    "trigger": "onDestroy",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
     "levels": [
      2
     ],
     "turn": "opponent",
-    "condition": {
-     "selfDestroyedByOpponent": true
-    },
+    "selfOnly": true,
+    "byOpponentEffectOnly": true,
     "optional": true,
     "action": {
      "type": "summonFromTrashFree",
@@ -3292,6 +3295,10 @@
       ]
      },
      "amount": 3000
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
     }
    },
    {

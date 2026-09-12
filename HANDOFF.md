@@ -21,22 +21,36 @@
 
 ## 1. いまの本線と次の一手
 
-**BS13「星座編 第四弾：星空の王者」97枚は全枚数投入済み（2026-09-10。青バッチ＝smoke part306 / part307）。**
-確定した解釈32件・全バッチの器・完了時の知見は [BS13_PLAN.md](./docs/design/BS13_PLAN.md)
-（§1 と §12.3 が解釈、§6〜§12 が各色の器、§12.4 が「設計時に新規と見積もった器のうち3つは既存で足りた」）。
+**本線は BS14「覇王編 第1弾：英雄龍の伝説」121種**（`SD06-007` は SD06 と重複するので取り込まない）。
+作業場所は**ワークツリー `.claude/worktrees/feat-burst`**（ブランチ `worktree-feat-burst`）。
 
-**次の本線は下の §2 の3件。** どれも「BS13 を全部入れ終えてから」で保留していたルール適合の直しで、**いま着手できる**。
+**6色121種すべて投入済み**（`6dafae9` で `data/cards/BS14.json` に結合。gaps 0件・smoke part313〜319）。
+確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
+
+**次の一手**: `data/announcements.json` に BS14 追加のお知らせを1行足す → main へマージ。
+
+`audit:choices` は 2026-09-12 に確認済み（BS14 分の5件は「選択の語を含む効果文だが
+アクション自体に選ばせる対象が無い」既知の誤検出。PROCEDURES_AUDIT §5）。
+
+**⚠️ `coverage:effects` で実行実績0の継続効果が8件残っている**（smoke の穴。テストを足して潰す）:
+BS12-081-e2 / BS13-005-e3 / X006-e2 / BS13-034-e1 / BS14-049-e1 / BS13-038-e1 / BS13-040-e2 /
+BS14-109-e2 / BS14-019-e3 / BS14-040-e1 / BS14-077-e1。
+action 側も (a) 未実行3種（destroyOwnFreelyThenDraw / negateContinuousMagicByName /
+unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
+
+**⚠️ この worktree には `feat/cloudrun` を取り込み済み**（`20449ad`）。`server/src/type.ts` は
+`types/effectAction.ts` / `types/effectDef.ts` に3分割してある。**型を足すときは置き場を間違えないこと**
+（対応表は CLAUDE.md「設計ドキュメント」と SPEC.md §3）。
 
 ### 済んでいること（参照先を消さないこと）
 
 BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚数投入済み。
 **BS12 で確定した解釈18件と全バッチの器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §1 と §5〜§8。**
+**BS13 の解釈32件と各色の器は [BS13_PLAN.md](./docs/design/BS13_PLAN.md) §1・§12.3・§6〜§12。**
 **「支払った」の判定規則は [COST_MODEL.md](./docs/design/COST_MODEL.md) §8**（smoke part295 / part296）。
 ブレイヴの段階1〜7は完了済み（[BRAVE.md](./docs/design/BRAVE.md) §9、確定した規則は §12.5.1〜§12.5.5）。
 **宣言そのものに追加コストが要る効果の作り方は [INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) パターンE**。
 
-**未実装の節は全弾でゼロ**（BS02-063 は禁止カードのため対象外）で、`card-notes.json` の
-`simplified` も0件（残るは BS02-063 の `partial` 1件だけ＝実装しない方針）。
 残課題は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md)（検証の穴80件＋計測点の無い kind 10種）。
 
 ---
@@ -71,5 +85,8 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 - **`createGame(seed, …)` の seed は名前だけで、シャッフルは `Math.random()`**（`GameState.ts` の `shuffle`）。
   **デッキの中身に依存するテストは間欠的に落ちる。** 必要なカードは自分で山札の先頭へ置くこと。
   smoke が1〜2件落ちたら、まず**同じコマンドを再実行**して再現するか見る
+- **`assert` は失敗しても例外を投げず、smoke パートの末尾の成功バナーはそのまま出る。**
+  合否は必ず `npx tsx scripts/smoke/partN.ts 2>&1 | grep -c "❌"` が0であることで見ること。
+  `tail -3` でバナーを見て「通った」と判断すると、実際の失敗を見落とす（2026-09-12 に実際に踏んだ）
 - **再開スタックは `act()` の解決ループでしか消化されない。** 束を積むだけでは `pendingChoice` が立たず、
   呼び出し元からは「何も起きなかった」ように見えて誘発が放置される

@@ -4100,6 +4100,10 @@
     },
     "action": {
      "type": "endBattle"
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
     }
    }
   ]

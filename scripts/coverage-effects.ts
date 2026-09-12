@@ -614,12 +614,16 @@ const __covEid = (e: unknown): string =>
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 return true
             }`,
         `            for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 __covRec2("cont\\t" + __covEid(effect))
                 return true
             }`,
@@ -1467,11 +1471,9 @@ process.on("exit", () => {
         // coreReturnBonus（BS02チャウーLv2）：リザーブへ戻るコアに実際に加算した時点
         patch(
             path.join(tree, "server/src/logic/removal.ts"),
-            `                if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
+            `                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 bonus += e.amount`,
-            `                if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
+            `                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
                 __covRecord("cont\\t" + String((e as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                 bonus += e.amount`,
         )

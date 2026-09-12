@@ -8,8 +8,8 @@
     <meta property="og:title" content="バトスピWeb対戦｜ブラウザで遊べるバトルスピリッツ 非公式シミュレーター" />
     <meta property="og:description" content="バトルスピリッツのカードバトルをブラウザで対戦できる非公式ファンメイドシミュレーター。第一弾〜第四弾 全521枚収録、デッキ構築対応、登録不要ですぐ遊べます。" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://bs-web.azurewebsites.net/" />
-    <link rel="canonical" href="https://bs-web.azurewebsites.net/" />
+    <meta property="og:url" content="https://bs-web-910728969072.asia-northeast1.run.app/" />
+    <link rel="canonical" href="https://bs-web-910728969072.asia-northeast1.run.app/" />
     <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -144,7 +144,10 @@
                     <button id="btn-opp-tegamoto" class="log-toggle-btn hidden">相手の手元(0)</button>
                 </div>
                 <div class="field-row">
-                    <div id="opp-nexuses" class="nexus-zone"></div>
+                    <div class="nexus-row">
+                        <div id="opp-burst" class="burst-zone"></div>
+                        <div id="opp-nexuses" class="nexus-zone"></div>
+                    </div>
                     <div id="opp-spirits" class="spirit-zone"></div>
                 </div>
             </div>
@@ -204,7 +207,10 @@
 
             <div id="player-area" class="player-area">
                 <div class="field-row">
-                    <div id="my-nexuses" class="nexus-zone"></div>
+                    <div class="nexus-row">
+                        <div id="my-burst" class="burst-zone"></div>
+                        <div id="my-nexuses" class="nexus-zone"></div>
+                    </div>
                     <div id="my-spirits" class="spirit-zone"></div>
                 </div>
                 <div id="my-info" class="player-info"></div>

@@ -11,8 +11,11 @@ import {
     detachBraveByEffect,
     detachBraveByOwnerChoice,
     returnCombinedBraveToHand,
+    returnCombinedBraveToDeckBottom,
     returnNexusToHand,
+    returnNexusToDeckBottom,
     returnSpiritToHand,
+    returnSpiritToDeckBottom,
     destroyNexus,
     destroySpirit,
     emitEvent,
@@ -35,6 +38,7 @@ import {
     summonFreeFromHandIndex,
     summonFreeFromTrashIndex,
     tryInteractiveTargetChoice,
+    tryOwnLifeFloorByCost,
 } from "../EffectModules"
 import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -409,8 +413,13 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
-            state.winner = owner
-            log(state, `${state.players[owner].name}の勝利！`)
+            // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コストで0を回避できる
+            if (tryOwnLifeFloorByCost(state, opp)) {
+                fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+            } else {
+                state.winner = owner
+                log(state, `${state.players[owner].name}の勝利！`)
+            }
         } else if (dealt > 0) {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）
             fireFieldEventTriggers(state, opp, "ownLifeDamaged")
@@ -1811,6 +1820,7 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const removeOne = (chosen: CardInstance, spirits: CardInstance[], braves: CardInstance[]): void => {
         if (spirits.some((s) => s.instanceId === chosen.instanceId)) {
             if (action.mode === "destroy") destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext)
+            else if (action.mode === "toDeckBottom") returnSpiritToDeckBottom(state, opp, chosen, sourceName)
             else returnSpiritToHand(state, opp, chosen, sourceName)
             return
         }
@@ -1820,10 +1830,12 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
             const host = oppPlayer.field.spirits.find((sp) => (sp.braveRefs ?? []).some((r) => r.instanceId === chosen.instanceId))
             if (!host) return
             if (action.mode === "destroy") destroyCombinedBrave(state, opp, host, chosen, destroyContext)
+            else if (action.mode === "toDeckBottom") returnCombinedBraveToDeckBottom(state, opp, host, chosen)
             else returnCombinedBraveToHand(state, opp, host, chosen)
             return
         }
         if (action.mode === "destroy") destroyNexus(state, opp, chosen.instanceId, destroyContext)
+        else if (action.mode === "toDeckBottom") returnNexusToDeckBottom(state, opp, chosen.instanceId)
         else returnNexusToHand(state, opp, chosen.instanceId)
     }
     // count/countCounter（器：BS13-X06巨人勇者ペルセウス「自分のネクサス1つにつき」）：countCounter優先、
@@ -1844,7 +1856,9 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
     const prompt =
         action.mode === "destroy"
             ? `${sourceName}：破壊する相手のスピリット/ブレイヴ/ネクサスを選んでください`
-            : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
+            : action.mode === "toDeckBottom"
+              ? `${sourceName}：デッキの下に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
+              : `${sourceName}：手札に戻す相手のスピリット/ブレイヴ/ネクサスを選んでください`
     const { count: _c, countCounter: _cc, ...actionForChoice } = action
     const remainingAction =
         resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1 } : null

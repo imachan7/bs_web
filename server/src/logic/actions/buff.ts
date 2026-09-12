@@ -25,6 +25,7 @@ import {
     spiritHasFamily,
     tryInteractiveTargetChoice,
     spiritHasKeyword,
+    returnSpiritToHand,
 } from "../EffectModules"
 import { canDiscardHand, instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -102,6 +103,32 @@ const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costReturnSelfToHand（BS14-X03風の覇王ドルクス・ウシワカ）：このスピリット自身を手札に戻すことがコスト。
+        // 対象になれる自分の他のスピリットが1体もいなければ不発（COST_MODEL.md §1）
+        if (action.costReturnSelfToHand && !action.costPaid) {
+            if (!self || state.players[owner].field.spirits.filter((s) => s.instanceId !== self.instanceId).length === 0) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            returnSpiritToHand(state, owner, self, sourceName)
+            if (state.winner) return
+            ctx.resolve({ ...action, costPaid: true }, { sourceColors: srcColors, sourceType: srcType })
+            return
+        }
+        // costDiscardOwnBurst（docs/design/BURST.md）：自分のバースト1つを破棄（トラッシュへ）することがコスト。
+        // バーストがセットされていなければ不発（COST_MODEL.md §1）。他のコスト軸とは併用しない前提で、
+        // ここで払ってから通常どおり残りの解決（対象探索・BP増加）へ続ける
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.burst === null) {
+                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+        }
         // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ無条件に破棄することがコスト
         // （lifeCharge.costMillSelfCountと同型。あるだけ処理してコストも払う＝COST_MODEL.md。対象は常にself固定
         // 「このスピリットをBP+」）。thenRefreshIfMilledFamily指定時は、破棄した中に指定系統のスピリットカードが

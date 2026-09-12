@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -109,7 +109,9 @@ function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string
     }
     for (const c of state.turnConstraints) {
         if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
-        const colors = getCard(cardId).colors
+        const card = getCard(cardId)
+        if (c.cardType !== undefined && card.type !== c.cardType) continue
+        const colors = card.colors
         if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
         if (c.bannedColors !== undefined && !c.bannedColors.some((col) => colors.includes(col))) continue
         return "効果により、このターンはこのカードを使えません"
@@ -424,6 +426,21 @@ export function validateSetNexus(
         const label = millPaid > 0 ? "置くコア" : "コスト+置くコア"
         return payError === "コアが足りません" ? `コアが足りません（${label}で${cost + maintain - millPaid}個必要）` : payError
     }
+    return null
+}
+
+// バーストのセット（docs/design/BURST.md）：自分のターンのメインステップ限定・ターン1回。
+// 対象カードが kind:"burst" を持たないなら拒否する（公式ルールは敗北だが、誤操作で敗北させるのは
+// 体験が悪いので拒否に簡略化する。2026-09-11 ユーザー確認）。setBurstFromHand（効果によるセット）は
+// この検証を経由しない別経路のため、ターン1回制限を受けない
+export function validateSetBurst(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const timing = checkMainTiming(state, pid)
+    if (timing) return timing
+    const player = state.players[pid]
+    if (player.burstSetThisTurn) return "バーストのセットはターンに1回までです"
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    if (!getCard(cardId).effects.some((e) => e.kind === "burst")) return "バースト効果を持たないカードです"
     return null
 }
 
@@ -835,6 +852,14 @@ export function validateActivateAbility(
             return "フラッシュタイミングではありません"
         }
     }
+    // ステップ・手番の明示（『自分のアタックステップ』等）。timing だけでは絞れないぶんをここで見る
+    if (effect.phaseTurn) {
+        if (state.phase !== effect.phaseTurn.phase) return "このステップでは発動できません"
+        const turnOk =
+            effect.phaseTurn.turn === "both" ||
+            (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
+        if (!turnOk) return "このターンでは発動できません"
+    }
     // 発動条件: self が現在のバトルの当事者
     if (effect.condition === "selfInBattle") {
         if (
@@ -871,6 +896,13 @@ export function validateActivateAbility(
                 (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
             )
             if (!hasCard) return "破棄できるカードが手札にありません"
+        } else if ("exhaustOwnFamilyOne" in effect.cost) {
+            // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリットが自分のフィールドに無ければ発動できない
+            const family = effect.cost.exhaustOwnFamilyOne
+            const hasCandidate = state.players[pid].field.spirits.some(
+                (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
+            )
+            if (!hasCandidate) return "疲労させられるスピリットがいません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -932,6 +964,10 @@ export function validateAttack(
     }
     // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
     if (attackOncePerTurnLimitApplies(state, inst)) {
+        return "このスピリットは既にこのターンアタックしています"
+    }
+    // フィールド全体制約（BS14-088青玉の巨大迷宮）：コストがmaxCost以下のスピリットはターンに1回しかアタックできない
+    if (attackOncePerTurnByCostLimitApplies(state, inst)) {
         return "このスピリットは既にこのターンアタックしています"
     }
 

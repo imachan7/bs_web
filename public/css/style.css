@@ -461,6 +461,87 @@ button:active {
     flex: 1;
 }
 
+/* バーストエリア（docs/design/BURST.md）。ネクサスゾーンと同じ行に横並びさせるための
+   ラッパー（field-row がスマホでcolumnになっても、この中だけは常にrow） */
+.nexus-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.burst-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* 通常のフィールドカードより小さめの枠（既存の盤面の高さを増やさないため） */
+.burst-slot {
+    width: 46px;
+    height: 56px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    font-size: 9px;
+}
+
+.burst-empty {
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* 相手のバースト：裏面のみ。カード名・効果は一切出さない */
+.burst-back {
+    background: linear-gradient(135deg, #3a3f4b, #20232c);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+/* 自分のバースト：裏向きだが自分にはカード名が見える */
+.burst-mine {
+    background: linear-gradient(#2a2e39, #2a2e39) padding-box,
+                linear-gradient(135deg, var(--c-main, #333), var(--c-sub, #333)) border-box;
+    border: 2px solid transparent;
+    padding: 2px;
+}
+.burst-mine .name {
+    font-size: 8px;
+    max-width: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.burst-hidden-icon {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 10px;
+}
+
+/* 手札のバーストセットボタン */
+.burst-set-badge {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    font-size: 9px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--accent, #6b7fd7);
+    background: rgba(107, 127, 215, 0.25);
+    color: #fff;
+    cursor: pointer;
+}
+.burst-set-badge.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 
 
 #battle-info {
@@ -1348,6 +1429,11 @@ button:active {
         width: 58px;
         height: 64px;
     }
+    .burst-slot {
+        width: 38px;
+        height: 48px;
+        font-size: 8px;
+    }
     .player-area {
         padding: 8px 12px;
         gap: 8px;
@@ -1430,6 +1516,15 @@ button:active {
     }
     .nexus-zone .card .name {
         font-size: 8px;
+    }
+    .burst-slot {
+        width: 32px;
+        height: 42px;
+        font-size: 7px;
+    }
+    .burst-mine .name {
+        max-width: 26px;
+        font-size: 7px;
     }
     #hand .card {
         width: 68px;

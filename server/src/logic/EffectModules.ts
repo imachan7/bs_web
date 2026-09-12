@@ -39,6 +39,7 @@ import {
     createInstance,
     currentLevel,
     draw,
+    fieldInstanceIdsOf,
     findInstanceAnywhere,
     findNexus,
     findSpirit,
@@ -564,13 +565,20 @@ export function exhaustSpirit(
     // ownSpiritExhausted の byOpponentEffectOnly（BS12-062白煙の大山脈）が使う
     causePid?: PlayerId,
     causeType?: CardType,
+    // 【暴風】の持ち主自身のinstanceId（BS14-032ヤツノカンゾウLv2の「このスピリットの【暴風】で疲労させた」が
+    // 発生源を特定するために使う。任意＝渡されない呼び出し元では記録されないだけ）
+    bofuSourceInstanceId?: string,
 ): void {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
     if (inst.isRested) return
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
-        state.bofuExhaustedThisBattle.push({ pid: ownerPid, instanceId: inst.instanceId })
+        state.bofuExhaustedThisBattle.push({
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            ...(bofuSourceInstanceId !== undefined ? { bofuSourceInstanceId } : {}),
+        })
         fireFieldEventTriggers(state, bofuSourcePid, "ownBofuExhausted", { pid: ownerPid, inst })
     }
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
@@ -604,6 +612,23 @@ export function refreshSpirit(
     fireTrigger(state, ownerPid, inst, "onRefreshed")
     // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
     fireFieldEventTriggers(state, ownerPid, "ownSpiritRefreshed", { pid: ownerPid, inst })
+    // 両陣営から見える版（anySpiritAttackedと同じ形。BS14-085賛美するパイプオルガンLv2：
+    // 「スピリット/マジックの効果で回復した赤/緑/白/青のスピリットすべてを破壊する」＝両陣営が対象）
+    const selfOverride = { pid: ownerPid, inst }
+    const refreshEventInfo = sourceType === undefined ? {} : { refreshSourceType: sourceType }
+    fireFieldEventTriggers(state, ownerPid, "anySpiritRefreshed", selfOverride, instColors(inst), undefined, undefined, refreshEventInfo)
+    if (!state.winner) {
+        fireFieldEventTriggers(
+            state,
+            opponentOf(ownerPid),
+            "anySpiritRefreshed",
+            selfOverride,
+            instColors(inst),
+            undefined,
+            undefined,
+            refreshEventInfo,
+        )
+    }
 }
 
 // 「スピリットが疲労したとき」のフィールドイベント発火。
@@ -662,6 +687,11 @@ export function millDeck(
     // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
     if (isEndStepLocked(state, "deckMill")) {
         log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
+        return 0
+    }
+    // 「お互い、メインステップでデッキは破棄されない」（BS14-085賛美するパイプオルガン）。陣営を問わず止める
+    if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) {
+        log(state, `${state.players[pid].name}のデッキは、メインステップのため破棄されなかった。`)
         return 0
     }
     let effectiveCount = count
@@ -984,13 +1014,14 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
 // （globalConstraint:"handImmuneForPid"。ネクサスの効果は防がない＝sourceType:"nexus"は素通しする。
 // BS12-067月光集める塔Lv1）。discardOpponent等の手札を対象に取る処理の冒頭で呼ぶ
 export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType: CardType | undefined): boolean {
-    if (sourceType === "nexus") return false
     for (const source of effectSources(state, targetPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "handImmuneForPid") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // ネクサスの効果は既定では防がない＝意図的（BS12-067）。includeNexus指定時のみ防ぐ（BS14-082五角形の砦）
+            if (sourceType === "nexus" && !effect.constraint.includeNexus) continue
             return true
         }
     }
@@ -1132,6 +1163,39 @@ export function tryLifeDamageMillGuard(
                 log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             }
             return guarded
+        }
+    }
+    return false
+}
+
+// BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
+// 自分のライフは0にならない」（globalConstraint "ownLifeFloor" の costSelfToTrash 版）。
+// 呼び出し側が life<=0 を検知した直後（勝敗確定の直前）に呼ぶ。払わない理由が無い（払わなければ即敗北）ため
+// 対話確認を省いた自動払いの簡略化。支払えたら true を返し、life を floor まで戻す（0にはならない）
+export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean {
+    const player = state.players[pid]
+    for (const source of effectSources(state, pid)) {
+        // 発生源自身がまだフィールドのネクサスにいなければ支払いようがない（既にトラッシュ等）
+        const index = player.field.nexuses.findIndex((n) => n.instanceId === source.instanceId)
+        if (index === -1) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "ownLifeFloor") continue
+            if (!effect.constraint.costSelfToTrash) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            player.field.nexuses.splice(index, 1)
+            player.trashCards.push(source.cardId)
+            player.reserve += source.cores
+            player.life = effect.constraint.floor
+            log(
+                state,
+                `${player.name}は${getCard(source.cardId).name}を自分のトラッシュに置いた。（ライフは0にならず${effect.constraint.floor}のまま）`,
+            )
+            if (effect.constraint.then) {
+                resolveAction(state, pid, null, effect.constraint.then)
+            }
+            return true
         }
     }
     return false
@@ -1325,6 +1389,7 @@ export function hasBlockTriggersAsAttack(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "blockTriggersAsAttackGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.whileOwnBurstSet === true && !state.players[ownerPid].burstSet) continue
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (state.phase !== phase) continue
@@ -1351,8 +1416,9 @@ export function hasAttackTriggersAsBlock(
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "attackTriggersAsBlockGrant") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                // target:"ownAll" は発生源の持ち主のスピリットのみ
+                // target:"ownAll" は発生源の持ち主のスピリットのみ、target:"self" は発生源自身のみ
                 if (effect.target === "ownAll" && sourcePid !== ownerPid) continue
+                if (effect.target === "self" && source.instanceId !== inst.instanceId) continue
                 if (effect.phaseTurn) {
                     const { phase, turn } = effect.phaseTurn
                     if (state.phase !== phase) continue
@@ -2481,6 +2547,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
                         // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
                         if (!player.field.spirits.some((s) => instIsCombined(s))) continue
+                    } else if ("ownBurstSet" in effect.condition) {
+                        // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
+                        if (!player.burstSet) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -2900,6 +2969,121 @@ export function payCost(
         }
     }
     return placedFromField
+}
+
+// バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
+// 手札からの取り出し・ターン1回制限の消費は呼び出し側（GameEngine.doSetBurst / setBurstFromHandハンドラ）が行う
+// （setBurstFromHandはターン1回制限を受けないため、ここでは触らない）
+export function placeBurst(state: GameState, pid: PlayerId, cardId: string): void {
+    const player = state.players[pid]
+    if (player.burst !== null) {
+        const oldName = getCard(player.burst).name
+        player.trashCards.push(player.burst)
+        // トラッシュは公開ゾーンなので、この時点でカード名を出しても非公開情報は漏れない
+        log(state, `${player.name}は既にセットしていたバースト（${oldName}）をトラッシュに置いた。`)
+    }
+    player.burst = cardId
+    player.burstSet = true
+    // ⚠️ バーストは非公開ゾーンなので、セットした時点ではカード名をログに出さない（相手にも自分の
+    // 画面にも同じログが配信されるため。GameState.viewFor は log を両者に同じ内容で配る）
+    log(state, `${player.name}はバーストをセットした。`)
+    fireFieldEventTriggers(state, pid, "ownBurstSet")
+}
+
+// バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+// バーストエリアを空にするだけ、それ以外（マジック相当）は解決後にトラッシュへ送る。
+// 続けて thenPay（「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」）を確認する。
+// **resolveMagicは経由しない**（マジックバーストは「バースト発動」であって「マジックの使用」ではないため。
+// state.magicUsedThisTurn / ownMagicUsed・opponentMagicUsedの誤発火を避ける）
+export function finishBurstActivation(
+    state: GameState,
+    pid: PlayerId,
+    cardId: string,
+    actionType: EffectAction["type"],
+    thenPay: "main" | "flash" | undefined,
+    opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
+): void {
+    const player = state.players[pid]
+    // burstDestroyThenSummonSelf（BS14-X01）はsummonBurstCardFreeへ内部委譲して自身を召喚するため、
+    // 同じ扱いにする（そうしないと召喚済みのカードIDがトラッシュにも二重に積まれる）
+    if (actionType !== "summonBurstCardFree" && actionType !== "burstDestroyThenSummonSelf") {
+        if (player.burst === cardId) {
+            player.burst = null
+            player.burstSet = false
+        }
+        if (opts?.toHand) {
+            player.hand.push(cardId)
+            log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
+            notifyHandGained(state, pid, 1)
+        } else {
+            player.trashCards.push(cardId)
+            log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、トラッシュに置かれた。`)
+        }
+    } else if (player.burst === cardId) {
+        // 通常はハンドラ自身（summonBurstCardFree）が空にしているはずだが、
+        // 不発（コア不足等）だった場合に備えて念のため空にしておく
+        player.burst = null
+        player.burstSet = false
+    }
+    tryBurstThenPay(state, pid, cardId, thenPay)
+}
+
+function tryBurstThenPay(
+    state: GameState,
+    pid: PlayerId,
+    cardId: string,
+    thenPay: "main" | "flash" | undefined,
+): void {
+    if (thenPay === undefined) return
+    if (state.winner) return
+    const card = getCard(cardId)
+    const entry = card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === thenPay)
+    if (!entry) return
+    const cost = effectiveCost(state, pid, card)
+    const player = state.players[pid]
+    // 「コストを支払えるときだけ発揮できる」＝COST_MODEL.md §1。払えないなら確認自体を出さずスキップ
+    if (player.reserve < cost) return
+    if (state.interactiveTargets) {
+        requestActivationConfirm(
+            state,
+            pid,
+            `${card.name}：コスト${cost}を支払って効果を発揮しますか？`,
+            entry.action,
+            null,
+        )
+        if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost }
+        return
+    }
+    player.reserve -= cost
+    log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
+    resolveAction(state, pid, null, entry.action, undefined, card.colors, "magic", undefined, undefined, cardId)
+}
+
+// バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
+// （before＝発動開始時点のフィールドのinstanceId集合。summonBurstCardFreeで新しく場に出た個体には
+// 発火しない。2026-09-11 ユーザー確認）
+export function fireOwnBurstActivated(
+    state: GameState,
+    pid: PlayerId,
+    before: Set<string>,
+    cardId: string,
+): void {
+    if (state.winner) return
+    const after = fieldInstanceIdsOf(state, pid)
+    const excludeInstanceIds = [...after].filter((id) => !before.has(id))
+    fireFieldEventTriggers(
+        state,
+        pid,
+        "ownBurstActivated",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { burstCost: getCard(cardId).cost },
+        undefined,
+        undefined,
+        excludeInstanceIds,
+    )
 }
 
 export function summonFreeFromHandIndex(
@@ -3742,6 +3926,7 @@ export {
     detachBraveByEffect,
     detachBraveByOwnerChoice,
     returnCombinedBraveToHand,
+    returnCombinedBraveToDeckBottom,
     destroyCombinedBrave,
     detachBraveVoluntary,
     detachBravesOnLeave,

@@ -5,6 +5,7 @@ import {
     coresForLevel,
     createInstance,
     currentLevel,
+    fieldInstanceIdsOf,
     findInstanceAnywhere,
     findNexus,
     findSpirit,
@@ -23,9 +24,12 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
+    placeBurst,
+    finishBurstActivation,
+    fireOwnBurstActivated,
     attachBrave,
     detachBraveVoluntary,
     activeConstraints,
@@ -66,6 +70,7 @@ import {
     hasKoboOnBlock,
     hasLifeDamageNegate,
     tryLifeDamageMillGuard,
+    tryOwnLifeFloorByCost,
     hasSummonedExhaustGrant,
     instanceSymbolCount,
     instColors,
@@ -105,6 +110,7 @@ import {
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
     validatePass,
+    validateSetBurst,
     validateSetNexus,
     validateSummon,
     validateTakeLife,
@@ -255,6 +261,8 @@ function dispatchAction(
     switch (action.type) {
         case "summon":
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
+        case "setBurst":
+            return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
             return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
         case "castMagic":
@@ -544,6 +552,20 @@ function doSummon(
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
+    return null
+}
+
+// バーストのセット（docs/design/BURST.md）。既にセット済みなら旧カードをトラッシュへ送ってから
+// 新しいものをセットする。セット成立後は ownBurstSet を発火する
+function doSetBurst(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const error = validateSetBurst(state, pid, handIndex)
+    if (error) return error
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    player.hand.splice(handIndex, 1)
+    placeBurst(state, pid, cardId)
+    player.burstSetThisTurn = true
     return null
 }
 
@@ -1108,6 +1130,19 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
         state.battle = null
         return null
     }
+    // フィールドイベント誘発「スピリットがブロックを宣言したとき」（BS14-083氷結した瀑布）。
+    // 発生源の持ち主に関わらずブロッカーに作用させるため、両プレイヤーのフィールドから
+    // selfOverride（ブロッカー）付きで発火する（anySpiritAttacked と同じ作り）
+    if (blocker && !state.winner) {
+        fireFieldEventTriggers(state, pid, "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
+    }
+    if (blocker && !state.winner) {
+        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
+    }
+    if (state.winner) {
+        state.battle = null
+        return null
+    }
     // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
     if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
     if (state.winner) {
@@ -1225,6 +1260,7 @@ function resolveLifeDamage(state: GameState): void {
     //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
     const damage = Math.min(instanceSymbolCount(attacker), limit.max)
     const dealt = Math.min(damage, defender.life)
+    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     defender.life -= dealt
     if (toVoid) {
@@ -1242,8 +1278,14 @@ function resolveLifeDamage(state: GameState): void {
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
 
     if (defender.life <= 0) {
-        state.winner = attackerPid
-        log(state, `${state.players[attackerPid].name}の勝利！`)
+        // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
+        if (tryOwnLifeFloorByCost(state, defenderPid)) {
+            fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+            tryHandFreeSummonOnLifeDamaged(state, defenderPid)
+        } else {
+            state.winner = attackerPid
+            log(state, `${state.players[attackerPid].name}の勝利！`)
+        }
     } else if (dealt > 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
         // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
@@ -1358,6 +1400,21 @@ function doActivateAbility(
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
+    } else if ("exhaustOwnFamilyOne" in effect.cost) {
+        // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリット1体を疲労させる。
+        // 候補2体以上は実効BP最小を自動選択する簡略化（reviveOnDestroy.cost.exhaustOwnFamilyOneと同型）
+        const family = effect.cost.exhaustOwnFamilyOne
+        const candidates = player.field.spirits.filter(
+            (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
+        )
+        const chosen = candidates.reduce((min, s) =>
+            effectiveBp(state, pid, s) < effectiveBp(state, pid, min) ? s : min,
+        )
+        exhaustSpirit(state, pid, chosen)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（${getCard(chosen.cardId).name}を疲労）`,
         )
     } else {
         const n = effect.cost.reserveToTrash
@@ -1682,7 +1739,30 @@ function doResolveChoice(
             if (pending.confirm) {
                 // 発動を選んだ側もログに残す（発動しなかった場合と対になる。発生源がログから追えるように）
                 log(state, `${self ? getCard(self.cardId).name : "効果"}：効果を発動した。`)
-                resolveAction(state, actor, self, pending.action)
+                if (pending.burstThenPay) {
+                    // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
+                    const info = pending.burstThenPay
+                    state.players[info.pid].reserve -= info.cost
+                    log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
+                    resolveAction(state, actor, self, pending.action)
+                } else if (pending.burstActivate) {
+                    // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
+                    // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
+                    // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
+                    const info = pending.burstActivate
+                    const before = fieldInstanceIdsOf(state, info.pid)
+                    // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
+                    state.resolvingBurstPid = info.pid
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId)
+                    delete state.resolvingBurstPid
+                    if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
+                    if (!state.pendingChoice) {
+                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay, info.toHand ? { toHand: true } : undefined)
+                        if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
+                    }
+                } else {
+                    resolveAction(state, actor, self, pending.action)
+                }
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
             }
@@ -2358,7 +2438,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 8: {
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker")
+                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker", f.blockerInstanceId)
                 // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
                 // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
                 if (instIsCombined(survivingAttacker)) {
@@ -2378,7 +2458,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner) return
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) {
-                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker")
+                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker", f.attackerInstanceId)
                 if (instIsCombined(survivingBlocker)) {
                     fireFieldEventTriggers(
                         state,
