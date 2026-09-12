@@ -458,6 +458,15 @@ function collectNumbers(effects: Record<string, unknown>[]): Set<number> {
 // 一致する側と selfOverride 無しの側は、印が無くても主体が入れ替わらないので対象外にする。
 const SELF_SWAP_EVENTS = new Set(["ownBofuExhausted", "anySpiritExhausted", "anySpiritAttacked"])
 
+// S6 で「読んで問題なしと確認した」もの。**理由を必ず添える**（次に見る人が再検証しないため）。
+// 機械的な等価表現に落とせないものだけをここに書く（落とせるなら hasSubjectFixedEvidence へ）
+const S6_VERIFIED: Record<string, string> = {
+    // 効果文の主語が「**相手は**、相手のスピリットのコア1個を相手のリザーブに置く」なので、
+    // 実行者が相手になるのが正しい。chooserIsTarget を書かない実装（coreRemove は実行者側の
+    // 場を操作する）でも actionPid が相手で正解なので、主体の固定は不要
+    "BS11-063-e1": "効果文の主語が「相手は」＝相手が実行者で正しい（2026-09-13 確認）",
+}
+
 // 主体を発生源側に固定する印。どれか1つあればよい
 // - selfMode:"source" … self を発生源自身に差し替える（明示的な固定）
 // - ownOnly / subjectSide:"own" … selfOverride.pid !== pid の回を発火させない
@@ -477,6 +486,17 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         // アタック/疲労したスピリット自身が対象で固定されている
         // （魔帝の墓標／魔力満ちる泉／藍紫の虚空／魔帝の寝所）
         if (a.type === "coreToTrashSelf") return true
+        // 等価表現4（2026-09-13 に S6 を全12件仕分けて追加）：
+        // **イベント対象そのものに作用する／実行者に依存しない action** は、
+        // 主体がどちらでも結果が変わらないので対象外にする。
+        //   destroySelf              … アタックしたスピリット自身を破壊する
+        //                              （BS13-006 炎獣ファイオリック／BS13-061 戴冠する活火山／BS13-063 血塗られた魔具）
+        //   setBattleBpFixed         … そのバトルの間、アタックしたスピリット自身のBPを固定する
+        //                              （BS12-037 オリンピアの天使ベトール）
+        //   endAttackStepAfterBattle … アタックステップの終了はプレイヤーに紐づかない
+        //                              （BS13-059 フォビッド・バルチャー／BS14-083 氷結した瀑布）
+        if (a.type === "destroySelf" || a.type === "setBattleBpFixed" || a.type === "endAttackStepAfterBattle") return true
+
     }
     // 等価表現3: anySpiritAttacked に turn:"own" がある＝自分のターンのアタックに限られる。
     // 自分のターンにアタックするのは自分のスピリットだけなので selfOverride.pid は必ず発生源側になる
@@ -527,12 +547,29 @@ const CHOICE_BY_PROCEDURE_KINDS = new Set([
 
 // 「相手は」で始まるが選択を伴わないもの＝制約（CHOOSER_RULES.md §1 の例外）。
 // 「〜できない」「〜しなければならない」は選ばせる余地が無いので対象外
-const CONSTRAINT_SUFFIX_RE = /(できない|できなくなる|なければならない|しかできない)/
+// 2026-09-13 に S7 を全9件仕分けて語尾を追加した。「できない」しか見ておらず、
+// 「使えない」「支払えない」「戻せない」の制約文を選択だと誤判定していた（6件）。
+// **可能動詞の否定形は「選ばせる余地が無い」の印**なので、語尾ごとに足していく
+const CONSTRAINT_SUFFIX_RE =
+    /(できない|できなくなる|なければならない|しかできない|使えない|支払えない|戻せない|置けない|得られない|選べない)/
 
 // 「相手は可能ならブロックする」型。**ブロッカーを選ぶのは通常のブロック宣言**であって
 // 効果の中の選択ではないので、効果データに選択者を書く必要がない
 // （燃えさかる戦場／翼持つ者の空域／ワーニングアタック／激神皇カタストロフドラゴン／闘将カタパルドス）
 const FORCED_BLOCK_RE = /ブロック(する|しなければ)/
+
+// S7 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
+// 語尾や kind では機械的に落とせないもの（ハンドラの中で選択者を渡している等）だけをここに書く
+const S7_VERIFIED: Record<string, string> = {
+    // ハンドラが requestChoice に chooserPid＝コアを失う側を渡している
+    // （cores.ts coresDownToLimitHandler「選ぶのはコアを失う側」）。効果文の「相手は」と一致
+    "BS10-019-e2": "ハンドラが chooserPid にコアを失う側を渡している（2026-09-13 確認）",
+    // ハンドラが分岐先の destroy / destroyNexus に chooserIsTarget:true を渡している
+    // （handDeck.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
+    "BS14-111-e1": "ハンドラが chooserIsTarget:true を渡している（2026-09-13 確認）",
+    // fieldEvent の actionPid が相手になる＝効果文の「相手は」と一致（S6 でも確認済み）
+    "BS11-063-e1": "効果文の主語が「相手は」で、actionPid も相手になる（2026-09-13 確認）",
+}
 
 // 選択者が相手に焼き込まれた action を**ノード単位**で集める。
 // 次の2つは主語が「自分は」でも食い違わない:
@@ -794,6 +831,8 @@ for (const card of cards) {
             const event = typeof eff.event === "string" ? eff.event : ""
             if (!SELF_SWAP_EVENTS.has(event)) continue
             if (hasSubjectFixedEvidence(eff)) continue
+            // 読んで問題なしと判定済みのものは出さない（理由は S6_VERIFIED に書いてある）
+            if (typeof eff.id === "string" && S6_VERIFIED[eff.id] !== undefined) continue
             gaps.push({
                 axis: "S6",
                 cardId: card.cardId,
@@ -816,7 +855,11 @@ for (const card of cards) {
                 !FORCED_BLOCK_RE.test(sen) &&
                 !/デッキを?上から/.test(sen),
         )
-        if (aiteSent && !hasChooserEvidence(card.effects)) {
+        // 読んで問題なしと判定済みのカードは出さない（理由は S7_VERIFIED に書いてある）
+        const s7Verified = card.effects.some(
+            (e) => typeof e.id === "string" && S7_VERIFIED[e.id] !== undefined,
+        )
+        if (aiteSent && !s7Verified && !hasChooserEvidence(card.effects)) {
             gaps.push({
                 axis: "S7",
                 cardId: card.cardId,
