@@ -24,15 +24,19 @@
 **本線は BS14「覇王編 第1弾：英雄龍の伝説」121種**（`SD06-007` は SD06 と重複するので取り込まない）。
 作業場所は**ワークツリー `.claude/worktrees/feat-burst`**（ブランチ `worktree-feat-burst`）。
 
-| 色 | 状態 |
-| :-- | :-- |
-| 赤21 / 紫20 / 緑20 | **完了・コミット済み**（`63ccaaf`。smoke part313/314/315） |
-| 白20 / 黄20 / 青20 | **2026-09-12 に3体並列で実装中**（smoke part316/317/318、`data/cards/BS14-<色>.json`） |
+**6色121種すべて投入済み**（`6dafae9` で `data/cards/BS14.json` に結合。gaps 0件・smoke part313〜319）。
+確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
-**3色そろったら**: `npx tsx scripts/merge-bs14.ts` で `data/cards/BS14.json` に結合し色別ファイルを消す
-→ 定型検証1回 → `npm run gaps:update` → `npm run coverage:effects` と `npm run audit:choices`。
-確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1（**白黄青の6件は 2026-09-12 に追記済み**）、
-バーストの確定スキーマは同 §2。
+**次の一手**: `data/announcements.json` に BS14 追加のお知らせを1行足す → main へマージ。
+
+`audit:choices` は 2026-09-12 に確認済み（BS14 分の5件は「選択の語を含む効果文だが
+アクション自体に選ばせる対象が無い」既知の誤検出。PROCEDURES_AUDIT §5）。
+
+**⚠️ `coverage:effects` で実行実績0の継続効果が8件残っている**（smoke の穴。テストを足して潰す）:
+BS12-081-e2 / BS13-005-e3 / X006-e2 / BS13-034-e1 / BS14-049-e1 / BS13-038-e1 / BS13-040-e2 /
+BS14-109-e2 / BS14-019-e3 / BS14-040-e1 / BS14-077-e1。
+action 側も (a) 未実行3種（destroyOwnFreelyThenDraw / negateContinuousMagicByName /
+unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
 **⚠️ この worktree には `feat/cloudrun` を取り込み済み**（`20449ad`）。`server/src/type.ts` は
 `types/effectAction.ts` / `types/effectDef.ts` に3分割してある。**型を足すときは置き場を間違えないこと**
