@@ -285,6 +285,26 @@ git に載せていた頃に起きたこと:
 
 サブエージェントのコールドスタート読み込みを最小化する。委譲プロンプトに次を明記すること:
 
+- **⚠️ `server/src/type.ts` を Read させない（最大の出血点）**。541KB・2935行あり、
+  Read 1回（先頭2000行＝429KB）で**約12万トークン**を使う。しかも上限に引っかかるので
+  残り935行を読むために2回目を撃つ。`EffectDef` 97KB・`EffectAction` 94KB の2つで大半を占める。
+  委譲プロンプトには次をそのまま書く:
+
+  > `server/src/type.ts` と `server/src/logic/EffectModules.ts` は **Read 禁止**（各 541KB / 218KB）。
+  > まず次の1行で既存の器の索引を作り、それを見て使う器を決めること:
+  >
+  > ```
+  > { grep -o 'kind: "[a-zA-Z0-9_]*"' server/src/type.ts; grep -o 'type: "[a-zA-Z0-9_]*"' server/src/type.ts; } | sort -u
+  > ```
+  >
+  > 104 の `kind` と 384 の `EffectAction.type` が 13.6KB（約4千トークン）で全部出る。
+  > 定義の中身が要るものだけ `grep -n '"その名前"' server/src/type.ts` で行番号を出し、
+  > `sed -n '開始,終了p'` で**その範囲だけ**読む。ハンドラも同様に
+  > `grep -rn '"その名前"' server/src/logic/*.ts` → `sed -n` で該当箇所だけ
+  > （EffectModules は `case` ではなく `effect.kind === "..."` 形式なので `case` で引くと空振りする）。
+
+- **カードデータも丸読みさせない**（`data/cards/BS0N.json` は各 100〜150KB）。
+  「対象の cardId を `grep -n` で引いて、その範囲だけ `sed -n` で読む」と指示する
 - **smoke テストを丸読みさせない**。テスト本体は `scripts/smoke/part1〜N.ts` に分割済み
   （`scripts/smoke.ts` は各パートを import するランナー、共通ヘルパーは `scripts/smoke/helpers.ts`）。
   テスト追加は「新しい partN+1.ts を作るだけでよい（**`smoke.ts` への import 追記は不要**。
