@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://bs-web-910728969072.asia-northeast1.run.app/sitemap.xml
+Sitemap: https://bs-web-battle.app/sitemap.xml

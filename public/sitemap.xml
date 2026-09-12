@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-        <loc>https://bs-web-910728969072.asia-northeast1.run.app/</loc>
+        <loc>https://bs-web-battle.app/</loc>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
     </url>
     <url>
-        <loc>https://bs-web-910728969072.asia-northeast1.run.app/deck.html</loc>
+        <loc>https://bs-web-battle.app/deck.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>
     <url>
-        <loc>https://bs-web-910728969072.asia-northeast1.run.app/bugreport.html</loc>
+        <loc>https://bs-web-battle.app/bugreport.html</loc>
         <changefreq>monthly</changefreq>
         <priority>0.3</priority>
     </url>

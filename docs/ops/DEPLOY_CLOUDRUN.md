@@ -1,7 +1,9 @@
 # Cloud Run へのデプロイ
 
-**本番: https://bs-web-910728969072.asia-northeast1.run.app**
+**本番: https://bs-web-battle.app**
 （プロジェクト `bs-web-imachan` / リージョン `asia-northeast1` / サービス `bs-web`）
+Cloud Run 既定の `https://bs-web-910728969072.asia-northeast1.run.app` も**生きたまま**で、
+どちらでも同じサービスに届く。詳細は §1.3。
 
 **2026-09-11 に Azure（bs-web-rg / bs-web・B1）から移行。** 理由は Azure for Students の
 クレジットが尽きたこと。旧環境の手順は [DEPLOY.md](./DEPLOY.md)（残してあるが本線ではない）。
@@ -58,6 +60,35 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
 
 Azure 時代の `azure-deploy.yml` は 2026-09-12 に `ci.yml` へ改名し、
 Azure へのデプロイ手順を落とした（クレジット切れで宛先が死んでいたため）。
+
+## 1.3 カスタムドメイン（2026-09-12 に設定）
+
+`bs-web-battle.app`（name.com で取得）を **Cloud Run のドメインマッピング**で繋いである。
+**グローバル外部 ALB は使っていない** — 転送ルールだけで月 $18〜かかり、
+無料枠で運用している意味が無くなるため。マッピングは無料だが Google 曰く preview 扱いで
+「レイテンシの問題があり production-ready ではない」。趣味規模なので許容した。
+
+```
+gcloud beta run domain-mappings describe --domain=bs-web-battle.app --region=asia-northeast1
+```
+
+**DNS（name.com の Manage DNS Records、すべて Host `@`）**:
+
+| 種別 | 値 |
+| :-- | :-- |
+| A ×4 | `216.239.32.21` / `216.239.34.21` / `216.239.36.21` / `216.239.38.21` |
+| AAAA ×4 | `2001:4860:4802:32::15` / `:34::15` / `:36::15` / `:38::15` |
+| TXT | `google-site-verification=...`（所有権確認。**消すとマッピングが壊れる**） |
+
+証明書は Google 管理で自動更新（発行元 Google Trust Services、90日）。
+
+**踏まないための注意:**
+
+- **`--use-http2` を有効にしないこと。** WebSocket のハンドシェイクが壊れる
+- クライアントは `public/src/main.ts` で `io()` を**引数なし**で呼ぶ＝同一オリジン接続。
+  だからドメインを増やしてもクライアント側の変更は要らない。ここにURLをベタ書きしないこと
+- 頂点ドメインなので CNAME は使えない。A/AAAA は**出た本数を全部**入れる（1本だけだと不安定）
+- SEO 用のURL（`og:url` / `canonical` / `sitemap.xml` / `robots.txt`）は `bs-web-battle.app` に統一済み
 
 ## 2. デプロイ（毎回これ1本）
 
