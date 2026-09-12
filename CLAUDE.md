@@ -186,7 +186,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 ## 設計ドキュメント
 
-仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（server/src/type.ts に型 → server/src/logic/EffectModules.ts にハンドラ → data/cards/BS0N.json にデータ）に従う。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（型 → `server/src/logic/EffectModules.ts` にハンドラ → `data/cards/BS0N.json` にデータ）に従う。
+型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
 **SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
 
@@ -216,7 +217,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | `docs/design/CHOOSER_RULES.md` | **効果文の主語が「相手は」のときに読む**。誰が選ぶかの規則・`chooserIsTarget` の書き方・現状の適合表 |
 | `docs/design/AI_OPPONENT.md` | **AI対戦相手の設計**。1手評価の点数表・AIに相手の手札を覗かせない仕組み（評価は GameView だけを見る）・安全弁・既知の限界。**AIの強さを変える／AIが変な手を打つのを直すときに読む** |
 | `docs/design/EFFECT_SOURCE_CONTEXT.md` | **「〜の効果で〜されたとき」を条件にする誘発を足すときに読む**。`currentEffectSource` の仕組みと、コア配置の検出を差分で取っている理由 |
-| `docs/ops/` | デプロイ・インフラ（DEPLOY / AZURE_CLI） |
+| `docs/design/DISCORD_ACTIVITY.md` | **Discord 上で対戦できるようにする計画**（Embedded App SDK）。未着手。外部CDN・カード画像の外部ホスト・helmet の導入は Activity 側を壊すので、そこに触るときも見る |
+| `docs/ops/` | デプロイ・インフラ。**本線は DEPLOY_CLOUDRUN.md**（2026-09-11 に Azure から移行。DEPLOY / AZURE_CLI は旧環境の記録） |
 | `docs/archive/` | 役目を終えた文書（MULTICOLOR / UX_AUDIT / HANDOFF）。**通常は読まない** |
 
 ## エージェント間連絡（chatbox）
@@ -284,6 +286,36 @@ git に載せていた頃に起きたこと:
 
 サブエージェントのコールドスタート読み込みを最小化する。委譲プロンプトに次を明記すること:
 
+- **⚠️ 型のファイルを丸ごと Read させない（最大の出血点）**。かつて `server/src/type.ts` は
+  541KB・2935行あり、**丸読みで約16万トークン**（42%が日本語コメント）を使っていた。
+  2026-09-12 に3分割して**各5万トークン級**にしたが、それでも丸読みは高い:
+
+  | ファイル | サイズ | 丸読みの概算 |
+  | :-- | --: | --: |
+  | `server/src/types/effectAction.ts`（`EffectAction`） | 179KB / 370行 | ≈5.4万 tok |
+  | `server/src/types/effectDef.ts`（`EffectDef`） | 169KB / 1301行 | ≈5.1万 tok |
+  | `server/src/type.ts`（残り全部） | 182KB / 1327行 | ≈5.5万 tok |
+  | `server/src/logic/EffectModules.ts` | 218KB | ≈6.3万 tok |
+
+  委譲プロンプトには次をそのまま書く:
+
+  > 上記4ファイルは **原則 Read 禁止**。触る型が入っている1ファイルだけ Read してよい
+  > （アクションを足すなら `types/effectAction.ts` だけ、`EffectDef` の kind を足すなら
+  > `types/effectDef.ts` だけ。**3つとも開かない**）。
+  > まず次の1行で既存の器の索引を作り、それを見て使う器を決めること:
+  >
+  > ```
+  > { grep -o 'kind: "[a-zA-Z0-9_]*"' server/src/type.ts; grep -o 'type: "[a-zA-Z0-9_]*"' server/src/type.ts; } | sort -u
+  > ```
+  >
+  > 104 の `kind` と 384 の `EffectAction.type` が 13.6KB（約4千トークン）で全部出る。
+  > 定義の中身が要るものだけ `grep -n '"その名前"' server/src/type.ts` で行番号を出し、
+  > `sed -n '開始,終了p'` で**その範囲だけ**読む。ハンドラも同様に
+  > `grep -rn '"その名前"' server/src/logic/*.ts` → `sed -n` で該当箇所だけ
+  > （EffectModules は `case` ではなく `effect.kind === "..."` 形式なので `case` で引くと空振りする）。
+
+- **カードデータも丸読みさせない**（`data/cards/BS0N.json` は各 100〜150KB）。
+  「対象の cardId を `grep -n` で引いて、その範囲だけ `sed -n` で読む」と指示する
 - **smoke テストを丸読みさせない**。テスト本体は `scripts/smoke/part1〜N.ts` に分割済み
   （`scripts/smoke.ts` は各パートを import するランナー、共通ヘルパーは `scripts/smoke/helpers.ts`）。
   テスト追加は「新しい partN+1.ts を作るだけでよい（**`smoke.ts` への import 追記は不要**。
