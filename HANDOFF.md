@@ -21,26 +21,37 @@
 
 ## 1. いまの本線と次の一手
 
-**本線は BS14「覇王編 第1弾：英雄龍の伝説」121種**（`SD06-007` は SD06 と重複するので取り込まない）。
-作業場所は**ワークツリー `.claude/worktrees/feat-burst`**（ブランチ `worktree-feat-burst`）。
-
-**6色121種すべて投入済み**（`6dafae9` で `data/cards/BS14.json` に結合。gaps 0件・smoke part313〜319）。
+**BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
-**次の一手**: `data/announcements.json` に BS14 追加のお知らせを1行足す → main へマージ。
+**次の本線は BS15「覇王編 第2弾：黄金の大地」全90種**（C46/U18/R12/M8/X6）。
+計画は [BS15_PLAN.md](./docs/design/BS15_PLAN.md)。**まだデータを取り込んでいない。**
 
-`audit:choices` は 2026-09-12 に確認済み（BS14 分の5件は「選択の語を含む効果文だが
-アクション自体に選ばせる対象が無い」既知の誤検出。PROCEDURES_AUDIT §5）。
+### ⚠️ BS15 より先に片付ける（BS15_PLAN §0）
 
-**⚠️ `coverage:effects` で実行実績0の継続効果が8件残っている**（smoke の穴。テストを足して潰す）:
+弾を足すと監査の未判定が増えて見えなくなる。BS14 で実際に起きた
+（S6・S7 が「残0件」から 12件・9件に戻り、**実バグ5件が埋もれていた**）。
+
+| 借金 | 出どころ |
+| :-- | :-- |
+| `audit:semantics` S3（43件）・S4（57件）の未判定 | 判定済みを `S3_VERIFIED`/`S4_VERIFIED` へ移し、**新規だけが出る状態**を作るのが先 |
+| `coverage:effects` の実行実績0（継続効果11件） | 下記 |
+| 永久凍土の王都：自分でコストを払う4経路 | §2（要ユーザー確認） |
+| バトスピ Wiki との食い違い3件 | [RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md) |
+
+**`coverage:effects` で実行実績0の継続効果**（smoke の穴。テストを足して潰す）:
 BS12-081-e2 / BS13-005-e3 / X006-e2 / BS13-034-e1 / BS14-049-e1 / BS13-038-e1 / BS13-040-e2 /
 BS14-109-e2 / BS14-019-e3 / BS14-040-e1 / BS14-077-e1。
 action 側も (a) 未実行3種（destroyOwnFreelyThenDraw / negateContinuousMagicByName /
 unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
-**⚠️ この worktree には `feat/cloudrun` を取り込み済み**（`20449ad`）。`server/src/type.ts` は
-`types/effectAction.ts` / `types/effectDef.ts` に3分割してある。**型を足すときは置き場を間違えないこと**
-（対応表は CLAUDE.md「設計ドキュメント」と SPEC.md §3）。
+### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
+
+- **委譲は2色で1エージェント**（色ごとに1体を立てない。BS14 の4色並列で5時間制限に達した）
+- **サブに全 smoke と build:client を回させない**（typecheck と自分の part だけ。統合検証はメインループ1回）
+- **PR は1つの作業単位**で出す（弾の取り込みは弾ごと1つでよい）
+- **`main` へのマージで Cloud Run へ自動デプロイされる**。手で `gcloud run deploy` を打たない
+- 新しい監査は「**既知のバグをわざと戻して検出できること**」を確かめるまで信用しない
 
 ### 済んでいること（参照先を消さないこと）
 
