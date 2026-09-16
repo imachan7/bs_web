@@ -24,7 +24,7 @@ BS14 と同じ覇王編なので、**【バースト】が主題として続く*
 2. `npm run validate:cards` が通る構造にする（効果テキストは `effect` にそのまま入れる）
 3. **cardId を機械検証する**（CLAUDE.md「重要な罠」。過去に ID が全面的にズレた事故がある）
 4. 実装は色別 `data/staging/BS15-<色>.json` に分け、最後に結合して `data/cards/BS15.json` を作る
-   （`scripts/merge-bs14.ts` を BS15 用に複製・改名する）
+   （`npx tsx scripts/merge-set.ts BS15`。2026-09-16 に弾名を引数に取る形へ一般化した）
 
 ---
 
