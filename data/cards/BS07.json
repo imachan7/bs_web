@@ -3431,7 +3431,8 @@
       "white",
       "yellow",
       "blue"
-     ]
+     ],
+     "optional": true
     },
     "optional": false
    },

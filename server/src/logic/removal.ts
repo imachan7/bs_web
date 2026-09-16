@@ -911,7 +911,8 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnLifeDamaged")
         if (!effect || effect.kind !== "freeSummonFromHandOnLifeDamaged") continue
         if (effect.phaseTurn) {
-            if (state.phase !== effect.phaseTurn.phase) continue
+            // phase 省略＝ステップ不問（turn 条件だけ見る）
+            if (effect.phaseTurn.phase !== undefined && state.phase !== effect.phaseTurn.phase) continue
             if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
         }
@@ -1520,9 +1521,10 @@ function tryReviveOnDestroy(
         return true
     }
 
-    const matchesPhaseTurn = (phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }): boolean => {
+    const matchesPhaseTurn = (phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" }): boolean => {
         if (!phaseTurn) return true
-        if (state.phase !== phaseTurn.phase) return false
+        // phase 省略＝ステップ不問（turn 条件だけ見る）
+        if (phaseTurn.phase !== undefined && state.phase !== phaseTurn.phase) return false
         if (phaseTurn.turn === "own" && ownerPid !== state.turnPlayer) return false
         if (phaseTurn.turn === "opponent" && ownerPid === state.turnPlayer) return false
         return true

@@ -56,6 +56,8 @@ console.log("=== 器AR：BS13-036（自分の黄が破壊されたとき、ラ�
     const target = createInstance("BS13-034", s.turn, 1) // 黄・Lv1
     s.players.p1.field.spirits.push(kuja, target)
     refreshLevelAsOverrides(s)
+    // 見出しは『お互いのアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s.phase = "attack"
     const lifeBefore = s.players.p1.life
     const reserveBefore = s.players.p1.reserve
     destroySpiritsFrom(s, [{ pid: "p1", instanceId: target.instanceId }], 0, 0)
@@ -322,6 +324,8 @@ console.log("=== 器AR：BS13-X05 Lv2-3（同じ系統のスピリット1体を�
     const sameFamily = createInstance("BS13-036", s.turn, 1) // 系統「戯狩」/「星魂」を共有
     s.players.p1.field.spirits.push(x05, sameFamily)
     refreshLevelAsOverrides(s)
+    // BS13-036 側の復活は『お互いのアタックステップ』限定（2026-09-16）。2件同時に誘発させるため合わせる
+    s.phase = "attack"
     destroySpiritsFrom(s, [{ pid: "p1", instanceId: x05.instanceId }], 0, 0)
     // BS13-036自身も「自分の黄が破壊されたとき」の復活効果を持つため、X05（黄）の破壊では2件同時に
     // 誘発する。ターンプレイヤーがまずX05自身の効果から解決する（同時発揮の一般則。TIMING_CHART.md §0-3）

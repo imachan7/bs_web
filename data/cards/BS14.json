@@ -1755,7 +1755,11 @@
      "target": "self",
      "counter": "ownReserve",
      "amountPer": 1000,
-     "condition": "hasOwnBurstSet"
+     "condition": "hasOwnBurstSet",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
     }
    }
   ]
@@ -2376,7 +2380,11 @@
     ],
     "target": "ownAll",
     "familyFilter": "機獣",
-    "whileOwnBurstSet": true
+    "whileOwnBurstSet": true,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
    }
   ]
  },
@@ -3401,7 +3409,8 @@
      "from": "trash",
      "colors": [
       "blue"
-     ]
+     ],
+     "optional": true
     }
    }
   ]
@@ -3629,7 +3638,9 @@
     "treatAs": "max",
     "sourceLevels": [
      2
-    ]
+    ],
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },
@@ -3699,7 +3710,11 @@
       "funsai",
       "daifunsai"
      ],
-     "amount": 2000
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
     }
    }
   ]
@@ -3792,28 +3807,32 @@
        "from": "trash",
        "colors": [
         "red"
-       ]
+       ],
+       "optional": true
       },
       {
        "type": "deployNexus",
        "from": "trash",
        "colors": [
         "purple"
-       ]
+       ],
+       "optional": true
       },
       {
        "type": "deployNexus",
        "from": "trash",
        "colors": [
         "green"
-       ]
+       ],
+       "optional": true
       },
       {
        "type": "deployNexus",
        "from": "trash",
        "colors": [
         "blue"
-       ]
+       ],
+       "optional": true
       },
       {
        "type": "summonBurstCardFreeIfOwnNexusAtLeast",

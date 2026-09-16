@@ -27,23 +27,25 @@
 **次の本線は BS15「覇王編 第2弾：黄金の大地」全90種**（C46/U18/R12/M8/X6）。
 計画は [BS15_PLAN.md](./docs/design/BS15_PLAN.md)。**まだデータを取り込んでいない。**
 
+### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
+
+**`audit:semantics` は S3・S4 とも残0件**（実バグ14件を修正。中身は
+[SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §4「S3・S4 も残0件にした」）。
+**`coverage:effects` の実行実績0だった継続効果11件も smoke part324 で解消**（BS13-038 のコスト欠落を1件修正）。
+
 ### ⚠️ BS15 より先に片付ける（BS15_PLAN §0）
 
 弾を足すと監査の未判定が増えて見えなくなる。BS14 で実際に起きた
 （S6・S7 が「残0件」から 12件・9件に戻り、**実バグ5件が埋もれていた**）。
+**残っているのは次の2件で、どちらもユーザー確認待ち**（済んだ2件は上の節のとおり）:
 
 | 借金 | 出どころ |
 | :-- | :-- |
-| `audit:semantics` S3（43件）・S4（57件）の未判定 | 判定済みを `S3_VERIFIED`/`S4_VERIFIED` へ移し、**新規だけが出る状態**を作るのが先 |
-| `coverage:effects` の実行実績0（継続効果11件） | 下記 |
 | 永久凍土の王都：自分でコストを払う4経路 | §2（要ユーザー確認） |
 | バトスピ Wiki との食い違い3件 | [RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md) |
 
-**`coverage:effects` で実行実績0の継続効果**（smoke の穴。テストを足して潰す）:
-BS12-081-e2 / BS13-005-e3 / X006-e2 / BS13-034-e1 / BS14-049-e1 / BS13-038-e1 / BS13-040-e2 /
-BS14-109-e2 / BS14-019-e3 / BS14-040-e1 / BS14-077-e1。
-action 側も (a) 未実行3種（destroyOwnFreelyThenDraw / negateContinuousMagicByName /
-unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
+**`coverage:effects` の action 側はまだ穴がある**: (a) 未実行3種（destroyOwnFreelyThenDraw /
+negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
 ### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
 

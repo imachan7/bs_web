@@ -188,7 +188,10 @@ function countCards(state: GameState): number {
             // 合体中のブレイヴ（docs/design/BRAVE.md §2.3）。**フィールド走査の対象ではないが、
             // カードとしては場に存在する**ので保存則には数える。数え忘れると
             // 「合体するたびに1枚消えた」と誤検出される（2026-08-25 に実際に出た）
-            p.field.combinedBraves.length
+            p.field.combinedBraves.length +
+            // バーストエリアに伏せている1枚（2026-09-16。数え忘れると、バーストから
+            // 自身を召喚する効果で「カードが1枚増えた」と誤検出される）
+            (p.burst === null ? 0 : 1)
     }
     // 公開ゾーンは解決中だけ存在する一時領域。ここに滞留したぶんも数に入れる
     total += state.revealedCards?.cardIds.length ?? 0

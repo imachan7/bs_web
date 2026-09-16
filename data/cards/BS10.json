@@ -1025,7 +1025,8 @@
           "from": "hand",
           "colors": [
             "blue"
-          ]
+          ],
+          "optional": true
         },
         "optional": true
       },
@@ -6690,7 +6691,8 @@
         "action": {
           "type": "detachBrave",
           "combineToChosenSpirit": true
-        }
+        },
+        "optional": true
       }
     ]
   },

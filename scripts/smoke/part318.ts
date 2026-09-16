@@ -175,6 +175,10 @@ console.log("=== BS14-061 Lv2：系統「覇皇」を持つ自分のスピリッ
     assert(getCard("BS14-010").family.includes("覇皇"), "テスト前提: BS14-010は系統「覇皇」を持つ")
     const bear = put(s, "p1", "BS14-010", 1) // コア1個＝素のLv1
     refreshLevelAsOverrides(s)
+    // 見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s.turnPlayer = "p1"
+    s.phase = "attack"
+    refreshLevelAsOverrides(s)
     assert(currentLevel(jubei).level === 2, "ジューベイ自身はコア4個でLv2")
     const maxLevel = Math.max(...getCard("BS14-010").levels.map((l) => l.level))
     assert(currentLevel(bear).level === maxLevel, "覇皇持ちの他のスピリットはコア数によらず最高Lvとして扱われる")
@@ -184,6 +188,9 @@ console.log("=== BS14-062ロック・ゴレム・カスタム：【粉砕】を�
 {
     const s = game("t318-062-a")
     const golem = put(s, "p1", "BS14-062", 1)
+    // 見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s.turnPlayer = "p1"
+    s.phase = "attack"
     assert(spiritHasKeyword(s, "p1", golem, "funsai"), "【粉砕】を持つ")
     const before = effectiveBp(s, "p1", golem)
     placeBurst(s, "p1", "BS14-030")
