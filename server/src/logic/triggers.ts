@@ -227,6 +227,13 @@ export function fireSummonTrigger(
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
 }
 
+// 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
+export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
+    if (!inst.triggeredUsedTurn) return
+    const { [effectId]: _removed, ...rest } = inst.triggeredUsedTurn
+    inst.triggeredUsedTurn = rest
+}
+
 export function fireTrigger(
     state: GameState,
     owner: PlayerId,
@@ -500,9 +507,12 @@ export function fireTrigger(
         const entry = entries[i]
         const effect = entry?.effect
         if (!entry || !effect || !matches(effect, entry.src)) continue
-        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）
+        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
+        // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
+        // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
         if (effect.oncePerTurn === true) {
             entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            delete state.effectFizzled
         }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
@@ -513,6 +523,7 @@ export function fireTrigger(
                 `${getCard(entry.src.cardId).name}の効果を発動しますか？`,
                 effect.action,
                 selfInstance,
+                effect.oncePerTurn === true ? { instanceId: entry.src.instanceId, effectId: effect.id } : undefined,
             )
         } else {
             // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
@@ -523,6 +534,11 @@ export function fireTrigger(
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
+        }
+        // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
+        if (effect.oncePerTurn === true && state.effectFizzled) {
+            revertOncePerTurn(entry.src, effect.id)
+            delete state.effectFizzled
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
@@ -1390,6 +1406,7 @@ export function fireFieldEventTriggers(
                       ? eventCount
                       : 1
                 : 1
+            // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
             firing.push({ inst, effect, repeatTimes })
         }
@@ -1462,9 +1479,20 @@ export function fireFieldEventTriggers(
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
             if (e.effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(state, c.actionPid, activationPrompt(e.inst), e.effect.action, c.actionSelf)
+                requestActivationConfirm(
+                    state,
+                    c.actionPid,
+                    activationPrompt(e.inst),
+                    e.effect.action,
+                    c.actionSelf,
+                    e.effect.oncePerTurn ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined,
+                )
             } else {
+                delete state.effectFizzled
                 resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+                // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す（2026-09-16）
+                if (e.effect.oncePerTurn && state.effectFizzled) revertOncePerTurn(e.inst, e.effect.id)
+                delete state.effectFizzled
             }
         },
         frame: (e) => {

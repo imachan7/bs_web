@@ -3788,6 +3788,8 @@ export function requestActivationConfirm(
     prompt: string,
     action: EffectAction,
     self: CardInstance | null,
+    // 断ったときに「ターンに1回」の消費を戻す対象（oncePerTurn を持つ triggered / fieldEvent。2026-09-16）
+    revertTriggered?: { instanceId: string; effectId: string },
 ): void {
     suspend(state, {
         pid,
@@ -3799,6 +3801,7 @@ export function requestActivationConfirm(
         confirm: true,
         action,
         selfInstanceId: self ? self.instanceId : null,
+        ...(revertTriggered ? { revertTriggered } : {}),
     })
 }
 
@@ -3943,6 +3946,7 @@ export {
     applyMagicRepeatChoice,
     applyMagicNegateChoice,
     declineMagicNegateChoice,
+    revertOncePerTurn,
 } from "./triggers"
 
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----

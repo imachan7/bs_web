@@ -1879,6 +1879,7 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         if (action.costExhaustSelf) {
             if (!self || self.isRested) {
                 log(state, `${sourceName}：疲労できないため発動しなかった。`)
+                state.effectFizzled = true
                 return
             }
             exhaustSpirit(state, owner, self)

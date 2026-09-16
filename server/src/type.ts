@@ -985,6 +985,12 @@ export interface PendingChoice {
         pid: PlayerId
         cost: number
     }
+    revertTriggered?: {
+        // 「〜できる」の確認を断ったとき、triggered / fieldEvent の「ターンに1回」の消費を巻き戻す対象
+        // （revertActivated の誘発版。2026-09-16）
+        instanceId: string
+        effectId: string
+    }
     revertActivated?: {
         // 起動能力（kind:"activated"）から出た選択を**やめた**ときに、「ターンに1回」の消費を
         // 巻き戻す先。起動ボタンを押してから対象を見てやめられるようにするためのもので、
@@ -1261,9 +1267,11 @@ export interface GameState {
         sourceInstanceId: string // 発生源（oncePerTurn の記録先。scope:"self" なら対象自身）
         context?: DestroyContext // 断ったときに破壊し直すための文脈
     }[]
-    activationFizzled?: true // 起動能力（kind:"activated"）の効果が、対象がいないなどで**何も起こさずに終わった**ことを示す一時フラグ。
-    // 起動能力から使うアクション（いまは summonFromHandFree の cancelable 経路）が立て、doActivateAbility が
-    // 「ターンに1回」の消費を巻き戻してから消す。立てっぱなしにしないよう、doActivateAbility が発動のたびに落とす
+    effectFizzled?: true // 効果が、対象がいない・コストを払えないなどで**何も起こさずに終わった**ことを示す一時フラグ。
+    // 起動能力（kind:"activated"）と、oncePerTurn を持つ triggered / fieldEvent が見る。
+    // 立てた側の効果は「発揮していない」ので、**「ターンに1回」の消費を巻き戻す**
+    // （RULES_BATSPI_WIKI.md：払えなければ発揮していないのだから消費もしない。2026-09-16）。
+    // 立てっぱなしにしないよう、見た側が毎回落とす
     drawStepSkipped: boolean // このターンのドローステップのドローを、効果のコストとして放棄したか（BS07常闇の聖堂Lv2「ドローしないことで」）。ドローの前に発火する step.beforeStepAction の効果が立て、ドロー区間がこれを見て引かずに進む。ターン開始処理の先頭で false に戻す
     coreStepSkipped: boolean // このターンのコアステップの「ボイドからリザーブへコアを置く」を、効果のコストとして放棄したか（BS10-087戦場に息づく命「ボイドからコアを自分のリザーブに置かないことで」）。drawStepSkipped と同型で、コア置きの前に発火する step.beforeStepAction の効果が立てる
     interactiveTargets: boolean // trueなら誘発効果の対象選択候補2件以上でpendingChoiceを要求する（既定false。実対戦では server/src/index.ts が true に設定。smokeは既定のfalseのまま自動選択を使う）

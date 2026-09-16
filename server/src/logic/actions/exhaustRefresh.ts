@@ -878,11 +878,13 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             const ownerPlayer = state.players[owner]
             if (ownerPlayer.life < action.costOwnLifeToReserve) {
                 log(state, `${sourceName}：ライフが足りず発動しなかった。`)
+                state.effectFizzled = true
                 return
             }
             // 「ライフは0にならない」が働いている間は、払って0にすることもできない（2026-09-16 ユーザー確定）
             if (lifeCostBlockedByFloor(state, owner, action.costOwnLifeToReserve)) {
                 log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
+                state.effectFizzled = true
                 return
             }
             ownerPlayer.life -= action.costOwnLifeToReserve

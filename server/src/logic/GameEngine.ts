@@ -60,6 +60,7 @@ import {
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
     fireTrigger,
+    revertOncePerTurn,
     hasArmorAgainst,
     resistanceAgainst,
     findSpiritAny,
@@ -1326,12 +1327,19 @@ function revertActivatedUse(inst: CardInstance, effectId: string): void {
     inst.activatedUsedTurn = rest
 }
 
-// 選択を「やめた」ときに、起動能力の「ターンに1回」を巻き戻す（PendingChoice.revertActivated）
+// 選択を「やめた」ときに、「ターンに1回」を巻き戻す
+// （起動能力＝PendingChoice.revertActivated／誘発＝revertTriggered。2026-09-16）
 function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): void {
     const r = pending.revertActivated
-    if (!r) return
-    const inst = findInstanceAnywhere(state, r.instanceId)
-    if (inst) revertActivatedUse(inst, r.effectId)
+    if (r) {
+        const inst = findInstanceAnywhere(state, r.instanceId)
+        if (inst) revertActivatedUse(inst, r.effectId)
+    }
+    const t = pending.revertTriggered
+    if (t) {
+        const inst = findInstanceAnywhere(state, t.instanceId)
+        if (inst) revertOncePerTurn(inst, t.effectId)
+    }
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1435,10 +1443,10 @@ function doActivateAbility(
     // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
-    delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
+    delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
     resolveAction(state, pid, host, effect.action)
     if (effect.oncePerTurn && cancelable) {
-        if (state.activationFizzled) {
+        if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
             revertActivatedUse(inst, effectId)
         } else if (state.pendingChoice) {
@@ -1446,7 +1454,7 @@ function doActivateAbility(
             state.pendingChoice.revertActivated = { instanceId, effectId }
         }
     }
-    delete state.activationFizzled
+    delete state.effectFizzled
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
     if (state.battle) passFlashPriority(state, pid)
     return null
@@ -1761,7 +1769,11 @@ function doResolveChoice(
                         if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
                     }
                 } else {
+                    delete state.effectFizzled
                     resolveAction(state, actor, self, pending.action)
+                    // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
+                    if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
+                    delete state.effectFizzled
                 }
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
@@ -1769,6 +1781,8 @@ function doResolveChoice(
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
             log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
+            // 「〜できる」を断った＝発揮していないので「ターンに1回」を戻す（2026-09-16）
+            revertActivatedIfSkipped(state, pending)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)

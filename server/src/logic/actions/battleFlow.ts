@@ -1086,7 +1086,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             // 候補が0枚なら発揮できないので、消費を巻き戻すフラグを立てて終わる
             if (action.cancelable) {
                 if (indices.length === 0) {
-                    state.activationFizzled = true
+                    state.effectFizzled = true
                     log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
                     return
                 }
