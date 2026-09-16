@@ -339,7 +339,100 @@ function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 
 // S4 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
 // キーは `${cardId}|${見出し}`（出力の「テキスト根拠」と同じ文字列＝先頭30字）
-const S4_VERIFIED: Record<string, string> = {}
+const S4_VERIFIED: Record<string, string> = {
+    // スケルトン・ジョウ: 見出しはconstraintで別見出しのtriggeredと混同のため
+    "BS01-016|Lv1･Lv2･Lv3『相手のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
+    // 魔帝の墓標: fieldEventはaction自身に作用し陣営不問のため
+    "BS01-105|Lv1･Lv2『お互いのアタックステップ』": "fieldEventはaction自身に作用し陣営不問のため（2026-09-16 確認）",
+    // 魔帝の墓標: 同上（重複見出し）のため
+    "BS01-105|Lv2『お互いのアタックステップ』": "同上（重複見出し）のため（2026-09-16 確認）",
+    // 隠されたる賢者の樹: auraはbattlingOnlyで対象自体が攻防中限定のため
+    "BS01-106|Lv1･Lv2『お互いのアタックステップ』": "auraはbattlingOnlyで対象自体が攻防中限定のため（2026-09-16 確認）",
+    // ドラグノ突撃兵: 見出しはconstraintで別見出しのtriggeredと混同のため
+    "BS02-005|Lv1･Lv2『相手のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
+    // 騎獣スレイプホース: magicBuffBonusはphase==="attack"がハードコード済みのため
+    "BS02-033|Lv3『自分のアタックステップ』": "magicBuffBonusはphase==='attack'がハードコード済みのため（2026-09-16 確認）",
+    // 盾精ラングリーズ: 見出しはconstraintで別見出しのtriggeredと混同のため
+    "BS02-038|Lv1･Lv2『自分のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
+    // 太古の断層: battleWonは戦闘解決時限定・auraはphaseTurn明記済みのため
+    "BS02-076|Lv2『お互いのアタックステップ』": "battleWonは戦闘解決時限定・auraはphaseTurn明記済みのため（2026-09-16 確認）",
+    // 崩壊する戦線: funsaiBonusは【粉砕】使用時限定・levelAsはphase/turn明記済みのため
+    "BS03-115|Lv1･Lv2『お互いのアタックステップ』": "funsaiBonusは【粉砕】使用時限定・levelAsはphase/turn明記済みのため（2026-09-16 確認）",
+    // オッドセイ: 見出しはconstraintで別見出しのfieldEventと混同のため
+    "BS04-036|Lv1･Lv2『自分のアタックステップ』": "見出しはconstraintで別見出しのfieldEventと混同のため（2026-09-16 確認）",
+    // 鎧装獣ヘイズ・ルーン: fieldEventはturn:opponent指定済みで一致のため
+    "BS04-037|Lv1･Lv2『相手のアタックステップ』": "fieldEventはturn:opponent指定済みで一致のため（2026-09-16 確認）",
+    // 魔影街: exhaustOnManualCoreAddは関数内でmainフェーズ限定のため
+    "BS04-078|Lv1･Lv2『自分のアタックステップ』": "exhaustOnManualCoreAddは関数内でmainフェーズ限定のため（2026-09-16 確認）",
+    // 緑眼の虚空: 見出しはglobalConstraintで別見出しのeffectGrantと混同のため
+    "BS05-059|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのeffectGrantと混同のため（2026-09-16 確認）",
+    // 白夜の虚空: 見出しはglobalConstraintで別見出しのkeywordGrantと混同のため
+    "BS05-061|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのkeywordGrantと混同のため（2026-09-16 確認）",
+    // センザンゴウ: 見出しはconstraintで別見出しのfieldEventと混同のため
+    "BS06-038|Lv1･Lv2『自分のアタックステップ』": "見出しはconstraintで別見出しのfieldEventと混同のため（2026-09-16 確認）",
+    // アイランド・ゴレム: keywordは能力付与・funsaiBonusは【粉砕】使用時限定のため
+    "BS07-053|Lv2･Lv3『お互いのアタックステップ』": "keywordは能力付与・funsaiBonusは【粉砕】使用時限定のため（2026-09-16 確認）",
+    // ダークスカルデーモン: fieldEventはturn:opponent指定済みで一致のため
+    "BS08-012|Lv2･Lv3『相手のアタックステップ』": "fieldEventはturn:opponent指定済みで一致のため（2026-09-16 確認）",
+    // ブラックアメンボーグ: fieldEventはturn:opponent指定済みで一致のため
+    "BS08-021|Lv2『相手のアタックステップ』": "fieldEventはturn:opponent指定済みで一致のため（2026-09-16 確認）",
+    // 一角魚モノケロック: 見出しはkeyword（能力付与）で別見出しのconstraintと混同のため
+    "BS08-029|Lv2･Lv3『相手のアタックステップ』": "見出しはkeyword（能力付与）で別見出しのconstraintと混同のため（2026-09-16 確認）",
+    // 空帝竜騎プラチナム: 見出しはactivated(timing:main)で別見出しのconstraintと混同のため
+    "BS08-034|Lv1･Lv2･Lv3『相手のアタックステップ』": "見出しはactivated(timing:main)で別見出しのconstraintと混同のため（2026-09-16 確認）",
+    // 機神獣インフェニット・ヴォルス: magicNegateはturn:opponent一致・他は別見出しのため
+    "BS08-036|Lv2･Lv3『相手のアタックステップ』": "magicNegateはturn:opponent一致・他は別見出しのため（2026-09-16 確認）",
+    // 竜騎集う円卓: ownLifeDamagedは戦闘由来限定・targetNegateは別見出しで一致のため
+    "BS08-055|Lv1･Lv2『相手のアタックステップ』": "ownLifeDamagedは戦闘由来限定・targetNegateは別見出しで一致のため（2026-09-16 確認）",
+    // 無限蟻の地底都市: fieldEventはturn:opponent・stepは別見出しでどちらも一致のため
+    "BS08-060|Lv1･Lv2『相手のアタックステップ』": "fieldEventはturn:opponent・stepは別見出しでどちらも一致のため（2026-09-16 確認）",
+    // 蛇凰神バァラル: fushiCandidatesがphase==="attack"をハードコード済みのため
+    "BS09-017|Lv1･Lv2･Lv3【不死：コスト3/4/5/6】『お互い": "fushiCandidatesがphase==='attack'をハードコード済みのため（2026-09-16 確認）",
+    // 炎蜥蜴クトゥグマ: 見出しはconstraintで別見出しのtriggeredと混同のため
+    "BS09-049|Lv1･Lv2･Lv3『相手のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
+    // 巨獣守りし神域: effectGrantはonBlock発火・stepは別見出しで一致のため
+    "BS09-061|Lv1･Lv2『相手のアタックステップ』": "effectGrantはonBlock発火・stepは別見出しで一致のため（2026-09-16 確認）",
+    // タワー・ゴレム: 見出しはkeyword（能力付与）で別見出しのconstraintと混同のため
+    "BS11-043|Lv2･Lv3『相手のアタックステップ』": "見出しはkeyword（能力付与）で別見出しのconstraintと混同のため（2026-09-16 確認）",
+    // 定規山脈: 見出しはdestroyAsMaxLevelGrantで別見出しのglobalConstraintと混同のため
+    "BS12-069|Lv2『相手のアタックステップ』": "見出しはdestroyAsMaxLevelGrantで別見出しのglobalConstraintと混同のため（2026-09-16 確認）",
+    // 戦神乙女ヴィエルジェ: 見出しはtriggered(onSummon)で別見出しのglobalConstraint等と混同のため
+    "BS12-X05|Lv1･Lv2･Lv3『相手のアタックステップ』": "見出しはtriggered(onSummon)で別見出しのglobalConstraint等と混同のため（2026-09-16 確認）",
+    // 冥総裁ハーゲン: fieldEventはownOnly+攻撃時限定で自分の攻撃にしか起きないため
+    "BS13-015|Lv2『自分のアタックステップ』": "fieldEventはownOnly+攻撃時限定で自分の攻撃にしか起きないため（2026-09-16 確認）",
+    // オリンピアの天使オク: 見出しはglobalConstraintで別見出し（step無し）のreductionGrantと混同のため
+    "BS13-035|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出し（step無し）のreductionGrantと混同のため（2026-09-16 確認）",
+    // 古代戦艦アルゴ・ゴレム: nexusAsSpiritDuringAttackStepはPhaseManagerでアタックステップ限定のため
+    "BS13-048|Lv2『お互いのアタックステップ』": "nexusAsSpiritDuringAttackStepはPhaseManagerでアタックステップ限定のため（2026-09-16 確認）",
+    // 戴冠する活火山: fieldEventは攻撃時限定・stepはphase/turn一致のため
+    "BS13-061|Lv1･Lv2『お互いのアタックステップ』": "fieldEventは攻撃時限定・stepはphase/turn一致のため（2026-09-16 確認）",
+    // 蛇教徒の宮殿: constraintGrantはこのスピリットのアタック限定で暗黙に自分のターンのため
+    "BS13-064|Lv1･Lv2『自分のアタックステップ』": "constraintGrantはこのスピリットのアタック限定で暗黙に自分のターンのため（2026-09-16 確認）",
+    // 蛇教徒の宮殿: fieldEventはturn:opponent指定済みで一致のため
+    "BS13-064|Lv2『相手のアタックステップ』": "fieldEventはturn:opponent指定済みで一致のため（2026-09-16 確認）",
+    // 光導く巨塔: reviveOnDestroyはbyBattle限定で戦闘時にしか起きないため
+    "BS13-067|Lv1･Lv2『お互いのアタックステップ』": "reviveOnDestroyはbyBattle限定で戦闘時にしか起きないため（2026-09-16 確認）",
+    // 遥かなる衛星砲: 見出しはglobalConstraintで別見出しのfieldEventと混同のため
+    "BS13-068|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのfieldEventと混同のため（2026-09-16 確認）",
+    // 遥かなる衛星砲: fieldEventはturn:opponent指定済みで一致のため
+    "BS13-068|Lv2『相手のアタックステップ』": "fieldEventはturn:opponent指定済みで一致のため（2026-09-16 確認）",
+    // 星宿の障壁: 見出しはglobalConstraintで別見出しのfieldEventと混同のため
+    "BS13-070|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのfieldEventと混同のため（2026-09-16 確認）",
+    // 巨人港: 見出しはglobalConstraintで別見出しのfieldEventと混同のため
+    "BS13-071|Lv1･Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのfieldEventと混同のため（2026-09-16 確認）",
+    // グラント・ベンケイ: effectGrantはonBattleEnd限定で戦闘時にしか起きないため
+    "BS14-030|Lv2『お互いのアタックステップ』": "effectGrantはonBattleEnd限定で戦闘時にしか起きないため（2026-09-16 確認）",
+    // エゾノ・アウル: fieldEventはsubjectSide:opponentで相手の攻撃時にしか起きないため
+    "BS14-037|Lv1･Lv2･Lv3『相手のアタックステップ』": "fieldEventはsubjectSide:opponentで相手の攻撃時にしか起きないため（2026-09-16 確認）",
+    // 勇機リュードロイド: 見出しはconstraintで別見出しのkeyword/magicNegateと混同のため
+    "BS14-040|Lv1･Lv2『相手のアタックステップ』": "見出しはconstraintで別見出しのkeyword/magicNegateと混同のため（2026-09-16 確認）",
+    // 雷皇龍ジークヴルム: 激突は攻撃時にしか意味を持たずkeywordGrantが常時付与でも結果は同じため
+    "SD01-008|Lv3『自分のアタックステップ』": "激突は攻撃時にしか意味を持たずkeywordGrantが常時付与でも結果は同じため（2026-09-16 確認）",
+    // 天の城門: lifeDamageMillGuardはturn:opponent・constraintGrantはphaseTurn明記済みのため
+    "SD02-012|Lv1･Lv2『相手のアタックステップ』": "lifeDamageMillGuardはturn:opponent・constraintGrantはphaseTurn明記済みのため（2026-09-16 確認）",
+    // 海皇龍シーマ・クリーク: 自陣ライフ減少は相手の攻撃由来限定で自分のターンには起きないため
+    "SD06-010|Lv1･Lv2･Lv3『相手のターン』": "自陣ライフ減少は相手の攻撃由来限定で自分のターンには起きないため（2026-09-16 確認）",
+}
 
 type Side = "own" | "opponent" | "both"
 
