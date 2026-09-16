@@ -101,6 +101,8 @@ export type EffectDef =
               | { selfDestroyedByOpponent: true } // trigger:"onDestroy"限定：自分自身が相手によって破壊されたときのみ発火（fireTriggerのbyOpponent引数で判定＝相手の効果 または バトルのBP比較。reviveOnDestroy.when.byOpponentと同じ判定。BS13-010スカルザード：「相手によってこのスピリットが破壊されたとき」）
               | { ownNexusNameKindsAtLeast: { nameContains: string; count: number } } // 器BQ：カード名にnameContainsを含む自分のネクサスの「**異なるカード名の種類数**」（同名は1種類と数える。枚数ではない）がcount以上のときのみ発火（BS13-048古代戦艦アルゴ・ゴレム：「カード名に「古代戦艦」と入っている自分のネクサスが4種類あるとき」）
               | { ownBurstSet: boolean } // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）。false指定時は**セットしていない**間だけ発火（SD06-009キジ・トリアLv2＝「自分のバーストをセットしていないとき」）
+              | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 発生源の持ち主から見た相手フィールドの色の種類数がこれ以上のときのみ発火（shared/rules.opponentFieldColorCount。BS15共通器）
+              | { ownFieldOnlyColor: Color; spiritsOnly?: true } // 発生源の持ち主のフィールドが指定色1色だけのときのみ発火（shared/rules.ownFieldOnlyColor。BS15共通器）
       }
     | {
           id: string
@@ -611,12 +613,16 @@ export type EffectDef =
           kind: "costMod" // 加算：軽減後コストに amount を足す（ルビーの太陽：白のカード全体+1）
           levels: number[] | null
           mode?: undefined // 置換は下の mode:"set" 側の枝。ここで set を書けないようにして両者を排他にする
-          amount: number // 軽減後コストに加算する量
+          amount: number // 軽減後コストに加算する量（amountCounter指定時は amount × カウンタ値）
+          amountCounter?: EffectCounter // 指定時、amountはカウンタ1につきの増分にする（当面 "opponentFieldColors" のみ対応。発生源の持ち主から見た相手のフィールドを数える。BS15共通器：虚神）
+          beforeReduction?: true // 指定時、この加算は**軽減の前**に総コストへ足す（「コスト+1する」＝軽減で打ち消せる。省略時は従来どおり軽減の後＝「余分に支払う」。バトスピWikiの支払い順①③に対応。shared/cost.effectiveCost。BS15共通器）
           colorFilter?: Color // 対象カードの色（省略時は色不問。発生源・対象カードの持ち主は問わない＝両陣営に効く）
           cardType?: CardType // 対象カードの種別（省略時は種別不問。螺旋の塔：マジック限定）
           side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 発生源の持ち主基準のステップ・turn条件（螺旋の塔）
-          condition?: { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統がcount体以上（BS04魔力満ちる泉）
+          condition?:
+              | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 発生源の持ち主のフィールドに指定系統がcount体以上（BS04魔力満ちる泉）
+              | { opponentFieldColorsAtLeast: number } // 発生源の持ち主から見た相手フィールドの色の種類数がこれ以上（shared/rules.opponentFieldColorCount。BS15共通器：虚神）
       }
     | {
           id: string
@@ -639,7 +645,7 @@ export type EffectDef =
           cardTypeFilter?: CardType // 対象カードの種別（BS07女帝ペンプレスLv2-3＝スピリットカードのみ。加算側の cardType と同義だが、両枝を混同させないため別名にしてある）
           scope?: "self" // 指定時は「手札にあるこのカード自身」の効果（hasTrashSymbolReductionと同型）。
           // costSetOverride は cardData.effects を直接見て判定する（effectSourcesの発生源走査では拾えないため）。BS10-059フォート・ゴレム
-          condition?: { ownNexusAtLeast: number } | { ownLifeAtMost: number } | { ownTrashFamilyCountAtLeast: { family: FamilyFilter; count: number } } // ownLifeAtMost＝発生源の持ち主のライフがこれ以下のときのみ有効（BS11-X03 星騎士ハーキュリーΩ＝ライフ3以下の間、手札のこのカードのコストを4にする）。// scope:"self"用：発生源の持ち主（＝このカードを使おうとしているプレイヤー）のネクサス数がこれ以上のときのみ有効（BS10-059＝1以上）
+          condition?: { ownNexusAtLeast: number } | { ownLifeAtMost: number } | { ownTrashFamilyCountAtLeast: { family: FamilyFilter; count: number } } | { ownBurstSet: boolean } // ownLifeAtMost＝発生源の持ち主のライフがこれ以下のときのみ有効（BS11-X03 星騎士ハーキュリーΩ＝ライフ3以下の間、手札のこのカードのコストを4にする）。// scope:"self"用：発生源の持ち主（＝このカードを使おうとしているプレイヤー）のネクサス数がこれ以上のときのみ有効（BS10-059＝1以上）。// ownBurstSet＝発生源の持ち主が自分のバーストをセットしている間（true）／セットしていない間（false）だけ有効（triggered.conditionの同名軸と同じ判定。BS15共通器：虚神）
           // ownTrashFamilyCountAtLeast＝発生源の持ち主のトラッシュにある、指定系統（配列＝OR）を持つ**スピリットカード**の枚数がcount以上のときのみ有効（BS12-016骸巨人ギ・ガッシャ：トラッシュに「無魔」5枚以上でコスト3）
       }
     | {

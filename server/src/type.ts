@@ -170,6 +170,8 @@ export type EffectCounter =
     | { ownNexusColor: Color } // 自分のフィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー：青のネクサス1つにつき）
     | { ownNexusNameIncludes: string } // 自分のフィールドで、カード名に指定文字列を含むネクサス数（同名重複もそのまま数える。ownNexusNameKindsAtLeastの「種類数」とは別軸。BS13-045巨人船長イアソンLv2：「カード名に「古代戦艦」と入っている自分のネクサス1つにつき」）
     | { enemyCost: { max?: number; min?: number } } // 持ち主から見た相手フィールドの、コスト条件を満たすスピリット数（instMatchesCostFilterで判定＝付与コストも見る。BS07バジリザード：コスト3以下の相手1体につき）
+    | "opponentFieldColors" // 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く。多色は複数色、合体中ブレイヴの色も数える。shared/rules.opponentFieldColorCount。BS15共通器）
+    | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（ネクサスを含めない。BS15共通器）
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。
@@ -295,6 +297,8 @@ export type AuraCounter =
     | "ownHand" // 自分の手札枚数（BS10-049妖精神官アンドロメダ：「自分の手札1枚につき、このスピリットをBP+1000する」）
     | "opponentSpirits" // 相手フィールドのスピリット数（BS14-080神代の森Lv1：「相手のスピリット1体につき」）
     | { ownColor: Color } // 自分フィールドの指定色スピリット数（発生源自身も含む。AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定。BS14-041バスター・フェンリルキャノン：「自分の白のスピリット1体につき」）
+    | "opponentFieldColors" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（shared/rules.opponentFieldColorCount。BS15共通器）
+    | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（BS15共通器）
 
 // 常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
 export type AuraCondition =
@@ -307,6 +311,8 @@ export type AuraCondition =
     | { opponentHandAtLeast: number } // 相手の手札枚数がこれ以上（PlayerView.handCountと同じ「非公開だが枚数だけは見える」情報。BoardPlayer.handCountがあればそれを、無ければhand.length（サーバー内部は常に実配列）を使う。BS08ブラックウガルルムLv2：相手の手札5枚以上
     | "hasOwnBurstSet" // 自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）
     | { ownTrashOnlyColor: Color } // 自分のトラッシュにあるカードがこの色のカードだけの間（トラッシュ0枚なら該当色以外のカードが無いので成立＝空虚な真。BS14-003スカートゥース：「自分のトラッシュにあるカードが赤のカードだけの間」）
+    | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 持ち主から見た相手フィールドの色の種類数がこれ以上（shared/rules.opponentFieldColorCount。BS15共通器）
+    | { ownFieldOnlyColor: Color; spiritsOnly?: true } // 自分フィールドのスピリット/ネクサスがすべてこの色1色だけの間（多色混在・0枚は不成立。shared/rules.ownFieldOnlyColor。BS15共通器）
 
 // 常時BP修正の定義
 export interface AuraDef {
@@ -434,6 +440,7 @@ export type GlobalConstraintDef =
     | { type: "opponentCantSpiritStateBrave" } // 発生源の持ち主から見た**相手**は、ブレイヴをスピリット状態にできない（片側のみ。BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。止めるのは3経路：メインステップの任意分離／場を離れるときの「残す」／ブレイヴ単体（合体先なし）の召喚
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営。要塞皇オーディーン）
     | { type: "braveBpBonusZero" } // 両陣営の合体スピリットすべての「合体時BP+」（braveBpBonus。合体しているブレイヴのbraveLevels.bpの合計）を0にする。コア数によるブレイヴ自体のLv判定は変えない＝加算値だけ無視する（BS14-090勇壮なる船上都市：「合体スピリットすべての『合体時BP+』を0として扱う」。主語が無いので両陣営が対象）
+    | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計はmaxまで（アタック・そのスピリットの効果のどちらも合算。CardInstance.lifeDealtThisTurnで判定＝ownLifeDamageCapPerSourcePerTurnと同じ記録を使うが、こちらは発生源がどちらの陣営にあっても**お互いに**効く。effect.whileOwnBurstSetで「発生源の持ち主がバーストをセットしている間」に絞れる。shared/rules.lifeDamagePerSpiritRemaining。BS15共通器：神将）
     | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number } // **発生源の持ち主だけ**を守る片側型（ownLifeFloorと同じパターン）。「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか減らされない」＝**アタッカー個体ごとのターン累計**で判定する（1回のアタックでmax個ずつのcapLifeDamageThisTurnとは別物）。CardInstance.lifeDealtThisTurn（そのアタッカーがこのターンに与えたライフダメージ累計）を見て残り許容量を返す（shared/rules.ownLifeDamageCapRemaining）。ターン終了でリセット（SD06-010海皇龍シーマ・クリークLv1-2-3：max:1）
     | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // **発生源の持ち主だけ**のライフはfloorを下回らない（globalConstraintの他の型と違い片側のみ。既存turnConstraints.lifeFloorForPidの「このターンの間」版に対する常在・条件式版。condition:{ownFamilyCountAtLeast}と組み合わせて使う。BS12-070天の階Lv2＝「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、自分のライフは0にならない」floor:1）。
     // costSelfToTrash指定時：ライフが実際に0になる瞬間だけ発揮する任意コスト版（tryOwnLifeFloorByCostが life<=0 判定の直後で処理する）。

@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { canDiscardHand, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
+import { canDiscardHand, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -13,7 +13,9 @@ import { canDiscardHand, cardHasColor, countSymbols, countTrashSymbols, currentL
 // （side:"opponent" の判定・validateSummon等の呼び出し元から渡る）
 // （ルビーの太陽：「すべての白のカードは使用時+1コスト」＝発生源・対象カードの持ち主を問わず両陣営に効く。
 //   螺旋の塔：「自分のアタックステップ中、相手のマジックは+1コスト」＝side:"opponent"＋phaseTurn）
-export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardData): number {
+// beforeReduction：省略時は「軽減の後に足す」ものだけ合計する。true 指定時は「軽減の前に足す」ものだけ合計する
+// （effectiveCost が①置換→②beforeReduction加算→③軽減→④通常加算 の順で呼び分ける。BS15共通器：虚神）
+export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardData, beforeReduction = false): number {
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = board.players[pid]
@@ -36,14 +38,28 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                     if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
                 }
                 if (effect.condition) {
-                    // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ
-                    const { family, count } = effect.condition.ownFamilyCountAtLeast
-                    const owned = board.players[pid].field.spirits.filter((s) =>
-                        matchesFamilyFilter(board, pid, s, family),
-                    ).length
-                    if (owned < count) continue
+                    if ("ownFamilyCountAtLeast" in effect.condition) {
+                        // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ
+                        const { family, count } = effect.condition.ownFamilyCountAtLeast
+                        const owned = board.players[pid].field.spirits.filter((s) =>
+                            matchesFamilyFilter(board, pid, s, family),
+                        ).length
+                        if (owned < count) continue
+                    } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                        // BS15共通器：虚神。発生源の持ち主から見た相手フィールドの色の種類数がこれ以上のときのみ
+                        if (opponentFieldColorCount(board, pid) < effect.condition.opponentFieldColorsAtLeast) continue
+                    }
                 }
-                total += effect.amount
+                // beforeReduction が今回集計したい枝と一致するものだけを合計する（省略時=false は従来どおり後で足す枝）
+                if ((effect.beforeReduction === true) !== beforeReduction) continue
+                // amountCounter 指定時：amount × カウンタ値（当面 "opponentFieldColors" のみ対応。BS15共通器：虚神）
+                const amt =
+                    effect.amountCounter === undefined
+                        ? effect.amount
+                        : effect.amountCounter === "opponentFieldColors"
+                          ? effect.amount * opponentFieldColorCount(board, pid)
+                          : 0
+                total += amt
             }
         }
     }
@@ -369,6 +385,10 @@ export function costSetOverride(
             }).length
             if (trashCount < count) continue
         }
+        // BS15共通器：虚神。発生源の持ち主が自分のバーストをセットしている間（true）／していない間（false）だけ
+        if (effect.condition !== undefined && "ownBurstSet" in effect.condition) {
+            if (board.players[pid].burstSet !== effect.condition.ownBurstSet) continue
+        }
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
     const sources = effectSources(board, pid)
@@ -381,6 +401,11 @@ export function costSetOverride(
             // あらゆるカードのコストを置換してしまう
             if (effect.scope === "self") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            // BS15共通器：虚神（フィールド発生源版。effectSources(board, pid) は pid 自身の発生源なので、
+            // source の持ち主は常に pid と一致する）
+            if (effect.condition !== undefined && "ownBurstSet" in effect.condition) {
+                if (board.players[pid].burstSet !== effect.condition.ownBurstSet) continue
+            }
             if (effect.familyFilter !== undefined) {
                 const wanted = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
                 if (!wanted.some((f) => cardData.family.includes(f))) continue
@@ -444,7 +469,8 @@ export function effectiveCost(
     // 支払いの順序は「①総コスト決定 → ②軽減シンボル適用 → ③余分コスト適用」（バトスピ Wiki）。
     // コスト置換（BS05パントマイスター／ゴッドスピード等「コストを◯にする」）は①で総コストを決めるだけなので、
     // **置換したコストからさらに軽減できる**（2026-09-16 ユーザー確定。以前は置換すると軽減を一切適用しなかった）
-    const totalCost = costSetOverride(board, pid, cardData) ?? cardData.cost
+    // 軽減の前に足すコスト増（beforeReduction:true。「コスト+1する」＝軽減で打ち消せる。BS15共通器：虚神）
+    const totalCost = (costSetOverride(board, pid, cardData) ?? cardData.cost) + costModTotal(board, pid, cardData, true)
     let base: number
     {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の

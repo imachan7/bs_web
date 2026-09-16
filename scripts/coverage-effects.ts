@@ -312,9 +312,9 @@ const __covEid = (e: unknown): string =>
     // costMod（加算）: 実際にコストへ加算する時点
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `                total += effect.amount`,
+        `                total += amt`,
         `                __covRec2C("cont\t" + __covEid2C(effect))
-                total += effect.amount`,
+                total += amt`,
     )
     // costMod（置換 mode:"set"）: 採用値を決める時点
     // （2026-08-14: setToCounter の追加で置換値の計算が1行増えたためアンカーを追随させた）

@@ -126,6 +126,7 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    lifeDamagePerSpiritRemaining,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1714,8 +1715,12 @@ function tryReviveOnDestroy(
             const oppPid = opponentOf(ownerPid)
             const oppPlayer = state.players[oppPid]
             if (oppPlayer.life <= 0) return false
+            // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」（BS15共通器）。
+            // このスピリット（inst）による今ターンぶんの許容がすでに0なら、コストとして払えない
+            if (lifeDamagePerSpiritRemaining(state, inst) <= 0) return false
             oppPlayer.life -= 1
             oppPlayer.trashCores += 1
+            inst.lifeDealtThisTurn = (inst.lifeDealtThisTurn ?? 0) + 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
             if (oppPlayer.life <= 0 && !state.winner) {
                 // BS14-084永久凍土の王都：**相手の効果で**ライフが0になる瞬間も守る

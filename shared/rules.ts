@@ -339,6 +339,31 @@ export function instColors(inst: CardInstance): Color[] {
     return [...colors]
 }
 
+// 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
+// 「相手のフィールドのスピリット/ネクサスの色1色につき」を表す共通器（BS15）。
+// 多色カードは各色を数える。合体中のブレイヴの色は instColors（braveComposite.colors 経由）で
+// 自動的に含まれる。colorlessThisBattle の個体は instColors が空配列を返すため自動的に除外される
+export function opponentFieldColorCount(board: Board, pid: PlayerId, spiritsOnly = false): number {
+    const opp = board.players[pid === "p1" ? "p2" : "p1"]
+    const insts = spiritsOnly ? opp.field.spirits : [...opp.field.spirits, ...opp.field.nexuses]
+    const colors = new Set<Color>()
+    for (const inst of insts) for (const c of instColors(inst)) colors.add(c)
+    return colors.size
+}
+
+// 自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
+// 「自分のフィールドに◯のスピリット/ネクサスしかない」を表す共通器（BS15）。
+// 多色が1枚でもあれば不成立、0枚でも不成立（空虚な真にしない）
+export function ownFieldOnlyColor(board: Board, pid: PlayerId, color: Color, spiritsOnly = false): boolean {
+    const own = board.players[pid]
+    const insts = spiritsOnly ? own.field.spirits : [...own.field.spirits, ...own.field.nexuses]
+    if (insts.length === 0) return false
+    return insts.every((inst) => {
+        const colors = instColors(inst)
+        return colors.length === 1 && colors[0] === color
+    })
+}
+
 // 現在のレベルとBP。levelOverrideThisTurn（このターンの上書き）または levelAsContinuous（継続置換）が
 // あればそちらを優先し、無ければコア数（coresOverride があればそれ）から判定する。
 // BP には tempBpBuff と battleBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）。
@@ -1240,6 +1265,8 @@ export function countAuraCounter(
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         return countSpiritsWeighted(board, sourcePid, opp, () => true, countingSourceType)
     }
+    if (counter === "opponentFieldColors") return opponentFieldColorCount(board, sourcePid)
+    if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(board, sourcePid, true)
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
@@ -1301,6 +1328,14 @@ export function checkAuraCondition(
     // { ownTrashOnlyColor: Color }：自分のトラッシュにあるカードがこの色だけの間（トラッシュ0枚は空虚な真で成立。BS14-003スカートゥース）
     if ("ownTrashOnlyColor" in condition) {
         return player.trashCards.every((cardId) => card(cardId).colors.includes(condition.ownTrashOnlyColor))
+    }
+    // BS15共通器：持ち主から見た相手フィールドの色の種類数がこれ以上
+    if ("opponentFieldColorsAtLeast" in condition) {
+        return opponentFieldColorCount(board, sourcePid, condition.spiritsOnly === true) >= condition.opponentFieldColorsAtLeast
+    }
+    // BS15共通器：自分フィールドが指定色1色だけの間
+    if ("ownFieldOnlyColor" in condition) {
+        return ownFieldOnlyColor(board, sourcePid, condition.ownFieldOnlyColor, condition.spiritsOnly === true)
     }
     if ("hasOwnColor" in condition) {
         // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
@@ -2367,6 +2402,8 @@ export function lifeDamageLimit(
     }
     // 常在の「相手のスピリット1体からmaxまでしか減らされない」（アタッカー個体ごとのターン累計。SD06-010）
     max = Math.min(max, ownLifeDamageCapRemaining(board, defenderPid, attacker))
+    // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」（BS15共通器）
+    max = Math.min(max, lifeDamagePerSpiritRemaining(board, attacker))
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
@@ -2402,6 +2439,29 @@ export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker:
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             const dealt = attacker.lifeDealtThisTurn ?? 0
             remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
+        }
+    }
+    return remaining
+}
+
+// 神将「自分のバーストをセットしている間、お互いのライフは、ターンごとにスピリット1体から
+// maxまでしか減らされない」（BS15共通器）。ownLifeDamageCapRemainingと同じ
+// CardInstance.lifeDealtThisTurn（そのスピリットがこのターンに与えたライフダメージ累計。
+// アタック・スピリット自身の効果の両方をここに合算して記録する）を見るが、
+// **発生源がどちらの陣営のフィールドにあっても両陣営に効く**点が違う（片側のみのownLifeDamageCapとは別軸）。
+// whileOwnBurstSet は効果本体（kind:"globalConstraint"）の既存フィールドをそのまま使う
+// （発生源の持ち主がバーストをセットしている間だけ有効）。該当する制約が無ければInfinity
+export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance): number {
+    let remaining = Number.POSITIVE_INFINITY
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "lifeDamagePerSpiritPerTurn") continue
+                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                const dealt = spirit.lifeDealtThisTurn ?? 0
+                remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
+            }
         }
     }
     return remaining

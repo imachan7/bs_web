@@ -131,6 +131,7 @@ import {
     isEndStepLocked,
     instIsCombined,
     isOnFieldAnyZone,
+    opponentFieldColorCount,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -3450,6 +3451,8 @@ export function countEffectCounter(
     }
     if (counter === "ownReserve") return state.players[owner].reserve
     if (counter === "ownLife") return state.players[owner].life
+    if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
+    if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
     if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
     if (counter === "allNexuses") {
