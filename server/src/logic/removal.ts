@@ -182,6 +182,7 @@ checkExhaustOnCoreChange,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
+    lifeCostBlockedByFloor,
     tryOwnLifeFloorByCost,
     voidCorePlacementBlocked,
 } from "./EffectModules"
@@ -1649,8 +1650,10 @@ function tryReviveOnDestroy(
         }
         if (effect.cost?.ownLifeOneToVoid) {
             // BS08太陽石の神殿：持ち主のライフのコア1個をボイドへ（リザーブには戻らない）。
-            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる
+            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる。
+            // ただし「ライフは0にならない」が働いている間は払って0にできない＝支払い不可（2026-09-16 ユーザー確定）
             if (player.life <= 0) return false
+            if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
@@ -1662,6 +1665,7 @@ function tryReviveOnDestroy(
         // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
         if (effect.cost?.ownLifeOneToReserve) {
             if (player.life <= 0) return false
+            if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)

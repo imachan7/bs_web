@@ -1461,9 +1461,9 @@ process.on("exit", () => {
         // deckMillNegate（BS08鳳翼の聖剣Lv2）：無効化できる発生源として確定した時点
         patch(
             em,
-            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            `            if (lifeCostBlockedByFloor(state, pid, effect.costOwnLifeToReserve)) continue
             return { source, effect }`,
-            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            `            if (lifeCostBlockedByFloor(state, pid, effect.costOwnLifeToReserve)) continue
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return { source, effect }`,
         )

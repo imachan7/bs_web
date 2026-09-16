@@ -828,6 +828,7 @@ function findDeckMillNegate(
             // 「【粉砕】以外の」（【粉砕】は resolveFunsai だけが cause.funsai を立てる）
             if (effect.exceptFunsai && cause?.funsai === true) continue
             if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            if (lifeCostBlockedByFloor(state, pid, effect.costOwnLifeToReserve)) continue
             return { source, effect }
         }
     }
@@ -910,7 +911,12 @@ export function applyDeckMillNegate(
                   e.kind === "deckMillNegate" && e.id === entry.effectId,
           )
         : undefined
-    if (!source || !effect || state.players[entry.pid].life < effect.costOwnLifeToReserve) {
+    if (
+        !source ||
+        !effect ||
+        state.players[entry.pid].life < effect.costOwnLifeToReserve ||
+        lifeCostBlockedByFloor(state, entry.pid, effect.costOwnLifeToReserve)
+    ) {
         declineDeckMillNegate(state, entry)
         return
     }
@@ -1172,6 +1178,26 @@ export function tryLifeDamageMillGuard(
 // 自分のライフは0にならない」（globalConstraint "ownLifeFloor" の costSelfToTrash 版）。
 // 呼び出し側が life<=0 を検知した直後（勝敗確定の直前）に呼ぶ。払わない理由が無い（払わなければ即敗北）ため
 // 対話確認を省いた自動払いの簡略化。支払えたら true を返し、life を floor まで戻す（0にはならない）
+// 「自分のライフは0にならない」（BS14-084永久凍土の王都）が働いている間は、
+// **ライフのコアをコストとして払って0にすることもできない**（2026-09-16 ユーザー確定）。
+// 払えばライフが0になる＝床の効果が止めるので、コストを完全に支払えない。
+// COST_MODEL.md の一般則「AとBの両方が完全に解決できるときだけ発揮できる」により、その効果は発揮できない。
+// 対象は「自分のライフのコアN個を置くことで」を持つ4枚（太陽石の神殿／星鳥クージャ／神獣バーロン／鳳翼の聖剣）
+export function lifeCostBlockedByFloor(state: GameState, pid: PlayerId, amount = 1): boolean {
+    const player = state.players[pid]
+    for (const source of effectSources(state, pid)) {
+        if (!player.field.nexuses.some((n) => n.instanceId === source.instanceId)) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "ownLifeFloor") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (player.life - amount < effect.constraint.floor) return true
+        }
+    }
+    return false
+}
+
 export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean {
     const player = state.players[pid]
     for (const source of effectSources(state, pid)) {
