@@ -4663,6 +4663,7 @@
     "scope": "ownAll",
     "familyFilter": "導魔",
     "cost": {
+     "handDiscardOne": true,
      "handDiscardCardType": "spirit"
     },
     "revived": {
