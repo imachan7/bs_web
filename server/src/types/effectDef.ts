@@ -742,7 +742,7 @@ export type EffectDef =
               byBattleKillerLevel?: number // BP比較による破壊で、破壊した側（勝者）のcurrentLevel（context.battle.attackerLevel）がこの値のときのみ
               byBattleKillerMaxBp?: number // BP比較による破壊で、破壊した側（勝者）の実効BP（context.battle.attackerBp）がこの値以下のときのみ（BS08勝者のグリーンフィールドLv2＝BP7000以下）
           }
-          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件（発生源の持ち主基準。"both"=どちらのターンでも）
+          phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件（発生源の持ち主基準。"both"=どちらのターンでも）。phase 省略＝ステップ不問（見出しが『相手のターン』だけのとき。BS09-063 花の宮殿）
           revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } // 戻るときの状態（false=回復状態、true=疲労状態）／toHand=場に留まらず持ち主の手札に戻る（コアはリザーブへ、カードは手札へ。トラッシュは経由しない）。器AT：braveStay指定時（combinedOnly併用）は、ホストに合体していたブレイヴを通常の「残す」確認（コア支払い）に乗せず、**無償かつ指定状態のまま**フィールドへ残す（BS13-057ポッポール：「ブレイヴを回復状態でフィールドに残し、スピリットだけを手札に戻す」）。省略時は従来どおりdetachBravesOnLeave（残すか確認しコアを払う）へ流す
           cost?: {
               sourceCoresToTrash?: number // **発生源自身**（このネクサス等）の上のコアをこの数だけ持ち主のトラッシュへ。足りなければ支払い不可＝不発（scope:"ownAll" 用。BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）

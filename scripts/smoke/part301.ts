@@ -26,6 +26,9 @@ console.log("=== 残ったスピリット自身の『破壊時』効果が発揮
     const enemy = createInstance("BS13-013", s.turn, 3)
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
+    // X02 Lv2 の見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s.turnPlayer = "p1"
+    s.phase = "attack"
 
     const before = enemy.cores
     const destroyed = destroySpirit(s, "p1", jaina.instanceId, "destroy", {

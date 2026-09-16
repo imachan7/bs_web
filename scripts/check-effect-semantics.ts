@@ -340,6 +340,11 @@ function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 // S4 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
 // キーは `${cardId}|${見出し}`（出力の「テキスト根拠」と同じ文字列＝先頭30字）
 const S4_VERIFIED: Record<string, string> = {
+    // 花の宮殿: Lv2 の見出しは globalConstraint 側で、別見出しの reviveOnDestroy と突き合わせている誤検出
+    "BS09-063|Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのreviveOnDestroyと混同のため（2026-09-16 確認）",
+    // 赤き砂の座: tenshoSelfCostBonus の見出しは『自分のメインステップ』で、【転召】召喚は
+    // メインステップにしか起きないため限定は不要（アタックステップの見出しは別エントリの globalConstraint 側）
+    "BS08-057|Lv1･Lv2『お互いのアタックステップ』": "見出しが違うエントリとの突き合わせで、転召はメインステップにしか起きないため（2026-09-16 確認）",
     // スケルトン・ジョウ: 見出しはconstraintで別見出しのtriggeredと混同のため
     "BS01-016|Lv1･Lv2･Lv3『相手のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
     // 魔帝の墓標: fieldEventはaction自身に作用し陣営不問のため

@@ -2106,6 +2106,10 @@
     },
     "revived": {
      "rested": false
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
     }
    },
    {
@@ -4518,7 +4522,11 @@
      "rested": true
     },
     "optional": true,
-    "when": {}
+    "when": {},
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    }
    },
    {
     "id": "BS13-036-e2",
@@ -4532,7 +4540,8 @@
     "action": {
      "type": "draw",
      "count": 1
-    }
+    },
+    "phase": "attack"
    },
    {
     "id": "BS13-036-e3",
@@ -4545,7 +4554,8 @@
     "action": {
      "type": "voidCoreToReserve",
      "count": 1
-    }
+    },
+    "phase": "attack"
    }
   ]
  },

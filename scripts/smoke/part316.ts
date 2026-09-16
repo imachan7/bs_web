@@ -127,6 +127,9 @@ console.log("=== BS14-041 バスター・フェンリルキャノン：白1体�
     const s2 = game("t316-041b")
     const cannon2 = put(s2, "p1", "BS14-041", 4) // Lv2
     refreshLevelAsOverrides(s2)
+    // 見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s2.turnPlayer = "p1"
+    s2.phase = "attack"
     assert(!hasBlockTriggersAsAttack(s2, "p1", cannon2), "バースト未セット時はブロック時→アタック時の移し替えが無い")
     placeBurst(s2, "p1", "BS14-104")
     assert(hasBlockTriggersAsAttack(s2, "p1", cannon2), "バースト中は系統「機獣」のブロック時効果がアタック時に発揮される")

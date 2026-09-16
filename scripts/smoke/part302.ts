@@ -25,6 +25,9 @@ function setup(seed: string): { s: GameState; jaina: ReturnType<typeof createIns
     const enemy = createInstance("BS13-013", s.turn, 3)
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
+    // X02 Lv2 の見出しは『自分のアタックステップ』（2026-09-16 に限定を実装へ反映）
+    s.turnPlayer = "p1"
+    s.phase = "attack"
     return { s, jaina, enemy }
 }
 
