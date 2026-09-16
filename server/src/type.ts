@@ -581,6 +581,9 @@ export interface CardInstance {
     // （数・シンボル・【転召】の生贄にも数える）。
     // 一方で**疲労／回復はできず、ここからさらに破壊されることもない**
     pendingDestruction?: true
+    // pendingDestruction のうち**消滅**（維持コア割れ）によるもの。シンボルを軽減に使えない点だけが
+    // 破壊待機と違う（RULES_BATSPI_WIKI.md §2）。pendingDestruction と一緒のときだけ意味を持つ
+    pendingVanish?: true
     // **バウンス待機状態**（バトスピ Wiki「バウンスについて」。2020年5月のルール改定）。
     // 手札／デッキへ戻す効果を解決してから、実際にその場所へ移るまでの間だけ立つ。
     // この間もカードはフィールドに留まるが、**破壊待機状態とは扱いが違う**:

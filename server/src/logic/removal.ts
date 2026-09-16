@@ -621,6 +621,11 @@ export function destroySpirit(
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
     inst.pendingDestruction = true
+    // 消滅（維持コア割れ）のときだけ別の印を立てる。消滅したカードのシンボルは軽減に使えない
+    // （破壊待機は使える。バトスピ Wiki「わかりづらいルール」。2026-09-16）。
+    // 前回の待機から残った印を拾わないよう、破壊のたびに付け直す
+    if (cause === "deplete") inst.pendingVanish = true
+    else delete inst.pendingVanish
     // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
     // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。

@@ -328,6 +328,8 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
         // バウンス待機中は数えない／symbolFix で固定されたシンボルを優先する／
         // 「◯色としても扱う」で得た色は、そのシンボルの色としても数える（元の色も残る）
         if (inst.pendingBounce) continue
+        // 消滅待機中も同じく使えない（破壊待機は使える）
+        if (inst.pendingDestruction && inst.pendingVanish) continue
         const symbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)
