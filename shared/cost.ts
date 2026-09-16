@@ -441,15 +441,12 @@ export function effectiveCost(
     ) {
         return 0
     }
-    // コスト置換（BS05パントマイスター／ゴッドスピード）：適用順は「置換 → costMod加算」で固定する
-    // （costSetとcostModが同時に効く場合、発生源の走査順に依存しない決定的な結果にするため）。
-    // 置換値は軽減後の値ではなく置換後の値をそのまま使う（原文「コストを◯にする」の忠実化）ので、
-    // 軽減シンボル（reductionGrant含む）はここでは一切適用しない
-    const setOverride = costSetOverride(board, pid, cardData)
+    // 支払いの順序は「①総コスト決定 → ②軽減シンボル適用 → ③余分コスト適用」（バトスピ Wiki）。
+    // コスト置換（BS05パントマイスター／ゴッドスピード等「コストを◯にする」）は①で総コストを決めるだけなので、
+    // **置換したコストからさらに軽減できる**（2026-09-16 ユーザー確定。以前は置換すると軽減を一切適用しなかった）
+    const totalCost = costSetOverride(board, pid, cardData) ?? cardData.cost
     let base: number
-    if (setOverride !== undefined) {
-        base = setOverride
-    } else {
+    {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の
         // 軽減シンボルすべてを指定色1色として扱う（printed reduction の色を置き換え。件数は変えない）
         const handColorOverride = board.turnConstraints.find(
@@ -489,7 +486,7 @@ export function effectiveCost(
                 reduction += Math.min(need, have)
             }
         }
-        base = Math.max(cardData.cost - reduction, 0)
+        base = Math.max(totalCost - reduction, 0)
     }
     // SD02-013 転召の祭壇Lv1-2：相手フィールドの発生源が、条件を満たすスピリットカードの召喚に
     // 追加コストを課す（「1コスト余分に支払わなければならない」）。軽減の後に足す

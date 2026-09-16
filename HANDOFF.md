@@ -33,17 +33,11 @@
 [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §4「S3・S4 も残0件にした」）。
 **`coverage:effects` の実行実績0だった継続効果11件も smoke part324 で解消**（BS13-038 のコスト欠落を1件修正）。
 
-### ⚠️ BS15 より先に片付ける（BS15_PLAN §0）
+### BS15_PLAN §0 の借金はすべて返済済み（2026-09-16）
 
-弾を足すと監査の未判定が増えて見えなくなる。BS14 で実際に起きた
-（S6・S7 が「残0件」から 12件・9件に戻り、**実バグ5件が埋もれていた**）。
-**残っているのは次の1件**（済んだ2件は上の節のとおり）:
-
-| 借金 | 出どころ |
-| :-- | :-- |
-| バトスピ Wiki との食い違い3件 | [RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md) |
-
-**`coverage:effects` の action 側はまだ穴がある**: (a) 未実行3種（destroyOwnFreelyThenDraw /
+監査 S3・S4 の残0件化、実行実績0の継続効果の解消、永久凍土の王都（COST_MODEL §9）、
+Wiki 食い違い（RULES_BATSPI_WIKI）まで片付いた。**BS15 の実装に入ってよい。**
+`coverage:effects` の action 側だけ穴が残る: (a) 未実行3種（destroyOwnFreelyThenDraw /
 negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
 ### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
@@ -69,10 +63,8 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-**バトスピ Wiki との食い違い3件**（[RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md) の ⚠️ 印）。
-優先度が高いのは「**『ターンに1回』がコストを払えず不発でも消費される**」で、これは全カードに効く。
-残り2つ（消滅待機中のシンボルが軽減に数えられる／余分コストと軽減の順序・コスト固定は最小値）は、
-踏む頻度が低いか該当カードがまだ無い。
+**なし。** バトスピ Wiki との食い違い3件は 2026-09-16 に片付けた（[RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md)）。
+残る ⚠️ は「コスト固定が複数あるときは後から発揮した方が優先（実装は最小値）」だけで、**該当カードが出たら直す**（ユーザー判断）。
 
 ## 3. 決着済み（蒸し返さないこと）
 
