@@ -27,6 +27,25 @@
 **次の本線は BS15「覇王編 第2弾：黄金の大地」全90種**（C46/U18/R12/M8/X6）。
 計画は [BS15_PLAN.md](./docs/design/BS15_PLAN.md)。**まだデータを取り込んでいない。**
 
+### 進行中：監査の借金返し（2026-09-16。ブランチ chore/semantics-s3-s4）
+
+**S3 は43→3件、S4 は57→11件まで落とした**（判定済みを `S3_VERIFIED` / `S4_VERIFIED` へ登録。
+登録したのに検出されなくなったものは監査の末尾に警告が出る）。`coverage:effects` の実行実績0だった
+継続効果11件は smoke part324 で潰した（BS13-038 のコスト欠落＝無償復活を1件修正）。
+
+残りは**ユーザー確認済みの直し2本**。確定スキーマ:
+
+1. **S4 の11件に見出しのステップ／ターン限定を足す**（データのみ）。
+   `aura` / `levelAs` / `reductionGrant` は `phaseTurn: {phase, turn}`、
+   `reviveOnDestroy` / `fieldEvent` は既存の `phaseTurn` / `phase` / `turn` を使う。
+   対象: BS08-057 / BS09-063（**逆に狭すぎるので `phase` を外して `turn:"opponent"` だけにする**）/
+   BS11-018 / BS13-036（3エントリ）/ BS13-X02 / BS14-031 / BS14-041 / BS14-061 / BS14-062
+2. **`deployNexus`（ネクサスを「配置できる」17枚）を任意化する**。
+   `EffectAction` の `deployNexus` に **`optional?: boolean`** を足し、印刷テキストが
+   「配置できる」の札だけデータで `"optional": true` にする。ハンドラは
+   `requestCardChoice(..., optional, action, self, alwaysAsk)` に渡す（候補1枚でも「やらない」を選べる）。
+   ⚠️ BS14-064 はバーストの `sequence` の中で4回呼ぶので、中断→再開が壊れないか smoke で確かめること
+
 ### ⚠️ BS15 より先に片付ける（BS15_PLAN §0）
 
 弾を足すと監査の未判定が増えて見えなくなる。BS14 で実際に起きた
