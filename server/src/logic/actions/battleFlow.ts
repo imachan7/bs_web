@@ -557,16 +557,17 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             for (let i = 0; i < zone.length; i++) {
                 if (isMatch(zone[i]!)) indices.push(i)
             }
-            if (indices.length >= 2) {
+            if (indices.length >= 2 || (action.optional === true && indices.length >= 1)) {
                 requestCardChoice(
                     state,
                     owner,
                     `${sourceName}：配置するネクサスを選んでください`,
                     action.from,
                     indices,
-                    false,
+                    action.optional === true,
                     action,
                     self,
+                    action.optional === true,
                 )
                 return
             }

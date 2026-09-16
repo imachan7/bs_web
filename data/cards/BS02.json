@@ -1688,7 +1688,8 @@
      "colors": [
       "white",
       "green"
-     ]
+     ],
+     "optional": true
     },
     "optional": true
    }
@@ -3748,7 +3749,8 @@
      "from": "hand",
      "colors": [
       "white"
-     ]
+     ],
+     "optional": true
     },
     "optional": true
    }
@@ -3802,7 +3804,8 @@
      "from": "hand",
      "colors": [
       "purple"
-     ]
+     ],
+     "optional": true
     },
     "optional": true
    }

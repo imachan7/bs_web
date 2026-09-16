@@ -393,7 +393,8 @@
         ],
         "action": {
           "type": "deployNexus",
-          "from": "trash"
+          "from": "trash",
+          "optional": true
         },
         "optional": true
       }

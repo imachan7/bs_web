@@ -113,6 +113,9 @@ console.log("=== BS10-027：対話では合体スピリット候補2体からホ
     const combo1 = setupCombinedHost(s, "p1", hostCardId, false)
     const combo2 = setupCombinedHost(s, "p1", hostCardId2, false)
     fireTrigger(s, "p1", spirit, "onBattleEnd")
+    // 2026-09-16：BS10-027へ optional:true を足したため、対話では先に発動確認が入る（任意化）
+    assert(s.pendingChoice !== null && s.pendingChoice.kind === "option", "先に発動確認の選択待ちが立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動する")
     assert(s.pendingChoice !== null && s.pendingChoice.kind === "target", "分離元ホストを選ぶ選択待ちが立つ")
     assert(
         (s.pendingChoice?.candidates ?? []).length === 2 &&
@@ -135,6 +138,9 @@ console.log("=== BS10-027：対話では分離後「自分のスピリット1体
     s.players.p1.field.spirits.push(newHost)
     refreshLevelAsOverrides(s)
     fireTrigger(s, "p1", spirit, "onBattleEnd")
+    // 2026-09-16：BS10-027へ optional:true を足したため、対話では先に発動確認が入る（任意化）
+    assert(s.pendingChoice !== null && s.pendingChoice.kind === "option", "先に発動確認の選択待ちが立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動する")
     // 候補は元のホストが1体だけなので自動解決され、続けて合体先選択の選択待ちが立つ
     assert(s.pendingChoice !== null && s.pendingChoice.kind === "target", "合体先を選ぶ選択待ちが立つ")
     assert((s.pendingChoice?.candidates ?? []).includes(newHost.instanceId), "新しいホストが合体先候補に出る")
