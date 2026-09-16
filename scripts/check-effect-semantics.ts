@@ -214,6 +214,11 @@ function hasCostEvidence(effects: Record<string, unknown>[]): boolean {
     return found
 }
 
+// S3 で「読んで問題なしと確認した」もの。**理由を必ず添える**（次に見る人が再検証しないため）。
+// キーは cardId（S3 は1カードにつき最初の「できる。」1件しか出さない）。
+// 機械的な等価表現に落とせるものは OPTIONAL_CAPABLE_KINDS 側で落とすこと
+const S3_VERIFIED: Record<string, string> = {}
+
 // S3: 「〜できる。」の実装側の印。optional:true が基本形。
 // chooserIsTarget（相手が選ぶ＝プレイヤーに選ばせる印）も「できる」の変種として認める
 // （CHOOSER_RULES.md 参照。ただし文言上は「相手は〜できる」のような形になる）
@@ -250,6 +255,10 @@ function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 // ============================================================
 // S4: タイミング（見出し vs phase/turn/phaseTurn/step）
 // ============================================================
+
+// S4 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
+// キーは `${cardId}|${見出し}`（出力の「テキスト根拠」と同じ文字列＝先頭30字）
+const S4_VERIFIED: Record<string, string> = {}
 
 type Side = "own" | "opponent" | "both"
 
@@ -698,6 +707,8 @@ interface SemGap {
 }
 
 const gaps: SemGap[] = []
+// VERIFIED に登録済みで、実際に検出（＝除外）されたキー。残りは古くなった登録として警告する
+const usedVerified = new Set<string>()
 
 function kindsOf(effects: Record<string, unknown>[]): string {
     const kinds = [...new Set(effects.map((e) => String(e.kind ?? "?")))]
@@ -745,6 +756,8 @@ for (const card of cards) {
         const m = /できる。/.exec(text)
         if (m && canCarryOptionalEvidence(card.effects) && !hasOptionalEvidence(card.effects)) {
             const idx = m.index
+            if (S3_VERIFIED[card.cardId] !== undefined) usedVerified.add(`S3:${card.cardId}`)
+            else
             gaps.push({
                 axis: "S3",
                 cardId: card.cardId,
@@ -789,7 +802,12 @@ for (const card of cards) {
                     continue
                 }
                 const decls = collectTimingDeclarations(matching)
+                const verifiedKey = `${card.cardId}|${header.slice(0, 30)}`
                 if (!matchesTiming(decls, phase, side)) {
+                    if (S4_VERIFIED[verifiedKey] !== undefined) {
+                        usedVerified.add(`S4:${verifiedKey}`)
+                        continue
+                    }
                     gaps.push({
                         axis: "S4",
                         cardId: card.cardId,
@@ -832,7 +850,10 @@ for (const card of cards) {
             if (!SELF_SWAP_EVENTS.has(event)) continue
             if (hasSubjectFixedEvidence(eff)) continue
             // 読んで問題なしと判定済みのものは出さない（理由は S6_VERIFIED に書いてある）
-            if (typeof eff.id === "string" && S6_VERIFIED[eff.id] !== undefined) continue
+            if (typeof eff.id === "string" && S6_VERIFIED[eff.id] !== undefined) {
+                usedVerified.add(`S6:${eff.id}`)
+                continue
+            }
             gaps.push({
                 axis: "S6",
                 cardId: card.cardId,
@@ -856,9 +877,11 @@ for (const card of cards) {
                 !/デッキを?上から/.test(sen),
         )
         // 読んで問題なしと判定済みのカードは出さない（理由は S7_VERIFIED に書いてある）
-        const s7Verified = card.effects.some(
-            (e) => typeof e.id === "string" && S7_VERIFIED[e.id] !== undefined,
-        )
+        const s7Verified = card.effects.some((e) => {
+            if (typeof e.id !== "string" || S7_VERIFIED[e.id] === undefined) return false
+            usedVerified.add(`S7:${e.id}`)
+            return true
+        })
         if (aiteSent && !s7Verified && !hasChooserEvidence(card.effects)) {
             gaps.push({
                 axis: "S7",
@@ -942,4 +965,15 @@ if (jsonOutput) {
     }
     console.log()
     console.log(`除外した定型説明: ${boilerplateSentences.length}種`)
+
+    // 登録したのに検出されなくなった VERIFIED（実装が変わった＝消し忘れ）を出す
+    const stale = [
+        ...Object.keys(S3_VERIFIED).map((k) => `S3:${k}`),
+        ...Object.keys(S4_VERIFIED).map((k) => `S4:${k}`),
+        ...Object.keys(S6_VERIFIED).map((k) => `S6:${k}`),
+        ...Object.keys(S7_VERIFIED).map((k) => `S7:${k}`),
+    ].filter((k) => !usedVerified.has(k))
+    if (stale.length > 0 && !axisFilter && !cardFilter) {
+        console.log(`\n⚠️ 検出されなくなった VERIFIED 登録（消してよい）: ${stale.join(" / ")}`)
+    }
 }
