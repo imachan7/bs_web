@@ -60,9 +60,16 @@
   004 の Q3469（その破壊の解決中は発動できない）は未実装
 - 008 は「指定色の和集合に無い色を1つでも持つスピリットを両陣営とも破壊」で実装（ユーザーに事後報告済み）
 
-### 進行中：BS15 バッチ2（緑・白 30種）— 決めたこと（2026-09-17）
+### BS15 バッチ2（緑・白 30種）は実装済み（2026-09-17。smoke part333）— 残した課題と決めたこと
 
-出力は `data/cards/BS15-green.json` / `BS15-white.json`。smoke は part333〜。
+- **未実装：X04 ナウマンガルド Lv2**（card-notes に partial）。PhaseManager にアタックステップ後の割り込み地点が要る。下の決定どおりに作る
+- **既存エンジンの二重発火の疑い（未検証・未修正）**：`destroySpirit` が `fireOwnSpiritDestroyed` を呼ぶ時点で対象がまだ `field.spirits` に居り、
+  同じ個体を `extraSources` にも渡す。`fireFieldEventTriggers` は重複を除かないため、`fieldEvent`＋`selfOnly` の破壊イベントが2回発火し得る
+  （サブの実測でドロー・コア付与が2倍。BS13-010 スカルザード等が同じ形）。X04 Lv1-2 は `triggered.onDestroy` にして回避し、
+  `validate-cards.ts` の `QUOTE_MISMATCH_KNOWN` に登録。**再現テストを書いてから別PRで直す**
+- 統合時に `scripts/coverage-effects.ts` の差し込み先2件（deckMillNegate のコスト移行、nexusEffectsDisabled の bothAll）を追随させた
+
+出力は `data/cards/BS15-green.json` / `BS15-white.json`。
 - **X04 ナウマンガルド Lv2**：アタックステップ終了後、ドロー/リフレッシュ/メインのどれかを選び、**そのステップを通常どおり丸ごと**行う
   （そのステップの効果もすべて発揮。メインなら召喚もコア移動も可）。**そのあとエンドステップへ**。ターンに1回。
   アタックステップ自体が行われないターン（ルナティックシール）は発揮しない（Q3622〜Q3626）
