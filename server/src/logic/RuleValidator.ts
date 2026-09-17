@@ -903,6 +903,17 @@ export function validateActivateAbility(
                 (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
             )
             if (!hasCandidate) return "疲労させられるスピリットがいません"
+        } else if ("discardHandOne" in effect.cost) {
+            // BS15-003ファイアファンサウル：手札1枚を破棄し、このスピリットを疲労させることで
+            if (host.isRested) return "すでに疲労しています"
+            if (state.players[pid].hand.length < 1) return "破棄できるカードが手札にありません"
+        } else if ("discardHandKeyword" in effect.cost) {
+            // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカードが手札に無ければ発動できない
+            const keyword = effect.cost.discardHandKeyword
+            const hasCard = state.players[pid].hand.some(
+                (cardId) => getCard(cardId).type === "spirit" && hasKeyword(cardId, keyword),
+            )
+            if (!hasCard) return "破棄できるカードが手札にありません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }

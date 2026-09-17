@@ -3043,6 +3043,21 @@ function activatableAbilityOf(
             if (!hasCandidate) continue
             return { effectId: e.id, costLabel: "スピリットを疲労させて効果を発動" }
         }
+        if ("discardHandOne" in e.cost) {
+            // BS15-003ファイアファンサウル：手札1枚を破棄し、このスピリットを疲労させることで
+            if (host.isRested) continue
+            if ((board.players[pid].hand ?? []).length < 1) continue
+            return { effectId: e.id, costLabel: "手札を破棄しこのスピリットを疲労させて効果を発動" }
+        }
+        if ("discardHandKeyword" in e.cost) {
+            // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカードが手札に無ければ発動できない
+            const keyword = e.cost.discardHandKeyword
+            const hasCard = (board.players[pid].hand ?? []).some(
+                (cardId) => card(cardId).type === "spirit" && hasKeyword(cardId, keyword),
+            )
+            if (!hasCard) continue
+            return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
+        }
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }
     }

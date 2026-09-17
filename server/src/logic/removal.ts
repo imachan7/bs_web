@@ -1770,11 +1770,24 @@ function tryReviveOnDestroy(
 
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
     // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
-    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): void => {
+    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): void => {
         // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
-        if ("toHand" in revived) {
+        if ("toBurst" in revived) {
+            // BS15-004ハンゾウ・シノビ・ドラゴン：トラッシュへ置かれる代わりに持ち主のバーストエリアへ
+            // （placeBurstと同じ規則：既にセットしていたバーストはトラッシュへ押し出される。
+            // EffectModulesからのimportは循環参照になるためここでは直接書く）
+            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
+            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            player.reserve += inst.cores
+            detachBravesOnLeave(state, ownerPid, inst)
+            if (player.burst !== null) {
+                player.trashCards.push(player.burst)
+            }
+            player.burst = inst.cardId
+            player.burstSet = true
+        } else if ("toHand" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
@@ -1796,8 +1809,8 @@ function tryReviveOnDestroy(
         }
     }
 
-    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): string =>
-        "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
+    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): string =>
+        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
     // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
     // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
@@ -1808,8 +1821,9 @@ function tryReviveOnDestroy(
 
     // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
     // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
-    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number }): boolean => {
+    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean }): boolean => {
         if (!condition) return true
+        if ("ownBurstSet" in condition) return (player.burst !== null) === condition.ownBurstSet
         const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
         return oppColors.size <= condition.opponentFieldSymbolColorsAtMost
     }

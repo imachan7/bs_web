@@ -744,6 +744,10 @@ export function fireBattleWonTriggers(
             if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
                 continue
             }
+            // BS15-005虚獣チャンプボンゴル：勝利したスピリットがこの色を持つときのみ発火
+            if (effect.winnerColorFilter !== undefined && !instHasColor(winnerInst, effect.winnerColorFilter)) {
+                continue
+            }
             // BS13-050輝竜シャイン・ブレイザー【合体時】：敗北して破壊された側の実効BPがこれ以上のときのみ発火
             // （state.lastBattleDestroyedBpは破壊直前に測った実効BP。GameEngine.resolveBattleが記録する）
             if (effect.loserMinBp !== undefined && state.lastBattleDestroyedBp < effect.loserMinBp) {
@@ -1056,6 +1060,8 @@ function burstConditionMet(
         const { cardType, count } = condition.ownTrashCardTypeCountAtLeast
         return player.trashCards.filter((id) => getCard(id).type === cardType).length >= count
     }
+    // BS15-017エンプレス・ヨウクィーン：自分の手札が5枚以上のとき
+    if ("ownHandAtLeast" in condition) return player.hand.length >= condition.ownHandAtLeast
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1155,6 +1161,8 @@ export function fireFieldEventTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             // selfOnly：発生源自身が破壊されたときだけ（ownSpiritDestroyed 限定。BS13-010 スカルザード）
             if (effect.selfOnly && inst.instanceId !== selfOverride?.inst.instanceId) continue
+            // excludeSelfSubject（BS15-009虚龍帝カタストロフドラゴン）：イベントの主体が発生源自身のときは発火しない
+            if (effect.excludeSelfSubject && inst.instanceId === selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
             // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
             // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
@@ -1233,6 +1241,9 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            // 「相手によって破壊されたとき」（BS15-061幼竜の揺り籠Lv2）：相手の効果による破壊 **または**
+            // バトルのBP比較による破壊（reviveOnDestroy.when.byOpponentと同じ判定。byOpponentEffectOnlyより広い）
+            if (effect.byOpponentOnly && !(eventInfo?.byOpponentEffect || eventInfo?.byBattle)) continue
             // 「相手のスピリットの効果で破壊されたとき」（BS10-012アントイーター/BS10-014闇騎士マリス）
             if (effect.byOpponentSpiritEffectOnly && !eventInfo?.bySpiritEffect) continue
             // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別で絞る（BS14-085賛美するパイプオルガン：

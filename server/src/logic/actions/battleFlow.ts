@@ -1253,6 +1253,9 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             if (isTrashCardProtected(candidateId)) return false
+            // onlyBurstDestroyedCard（BS15-073五輪転生炎）：そのバースト発動のきっかけになった破壊で
+            // 落ちたカードだけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致）
+            if (action.onlyBurstDestroyedCard && candidateId !== ctx.targetInstanceId) return false
             // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
             // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
             if (action.payCost) {
@@ -1328,6 +1331,49 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             log(
                 state,
                 `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
+            )
+            return
+        }
+        // BS15-018霊獣皇テン・クー：countCounter指定時はcountを無視しEffectCounterの値を召喚できる
+        // 最大枚数として使う（0なら不発）。count分岐と異なり、この効果は「発揮されない」の記載が無いため
+        // 召喚時効果を通常どおり発揮する（fireSummonSequenceを呼ぶ）。コスト最大から貪欲に選ぶ決定的簡略化
+        if (action.countCounter !== undefined) {
+            let remaining = countEffectCounter(state, owner, self, action.countCounter, undefined)
+            const summonedNames: string[] = []
+            while (remaining > 0) {
+                let bestIndex = -1
+                let bestCost = -1
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    const candidateId = player.trashCards[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const candidate = getCard(candidateId)
+                    if (minLevelCores(candidate) > player.reserve) continue
+                    if (candidate.cost > bestCost) {
+                        bestCost = candidate.cost
+                        bestIndex = i
+                    }
+                }
+                if (bestIndex === -1) break
+                const cardId = player.trashCards[bestIndex]!
+                const cardData = getCard(cardId)
+                const maintain = minLevelCores(cardData)
+                player.trashCards.splice(bestIndex, 1)
+                player.reserve -= maintain
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.spirits.push(inst)
+                summonedNames.push(cardData.name)
+                remaining -= 1
+                if (!state.winner) resolveTensho(state, owner, inst)
+                if (!state.winner && !state.pendingChoice) fireSummonSequence(state, owner, inst)
+                if (state.pendingChoice || state.winner) break
+            }
+            if (summonedNames.length === 0) {
+                log(state, `${sourceName}：召喚できる対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。`,
             )
             return
         }

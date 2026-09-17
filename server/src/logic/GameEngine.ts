@@ -24,7 +24,7 @@ import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -1423,6 +1423,32 @@ function doActivateAbility(
         log(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（${getCard(chosen.cardId).name}を疲労）`,
+        )
+    } else if ("discardHandOne" in effect.cost) {
+        // BS15-003ファイアファンサウル：手札1枚（決定的簡略化：末尾）を破棄し、このスピリット自身を疲労させる
+        const cardId = player.hand.pop()!
+        player.trashCards.push(cardId)
+        exhaustSpirit(state, pid, host)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄し、このスピリットを疲労）`,
+        )
+    } else if ("discardHandKeyword" in effect.cost) {
+        // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカード1枚（コスト最大を自動選択）を破棄する
+        const keyword = effect.cost.discardHandKeyword
+        const indices = player.hand
+            .map((_, i) => i)
+            .filter((i) => getCard(player.hand[i]!).type === "spirit" && hasKeyword(player.hand[i]!, keyword))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
         )
     } else {
         const n = effect.cost.reserveToTrash

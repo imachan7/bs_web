@@ -47,6 +47,27 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costDiscardOwnBurst（BS15-016闇騎士ガウェイン）：自分のバースト1つを破棄することがコスト。
+        // 「〜することで〜する」は両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、
+        // 対象条件を満たす相手のスピリットが1体もいなければバーストも破棄しない
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            const filterForCheck = normalizeFilter(ctx, action)
+            const hasEligibleTarget =
+                filterForCheck !== SELF_REQUIRED &&
+                state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filterForCheck, self?.instanceId))
+            if (ownerPlayer.burst === null || !hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+            const { costDiscardOwnBurst: _cdob, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
@@ -2272,6 +2293,37 @@ function totalCoresOf(state: GameState, pid: PlayerId): number {
     )
 }
 
+// BS15-X01刀の覇王ムサシード・アシュライガーLv3：相手のライフのコアをcount個、相手のリザーブへ置く
+// （相手のライフがcountに満たなければあるだけ移す。0枚なら不発）
+const opponentLifeToReserveHandler: ActionHandler<"opponentLifeToReserve"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    const target = state.players[opp]
+    const moved = Math.min(action.count, target.life)
+    if (moved <= 0) {
+        log(state, `${sourceName}：${target.name}のライフが無いため発動しなかった。`)
+        return
+    }
+    target.life -= moved
+    target.reserve += moved
+    log(state, `${sourceName}：${target.name}のライフのコア${moved}個をリザーブに置いた。`)
+}
+
+// BS15-075ブラッディロンドメイン：お互いのコア合計（フィールド+リザーブ+トラッシュ）を比べ、多かった方の
+// 持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先はその持ち主が選ぶ。
+// coresDownToLimitへ、多かった方をsides・少なかった方の合計をlimitとして委譲する
+const coreToVoidEqualizeByTotalHandler: ActionHandler<"coreToVoidEqualizeByTotal"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const totalOwner = totalCoresOf(state, owner)
+    const totalOpp = totalCoresOf(state, opp)
+    if (totalOwner === totalOpp) {
+        log(state, `${sourceName}：お互いのコア合計は同数だった。`)
+        return
+    }
+    const side: "opponent" | "own" = totalOwner > totalOpp ? "own" : "opponent"
+    const limit = Math.min(totalOwner, totalOpp)
+    ctx.resolve({ type: "coresDownToLimit", limit, sides: [side] })
+}
+
 const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTotal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, chosenOption } = ctx
     const player = state.players[opp]
@@ -2629,6 +2681,8 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
 const handlers = {
     opponentCoresToVoidByTotal: opponentCoresToVoidByTotalHandler,
     coresDownToLimit: coresDownToLimitHandler,
+    coreToVoidEqualizeByTotal: coreToVoidEqualizeByTotalHandler,
+    opponentLifeToReserve: opponentLifeToReserveHandler,
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,

@@ -2317,6 +2317,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 加算は重ねられる（同名を2体並べたら+2）。維持コア割れの掃除は
                     // GameEngine.handleAction の事後フック（sweepLevelCostDepletion）が行う
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.target === "opponentNexusesAll") {
+                        // BS15-015吸血令嬢エサルフリーダ：相手のネクサスすべての「Lvコスト」を+amount
+                        for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
+                            nexus.levelCostBonusContinuous = (nexus.levelCostBonusContinuous ?? 0) + effect.amount
+                        }
+                        continue
+                    }
                     const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
                     for (const spirit of state.players[targetPid].field.spirits) {
                         spirit.levelCostBonusContinuous =
@@ -2577,6 +2584,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     } else if ("ownBurstSet" in effect.condition) {
                         // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
                         if (!player.burstSet) continue
+                    } else if ("ownLifeAtLeast" in effect.condition) {
+                        // BS15-016闇騎士ガウェイン：自分のライフが3以上の間だけ有効
+                        if (player.life < effect.condition.ownLifeAtLeast) continue
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit

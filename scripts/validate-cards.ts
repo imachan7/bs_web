@@ -236,12 +236,13 @@ function checkCostSetEffects(
                 e.condition !== null &&
                 ("ownNexusAtLeast" in e.condition ||
                     "ownLifeAtMost" in e.condition ||
-                    "ownTrashFamilyCountAtLeast" in e.condition)
+                    "ownTrashFamilyCountAtLeast" in e.condition ||
+                    "ownBurstSet" in e.condition)
             )
         ) {
             add(
                 c.cardId,
-                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost / ownTrashFamilyCountAtLeast 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
+                `costMod mode:"set" の ${e.id ?? e.kind} の condition が ownNexusAtLeast / ownLifeAtMost / ownTrashFamilyCountAtLeast / ownBurstSet 形式ではない（costSetOverride が参照しないため絞り込みが無言で無視される）`,
             )
         }
         if ("amount" in e) {

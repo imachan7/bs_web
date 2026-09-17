@@ -2,8 +2,10 @@
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { toAttackPhase } from "../PhaseManager"
+import { effectiveCost } from "../../../../shared/cost"
+import { effectiveBp } from "../../../../shared/rules"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -102,7 +104,7 @@ const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action)
 // スピリット/ネクサスのみ（マジックには書かない。validate:cardsが検査する）。
 // **バースト発動の確認応答は self=null で解決される**ため、対象カードは state.players[owner].burst
 // から読む（burst は承認された時点でもまだ非公開のまま残っている＝この関数がここで空にする）
-const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx) => {
+const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
     const cardId = player.burst
@@ -125,16 +127,23 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx) =
         return
     }
     const maintain = minLevelCores(card)
-    if (player.reserve < maintain) {
+    // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
+    // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
+    const cost = action.payCost ? effectiveCost(state, owner, card) : 0
+    if (player.reserve < maintain + cost) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.burst = null
     player.burstSet = false
-    player.reserve -= maintain
+    player.reserve -= maintain + cost
+    player.trashCores += cost
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
-    log(state, `${player.name}はバーストとして${card.name}を召喚した。`)
+    log(
+        state,
+        `${player.name}はバーストとして${card.name}を` + (action.payCost ? `コスト${cost}を支払って召喚した。` : "召喚した。"),
+    )
     if (!state.winner) resolveTensho(state, owner, inst)
     if (!state.winner) fireSummonSequence(state, owner, inst)
 }
@@ -187,6 +196,29 @@ const summonBurstCardFreeIfOwnNexusAtLeastHandler: ActionHandler<"summonBurstCar
         return
     }
     ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+// バースト専用（BS15-X01刀の覇王ムサシード・アシュライガー）：fireFieldEventTriggersが渡すイベント対象
+// （event:"anySpiritAttacked"の場合はアタックしたスピリット。targetInstanceId経由）の実効BPがminBp以上のときだけ、
+// このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。召喚できたら、新しく場に出た個体を
+// before/after差分で特定し、thenBuffSelf指定時はこのターンの間BP+する
+const burstSummonSelfIfTargetBpAtLeastHandler: ActionHandler<"burstSummonSelfIfTargetBpAtLeast"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const target = targetInstanceId
+        ? (findSpiritAny(state, targetInstanceId) ?? undefined)
+        : undefined
+    if (!target || effectiveBp(state, target.pid, target.inst) < action.minBp) {
+        log(state, `${sourceName}：条件を満たさなかったため発動しなかった。`)
+        return
+    }
+    const before = new Set(state.players[owner].field.spirits.map((s) => s.instanceId))
+    ctx.resolve({ type: "summonBurstCardFree" })
+    if (state.winner) return
+    const newInst = state.players[owner].field.spirits.find((s) => !before.has(s.instanceId))
+    if (newInst && action.thenBuffSelf) {
+        newInst.tempBpBuff += action.thenBuffSelf
+        log(state, `${getCard(newInst.cardId).name}はBP+${action.thenBuffSelf}（ターン終了時まで）。`)
+    }
 }
 
 const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
@@ -310,6 +342,7 @@ const handlers = {
     burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
     summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,
     summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
+    burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
     costSetBurstThenDraw: costSetBurstThenDrawHandler,
 } satisfies Partial<ActionRegistry>

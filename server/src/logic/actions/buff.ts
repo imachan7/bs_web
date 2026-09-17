@@ -73,8 +73,18 @@ const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
 }
 
 const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, action) => {
-    const { state, self } = ctx
+    const { state, owner, self, sourceName } = ctx
         if (!self) return
+        if (action.costHandDiscardOne) {
+            const player = state.players[owner]
+            const cardId = player.hand.pop()
+            if (cardId === undefined) {
+                log(state, `${sourceName}：破棄する手札がないため発動しなかった。`)
+                return
+            }
+            player.trashCards.push(cardId)
+            log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
+        }
         self.colorlessThisBattle = true
         log(state, `${getCard(self.cardId).name}は、このバトルの間色を無いものとして扱う。`)
         return
