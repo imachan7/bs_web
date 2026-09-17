@@ -280,15 +280,15 @@ requestActivationConfirm(state, pid, `${cardName}のバーストを発動しま�
 - 実装：【氷壁】の判定（`triggers.findMagicNegateSource` / `payMagicNegate`）は `resolveMagic` の中にだけある。
   バースト発動と `thenPay` はどちらも `resolveAction` を直接呼ぶので、**現状どおり対象外で正しい**。`thenPay` を `resolveMagic` 経由に変えないこと
 
-### 7.2 ⚠️ 装甲・効果耐性は**バースト効果にも効く**（未実装。2026-09-17 発見）
+### 7.2 装甲・効果耐性は**バースト効果にも効く**（2026-09-17 発見・PR #73 で修正済み。smoke part342）
 
 「相手の紫のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない」（【重装甲】）や【装甲】は、**使用かどうかではなく、そのカードの効果かどうか**で判定する。
 BS15-015 エサルフリーダの「自分が使用する紫のマジックカードの色を無いものとして扱う」がバーストで発揮する紫のマジックにも及ぶ（ユーザー確認）のは、
 バーストの効果にも色による耐性が効くことを前提にしている。
 
-**現状は漏れている**：バースト発動（`triggers.ts` の非対話経路・`GameEngine` の `burstActivate` 確認経路）は `resolveAction` に**色も種別も渡していない**。
-`thenPay` は非対話だけ `card.colors` と `"magic"` を渡し、**対話（実対戦）の確認経路では渡していない**。
-直すときは、3経路とも**バーストのカードの色**と**カードの種別**（マジックなら `"magic"`、スピリットのバーストなら `"spirit"`）を渡す。
+**PR #73 で修正済み**：バースト発動（`triggers.ts` の非対話経路・`GameEngine` の `burstActivate` 確認経路）と、`thenPay` の対話経路が
+`resolveAction` に色も種別も渡しておらず、装甲をすり抜けていた。いまは3経路とも**バーストのカードの色**と**カードの種別**を渡す
+（`PendingChoice.burstThenPay.cardId` を追加）。
 【氷壁】は 7.1 のとおり `resolveMagic` にしか無いので、種別に `"magic"` を渡しても無効化の対象にはならない
 
 ---
