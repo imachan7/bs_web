@@ -251,7 +251,8 @@ console.log("--- SD01-029 蠢く地下墓地：相手が緑の効果でコアを
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "緑のスピリットでブロック")
-    assert(other.isRested || blocker.isRested, "相手の緑がブロックしたら、相手のスピリット1体が疲労する")
+    // ブロッカーはブロック宣言で疲労する（part340）。効果の1体は回復状態の other に向く
+    assert(other.isRested, "相手の緑がブロックしたら、相手のスピリット1体が疲労する")
 }
 {
     // 対照実験：ブロックしたのが緑でなければ、誰も疲労しない
@@ -263,7 +264,7 @@ console.log("--- SD01-029 蠢く地下墓地：相手が緑の効果でコアを
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "緑以外でブロック")
-    assert(!other.isRested && !blocker.isRested, "緑以外のブロックでは疲労させない")
+    assert(!other.isRested && blocker.isRested, "緑以外のブロックでは効果で疲労させない（ブロッカーはブロック宣言で疲労する）")
 }
 
 console.log("--- SD01-031 朝焼け岬 Lv2：相手の紫の『召喚時』『破壊時』は発揮されない ---")

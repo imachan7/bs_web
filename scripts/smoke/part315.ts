@@ -167,7 +167,8 @@ console.log("=== BS14-032ヤツノカンゾウ：【暴風：2】がブロック
     assert(act(s, "p1", { type: "attack", instanceId: kanzou.instanceId }) === null, "アタック宣言")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロック宣言")
     assert(foe1.isRested === true && foe2.isRested === true, "【暴風：2】でブロッカー以外の相手2体が疲労する")
-    assert(blocker.isRested === false, "ブロッカー自身はexcludeTargetで対象外")
+    // ブロッカーはブロック宣言そのもので疲労する（part340）。対象外であることは foe1・foe2 の2体が疲労したことで見る
+    assert(blocker.isRested === true, "ブロッカーはブロック宣言で疲労している（excludeTargetで効果の対象外）")
 }
 
 console.log("=== BS14-032ヤツノカンゾウLv2：暴風持ちにアタック時破壊で手札に戻す効果を付与する ===")

@@ -1080,6 +1080,58 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | 
 
 // ブロック宣言が確定したあとの処理（誘発の発火とフラッシュの再オープン）。
 // 通常のブロックはそのまま、複数体ブロックは「どれとバトルするか」が決まってから呼ばれる
+// ブロックを宣言したスピリットを疲労させる（TIMING_CHART.md §3「１Ｂ：ブロッカーを疲労してブロック宣言」→「２Ｂ：ブロック時効果」）。
+// 2026-09-17 までは resolveBattle で疲労させていて、ブロック後のフラッシュタイミングの間ずっと回復状態のままだった（smoke part340）
+function exhaustDeclaredBlocker(
+    state: GameState,
+    defenderPid: PlayerId,
+    blocker: CardInstance,
+    attacker: CardInstance,
+    withKyoshu: boolean,
+): void {
+    const attackerPid = opponentOf(defenderPid)
+    // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
+    // 【noRestWhenBlockingCost】：アタッカーのコストが条件を満たす場合も疲労しない
+    // （maxCost以下＝BS07シルバー・ゴレム／sameCost＝ブロッカー自身と同じコスト＝BS07造兵工房）。
+    // コストは道化師クランの付与コストも見る（instAllCosts）
+    const attackerColors = instColors(attacker)
+    const attackerCosts = instAllCosts(attacker)
+    const blockerCosts = instAllCosts(blocker)
+    // 発生源つきで取るのは、「ターンに1回」を**ネクサス1枚ごと**に数えるため（下記）
+    const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(({ constraint: c }) => {
+        if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
+        // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
+        if (c.type === "noRestWhenBlockingWithoutKeyword") {
+            return !spiritHasKeyword(state, attackerPid, attacker, c.keyword)
+        }
+        if (c.type !== "noRestWhenBlockingCost") return false
+        if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
+        const max = c.maxCost
+        return max !== undefined && attackerCosts.some((a) => a <= max)
+    })
+    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：**発生源1つにつき1回**数える
+    // （同名ネクサスを2枚置けば2回使える。灼熱の谷と同じ「2枚あれば2回」の考え方。2026-08-24）。
+    // このターン既に使った発生源の制約は数に入れない。回数制限の無い制約が同時にあるなら
+    // そちらが働くので消費もしない
+    const isOnce = (e: (typeof matched)[number]): boolean =>
+        e.constraint.type === "noRestWhenBlockingWithoutKeyword" && e.constraint.oncePerTurn === true
+    const usedIds = state.players[defenderPid].noRestWhenBlockingUsedThisTurn ?? []
+    const usable = matched.filter((e) => !(isOnce(e) && usedIds.includes(e.sourceInstanceId)))
+    const skipRest = usable.length > 0
+    if (skipRest && usable.every(isOnce)) {
+        // 消費するのは1つだけ（複数枚あっても、このブロックで使うのは1枚ぶん）
+        const consumed = usable[0]
+        if (consumed) state.players[defenderPid].noRestWhenBlockingUsedThisTurn = [...usedIds, consumed.sourceInstanceId]
+        log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
+    }
+    if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
+    // **疲労の直後に置く**（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
+    if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {
+        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+    }
+}
+
 function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
@@ -1102,6 +1154,15 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
             blockerPlayer.hand.splice(magicIdx, 1)
             blockerPlayer.trashCards.push(cardId)
             log(state, `${blockerPlayer.name}はブロックのため手札の${getCard(cardId).name}を破棄した。`)
+        }
+    }
+    // ブロックを宣言したスピリットはここで疲労する（複数体ブロックでバトルしない側も宣言はしているので疲労する）
+    const declaredAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    if (declaredAttacker) {
+        if (blocker) exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)
+        for (const extraId of state.battle.extraBlockerIds ?? []) {
+            const extra = findSpirit(state.players[pid], extraId)
+            if (extra) exhaustDeclaredBlocker(state, pid, extra, declaredAttacker, false)
         }
     }
     // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
@@ -2089,47 +2150,8 @@ function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedBp = 0
     state.lastBattleDestroyedCost = 0
 
-    // 【noRestWhenBlockingColor】：アタッカーの色が一致する場合、ブロッカーは疲労しない（巨神機トール）
-    // 【noRestWhenBlockingCost】：アタッカーのコストが条件を満たす場合も疲労しない
-    // （maxCost以下＝BS07シルバー・ゴレム／sameCost＝ブロッカー自身と同じコスト＝BS07造兵工房）。
-    // コストは道化師クランの付与コストも見る（instAllCosts）
+    // ブロッカーの疲労（と「ブロックしても疲労しない」の判定）はブロック宣言時に済んでいる（exhaustDeclaredBlocker）
     const attackerColors = instColors(attacker)
-    const attackerCosts = instAllCosts(attacker)
-    const blockerCosts = instAllCosts(blocker)
-    // 発生源つきで取るのは、「ターンに1回」を**ネクサス1枚ごと**に数えるため（下記）
-    const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(({ constraint: c }) => {
-        if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
-        // BS07ブリシンガメンの首飾りLv2：指定キーワードを持たない相手をブロックしたとき疲労しない
-        if (c.type === "noRestWhenBlockingWithoutKeyword") {
-            return !spiritHasKeyword(state, attackerPid, attacker, c.keyword)
-        }
-        if (c.type !== "noRestWhenBlockingCost") return false
-        if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
-        const max = c.maxCost
-        return max !== undefined && attackerCosts.some((a) => a <= max)
-    })
-    // 「ターンに1回」（oncePerTurn。BS07ブリシンガメンの首飾りLv2）：**発生源1つにつき1回**数える
-    // （同名ネクサスを2枚置けば2回使える。灼熱の谷と同じ「2枚あれば2回」の考え方。2026-08-24）。
-    // このターン既に使った発生源の制約は数に入れない。回数制限の無い制約が同時にあるなら
-    // そちらが働くので消費もしない
-    const isOnce = (e: (typeof matched)[number]): boolean =>
-        e.constraint.type === "noRestWhenBlockingWithoutKeyword" && e.constraint.oncePerTurn === true
-    const usedIds = state.players[defenderPid].noRestWhenBlockingUsedThisTurn ?? []
-    const usable = matched.filter((e) => !(isOnce(e) && usedIds.includes(e.sourceInstanceId)))
-    const skipRest = usable.length > 0
-    if (skipRest && usable.every(isOnce)) {
-        // 消費するのは1つだけ（複数枚あっても、このブロックで使うのは1枚ぶん）
-        const consumed = usable[0]
-        if (consumed) state.players[defenderPid].noRestWhenBlockingUsedThisTurn = [...usedIds, consumed.sourceInstanceId]
-        log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
-    }
-    if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
-    // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
-    // **ブロック宣言時ではなくここで呼ぶ**：ブロッカーが疲労するのはこの直上なので、
-    // 宣言時点では回復状態のまま＝【強襲】が空振りしてしまう
-    if (hasKyoshuOnBlock(state, defenderPid)) {
-        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
-    }
     // 【暴風】を『このスピリットのブロック時』へ差し替える継続付与（BS07大風車の丘Lv2）。
     // 本来は「アタックしてブロックされたとき」だが、これがある間はブロックした側が発揮する。
     // 疲労させられるのはアタッカー側で、既に疲労しているアタッカー自身は除く（excludeTarget）
