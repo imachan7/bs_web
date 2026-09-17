@@ -1058,6 +1058,9 @@ export type ResumeFrame =
           braveTargetInstanceId?: string // ダイレクトブレイヴのとき、合体先スピリットの instanceId（BRAVE.md §5.2）
       }
     | {
+          kind: "endTurn" // メインステップから直接ターンを終了し、経由したアタックステップの開始時誘発が選択待ちになったときの続き（PhaseManager.endTurn をやり直す）
+      }
+    | {
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
           // ステップ誘発が選択待ちを立てたときに、次のステップ番号を積む
           step: number
