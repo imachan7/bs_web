@@ -210,14 +210,24 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 ### 7.2 011 ミーアバット：手札から使うフラッシュ
 
-「手札にあるこのカードを破棄することで」使う能力は**前例なし**（全弾を検索）。新しい宣言経路が要る。
+「手札にあるこのカードを破棄することで」使う能力は**前例なし**（全弾を検索）。宣言の入口だけ新設し、**検証・対象選択・装甲はフラッシュマジックと【神速】の既存コードを使い回す**（2026-09-17 ユーザー指示）。
 
 - **データ**：`{ kind: "handActivated", timing: "flash", phase: "attack", turn: "both", cost: { discardSelf: true }, asSpiritEffect: true, action: { type: "bpBuff", amount: 2000, anySide: true } }`
   （「スピリット1体」に陣営が無い＝ anySide の既存規則）
-- **宣言**：新 GameAction `{ type: "useHandAbility"; handIndex; effectId }`。検証は `validateUseHandAbility`（フラッシュの優先権・`phase`・手札に実在）。
-  確定したら手札からトラッシュへ置き、`resolveAction` を **srcType "spirit"**（「スピリットの効果として扱う」＝重装甲などの判定がスピリット扱い）で呼び、`passFlashPriority`
-- **「使用」かどうか**：マジックではないので「マジックを使用したとき」系の誘発は出さない
+- **宣言**：新 GameAction `{ type: "useHandAbility"; handIndex; effectId }`
+- **使い回す1：フラッシュの検証**。`validateCastMagic` のバトル中分岐（優先権・`isFlashTiming`・`isFlashLockedFor`＝「フラッシュで手札のカードを使用できない」）と
+  `validateSummon` の【神速】判定が同じことを別々に書いている。これを `validateHandFlash(state, pid)` に**くくり出して3者で共有**する
+  （ミーアバットは手札のカードを使うので、lockFlash が効くのが正しい）。`useHandAbility` 固有の検証は `phase === "attack"` と手札に実在することだけ
+- **使い回す2：解決と優先権**。手札からトラッシュへ置いたあと `resolveAction` を呼び、`passFlashPriority`（マジック・神速・覚醒と共通）で優先権を渡す。
+  対象選択は `bpBuff.anySide` の既存経路（対話なら両陣営から選ばせる PendingChoice、非対話は `pickAnySideByBp`）をそのまま使う
+- **装甲・効果耐性（ユーザー指摘）**：相手のスピリットの BP を上げようとしても、紫に対する【装甲】などを持つ相手は**効果を受けない**。
+  anySide の候補集め `pickAnySideCandidates` → `pickEnemyCandidates` が既に装甲・効果耐性を見ているので、
+  **`resolveAction` に `srcColors = ミーアバットの色（紫）`、`srcType = "spirit"`（「この効果はスピリットの効果として扱う」）を必ず渡す**。
+  ここを magic や undefined にすると、「スピリットの効果を受けない」耐性や色の装甲がすり抜ける
+- **「使用」かどうか**：マジックではないので「マジックを使用したとき」系の誘発は出さない。【氷壁】（マジックの無効化）の対象にもならない
 - **クライアント**：手札カードのフラッシュ操作に「効果を使う」を足す（神速の召喚ボタンと並べる）。**サーバーとクライアントを同じコミットで入れる**
+- **smoke**：アタックステップのバトル中だけ使える／メインステップ・優先権なし・lockFlash 中は使えない／手札のカードがトラッシュへ行く／
+  自分・相手どちらも選べる／**紫の【装甲】を持つ相手は候補に出ない**／「スピリットの効果を受けない」耐性を持つ相手も出ない
 
 ### 7.3 015 吸血令嬢エサルフリーダ Lv1-3：紫のマジックの色を無いものとして扱う
 
