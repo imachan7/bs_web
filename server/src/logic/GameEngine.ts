@@ -1861,7 +1861,8 @@ function doResolveChoice(
                     const info = pending.burstThenPay
                     state.players[info.pid].reserve -= info.cost
                     log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    resolveAction(state, actor, self, pending.action)
+                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）
+                    resolveAction(state, actor, self, pending.action, undefined, getCard(info.cardId).colors, "magic", undefined, undefined, info.cardId)
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
@@ -1870,7 +1871,9 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId)
+                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）
+                    const burstCard = getCard(info.cardId)
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, burstCard.colors, burstCard.type, undefined, undefined, info.cardId)
                     delete state.resolvingBurstPid
                     if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
                     if (!state.pendingChoice) {

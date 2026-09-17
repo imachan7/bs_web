@@ -3155,7 +3155,7 @@ function tryBurstThenPay(
             entry.action,
             null,
         )
-        if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost }
+        if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost, cardId }
         return
     }
     player.reserve -= cost

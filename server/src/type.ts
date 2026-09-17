@@ -1002,6 +1002,7 @@ export interface PendingChoice {
         // 承認されたら pid のリザーブから cost を払ってから action を解決する（resolveMagicは経由しない）
         pid: PlayerId
         cost: number
+        cardId: string // 解決時に色と種別（マジック）を渡すため（【装甲】などの効果耐性。BURST.md §7）
     }
     revertTriggered?: {
         // 「〜できる」の確認を断ったとき、triggered / fieldEvent の「ターンに1回」の消費を巻き戻す対象

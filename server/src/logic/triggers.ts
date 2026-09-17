@@ -1174,9 +1174,12 @@ export function fireFieldEventTriggers(
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
     // BS05ソウルクラッシュ）も含める。「誰が誘発効果を出しているか」を問うA分類の走査
     // （TURN_EFFECT_SOURCES.md §1）
+    // extraSources は場を離れた個体を拾うためのもの。破壊処理の途中ではその個体がまだ field.spirits に居るので、
+    // instanceId で重複を除く（除かないと fieldEvent＋selfOnly が2回解決される。BS13-010スカルザード。smoke part341）
+    const baseSources = effectSources(state, pid)
     const instances = extraSources && extraSources.length > 0
-        ? [...effectSources(state, pid), ...extraSources]
-        : effectSources(state, pid)
+        ? [...baseSources, ...extraSources.filter((x) => !baseSources.some((b) => b.instanceId === x.instanceId))]
+        : baseSources
     // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17。fireStepTriggers と同じ形）。
     // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
     // **同じイベントの残りの誘発が永久に失われていた**
@@ -1641,7 +1644,9 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
-        resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId)
+        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）
+        const burstCard = getCard(burstCardId)
+        resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId, burstCard.colors, burstCard.type, undefined, undefined, burstCardId)
         delete state.resolvingBurstPid
         if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
         finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
