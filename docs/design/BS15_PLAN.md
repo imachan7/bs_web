@@ -172,3 +172,55 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 手で `gcloud run deploy` を打つ必要はない。**マージ＝本番反映**である点に注意。
 
 弾が入り終わったら `data/announcements.json` に1行足す（対戦者が読む文面。内部用語を書かない）。
+
+## 7. 未実装節の設計（2026-09-17。**設計のみ・未着手**）
+
+バッチ1・2で器が無く残した4節。コードの当たりは確認済み。**「決めてほしいこと」が埋まるまで実装しない。**
+
+### 7.1 X04 機獣要塞ナウマンガルド Lv2：アタックステップの後にステップを1つ行う
+
+既存の BS10-008 アレス・ドラグーン（`extraAttackStep`）は**エンドステップの後**に割り込むが、こちらは**アタックステップの後・エンドステップの前**。流用するのは位置の作法とステップ本体。
+
+- **データ**：`{ kind: "extraStepAfterAttackStep", levels: [2] }`（新 kind。ターンに1回は kind 側の固定仕様にして軸を持たない）
+- **割り込み点**：`PhaseManager.endTurn` の「アタックステップ終了時」誘発（`fireStepTriggers(..., "attack", ..., "end")`）と `revertAttackStepNexusAsSpirit` の**直後**、`state.phase = "end"` の**前**。
+  条件は「呼ばれた時点で `phase === "attack"`」（ルナティックシールでアタックステップが無かったターンは main のまま来るので自然に発揮しない）
+  ＋ターンプレイヤーの場に Lv2 の X04 が居る ＋ `state.extraStepAfterAttackUsed` が未設定
+- **選択**：`PendingChoice.extraStepChoice { sourceInstanceId }`、options は「ドローステップ／リフレッシュステップ／メインステップ」。**「行う」なので断れない**（optional なし）。非対話の既定はドロー
+- **ステップ本体**：`turnStartSegments` の区間をそのまま使う（ドロー=3・4、リフレッシュ=5、メイン=6）。
+  `driveTurnStart(state, from)` に `to` を足し、再開フレーム `{ kind: "turnStart", step, until }` にも `until` を持たせる（途中の選択待ちから再開しても指定区間で止まる）。
+  → ドローステップ・リフレッシュステップに発揮する効果が**すべて通常どおり**発揮される（確定事項）
+- **終わったあと**：
+  - ドロー／リフレッシュ：区間を完走したら `endTurn` を呼び直す。`phase` はもう attack ではないので、アタック終了誘発も X04 も再発火しない
+  - メイン：`state.extraMainStep = true` を立ててプレイヤーに返す。`nextPhase`（メイン→アタック）は **このフラグ中は拒否**、ターン終了ボタン（`endTurn`）でエンドステップへ。クライアントは「アタックステップへ」ボタンを出さない
+- **リセット**：`extraStepAfterAttackUsed` と `extraMainStep` はターン終了の一時状態リセットで消す
+- **smoke**：3択それぞれ／ドロー選択でドローステップ誘発が出る／メイン選択で召喚でき、アタックへ進めない／アタックステップ無しのターンは出ない／ターン1回
+
+### 7.2 011 ミーアバット：手札から使うフラッシュ
+
+「手札にあるこのカードを破棄することで」使う能力は**前例なし**（全弾を検索）。新しい宣言経路が要る。
+
+- **データ**：`{ kind: "handActivated", timing: "flash", phase: "attack", turn: "both", cost: { discardSelf: true }, asSpiritEffect: true, action: { type: "bpBuff", amount: 2000, anySide: true } }`
+  （「スピリット1体」に陣営が無い＝ anySide の既存規則）
+- **宣言**：新 GameAction `{ type: "useHandAbility"; handIndex; effectId }`。検証は `validateUseHandAbility`（フラッシュの優先権・`phase`・手札に実在）。
+  確定したら手札からトラッシュへ置き、`resolveAction` を **srcType "spirit"**（「スピリットの効果として扱う」＝重装甲などの判定がスピリット扱い）で呼び、`passFlashPriority`
+- **「使用」かどうか**：マジックではないので「マジックを使用したとき」系の誘発は出さない
+- **クライアント**：手札カードのフラッシュ操作に「効果を使う」を足す（神速の召喚ボタンと並べる）。**サーバーとクライアントを同じコミットで入れる**
+
+### 7.3 015 吸血令嬢エサルフリーダ Lv1-3：紫のマジックの色を無いものとして扱う
+
+- **データ**：`{ kind: "ownMagicColorless", levels: [1,2,3], color: "purple", whileBattling: true }`
+- **判定を1か所に集める**：`magicEffectiveColors(state, pid, card)` を新設。発生源がバトル中（attacker か blocker）かつ card.colors に紫を含めば `[]`。
+  使う場所は (a) マジック解決時の `srcColors`（重装甲・色耐性の判定）(b) 【氷壁】などマジック無効化の色判定。**生の `card.colors` を直接見ている箇所を grep で洗い出して置き換える**
+- **決めてほしいこと（Q&A 未確認）**：
+  1. 色が無くなるのは効果解決と無効化の判定だけか。**軽減やコストの色条件**にも及ぶか
+  2. バーストで発揮する紫のマジックも「使用する」に含むか
+
+### 7.4 064 冥府へ続く魔門
+
+- **Lv2：【不死】を無償で召喚**
+  - **データ**：`{ kind: "fushiFreeByExhaust", levels: [2], maxCost: 6 }`
+  - `removal.fushiCandidates` の支払い判定を「コスト＋維持コア」に加え「未疲労の Lv2 魔門があり、コスト6以下なら維持コアだけ」でも候補にする
+  - 確認（`suspendFushiSummon`）の options を「コストを払って召喚／魔門を疲労させて無償で召喚／召喚しない」に増やす（払える側だけ出す）
+  - 無償を選んだら魔門を疲労させ、**召喚時効果を発揮しない印**を付けて召喚（068 と同じ印を使う）。`applyFushiSummon` に `free?: { nexusInstanceId }` を渡す
+- **Lv1-2 の既存実装の簡略化（直す）**：`colorlessSelfThisBattle.costHandDiscardOne` は**手札の末尾を自動で破棄**している。
+  破棄する1枚は持ち主が選ぶべきなので、手札選択（既存の手札破棄の選択 UI）に替える。**勝手に入った簡略化で、確定事項に反する**

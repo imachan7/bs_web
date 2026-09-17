@@ -63,10 +63,13 @@
 ### BS15 バッチ2（緑・白 30種）は実装済み（2026-09-17。smoke part333）— 残した課題と決めたこと
 
 - **未実装：X04 ナウマンガルド Lv2**（card-notes に partial）。PhaseManager にアタックステップ後の割り込み地点が要る。下の決定どおりに作る
-- **既存エンジンの二重発火の疑い（未検証・未修正）**：`destroySpirit` が `fireOwnSpiritDestroyed` を呼ぶ時点で対象がまだ `field.spirits` に居り、
-  同じ個体を `extraSources` にも渡す。`fireFieldEventTriggers` は重複を除かないため、`fieldEvent`＋`selfOnly` の破壊イベントが2回発火し得る
-  （サブの実測でドロー・コア付与が2倍。BS13-010 スカルザード等が同じ形）。X04 Lv1-2 は `triggered.onDestroy` にして回避し、
-  `validate-cards.ts` の `QUOTE_MISMATCH_KNOWN` に登録。**再現テストを書いてから別PRで直す**
+- **既存エンジンの二重発火（2026-09-17 再現済み・未修正）**：BS13-010 スカルザードを相手の効果で破壊すると、「2枚まで」の無償召喚が2回走り**4体**出た。
+  原因は `triggers.ts` `fireFieldEventTriggers` の `[...effectSources(state, pid), ...extraSources]`（instanceId で重複を除いていない）。
+  破壊処理の時点で対象はまだ `field.spirits` に居るので、`fireOwnSpiritDestroyed` が `extraSources` に渡した同じ個体が2回数えられる。
+  **直し方**：この連結で instanceId の重複を除く（共通関数1か所。全呼び出し元に効く）。現データでこの形は BS13-010 だけ。
+  **BS15 とは別ブランチ・別PR**（対戦の挙動が変わる修正）で、smoke に「召喚は2体まで」を入れてから直す。
+  X04 Lv1-2 はこれを避けて `triggered.onDestroy` にしてある（直したあとも戻す必要はない）
+- **未実装節の設計**（X04 Lv2／011／015／064 Lv2 と 064 Lv1 の簡略化）は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §7。015 に決めてほしいことが2点
 - 統合時に `scripts/coverage-effects.ts` の差し込み先2件（deckMillNegate のコスト移行、nexusEffectsDisabled の bothAll）を追随させた
 
 出力は `data/cards/BS15-green.json` / `BS15-white.json`。
