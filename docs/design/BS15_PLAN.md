@@ -177,14 +177,27 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 バッチ1・2で器が無く残した4節。コードの当たりは確認済み。**「決めてほしいこと」が埋まるまで実装しない。**
 
+### 7.0 前提：メインステップからターン終了してもアタックステップを経由する（既存エンジンの修正。別PR）
+
+`validateEndTurn` は main からのターン終了を許し、`endTurn` は `phase === "attack"` のときだけ「アタックステップ終了時」誘発を出す。
+**アタックせずにターンを終えるとアタックステップが丸ごと飛ぶ**。ルールでは、アタックする／しないに関わらずアタックステップは経由する。
+
+- 影響：アタックステップの開始時・終了時の誘発（紫水晶の森 Lv2 等）、**067 雪の結晶樹 Lv1**（「1回もアタックしてこなかったら」が最も多い場面で発揮しない）、X04 Lv2
+- **直し方**：`endTurn` の冒頭で `phase === "main"` かつ `isEndStepLocked(state, "attackStep")` でなければ、`toAttackPhase` を通してから（開始時誘発）終了時誘発へ進む。
+  開始時誘発で選択待ちになったときの再開（`endTurn` の続きから）が要る
+- **確認すること**：既存 smoke でメインから直接 `endTurn` している箇所が、アタックステップ誘発の発火で結果が変わらないか
+
 ### 7.1 X04 機獣要塞ナウマンガルド Lv2：アタックステップの後にステップを1つ行う
 
 既存の BS10-008 アレス・ドラグーン（`extraAttackStep`）は**エンドステップの後**に割り込むが、こちらは**アタックステップの後・エンドステップの前**。流用するのは位置の作法とステップ本体。
 
 - **データ**：`{ kind: "extraStepAfterAttackStep", levels: [2] }`（新 kind。ターンに1回は kind 側の固定仕様にして軸を持たない）
 - **割り込み点**：`PhaseManager.endTurn` の「アタックステップ終了時」誘発（`fireStepTriggers(..., "attack", ..., "end")`）と `revertAttackStepNexusAsSpirit` の**直後**、`state.phase = "end"` の**前**。
-  条件は「呼ばれた時点で `phase === "attack"`」（ルナティックシールでアタックステップが無かったターンは main のまま来るので自然に発揮しない）
-  ＋ターンプレイヤーの場に Lv2 の X04 が居る ＋ `state.extraStepAfterAttackUsed` が未設定
+  条件はターンプレイヤーの場に Lv2 の X04 が居る ＋ `state.extraStepAfterAttackUsed` が未設定。
+  **アタックする／しないに関係なく、アタックステップは必ず経由する**（2026-09-17 ユーザー確認）ので、**Lv2 なら毎ターン必ず選ぶ**。
+  発揮しないのは「アタックステップは行えず」（ルナティックシール。`isEndStepLocked(state, "attackStep")`）のターンだけ
+- **前提の修正（7.0）が先**：いまの `endTurn` はメインステップから直接呼ばれるとアタックステップを通らない（下記）。
+  これを直してから X04 を載せる
 - **選択**：`PendingChoice.extraStepChoice { sourceInstanceId }`、options は「ドローステップ／リフレッシュステップ／メインステップ」。**「行う」なので断れない**（optional なし）。非対話の既定はドロー
 - **ステップ本体**：`turnStartSegments` の区間をそのまま使う（ドロー=3・4、リフレッシュ=5、メイン=6）。
   `driveTurnStart(state, from)` に `to` を足し、再開フレーム `{ kind: "turnStart", step, until }` にも `until` を持たせる（途中の選択待ちから再開しても指定区間で止まる）。

@@ -69,6 +69,11 @@
   **直し方**：この連結で instanceId の重複を除く（共通関数1か所。全呼び出し元に効く）。現データでこの形は BS13-010 だけ。
   **BS15 とは別ブランチ・別PR**（対戦の挙動が変わる修正）で、smoke に「召喚は2体まで」を入れてから直す。
   X04 Lv1-2 はこれを避けて `triggered.onDestroy` にしてある（直したあとも戻す必要はない）
+- **ブロッカーの疲労が遅い（2026-09-17 実測・未修正）**：ブロック宣言の直後は**回復状態のまま**で、疲労は `resolveBattle`（`GameEngine.ts` の `exhaustSpirit(state, defenderPid, blocker)`）で起きる。
+  `TIMING_CHART.md` §3「１Ｂ：ブロッカーを疲労してブロック宣言」と食い違う。ブロック後のフラッシュで「疲労状態のスピリット数」（026 バースト条件等）や
+  回復状態を対象にする効果の判定がずれる。**直すときは一緒に宣言時へ移すもの**：`noRestWhenBlocking*` の判定（ターン1回の消費を含む）、
+  直下の `hasKyoshuOnBlock`（疲労の直後に置く前提のコメントあり）、『ブロック時』効果の発火順（疲労→ブロック時効果）。別PR
+- **アタックステップを飛ばすターン終了（未修正）**：メインから直接 `endTurn` するとアタックステップを経由しない。BS15_PLAN §7.0。別PR（X04 Lv2 の前提）
 - **未実装節の設計**（X04 Lv2／011／015／064 Lv2 と 064 Lv1 の簡略化）は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §7。015 に決めてほしいことが2点
 - 統合時に `scripts/coverage-effects.ts` の差し込み先2件（deckMillNegate のコスト移行、nexusEffectsDisabled の bothAll）を追随させた
 
