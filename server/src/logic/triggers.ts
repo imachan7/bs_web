@@ -1105,9 +1105,12 @@ export function fireFieldEventTriggers(
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
     // BS05ソウルクラッシュ）も含める。「誰が誘発効果を出しているか」を問うA分類の走査
     // （TURN_EFFECT_SOURCES.md §1）
+    // extraSources は場を離れた個体を拾うためのもの。破壊処理の途中ではその個体がまだ field.spirits に居るので、
+    // instanceId で重複を除く（除かないと fieldEvent＋selfOnly が2回解決される。BS13-010スカルザード。smoke part341）
+    const baseSources = effectSources(state, pid)
     const instances = extraSources && extraSources.length > 0
-        ? [...effectSources(state, pid), ...extraSources]
-        : effectSources(state, pid)
+        ? [...baseSources, ...extraSources.filter((x) => !baseSources.some((b) => b.instanceId === x.instanceId))]
+        : baseSources
     // ⚠️ **発火するものを先に全部集めてから順に解決する**（2026-08-17。fireStepTriggers と同じ形）。
     // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
     // **同じイベントの残りの誘発が永久に失われていた**
