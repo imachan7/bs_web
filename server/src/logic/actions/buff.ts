@@ -23,6 +23,7 @@ import {
     requestCardChoice,
     requestChoice,
     spiritHasFamily,
+    tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
     spiritHasKeyword,
     returnSpiritToHand,
@@ -73,17 +74,47 @@ const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
 }
 
 const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
         if (!self) return
         if (action.costHandDiscardOne) {
             const player = state.players[owner]
-            const cardId = player.hand.pop()
-            if (cardId === undefined) {
-                log(state, `${sourceName}：破棄する手札がないため発動しなかった。`)
-                return
+            // 破棄する1枚は持ち主が選ぶ（既存の手札破棄の選択＝tryInteractiveCardChoice/requestCardChoice
+            // を使い回す。BS15-064冥府へ続く魔門。2026-09-17：手札末尾の自動破棄という簡略化を直した）
+            if (chosenCardIndex !== undefined) {
+                const cardId = player.hand[chosenCardIndex]
+                if (cardId === undefined) {
+                    log(state, `${sourceName}：破棄する手札がないため発動しなかった。`)
+                    return
+                }
+                player.hand.splice(chosenCardIndex, 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
+            } else {
+                if (player.hand.length === 0) {
+                    log(state, `${sourceName}：破棄する手札がないため発動しなかった。`)
+                    return
+                }
+                const indices = player.hand.map((_, i) => i)
+                if (
+                    tryInteractiveCardChoice(
+                        state,
+                        owner,
+                        self,
+                        `${sourceName}：破棄する手札を選んでください`,
+                        "hand",
+                        indices,
+                        action,
+                        null,
+                    )
+                ) {
+                    return
+                }
+                // 非対話（AI・テスト）：決定的に先頭の1枚を選ぶ
+                const cardId = player.hand[0]!
+                player.hand.splice(0, 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
             }
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
         }
         self.colorlessThisBattle = true
         log(state, `${getCard(self.cardId).name}は、このバトルの間色を無いものとして扱う。`)

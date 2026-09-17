@@ -85,6 +85,7 @@ const VALID_KINDS = new Set([
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst",
+    "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
 ])
 
 export interface ValidationIssue {
@@ -137,6 +138,7 @@ const ACTION_BEARING_KINDS = new Set([
     "battleWon",
     "activated",
     "burst", // バーストエリアから発動する側のエントリ（levels概念が無く、貸与対象にもならない。BS14-110天災之禍風：同カードにlendSelfThisTurnを持つ）
+    "handActivated", // 手札から使う側のエントリ（BS15-011ミーアバット）。発動側であって貸与対象ではない
 ])
 
 // lendSelfThisTurn を持つカードの「貸される側」の効果エントリを検査する。

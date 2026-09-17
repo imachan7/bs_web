@@ -1590,6 +1590,23 @@ function renderHand(view: GameView, ui: UiState): void {
             el.appendChild(badge)
         }
 
+        // 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット）。
+        // 神速召喚の召喚ボタンと同じ並びで、カード本体のクリックとは独立したバッジボタンにする
+        // （マジックではないので castMagic の対象選択UIには乗せない。サーバーは useHandAbility を送る）
+        const handAbility = m.effects.find((e) => e.kind === "handActivated")
+        if (handAbility && handAbility.kind === "handActivated") {
+            const phaseOk = handAbility.phase === undefined || view.phase === handAbility.phase
+            const canUseAbility = inFlash && !flashLocked && phaseOk && !view.pendingChoice
+            const badge = document.createElement("button")
+            badge.className = "hand-ability-badge" + (canUseAbility ? "" : " disabled")
+            badge.dataset.handAbility = String(index)
+            badge.dataset.handAbilityEffectId = handAbility.id
+            badge.textContent = "効果を使う"
+            badge.title = "手札のこのカードを破棄して効果を発動する"
+            badge.disabled = !canUseAbility
+            el.appendChild(badge)
+        }
+
         handEl.appendChild(el)
     })
 }

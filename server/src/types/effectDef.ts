@@ -128,6 +128,17 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "handActivated" // 手札にあるこのカードを使う効果（マジックではない。前例なし＝BS15-011ミーアバット）。
+          // 宣言の入口だけ新設し、検証（validateHandFlash）・対象選択・装甲は既存のフラッシュマジック／
+          // 【神速】のコードを使い回す（GameAction: "useHandAbility"。BS15_PLAN.md §7.2）
+          timing: "flash" // 現状フラッシュのみ。メインステップ限定のカードが来たら"main"を追加する
+          phase?: Phase // 指定時、このステップ中のみ使用できる（ミーアバット＝『お互いのアタックステップ』＝"attack"）
+          cost: { discardSelf: true } // 手札にあるこのカード自身を破棄することがコスト（現状これのみ対応）
+          asSpiritEffect?: true // resolveAction に srcColors=このカードの色／srcType="spirit" を渡す印（データの意味メモ。実装は常にこの扱いで解決する）
+          action: EffectAction
+      }
+    | {
+          id: string
           kind: "burst" // バーストエリアから条件発動する。発生源は場ではなくバーストエリア（docs/design/BURST.md）。
           // effectSources() には入れない＝継続効果（aura/constraint等）の発生源にはならない。
           // fireFieldEventTriggers の末尾が、両プレイヤーのバーストエリアをこのkindだけ特別に走査する
@@ -1368,6 +1379,16 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "ownMagicColorless" // 発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）の間、
+          // 自分が使用する指定色のマジックカードすべての色を無いものとして扱う（無効化・耐性をすり抜けるのが目的。
+          // 軽減やコストの色条件には及ばない。バーストで発揮する同色のマジックにも及ぶ。判定は
+          // shared/cost.magicEffectiveColors に一本化する。BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
+          levels: number[] | null
+          color: Color
+          whileBattling: true // 現状これのみ対応（selfInBattleと同じ判定だが、フィールドに名前がある方が読みやすいため別名にしてある）
+      }
+    | {
+          id: string
           kind: "exhaustImmunityGrant" // 発生源の持ち主のfamilyFilter一致スピリットは、相手のスピリット/ネクサス/マジックの効果で疲労しない（トランプの王国）。isExhaustImmuneOnBoard（shared/rules.ts）の判定はop:"exhaust"かどうかしか見ずsourceTypeを区別しないため、ブレイヴの効果も同じ経路で防げる
           levels: number[] | null
           familyFilter?: string // scope:"self"のときは省略可（familyFilterとscopeは排他。両方省略しない）
@@ -1379,6 +1400,16 @@ export type EffectDef =
           kind: "lifeDamageNegate" // ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、発生源の持ち主のライフは減らない（硝子の女神フレイア）
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
+          kind: "fushiFreeByExhaust" // 【不死】の召喚を、この発生源（未疲労のネクサス）を疲労させることでコストを支払わずに行えるようにする
+          // （維持コアは通常どおり要る）。対象はカード記載コストがmaxCost以下の【不死】スピリットのみ。
+          // 無償召喚を選んだ場合、召喚時効果は発揮されない（BS15-068 skipOnSummon と同じ印。removal.applyFushiSummon）。
+          // 判定は removal.fushiCandidates（候補への追加）／suspendFushiSummon（選択肢の追加）に一本化する。
+          // BS15-064冥府へ続く魔門 Lv2。BS15_PLAN.md §7.4
+          levels: number[] | null
+          maxCost: number
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応

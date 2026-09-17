@@ -80,6 +80,7 @@ import {
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
+    magicEffectiveColors,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 import {
@@ -3160,7 +3161,8 @@ function tryBurstThenPay(
     }
     player.reserve -= cost
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
-    resolveAction(state, pid, null, entry.action, undefined, card.colors, "magic", undefined, undefined, cardId)
+    // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
+    resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
 }
 
 // バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**

@@ -542,6 +542,25 @@ button:active {
     cursor: not-allowed;
 }
 
+/* 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット） */
+.hand-ability-badge {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    font-size: 9px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--accent, #6b7fd7);
+    background: rgba(107, 127, 215, 0.25);
+    color: #fff;
+    cursor: pointer;
+}
+.hand-ability-badge.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 
 
 #battle-info {

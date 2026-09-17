@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, EffectDef, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -117,7 +117,9 @@ import {
     validateSetNexus,
     validateSummon,
     validateTakeLife,
+    validateUseHandAbility,
 } from "./RuleValidator"
+import { magicEffectiveColors } from "../../../shared/cost"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -277,6 +279,8 @@ function dispatchAction(
                 action.paySources,
                 action.fromTegamoto,
             )
+        case "useHandAbility":
+            return doUseHandAbility(state, pid, action.handIndex, action.effectId)
         case "moveCore":
             return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete)
         case "combineBrave":
@@ -778,6 +782,36 @@ function doCastMagic(
         }
     }
     if (state.winner) state.battle = null
+    return null
+}
+
+// 011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）。マジックではないので
+// 「マジックを使用したとき」系の誘発は出さず、【氷壁】の対象にもならない（resolveMagic経由ではないため）。
+// 解決には srcColors=このカードの色／srcType="spirit" を必ず渡す（装甲・効果耐性が効くように。
+// anySideの候補集めがこれを見て判定する。BS15_PLAN.md §7.2）
+function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, effectId: string): string | null {
+    const error = validateUseHandAbility(state, pid, handIndex, effectId)
+    if (error) return error
+
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const effect = card.effects.find(
+        (e): e is Extract<EffectDef, { kind: "handActivated" }> => e.kind === "handActivated" && e.id === effectId,
+    )
+    if (!effect) return "効果が見つかりません"
+
+    // コスト：手札にあるこのカード自身を破棄する（現状これのみ対応）
+    if (effect.cost.discardSelf) {
+        player.hand.splice(handIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札の${card.name}を破棄して効果を発動した。`)
+    }
+
+    resolveAction(state, pid, null, effect.action, undefined, card.colors, "spirit", undefined, undefined, cardId)
+    // バトル中のフラッシュで使用したら優先権を相手へ移す（フラッシュマジック・神速召喚・覚醒と共通。passFlashPriority）
+    passFlashPriority(state, pid)
     return null
 }
 
@@ -1697,7 +1731,10 @@ function doResolveChoice(
         }
         const info = pending.fushiSummon
         state.pendingChoice = null
-        if (option !== undefined) {
+        if (option === "魔門を疲労させて無償で召喚する") {
+            // BS15-064冥府へ続く魔門Lv2：未疲労の魔門を疲労させ、コストを支払わずに召喚する（召喚時効果は発揮されない）
+            applyFushiSummon(state, info, true)
+        } else if (option !== undefined) {
             applyFushiSummon(state, info)
         } else {
             log(state, `${getCard(info.cardId).name}：【不死】で召喚しなかった。`)
@@ -1861,8 +1898,9 @@ function doResolveChoice(
                     const info = pending.burstThenPay
                     state.players[info.pid].reserve -= info.cost
                     log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）
-                    resolveAction(state, actor, self, pending.action, undefined, getCard(info.cardId).colors, "magic", undefined, undefined, info.cardId)
+                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
+                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
+                    resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
@@ -1871,9 +1909,10 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
-                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）
+                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
+                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, burstCard.colors, burstCard.type, undefined, undefined, info.cardId)
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId)
                     delete state.resolvingBurstPid
                     if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
                     if (!state.pendingChoice) {

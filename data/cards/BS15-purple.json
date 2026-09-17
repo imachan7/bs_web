@@ -77,6 +77,21 @@
     "triggerCosts": [
      4
     ]
+   },
+   {
+    "id": "BS15-011-e2",
+    "kind": "handActivated",
+    "timing": "flash",
+    "phase": "attack",
+    "cost": {
+     "discardSelf": true
+    },
+    "asSpiritEffect": true,
+    "action": {
+     "type": "bpBuff",
+     "amount": 2000,
+     "anySide": true
+    }
    }
   ]
  },
@@ -320,6 +335,17 @@
     ],
     "target": "opponentNexusesAll",
     "amount": 1
+   },
+   {
+    "id": "BS15-015-e2",
+    "kind": "ownMagicColorless",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "color": "purple",
+    "whileBattling": true
    }
   ]
  },
@@ -732,6 +758,14 @@
      "type": "colorlessSelfThisBattle",
      "costHandDiscardOne": true
     }
+   },
+   {
+    "id": "BS15-064-e2",
+    "kind": "fushiFreeByExhaust",
+    "levels": [
+     2
+    ],
+    "maxCost": 6
    }
   ]
  },

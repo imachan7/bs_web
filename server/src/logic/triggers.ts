@@ -63,6 +63,7 @@ import {
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
+    magicEffectiveColors,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 import {
@@ -1644,9 +1645,21 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
-        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）
+        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
+        // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
         const burstCard = getCard(burstCardId)
-        resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId, burstCard.colors, burstCard.type, undefined, undefined, burstCardId)
+        resolveAction(
+            state,
+            holderPid,
+            null,
+            actionToRun,
+            destroyedCardId ?? targetInstanceId,
+            magicEffectiveColors(state, holderPid, burstCard),
+            burstCard.type,
+            undefined,
+            undefined,
+            burstCardId,
+        )
         delete state.resolvingBurstPid
         if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
         finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
@@ -2068,8 +2081,14 @@ export function findMagicNegateSource(
             const turn = isHyoheki && turnOverride !== undefined ? turnOverride : effect.turn
             if (turn === "own" && defenderPid !== state.turnPlayer) continue
             if (turn === "opponent" && defenderPid === state.turnPlayer) continue
-            // 【氷壁：赤】＝赤のマジックのみ無効にできる
-            if (effect.colors !== undefined && !effect.colors.some((c) => card.colors.includes(c))) continue
+            // 【氷壁：赤】＝赤のマジックのみ無効にできる。色はmagicEffectiveColorsを通す
+            // （BS15-015吸血令嬢エサルフリーダ「自分が使用する紫のマジックカードの色を無いものとして扱う」が
+            // 【氷壁】の色判定もすり抜ける。BS15_PLAN.md §7.3）
+            if (
+                effect.colors !== undefined &&
+                !effect.colors.some((c) => magicEffectiveColors(state, casterPid, card).includes(c))
+            )
+                continue
             if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
             // コストを払えないなら発動できない。
             // 【氷壁】はネクサスの疲労で肩代わりできる（ノルンの泉）。**代替できるときはそちらを優先**して
@@ -2636,14 +2655,15 @@ function runMagicActions(
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
         setTargetRedirect(state, owner, targetInstanceId, effect.action)
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
-        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
+        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）。
+        // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
         resolveAction(
             state,
             owner,
             null,
             effect.action,
             targetInstanceId,
-            card.colors,
+            magicEffectiveColors(state, owner, card),
             "magic",
             undefined,
             undefined,

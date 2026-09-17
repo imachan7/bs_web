@@ -902,6 +902,10 @@ export interface PendingChoice {
         pid: PlayerId
         cardId: string
         trashIndex: number // 同名カードが複数あるときにどれを出したかを固定する
+        // kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：このネクサスを疲労させることで
+        // コストを支払わずに召喚できるとき、その候補のinstanceId。option文言で通常/無償のどちらが
+        // 選ばれたかを判定し、無償なら applyFushiSummon がこのネクサスを疲労させ召喚時効果を発揮させない
+        freeNexusInstanceId?: string
     }
     spiritMillFreeSummon?: {
         // 器AR：BS13-034ミノガメン「相手のデッキ破棄効果で破棄されたこのカードは、コストを支払わずに
@@ -1390,6 +1394,7 @@ export type GameAction =
     | { type: "setBurst"; handIndex: number } // バーストのセット。自分のターンのメインステップ限定・ターン1回（docs/design/BURST.md）。既にセット済みなら旧カードをトラッシュへ送ってから新しいものをセットする
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[]; millPay?: number } // millPayは配置コストの支払い方法の選択（BS04栄光の表彰台）。0＝コアで払う／実効コストと同じ値＝その枚数だけデッキを上から破棄して払う。**中間の枚数は不可**（併用できない）。省略時は「コアで足りるならコア、足りなければ全額デッキ破棄」 // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）
+    | { type: "useHandAbility"; handIndex: number; effectId: string } // 手札にあるカードを使う効果（kind:"handActivated"。マジックではない。BS15-011ミーアバット）。検証は validateHandFlash（フラッシュマジック・【神速】と共有）＋手札の実在・タイミングだけ
     | { type: "moveCore"; instanceId: string; direction: "add" | "remove"; confirmDeplete?: true } // confirmDeplete指定時は、維持コア（Lv1）を下回るコアの取り除きを許可し、そのスピリットを消滅させる（コアを他へ回すために自分のスピリットをあえて退かせる操作。クライアントが確認を取ってから送る。2026-08-23 ユーザー要望）
     | {
           type: "awaken" // 覚醒：fromInstanceId のコアを instanceId へ移す

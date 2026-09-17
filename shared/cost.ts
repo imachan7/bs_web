@@ -337,6 +337,28 @@ export function isSelfInBattle(board: Board, instanceId: string): boolean {
         board.battle.blockerInstanceId === instanceId
     )
 }
+
+// kind:"ownMagicColorless"（BS15-015吸血令嬢エサルフリーダ Lv1-3）：発生源自身が現在のバトルの当事者
+// （アタッカー/ブロッカー）の間、pidが使用する指定色のマジックカードすべての色を無いものとして扱う。
+// 無効化・耐性をすり抜けるのが目的で、軽減やコストの色条件には及ばない（呼び出し側はこの関数を
+// 軽減・コスト計算には使わないこと）。マジックの効果解決時のsrcColorsと【氷壁】の色判定の両方で使う。
+// バーストで発揮する同色のマジックにも及ぶ（呼び出し側がバーストのresolveAction経路でも使う）。
+// BS15_PLAN.md §7.3
+export function magicEffectiveColors(board: Board, pid: PlayerId, cardData: CardData): Color[] {
+    if (cardData.type !== "magic") return cardData.colors
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "ownMagicColorless") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!cardData.colors.includes(effect.color)) continue
+            if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
+            return []
+        }
+    }
+    return cardData.colors
+}
+
 // pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 // 軽減シンボルと同じシンボル集計対象を色の集合として求める）
 export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {

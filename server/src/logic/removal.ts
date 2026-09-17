@@ -1140,6 +1140,23 @@ function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): numb
     return effectiveCost(state, ownerPid, card)
 }
 
+// kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：未疲労のこのネクサスがあれば、
+// カード記載コストが effect.maxCost 以下の【不死】スピリットを、このネクサスを疲労させることで
+// コストを支払わずに召喚できる（維持コアは通常どおり要る）。該当する発生源のinstanceIdを返す
+// （複数あれば最初に見つかったものを使う。決定的簡略化）
+function fushiFreeExhaustSource(state: GameState, ownerPid: PlayerId, card: CardData): string | null {
+    const player = state.players[ownerPid]
+    for (const nexus of player.field.nexuses) {
+        if (nexus.isRested) continue
+        const level = currentLevel(nexus).level
+        const hit = getCard(nexus.cardId).effects.some(
+            (e) => e.kind === "fushiFreeByExhaust" && effectActiveAtLevel(e.levels, level) && card.cost <= e.maxCost,
+        )
+        if (hit) return nexus.instanceId
+    }
+    return null
+}
+
 export function fushiCandidates(
     state: GameState,
     ownerPid: PlayerId,
@@ -1164,7 +1181,12 @@ export function fushiCandidates(
             return families.some((f) => destroyedFamilies.includes(f))
         })
         if (!hit) continue
-        if (player.reserve < fushiCostOf(state, ownerPid, card) + minLevelCores(card)) continue
+        const maintain = minLevelCores(card)
+        // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
+        // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
+        const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+        const canPayFree = player.reserve >= maintain && fushiFreeExhaustSource(state, ownerPid, card) !== null
+        if (!canPayNormally && !canPayFree) continue
         found.push(i)
     }
     return found
@@ -1174,15 +1196,37 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
     const card = getCard(cardId)
+    const player = state.players[ownerPid]
+    const maintain = minLevelCores(card)
+    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
+    const canPayFree = freeSource !== null && player.reserve >= maintain
+    // 払える側だけ選択肢に出す（COST_MODEL.md §1：払えない道は提示しない）。
+    // 魔門（BS15-064 Lv2）で無償召喚できないときは、従来どおり「召喚する」1つだけの確認にする
+    const options: string[] = []
+    if (canPayFree) {
+        if (canPayNormally) options.push("コストを支払って召喚する")
+        options.push("魔門を疲労させて無償で召喚する")
+    } else if (canPayNormally) {
+        options.push("召喚する")
+    }
+    if (options.length === 0) return
     suspend(state, {
         pid: ownerPid,
         kind: "option",
-        prompt: `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
+        prompt: canPayFree
+            ? `${card.name}：【不死】でトラッシュから召喚しますか？（通常のコスト${String(fushiCostOf(state, ownerPid, card))}）`
+            : `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
         candidates: [],
-        options: ["召喚する"],
+        options,
         optional: true,
         confirm: true,
-        fushiSummon: { pid: ownerPid, cardId, trashIndex },
+        fushiSummon: {
+            pid: ownerPid,
+            cardId,
+            trashIndex,
+            ...(canPayFree ? { freeNexusInstanceId: freeSource } : {}),
+        },
         action: { type: "noop" },
         selfInstanceId: null,
     })
@@ -1198,12 +1242,28 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     }
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
+    const player = state.players[ownerPid]
+    const card = getCard(cardId)
+    const maintain = minLevelCores(card)
+    // 非対話（AI・テスト）の既定：通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
+    // 払えないときだけ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）
+    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    if (!canPayNormally) {
+        const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
+        if (freeSource !== null && player.reserve >= maintain) {
+            applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex, freeNexusInstanceId: freeSource }, true)
+            return
+        }
+    }
     applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex })
 }
 
 export function applyFushiSummon(
     state: GameState,
     info: NonNullable<PendingChoice["fushiSummon"]>,
+    // true指定時：info.freeNexusInstanceId のネクサスを疲労させ、コストを支払わずに召喚する
+    // （維持コアは通常どおり要る）。召喚時効果は発揮されない（skipOnSummonと同じ印。BS15-064冥府へ続く魔門Lv2）
+    useFree?: true,
 ): void {
     const player = state.players[info.pid]
     // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
@@ -1213,26 +1273,48 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = fushiCostOf(state, info.pid, card)
     const maintain = minLevelCores(card)
+    const freeNexus =
+        useFree && info.freeNexusInstanceId !== undefined
+            ? player.field.nexuses.find((n) => n.instanceId === info.freeNexusInstanceId && !n.isRested)
+            : undefined
+    if (useFree && !freeNexus) {
+        log(state, `${player.name}は魔門を疲労させて【不死】を無償で召喚できなかった。`)
+        return
+    }
+    const cost = freeNexus ? 0 : fushiCostOf(state, info.pid, card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
-    // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
-    const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
-    if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
-    // 召喚コストはリザーブからトラッシュへ、維持コアはリザーブからスピリットの上へ（通常の召喚と同じ）
-    player.reserve -= cost
-    player.trashCores += cost
+    if (freeNexus) {
+        exhaustSpirit(state, info.pid, freeNexus)
+    } else {
+        // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
+        const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
+        if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
+        // 召喚コストはリザーブからトラッシュへ（通常の召喚と同じ）
+        player.reserve -= cost
+        player.trashCores += cost
+    }
+    // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
     player.reserve -= maintain
     const inst = createInstance(info.cardId, state.turn, maintain)
     player.field.spirits.push(inst)
-    log(state, `${player.name}は【不死】で${card.name}をトラッシュから召喚した。（コスト${String(cost)}）`)
-    // 「召喚」なので【転召】も召喚時効果も通常どおり解決する
+    log(
+        state,
+        `${player.name}は【不死】で${card.name}をトラッシュから召喚した。` +
+            (freeNexus ? `（${getCard(freeNexus.cardId).name}を疲労させ、コストを支払わずに）` : `（コスト${String(cost)}）`),
+    )
+    // 「召喚」なので【転召】は通常どおり解決する（無償召喚でも必ず行う。skipOnSummonと同じ規則）
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return
+    // 無償召喚（魔門を疲労させた場合）は召喚時効果を発揮しない（BS15-064冥府へ続く魔門Lv2の明記どおり）
+    if (freeNexus) {
+        log(state, `${card.name}：『召喚時』効果は発揮されない。`)
+        return
+    }
     if (state.pendingChoice) {
         // 【転召】の途中で中断したら、召喚時効果以降は再開フレームに任せる（doSummon と同じ形）
         pushResumeFrames(state, [
