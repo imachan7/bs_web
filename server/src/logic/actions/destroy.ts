@@ -745,6 +745,7 @@ const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOw
     enemyDestroys(destroyed)
 }
 
+// 指定されていない色を1つでも持てば対象（赤白は、赤を指定しても白で破壊＝公式Q&A Q3478 / Q20161 / Q3546）
 const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // お互い自分のフィールドで最多のスピリット色を1色ずつ自動指定する
@@ -842,11 +843,11 @@ const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosen
         // 自分フィールドは素通し。この非対称は resistanceAgainst が actorPid で自動的に扱う）
         const oppTargets = state.players[opp].field.spirits.filter(
             (s) =>
-                !instColors(s).some((c) => safeColors.has(c)) &&
+                instColors(s).some((c) => !safeColors.has(c)) &&
                 !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
         )
         const ownTargets = state.players[owner].field.spirits.filter(
-            (s) => !instColors(s).some((c) => safeColors.has(c)),
+            (s) => instColors(s).some((c) => !safeColors.has(c)),
         )
         destroyTargetsBatch(
             state,
@@ -909,7 +910,7 @@ const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexus
         )
         for (const pid of ["p1", "p2"] as PlayerId[]) {
             const targets = state.players[pid].field.nexuses.filter(
-                (n) => !instColors(n).some((c) => safeColors.has(c)),
+                (n) => instColors(n).some((c) => !safeColors.has(c)),
             )
             for (const t of targets) destroyNexus(state, pid, t.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
         }
@@ -925,8 +926,8 @@ const destroyFieldExceptOpponentChosenColorHandler: ActionHandler<"destroyFieldE
     const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
     const destroyContext = { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }
     const targetsFor = (color: Color) => ({
-        spirits: state.players[opp].field.spirits.filter((s) => !instColors(s).some((c) => c === color)),
-        nexuses: state.players[opp].field.nexuses.filter((n) => !instColors(n).some((c) => c === color)),
+        spirits: state.players[opp].field.spirits.filter((s) => instColors(s).some((c) => c !== color)),
+        nexuses: state.players[opp].field.nexuses.filter((n) => instColors(n).some((c) => c !== color)),
     })
     const resolveWithColor = (color: Color): void => {
         const { spirits, nexuses } = targetsFor(color)
