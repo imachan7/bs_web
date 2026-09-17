@@ -1913,6 +1913,11 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId)
             continue
         }
+        if (frame.kind === "endTurn") {
+            // メインから直接ターン終了して経由したアタックステップの開始時誘発が片付いたので、ターン終了をやり直す
+            endTurn(state)
+            continue
+        }
         if (frame.kind === "turnStart") {
             // 中断していたターン開始処理を続きのステップから再開する
             // （百識の谷Lv1のドローステップ破棄選択など）
