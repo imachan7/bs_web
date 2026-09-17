@@ -1127,6 +1127,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         return "ターンを終了できるステップではありません"
     }
     if (state.battle) return "バトルの解決中です"
+    // BS15-X04 の追加メインステップの後にアタックステップは無い
+    if (state.extraMainStep) return null
 
     // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
     if (state.turn === 1) return null

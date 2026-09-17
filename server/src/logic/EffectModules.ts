@@ -959,20 +959,26 @@ export function declineDeckMillNegate(
 // kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 // 入ろうとしているプレイヤー）から見た相手の手札に、この特殊タイミングで使えるマジックがあり、
 // かつコストを払えるときだけ確認を出す。出した（＝アタックステップへの遷移を保留した）なら true。
-// 非対話（smoke）では確認を出さず、払えるなら自動で使用する
-export function offerOpponentMainEndMagic(state: GameState, attackingPid: PlayerId): boolean {
+// 非対話（smoke）では確認を出さず、払えるなら自動で使用する。
+// 戻り値：確認を出した＝"suspended"／自動で使用した＝"used"／何もしなかった＝null。
+// endTurnIfDeclined はメインから直接ターン終了した経路（使わなければそのままターン終了を続ける）
+export function offerOpponentMainEndMagic(
+    state: GameState,
+    attackingPid: PlayerId,
+    endTurnIfDeclined?: true,
+): "suspended" | "used" | null {
     const holderPid = opponentOf(attackingPid)
     const player = state.players[holderPid]
     const cardId = player.hand.find((id) => {
         const card = getCard(id)
         return card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd)
     })
-    if (cardId === undefined) return false
+    if (cardId === undefined) return null
     const cost = effectiveCost(state, holderPid, getCard(cardId))
-    if (player.reserve < cost) return false
+    if (player.reserve < cost) return null
     if (!state.interactiveTargets) {
         applyProvocationUse(state, { pid: holderPid, cardId })
-        return false
+        return "used"
     }
     suspend(state, {
         pid: holderPid,
@@ -982,11 +988,11 @@ export function offerOpponentMainEndMagic(state: GameState, attackingPid: Player
         options: ["使用する"],
         optional: true,
         confirm: true,
-        provocationUse: { pid: holderPid, cardId },
+        provocationUse: { pid: holderPid, cardId, ...(endTurnIfDeclined ? { endTurnIfDeclined } : {}) },
         action: { type: "noop" },
         selfInstanceId: null,
     })
-    return true
+    return "suspended"
 }
 
 // プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する

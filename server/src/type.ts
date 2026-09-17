@@ -929,11 +929,19 @@ export interface PendingChoice {
         // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
         instanceIds: string[] // 候補の instanceId（PendingChoice.options と同順）
     }
+    extraStepChoice?: {
+        // アタックステップ終了後に行うステップの選択（BS15-X04 機獣要塞ナウマンガルド Lv2）。action は解決しない。
+        // options は「ドローステップ／リフレッシュステップ／メインステップ」。断れない
+        sourceInstanceId: string
+    }
     provocationUse?: {
         // 「相手のメインステップ終了時に使用できる」マジックの使用確認待ち（BS15-079プロボケイション）。
         // action は解決しない。選べばコストを払って使用し、選ばなければ何もせずアタックステップへ進む
         pid: PlayerId
         cardId: string
+        // メインから直接ターン終了した経路。使わなければアタックステップを経てそのままターンを終える。
+        // 使ったらアタックステップで止めてターンプレイヤーへ返す（指定したスピリットがアタックするため）
+        endTurnIfDeclined?: true
     }
     deckMillNegate?: {
         // 「デッキの破棄を、コストを払って無効にできる」の確認待ち。reviveConfirm と同じく **action は解決しない**。
@@ -1092,6 +1100,7 @@ export type ResumeFrame =
           kind: "turnStart" // ターン開始処理（start→core→draw前→ドロー→refresh→main）の続き。
           // ステップ誘発が選択待ちを立てたときに、次のステップ番号を積む
           step: number
+          until?: number // 指定時はこの区間までで止める（BS15-X04 のアタックステップ後に行う1ステップ）
       }
     | {
           // 複数体をまとめて破壊する処理の続き。1体ごとに「破壊される代わりに復活**できる**」の
@@ -1184,6 +1193,8 @@ export interface GameState {
     log: string[]
     winner: PlayerId | null
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
+    extraStepAfterAttackUsed?: true // BS15-X04 Lv2 をこのターンに使った（ターン終了でリセット）
+    extraMainStep?: true // BS15-X04 Lv2 で行っている追加のメインステップ中。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
     extraAttackStepPending?: true // **アタックステップとエンドステップをもう1回ずつ行う**（BS10-008 火星神龍アレス・ドラグーン）。
     // PhaseManager.endTurn が「エンドステップの誘発を解決した直後・一時状態のリセット群の前」でこれを見て、
     // ターンプレイヤーを交代せずアタックステップへ戻す。**一度使ったら消す**（同じターンに何度も戻らないため）。
@@ -1382,6 +1393,7 @@ export interface GameView {
     winner: PlayerId | null
     you: PlayerId
     turnConstraints: TurnConstraintDef[]
+    extraMainStep?: true // BS15-X04 Lv2 の追加メインステップ中（「アタックステップへ」ボタンを出さない）
     endStepLocks: EndStepLock[] // 公開情報。両者に配信する（画面にカウンターとして出す）
     magicUsedThisTurn: Record<PlayerId, number> // このターンの各プレイヤーのマジック使用回数（隠匿情報なし。クライアントのmagicRestriction判定に必要＝作戦参謀フォクシン）
     ignoreUnblockableThisTurn: PlayerId[] // このターン「ブロックされない」効果を無視できるプレイヤー（隠匿情報なし。クライアントのブロック可否表示に必要＝レッドウォール）

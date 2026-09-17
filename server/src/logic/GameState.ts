@@ -670,6 +670,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
         ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],

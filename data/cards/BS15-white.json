@@ -977,6 +977,13 @@
      ]
     },
     "optional": false
+   },
+   {
+    "id": "BS15-X04-e2",
+    "kind": "extraStepAfterAttackStep",
+    "levels": [
+     2
+    ]
    }
   ]
  }

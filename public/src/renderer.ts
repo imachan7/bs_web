@@ -518,7 +518,7 @@ export function render(view: GameView, ui: UiState): void {
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
     // 「お互い、アタックステップは行えず」（ルナティックシール）。サーバーも同じ判定で弾く
-    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep"))
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep)
     show(
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,

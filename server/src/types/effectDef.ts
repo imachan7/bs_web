@@ -53,6 +53,11 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "extraStepAfterAttackStep" // 『自分のアタックステップ』終了後、ドロー／リフレッシュ／メインのどれか1つを行う（ターンに1回・断れない）。PhaseManager.endTurn がアタックステップ終了時の誘発の後・エンドステップの前で選ばせる。アタックステップが行われないターン（ルナティックシール）は発揮しない。BS15-X04 機獣要塞ナウマンガルド Lv2（BS15_PLAN §7.1）
+          levels: number[]
+      }
+    | {
+          id: string
           kind: "trashReturnAtEndStep" // トラッシュにある間、持ち主の『自分のエンドステップ』に自動で手札へ戻る（levels無し＝trashImmunityと同型。isTrashReturnAtEndStep（shared/rules.ts）がgetCard(cardId).effectsを直接見て判定し、PhaseManager.endTurnが持ち主のエンドステップごとに全該当カードを戻す。BS13-015冥総裁ハーゲン：「自分のトラッシュにあるこのスピリットカードは、『自分のエンドステップ』に手札に戻る。」）
           maxCount?: number // 「この効果はターンに1回しか使えない」＝このcardIdにつき1ターンに戻る枚数の上限（省略時は無制限＝該当カードすべて戻る）。同名を複数トラッシュへ落としても、戻るのはこの枚数まで（BS13-077ブリーズライド：1枚まで）
       }

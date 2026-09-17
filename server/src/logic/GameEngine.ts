@@ -20,7 +20,7 @@ import {
     suspend,
     resumeTriggerBatch,
 } from "./GameState"
-import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
+import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
@@ -307,14 +307,25 @@ function dispatchAction(
             if (state.battle) return "バトル中です"
             // 「お互い、アタックステップは行えず」（BS10-108 ルナティックシール）
             if (isEndStepLocked(state, "attackStep")) return "効果により、アタックステップは行えません"
+            if (state.extraMainStep) return "追加のメインステップの後は、アタックステップへ進めません"
             // 器CA：「相手のメインステップ終了時に使用できる」マジック（BS15-079プロボケイション）の確認を挟む
-            if (offerOpponentMainEndMagic(state, pid)) return null
+            if (offerOpponentMainEndMagic(state, pid) === "suspended") return null
             toAttackPhase(state)
             return null
         }
         case "endTurn": {
             const error = validateEndTurn(state, pid)
             if (error) return error
+            // メインから直接ターン終了しても「相手のメインステップ終了時」は来る（BS15-079プロボケイション）。
+            // 使われたらアタックステップで止め、ターンプレイヤーへ返す
+            if (state.phase === "main" && !state.extraMainStep && !isEndStepLocked(state, "attackStep")) {
+                const offered = offerOpponentMainEndMagic(state, pid, true)
+                if (offered === "suspended") return null
+                if (offered === "used") {
+                    toAttackPhase(state)
+                    return null
+                }
+            }
             endTurn(state)
             return null
         }
@@ -1787,6 +1798,17 @@ function doResolveChoice(
 
     // 「相手のメインステップ終了時に使用できる」マジックの使用確認（BS15-079プロボケイション）。
     // action は解決せず、選べば使用してからアタックステップへ、選ばなくてもそのままアタックステップへ進む
+    // アタックステップ終了後に行うステップの選択（BS15-X04 機獣要塞ナウマンガルド Lv2）。断れない
+    if (pending.extraStepChoice) {
+        if (option === undefined || !(EXTRA_STEP_OPTIONS as readonly string[]).includes(option)) {
+            return "行うステップを選んでください"
+        }
+        state.pendingChoice = null
+        runExtraStep(state, option)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     if (pending.provocationUse) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
             return "選択できない候補です"
@@ -1799,7 +1821,9 @@ function doResolveChoice(
             log(state, `${getCard(entry.cardId).name}：使用しなかった。`)
         }
         if (state.winner) return null
-        toAttackPhase(state)
+        // 使わなかった直接ターン終了は endTurn に任せる（phase が main なのでアタックステップを経由する）
+        if (option === undefined && entry.endTurnIfDeclined) endTurn(state)
+        else toAttackPhase(state)
         return finishChoiceResolution(state, pending.pid)
     }
 
@@ -2025,7 +2049,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "turnStart") {
             // 中断していたターン開始処理を続きのステップから再開する
             // （百識の谷Lv1のドローステップ破棄選択など）
-            driveTurnStart(state, frame.step)
+            driveTurnStart(state, frame.step, frame.until)
             continue
         }
         if (frame.kind === "destroyBatch") {
