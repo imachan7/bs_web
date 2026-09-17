@@ -47,6 +47,7 @@ export interface BraveConditionTerm {
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
     cardName?: string // カード名指定
     vanilla?: true // **効果の記述を持たない**（BS10 の18枚中6枚。判定は instIsVanilla＝継続付与の「バニラとしても扱う」も見る）
+    keyword?: Keyword // このキーワードを持つ（spiritHasKeywordで判定＝一時付与・継続付与も見る。BS15-057カメン・フクロウ：「コスト4以上/【暴風】を持つ」の後半）
 }
 export type BraveCondition = BraveConditionTerm | BraveConditionTerm[]
 
@@ -118,7 +119,7 @@ export interface TargetFilter {
     // BS10 に20枚以上ある（「相手の合体スピリット1体を破壊」／「合体していない相手のスピリット1体を手札に戻す」）
     braveInSpiritState?: true // **スピリット状態のブレイヴ**だけ（＝カード種別がブレイヴで、合体せず field.spirits にいる個体）。
     // BS10-083 魔星輝く古戦場Lv2／BS10-086 巨星望む大樹／BS10-X06 天蠍神騎スコル・スピア
-    hasBurst?: true // カードの effects に kind:"burst" を持つものだけ（docs/design/BURST.md）
+    hasBurst?: boolean // カードの effects に kind:"burst" を持つものだけ（docs/design/BURST.md）。false指定時は**持たない**ものだけ（BS15-034ミブロック・ジーナス：「バースト効果を持たない相手のスピリット」）
 }
 
 // normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
@@ -782,6 +783,7 @@ export interface BattleState {
     blockCostDiscardMagic?: { pid: PlayerId } // 器BU：このバトルで、この pid は手札のマジックカード1枚を破棄しなければブロックできない（手札にマジックが無ければブロック自体ができない。破棄は自動選択＝最初に見つかったマジック1枚。バトル終了で消える。BS13-047深海大帝ノーグ・デンス召喚時）
     handColorBannedFor?: { pid: PlayerId; color: Color } // このバトルの間、この pid は指定色の手札のカードを使えない（BS11-060 雷神砲カノン・アームズ＝破棄したカードと同じ色）。バトル終了（clearBattle）で消える
     flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
+    burstBlockedForPid?: PlayerId // このバトルの間、この pid はバーストを発動できない（action:"disableOpponentBurstThisBattle" が立てる。fireFieldEventTriggersのバースト発火ループが見る。BS15-X03鳥武帝スザクロス・ソウソー：「このスピリットのバトル時、相手はバーストを発動できない」）
     directed: boolean // 指定アタックか（canDirectAttack。通常アタックは false）
     directedTargetInstanceId?: string // 指定アタックで指定された相手スピリット。**アタック宣言の時点ではまだブロックは確定しない**（アタック時効果と【バースト】をすべて解決した後に確定する。2026-09-06 ユーザー確認）。GameEngine.doPass がフラッシュ①を閉じる時点で finishBlockDeclaration へ渡し、正規のブロック宣言として成立させる（疲労状態でも成立する＝『ブロック時』効果は発揮する）。指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もせず、通常のアタックに戻る
     compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
@@ -922,6 +924,12 @@ export interface PendingChoice {
         // 選ばれた個体は GameState.destroyOrderPick に記録され、破壊バッチが残りの先頭へ入れ替える。
         // 同時発揮の一般則（docs/design/TIMING_CHART.md §0-3）の実装
         instanceIds: string[] // 候補の instanceId（PendingChoice.options と同順）
+    }
+    provocationUse?: {
+        // 「相手のメインステップ終了時に使用できる」マジックの使用確認待ち（BS15-079プロボケイション）。
+        // action は解決しない。選べばコストを払って使用し、選ばなければ何もせずアタックステップへ進む
+        pid: PlayerId
+        cardId: string
     }
     deckMillNegate?: {
         // 「デッキの破棄を、コストを払って無効にできる」の確認待ち。reviveConfirm と同じく **action は解決しない**。

@@ -1,0 +1,1027 @@
+[
+ {
+  "cardId": "BS15-019",
+  "name": "ダル・イーグル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS15-020",
+  "name": "パンダル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS15-020-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS15-020-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-021",
+  "name": "虚兵アオイ・スビン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔",
+   "神将"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分のバーストをセットしている間、お互いのライフは、ターンごとにスピリット1体から1までしか減らされない。\nLv1･Lv2『自分のターン』\n相手によって自分のスピリットが破壊されたとき、破壊された緑のスピリット1体につき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS15-021-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "whileOwnBurstSet": true,
+    "constraint": {
+     "type": "lifeDamagePerSpiritPerTurn",
+     "max": 1
+    }
+   },
+   {
+    "id": "BS15-021-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "own",
+    "colorFilter": "green",
+    "byOpponentOnly": true,
+    "ignoreEventTarget": true,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-022",
+  "name": "アナグマッド・デビル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドに緑のスピリット/ネクサスしかないとき、ボイドからコア1個をこのスピリットに置く。\n自分のバースト1つを破棄することで、さらに、ボイドからコア1個をこのスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS15-022-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "condition": {
+     "ownFieldOnlyColor": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS15-022-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "condition": {
+     "ownFieldOnlyColor": "green"
+    },
+    "action": {
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "costDiscardOwnBurst": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-023",
+  "name": "タケノ・サイガー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。\nLv2『自分のエンドステップ』\nこのスピリットのコア1個を自分のトラッシュに置くことで、【暴風】を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS15-023-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS15-023-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS15-023-e3",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "cost": {
+     "selfCoresToTrash": 1
+    },
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "keywords": [
+       "bofu"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-024",
+  "name": "グアン・チョーウン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "雄将",
+   "華兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。\nLv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\nターンに1回、このスピリットのアタックによって相手のライフを減らしたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS15-024-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 1,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS15-024-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    },
+    "optional": false
+   },
+   {
+    "id": "BS15-024-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "voidCoreToReserve",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS15-024-e4",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     2
+    ],
+    "oncePerTurn": true,
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-025",
+  "name": "カヒョウトン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "雄将",
+   "華兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『自分のアタックステップ』\n系統：「華兵」を持つ自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS15-025-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS15-025-e2",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "華兵",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-026",
+  "name": "軍師鳥ショカツリョー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "覇皇",
+   "華兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n自分と相手のフィールドに疲労状態のスピリットが合計3体以上いるとき、このスピリットカードを召喚する。\nLv2『自分のアタックステップ』\n【暴風】を持つ自分のスピリットがアタックしたとき、自分のリザーブのコアを、そのスピリットが持つ【暴風】で指定された数、自分のトラッシュに置くことで、相手のスピリットを【暴風】で指定された数と同じ体数疲労させる。",
+  "effects": [
+   {
+    "id": "BS15-026-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "condition": {
+     "bothFieldsRestedSpiritsAtLeast": 3
+    },
+    "action": {
+     "type": "summonBurstCardFree",
+     "payCost": true
+    }
+   },
+   {
+    "id": "BS15-026-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "subjectSide": "own",
+    "subjectKeywordFilter": "bofu",
+    "action": {
+     "type": "exhaust",
+     "count": 0,
+     "countFromBofu": true,
+     "costReserveToTrashFromBofu": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-027",
+  "name": "虚天帝ホウオウガ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 11,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "虚神",
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 16000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "自分のバーストをセットしている間、手札にあるこのスピリットカードをコスト7にする。\nLv1･Lv2･Lv3『自分のアタックステップ』\nこのスピリットと【暴風】を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個をボイドに置く。\nLv2･Lv3\n相手によって【暴風】を持つ自分のスピリットが破壊されたとき、相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS15-027-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "mode": "set",
+    "setTo": 7,
+    "scope": "self",
+    "condition": {
+     "ownBurstSet": true
+    }
+   },
+   {
+    "id": "BS15-027-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDealtLife",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "selfOnly": true,
+    "action": {
+     "type": "lifeCrush",
+     "count": 1,
+     "dest": "void"
+    }
+   },
+   {
+    "id": "BS15-027-e3",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDealtLife",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "subjectKeywordFilter": "bofu",
+    "excludeSelfSubject": true,
+    "action": {
+     "type": "lifeCrush",
+     "count": 1,
+     "dest": "void"
+    }
+   },
+   {
+    "id": "BS15-027-e4",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2,
+     3
+    ],
+    "byOpponentOnly": true,
+    "subjectKeywordFilter": "bofu",
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-057",
+  "name": "カメン・フクロウ",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上/【暴風】を持つ\n【合体時】『このスピリットの破壊時』\n自分のバースト1つを破棄することで、このスピリットは回復状態で自分のフィールドに残る。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上/【暴風】を持つ",
+  "braveCondition": [
+   {
+    "minCost": 4
+   },
+   {
+    "keyword": "bofu"
+   }
+  ],
+  "effects": [
+   {
+    "id": "BS15-057-e1",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "whileCombined": true,
+    "scope": "self",
+    "when": {},
+    "revived": {
+     "rested": false
+    },
+    "cost": {
+     "discardOwnBurst": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-065",
+  "name": "大河と絶壁",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\n自分の手札にある【暴風】を持つスピリットカードすべてに軽減シンボル[緑]を与える。\nLv2『自分のスタートステップ』\n相手がバーストをセットしているとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS15-065-e1",
+    "kind": "reductionGrant",
+    "levels": [
+     1,
+     2
+    ],
+    "cardType": "spirit",
+    "keywordFilter": "bofu",
+    "symbols": [
+     "green"
+    ]
+   },
+   {
+    "id": "BS15-065-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "condition": {
+     "opponentBurstSet": true
+    },
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-066",
+  "name": "廃寺の無限階段",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のフィールドに緑のスピリット/ネクサスしかない間、バトルしている自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、そのスピリットを回復させる。\nLv2『自分のアタックステップ』\n【暴風】を持つ自分のスピリットすべてをBP+3000する。",
+  "effects": [
+   {
+    "id": "BS15-066-e1",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownFieldOnlyColor": "green"
+    },
+    "action": {
+     "type": "refreshSelf"
+    }
+   },
+   {
+    "id": "BS15-066-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "keywordFilter": "bofu",
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-077",
+  "name": "ヒートライド",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "自分のトラッシュにある[ヒートライド]1枚は、『自分のエンドステップ』に手札に戻る。\nこの効果はターンに1回しか使えない。\nフラッシュ：\n自分のスピリット1体を指定する。\nこのターンの間、そのスピリットがアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS15-077-e1",
+    "kind": "trashReturnAtEndStep",
+    "maxCount": 1
+   },
+   {
+    "id": "BS15-077-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "grantEffectToTargetThisTurn",
+     "trigger": "onLifeDealt",
+     "action": {
+      "type": "voidCoreToReserve",
+      "count": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-078",
+  "name": "飛雷震之計",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "【バースト：相手のスピリットのアタック後】\n自分のスピリット1体を回復させる。\nその後コストを支払うことで、このカードのメイン効果を発揮する。\nメイン：\n相手のフィールドにスピリット/ネクサスの色が2色以上のとき、色1色を指定する。\n指定した色の相手のスピリットすべてを疲労させる。",
+  "effects": [
+   {
+    "id": "BS15-078-e1",
+    "kind": "burst",
+    "event": "anySpiritAttacked",
+    "subjectSide": "opponent",
+    "action": {
+     "type": "refreshOne"
+    },
+    "thenPay": "main"
+   },
+   {
+    "id": "BS15-078-e2",
+    "kind": "magic",
+    "timing": "main",
+    "condition": {
+     "opponentFieldColorsAtLeast": 2
+    },
+    "action": {
+     "type": "exhaustAllByColor",
+     "side": "opponent"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS15-X03",
+  "name": "鳥武帝スザクロス・ソウソー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 8,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "雄将",
+   "華兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのバトル時』\n相手はバーストを発動できない。\nLv1･Lv2『自分のアタックステップ』\n自分の緑のスピリット1体につき、系統：「華兵」を持つ自分のスピリットすべてをBP+1000する。\nLv2『自分のアタックステップ』\n相手のスピリットが疲労したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS15-X03-e1",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "disableOpponentBurstThisBattle"
+    },
+    "optional": false
+   },
+   {
+    "id": "BS15-X03-e2",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "華兵",
+     "amountPer": 1000,
+     "counter": {
+      "ownColor": "green"
+     },
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   },
+   {
+    "id": "BS15-X03-e3",
+    "kind": "fieldEvent",
+    "event": "anySpiritExhausted",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "subjectSide": "opponent",
+    "selfMode": "source",
+    "action": {
+     "type": "refreshSelf"
+    }
+   }
+  ]
+ }
+]

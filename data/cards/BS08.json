@@ -4298,7 +4298,9 @@
     ],
     "by": "opponentSpiritEffect",
     "exceptFunsai": true,
-    "costOwnLifeToReserve": 1
+    "cost": {
+     "ownLifeToReserve": 1
+    }
    }
   ]
  },

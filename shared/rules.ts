@@ -240,8 +240,28 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
     for (const source of sources) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            return true
+        }
+    }
+    // target:"bothAll" は**自分の**ネクサスも止める（BS15-034：白しかない間、両陣営のネクサス効果が発揮されない）
+    const own = board.players[pid]
+    const ownSources = [
+        ...own.field.spirits,
+        ...own.field.nexuses,
+        ...own.turnVirtualInstances,
+        ...own.battleVirtualInstances,
+    ]
+    for (const source of ownSources) {
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "bothAll") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             return true
         }
     }
@@ -507,6 +527,7 @@ export function matchesBraveCondition(
         // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
         // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す
         if (t.vanilla === true && !instIsVanilla(host)) return false
+        if (t.keyword !== undefined && !spiritHasKeyword(board, hostOwnerPid, host, t.keyword)) return false
         return true
     })
 }
@@ -1628,8 +1649,11 @@ export function matchesTarget(
     if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
     if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
-    // hasBurst：effectsに kind:"burst" を持つカードだけ（docs/design/BURST.md）
-    if (filter.hasBurst === true && !card(inst.cardId).effects.some((e) => e.kind === "burst")) return false
+    // hasBurst：effectsに kind:"burst" を持つカードだけ（docs/design/BURST.md）。false指定時は持たないものだけ
+    if (filter.hasBurst !== undefined) {
+        const has = card(inst.cardId).effects.some((e) => e.kind === "burst")
+        if (filter.hasBurst !== has) return false
+    }
     if (filter.minSymbols !== undefined && instanceSymbolCount(inst) < filter.minSymbols) return false
     if (filter.symbolCount !== undefined && instanceSymbolCount(inst) !== filter.symbolCount) return false
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false

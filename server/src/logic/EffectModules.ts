@@ -828,8 +828,12 @@ function findDeckMillNegate(
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
             // 「【粉砕】以外の」（【粉砕】は resolveFunsai だけが cause.funsai を立てる）
             if (effect.exceptFunsai && cause?.funsai === true) continue
-            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
-            if (lifeCostBlockedByFloor(state, pid, effect.costOwnLifeToReserve)) continue
+            if ("ownLifeToReserve" in effect.cost) {
+                if (state.players[pid].life < effect.cost.ownLifeToReserve) continue
+                if (lifeCostBlockedByFloor(state, pid, effect.cost.ownLifeToReserve)) continue
+            } else {
+                if (source.isRested) continue
+            }
             return { source, effect }
         }
     }
@@ -863,7 +867,10 @@ function trySuspendDeckMillNegate(
     suspend(state, {
         pid,
         kind: "option",
-        prompt: `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
+        prompt:
+            "ownLifeToReserve" in found.effect.cost
+                ? `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`
+                : `${getCard(found.source.cardId).name}：このスピリットを疲労させて、デッキの破棄を無効にしますか？`,
         candidates: [],
         options: ["無効にする"],
         optional: true,
@@ -890,13 +897,18 @@ function payDeckMillNegateCost(
     effect: Extract<EffectDef, { kind: "deckMillNegate" }>,
 ): void {
     const player = state.players[pid]
-    const paid = effect.costOwnLifeToReserve
-    player.life -= paid
-    player.reserve += paid
-    log(
-        state,
-        `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
-    )
+    if ("ownLifeToReserve" in effect.cost) {
+        const paid = effect.cost.ownLifeToReserve
+        player.life -= paid
+        player.reserve += paid
+        log(
+            state,
+            `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
+        )
+    } else {
+        exhaustSpirit(state, pid, source)
+        log(state, `${getCard(source.cardId).name}：${player.name}はこのスピリットを疲労させ、デッキの破棄を無効にした。`)
+    }
 }
 
 // 保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
@@ -912,12 +924,16 @@ export function applyDeckMillNegate(
                   e.kind === "deckMillNegate" && e.id === entry.effectId,
           )
         : undefined
-    if (
-        !source ||
-        !effect ||
-        state.players[entry.pid].life < effect.costOwnLifeToReserve ||
-        lifeCostBlockedByFloor(state, entry.pid, effect.costOwnLifeToReserve)
-    ) {
+    if (!source || !effect) {
+        declineDeckMillNegate(state, entry)
+        return
+    }
+    const canPay =
+        "ownLifeToReserve" in effect.cost
+            ? state.players[entry.pid].life >= effect.cost.ownLifeToReserve &&
+              !lifeCostBlockedByFloor(state, entry.pid, effect.cost.ownLifeToReserve)
+            : !source.isRested
+    if (!canPay) {
         declineDeckMillNegate(state, entry)
         return
     }
@@ -937,6 +953,57 @@ export function declineDeckMillNegate(
         entry.sourceType ? { sourceType: entry.sourceType } : undefined,
         { skipNegate: true },
     )
+}
+
+// kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
+// 入ろうとしているプレイヤー）から見た相手の手札に、この特殊タイミングで使えるマジックがあり、
+// かつコストを払えるときだけ確認を出す。出した（＝アタックステップへの遷移を保留した）なら true。
+// 非対話（smoke）では確認を出さず、払えるなら自動で使用する
+export function offerOpponentMainEndMagic(state: GameState, attackingPid: PlayerId): boolean {
+    const holderPid = opponentOf(attackingPid)
+    const player = state.players[holderPid]
+    const cardId = player.hand.find((id) => {
+        const card = getCard(id)
+        return card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd)
+    })
+    if (cardId === undefined) return false
+    const cost = effectiveCost(state, holderPid, getCard(cardId))
+    if (player.reserve < cost) return false
+    if (!state.interactiveTargets) {
+        applyProvocationUse(state, { pid: holderPid, cardId })
+        return false
+    }
+    suspend(state, {
+        pid: holderPid,
+        kind: "option",
+        prompt: `${getCard(cardId).name}：コスト${cost}を支払って使用しますか？`,
+        candidates: [],
+        options: ["使用する"],
+        optional: true,
+        confirm: true,
+        provocationUse: { pid: holderPid, cardId },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+    return true
+}
+
+// プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
+export function applyProvocationUse(state: GameState, entry: NonNullable<PendingChoice["provocationUse"]>): void {
+    const player = state.players[entry.pid]
+    const handIndex = player.hand.indexOf(entry.cardId)
+    if (handIndex === -1) return
+    const card = getCard(entry.cardId)
+    const cost = effectiveCost(state, entry.pid, card)
+    if (player.reserve < cost) return
+    player.reserve -= cost
+    player.hand.splice(handIndex, 1)
+    player.trashCards.push(entry.cardId)
+    log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
+    const effect = card.effects.find(
+        (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
+    )
+    if (effect) resolveAction(state, entry.pid, null, effect.action)
 }
 
 // 破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。

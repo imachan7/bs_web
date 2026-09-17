@@ -47,6 +47,8 @@ import {
     applyMagicRepeatChoice,
     applyHandFreeSummon,
     applyDeckMillNegate,
+    applyProvocationUse,
+    offerOpponentMainEndMagic,
     applyReviveConfirm,
     declineDeckMillNegate,
     declineReviveConfirm,
@@ -301,6 +303,8 @@ function dispatchAction(
             if (state.battle) return "バトル中です"
             // 「お互い、アタックステップは行えず」（BS10-108 ルナティックシール）
             if (isEndStepLocked(state, "attackStep")) return "効果により、アタックステップは行えません"
+            // 器CA：「相手のメインステップ終了時に使用できる」マジック（BS15-079プロボケイション）の確認を挟む
+            if (offerOpponentMainEndMagic(state, pid)) return null
             toAttackPhase(state)
             return null
         }
@@ -1680,6 +1684,24 @@ function doResolveChoice(
             declineDeckMillNegate(state, entry)
         }
         if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 「相手のメインステップ終了時に使用できる」マジックの使用確認（BS15-079プロボケイション）。
+    // action は解決せず、選べば使用してからアタックステップへ、選ばなくてもそのままアタックステップへ進む
+    if (pending.provocationUse) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.provocationUse
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyProvocationUse(state, entry)
+        } else {
+            log(state, `${getCard(entry.cardId).name}：使用しなかった。`)
+        }
+        if (state.winner) return null
+        toAttackPhase(state)
         return finishChoiceResolution(state, pending.pid)
     }
 

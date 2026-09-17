@@ -345,6 +345,17 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
         return
 }
 
+const disableOpponentBurstThisBattleHandler: ActionHandler<"disableOpponentBurstThisBattle"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+        if (!state.battle) {
+            log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
+            return
+        }
+        state.battle.burstBlockedForPid = opp
+        log(state, `${sourceName}：このバトルの間、${state.players[opp].name}はバーストを発動できない。`)
+        return
+}
+
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
@@ -409,11 +420,12 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         player.life -= dealt
         if (srcType === "spirit" && self) self.lifeDealtThisTurn = (self.lifeDealtThisTurn ?? 0) + dealt
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
+        // dest:"void" はボイド行き（ゲームから完全に取り除く。BS15-027虚天帝ホウオウガ）
         if (action.dest === "trash") player.trashCores += dealt
-        else player.reserve += dealt
+        else if (action.dest !== "void") player.reserve += dealt
         log(
             state,
-            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
+            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : action.dest === "void" ? "ボイド" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
@@ -2358,6 +2370,7 @@ const handlers = {
     battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
     lockFlash: lockFlashHandler,
+    disableOpponentBurstThisBattle: disableOpponentBurstThisBattleHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,

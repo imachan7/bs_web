@@ -42,7 +42,7 @@ import {
     requestActivationConfirm,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, instIsCombined, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, instColors, instIsCombined, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -3188,6 +3188,49 @@ const returnToHandCostBudgetHandler: ActionHandler<"returnToHandCostBudget"> = (
     ctx.resolve({ ...action, budget: remaining - getCard(picked.cardId).cost })
 }
 
+const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+
+// destroyFieldExceptOpponentChosenColorの手札バウンス版（BS15-035軍神機メガ・テュール）。
+// 相手が相手自身のスピリットの色から1色指定し、指定外の色を1つでも持つ相手のスピリット（ネクサスは対象外）
+// すべてを持ち主の手札に戻す。合体スピリットはinstColorsで合成色を見るため、該当すればホストごと（＝ブレイヴも）戻る
+const returnFieldExceptOpponentChosenColorHandler: ActionHandler<"returnFieldExceptOpponentChosenColor"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    const targetsFor = (color: Color) => state.players[opp].field.spirits.filter((s) => instColors(s).some((c) => c !== color))
+    const resolveWithColor = (color: Color): void => {
+        const spirits = targetsFor(color)
+        log(state, `${sourceName}：相手の指定色は${color}。それ以外の色を持つ相手のスピリット/ブレイヴを手札に戻す。`)
+        for (const s of spirits) returnSpiritToHand(state, opp, s, sourceName)
+    }
+    if (chosenOption !== undefined && (RETURN_FIELD_COLORS as string[]).includes(chosenOption)) {
+        resolveWithColor(chosenOption as Color)
+        return
+    }
+    const oppSpirits = state.players[opp].field.spirits
+    if (oppSpirits.length === 0) {
+        log(state, `${sourceName}：色を指定するスピリットが相手にいないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：相手のスピリットの色を1色指定してください`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            RETURN_FIELD_COLORS,
+            opp,
+        )
+        return
+    }
+    // 非対話：相手視点で戻る数が最小になる色を選ぶ（プレイヤー選択の決定的簡略化）
+    const countFor = (color: Color): number => targetsFor(color).length
+    const best = RETURN_FIELD_COLORS.reduce((a, b) => (countFor(b) < countFor(a) ? b : a))
+    resolveWithColor(best)
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
@@ -4262,6 +4305,7 @@ const handlers = {
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
+    returnFieldExceptOpponentChosenColor: returnFieldExceptOpponentChosenColorHandler,
     returnToHandCostBudget: returnToHandCostBudgetHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnOwnSpiritToHand: returnOwnSpiritToHandHandler,

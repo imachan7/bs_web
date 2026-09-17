@@ -60,6 +60,13 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
 // 直したら消す。放置すると借りる器（イビルグライダー等）に借りられ、破壊時封じでも止まる。
 // ⚠️ 新しいカードをここに足さないこと。落ちたら直すのが原則
 const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
+    // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
+    // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
+    // extraSourcesにも同じinstを渡すため、effectSources()とextraSourcesの両方にinstが載って二重発火する
+    // （2026-09-17に発見。他のselfOnly併用カードにも影響しうる既知の engine 課題として報告済み）。
+    // kind:"triggered" trigger:"onDestroy" はfireTrigger単発呼び出しなので二重発火せず、
+    // かつcause:"destroy"限定（deplete除外＝Q3621）も自然に満たすため、こちらを使う
+    ["BS15-X04-e1", "見出し無しの「相手によって破壊されたとき」。fieldEvent selfOnlyの二重発火を避けるためtriggered.onDestroyを使用"],
 ])
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
@@ -280,6 +287,7 @@ const VALID_FILTER_KEYS = new Set([
     "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
+    "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
@@ -423,7 +431,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 const keys = Object.keys(t as Record<string, unknown>)
                 if (keys.length === 0) add(id, "braveCondition の項が空")
                 for (const k of keys) {
-                    if (!["family", "minCost", "cardName", "vanilla"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                    if (!["family", "minCost", "cardName", "vanilla", "keyword"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
                 }
             }
         } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {

@@ -39,6 +39,18 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costReserveToTrashFromBofu（BS15-026軍師鳥ショカツリョーLv2）：実効【暴風】指定数ぶんのコストを
+        // 先に払う。払えなければ不発（countFromBofuの解決より前に見る）
+        if (action.costReserveToTrashFromBofu) {
+            const bofuForCost = self ? bofuCountFor(state, owner, self) : 0
+            if (bofuForCost === 0 || state.players[owner].reserve < bofuForCost) {
+                log(state, `${sourceName}：コストを支払えないため発動しなかった。`)
+                return
+            }
+            state.players[owner].reserve -= bofuForCost
+            state.players[owner].trashCores += bofuForCost
+            log(state, `${sourceName}：リザーブのコア${bofuForCost}個をトラッシュに置いた。`)
+        }
         // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
         // 実効指定数（静的 count ＋ bofuCountBonus）で解決し直す。BS08ゲラン准将Lv2 の
         // 「自分のスピリットすべての【暴風】の指定数を+1する」はこの経路でだけ届く
@@ -421,6 +433,28 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
 
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
     const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
+        // eventTargetOnly（BS15-067雪の結晶樹Lv2）：誘発が渡すtargetInstanceIdだけを対象にする
+        // （selfMode:"source"＋attackerAsTarget等でtargetを固定するfieldEvent用。選択の余地なし）
+        if (action.eventTargetOnly) {
+            const chosen = targetInstanceId !== undefined
+                ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                : undefined
+            if (!chosen || !chosen.isRested) {
+                log(state, `${sourceName}の回復：対象がいなかった。`)
+                return
+            }
+            if (action.costSelfCoresToTrash !== undefined) {
+                if (!self || self.cores < action.costSelfCoresToTrash) {
+                    log(state, `${sourceName}：コアが足りず発動しなかった。`)
+                    return
+                }
+                self.cores -= action.costSelfCoresToTrash
+                state.players[owner].trashCores += action.costSelfCoresToTrash
+            }
+            refreshSpirit(state, owner, chosen, srcType)
+            log(state, `${getCard(chosen.cardId).name}は回復した。`)
+            return
+        }
         // 絞り込みは共通の TargetFilter に一本化（keyword/color/vanilla/family/excludeSelf の5軸。
         // 旧フィールドは normalizeFilter が畳み込むためデータは無変更）
         const filter = normalizeFilter(ctx, action)

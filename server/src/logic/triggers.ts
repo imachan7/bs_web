@@ -757,6 +757,13 @@ export function fireBattleWonTriggers(
             if (effect.loserCostAtMost !== undefined && state.lastBattleDestroyedCost > effect.loserCostAtMost) {
                 continue
             }
+            // BS15-066廃寺の無限階段：発生源の持ち主のフィールドが指定色1色だけのときのみ発火
+            if (
+                effect.condition?.ownFieldOnlyColor !== undefined &&
+                !ownFieldOnlyColor(state, winnerPid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)
+            ) {
+                continue
+            }
             firing.push({ inst, effect })
         }
     }
@@ -946,6 +953,14 @@ export function fireStepTriggers(
                     // SD06-009キジ・トリアLv2：自分がバーストをセットしている／していない間だけ発火
                     if (state.players[pid].burstSet !== effect.condition.ownBurstSet) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "opponentBurstSet" in effect.condition) {
+                    // BS15-065大河と絶壁Lv2：相手がバーストをセットしている／していない間だけ発火
+                    if (state.players[opponentOf(pid)].burstSet !== effect.condition.opponentBurstSet) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "noAttacksThisTurn" in effect.condition) {
+                    // BS15-067雪の結晶樹：このターンまだ1度もアタックが行われていないときのみ発火
+                    if (state.attacksThisTurn > 0) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -959,7 +974,11 @@ export function fireStepTriggers(
                     if (total < count) continue
                 }
                 // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
-                if (effect.cost?.exhaustSelf && inst.isRested) continue
+                if (effect.cost && "exhaustSelf" in effect.cost && inst.isRested) continue
+                // cost:{reserveToTrash}（BS15-032スノーフレイクンLv1）：リザーブが足りなければ払えないので発火しない
+                if (effect.cost && "reserveToTrash" in effect.cost && state.players[pid].reserve < effect.cost.reserveToTrash) continue
+                // cost:{selfCoresToTrash}（BS15-023タケノ・サイガーLv2）：発生源自身のコアが足りなければ発火しない
+                if (effect.cost && "selfCoresToTrash" in effect.cost && inst.cores < effect.cost.selfCoresToTrash) continue
                 firing.push({ pid, inst, effect })
             }
         }
@@ -974,8 +993,19 @@ export function fireStepTriggers(
             }
             // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
             // interactiveTargetsの確認を断った場合も疲労する簡略化）
-            if (e.effect.cost?.exhaustSelf) {
+            if (e.effect.cost && "exhaustSelf" in e.effect.cost) {
                 exhaustSpirit(state, e.pid, e.inst)
+            }
+            if (e.effect.cost && "reserveToTrash" in e.effect.cost) {
+                const player = state.players[e.pid]
+                const paid = e.effect.cost.reserveToTrash
+                player.reserve -= paid
+                player.trashCores += paid
+            }
+            if (e.effect.cost && "selfCoresToTrash" in e.effect.cost) {
+                const paid = e.effect.cost.selfCoresToTrash
+                e.inst.cores -= paid
+                state.players[e.pid].trashCores += paid
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
@@ -1062,6 +1092,11 @@ function burstConditionMet(
     }
     // BS15-017エンプレス・ヨウクィーン：自分の手札が5枚以上のとき
     if ("ownHandAtLeast" in condition) return player.hand.length >= condition.ownHandAtLeast
+    // BS15-026軍師鳥ショカツリョー：自分と相手のフィールドに疲労状態のスピリットが合計でこれ以上いるとき
+    if ("bothFieldsRestedSpiritsAtLeast" in condition) {
+        const restedCount = (p: typeof player) => p.field.spirits.filter((s) => s.isRested).length
+        return restedCount(player) + restedCount(state.players[opponentOf(pid)]) >= condition.bothFieldsRestedSpiritsAtLeast
+    }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1084,6 +1119,8 @@ export function fireFieldEventTriggers(
         byBattle?: boolean
         // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったか（attackerOnly の判定に使う）
         wasAttacker?: boolean
+        // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの実効BP（破壊直前の近似値。kind:"burst".destroyedMinBpの判定に使う。BS15-034ミブロック・ジーナス）
+        destroyedBp?: number
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
         // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
@@ -1564,12 +1601,15 @@ export function fireFieldEventTriggers(
             (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
         )
         if (!effect) continue
+        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
+        if (state.battle?.burstBlockedForPid === holderPid) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
         // byOpponentEffectOnly / destroyedColorFilter：fieldEvent の同名軸と同じ判定（event: "ownSpiritDestroyed" 限定）
         if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
         if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
+        if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
         const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
@@ -2552,6 +2592,13 @@ function runMagicActions(
                 )
                 if (!names.every((n) => ownNames.has(n))) {
                     log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
+                    continue
+                }
+            } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                // BS15-078飛雷震之計：相手のフィールドの色の種類数がこれ以上ないと使用できない
+                const { opponentFieldColorsAtLeast: minColors, spiritsOnly } = effect.condition
+                if (opponentFieldColorCount(state, owner, spiritsOnly) < minColors) {
+                    log(state, `${card.name}：相手のフィールドの色が${minColors}色未満のため発動しなかった。`)
                     continue
                 }
             } else {

@@ -127,6 +127,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     lifeDamagePerSpiritRemaining,
+    ownFieldOnlyColor,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -786,6 +787,9 @@ function fireOwnSpiritDestroyed(
         vanilla: instIsVanilla(inst),
         byBattle,
         wasAttacker,
+        // kind:"burst".destroyedMinBp用（BS15-034）：破壊直前の実効BPの近似値。既にフィールドから
+        // 離れている場合があるためeffectiveBpはオーラ等を欠くことがあるが、破壊直前の状態を極力保つ
+        destroyedBp: effectiveBp(state, ownerPid, inst),
         bySpiritEffect,
         // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
         byOpponentEffect,
@@ -1821,9 +1825,12 @@ function tryReviveOnDestroy(
 
     // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
     // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
-    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean }): boolean => {
+    const matchesReviveCondition = (
+        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true },
+    ): boolean => {
         if (!condition) return true
         if ("ownBurstSet" in condition) return (player.burst !== null) === condition.ownBurstSet
+        if ("ownFieldOnlyColor" in condition) return ownFieldOnlyColor(state, ownerPid, condition.ownFieldOnlyColor, condition.spiritsOnly)
         const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
         return oppColors.size <= condition.opponentFieldSymbolColorsAtMost
     }
@@ -1861,6 +1868,11 @@ function tryReviveOnDestroy(
         if (!applyCost(effect, inst)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
+        // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
+        if (effect.alsoVoidCoreToReserve) {
+            player.reserve += effect.alsoVoidCoreToReserve
+            log(state, `${sourceName}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+        }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
         applyRevived(effect.revived)
@@ -1947,6 +1959,10 @@ function tryReviveOnDestroy(
             if (!applyCost(effect, source)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
+            if (effect.alsoVoidCoreToReserve) {
+                player.reserve += effect.alsoVoidCoreToReserve
+                log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+            }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
             applyRevived(effect.revived)
             log(

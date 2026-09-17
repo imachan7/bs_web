@@ -37,6 +37,9 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                     if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
                     if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
                 }
+                // turn（ステップ不問。BS15-068要塞都市ナウマンシティーLv2：見出しが『相手のターン』のみ）
+                if (effect.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === board.turnPlayer) continue
                 if (effect.condition) {
                     if ("ownFamilyCountAtLeast" in effect.condition) {
                         // 魔力満ちる泉：発生源の持ち主のフィールドに指定系統のスピリットがcount体以上のときのみ
