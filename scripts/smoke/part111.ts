@@ -53,7 +53,8 @@ console.log("=== BS01-093 甲精ディース Lv1：ブロック宣言時、ブ�
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロックできる")
     // ディースの『ブロックされたとき』効果はブロック宣言の時点で解決する（バトル解決はまだ先）
     assert(bystander.isRested === true, "ブロックしていない側が効果で疲労した（excludeTarget）")
-    assert(blocker.isRested === false, "ブロックしたスピリットは効果の対象から除外される")
+    // ブロッカーはブロック宣言そのもので疲労する（part340）。除外されたことは、疲労したのが bystander の1体だけ＝効果の1体ぶんが bystander に向いたことで見る
+    assert(blocker.isRested === true, "ブロックしたスピリットはブロック宣言で疲労している（効果の対象ではない）")
 }
 
 console.log("=== BS01-093：ブロッカー以外に候補がいなければ不発（ブロッカーを疲労させ直さない） ===")
@@ -67,7 +68,9 @@ console.log("=== BS01-093：ブロッカー以外に候補がいなければ不�
     assert(act(s, "p1", { type: "attack", instanceId: dis.instanceId }) === null, "アタックできる")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロックできる")
     // 自分側（ディース自身）は既にアタックで疲労しているので、疲労できる候補は他にいない
-    assert(blocker.isRested === false, "唯一のブロッカーは除外されるため疲労しない（不発）")
+    // ブロッカーはブロック宣言そのもので疲労する（part340）ので、疲労状態では除外を見分けられない。ログで不発を確かめる
+    assert(blocker.isRested === true, "ブロッカーはブロック宣言で疲労している")
+    assert(!s.log.some((l) => typeof l === "string" && l.includes("ロクケラトプス") && l.includes("疲労させ")), "唯一のブロッカーは除外されるため効果では疲労させない（不発）")
 }
 
 console.log("=== BS02-055 チャウー Lv2：効果でリザーブへ置かれるコアが+1個される ===")
