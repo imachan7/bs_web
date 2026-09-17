@@ -1,7 +1,7 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
 import { currentLevel, draw, getCard, log, pushResumeFrames } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 // 器BJ：カード名条件・コア条件に合う自分のネクサスを、アタックステップの間だけスピリットとして扱う
@@ -221,6 +221,18 @@ export function toAttackPhase(state: GameState): void {
 
 // ターン終了処理：エンドステップを経て相手のターンを開始する
 export function endTurn(state: GameState): void {
+    // アタックする／しないに関わらず、アタックステップは必ず経由する（2026-09-17 ユーザー確認。smoke part343）。
+    // メインステップから直接ターンを終了したときも、ここでアタックステップへ入って開始時の誘発を出してから
+    // 終了時の誘発へ進む。「アタックステップは行えず」（BS10-108 ルナティックシール）のときだけ経由しない。
+    // 開始時の誘発が選択待ちになったら、選択の解決後にこの関数をやり直す（そのときは phase が "attack"）
+    if (state.phase === "main" && !isEndStepLocked(state, "attackStep")) {
+        toAttackPhase(state)
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "endTurn" }])
+            return
+        }
+    }
     // 「アタックステップ終了時」の誘発（紫水晶の森Lv2）。エンドステップへ移る直前に、
     // まだ phase が "attack" のまま発火させる（『自分のアタックステップ』の turn/phase 判定を効かせるため）
     if (state.phase === "attack") fireStepTriggers(state, "attack", undefined, "end")
