@@ -25,21 +25,14 @@
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
 **BS15「覇王編 第2弾：黄金の大地」91種は完了**（2026-09-18。gaps 0件・smoke part330〜347・`data/cards/BS15.json` に結合済み）。
-確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。**PR は draft #70**（ユーザーがマージする）。
+確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。PR #70 はマージ済み。
 
 **次の本線は BS16**（ブランチ `feat/bs16-import`。計画は同ブランチの `docs/design/BS16_PLAN.md`）。その前提として下の修正を別PRで出す。
 
-### 進行中：「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`。2026-09-18 設計確定）
+### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
-規則（ユーザー確認）：2体以上が同時に破壊されても、他のカードの「〜が破壊されたとき」は**1回**。数の指定があればその数だけ、「1体につき」なら体数ぶん。
-
-1. **同時破壊グループ**：`destroySpiritsFrom` の1回の呼び出し（＝事前に確定した対象リスト）を1グループとする。`GameState.destroyGroup?: { id: string; memberIds: string[]; used: string[] }`。
-   開始時に作り、終わったら外す。入れ子の破壊に備えて**前の値を退避して戻す**。中断に備えて `destroyBatch` フレームにも持たせ、再開時に戻す
-2. **1回にする対象**：`fieldEvent` の `ownSpiritDestroyed` / `opponentSpiritDestroyed` と、**他の発生源**の `reviveOnDestroy`。キーは `${発生源instanceId}:${effect.id}`。
-   グループ中に `used` にあるキーは発火（列への追加）しない。**消費するのは実際に解決したとき**（任意効果で「使わない」を選んだら消費しない＝次の1体で使える。これでどの1体に使うかを対戦者が選べる）
-3. 例外：`perDestroyed: true`（新設。`fieldEvent` と `reviveOnDestroy` に足す）の効果は従来どおり1体ごと。効果文が「1体につき」「すべて」等の札に付ける
-4. 破壊されたカード**自身**の『破壊時』・自身の `reviveOnDestroy`・【不死】・バーストは対象外（もともと1体に1回）
-5. `destroySpiritsFrom` を通らずにループで `destroySpirit` を呼ぶ複数破壊があれば、`destroyTargetsBatch` に寄せる
+- BS12-052 デス・ヘイズの「好きなだけ破壊」（`destroyOwnFreelyThenDrawHandler`）は独自ループのまま＝同時破壊グループに入らない（`suppressOnDestroy` をバッチに通す改修が要る）
+- 必須（任意でない）の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
 
 ### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
 
@@ -111,9 +104,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-**「破壊されたとき」は一度に2体以上破壊されても1回と数える**（公式Q&A Q22359）。現行の `fireOwnSpiritDestroyed` は
-**1体ごとに誘発**していて食い違う。既存カード全般に効くので、直すかどうか・範囲をユーザーに確認してから着手する
-（BS15_PLAN §2.4）。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ。
+（なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
 ## 3. 決着済み（蒸し返さないこと）
 

@@ -4108,6 +4108,7 @@ export {
     applyMagicNegateChoice,
     declineMagicNegateChoice,
     revertOncePerTurn,
+    revertDestroyGroupUsage,
 } from "./triggers"
 
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----

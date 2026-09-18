@@ -882,6 +882,7 @@
     "effects": [
       {
         "id": "BS12-014-e1",
+        "perDestroyed": true,
         "kind": "fieldEvent",
         "event": "ownSpiritDestroyed",
         "levels": [

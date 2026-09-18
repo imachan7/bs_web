@@ -6132,6 +6132,7 @@
    },
    {
     "id": "BS14-104-e2",
+    "perDestroyed": true,
     "kind": "fieldEvent",
     "event": "ownSpiritDestroyed",
     "levels": null,
