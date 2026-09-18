@@ -1336,6 +1336,7 @@
    },
    {
     "id": "BS15-021-e2",
+    "perDestroyed": true,
     "kind": "fieldEvent",
     "event": "ownSpiritDestroyed",
     "levels": [
@@ -4132,6 +4133,7 @@
    },
    {
     "id": "BS15-061-e2",
+    "perDestroyed": true,
     "kind": "fieldEvent",
     "event": "ownSpiritDestroyed",
     "levels": [

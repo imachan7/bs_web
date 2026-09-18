@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { randomUUID } from "node:crypto"
 import type {
     AuraCondition,
     AuraCounter,
@@ -63,6 +64,7 @@ import {
     notifyNexusDeployed,
     notifySpiritCoresRemovedByOpponent,
     resolveMagicEffects,
+    revertDestroyGroupUsage,
 } from "./triggers"
 import type { FieldEventExtraItem } from "./triggers"
 import ACTION_HANDLERS from "./actions"
@@ -1087,7 +1089,10 @@ export function wouldAskReviveConfirm(
     return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
 }
 
-// この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用なし**）。
+// この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
+// 同時破壊グループが有効な間は、他の発生源（sourceInstanceId 付き＝scope:"ownAll"）の枠を
+// `${sourceInstanceId}:${effectId}` 単位で仮消費する。自身の reviveOnDestroy（scope:"self"）は対象外
+// （公式Q&A Q22359。fix/destroyed-trigger-once）。断った場合は declineReviveConfirm が戻す
 // 破壊で誘発した効果を1列に並べるとき、列の項目として出すために使う（docs/design/TIMING_CHART.md）
 export function collectReviveEntries(
     state: GameState,
@@ -1095,9 +1100,19 @@ export function collectReviveEntries(
     inst: CardInstance,
     context?: DestroyContext,
 ): { effectId: string; sourceName: string }[] {
-    const found: { effectId: string; sourceName: string }[] = []
+    const found: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true }[] = []
     tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
-    return found
+    const group = state.destroyGroup
+    const result: { effectId: string; sourceName: string }[] = []
+    for (const entry of found) {
+        if (group && entry.sourceInstanceId !== undefined && entry.perDestroyed !== true) {
+            const key = `${entry.sourceInstanceId}:${entry.effectId}`
+            if (group.used.includes(key)) continue
+            group.used.push(key)
+        }
+        result.push({ effectId: entry.effectId, sourceName: entry.sourceName })
+    }
+    return result
 }
 
 // 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
@@ -1431,6 +1446,10 @@ export function destroyTargetsBatch(
     context?: DestroyContext,
     after?: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
 ): number {
+    // 同時破壊グループ（他カードの「破壊されたとき」を1回にする単位）。入れ子の破壊に備え、
+    // このバッチが始まる前の値を退避して完了時に戻す（docs/design/TIMING_CHART.md）
+    const prevGroup = state.destroyGroup
+    state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [] }
     const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
     if (stoppedAt < targets.length) {
         pushResumeFrames(state, [{
@@ -1441,9 +1460,11 @@ export function destroyTargetsBatch(
             destroyed,
             ...(context ? { context } : {}),
             ...(after ? { after } : {}),
+            ...(prevGroup ? { prevGroup } : {}),
         }])
         return destroyed
     }
+    restoreDestroyGroup(state, prevGroup)
     if (state.winner) return destroyed
     if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     return destroyed
@@ -1461,6 +1482,7 @@ export function resumeDestroyBatch(
     let carried = frame.destroyed
     if (state.lastReviveDestroyed === true) carried++
     delete state.lastReviveDestroyed
+    // state.destroyGroup は中断をまたいでそのまま（この関数の呼び出し元は積み直すだけで触らない）
     const { destroyed, stoppedAt } = destroySpiritsFrom(
         state,
         frame.targets,
@@ -1472,8 +1494,14 @@ export function resumeDestroyBatch(
         pushResumeFrames(state, [{ ...frame, index: stoppedAt, destroyed }])
         return
     }
+    restoreDestroyGroup(state, frame.prevGroup)
     if (state.winner) return
     applyDestroyBatchAfter(state, frame.ownerPid, destroyed, frame.after)
+}
+
+function restoreDestroyGroup(state: GameState, prev: GameState["destroyGroup"]): void {
+    if (prev) state.destroyGroup = prev
+    else delete state.destroyGroup
 }
 
 // 「この効果で破壊したスピリット1体につき」の後処理。
@@ -1532,6 +1560,9 @@ export function declineReviveConfirm(
     const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
     if (!inst) return
     log(state, `${player.name}の${getCard(inst.cardId).name}は復活しなかった。`)
+    // 同時破壊グループの仮消費を戻す（このsourceInstanceIdはscope:"self"のときは元々マークしていないので
+    // 何もしない。次に破壊される1体でまたこの発生源の枠を提示できるようにする。fix/destroyed-trigger-once）
+    revertDestroyGroupUsage(state, entry.sourceInstanceId, entry.effectId)
     // 破壊バッチが中断から再開したときに「破壊できた数」へ算入できるよう結果を残す
     state.lastReviveDestroyed = destroySpirit(
         state,
@@ -1564,8 +1595,10 @@ function tryReviveOnDestroy(
     // ⚠️ "any" はコストが払えるかまでは見ない近似（副作用なしで確かめられないため）
     probe?: "confirm" | "any",
     // 指定時は**適用せず、条件を満たすエントリを集めるだけ**（破壊で誘発した効果を1列に並べるとき、
-    // 「フィールドに残る／戻る」を列の項目として出すために使う。docs/design/TIMING_CHART.md）
-    collect?: { effectId: string; sourceName: string }[],
+    // 「フィールドに残る／戻る」を列の項目として出すために使う。docs/design/TIMING_CHART.md）。
+    // sourceInstanceId／perDestroyed は scope:"ownAll"（他の発生源）のときだけ載る
+    // （collectReviveEntries が同時破壊グループの重複判定に使う。scope:"self" は対象外＝常に載らない）
+    collect?: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true }[],
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -2032,7 +2065,12 @@ function tryReviveOnDestroy(
             if (oncePerTurnBlocked(effect, source)) continue
             // collect：条件を満たしたのでここで拾う。適用はせず、次の発生源も見に行く
             if (collect) {
-                collect.push({ effectId: effect.id, sourceName: getCard(source.cardId).name })
+                collect.push({
+                    effectId: effect.id,
+                    sourceName: getCard(source.cardId).name,
+                    sourceInstanceId: source.instanceId,
+                    ...(effect.perDestroyed ? { perDestroyed: true as const } : {}),
+                })
                 continue
             }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
