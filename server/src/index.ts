@@ -410,7 +410,39 @@ function tryMatch(): void {
     }
 }
 
+// ---- 放置接続の切断 ----
+// Cloud Run は WebSocket が1本でも張られている間ずっと課金されるので、ロビーや結果画面の
+// タブ放置で無料枠が尽きる（docs/ops/DEPLOY_CLOUDRUN.md §5）。対戦していない状態が続いた接続を切る。
+// クライアントは次の操作で黙って再接続する（ロビーの状態はクライアントにしか無いので失うものは無い）
+const IDLE_DISCONNECT_MS = Number(process.env.IDLE_DISCONNECT_MS ?? 15 * 60 * 1000)
+const idleSince = new Map<string, number>()
+
+// 待機列に並んでいる・ルームで相手を待っている・決着前で相手も接続中の対局、のどれかなら対戦中
+function isPlaying(socketId: string): boolean {
+    if (matchQueue.has(socketId)) return true
+    const found = roomManager.findBySocket(socketId)
+    if (!found) return false
+    const { game, players } = found.room
+    if (!game) return true
+    if (game.winner) return false
+    return (["p1", "p2"] as const).every((pid) => players[pid]?.connected === true)
+}
+
+setInterval(() => {
+    const now = Date.now()
+    for (const socket of io.sockets.sockets.values()) {
+        if (isPlaying(socket.id)) {
+            idleSince.delete(socket.id)
+            continue
+        }
+        const since = idleSince.get(socket.id)
+        if (since === undefined) idleSince.set(socket.id, now)
+        else if (now - since >= IDLE_DISCONNECT_MS) socket.disconnect(true)
+    }
+}, Math.min(60_000, IDLE_DISCONNECT_MS)).unref()
+
 io.on("connection", (socket: Socket) => {
+    socket.on("disconnect", () => idleSince.delete(socket.id))
     socket.on(
         "join",
         (payload: {
