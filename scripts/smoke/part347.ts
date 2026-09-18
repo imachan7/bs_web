@@ -144,17 +144,17 @@ console.log("=== 052 天蒼元帥チョウハッカイ：別名・手札の増�
 console.log("=== 053 コジロンド・ゴレム：コスト4以上を粉砕したとき相手を疲労させる ===")
 {
     const s = game("p347-053")
-    const kojiro = put(s, "p1", "BS15-053", 4) // Lv2
+    const kojiro = put(s, "p1", "BS15-053", 4) // Lv3＝3枚破棄する
     const opp = put(s, "p2", "BS01-001", 1)
-    s.players.p2.deck.unshift("BS15-054", "BS15-054") // コスト11
+    s.players.p2.deck.unshift("BS15-054", "BS15-054", "BS15-054") // コスト11
     resolveFunsai(s, "p1", kojiro)
     assert(opp.isRested, "コスト4以上を破棄したので相手のスピリットが疲労した")
 }
 {
     const s = game("p347-053b")
-    const kojiro = put(s, "p1", "BS15-053", 4)
+    const kojiro = put(s, "p1", "BS15-053", 4) // Lv3＝3枚破棄するので、山札の先頭3枚をこちらで固定する
     const opp = put(s, "p2", "BS01-001", 1)
-    s.players.p2.deck.unshift("BS15-037", "BS15-037") // コスト0
+    s.players.p2.deck.unshift("BS15-037", "BS15-037", "BS15-037") // コスト0
     resolveFunsai(s, "p1", kojiro)
     assert(!opp.isRested, "コスト4未満だけなら疲労しない")
 }
