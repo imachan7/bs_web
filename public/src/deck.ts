@@ -288,7 +288,7 @@ function renderPool(): void {
             el.appendChild(badge)
         }
 
-        // ＋ボタン（カード本体クリックでも追加）
+        // ＋ボタン（パソコンではカード本体クリックでも追加）
         if (!card.limited) {
             const addBtn = document.createElement("button")
             addBtn.className = "add-btn"
@@ -307,9 +307,10 @@ function renderPool(): void {
         el.addEventListener("mouseleave", () => {
             hideDetail()
         })
+        // タッチ端末では本体タップは効果の表示だけにし、追加は＋ボタンに限る（誤追加を防ぐ）
         el.addEventListener("click", () => {
             renderDetail(card, el)
-            addCard(card.cardId)
+            if (!matchMedia("(hover: none)").matches) addCard(card.cardId)
         })
 
         grid.appendChild(el)
@@ -436,9 +437,10 @@ function positionDetail(panel: HTMLElement, anchor: HTMLElement): void {
     if (left + pw > window.innerWidth - 8) {
         left = rect.left - pw - gap
     }
-    // 左にも置けない（狭い画面）場合はカードの下
+    // 左にも置けない（狭い画面）場合は、どの列のカードでも一覧の左端に揃える（右列で見切れないように）
     if (left < 8) {
-        left = Math.max(8, rect.left)
+        const listLeft = anchor.parentElement?.getBoundingClientRect().left ?? 8
+        left = Math.max(8, Math.min(listLeft, window.innerWidth - pw - 8))
     }
 
     // 上端はカードに揃えるが、下にはみ出さないようにする
