@@ -27,7 +27,19 @@
 **BS15「覇王編 第2弾：黄金の大地」91種は完了**（2026-09-18。gaps 0件・smoke part330〜347・`data/cards/BS15.json` に結合済み）。
 確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。**PR は draft #70**（ユーザーがマージする）。
 
-**次の本線は未定**（BS16 の取り込みか、下の「残っている課題」から選ぶ）。
+**次の本線は BS16**（ブランチ `feat/bs16-import`。計画は同ブランチの `docs/design/BS16_PLAN.md`）。その前提として下の修正を別PRで出す。
+
+### 進行中：「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`。2026-09-18 設計確定）
+
+規則（ユーザー確認）：2体以上が同時に破壊されても、他のカードの「〜が破壊されたとき」は**1回**。数の指定があればその数だけ、「1体につき」なら体数ぶん。
+
+1. **同時破壊グループ**：`destroySpiritsFrom` の1回の呼び出し（＝事前に確定した対象リスト）を1グループとする。`GameState.destroyGroup?: { id: string; memberIds: string[]; used: string[] }`。
+   開始時に作り、終わったら外す。入れ子の破壊に備えて**前の値を退避して戻す**。中断に備えて `destroyBatch` フレームにも持たせ、再開時に戻す
+2. **1回にする対象**：`fieldEvent` の `ownSpiritDestroyed` / `opponentSpiritDestroyed` と、**他の発生源**の `reviveOnDestroy`。キーは `${発生源instanceId}:${effect.id}`。
+   グループ中に `used` にあるキーは発火（列への追加）しない。**消費するのは実際に解決したとき**（任意効果で「使わない」を選んだら消費しない＝次の1体で使える。これでどの1体に使うかを対戦者が選べる）
+3. 例外：`perDestroyed: true`（新設。`fieldEvent` と `reviveOnDestroy` に足す）の効果は従来どおり1体ごと。効果文が「1体につき」「すべて」等の札に付ける
+4. 破壊されたカード**自身**の『破壊時』・自身の `reviveOnDestroy`・【不死】・バーストは対象外（もともと1体に1回）
+5. `destroySpiritsFrom` を通らずにループで `destroySpirit` を呼ぶ複数破壊があれば、`destroyTargetsBatch` に寄せる
 
 ### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
 
