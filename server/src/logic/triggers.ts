@@ -237,6 +237,17 @@ export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
     inst.triggeredUsedTurn = rest
 }
 
+// 同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
+// 次に破壊される1体でまた提示できるようにする（fix/destroyed-trigger-once）。
+// キーが無い（グループが無効／perDestroyed で最初から印を付けていない）ときは何もしない
+export function revertDestroyGroupUsage(state: GameState, instanceId: string, effectId: string): void {
+    const g = state.destroyGroup
+    if (!g) return
+    const key = `${instanceId}:${effectId}`
+    const at = g.used.indexOf(key)
+    if (at !== -1) g.used.splice(at, 1)
+}
+
 export function fireTrigger(
     state: GameState,
     owner: PlayerId,
@@ -1486,6 +1497,19 @@ export function fireFieldEventTriggers(
                         ? eventCount
                         : 1
                 : 1
+            // 同時破壊グループ：2体以上が同時に破壊されても、他カードの「破壊されたとき」は
+            // グループにつき1回だけ（perDestroyed 指定は対象外。公式Q&A Q22359。fix/destroyed-trigger-once）。
+            // 消費は resolve 側で解決確定するまでの間だけ先取りし、断った／不発なら revertDestroyGroupUsage で戻す
+            // （oncePerTurn と同じ「マッチ時点で仮消費 → 未発揮なら巻き戻す」形）
+            if (
+                (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") &&
+                state.destroyGroup &&
+                effect.perDestroyed !== true
+            ) {
+                const groupKey = `${inst.instanceId}:${effect.id}`
+                if (state.destroyGroup.used.includes(groupKey)) continue
+                state.destroyGroup.used.push(groupKey)
+            }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
             firing.push({ inst, effect, repeatTimes })
@@ -1565,13 +1589,18 @@ export function fireFieldEventTriggers(
                     activationPrompt(e.inst),
                     e.effect.action,
                     c.actionSelf,
-                    e.effect.oncePerTurn ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined,
+                    // oncePerTurn／同時破壊グループの仮消費どちらも、断ったときにここで戻す
+                    // （revertDestroyGroupUsageは対象キーが無ければ何もしないので常に渡してよい）
+                    { instanceId: e.inst.instanceId, effectId: e.effect.id },
                 )
             } else {
                 delete state.effectFizzled
                 resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
-                // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す（2026-09-16）
-                if (e.effect.oncePerTurn && state.effectFizzled) revertOncePerTurn(e.inst, e.effect.id)
+                // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
+                if (state.effectFizzled) {
+                    if (e.effect.oncePerTurn) revertOncePerTurn(e.inst, e.effect.id)
+                    revertDestroyGroupUsage(state, e.inst.instanceId, e.effect.id)
+                }
                 delete state.effectFizzled
             }
         },

@@ -435,6 +435,8 @@ export type EffectDef =
           kind: "fieldEvent"
           event: FieldEvent
           levels: number[] | null
+          perDestroyed?: true // event: "ownSpiritDestroyed" | "opponentSpiritDestroyed" 限定：同時破壊でも**破壊された体数ぶん**発火する
+          // （「1体につき」「すべて」等の効果文。省略時は同時破壊グループにつき1回だけ＝Q22359。fix/destroyed-trigger-once）
           oncePerTurn?: true // 「この効果はターンに1回しか使えない」。kind:"triggered".oncePerTurnと同じ形（CardInstance.triggeredUsedTurnをeffect.idで共有）。BS13-070星宿の障壁Lv2
           whileCombined?: true // 【合体時】＝**このカードが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。
           combinedBraveColors?: Color[] // 【合体時】と併用：合体しているブレイヴの**いずれか1つ**がこの色のどれかを持つときだけ発火する（triggered の同名軸と同じ判定。X008＝「緑/白/黄のブレイヴとの合体時」）
@@ -759,6 +761,8 @@ export type EffectDef =
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる（チャガマル／紫水晶の森／鏡の回廊／無法者の荒野／深緑の樹海／子供部屋 午前0時）
           levels: number[] | null
           scope: "self" | "ownAll" // self=このスピリット自身が対象／ownAll=発生源の持ち主の全スピリットが対象
+          perDestroyed?: true // scope:"ownAll" 限定：同時破壊でも**破壊された体数ぶん**確認する（省略時は同時破壊グループにつき1回。Q22359。fix/destroyed-trigger-once）。
+          // scope:"self" は対象外（破壊される個体自身の効果は元々1体1回）
           whileCombined?: true // 【合体時】＝**このブレイヴが合体しているときだけ**発揮する（docs/design/BRAVE.md §12.3）。scope:"self"専用：ブレイヴが合体しているホスト（合体スピリット）が破壊されるときに、ホストの破壊を代わりに防ぐ（効果文の「このスピリット」はホストを指す）。合体中ブレイヴのscope:"self"はカード自身（getCard(inst.cardId)）の走査では拾えないため、tryReviveOnDestroyがinst（ホスト）のcombinedBravesを別途走査する（BS12-052デス・ヘイズ）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効。**2026-08-24 追加**：データには書いてあったが型に無く、実装が読んでいなかった
           optional?: true // 効果文が「〜できる」＝任意のとき指定する。実対戦（interactiveTargets）では

@@ -1131,6 +1131,9 @@ export type ResumeFrame =
           index: number
           destroyed: number
           context?: DestroyContext
+          // このバッチが始まる前の state.destroyGroup（入れ子の破壊があっても正しく戻すため。
+          // 完了時に state.destroyGroup へ書き戻す）
+          prevGroup?: GameState["destroyGroup"]
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）
               drawPerDestroyed?: true
@@ -1275,6 +1278,12 @@ export interface GameState {
     bofuExhaustedThisBattle: { pid: PlayerId; instanceId: string; bofuSourceInstanceId?: string }[]
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
+    // 同時破壊グループ（destroyTargetsBatch の1回の呼び出し＝1グループ）。
+    // 他カードの「〜が破壊されたとき」（fieldEvent ownSpiritDestroyed/opponentSpiritDestroyed）と
+    // 他の発生源の reviveOnDestroy を、このグループの間は`${発生源instanceId}:${effectId}`単位で1回にする
+    // （perDestroyed指定の効果は対象外。公式Q&A Q22359。docs/design/TIMING_CHART.md）。
+    // 中断・入れ子の破壊に備え、destroyTargetsBatch/resumeDestroyBatch が退避・復元する
+    destroyGroup?: { id: string; memberIds: string[]; used: string[] }
     // 直前の「破壊される代わりに復活できる」の確認で、**結局その個体が破壊されたか**。
     // 破壊バッチ（destroyBatch フレーム）が中断から再開したときに、中断の原因になった1体を
     // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。
