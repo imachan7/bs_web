@@ -1098,6 +1098,19 @@ function burstConditionMet(
         const restedCount = (p: typeof player) => p.field.spirits.filter((s) => s.isRested).length
         return restedCount(player) + restedCount(state.players[opponentOf(pid)]) >= condition.bothFieldsRestedSpiritsAtLeast
     }
+    // BS15共通器：BS15-043ショーグンペンタン「自分の黄のスピリットが3体以上いるとき」
+    if ("ownColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownColorCountAtLeast
+        return player.field.spirits.filter((s) => instHasColor(s, color)).length >= count
+    }
+    // BS15共通器：BS15-053コジロンド・ゴレム「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」
+    if ("ownFieldHasKeywordAny" in condition) {
+        return player.field.spirits.some((s) => condition.ownFieldHasKeywordAny.some((k) => spiritHasKeyword(state, pid, s, k)))
+    }
+    // BS15共通器：BS15-083秘剣燕返「相手の手札が5枚以上のとき」
+    if ("opponentHandAtLeast" in condition) {
+        return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
+    }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1435,6 +1448,9 @@ export function fireFieldEventTriggers(
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
                     if ((state.lastFunsai?.spirits ?? 0) === 0) continue
+                } else if ("lastFunsaiHasCostAtLeast4" in effect.condition) {
+                    // BS15共通器：BS15-053コジロンド・ゴレムLv2-3「コスト4以上のカードを破棄したとき」
+                    if ((state.lastFunsai?.costAtLeast4 ?? 0) === 0) continue
                 } else if ("opponentHandAtLeastOwnHand" in effect.condition) {
                     // BS13-042ナイト・ゴーンLv2：相手の手札枚数が自分の手札枚数以上のときのみ
                     if (state.players[opponentOf(pid)].hand.length < state.players[pid].hand.length) continue
@@ -1464,9 +1480,11 @@ export function fireFieldEventTriggers(
             const repeatTimes = effect.repeatPerCount
                 ? effect.countMode === "cores" && eventInfo?.coresRemoved !== undefined
                     ? eventInfo.coresRemoved
-                    : eventCount
-                      ? eventCount
-                      : 1
+                    : effect.countMode === "funsaiSpirits"
+                      ? (state.lastFunsai?.spirits ?? 0)
+                      : eventCount
+                        ? eventCount
+                        : 1
                 : 1
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
@@ -1601,9 +1619,26 @@ export function fireFieldEventTriggers(
         const holder = state.players[holderPid]
         const burstCardId = holder.burst
         if (burstCardId === null) continue
-        const effect = getCard(burstCardId).effects.find(
+        let effect = getCard(burstCardId).effects.find(
             (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
         )
+        // BS15共通器：globalConstraint "burstAltEventFromOpponentSummon"（発生源=holder自身）が
+        // 効いている間、event:"opponentSummonEffectResolved"のバーストは"ownLifeDamaged"でも拾う
+        // （BS15-069太陰の宮廷Lv2）
+        const hasBurstAltEvent = effectSources(state, holderPid).some((src) => {
+            const srcLevel = currentLevel(src).level
+            return getCard(src.cardId).effects.some(
+                (e) =>
+                    e.kind === "globalConstraint" &&
+                    e.constraint.type === "burstAltEventFromOpponentSummon" &&
+                    effectActiveAtLevel(e.levels, srcLevel),
+            )
+        })
+        if (!effect && event === "ownLifeDamaged" && hasBurstAltEvent) {
+            effect = getCard(burstCardId).effects.find(
+                (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === "opponentSummonEffectResolved",
+            )
+        }
         if (!effect) continue
         // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
         if (state.battle?.burstBlockedForPid === holderPid) continue
@@ -1638,6 +1673,9 @@ export function fireFieldEventTriggers(
                     ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
                     ...(alsoDraw ? { alsoDraw: true as const } : {}),
                     ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+                    // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
+                    // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
+                    ...(eventInfo?.costs?.[0] !== undefined ? { burstEventCost: eventInfo.costs[0] } : {}),
                 }
             }
             return
@@ -1645,6 +1683,9 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
+        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
+        if (eventInfo?.costs?.[0] !== undefined) state.burstEventCost = eventInfo.costs[0]
+        else delete state.burstEventCost
         // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
         // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
         const burstCard = getCard(burstCardId)

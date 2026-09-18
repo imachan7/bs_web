@@ -1358,6 +1358,11 @@ export function checkAuraCondition(
     if ("ownFieldOnlyColor" in condition) {
         return ownFieldOnlyColor(board, sourcePid, condition.ownFieldOnlyColor, condition.spiritsOnly === true)
     }
+    // BS15共通器：発生源の持ち主から見た相手がバーストをセットしている間（false指定時はセットしていない間）
+    if ("opponentBurstSet" in condition) {
+        const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return board.players[oppPid].burstSet === condition.opponentBurstSet
+    }
     if ("hasOwnColor" in condition) {
         // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
         // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
@@ -1562,7 +1567,14 @@ export function effectiveBp(
     // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
     // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるのは印刷BPのぶんだけ
     const bpBuffsOnInst = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
-    const baseBp = inst.bpAsContinuous !== undefined ? inst.bpAsContinuous + bpBuffsOnInst : currentLevel(inst).bp
+    // BS15共通器：battleBpAs（このバトル限定・単体対象の「Lv◯BPを◯として扱う」）。levelsに現在Lvが
+    // 含まれるときだけ基礎BPを置き換える（bpAsContinuousと同じ考え方。BS15-X05光の覇王ルナアーク・カグヤ）
+    const battleBpAsMatch = inst.battleBpAs !== undefined && inst.battleBpAs.levels.includes(currentLevel(inst).level)
+    const baseBp = battleBpAsMatch
+        ? inst.battleBpAs!.amount + bpBuffsOnInst
+        : inst.bpAsContinuous !== undefined
+          ? inst.bpAsContinuous + bpBuffsOnInst
+          : currentLevel(inst).bp
     let total = baseBp + braveBpBonus(board, board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
@@ -1644,6 +1656,17 @@ export function matchesTarget(
             inst.unblockableOnceThisTurn === true ||
             activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
         if (!hasUnblockable) return false
+    }
+    // BS15共通器：BS15-051虚海獣エメヒドラルLv2。カード自身の効果文に「ブロックされない」（constraint宣言）を
+    // 持てば条件成否を問わず対象。加えて、他の効果で今ブロックされなくなっているスピリットも対象（OR）
+    if (filter.hasUnblockableEffectOrActive) {
+        const declaresUnblockable = card(inst.cardId).effects.some(
+            (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy",
+        )
+        const activelyUnblockable =
+            inst.unblockableOnceThisTurn === true ||
+            activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
+        if (!declaresUnblockable && !activelyUnblockable) return false
     }
     // keywords（BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）：いずれか1つでも持てばよい
     if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
@@ -1760,7 +1783,13 @@ export function activeConstraintsWithSource(
                         e.kind === "constraint" &&
                         effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level) &&
                         // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
-                        (e.whileOwnBurstSet !== true || board.players[pid].burstSet),
+                        (e.whileOwnBurstSet !== true || board.players[pid].burstSet) &&
+                        // BS15共通器：condition／phaseTurn（aura.condition／aura.phaseTurnと同じ判定式。BS15-060バンディット・アームズ）
+                        (e.condition === undefined || checkAuraCondition(board, pid, e.condition)) &&
+                        (e.phaseTurn === undefined ||
+                            (board.phase === e.phaseTurn.phase &&
+                                (e.phaseTurn.turn === "both" ||
+                                    (e.phaseTurn.turn === "own") === (pid === board.turnPlayer)))),
                 )
                 .map((e) => (e as { constraint: ConstraintDef }).constraint),
         )
@@ -2082,6 +2111,8 @@ export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId
 // 共通ヘルパー化はせず各ハンドラの先頭でこの述語を見て早期リターンする形にする
 export function canDiscardHand(board: Board, pid: PlayerId): boolean {
     if (board.phase === "main" && hasGlobalConstraint(board, "noHandDiscardInMain")) return false
+    // BS15-052天蒼元帥チョウハッカイ：お互い、効果では手札を破棄できない（ステップを問わない）
+    if (hasGlobalConstraint(board, "noHandDiscardByEffect")) return false
     return true
 }
 // pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
@@ -2606,15 +2637,23 @@ export function noOpponentTriggerByColor(
     inst: CardInstance,
     event: TriggerEvent,
 ): boolean {
-    for (const source of effectSources(board, ownerPid === "p1" ? "p2" : "p1")) {
-        const level = currentLevel(source).level
-        for (const effect of card(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "noOpponentTriggerByColor") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (!effect.constraint.triggers.includes(event)) continue
-            if (effect.constraint.color !== undefined && !instHasColor(inst, effect.constraint.color)) continue
-            return true
+    // BS15共通器：bothSides指定のエントリは、発生源がinst自身と同じ陣営にあっても効く
+    // （主語の無い効果文＝両陣営対象。BS15-072渦巻く大海峡Lv2）。既定（bothSidesなし）は従来どおり
+    // 「ownerPidから見た相手」の発生源だけを見る
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const isOpponentSide = pid !== ownerPid
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                if (effect.constraint.type !== "noOpponentTriggerByColor") continue
+                if (!isOpponentSide && effect.constraint.bothSides !== true) continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                if (!effect.constraint.triggers.includes(event)) continue
+                if (effect.constraint.color !== undefined && !instHasColor(inst, effect.constraint.color)) continue
+                return true
+            }
         }
     }
     return false
@@ -2769,6 +2808,10 @@ function hasImmunityAgainst(
 
 // このターン限りの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか（ヘビィゲート）
 export function cantActByCost(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
+    // BS15共通器：BS15-082神閃月下フラッシュ「このターンの間、黄以外のスピリットすべてはアタック/ブロックできない」
+    if (board.turnConstraints.some((c) => c.type === "cantActExceptColor" && !instHasColor(inst, c.color))) {
+        return true
+    }
     // 道化師クランの tempAlsoCosts（一時付与）／alsoCostsContinuous（継続付与）も判定対象に含める：
     // 実コスト・付与コストのいずれかがmaxCost以下なら対象
     // （2026-08-02修正：以前はalsoCostsContinuousを見ておらず、クラン常設中でも判定に反映されないバグがあった）

@@ -129,6 +129,17 @@ const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexus
     }
 }
 
+// BS15共通器：直前のmillPer系アクションで破棄したカードの中に【バースト】効果を持つカードが
+// あったときだけ相手のスピリット1体を破壊する（GameState.lastMillHadBurst。BS15-X06鉄の覇王サイゴード・ゴレム）
+const destroyIfLastMillHadBurstHandler: ActionHandler<"destroyIfLastMillHadBurst"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    if (!state.lastMillHadBurst) {
+        log(state, `${sourceName}：バースト効果を持つカードは破棄されなかった。`)
+        return
+    }
+    ctx.resolve({ type: "destroy", count: 1, ...(action.filter !== undefined ? { filter: action.filter } : {}) })
+}
+
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
@@ -2183,6 +2194,7 @@ const handlers = {
     destroySpiritBraveNexusEach: destroySpiritBraveNexusEachHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyHandler,
+    destroyIfLastMillHadBurst: destroyIfLastMillHadBurstHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,

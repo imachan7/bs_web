@@ -3,6 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { COLOR_LABELS } from "../../../../data/constants"
 import {
     attachBrave,
     bothSidesPids,
@@ -89,6 +90,13 @@ const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAtt
     if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
     state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+}
+
+// BS15-082神閃月下フラッシュ：このターンの間、指定色以外のスピリットすべて（両陣営）はアタック/ブロックできない
+const restrictActionsToColorThisTurnHandler: ActionHandler<"restrictActionsToColorThisTurn"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    state.turnConstraints.push({ type: "cantActExceptColor", color: action.color })
+    log(state, `${sourceName}：このターンの間、${COLOR_LABELS[action.color]}以外のスピリットすべてはアタック/ブロックできない。`)
 }
 
 // BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
@@ -2108,6 +2116,28 @@ const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfB
     log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
 }
 
+// BS15-045虚獣帝スフィン・クロス：trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。
+// selfが現在のバトルのアタッカーで、ブロッカーがいて、コアが1個以上あるときだけ、
+// selfのコア1個をボイドに置いてBPを比べずブロックされなかった扱いにする（判定はバトル解決側）
+const unblockedByVoidSelfCoreHandler: ActionHandler<"unblockedByVoidSelfCore"> = (ctx) => {
+    const { state, self, sourceName } = ctx
+    if (!state.battle || !state.battle.blockerInstanceId) {
+        log(state, `${sourceName}：発動しなかった。`)
+        return
+    }
+    if (!self || self.instanceId !== state.battle.attackerInstanceId) {
+        log(state, `${sourceName}：発動しなかった。`)
+        return
+    }
+    if (self.cores <= 0) {
+        log(state, `${sourceName}：コアが無いため発動しなかった。`)
+        return
+    }
+    self.cores -= 1
+    state.battle.treatAsUnblockedByCost = true
+    log(state, `${sourceName}：コア1個をボイドに置き、BPを比べずブロックされなかったものとして扱う。`)
+}
+
 // SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら、BPを比べずに
 // 「ブロックされなかった」ものとして扱う（treatAsUnblockedIfBlockerLevel1 の一般化版）
 const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnblockedIfLevelAtLeastBlocker"> = (ctx) => {
@@ -2157,6 +2187,44 @@ const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> =
     )
     chosen.cantBlockThisBattle = true
     log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
+}
+
+// BS15-X05光の覇王ルナアーク・カグヤ：相手のスピリット1体に、このバトルの間
+// 「currentLevelがlevelsに含まれるとき基礎BPをamountとして扱う」印を付ける
+const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId !== undefined) {
+        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+        if (!found) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        found.battleBpAs = { levels: [...action.levels], amount: action.amount }
+        log(state, `${getCard(found.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
+        return
+    }
+    const candidates: CardInstance[] = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：対象の相手スピリットを選んでください`,
+            candidates.map((s: CardInstance) => s.instanceId),
+            false,
+            { type: "setOpponentBpAsThisBattle", levels: action.levels, amount: action.amount },
+            self,
+        )
+        return
+    }
+    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
+        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+    )
+    chosen.battleBpAs = { levels: [...action.levels], amount: action.amount }
+    log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
 // BS13-032光速の騎士ヘルモード【合体時】Lv3『このスピリットの合体アタック時』：発生源自身に、
@@ -2349,6 +2417,9 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
+    unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
+    restrictActionsToColorThisTurn: restrictActionsToColorThisTurnHandler,
+    setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     unblockableAboveBpThisBattle: unblockableAboveBpThisBattleHandler,

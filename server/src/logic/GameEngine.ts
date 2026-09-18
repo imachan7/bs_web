@@ -1933,6 +1933,9 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
+                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
+                    if (info.burstEventCost !== undefined) state.burstEventCost = info.burstEventCost
+                    else delete state.burstEventCost
                     // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
                     // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)
@@ -2268,6 +2271,12 @@ function resolveBattle(state: GameState): void {
             state,
             `${getCard(attacker.cardId).name}は${getCard(blocker.cardId).name}と同じLv以上のため、BPを比べずブロックされなかったものとして扱う。`,
         )
+        resolveLifeDamage(state)
+        return
+    }
+    // BS15-045虚獣帝スフィン・クロス：action:"unblockedByVoidSelfCore" がonBlocked時に立てる印
+    if (state.battle.treatAsUnblockedByCost) {
+        log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
         resolveLifeDamage(state)
         return
     }

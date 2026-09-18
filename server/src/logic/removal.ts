@@ -1710,7 +1710,7 @@ function tryReviveOnDestroy(
         if (effect.cost?.millSelfOneMatching) {
             // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
             // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
-            const { color, cardType } = effect.cost.millSelfOneMatching
+            const { color, cardType, thenHandIfNameIncludes } = effect.cost.millSelfOneMatching
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
@@ -1721,6 +1721,17 @@ function tryReviveOnDestroy(
             log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             const ok = milled.type === cardType && milled.colors.includes(color)
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
+            // BS15共通器：thenHandIfNameIncludes（BS15-043ショーグンペンタン）。成立の可否と独立に、
+            // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
+            if (thenHandIfNameIncludes !== undefined && milled.name.includes(thenHandIfNameIncludes)) {
+                const idx = player.trashCards.lastIndexOf(cardId)
+                if (idx !== -1) {
+                    player.trashCards.splice(idx, 1)
+                    player.hand.push(cardId)
+                    notifyHandGained(state, ownerPid, 1)
+                    log(state, `${player.name}は${milled.name}を手札に加えた。`)
+                }
+            }
             return ok
         }
         if (effect.cost?.exhaustOwnFamilyOne) {

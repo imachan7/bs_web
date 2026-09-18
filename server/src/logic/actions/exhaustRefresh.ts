@@ -1,7 +1,7 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, Keyword, PlayerId, TargetFilter } from "../../type"
+import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     canExhaustNexus,
@@ -486,6 +486,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
                 return
             }
             refreshSpirit(state, owner, chosen, srcType)
+            if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
             return
         }
@@ -520,8 +521,17 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
         refreshSpirit(state, owner, target, srcType)
+        if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, target)
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
+}
+
+// BS15共通器：refreshOne.thenLevelUpThisTurn用（BS15-084爆砕轟神掌）。levelUpThisTurnと同じ計算
+function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
+    const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+    const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
+    target.levelOverrideThisTurn = nextLevel
+    log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 
 // このスピリットが**カードに静的に持つ**指定キーワードエントリの count（レベル有効なもの）。

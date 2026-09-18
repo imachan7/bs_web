@@ -3,6 +3,7 @@
 // import 側は従来どおり `type.ts` から読めばよい（`type.ts` が re-export している）。
 
 import type {
+    AuraCondition,
     AuraDef,
     BattleState,
     CardInstance,
@@ -160,6 +161,9 @@ export type EffectDef =
               | { ownCoresTotalAtLeast: number } // 自分のフィールド/リザーブ/トラッシュのコアの**合計**がこれ以上（BS14-X03 風の覇王ドルクス・ウシワカ＝8個以上）
               | { ownHandAtLeast: number } // 自分の手札枚数がこれ以上（BS15-017エンプレス・ヨウクィーン：「自分の手札が5枚以上のとき」）
               | { bothFieldsRestedSpiritsAtLeast: number } // 自分と相手のフィールドに疲労状態のスピリットが合計でこれ以上いるとき（BS15共通器。BS15-026軍師鳥ショカツリョー：「自分と相手のフィールドに疲労状態のスピリットが合計3体以上いるとき」）
+              | { ownColorCountAtLeast: { color: Color; count: number } } // 自分の指定色のスピリットが合計count体以上いるとき（instHasColorで判定。BS15共通器。BS15-043ショーグンペンタン：「自分の黄のスピリットが3体以上いるとき」）
+              | { ownFieldHasKeywordAny: Keyword[] } // 自分のフィールドに、指定キーワード（配列＝いずれかでOR）を持つスピリットが1体以上いるとき（spiritHasKeywordで判定。BS15共通器。BS15-053コジロンド・ゴレム：「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」）
+              | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上（BS15共通器。BS15-083秘剣燕返：「相手の手札が5枚以上のとき」）
           // 「〜のとき、このスピリットカードを召喚する」等の発動条件。
           // **バーストの宣言自体はeventの時点で成立している**ので、これを満たさないときはactionの解決だけを飛ばす（噛み合わせはBURST.md §1参照）。
           // 既存の triggered.condition / shared/cost.ts の同名軸を流用（BS14-X01：ownLifeAtMost、BS14-064：ownNexusAtLeast）
@@ -231,6 +235,8 @@ export type EffectDef =
           // ⚠️ **このキーはゲートを実装した kind にしか宣言していない**。他の kind に書くと
           // validate:cards の「型宣言の無いキー」検査が落ちる（実装が読まない指定を無言で通さないため）
           whileOwnBurstSet?: true // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発揮する（whileCombinedと同じゲート形式。docs/design/BURST.md）
+          condition?: AuraCondition // BS15共通器：aura.conditionと同じ判定式を流用する（opponentFieldColorsAtLeast／ownFieldOnlyColor／opponentBurstSet等。BS15-060バンディット・アームズ【合体時】：「相手がバーストをセットしている間」）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // BS15共通器：aura.phaseTurnと同じ意味（発生源の持ち主基準のステップ・turn条件。BS15-060バンディット・アームズ【合体時】：『お互いのアタックステップ』）
           constraint: ConstraintDef
       }
     | {
@@ -492,12 +498,13 @@ export type EffectDef =
               // 上の targetMaxBp が event:"ownLifeDamaged" 限定なのと同じ形の、コスト版
               | { targetKeywordExclude: Keyword } // event: "ownLifeDamaged" 限定：ライフを減らしたスピリットがそのキーワードを持つときは発火しない（spiritHasKeyword判定＝一時付与も見る。BS08デストラクションバリア：【転召】を持たない相手のスピリットのアタック）
               | { lastFunsaiHasSpirit: true } // event: "ownFunsaiMilled" 限定：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火（GameState.lastFunsai。triggered.conditionの同名軸と同じ判定。BS11-042海賊ラッコルセア：「相手のトラッシュにスピリットカードが1枚以上置かれたとき」）
+              | { lastFunsaiHasCostAtLeast4: true } // event: "ownFunsaiMilled" 限定：直前の【粉砕】で破棄したカードの中にコスト4以上のカードが1枚でもあったときのみ発火（GameState.lastFunsai.costAtLeast4。1回につき1回だけ発火＝repeatPerCountは使わない。BS15共通器。BS15-053コジロンド・ゴレムLv2-3：「自分のスピリットの【粉砕】でコスト4以上のカードを破棄したとき」）
               | { opponentHandAtLeastOwnHand: true } // event: "opponentMagicUsed" 限定：発生源の持ち主から見た相手の手札枚数が、自分の手札枚数以上のときのみ発火（state.players[opp].hand.length >= state.players[pid].hand.length。BS13-042ナイト・ゴーンLv2）
               | { opponentMagicUsedAtLeast: number } // event: "opponentMagicUsed" 限定：発生源の持ち主から見た相手が、このターンにマジックの効果を使用した回数（GameState.magicUsedThisTurn。opponentMagicUsedの発火前に加算済み）がこれ以上のときのみ発火（BS13-071巨人港Lv2：2回以上）
               | { burstCostAtMost: number } // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（eventInfo.burstCost）がこれ以下のときのみ発火（SD06-007英雄龍ロード・ドラゴン：「発動したカードがコスト5以下のとき」）
               | { ownBurstSet: boolean } // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（false指定時はセットしていない間だけ。triggered.conditionの同名軸と同じ判定。BS14-X04氷の覇王ミブロック・バラガン：event:"ownBurstActivated"限定「自分のバーストをセットしていないとき」＝バースト解決直後の再セット判定）
           repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" 用：実カウント数ぶんアクションを繰り返す（省略時/falseは1回のみ。修理屋バラン・バラン／犬人マードック／SD01-029 蠢く地下墓地＝置かれたコア1個につき）
-          countMode?: "cores" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの繰り返し回数を「影響を受けたスピリット数」でなく「取り除かれたコア数」にする（省略時は従来どおりスピリット数。既存の極光の大地はこの指定が無いため挙動は変わらない。BS06希望の大灯台Lv1）
+          countMode?: "cores" | "funsaiSpirits" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの繰り返し回数を「影響を受けたスピリット数」でなく「取り除かれたコア数」にする（省略時は従来どおりスピリット数。既存の極光の大地はこの指定が無いため挙動は変わらない。BS06希望の大灯台Lv1）。"funsaiSpirits"：event: "ownFunsaiMilled" 限定：repeatPerCountの回数を実破棄枚数(eventCount)でなく、直前の【粉砕】で破棄したスピリットカードの枚数（GameState.lastFunsai.spirits）にする（BS15共通器。BS15-054虚造帝フェニックス・ゴレムLv2-3：「破棄したスピリットカード1枚につき」）
           minEventCount?: number // eventCount がこの値以上のときのみ発火（「一度に◯枚以上破棄したとき」。BS04アリゲイド＝5枚以上）
           magicCostEquals?: number // event: "opponentMagicUsed" 限定：使用されたマジックのコストがこれと一致するときのみ発火（BS04氷の女神フリッグ）
           magicTiming?: "main" | "flash" // event: "opponentMagicUsed" 限定：使用タイミングが一致するときのみ発火
@@ -573,6 +580,7 @@ export type EffectDef =
           by: "opponentSpiritEffect" | "opponentEffect" // 破棄の発生源の限定。opponentSpiritEffect=相手のスピリットの効果で（従来）／opponentEffect=**相手によって**（種別を問わない。BS15-028フェネボラック「相手によって自分のデッキが破棄されるとき」）
           exceptFunsai?: true // 【粉砕】による破棄は対象外（BS08鳳翼の聖剣Lv2「【粉砕】以外の」）
           cost: { ownLifeToReserve: number } | { exhaustSelf: true } // 支払うコスト。ownLifeToReserve=持ち主のライフのコアをこの数だけ持ち主のリザーブへ置く（ライフが足りなければ確認自体を出さない）／exhaustSelf=**このスピリット自身**を疲労させる（既に疲労していれば確認自体を出さない。BS15-028フェネボラック「このスピリットを疲労させることで」）
+          thenReturnCauseToDeckBottom?: true // BS15共通器：無効化が成立したとき、その破棄を引き起こした相手のスピリット（GameState.currentEffectSource.instanceIdが指す個体。破壊がまだフィールドにいなければno-op）を相手のデッキの下に戻す（BS15-042オリンピアの天使アラトロンLv2：「自分のデッキは破棄されず、そのスピリットを相手のデッキの下に戻す」）
       }
     | {
           id: string
@@ -789,7 +797,7 @@ export type EffectDef =
               fieldOrReserveOneToTrash?: boolean // 持ち主のリザーブのコア1個（無ければ自分のフィールド＝スピリット/ネクサス、発生源自身を除く、からコア1個）を持ち主のトラッシュへ（どちらも無ければ支払い不可＝不発。BS04宝石虫スカラベール）
               handDiscardOne?: boolean // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
               handDiscardCardType?: CardType // 指定時はhandDiscardOneが破棄する手札を末尾からその種別に絞って探す（該当が無ければ支払い不可＝不発）。省略時は従来どおり種別を問わず末尾1枚（BS10-046龍仙公主＝magic）
-              millSelfOneMatching?: { color: Color; cardType: CardType } // 自分のデッキを上から1枚破棄し、そのカードが指定の色・種別に一致したときだけ成立（一致しなければ支払い不可＝不発。デッキが空でも不発。BS07冥勇士デスカラビア＝紫のスピリットカード）
+              millSelfOneMatching?: { color: Color; cardType: CardType; thenHandIfNameIncludes?: string } // 自分のデッキを上から1枚破棄し、そのカードが指定の色・種別に一致したときだけ成立（一致しなければ支払い不可＝不発。デッキが空でも不発。BS07冥勇士デスカラビア＝紫のスピリットカード）。thenHandIfNameIncludes指定時は、成立の可否を問わず（CONJUNCTION.md「さらに」＝独立条件）、破棄したカードのカード名にこの文字列を含むときだけそのカードをトラッシュでなく手札に加える（BS15共通器。BS15-043ショーグンペンタンLv2-3：「破棄したカードのカード名に「ペンタン」を含むとき、そのカードを手札に加える」）
               exhaustOwnFamilyOne?: FamilyFilter // 持ち主のフィールドの、この系統（配列＝OR）を持つ回復状態のスピリット1体（実効BP最小＝犠牲を最小化する簡略化。破壊される個体自身は除く）を疲労させる。該当なしなら支払い不可＝不発（BS07パオ・ペイール＝「想獣」）
               ownLifeOneToVoid?: boolean // 持ち主のライフのコア1個をボイドへ（リザーブへは戻らない）。ライフ0枚なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる（BS08太陽石の神殿）
               ownLifeOneToReserve?: boolean // 器AR：持ち主のライフのコア1個を自分のリザーブへ。ライフ0枚なら支払い不可＝不発（BS13-036星鳥クージャ：「自分のライフのコア1個を自分のリザーブに置くことで」）
@@ -928,6 +936,7 @@ export type EffectDef =
           condition?:
               | { ownColorTotalAtLeast: { color: Color; count: number } } // 発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上（ペンタン）
               | { ownColorSpiritsAtLeast: { color: Color; count: number } } // 発生源の持ち主の指定色スピリットがcount体以上（ネクサスは数えない。BS04黒の妖精ティ・ターニャ）
+              | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 発生源の持ち主から見た相手フィールドの色の種類数がこれ以上（shared/rules.opponentFieldColorCount。BS15共通器。BS15-070風吹くロリポップ高地：「相手のフィールドのスピリット/ネクサスの色が2色以上の間」）
       }
     | {
           id: string
@@ -1012,6 +1021,7 @@ export type EffectDef =
               | { ownFieldHasCombinedSpirit: true } // 発生源の持ち主のフィールドに合体スピリット（ブレイヴが合体しているホスト）がいる間有効（instIsCombinedで判定。BS10-002首長竜人ブラッキオ）
               | { ownBurstSet: true } // 発生源の持ち主が自分のバーストエリアにカードをセットしている間有効（docs/design/BURST.md。SD06-003ワン・ケンゴー＝「自分のバーストをセットしている間、このスピリットをLv3として扱う」）
               | { ownLifeAtLeast: number } // 発生源の持ち主のライフがこの数以上の間有効（BS15-016闇騎士ガウェイン：「自分のライフが3以上の間、このスピリットはLv3として扱う」）
+              | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 発生源の持ち主から見た相手フィールドの色の種類数がこれ以上の間有効（shared/rules.opponentFieldColorCount。BS15共通器。BS15-047パンクマウス：「相手のフィールドのスピリット/ネクサスの色が2色以上の間、このスピリットはLv2として扱う」）
           sourceMinLevel?: number // 発生源の素のレベル（コア数基準。上書き無視）がこれ以上のときのみ有効
           sourceLevels?: number[] // 発生源の素のレベル（コア数基準。上書き無視）がこの配列に完全一致で含まれるときのみ有効（sourceMinLevelの完全一致版。ウッド・ゴレム）
       }
@@ -1233,8 +1243,10 @@ export type EffectDef =
           id: string
           kind: "funsaiBonus" // 持ち主のスピリットの【粉砕】の破棄枚数を+amountする（崩壊する戦線Lv1-2）
           levels: number[] | null
-          amount?: number // 固定加算値（従来通り。amountPerSymbolColor指定時は無視される）
+          amount?: number // 固定加算値（従来通り。amountPerSymbolColor / amountPerBurstCount指定時は無視される）
           amountPerSymbolColor?: Color // 指定時はamountの代わりに、持ち主のフィールド（スピリット+ネクサス）が持つこの色のシンボル総数（countSymbols）を加算する（毎回動的に再計算。BS08神造巨兵オリハルコン・ゴレム：自分の青のシンボル1つにつき+1枚）
+          amountPerBurstCount?: true // BS15共通器：amountの代わりに「自分と相手のバースト1つにつき+1」（自分がセットしていれば+1、相手がセットしていれば+1、合計0〜2）を加算する（BS15-071巨人の足跡湖：「自分と相手のバースト1つにつき、自分のスピリットの【粉砕】/【大粉砕】で破棄するカードを+1枚する」）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は発生源の持ち主基準でこのステップ・turn条件の間だけ有効（BS15-071巨人の足跡湖：『お互いのアタックステップ』）
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS06デモリッシュ）
       }
     | {
@@ -1369,6 +1381,7 @@ export type EffectDef =
           kind: "magicFreeGrant" // 発生源の持ち主は、指定色のマジックカードをコストを支払わずに使用できる（「できる」は自動適用で簡略化。薔薇人バロッサ）
           levels: number[] | null
           colorFilter?: Color // scope省略時にこの色のマジックのみ無償化（scope指定時は色不問なので省略する）
+          hasBurst?: true // 指定時は【バースト】効果を持つマジックカードだけ無償化する（colorFilterとAND。BS15共通器。BS15-044天使サクエルLv2-3：「バースト効果を持つ黄のマジックカード」）
           scope?: "allMagicHandAndTegamoto" // 色を問わず、持ち主の手札/手元(tegamoto)のマジックカードすべてを無償化（大天使ミカファールLv2。手札からの使用にも適用される＝effectiveCostはfromTegamoto不問で判定）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           condition?: "selfInBattle" // 指定時、発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）であるときのみ有効（『このスピリットのバトル時』。BS07大天使イスフィール）

@@ -630,6 +630,21 @@ const voidCoreToReserveHandler: ActionHandler<"voidCoreToReserve"> = (ctx, actio
     log(state, `${sourceName}：ボイドからコア${action.count}個を自分のリザーブに置いた。`)
 }
 
+// BS15-039僧侶ペンタンLv2：自分のトラッシュのコアをcount個、持ち主のリザーブへ置く（不足分は可能な分だけ）
+const trashCoresToReserveHandler: ActionHandler<"trashCoresToReserve"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (action.count <= 0) return
+    const player = state.players[owner]
+    const moved = Math.min(action.count, player.trashCores)
+    if (moved <= 0) {
+        log(state, `${sourceName}：トラッシュにコアが無かった。`)
+        return
+    }
+    player.trashCores -= moved
+    player.reserve += moved
+    log(state, `${sourceName}：トラッシュのコア${moved}個を自分のリザーブに置いた。`)
+}
+
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
         // costDiscardOwnBurst（BS15-022アナグマッド・デビル）：自分のバースト1つを破棄することがコスト。
@@ -1972,6 +1987,28 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
                 log(state, `${sourceName}：対象がいないため発動しなかった。`)
                 return
             }
+            // orReserve（BS15-X05光の覇王ルナアーク・カグヤ）：「自分のライフか、自分のリザーブに置く」を
+            // 効果の使用者が毎回選ぶ（voidCoreToSelf.orReserveの鏡。非対話時はライフ側に倒す）
+            if (action.orReserve) {
+                if (chosenOption === "リザーブに置く") {
+                    player.reserve += voidCount
+                    log(state, `${player.name}はボイドからコア${voidCount}個をリザーブに置いた。（リザーブ${player.reserve}）`)
+                    return
+                }
+                if (chosenOption !== "ライフに置く" && state.interactiveTargets) {
+                    suspend(state, {
+                        pid: owner,
+                        kind: "option",
+                        prompt: `${sourceName}：ボイドからコア${voidCount}個を、自分のライフか、自分のリザーブのどちらに置きますか？`,
+                        candidates: [],
+                        options: ["ライフに置く", "リザーブに置く"],
+                        optional: false,
+                        action,
+                        selfInstanceId: self ? self.instanceId : null,
+                    })
+                    return
+                }
+            }
             player.life += voidCount
             log(
                 state,
@@ -2719,6 +2756,7 @@ const handlers = {
     coreGainPer: coreGainPerHandler,
     voidCoreToDeckSide: voidCoreToDeckSideHandler,
     voidCoreToReserve: voidCoreToReserveHandler,
+    trashCoresToReserve: trashCoresToReserveHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
     voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,

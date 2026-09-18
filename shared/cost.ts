@@ -119,6 +119,14 @@ export function reductionGrantSymbols(
                         instHasColor(s, color),
                     ).length
                     if (total < count) continue
+                } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                    // BS15共通器：BS15-070風吹くロリポップ高地
+                    if (
+                        opponentFieldColorCount(board, pid, effect.condition.spiritsOnly === true) <
+                        effect.condition.opponentFieldColorsAtLeast
+                    ) {
+                        continue
+                    }
                 } else {
                     const { color, count } = effect.condition.ownColorTotalAtLeast
                     const total = sources.filter((s) => instHasColor(s, color)).length
@@ -314,6 +322,8 @@ export function findMagicFreeGrantSource(
                 if (!isAllScope) continue
             } else if (!isAllScope) {
                 if (effect.colorFilter === undefined || !cardHasColor(cardData, effect.colorFilter)) continue
+                // BS15共通器：hasBurst（BS15-044天使サクエルLv2-3）
+                if (effect.hasBurst && !cardData.effects.some((e) => e.kind === "burst")) continue
             }
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
