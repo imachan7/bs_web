@@ -26,11 +26,26 @@ import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } fro
 interface SocketLike {
     emit: (event: string, payload?: unknown) => void
     on: (event: string, handler: (payload: any) => void) => void
+    connect: () => void
 }
 
 declare const io: () => SocketLike
 
 const socket = io()
+
+// 対戦していない接続はサーバーが15分で切る（課金対策。server/src/index.ts の「放置接続の切断」）。
+// サーバーから切られたときだけ socket.io は自動で再接続しないので、次の操作かタブ復帰で繋ぎ直す。
+// 切断中の emit は socket.io が溜めて再接続後に送るので、押したボタンはそのまま効く
+socket.on("disconnect", (reason: string) => {
+    if (reason !== "io server disconnect") return
+    const events = ["pointerdown", "keydown", "visibilitychange"] as const
+    const reconnect = () => {
+        if (document.visibilityState !== "visible") return
+        for (const ev of events) document.removeEventListener(ev, reconnect, true)
+        socket.connect()
+    }
+    for (const ev of events) document.addEventListener(ev, reconnect, true)
+})
 
 let view: GameView | null = null
 const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null, burstResetConfirm: null }
