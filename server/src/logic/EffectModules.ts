@@ -855,6 +855,8 @@ function findDeckMillNegate(
             // 「相手の**スピリット**の効果で」。種別が渡っていない呼び出しでは、
             // onMilledFromDeck と同じく限定を緩めない側に倒して発火させない
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
+            // 見出しの『相手のターン』限定（BS15-028／030／042）。自分のターン中の破棄は無効にできない
+            if (effect.turn === "opponent" && state.turnPlayer === pid) continue
             // 「【粉砕】以外の」（【粉砕】は resolveFunsai だけが cause.funsai を立てる）
             if (effect.exceptFunsai && cause?.funsai === true) continue
             if ("ownLifeToReserve" in effect.cost) {

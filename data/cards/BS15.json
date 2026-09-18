@@ -1901,7 +1901,8 @@
     "by": "opponentEffect",
     "cost": {
      "exhaustSelf": true
-    }
+    },
+    "turn": "opponent"
    }
   ]
  },
@@ -1990,7 +1991,8 @@
     "by": "opponentEffect",
     "cost": {
      "exhaustSelf": true
-    }
+    },
+    "turn": "opponent"
    },
    {
     "id": "BS15-030-e2",
@@ -2834,7 +2836,8 @@
     "cost": {
      "exhaustSelf": true
     },
-    "thenReturnCauseToDeckBottom": true
+    "thenReturnCauseToDeckBottom": true,
+    "turn": "opponent"
    }
   ]
  },

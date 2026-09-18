@@ -578,6 +578,7 @@ export type EffectDef =
           // 断られたら、そのとき改めて破棄する。非対話（smoke）では確認を出さず自動で支払う
           levels: number[] | null
           by: "opponentSpiritEffect" | "opponentEffect" // 破棄の発生源の限定。opponentSpiritEffect=相手のスピリットの効果で（従来）／opponentEffect=**相手によって**（種別を問わない。BS15-028フェネボラック「相手によって自分のデッキが破棄されるとき」）
+          turn?: "opponent" // 見出しの『相手のターン』限定（BS15-028フェネボラック／BS15-030愛の女神ロヴン／BS15-042オリンピアの天使アラトロン）。相手のフラッシュ効果で自分のターン中にデッキが破棄されたときは無効にできない
           exceptFunsai?: true // 【粉砕】による破棄は対象外（BS08鳳翼の聖剣Lv2「【粉砕】以外の」）
           cost: { ownLifeToReserve: number } | { exhaustSelf: true } // 支払うコスト。ownLifeToReserve=持ち主のライフのコアをこの数だけ持ち主のリザーブへ置く（ライフが足りなければ確認自体を出さない）／exhaustSelf=**このスピリット自身**を疲労させる（既に疲労していれば確認自体を出さない。BS15-028フェネボラック「このスピリットを疲労させることで」）
           thenReturnCauseToDeckBottom?: true // BS15共通器：無効化が成立したとき、その破棄を引き起こした相手のスピリット（GameState.currentEffectSource.instanceIdが指す個体。破壊がまだフィールドにいなければno-op）を相手のデッキの下に戻す（BS15-042オリンピアの天使アラトロンLv2：「自分のデッキは破棄されず、そのスピリットを相手のデッキの下に戻す」）

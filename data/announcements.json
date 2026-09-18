@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-09-18",
+   "category": "new",
+   "text": "第十五弾「黄金の大地」のカード91枚を追加しました"
+  },
+  {
    "date": "2026-09-16",
    "category": "fix",
    "text": "「コストを◯にする」効果（パントマイスター、ゴッドスピード、虚神のスピリットなど）で、変更したあとのコストから軽減シンボルで軽減できるようになりました。これまでは軽減できませんでした"

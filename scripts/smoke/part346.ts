@@ -146,6 +146,7 @@ console.log("=== 042 オリンピアの天使アラトロン：神将のライ�
 {
     const s = game("p346-042b")
     put(s, "p1", "BS15-042", 4) // Lv3
+    s.turnPlayer = "p2" // 『相手のターン』限定
     const opp = put(s, "p2", "BS15-041", 1)
     s.currentEffectSource = { pid: "p2", type: "spirit", instanceId: opp.instanceId }
     const deckBefore = s.players.p1.deck.length
