@@ -25,9 +25,10 @@
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
 **BS15「覇王編 第2弾：黄金の大地」91種は完了**（2026-09-18。gaps 0件・smoke part330〜347・`data/cards/BS15.json` に結合済み）。
-確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。**PR は draft #70**（ユーザーがマージする）。
+確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。PR #70 はマージ済み。
 
-**次の本線は未定**（BS16 の取り込みか、下の「残っている課題」から選ぶ）。
+**次の本線は BS16「覇王編 第3弾：爆烈の覇道」93種**（ブランチ `feat/bs16-import`。`data/staging/BS16.json` 取り込み済み）。
+計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。**次の一手：§0（下の §2「破壊されたときは1回」）と §2.1 の8件をユーザーに確認する**。
 
 ### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
 
