@@ -1,6 +1,6 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState } from "../type"
-import { currentLevel, draw, getCard, log, pushResumeFrames } from "./GameState"
+import { currentLevel, draw, getCard, log, pushResumeFrames, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
@@ -188,19 +188,46 @@ function turnStartSegments(state: GameState): (() => void)[] {
 // ステップ処理後に pendingChoice が立っていたら（ステップ誘発が選択待ちを要求したら）、
 // 次のステップ番号を**再開フレーム**に積んでそこで中断する（docs/design/RESUME_STACK.md）。
 // 全ステップを完走したら levelAs を再計算する。
-export function driveTurnStart(state: GameState, fromIndex: number): void {
+// until 指定時はその区間で止め、ドロー／リフレッシュならターン終了処理へ戻る（BS15-X04 の追加ステップ）
+export function driveTurnStart(state: GameState, fromIndex: number, until?: number): void {
     const segments = turnStartSegments(state)
-    for (let i = fromIndex; i < segments.length; i++) {
+    const last = until ?? segments.length - 1
+    for (let i = fromIndex; i <= last; i++) {
         segments[i]!()
         if (state.winner) return
         if (state.pendingChoice) {
-            pushResumeFrames(state, [{ kind: "turnStart", step: i + 1 }])
+            pushResumeFrames(state, [{ kind: "turnStart", step: i + 1, ...(until !== undefined ? { until } : {}) }])
             return
         }
     }
     // 継続的なレベル置換（levelAs）をターン開始処理の最後に再計算する
     // （ジャグリーンのスピリット数条件・トパーズの流星のsourceMinLevelなど）
     refreshLevelAsOverrides(state)
+    // 追加のメインステップはプレイヤーに返す（ターン終了ボタンでエンドステップへ）
+    if (until !== undefined && until !== MAIN_SEGMENT) endTurn(state)
+}
+
+// turnStartSegments の区間番号（BS15-X04 の追加ステップで使う）
+const EXTRA_STEP_SEGMENTS = { ドローステップ: [3, 4], リフレッシュステップ: [5, 5], メインステップ: [6, 6] } as const
+const MAIN_SEGMENT = 6
+export const EXTRA_STEP_OPTIONS = Object.keys(EXTRA_STEP_SEGMENTS) as (keyof typeof EXTRA_STEP_SEGMENTS)[]
+
+// BS15-X04 Lv2：選んだステップを通常どおり丸ごと行う（そのステップの効果もすべて発揮する）
+export function runExtraStep(state: GameState, option: string): void {
+    const range = EXTRA_STEP_SEGMENTS[option as keyof typeof EXTRA_STEP_SEGMENTS] ?? EXTRA_STEP_SEGMENTS.ドローステップ
+    log(state, `${state.players[state.turnPlayer].name}は${option}を行う。`)
+    if (range[1] === MAIN_SEGMENT) state.extraMainStep = true
+    driveTurnStart(state, range[0], range[1])
+}
+
+// BS15-X04 Lv2 の発生源（ターンプレイヤーの場の Lv2 の個体）
+function extraStepSource(state: GameState) {
+    const player = state.players[state.turnPlayer]
+    return player.field.spirits.find((inst) =>
+        getCard(inst.cardId).effects.some(
+            (e) => e.kind === "extraStepAfterAttackStep" && effectActiveOn(inst, e, currentLevel(inst).level),
+        ),
+    )
 }
 
 // ターン開始処理：start → core → draw → refresh を自動で進めて main で止める。
@@ -225,7 +252,7 @@ export function endTurn(state: GameState): void {
     // メインステップから直接ターンを終了したときも、ここでアタックステップへ入って開始時の誘発を出してから
     // 終了時の誘発へ進む。「アタックステップは行えず」（BS10-108 ルナティックシール）のときだけ経由しない。
     // 開始時の誘発が選択待ちになったら、選択の解決後にこの関数をやり直す（そのときは phase が "attack"）
-    if (state.phase === "main" && !isEndStepLocked(state, "attackStep")) {
+    if (state.phase === "main" && !state.extraMainStep && !isEndStepLocked(state, "attackStep")) {
         toAttackPhase(state)
         if (state.winner) return
         if (state.pendingChoice) {
@@ -242,6 +269,31 @@ export function endTurn(state: GameState): void {
     // toAttackPhaseが改めて変換し直すので問題ない）
     revertAttackStepNexusAsSpirit(state)
     if (state.winner) return
+
+    // BS15-X04 Lv2：アタックステップ終了後・エンドステップの前に、ステップを1つ行う（ターンに1回・断れない）。
+    // phase が attack＝アタックステップを経由したときだけ（行った後に戻ってきたときは draw/refresh/main）
+    if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
+        const source = extraStepSource(state)
+        if (source) {
+            state.extraStepAfterAttackUsed = true
+            if (!state.interactiveTargets) {
+                runExtraStep(state, "ドローステップ")
+                return
+            }
+            suspend(state, {
+                pid: state.turnPlayer,
+                kind: "option",
+                prompt: `${getCard(source.cardId).name}：行うステップを選んでください`,
+                candidates: [],
+                options: [...EXTRA_STEP_OPTIONS],
+                optional: false,
+                extraStepChoice: { sourceInstanceId: source.instanceId },
+                action: { type: "noop" },
+                selfInstanceId: source.instanceId,
+            })
+            return
+        }
+    }
 
     state.phase = "end"
     fireStepTriggers(state, "end")
@@ -396,6 +448,8 @@ export function endTurn(state: GameState): void {
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
     state.turnConstraints = []
+    delete state.extraStepAfterAttackUsed
+    delete state.extraMainStep
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
     state.triggerSuppressionThisTurn = []
     // このターンのアタック回数（「最初のアタック」判定用）もリセット

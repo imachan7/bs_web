@@ -24,8 +24,10 @@
 **BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
-**次の本線は BS15「覇王編 第2弾：黄金の大地」全90種**（C46/U18/R12/M8/X6）。
-計画は [BS15_PLAN.md](./docs/design/BS15_PLAN.md)。**まだデータを取り込んでいない。**
+**BS15「覇王編 第2弾：黄金の大地」91種は完了**（2026-09-18。gaps 0件・smoke part330〜347・`data/cards/BS15.json` に結合済み）。
+確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。**PR は draft #70**（ユーザーがマージする）。
+
+**次の本線は未定**（BS16 の取り込みか、下の「残っている課題」から選ぶ）。
 
 ### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
 
@@ -33,18 +35,45 @@
 [SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §4「S3・S4 も残0件にした」）。
 **`coverage:effects` の実行実績0だった継続効果11件も smoke part324 で解消**（BS13-038 のコスト欠落を1件修正）。
 
-### ⚠️ BS15 より先に片付ける（BS15_PLAN §0）
+### BS15 共通の器（バッチ0。2026-09-16 実装済み・smoke part330）— **色バッチはこの名前を使う**
 
-弾を足すと監査の未判定が増えて見えなくなる。BS14 で実際に起きた
-（S6・S7 が「残0件」から 12件・9件に戻り、**実バグ5件が埋もれていた**）。
-**残っているのは次の2件で、どちらもユーザー確認待ち**（済んだ2件は上の節のとおり）:
+**サブエージェントは1体ずつ直列に回す**（ユーザー指示。0→1→2→3）。バッチ0は**器とテストだけ**で、カードデータは書かない。
 
-| 借金 | 出どころ |
-| :-- | :-- |
-| 永久凍土の王都：自分でコストを払う4経路 | §2（要ユーザー確認） |
-| バトスピ Wiki との食い違い3件 | [RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md) |
+1. **相手のフィールドの色の数**：`shared/rules.ts` に `opponentFieldColorCount(board, pid, spiritsOnly?)`。
+   相手のスピリット（**合体中ブレイヴの色を含む**）とネクサスの**色の種類数**。多色は各色、`instColors`（◯色としても扱う）を使い、
+   `colorlessThisBattle` の個体は数えない。`EffectCounter` に `"opponentFieldColors"` / `"opponentFieldSpiritColors"`、
+   条件に `{ opponentFieldColorsAtLeast: number; spiritsOnly?: true }`
+2. **自分のフィールドが◯色しかない**：`ownFieldOnlyColor(board, pid, color, spiritsOnly?)`。**全カードの色が指定色1色だけ**
+   （多色が1枚でもあれば不成立＝Q3515）。**0枚なら不成立**。条件名 `{ ownFieldOnlyColor: Color; spiritsOnly?: true }`
+3. 上の2つの条件は `AuraCondition` と `triggered.condition` に足す。**他の kind が要るときは色バッチが同じ名前で足す**（名前を変えない）
+4. **神将のライフ上限**：`globalConstraint` に `{ type: "lifeDamagePerSpiritPerTurn"; max: number }`（バースト条件は kind 側の既存 `whileOwnBurstSet: true`）。
+   **お互い**に効く。スピリット1体（合体スピリットはホスト）が**1ターンに減らしたライフの合計**を 既存の `CardInstance.lifeDealtThisTurn`（SD06-010 と共用。ターン終了でリセット）で数える。
+   アタック（`lifeDamageLimit`）と**スピリットが発生源の効果によるライフ減少**の両方に掛ける（Q3470〜Q3472）。マジック・ネクサスの効果は対象外
+5. **虚神のコスト固定**：`costMod`（`mode:"set"`）の `condition` に `{ ownBurstSet: boolean }`
+6. **軽減前のコスト増**：`costMod`（加算側）に `beforeReduction?: true`（`effectiveCost` の①総コストに足す）と
+   `amountCounter?: EffectCounter`（`amount × カウンタ`）、`condition` に `{ opponentFieldColorsAtLeast: number }`（068）
 
-**`coverage:effects` の action 側はまだ穴がある**: (a) 未実行3種（destroyOwnFreelyThenDraw /
+### BS15 バッチ1（赤・紫）は実装済み（2026-09-17。smoke part331/332）— 残した判断
+
+- **未実装3節（card-notes に partial）**：011 手札から使うフラッシュ（器が無い）／015 紫マジックの色を無いものとして扱う／
+  064 Lv2 【不死】の無償召喚。**ユーザーに実装するか確認する**
+- 簡略化（card-notes 無し）：X01 Lv2-3 はスピリット状態のブレイヴも破壊候補に含む／016・X02 のコア除去は1体からまとめて取る（既存と同じ）／
+  004 の Q3469（その破壊の解決中は発動できない）は未実装
+- 008 は「指定色の和集合に無い色を1つでも持つスピリットを両陣営とも破壊」で実装（ユーザーに事後報告済み）
+
+### BS15 で残した課題（次に触るときに読む）
+
+- **簡略化（card-notes 無し）**：X01 Lv2-3 はスピリット状態のブレイヴも破壊候補に含む／016・X02 のコア除去は1体からまとめて取る／004 の Q3469（その破壊の解決中は発動できない）は未実装
+- X04 の追加メインステップ中は、プロボケイションの確認を出さず、アタック強制でターン終了を止めない（その後にアタックステップが無いため）
+- **`coverage:effects` の「未計測の kind」が19種86件まで増えている**（BS10以降の積み残し。`extraStepAfterAttackStep` / `handActivated` / `ownMagicColorless` / `trashNameAs` など）。
+  計測点を足すまで、その kind は発火したか分からない
+- 082 の「好きな順番でデッキの下に戻す」は既存の「1枚ずつ選ぶ」器を流用（番号付きUIは作っていない。2026-09-18 ユーザー確認）
+
+### BS15_PLAN §0 の借金はすべて返済済み（2026-09-16）
+
+監査 S3・S4 の残0件化、実行実績0の継続効果の解消、永久凍土の王都（COST_MODEL §9）、
+Wiki 食い違い（RULES_BATSPI_WIKI）まで片付いた。**BS15 の実装に入ってよい。**
+`coverage:effects` の action 側だけ穴が残る: (a) 未実行3種（destroyOwnFreelyThenDraw /
 negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
 ### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
@@ -70,32 +99,9 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-### 自分のライフをコストに払って0になるとき、BS14-084 永久凍土の王都は守るべきか
-
-2026-09-13 に、ライフを減らす経路が**7つ**あるのに `tryOwnLifeFloorByCost` を呼ぶのは
-2つ（アタック／`lifeCrush`）だけだと分かった。**相手の効果で減らされる経路**
-（`opponentLifeOneToTrash`。BS14-X02 呪滅撃）は守るよう直した（smoke part323）。
-
-**残り4経路は「自分でコストとして払う」もので、意図的に未対応のまま**:
-`ownLifeOneToVoid`（BS08-056 太陽石の神殿）／`ownLifeOneToReserve`（BS13-036 星鳥クージャ）／
-`costOwnLifeToReserve`（BS13-039 神獣バーロン・BS08-064 鳳翼の聖剣）。
-
-論点は「自分から払って0にしておいて王都で助かる」のが正しいか。
-**ライフ1のときは支払い自体ができない**（払えないコストは払えない）のが正解の可能性もある。
-現在の実装は「払えて、そのまま負ける」。ユーザーも「払えるのはおかしい気がする」との所感。
-
-
-**バトスピ Wiki「わかりづらいルール」との突き合わせで、実装と食い違う疑いが複数出た**（2026-09-08）。
-一覧と優先順は [RULES_BATSPI_WIKI.md](./docs/design/RULES_BATSPI_WIKI.md)。**BS13 が終わったので3件とも着手できる:**
-
-| 論点 | ぶつかる先 |
-| :-- | :-- |
-| ~~疲労状態での召喚／破壊時のコア移動／効果で手札が増える~~ | **2026-09-09 にユーザー確認済み**（BS13_PLAN §1 #24〜#26） |
-| **「ターンに1回」がコスト不発でも消費される**（`triggered` / `fieldEvent` 共通。マッチ時点で `triggeredUsedTurn` に記録している）。ルール上は払えなければ発揮していないので消費すべきでない | 全カード共通。2026-09-09 に黄バッチで気づいた。**着手可**（BS13 完了済み） |
-| 消滅待機中のシンボルが軽減に数えられている（**ギャップ確定・実測済み**） | 直し方は小さい。**着手可**（BS13 完了済み） |
-| 余分コストは軽減の**あと**に乗る／コスト固定は「後から発揮した方」が優先（実装は最小値） | **着手可**（BS13 完了済み） |
-| **器BU（BS13-047）でブロック時に破棄するマジックを実装が自動で選んでいる**（`GameEngine.ts` の `finishBlockDeclaration`＝手札の最初のマジック1枚）。どれを捨てるかは対戦者が選ぶべき。`npm run audit:choices` で検出（2026-09-10）。ブロック宣言の同期経路なので、クライアントが選んで `block` アクションに載せる形なら [INTERRUPTION_POINTS.md](./docs/design/INTERRUPTION_POINTS.md) パターンE の枠内で直せる | BS13-047 の1枚だけ |
-| ~~解決の途中で破壊状態が解除されたら、以降の破壊誘発は処理しない~~ | **2026-09-08 に実装済み**（TIMING_CHART。smoke part302） |
+**「破壊されたとき」は一度に2体以上破壊されても1回と数える**（公式Q&A Q22359）。現行の `fireOwnSpiritDestroyed` は
+**1体ごとに誘発**していて食い違う。既存カード全般に効くので、直すかどうか・範囲をユーザーに確認してから着手する
+（BS15_PLAN §2.4）。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ。
 
 ## 3. 決着済み（蒸し返さないこと）
 

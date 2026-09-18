@@ -3,6 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { COLOR_LABELS } from "../../../../data/constants"
 import {
     attachBrave,
     bothSidesPids,
@@ -40,7 +41,7 @@ import {
     tryInteractiveTargetChoice,
     tryOwnLifeFloorByCost,
 } from "../EffectModules"
-import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
+import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeDamagePerSpiritRemaining, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 
@@ -89,6 +90,13 @@ const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAtt
     if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
     state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+}
+
+// BS15-082神閃月下フラッシュ：このターンの間、指定色以外のスピリットすべて（両陣営）はアタック/ブロックできない
+const restrictActionsToColorThisTurnHandler: ActionHandler<"restrictActionsToColorThisTurn"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    state.turnConstraints.push({ type: "cantActExceptColor", color: action.color })
+    log(state, `${sourceName}：このターンの間、${COLOR_LABELS[action.color]}以外のスピリットすべてはアタック/ブロックできない。`)
 }
 
 // BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
@@ -345,6 +353,17 @@ const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
         return
 }
 
+const disableOpponentBurstThisBattleHandler: ActionHandler<"disableOpponentBurstThisBattle"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+        if (!state.battle) {
+            log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
+            return
+        }
+        state.battle.burstBlockedForPid = opp
+        log(state, `${sourceName}：このバトルの間、${state.players[opp].name}はバーストを発動できない。`)
+        return
+}
+
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
@@ -398,18 +417,23 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
         // 下限までは減る。srcType（この効果の発生源の種別）で絞る
         const floor = lifeFloorByEffect(state, opp, srcType)
-        const dealt = Math.min(count, Math.max(0, player.life - floor))
+        // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」：
+        // 発生源がスピリットの効果によるライフ減少も合計に含める（BS15共通器）
+        const perSpiritLimit = srcType === "spirit" && self ? lifeDamagePerSpiritRemaining(state, self) : Number.POSITIVE_INFINITY
+        const dealt = Math.min(count, Math.max(0, player.life - floor), perSpiritLimit)
         if (dealt === 0 && count > 0) {
             log(state, `${sourceName}：${player.name}のライフはこれ以上減らせなかった。`)
             return
         }
         player.life -= dealt
+        if (srcType === "spirit" && self) self.lifeDealtThisTurn = (self.lifeDealtThisTurn ?? 0) + dealt
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
+        // dest:"void" はボイド行き（ゲームから完全に取り除く。BS15-027虚天帝ホウオウガ）
         if (action.dest === "trash") player.trashCores += dealt
-        else player.reserve += dealt
+        else if (action.dest !== "void") player.reserve += dealt
         log(
             state,
-            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
+            `${sourceName}：${player.name}のライフからコア${dealt}個を${action.dest === "trash" ? "トラッシュ" : action.dest === "void" ? "ボイド" : "リザーブ"}に置いた。（残りライフ${player.life}）`,
         )
         if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: opp, amount: dealt })
         if (player.life <= 0 && !state.winner) {
@@ -1086,7 +1110,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             // 候補が0枚なら発揮できないので、消費を巻き戻すフラグを立てて終わる
             if (action.cancelable) {
                 if (indices.length === 0) {
-                    state.activationFizzled = true
+                    state.effectFizzled = true
                     log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
                     return
                 }
@@ -1249,6 +1273,9 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             }
             if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
             if (isTrashCardProtected(candidateId)) return false
+            // onlyBurstDestroyedCard（BS15-073五輪転生炎）：そのバースト発動のきっかけになった破壊で
+            // 落ちたカードだけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致）
+            if (action.onlyBurstDestroyedCard && candidateId !== ctx.targetInstanceId) return false
             // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
             // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
             if (action.payCost) {
@@ -1324,6 +1351,49 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             log(
                 state,
                 `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
+            )
+            return
+        }
+        // BS15-018霊獣皇テン・クー：countCounter指定時はcountを無視しEffectCounterの値を召喚できる
+        // 最大枚数として使う（0なら不発）。count分岐と異なり、この効果は「発揮されない」の記載が無いため
+        // 召喚時効果を通常どおり発揮する（fireSummonSequenceを呼ぶ）。コスト最大から貪欲に選ぶ決定的簡略化
+        if (action.countCounter !== undefined) {
+            let remaining = countEffectCounter(state, owner, self, action.countCounter, undefined)
+            const summonedNames: string[] = []
+            while (remaining > 0) {
+                let bestIndex = -1
+                let bestCost = -1
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    const candidateId = player.trashCards[i]!
+                    if (!matchesCardId(candidateId)) continue
+                    const candidate = getCard(candidateId)
+                    if (minLevelCores(candidate) > player.reserve) continue
+                    if (candidate.cost > bestCost) {
+                        bestCost = candidate.cost
+                        bestIndex = i
+                    }
+                }
+                if (bestIndex === -1) break
+                const cardId = player.trashCards[bestIndex]!
+                const cardData = getCard(cardId)
+                const maintain = minLevelCores(cardData)
+                player.trashCards.splice(bestIndex, 1)
+                player.reserve -= maintain
+                const inst = createInstance(cardId, state.turn, maintain)
+                player.field.spirits.push(inst)
+                summonedNames.push(cardData.name)
+                remaining -= 1
+                if (!state.winner) resolveTensho(state, owner, inst)
+                if (!state.winner && !state.pendingChoice) fireSummonSequence(state, owner, inst)
+                if (state.pendingChoice || state.winner) break
+            }
+            if (summonedNames.length === 0) {
+                log(state, `${sourceName}：召喚できる対象がいなかった。`)
+                return
+            }
+            log(
+                state,
+                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。`,
             )
             return
         }
@@ -2046,6 +2116,28 @@ const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfB
     log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
 }
 
+// BS15-045虚獣帝スフィン・クロス：trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。
+// selfが現在のバトルのアタッカーで、ブロッカーがいて、コアが1個以上あるときだけ、
+// selfのコア1個をボイドに置いてBPを比べずブロックされなかった扱いにする（判定はバトル解決側）
+const unblockedByVoidSelfCoreHandler: ActionHandler<"unblockedByVoidSelfCore"> = (ctx) => {
+    const { state, self, sourceName } = ctx
+    if (!state.battle || !state.battle.blockerInstanceId) {
+        log(state, `${sourceName}：発動しなかった。`)
+        return
+    }
+    if (!self || self.instanceId !== state.battle.attackerInstanceId) {
+        log(state, `${sourceName}：発動しなかった。`)
+        return
+    }
+    if (self.cores <= 0) {
+        log(state, `${sourceName}：コアが無いため発動しなかった。`)
+        return
+    }
+    self.cores -= 1
+    state.battle.treatAsUnblockedByCost = true
+    log(state, `${sourceName}：コア1個をボイドに置き、BPを比べずブロックされなかったものとして扱う。`)
+}
+
 // SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら、BPを比べずに
 // 「ブロックされなかった」ものとして扱う（treatAsUnblockedIfBlockerLevel1 の一般化版）
 const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnblockedIfLevelAtLeastBlocker"> = (ctx) => {
@@ -2095,6 +2187,44 @@ const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> =
     )
     chosen.cantBlockThisBattle = true
     log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
+}
+
+// BS15-X05光の覇王ルナアーク・カグヤ：相手のスピリット1体に、このバトルの間
+// 「currentLevelがlevelsに含まれるとき基礎BPをamountとして扱う」印を付ける
+const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (targetInstanceId !== undefined) {
+        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
+        if (!found) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        found.battleBpAs = { levels: [...action.levels], amount: action.amount }
+        log(state, `${getCard(found.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
+        return
+    }
+    const candidates: CardInstance[] = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：対象の相手スピリットを選んでください`,
+            candidates.map((s: CardInstance) => s.instanceId),
+            false,
+            { type: "setOpponentBpAsThisBattle", levels: action.levels, amount: action.amount },
+            self,
+        )
+        return
+    }
+    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
+        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
+    )
+    chosen.battleBpAs = { levels: [...action.levels], amount: action.amount }
+    log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
 // BS13-032光速の騎士ヘルモード【合体時】Lv3『このスピリットの合体アタック時』：発生源自身に、
@@ -2287,6 +2417,9 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
+    unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
+    restrictActionsToColorThisTurn: restrictActionsToColorThisTurnHandler,
+    setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
     unblockableAboveBpThisBattle: unblockableAboveBpThisBattleHandler,
@@ -2308,6 +2441,7 @@ const handlers = {
     battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
     lockFlash: lockFlashHandler,
+    disableOpponentBurstThisBattle: disableOpponentBurstThisBattleHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,

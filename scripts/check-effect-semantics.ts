@@ -218,6 +218,12 @@ function hasCostEvidence(effects: Record<string, unknown>[]): boolean {
 // キーは cardId（S3 は1カードにつき最初の「できる。」1件しか出さない）。
 // 機械的な等価表現に落とせるものは OPTIONAL_CAPABLE_KINDS 側で落とすこと
 const S3_VERIFIED: Record<string, string> = {
+    // ミーアバット: handActivated（手札から使う任意の起動）なので、発動そのものが任意のため
+    "BS15-011": "handActivatedの宣言自体が任意のため（2026-09-18 確認）",
+    // インフェニット・ヴォルス: 「疲労状態でブロックできる」はブロック可否の緩和（constraintGrant）で、宣言が任意のため
+    "BS15-036": "ブロック可否の緩和で、ブロック宣言そのものが任意のため（2026-09-18 確認）",
+    // プロボケイション: 「使用できる」は使用タイミングの拡張で、使うかどうかは確認を出しているため
+    "BS15-079": "使用の確認をofferOpponentMainEndMagicで出しているため（2026-09-18 確認）",
     // グラン・ドルバルカン: 起動能力(activated)なので二重確認になるため
     "BS01-094": "起動能力(activated)なので二重確認になるため（2026-09-16 確認）",
     // キラーテレスコープ: 能力の付与（対象に選べる）なので不要のため
@@ -340,6 +346,15 @@ function canCarryOptionalEvidence(effects: Record<string, unknown>[]): boolean {
 // S4 で「読んで問題なしと確認した」もの。**理由を必ず添える**。
 // キーは `${cardId}|${見出し}`（出力の「テキスト根拠」と同じ文字列＝先頭30字）
 const S4_VERIFIED: Record<string, string> = {
+    // ショカツリョー: anySpiritAttacked はアタックステップにしか起きないため限定は不要
+    "BS15-026|Lv2『自分のアタックステップ』": "アタック誘発はアタックステップにしか起きないため（2026-09-18 確認）",
+    // ホウオウガ: ownSpiritDealtLife（アタックによるライフ減少）はアタックステップにしか起きないため
+    "BS15-027|Lv1･Lv2･Lv3『自分のアタックステップ』": "アタックによるライフ減少はアタックステップにしか起きないため（2026-09-18 確認）",
+    // スフィン・クロス: ownSpiritBlocked / ownSpiritDealtLife はどちらもアタックステップにしか起きないため
+    "BS15-045|Lv1･Lv2･Lv3『自分のアタックステップ』": "ブロック時の誘発はアタックステップにしか起きないため（2026-09-18 確認）",
+    "BS15-045|Lv2･Lv3『自分のアタックステップ』": "アタックによるライフ減少はアタックステップにしか起きないため（2026-09-18 確認）",
+    // 冥府へ続く魔門: 見出しはfushiFreeByExhaust側で、別見出しのfieldEvent（アタック時）と突き合わせている誤検出
+    "BS15-064|Lv2『お互いのアタックステップ』": "見出しがfushiFreeByExhaust側で別エントリと混同のため（2026-09-18 確認）",
     // 花の宮殿: Lv2 の見出しは globalConstraint 側で、別見出しの reviveOnDestroy と突き合わせている誤検出
     "BS09-063|Lv2『お互いのアタックステップ』": "見出しはglobalConstraintで別見出しのreviveOnDestroyと混同のため（2026-09-16 確認）",
     // 赤き砂の座: tenshoSelfCostBonus の見出しは『自分のメインステップ』で、【転召】召喚は

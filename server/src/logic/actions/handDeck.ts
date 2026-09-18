@@ -42,7 +42,7 @@ import {
     requestActivationConfirm,
 } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
-import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, canDiscardHand, countSymbols, effectiveBp, heavyArmorColorsOf, instanceSymbolCount, instColors, instIsCombined, matchesFamilyFilter, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, instBaseCost, instHasColor, instMatchesCostFilter, isTrashCardProtected, isVanillaCard, matchesTarget, summonByEffectBlocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -53,6 +53,27 @@ const noopHandler: ActionHandler<"noop"> = () => {
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+        // BS15共通器：globalConstraint "noHandGainByEffect" が効いている間は、ドロー効果自体が
+        // 発揮されない（お互い。BS15-052天蒼元帥チョウハッカイ）
+        if (hasGlobalConstraint(state, "noHandGainByEffect")) {
+            log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
+            return
+        }
+        // costDiscardOwnHandOne（BS15-040ネコマーダ）：自分の手札1枚（末尾＝決定的簡略化）を
+        // 破棄することがコスト。手札0枚なら不発
+        if (action.costDiscardOwnHandOne) {
+            const player = state.players[owner]
+            if (player.hand.length === 0) {
+                log(state, `${sourceName}：破棄できる手札がないため発動しなかった。`)
+                return
+            }
+            const cardId = player.hand.pop()!
+            player.trashCards.push(cardId)
+            log(state, `${player.name}は${sourceName}のコストとして手札1枚を破棄した。`)
+            const { costDiscardOwnHandOne: _cdoh, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         // costDestroyOwnFamily（BS13-X02蛇皇神帝アスクレピオーズ）：指定系統の自分のスピリット1体を
         // 破壊することがコスト。破壊できる対象がいなければ不発（COST_MODEL.md §1）。
         // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。summonFromHandFreeと同じ考え方）
@@ -212,6 +233,110 @@ const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom">
             state,
             `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
         )
+        return
+}
+
+// BS15-082神閃月下：trashSpiritsToDeckBottomの汎用版（カード種別を問わない。「count枚まで」＝
+// 好きな枚数でよいが、trashSpiritsToDeckBottomと同じく「候補が尽きるまで選ばせる」簡略化で実装する。
+// 途中でやめる専用UI（クリックで番号付与→取り消しで詰め直し）は見送った＝要確認）
+const trashCardsToDeckBottomHandler: ActionHandler<"trashCardsToDeckBottom"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        const player = state.players[owner]
+        const picked = action.pickedIndices ?? []
+        const remainingChoosable = (excludeIndices: number[]): number[] =>
+            player.trashCards
+                .map((id, j) => ({ id, j }))
+                .filter(({ id, j }) => !isTrashCardProtected(id) && !excludeIndices.includes(j))
+                .map(({ j }) => j)
+        if (chosenCardIndex !== undefined) {
+            const next = [...picked, chosenCardIndex]
+            if (next.length < action.count && remainingChoosable(next).length > 0) {
+                ctx.resolve({ ...action, pickedIndices: next })
+                return
+            }
+            const movedIds = next.map((j) => player.trashCards[j]!)
+            for (const j of [...next].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
+            for (const id of movedIds) player.deck.push(id)
+            log(
+                state,
+                `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
+            )
+            return
+        }
+        const choosable = remainingChoosable(picked)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：デッキの下に戻すカードを選んでください（${picked.length + 1}/${action.count}枚まで）`,
+                "trash",
+                choosable,
+                { ...action, pickedIndices: picked },
+                null,
+            )
+        ) {
+            return
+        }
+        // 非対話：末尾（新しい方）からcount枚まで戻す
+        const indices: number[] = []
+        for (let j = player.trashCards.length - 1; j >= 0 && picked.length + indices.length < action.count; j--) {
+            if (!isTrashCardProtected(player.trashCards[j]!) && !picked.includes(j)) indices.push(j)
+        }
+        const order = [...picked, ...indices]
+        if (order.length === 0) {
+            log(state, `${sourceName}：トラッシュに戻せるカードがなかった。`)
+            return
+        }
+        const movedIds = order.map((j) => player.trashCards[j]!)
+        for (const j of [...order].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
+        for (const id of movedIds) player.deck.push(id)
+        log(
+            state,
+            `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
+        )
+        return
+}
+
+// BS15-082神閃月下：自分のトラッシュにあるマジックカード1枚をデッキの上に戻す
+const trashMagicToDeckTopHandler: ActionHandler<"trashMagicToDeckTop"> = (ctx) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+        const player = state.players[owner]
+        if (chosenCardIndex !== undefined) {
+            const cardId = player.trashCards[chosenCardIndex]
+            if (cardId === undefined) return
+            player.trashCards.splice(chosenCardIndex, 1)
+            player.deck.unshift(cardId)
+            log(state, `${player.name}はトラッシュの「${getCard(cardId).name}」をデッキの上に戻した。`)
+            return
+        }
+        const choosable = player.trashCards
+            .map((id, j) => ({ id, j }))
+            .filter(({ id }) => getCard(id).type === "magic" && !isTrashCardProtected(id))
+            .map(({ j }) => j)
+        if (
+            tryInteractiveCardChoice(
+                state,
+                owner,
+                self,
+                `${sourceName}：デッキの上に戻すマジックカードを選んでください`,
+                "trash",
+                choosable,
+                { type: "trashMagicToDeckTop" },
+                null,
+            )
+        ) {
+            return
+        }
+        if (choosable.length === 0) {
+            log(state, `${sourceName}：トラッシュにマジックカードがなかった。`)
+            return
+        }
+        const j = choosable[choosable.length - 1]!
+        const cardId = player.trashCards[j]!
+        player.trashCards.splice(j, 1)
+        player.deck.unshift(cardId)
+        log(state, `${player.name}はトラッシュの「${getCard(cardId).name}」をデッキの上に戻した。`)
         return
 }
 
@@ -1253,6 +1378,79 @@ const revealAndSummonAllByFamilyHandler: ActionHandler<"revealAndSummonAllByFami
         return
 }
 
+// BS15-009虚龍帝カタストロフドラゴン：デッキ上からcount枚を公開し、その中の指定キーワードを静的に
+// 持つスピリットカードすべてを、コストを支払わず召喚する。revealAndSummonAllByFamilyと違い【転召】も
+// 『召喚時』効果も**通常どおり発揮する**（効果文に「発揮されない」の記載が無いため）。
+// pendingCardIds指定時は召喚1体ごとの中断（【転召】選択・召喚時効果の選択）から再開する
+const revealAndSummonAllByKeywordHandler: ActionHandler<"revealAndSummonAllByKeyword"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    const player = state.players[owner]
+    let remaining: string[]
+    if (action.pendingCardIds !== undefined) {
+        remaining = action.pendingCardIds
+    } else {
+        const revealed = player.deck.splice(0, action.count)
+        if (revealed.length === 0) {
+            log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+            return
+        }
+        log(
+            state,
+            `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+        )
+        const matched: string[] = []
+        const discarded: string[] = []
+        for (const cardId of revealed) {
+            const card = getCard(cardId)
+            if (card.type === "spirit" && hasKeyword(cardId, action.keyword)) matched.push(cardId)
+            else discarded.push(cardId)
+        }
+        if (discarded.length > 0) {
+            player.trashCards.push(...discarded)
+            log(state, `${player.name}は残り${discarded.length}枚をトラッシュに置いた。`)
+        }
+        remaining = matched
+    }
+    const summonNext = (): void => {
+        while (remaining.length > 0) {
+            const [cardId, ...rest] = remaining
+            remaining = rest
+            const card = getCard(cardId!)
+            const maintain = minLevelCores(card)
+            if (player.reserve < maintain) {
+                player.trashCards.push(cardId!)
+                log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
+                continue
+            }
+            player.reserve -= maintain
+            const inst = createInstance(cardId!, state.turn, maintain)
+            player.field.spirits.push(inst)
+            log(state, `${player.name}は${sourceName}の効果で${card.name}をコストを支払わずに召喚した。`)
+            if (!state.winner) resolveTensho(state, owner, inst)
+            if (state.pendingChoice) {
+                pushResumeFrames(state, [
+                    { kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } },
+                    ...(remaining.length > 0
+                        ? [{ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: { ...action, pendingCardIds: remaining } }]
+                        : []),
+                ])
+                return
+            }
+            if (!state.winner) fireSummonSequence(state, owner, inst)
+            if (state.pendingChoice) {
+                if (remaining.length > 0) {
+                    pushResumeFrames(state, [
+                        { kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: { ...action, pendingCardIds: remaining } },
+                    ])
+                }
+                return
+            }
+            if (state.winner) return
+        }
+    }
+    summonNext()
+}
+
 // BS12-074 スターリードロー：デッキ上からcount枚をオープンし、系統一致のスピリット/（includeBraves時は）
 // ブレイヴカードすべてを手札に加える。残りはトラッシュへ破棄する（召喚せず手札に加えるだけの版）
 const revealTopFamilyToHandHandler: ActionHandler<"revealTopFamilyToHand"> = (ctx, action) => {
@@ -1310,6 +1508,106 @@ const revealTopToHandThenRefreshOwnHandler: ActionHandler<"revealTopToHandThenRe
     if (matches) {
         ctx.resolve({ type: "refreshOne" })
     }
+}
+
+// BS15-074三札之術メイン：自分のデッキを上から1枚オープンする。指定色のスピリットカードのときだけ
+// 手札に加え、それ以外（色不一致・スピリット以外）のときはデッキの上に戻す
+// （revealTopToHandThenRefreshOwnと違い、手札に残るかどうか自体が条件付き）
+const revealTopToHandIfColorSpiritElseReturnToDeckHandler: ActionHandler<"revealTopToHandIfColorSpiritElseReturnToDeck"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.deck.shift()
+    if (cardId === undefined) {
+        log(state, `${sourceName}：デッキが尽きているため公開できなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    if (card.type === "spirit" && cardHasColor(card, action.colorFilter)) {
+        player.hand.push(cardId)
+        log(state, `${player.name}はデッキを上から1枚（${card.name}）オープンし、手札に加えた。`)
+        notifyHandGained(state, owner, 1)
+    } else {
+        player.deck.unshift(cardId)
+        log(state, `${player.name}はデッキを上から1枚（${card.name}）オープンし、デッキの上に戻した。`)
+    }
+}
+
+// BS15-076妖華吸血爪フラッシュ：自分の手札を好きなだけ破棄する（0枚から選べる）。破棄した1枚につき、
+// 相手のスピリット1体のコア1個を相手のトラッシュに置く（同じスピリットを何度選んでもよい＝2026-09-16
+// ユーザー確認。実装は毎回coreRemoveの通常の対象選択に委譲するのでそれが自然に成り立つ）
+const discardHandAnyThenCoreRemoveHandler: ActionHandler<"discardHandAnyThenCoreRemove"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined) return
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
+        pushResumeFrames(state, [
+            { kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: { type: "coreRemove", count: 1, dest: "trash" as const } },
+            { kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action },
+        ])
+        return
+    }
+    if (!state.interactiveTargets) {
+        // 非対話：手札をすべて破棄し、その枚数ぶんまとめて1体からコアを取り除く（決定的簡略化）
+        const n = player.hand.length
+        if (n === 0) return
+        const names = player.hand.map((id) => getCard(id).name)
+        player.trashCards.push(...player.hand)
+        player.hand = []
+        log(state, `${player.name}は${sourceName}のコストとして手札${n}枚（${names.join("、")}）を破棄した。`)
+        ctx.resolve({ type: "coreRemove", count: n, dest: "trash" })
+        return
+    }
+    if (player.hand.length === 0) return
+    const indices = player.hand.map((_, i) => i)
+    requestCardChoice(
+        state,
+        owner,
+        `${sourceName}：破棄する手札を選んでください（これ以上破棄しない場合は選ばない）`,
+        "hand",
+        indices,
+        true,
+        action,
+        self,
+        true,
+    )
+}
+
+// BS15-073五輪転生炎フラッシュ：自分のフィールドのスピリットが持つ系統（重複除く）から1つ指定し、
+// このターンの間、合体していない指定した系統を持つ自分のスピリットすべてをBP+amountする
+const familyChoiceThenBpBuffAllHandler: ActionHandler<"familyChoiceThenBpBuffAll"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+    const player = state.players[owner]
+    const candidateFamilies = Array.from(new Set(player.field.spirits.flatMap((s) => getCard(s.cardId).family)))
+    const applyBuff = (family: string): void => {
+        const targets = player.field.spirits.filter(
+            (s) => matchesFamilyFilter(state, owner, s, family) && (!action.uncombinedOnly || !instIsCombined(s)),
+        )
+        for (const t of targets) t.tempBpBuff += action.amount
+        log(state, `${sourceName}：系統「${family}」を持つ自分のスピリットすべてをBP+${action.amount}（ターン終了時まで）。`)
+    }
+    if (chosenOption !== undefined && candidateFamilies.includes(chosenOption)) {
+        applyBuff(chosenOption)
+        return
+    }
+    if (candidateFamilies.length === 0) {
+        log(state, `${sourceName}：指定できる系統がないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：系統を1つ指定してください`, [], false, action, self, "option", candidateFamilies)
+        return
+    }
+    // 非対話：対象数が最大になる系統を選ぶ（プレイヤー選択の決定的簡略化）
+    const countFor = (family: string) =>
+        player.field.spirits.filter(
+            (s) => matchesFamilyFilter(state, owner, s, family) && (!action.uncombinedOnly || !instIsCombined(s)),
+        ).length
+    const best = candidateFamilies.reduce((a, b) => (countFor(b) > countFor(a) ? b : a))
+    applyBuff(best)
 }
 
 // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
@@ -1747,6 +2045,25 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
             // burst.destroyedAsTarget が targetInstanceId の枠に cardId を入れてくる（BS14-103）
             (action.onlyBurstDestroyedCard !== true || cardId === targetInstanceId) &&
             !isTrashCardProtected(cardId)
+        // costDiscardOwnBurst（BS15-044天使サクエル）：自分のバースト1つを破棄することがコスト。
+        // 対象条件を満たすカードが1枚も無ければコストも払わない（COST_MODEL.md §1）
+        if (action.costDiscardOwnBurst) {
+            if (player.burst === null) {
+                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
+                return
+            }
+            if (!player.trashCards.some((id) => magicOk(id))) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            player.trashCards.push(player.burst)
+            player.burst = null
+            player.burstSet = false
+            log(state, `${player.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+            const { costDiscardOwnBurst: _cdob, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -2828,8 +3145,40 @@ const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        const beforeLen = state.players[targetPid].trashCards.length
+        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        // BS15共通器：破棄したカードの中に【バースト】効果を持つカードがあったか（BS15-X06鉄の覇王サイゴード・ゴレム）
+        state.lastMillHadBurst =
+            actual > 0 &&
+            state.players[targetPid].trashCards
+                .slice(beforeLen, beforeLen + actual)
+                .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
         return
+}
+
+// バースト専用：millPerと同じ計算で相手のデッキを破棄し、破棄した中に【バースト】効果を持つカードが
+// あれば続けて自身をコストを支払わずに召喚する（BS15-X06鉄の覇王サイゴード・ゴレム）
+const millPerThenSummonSelfIfBurstMilledHandler: ActionHandler<"millPerThenSummonSelfIfBurstMilled"> = (ctx, action) => {
+    const { state, owner, self, srcType, sourceName } = ctx
+    const raw = countEffectCounter(state, owner, self, action.counter, srcType)
+    const count = raw * (action.multiplier ?? 1)
+    if (count === 0) {
+        log(state, `${sourceName}：カウントが0のため破棄しなかった。`)
+        return
+    }
+    const targetPid = opponentOf(owner)
+    const beforeLen = state.players[targetPid].trashCards.length
+    const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+    state.lastMillHadBurst =
+        actual > 0 &&
+        state.players[targetPid].trashCards
+            .slice(beforeLen, beforeLen + actual)
+            .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (!state.lastMillHadBurst) {
+        log(state, `${sourceName}：バースト効果を持つカードは破棄されなかった。`)
+        return
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
 }
 
 const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
@@ -3015,8 +3364,57 @@ const returnToHandCostBudgetHandler: ActionHandler<"returnToHandCostBudget"> = (
     ctx.resolve({ ...action, budget: remaining - getCard(picked.cardId).cost })
 }
 
+const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+
+// destroyFieldExceptOpponentChosenColorの手札バウンス版（BS15-035軍神機メガ・テュール）。
+// 相手が相手自身のスピリットの色から1色指定し、指定外の色を1つでも持つ相手のスピリット（ネクサスは対象外）
+// すべてを持ち主の手札に戻す。合体スピリットはinstColorsで合成色を見るため、該当すればホストごと（＝ブレイヴも）戻る
+const returnFieldExceptOpponentChosenColorHandler: ActionHandler<"returnFieldExceptOpponentChosenColor"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    const targetsFor = (color: Color) => state.players[opp].field.spirits.filter((s) => instColors(s).some((c) => c !== color))
+    const resolveWithColor = (color: Color): void => {
+        const spirits = targetsFor(color)
+        log(state, `${sourceName}：相手の指定色は${color}。それ以外の色を持つ相手のスピリット/ブレイヴを手札に戻す。`)
+        for (const s of spirits) returnSpiritToHand(state, opp, s, sourceName)
+    }
+    if (chosenOption !== undefined && (RETURN_FIELD_COLORS as string[]).includes(chosenOption)) {
+        resolveWithColor(chosenOption as Color)
+        return
+    }
+    const oppSpirits = state.players[opp].field.spirits
+    if (oppSpirits.length === 0) {
+        log(state, `${sourceName}：色を指定するスピリットが相手にいないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：相手のスピリットの色を1色指定してください`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            RETURN_FIELD_COLORS,
+            opp,
+        )
+        return
+    }
+    // 非対話：相手視点で戻る数が最小になる色を選ぶ（プレイヤー選択の決定的簡略化）
+    const countFor = (color: Color): number => targetsFor(color).length
+    const best = RETURN_FIELD_COLORS.reduce((a, b) => (countFor(b) < countFor(a) ? b : a))
+    resolveWithColor(best)
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // BS15共通器：globalConstraint "noHandGainByEffect" が効いている間は、バウンス効果自体が
+        // 発揮されない＝戻すはずのスピリットは場に残る（お互い。BS15-052天蒼元帥チョウハッカイ）
+        if (hasGlobalConstraint(state, "noHandGainByEffect")) {
+            log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
+            return
+        }
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
         // （BS06レインディア：ブロックしたスピリットが系統「空牙」のときのみ手札に戻す）
         const filter = normalizeFilter(ctx, action)
@@ -4036,6 +4434,8 @@ const handlers = {
     drawPer: drawPerHandler,
     drawUpTo: drawUpToHandler,
     trashSpiritsToDeckBottom: trashSpiritsToDeckBottomHandler,
+    trashCardsToDeckBottom: trashCardsToDeckBottomHandler,
+    trashMagicToDeckTop: trashMagicToDeckTopHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     discardOpponentDownTo: discardOpponentDownToHandler,
@@ -4054,8 +4454,12 @@ const handlers = {
     revealAndSummonKeyword: revealAndSummonKeywordHandler,
     revealAndPlaceNexusFree: revealAndPlaceNexusFreeHandler,
     revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
+    revealAndSummonAllByKeyword: revealAndSummonAllByKeywordHandler,
     revealTopFamilyToHand: revealTopFamilyToHandHandler,
     revealTopToHandThenRefreshOwn: revealTopToHandThenRefreshOwnHandler,
+    revealTopToHandIfColorSpiritElseReturnToDeck: revealTopToHandIfColorSpiritElseReturnToDeckHandler,
+    discardHandAnyThenCoreRemove: discardHandAnyThenCoreRemoveHandler,
+    familyChoiceThenBpBuffAll: familyChoiceThenBpBuffAllHandler,
     millSelfTopThenRefreshSelfIfFamily: millSelfTopThenRefreshSelfIfFamilyHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     revealDiscardRest: revealDiscardRestHandler,
@@ -4082,9 +4486,11 @@ const handlers = {
     revealTopCastMagicFreeOrHand: revealTopCastMagicFreeOrHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
+    millPerThenSummonSelfIfBurstMilled: millPerThenSummonSelfIfBurstMilledHandler,
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
+    returnFieldExceptOpponentChosenColor: returnFieldExceptOpponentChosenColorHandler,
     returnToHandCostBudget: returnToHandCostBudgetHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnOwnSpiritToHand: returnOwnSpiritToHandHandler,

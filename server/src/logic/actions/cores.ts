@@ -47,6 +47,27 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costDiscardOwnBurst（BS15-016闇騎士ガウェイン）：自分のバースト1つを破棄することがコスト。
+        // 「〜することで〜する」は両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、
+        // 対象条件を満たす相手のスピリットが1体もいなければバーストも破棄しない
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            const filterForCheck = normalizeFilter(ctx, action)
+            const hasEligibleTarget =
+                filterForCheck !== SELF_REQUIRED &&
+                state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filterForCheck, self?.instanceId))
+            if (ownerPlayer.burst === null || !hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+            const { costDiscardOwnBurst: _cdob, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
@@ -609,8 +630,39 @@ const voidCoreToReserveHandler: ActionHandler<"voidCoreToReserve"> = (ctx, actio
     log(state, `${sourceName}：ボイドからコア${action.count}個を自分のリザーブに置いた。`)
 }
 
+// BS15-039僧侶ペンタンLv2：自分のトラッシュのコアをcount個、持ち主のリザーブへ置く（不足分は可能な分だけ）
+const trashCoresToReserveHandler: ActionHandler<"trashCoresToReserve"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    if (action.count <= 0) return
+    const player = state.players[owner]
+    const moved = Math.min(action.count, player.trashCores)
+    if (moved <= 0) {
+        log(state, `${sourceName}：トラッシュにコアが無かった。`)
+        return
+    }
+    player.trashCores -= moved
+    player.reserve += moved
+    log(state, `${sourceName}：トラッシュのコア${moved}個を自分のリザーブに置いた。`)
+}
+
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenOption } = ctx
+        // costDiscardOwnBurst（BS15-022アナグマッド・デビル）：自分のバースト1つを破棄することがコスト。
+        // バーストをセットしていなければ不発
+        if (action.costDiscardOwnBurst) {
+            const ownerPlayer = state.players[owner]
+            if (ownerPlayer.burst === null) {
+                log(state, `${sourceName}：バーストをセットしていないため発動しなかった。`)
+                return
+            }
+            ownerPlayer.trashCards.push(ownerPlayer.burst)
+            ownerPlayer.burst = null
+            ownerPlayer.burstSet = false
+            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
+            const { costDiscardOwnBurst: _cdob, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
         if (voidCorePlacementBlocked(state)) {
             log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
@@ -1879,6 +1931,7 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         if (action.costExhaustSelf) {
             if (!self || self.isRested) {
                 log(state, `${sourceName}：疲労できないため発動しなかった。`)
+                state.effectFizzled = true
                 return
             }
             exhaustSpirit(state, owner, self)
@@ -1933,6 +1986,28 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             if (voidCount <= 0) {
                 log(state, `${sourceName}：対象がいないため発動しなかった。`)
                 return
+            }
+            // orReserve（BS15-X05光の覇王ルナアーク・カグヤ）：「自分のライフか、自分のリザーブに置く」を
+            // 効果の使用者が毎回選ぶ（voidCoreToSelf.orReserveの鏡。非対話時はライフ側に倒す）
+            if (action.orReserve) {
+                if (chosenOption === "リザーブに置く") {
+                    player.reserve += voidCount
+                    log(state, `${player.name}はボイドからコア${voidCount}個をリザーブに置いた。（リザーブ${player.reserve}）`)
+                    return
+                }
+                if (chosenOption !== "ライフに置く" && state.interactiveTargets) {
+                    suspend(state, {
+                        pid: owner,
+                        kind: "option",
+                        prompt: `${sourceName}：ボイドからコア${voidCount}個を、自分のライフか、自分のリザーブのどちらに置きますか？`,
+                        candidates: [],
+                        options: ["ライフに置く", "リザーブに置く"],
+                        optional: false,
+                        action,
+                        selfInstanceId: self ? self.instanceId : null,
+                    })
+                    return
+                }
             }
             player.life += voidCount
             log(
@@ -2269,6 +2344,37 @@ function totalCoresOf(state: GameState, pid: PlayerId): number {
         player.trashCores +
         player.reserve
     )
+}
+
+// BS15-X01刀の覇王ムサシード・アシュライガーLv3：相手のライフのコアをcount個、相手のリザーブへ置く
+// （相手のライフがcountに満たなければあるだけ移す。0枚なら不発）
+const opponentLifeToReserveHandler: ActionHandler<"opponentLifeToReserve"> = (ctx, action) => {
+    const { state, opp, sourceName } = ctx
+    const target = state.players[opp]
+    const moved = Math.min(action.count, target.life)
+    if (moved <= 0) {
+        log(state, `${sourceName}：${target.name}のライフが無いため発動しなかった。`)
+        return
+    }
+    target.life -= moved
+    target.reserve += moved
+    log(state, `${sourceName}：${target.name}のライフのコア${moved}個をリザーブに置いた。`)
+}
+
+// BS15-075ブラッディロンドメイン：お互いのコア合計（フィールド+リザーブ+トラッシュ）を比べ、多かった方の
+// 持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先はその持ち主が選ぶ。
+// coresDownToLimitへ、多かった方をsides・少なかった方の合計をlimitとして委譲する
+const coreToVoidEqualizeByTotalHandler: ActionHandler<"coreToVoidEqualizeByTotal"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const totalOwner = totalCoresOf(state, owner)
+    const totalOpp = totalCoresOf(state, opp)
+    if (totalOwner === totalOpp) {
+        log(state, `${sourceName}：お互いのコア合計は同数だった。`)
+        return
+    }
+    const side: "opponent" | "own" = totalOwner > totalOpp ? "own" : "opponent"
+    const limit = Math.min(totalOwner, totalOpp)
+    ctx.resolve({ type: "coresDownToLimit", limit, sides: [side] })
 }
 
 const opponentCoresToVoidByTotalHandler: ActionHandler<"opponentCoresToVoidByTotal"> = (ctx, action) => {
@@ -2628,6 +2734,8 @@ const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCo
 const handlers = {
     opponentCoresToVoidByTotal: opponentCoresToVoidByTotalHandler,
     coresDownToLimit: coresDownToLimitHandler,
+    coreToVoidEqualizeByTotal: coreToVoidEqualizeByTotalHandler,
+    opponentLifeToReserve: opponentLifeToReserveHandler,
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
     costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,
@@ -2648,6 +2756,7 @@ const handlers = {
     coreGainPer: coreGainPerHandler,
     voidCoreToDeckSide: voidCoreToDeckSideHandler,
     voidCoreToReserve: voidCoreToReserveHandler,
+    trashCoresToReserve: trashCoresToReserveHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     voidCoreToSelfPer: voidCoreToSelfPerHandler,
     voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,

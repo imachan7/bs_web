@@ -21,6 +21,7 @@ import {
     effectiveBp,
     effectiveCost,
     fireStepTriggers,
+    getCard,
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
@@ -260,9 +261,11 @@ console.log("=== BS07 黄：手札のカード名一致スピリットのコス�
     const s = base("cost-set-name")
     const coresForLevel = empress.levels?.[levels[0]! - 1]?.cores ?? 2
     put(s, "p1", empress.cardId, coresForLevel)
+    // 置換したコストからさらに軽減できる（2026-09-16 ユーザー確定）。場にはペンプレスの黄シンボル1つだけ
+    const yellowReduction = Math.min(getCard(match.cardId).reduction.filter((c) => c === "yellow").length, 1)
     assert(
-        effectiveCost(s, "p1", byId(match.cardId) as never) === setTo,
-        `${match.name}（元コスト${match.cost}）のコストが${setTo}になる`,
+        effectiveCost(s, "p1", byId(match.cardId) as never) === setTo - yellowReduction,
+        `${match.name}（元コスト${match.cost}）のコストが${setTo}に置換され、軽減後${String(setTo - yellowReduction)}になる`,
     )
     assert(
         effectiveCost(s, "p1", byId(other.cardId) as never) !== setTo || (other.cost ?? 0) === setTo,

@@ -195,12 +195,10 @@ export function validateSummon(
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
     } else {
-        // フラッシュ中の神速召喚は優先権を持つプレイヤーのみ
-        if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-        // lockFlash 適用中は手札のカード（神速召喚も含む）を使用できない
-        if (isFlashLockedFor(state, pid)) {
-            return "効果により、フラッシュで手札のカードを使用できません"
-        }
+        // フラッシュ中の神速召喚：優先権・lockFlash の判定は validateHandFlash に共有する
+        // （011ミーアバットの useHandAbility・マジックのフラッシュ使用と同じ判定。BS15_PLAN.md §7.2）
+        const flashError = validateHandFlash(state, pid)
+        if (flashError) return flashError
     }
 
     // フィールドのスピリット数上限（旋風渦巻く渓谷＝5体以上召喚できない）。
@@ -523,6 +521,44 @@ function validateSummonHandDiscard(
     return null
 }
 
+// バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・手札から使うフラッシュ効果＝
+// kind:"handActivated" の3者で共有する。BS15_PLAN.md §7.2）。
+// 優先権を持つプレイヤーのみ／lockFlash（「フラッシュで手札のカードを使用できません」）適用中は使えない
+export function validateHandFlash(state: GameState, pid: PlayerId): string | null {
+    if (!state.isFlashTiming) return "フラッシュタイミングではありません"
+    if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
+    if (isFlashLockedFor(state, pid)) {
+        return "効果により、フラッシュで手札のカードを使用できません"
+    }
+    return null
+}
+
+// 011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）の検証。
+// バトル中フラッシュの共通判定は validateHandFlash に任せ、ここは手札に実在するかと
+// タイミング（phase一致）だけを見る（BS15_PLAN.md §7.2）
+export function validateUseHandAbility(
+    state: GameState,
+    pid: PlayerId,
+    handIndex: number,
+    effectId: string,
+): string | null {
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const effect = card.effects.find((e) => e.kind === "handActivated" && e.id === effectId)
+    if (!effect || effect.kind !== "handActivated") return "その効果は使用できません"
+    if (effect.phase !== undefined && state.phase !== effect.phase) {
+        return "このステップでは使用できません"
+    }
+    if (effect.timing === "flash") {
+        if (!state.battle) return "フラッシュタイミングではありません"
+        const flashError = validateHandFlash(state, pid)
+        if (flashError) return flashError
+    }
+    return null
+}
+
 export function validateCastMagic(
     state: GameState,
     pid: PlayerId,
@@ -638,14 +674,11 @@ export function validateCastMagic(
         return "このマジックは自分のターンでは使用できません"
     }
     if (state.battle) {
-        // バトル中のフラッシュ：優先権を持つプレイヤーのみ（攻撃側も優先権があれば使用可）
-        if (!state.isFlashTiming) return "フラッシュタイミングは終了しています"
-        if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
+        // バトル中のフラッシュ：優先権・lockFlash の判定は validateHandFlash に共有する
+        // （011ミーアバットの useHandAbility・神速召喚と同じ判定。BS15_PLAN.md §7.2）
+        const flashError = validateHandFlash(state, pid)
+        if (flashError) return flashError
         if (!card.flash) return "このマジックはフラッシュタイミングで使用できません"
-        // lockFlash 適用中はフラッシュで手札のカードを使用できない
-        if (isFlashLockedFor(state, pid)) {
-            return "効果により、フラッシュで手札のカードを使用できません"
-        }
         // 「ブロック宣言後のフラッシュタイミングで使えない」（BS11-078 ブレイヴフラッシュ）。
         // ブロックされているかは blockerInstanceId で見る（ブロックしない＝takeLife はその場で
         // ライフ処理まで進むので、そもそもここに来る窓が無い）
@@ -903,6 +936,17 @@ export function validateActivateAbility(
                 (s) => !s.isRested && matchesFamilyFilter(state, pid, s, family),
             )
             if (!hasCandidate) return "疲労させられるスピリットがいません"
+        } else if ("discardHandOne" in effect.cost) {
+            // BS15-003ファイアファンサウル：手札1枚を破棄し、このスピリットを疲労させることで
+            if (host.isRested) return "すでに疲労しています"
+            if (state.players[pid].hand.length < 1) return "破棄できるカードが手札にありません"
+        } else if ("discardHandKeyword" in effect.cost) {
+            // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカードが手札に無ければ発動できない
+            const keyword = effect.cost.discardHandKeyword
+            const hasCard = state.players[pid].hand.some(
+                (cardId) => getCard(cardId).type === "spirit" && hasKeyword(cardId, keyword),
+            )
+            if (!hasCard) return "破棄できるカードが手札にありません"
         } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
             return "コアが足りません"
         }
@@ -1083,6 +1127,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         return "ターンを終了できるステップではありません"
     }
     if (state.battle) return "バトルの解決中です"
+    // BS15-X04 の追加メインステップの後にアタックステップは無い
+    if (state.extraMainStep) return null
 
     // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
     if (state.turn === 1) return null

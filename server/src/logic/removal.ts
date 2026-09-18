@@ -126,6 +126,8 @@ import {
     noSummonTriggerByCost,
     spiritHasFamily,
     spiritHasKeyword,
+    lifeDamagePerSpiritRemaining,
+    ownFieldOnlyColor,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -182,6 +184,7 @@ checkExhaustOnCoreChange,
     resistanceAgainst,
     resolveTensho,
     summonFreeFromHandIndex,
+    lifeCostBlockedByFloor,
     tryOwnLifeFloorByCost,
     voidCorePlacementBlocked,
 } from "./EffectModules"
@@ -620,6 +623,11 @@ export function destroySpirit(
     // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // 「フィールドに残る」は、この待機状態を解除する効果として働く（applyRevived が印を消す）
     inst.pendingDestruction = true
+    // 消滅（維持コア割れ）のときだけ別の印を立てる。消滅したカードのシンボルは軽減に使えない
+    // （破壊待機は使える。バトスピ Wiki「わかりづらいルール」。2026-09-16）。
+    // 前回の待機から残った印を拾わないよう、破壊のたびに付け直す
+    if (cause === "deplete") inst.pendingVanish = true
+    else delete inst.pendingVanish
     // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
     // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。
@@ -779,6 +787,9 @@ function fireOwnSpiritDestroyed(
         vanilla: instIsVanilla(inst),
         byBattle,
         wasAttacker,
+        // kind:"burst".destroyedMinBp用（BS15-034）：破壊直前の実効BPの近似値。既にフィールドから
+        // 離れている場合があるためeffectiveBpはオーラ等を欠くことがあるが、破壊直前の状態を極力保つ
+        destroyedBp: effectiveBp(state, ownerPid, inst),
         bySpiritEffect,
         // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
         byOpponentEffect,
@@ -1129,6 +1140,23 @@ function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): numb
     return effectiveCost(state, ownerPid, card)
 }
 
+// kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：未疲労のこのネクサスがあれば、
+// カード記載コストが effect.maxCost 以下の【不死】スピリットを、このネクサスを疲労させることで
+// コストを支払わずに召喚できる（維持コアは通常どおり要る）。該当する発生源のinstanceIdを返す
+// （複数あれば最初に見つかったものを使う。決定的簡略化）
+function fushiFreeExhaustSource(state: GameState, ownerPid: PlayerId, card: CardData): string | null {
+    const player = state.players[ownerPid]
+    for (const nexus of player.field.nexuses) {
+        if (nexus.isRested) continue
+        const level = currentLevel(nexus).level
+        const hit = getCard(nexus.cardId).effects.some(
+            (e) => e.kind === "fushiFreeByExhaust" && effectActiveAtLevel(e.levels, level) && card.cost <= e.maxCost,
+        )
+        if (hit) return nexus.instanceId
+    }
+    return null
+}
+
 export function fushiCandidates(
     state: GameState,
     ownerPid: PlayerId,
@@ -1153,7 +1181,12 @@ export function fushiCandidates(
             return families.some((f) => destroyedFamilies.includes(f))
         })
         if (!hit) continue
-        if (player.reserve < fushiCostOf(state, ownerPid, card) + minLevelCores(card)) continue
+        const maintain = minLevelCores(card)
+        // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
+        // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
+        const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+        const canPayFree = player.reserve >= maintain && fushiFreeExhaustSource(state, ownerPid, card) !== null
+        if (!canPayNormally && !canPayFree) continue
         found.push(i)
     }
     return found
@@ -1163,15 +1196,37 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
     const card = getCard(cardId)
+    const player = state.players[ownerPid]
+    const maintain = minLevelCores(card)
+    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
+    const canPayFree = freeSource !== null && player.reserve >= maintain
+    // 払える側だけ選択肢に出す（COST_MODEL.md §1：払えない道は提示しない）。
+    // 魔門（BS15-064 Lv2）で無償召喚できないときは、従来どおり「召喚する」1つだけの確認にする
+    const options: string[] = []
+    if (canPayFree) {
+        if (canPayNormally) options.push("コストを支払って召喚する")
+        options.push("魔門を疲労させて無償で召喚する")
+    } else if (canPayNormally) {
+        options.push("召喚する")
+    }
+    if (options.length === 0) return
     suspend(state, {
         pid: ownerPid,
         kind: "option",
-        prompt: `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
+        prompt: canPayFree
+            ? `${card.name}：【不死】でトラッシュから召喚しますか？（通常のコスト${String(fushiCostOf(state, ownerPid, card))}）`
+            : `${card.name}：【不死】でトラッシュからコスト${String(fushiCostOf(state, ownerPid, card))}を支払って召喚しますか？`,
         candidates: [],
-        options: ["召喚する"],
+        options,
         optional: true,
         confirm: true,
-        fushiSummon: { pid: ownerPid, cardId, trashIndex },
+        fushiSummon: {
+            pid: ownerPid,
+            cardId,
+            trashIndex,
+            ...(canPayFree ? { freeNexusInstanceId: freeSource } : {}),
+        },
         action: { type: "noop" },
         selfInstanceId: null,
     })
@@ -1187,12 +1242,28 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     }
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
+    const player = state.players[ownerPid]
+    const card = getCard(cardId)
+    const maintain = minLevelCores(card)
+    // 非対話（AI・テスト）の既定：通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
+    // 払えないときだけ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）
+    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    if (!canPayNormally) {
+        const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
+        if (freeSource !== null && player.reserve >= maintain) {
+            applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex, freeNexusInstanceId: freeSource }, true)
+            return
+        }
+    }
     applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex })
 }
 
 export function applyFushiSummon(
     state: GameState,
     info: NonNullable<PendingChoice["fushiSummon"]>,
+    // true指定時：info.freeNexusInstanceId のネクサスを疲労させ、コストを支払わずに召喚する
+    // （維持コアは通常どおり要る）。召喚時効果は発揮されない（skipOnSummonと同じ印。BS15-064冥府へ続く魔門Lv2）
+    useFree?: true,
 ): void {
     const player = state.players[info.pid]
     // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
@@ -1202,26 +1273,48 @@ export function applyFushiSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    const cost = fushiCostOf(state, info.pid, card)
     const maintain = minLevelCores(card)
+    const freeNexus =
+        useFree && info.freeNexusInstanceId !== undefined
+            ? player.field.nexuses.find((n) => n.instanceId === info.freeNexusInstanceId && !n.isRested)
+            : undefined
+    if (useFree && !freeNexus) {
+        log(state, `${player.name}は魔門を疲労させて【不死】を無償で召喚できなかった。`)
+        return
+    }
+    const cost = freeNexus ? 0 : fushiCostOf(state, info.pid, card)
     if (player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
-    // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
-    const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
-    if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
-    // 召喚コストはリザーブからトラッシュへ、維持コアはリザーブからスピリットの上へ（通常の召喚と同じ）
-    player.reserve -= cost
-    player.trashCores += cost
+    if (freeNexus) {
+        exhaustSpirit(state, info.pid, freeNexus)
+    } else {
+        // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
+        const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
+        if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
+        // 召喚コストはリザーブからトラッシュへ（通常の召喚と同じ）
+        player.reserve -= cost
+        player.trashCores += cost
+    }
+    // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
     player.reserve -= maintain
     const inst = createInstance(info.cardId, state.turn, maintain)
     player.field.spirits.push(inst)
-    log(state, `${player.name}は【不死】で${card.name}をトラッシュから召喚した。（コスト${String(cost)}）`)
-    // 「召喚」なので【転召】も召喚時効果も通常どおり解決する
+    log(
+        state,
+        `${player.name}は【不死】で${card.name}をトラッシュから召喚した。` +
+            (freeNexus ? `（${getCard(freeNexus.cardId).name}を疲労させ、コストを支払わずに）` : `（コスト${String(cost)}）`),
+    )
+    // 「召喚」なので【転召】は通常どおり解決する（無償召喚でも必ず行う。skipOnSummonと同じ規則）
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return
+    // 無償召喚（魔門を疲労させた場合）は召喚時効果を発揮しない（BS15-064冥府へ続く魔門Lv2の明記どおり）
+    if (freeNexus) {
+        log(state, `${card.name}：『召喚時』効果は発揮されない。`)
+        return
+    }
     if (state.pendingChoice) {
         // 【転召】の途中で中断したら、召喚時効果以降は再開フレームに任せる（doSummon と同じ形）
         pushResumeFrames(state, [
@@ -1617,7 +1710,7 @@ function tryReviveOnDestroy(
         if (effect.cost?.millSelfOneMatching) {
             // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
             // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
-            const { color, cardType } = effect.cost.millSelfOneMatching
+            const { color, cardType, thenHandIfNameIncludes } = effect.cost.millSelfOneMatching
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
@@ -1628,6 +1721,17 @@ function tryReviveOnDestroy(
             log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             const ok = milled.type === cardType && milled.colors.includes(color)
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
+            // BS15共通器：thenHandIfNameIncludes（BS15-043ショーグンペンタン）。成立の可否と独立に、
+            // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
+            if (thenHandIfNameIncludes !== undefined && milled.name.includes(thenHandIfNameIncludes)) {
+                const idx = player.trashCards.lastIndexOf(cardId)
+                if (idx !== -1) {
+                    player.trashCards.splice(idx, 1)
+                    player.hand.push(cardId)
+                    notifyHandGained(state, ownerPid, 1)
+                    log(state, `${player.name}は${milled.name}を手札に加えた。`)
+                }
+            }
             return ok
         }
         if (effect.cost?.exhaustOwnFamilyOne) {
@@ -1649,8 +1753,10 @@ function tryReviveOnDestroy(
         }
         if (effect.cost?.ownLifeOneToVoid) {
             // BS08太陽石の神殿：持ち主のライフのコア1個をボイドへ（リザーブには戻らない）。
-            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる
+            // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる。
+            // ただし「ライフは0にならない」が働いている間は払って0にできない＝支払い不可（2026-09-16 ユーザー確定）
             if (player.life <= 0) return false
+            if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
@@ -1662,6 +1768,7 @@ function tryReviveOnDestroy(
         // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
         if (effect.cost?.ownLifeOneToReserve) {
             if (player.life <= 0) return false
+            if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
@@ -1705,8 +1812,12 @@ function tryReviveOnDestroy(
             const oppPid = opponentOf(ownerPid)
             const oppPlayer = state.players[oppPid]
             if (oppPlayer.life <= 0) return false
+            // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」（BS15共通器）。
+            // このスピリット（inst）による今ターンぶんの許容がすでに0なら、コストとして払えない
+            if (lifeDamagePerSpiritRemaining(state, inst) <= 0) return false
             oppPlayer.life -= 1
             oppPlayer.trashCores += 1
+            inst.lifeDealtThisTurn = (inst.lifeDealtThisTurn ?? 0) + 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
             if (oppPlayer.life <= 0 && !state.winner) {
                 // BS14-084永久凍土の王都：**相手の効果で**ライフが0になる瞬間も守る
@@ -1756,11 +1867,24 @@ function tryReviveOnDestroy(
 
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
     // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
-    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): void => {
+    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): void => {
         // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
-        if ("toHand" in revived) {
+        if ("toBurst" in revived) {
+            // BS15-004ハンゾウ・シノビ・ドラゴン：トラッシュへ置かれる代わりに持ち主のバーストエリアへ
+            // （placeBurstと同じ規則：既にセットしていたバーストはトラッシュへ押し出される。
+            // EffectModulesからのimportは循環参照になるためここでは直接書く）
+            const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
+            if (idx !== -1) player.field.spirits.splice(idx, 1)
+            player.reserve += inst.cores
+            detachBravesOnLeave(state, ownerPid, inst)
+            if (player.burst !== null) {
+                player.trashCards.push(player.burst)
+            }
+            player.burst = inst.cardId
+            player.burstSet = true
+        } else if ("toHand" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             player.reserve += inst.cores
@@ -1782,8 +1906,8 @@ function tryReviveOnDestroy(
         }
     }
 
-    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" }): string =>
-        "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
+    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): string =>
+        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
     // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
     // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
@@ -1794,8 +1918,12 @@ function tryReviveOnDestroy(
 
     // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
     // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
-    const matchesReviveCondition = (condition?: { opponentFieldSymbolColorsAtMost: number }): boolean => {
+    const matchesReviveCondition = (
+        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true },
+    ): boolean => {
         if (!condition) return true
+        if ("ownBurstSet" in condition) return (player.burst !== null) === condition.ownBurstSet
+        if ("ownFieldOnlyColor" in condition) return ownFieldOnlyColor(state, ownerPid, condition.ownFieldOnlyColor, condition.spiritsOnly)
         const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
         return oppColors.size <= condition.opponentFieldSymbolColorsAtMost
     }
@@ -1833,6 +1961,11 @@ function tryReviveOnDestroy(
         if (!applyCost(effect, inst)) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
+        // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
+        if (effect.alsoVoidCoreToReserve) {
+            player.reserve += effect.alsoVoidCoreToReserve
+            log(state, `${sourceName}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+        }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
         applyRevived(effect.revived)
@@ -1919,6 +2052,10 @@ function tryReviveOnDestroy(
             if (!applyCost(effect, source)) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
+            if (effect.alsoVoidCoreToReserve) {
+                player.reserve += effect.alsoVoidCoreToReserve
+                log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+            }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
             applyRevived(effect.revived)
             log(

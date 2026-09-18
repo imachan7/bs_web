@@ -110,9 +110,12 @@ for (const [cid, name, color] of [
     const s = createGame(`t130-kyoshin-${cid}`, { p1: "アキラ", p2: "ユウキ" }, { p1: color, p2: "red" })
     runTurnStart(s)
     put(s, "p1", cid, 1) // Lv1
+    // コスト6に固定したあとも軽減できる（2026-09-16 ユーザー確定）。X23 の軽減は緑なので、
+    // 緑のカクタスガルーだけは場のシンボル1つぶん軽減されて5になる
+    const expected = color === "green" ? 5 : 6
     assert(
-        effectiveCost(s, "p1", getCard("BS06-X23")) === 6,
-        `${name}（${cid}）が場にいると天帝ホウオウガはコスト6になる（実際: ${String(effectiveCost(s, "p1", getCard("BS06-X23")))}）`,
+        effectiveCost(s, "p1", getCard("BS06-X23")) === expected,
+        `${name}（${cid}）が場にいると天帝ホウオウガはコスト6に固定され、軽減後${String(expected)}になる（実際: ${String(effectiveCost(s, "p1", getCard("BS06-X23")))}）`,
     )
 }
 

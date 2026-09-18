@@ -518,7 +518,7 @@ export function render(view: GameView, ui: UiState): void {
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
     // 「お互い、アタックステップは行えず」（ルナティックシール）。サーバーも同じ判定で弾く
-    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep"))
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep)
     show(
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
@@ -1587,6 +1587,23 @@ function renderHand(view: GameView, ui: UiState): void {
                 ? "このターンはすでにバーストをセットしています"
                 : "バーストエリアに伏せてセットする"
             badge.disabled = !canSetBurst
+            el.appendChild(badge)
+        }
+
+        // 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット）。
+        // 神速召喚の召喚ボタンと同じ並びで、カード本体のクリックとは独立したバッジボタンにする
+        // （マジックではないので castMagic の対象選択UIには乗せない。サーバーは useHandAbility を送る）
+        const handAbility = m.effects.find((e) => e.kind === "handActivated")
+        if (handAbility && handAbility.kind === "handActivated") {
+            const phaseOk = handAbility.phase === undefined || view.phase === handAbility.phase
+            const canUseAbility = inFlash && !flashLocked && phaseOk && !view.pendingChoice
+            const badge = document.createElement("button")
+            badge.className = "hand-ability-badge" + (canUseAbility ? "" : " disabled")
+            badge.dataset.handAbility = String(index)
+            badge.dataset.handAbilityEffectId = handAbility.id
+            badge.textContent = "効果を使う"
+            badge.title = "手札のこのカードを破棄して効果を発動する"
+            badge.disabled = !canUseAbility
             el.appendChild(badge)
         }
 

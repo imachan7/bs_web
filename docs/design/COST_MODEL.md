@@ -213,3 +213,13 @@ if (action.costSacrificeChosen && targetInstanceId !== undefined) {
 
 - [INTERRUPTION_POINTS.md](./INTERRUPTION_POINTS.md) — 選択を挟める層と3つのパターン
 - [CHOOSER_RULES.md](./CHOOSER_RULES.md) — 誰が選ぶか
+
+## 9. 「自分のライフのコアを置くことで」は、ライフ0を止める効果があると払えない（2026-09-16 ユーザー確定）
+
+BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフは0になるとき、0にならない」。
+したがってライフ1のとき「自分のライフのコア1個を置くことで〜する」は
+**コストを完全に支払えない＝その効果を発揮できない**（§1 の一般則）。
+
+- 対象4枚: BS08-056 太陽石の神殿 / BS13-036 星鳥クージャ / BS13-039 神獣バーロン / BS08-064 鳳翼の聖剣
+- 実装は `lifeCostBlockedByFloor`（`server/src/logic/EffectModules.ts`）を各支払い箇所で呼ぶ
+- 王都が無ければ従来どおり払える（払って0になれば敗北する）。smoke part327
