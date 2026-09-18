@@ -1122,6 +1122,10 @@ function burstConditionMet(
     if ("opponentHandAtLeast" in condition) {
         return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
     }
+    // BS16共通器：このバースト発動時に破壊された（同時破壊なら全メンバーの）色にこの色が含まれるか
+    if ("burstDestroyedColor" in condition) {
+        return (state.burstEventColors ?? []).includes(condition.burstDestroyedColor)
+    }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1194,6 +1198,10 @@ export function fireFieldEventTriggers(
     // 「発動開始時点で場にいた発生源にだけ発火させる」ために、summonBurstCardFreeで新しく場に出た
     // 個体をここで除く
     excludeInstanceIds?: string[],
+    // BS16バッチ0：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）は、破壊待機中のこの走査では
+    // 判定しない（トラッシュ行き確定の後に fireQueuedDestroyBursts が1回だけ判定する。TIMING_CHART.md ＞６）。
+    // trueのときはこの関数末尾のバースト走査を丸ごと飛ばす
+    skipBurst?: true,
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1639,10 +1647,40 @@ export function fireFieldEventTriggers(
     })
 
     // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
-    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。同時に条件を満たした場合は
-    // 防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
-    // （2026-09-11 ユーザー確認）。上の解決で選択待ちが残っている間は割り込まない
-    if (state.pendingChoice) return
+    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
+    // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
+    // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
+    if (state.pendingChoice || skipBurst) return
+    fireBurstOnEvent(
+        state,
+        pid,
+        event,
+        selfOverride ? { pid: selfOverride.pid, cardId: selfOverride.inst.cardId } : undefined,
+        eventColors,
+        targetInstanceId,
+        eventInfo,
+    )
+}
+
+// kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+// BS16バッチ0：破壊後バースト（event:"ownSpiritDestroyed"）はトラッシュ行き確定後に
+// removal.ts の fireQueuedDestroyBursts が単独で呼ぶ（selfOverrideは{pid, cardId}の軽量版でよい。
+// 破壊済みの個体はもうCardInstance実体が無いため）
+export function fireBurstOnEvent(
+    state: GameState,
+    pid: PlayerId,
+    event: FieldEvent,
+    selfOverride: { pid: PlayerId; cardId?: string } | undefined,
+    eventColors: Color[] | undefined,
+    targetInstanceId: string | undefined,
+    eventInfo?: {
+        byOpponentEffect?: boolean
+        destroyedBp?: number
+        costs?: number[]
+    },
+): void {
+    // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
+    // （2026-09-11 ユーザー確認）
     const order: PlayerId[] = [opponentOf(state.turnPlayer), state.turnPlayer]
     for (const holderPid of order) {
         const holder = state.players[holderPid]
@@ -1683,13 +1721,34 @@ export function fireFieldEventTriggers(
         const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
-        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.inst.cardId : undefined
+        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
         // alsoDrawIfDestroyedColor（BS14-X02）：eventColorsはここでしか手に入らないため、宣言時点でbool化しておく
         const alsoDraw = effect.alsoDrawIfDestroyedColor !== undefined && (eventColors ?? []).includes(effect.alsoDrawIfDestroyedColor)
+        // BS16バッチ0：破壊後バーストのコストが1つの値に決まらない（同時破壊で複数体・値違い）ときは、
+        // 発動者が使う値を1つ選ぶ（対話：選択肢／非対話：最大値。1つだけ・全部同じならそのまま）
+        const costs = eventInfo?.costs ?? []
+        const distinctCosts = [...new Set(costs)]
+        // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
+        const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
-            requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
+            if (distinctCosts.length > 1) {
+                // コストの選択肢つき確認（「発動する」の代わりに「コストNで発動する」を並べる）
+                suspend(state, {
+                    pid: holderPid,
+                    kind: "option",
+                    prompt: `${getCard(burstCardId).name}のバーストを発動しますか？`,
+                    candidates: [],
+                    options: distinctCosts.map((c) => `コスト${c}で発動する`),
+                    optional: true,
+                    confirm: true,
+                    action: actionToRun,
+                    selfInstanceId: null,
+                })
+            } else {
+                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
+            }
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
             // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
@@ -1704,7 +1763,13 @@ export function fireFieldEventTriggers(
                     ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
                     // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
                     // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
-                    ...(eventInfo?.costs?.[0] !== undefined ? { burstEventCost: eventInfo.costs[0] } : {}),
+                    ...(distinctCosts.length > 1
+                        ? { burstEventCostOptions: distinctCosts }
+                        : costs[0] !== undefined
+                          ? { burstEventCost: costs[0] }
+                          : {}),
+                    ...(eventColors && eventColors.length > 0 ? { burstEventColors: eventColors } : {}),
+                    ...(lifeDamagerId !== undefined ? { burstEventLifeDamagerId: lifeDamagerId } : {}),
                 }
             }
             return
@@ -1712,9 +1777,14 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
-        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
-        if (eventInfo?.costs?.[0] !== undefined) state.burstEventCost = eventInfo.costs[0]
+        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
+        if (distinctCosts.length > 0) state.burstEventCost = Math.max(...distinctCosts)
         else delete state.burstEventCost
+        // BS16共通器：条件{burstDestroyedColor}用
+        if (eventColors && eventColors.length > 0) state.burstEventColors = eventColors
+        else delete state.burstEventColors
+        if (lifeDamagerId !== undefined) state.burstEventLifeDamagerId = lifeDamagerId
+        else delete state.burstEventLifeDamagerId
         // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
         // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
         const burstCard = getCard(burstCardId)

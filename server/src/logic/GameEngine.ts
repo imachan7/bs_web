@@ -21,7 +21,7 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
@@ -159,6 +159,10 @@ export function handleAction(
     requestPendingReviveConfirm(state)
     // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
     endBattleIfAttackerLeftField(state)
+    // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）：破壊の確定・ブレイヴの「残す/残さない」・
+    // 【光芒】等のバトル終了処理まで**すべて決着した**この地点でまとめて発火する
+    // （TIMING_CHART.md ＞６：破壊時効果・破壊されたとき効果 → 破壊後バースト。BS16バッチ0）
+    if (!state.pendingChoice) fireQueuedDestroyBursts(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
     checkNoMutationAfterSuspend(state)
     return result
@@ -1388,6 +1392,8 @@ function resolveLifeDamage(state: GameState): void {
         )
     }
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
+    // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
+    if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
 
     if (defender.life <= 0) {
         // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
@@ -1936,9 +1942,21 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
-                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
-                    if (info.burstEventCost !== undefined) state.burstEventCost = info.burstEventCost
-                    else delete state.burstEventCost
+                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
+                    // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う
+                    if (info.burstEventCostOptions !== undefined) {
+                        const idx = (pending.options ?? []).indexOf(option)
+                        state.burstEventCost = info.burstEventCostOptions[idx] ?? Math.max(...info.burstEventCostOptions)
+                    } else if (info.burstEventCost !== undefined) {
+                        state.burstEventCost = info.burstEventCost
+                    } else {
+                        delete state.burstEventCost
+                    }
+                    // BS16共通器：条件{burstDestroyedColor}用
+                    if (info.burstEventColors !== undefined) state.burstEventColors = info.burstEventColors
+                    else delete state.burstEventColors
+                    if (info.burstEventLifeDamagerId !== undefined) state.burstEventLifeDamagerId = info.burstEventLifeDamagerId
+                    else delete state.burstEventLifeDamagerId
                     // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
                     // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)

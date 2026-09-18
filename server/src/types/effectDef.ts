@@ -164,6 +164,7 @@ export type EffectDef =
               | { ownColorCountAtLeast: { color: Color; count: number } } // 自分の指定色のスピリットが合計count体以上いるとき（instHasColorで判定。BS15共通器。BS15-043ショーグンペンタン：「自分の黄のスピリットが3体以上いるとき」）
               | { ownFieldHasKeywordAny: Keyword[] } // 自分のフィールドに、指定キーワード（配列＝いずれかでOR）を持つスピリットが1体以上いるとき（spiritHasKeywordで判定。BS15共通器。BS15-053コジロンド・ゴレム：「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」）
               | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上（BS15共通器。BS15-083秘剣燕返：「相手の手札が5枚以上のとき」）
+              | { burstDestroyedColor: Color } // event: "ownSpiritDestroyed" 限定：このバースト発動時に破壊された（同時破壊なら全メンバーの）色の中にこの色が含まれるとき（GameState.burstEventColorsで判定。destroyedColorFilterはバースト自体の発動可否を絞るのに対し、こちらはactionの内側の条件分岐に使う。BS16共通器）
           // 「〜のとき、このスピリットカードを召喚する」等の発動条件。
           // **バーストの宣言自体はeventの時点で成立している**ので、これを満たさないときはactionの解決だけを飛ばす（噛み合わせはBURST.md §1参照）。
           // 既存の triggered.condition / shared/cost.ts の同名軸を流用（BS14-X01：ownLifeAtMost、BS14-064：ownNexusAtLeast）

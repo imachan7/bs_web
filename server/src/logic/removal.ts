@@ -58,6 +58,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 import {
+    fireBurstOnEvent,
     fireFieldEventTriggers,
     fireTrigger,
     notifyHandGained,
@@ -665,6 +666,9 @@ export function destroySpirit(
     // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
     // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
+    // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
+    // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
+    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst) }
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）。
@@ -725,6 +729,10 @@ export function destroySpirit(
 
     // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
     commitPendingDestruction(state, ownerPid, inst)
+    // 同時破壊グループの外（単体の直接呼び出し）なら、破壊後バーストはここで確定させてよい。
+    // グループの中（destroyTargetsBatchのループ経由）は他のメンバーの確定を待つため、
+    // ここでは発火させず destroyTargetsBatch/resumeDestroyBatch の完了時に回す（TIMING_CHART.md ＞６）
+    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
     return true
 }
 
@@ -801,7 +809,7 @@ function fireOwnSpiritDestroyed(
         costs: instAllCosts(inst),
         // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
         // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
-    }, [inst], extraItems)
+    }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestructionが積み、fireQueuedDestroyBurstsがトラッシュ行き確定後に発火させる。BS16バッチ0）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
     // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
     fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
@@ -829,6 +837,8 @@ export function resumeDestroyCommit(
         }
     }
     commitPendingDestruction(state, frame.pid, inst)
+    // グループ外の単体破壊の再開ならここで発火（destroySpirit本体と同じ規則。BS16バッチ0）
+    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
 }
 
 // この個体が『このスピリットの破壊時』エントリを1つでも持つか（列に並べるかの判定）
@@ -855,8 +865,27 @@ export function commitPendingDestruction(
     const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
     if (index === -1) {
         delete inst.pendingDestruction
+        delete inst.pendingDestroyBurstInfo
         return
     }
+    // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の材料を、トラッシュ行きが確定した
+    // このタイミングで控える。**まだ合体中のここで**捕える（instColors／instAllCostsはbraveComposite経由で
+    // 合体中のブレイヴの色・コストを含むため。detachBravesOnLeaveの後では読めなくなる）。
+    // hostCostはブレイヴぶんを差し引いた「ホスト自身のコスト」（braves側で改めて足す。TIMING_CHART.md ＞６）。
+    // 発火自体はここではしない（ブレイヴを残す/残さない確認が残っていることがあるため、
+    // handleAction末尾のfireQueuedDestroyBurstsへ委ねる。BS16バッチ0）
+    const burstInfo = inst.pendingDestroyBurstInfo
+    delete inst.pendingDestroyBurstInfo
+    ;(state.pendingBurstDestroyQueue ??= []).push({
+        pid: ownerPid,
+        groupKey: state.destroyGroup?.id ?? inst.instanceId,
+        cardId: inst.cardId,
+        colors: instColors(inst),
+        hostCost: instAllCosts(inst)[0]! - (inst.braveComposite?.cost ?? 0),
+        braves: bravesOf(player, inst).map((b) => ({ instanceId: b.instanceId, cost: instAllCosts(b)[0]! })),
+        byOpponentEffect: burstInfo?.byOpponentEffect ?? false,
+        destroyedBp: burstInfo?.bp ?? 0,
+    })
     player.field.spirits.splice(index, 1)
     player.trashCards.push(inst.cardId)
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
@@ -872,6 +901,52 @@ export function commitPendingDestruction(
     // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
     // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
     detachBravesOnLeave(state, ownerPid, inst)
+}
+
+// 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）を、pendingBurstDestroyQueueにたまった分だけ
+// まとめて発火する。handleAction の末尾（ブレイヴの「残す/残さない」確認まで含め、すべて決着した安全な地点）
+// から呼ぶ。groupKey＋持ち主単位でまとめ、同時破壊グループは1回にする（TIMING_CHART.md ＞６：
+// 破壊時効果・破壊されたとき効果 → 破壊後バースト。BS16バッチ0）
+export function fireQueuedDestroyBursts(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    // ブレイヴの「残す/残さない」がまだ決着していない間は、コストが確定しないので待つ
+    if ((state.pendingBraveKeeps?.length ?? 0) > 0) return
+    const queue = state.pendingBurstDestroyQueue
+    if (!queue || queue.length === 0) return
+    delete state.pendingBurstDestroyQueue
+    const groups = new Map<string, typeof queue>()
+    for (const e of queue) {
+        const key = `${e.pid}:${e.groupKey}`
+        const arr = groups.get(key)
+        if (arr) arr.push(e)
+        else groups.set(key, [e])
+    }
+    for (const members of groups.values()) {
+        if (state.pendingChoice || state.winner) return
+        const pid = members[0]!.pid
+        const player = state.players[pid]
+        const colors = new Set<Color>()
+        const costs: number[] = []
+        let destroyedBp = 0
+        let byOpponentEffect = false
+        for (const m of members) {
+            for (const c of m.colors) colors.add(c)
+            // 一緒にトラッシュへ行ったブレイヴぶんのコストだけ足す（残したブレイヴは今フィールドにいる）
+            const braveCost = m.braves
+                .filter((b) => !player.field.spirits.some((s) => s.instanceId === b.instanceId))
+                .reduce((sum, b) => sum + b.cost, 0)
+            costs.push(m.hostCost + braveCost)
+            destroyedBp = Math.max(destroyedBp, m.destroyedBp)
+            byOpponentEffect ||= m.byOpponentEffect
+        }
+        // destroyedAsTarget：グループが1体だけのときのみcardIdを渡す（複数体では1枚に決まらないため対象外。BS16バッチ0の簡略化）
+        const selfOverride = { pid, ...(members.length === 1 ? { cardId: members[0]!.cardId } : {}) }
+        fireBurstOnEvent(state, pid, "ownSpiritDestroyed", selfOverride, [...colors], undefined, {
+            byOpponentEffect,
+            destroyedBp,
+            costs,
+        })
+    }
 }
 
 // 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
@@ -1465,6 +1540,8 @@ export function destroyTargetsBatch(
         return destroyed
     }
     restoreDestroyGroup(state, prevGroup)
+    // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する（BS16バッチ0）
+    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
     if (state.winner) return destroyed
     if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
     return destroyed
@@ -1495,6 +1572,7 @@ export function resumeDestroyBatch(
         return
     }
     restoreDestroyGroup(state, frame.prevGroup)
+    if (!state.destroyGroup) fireQueuedDestroyBursts(state)
     if (state.winner) return
     applyDestroyBatchAfter(state, frame.ownerPid, destroyed, frame.after)
 }

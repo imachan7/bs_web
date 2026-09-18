@@ -28,17 +28,7 @@
 確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。PR #70 はマージ済み。
 
 **次の本線は BS16「覇王編 第3弾：爆烈の覇道」90種＋プロモ3枚**（ブランチ `feat/bs16-import`。staging 取り込み済み・解釈 §2.1 確定済み）。
-計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。**次の一手：バッチ0（下）**。
-
-### BS16 バッチ0（共通の器。2026-09-18 設計確定・smoke part349）— **色バッチはこの名前を使う**
-
-1. **破壊後バーストは確定の後に1回**：`ownSpiritDestroyed` の `kind:"burst"` は、破壊待機中（`fireOwnSpiritDestroyed`）では判定しない。
-   **トラッシュ行きが確定した後**（同時破壊グループなら全員の確定後＝`destroyTargetsBatch`/`resumeDestroyBatch` の完了時、単体なら `commitPendingDestruction` の後）にバーストだけを1回判定する（TIMING_CHART ＞６-2・BS16_PLAN §2.1 #5 の Q&A）
-2. そのとき渡す情報：`eventInfo.destroyedGroup = { colors: Color[]; costs: number[] }`。**実際にトラッシュへ行った**メンバーだけ（フィールドに残った個体は除く）。
-   colors は各メンバーの色＋一緒にトラッシュへ行ったブレイヴの色の和集合。costs は1体ごとに「ホストのコスト＋一緒にトラッシュへ行ったブレイヴのコスト」（**ブレイヴを残したらホストだけ**）
-3. `GameState.burstEventColors?: Color[]` を `burstEventCost` と同じ寿命で持ち、条件 `{ burstDestroyedColor: Color }` で読む（018・X04）
-4. `burstEventCost`：costs が2つ以上で値が違えば**発動者が1体を選ぶ**（対話モードは選択肢、非対話は最大値）。BS15-084・X06 もこれに乗る
-5. 080 用の記録：`BattleState.lifeDamagers?: string[]`（このバトルでライフを減らしたスピリットの instanceId）と、`ownLifeDamaged` のバースト発動時の `GameState.burstEventLifeDamagerId?: string`。**アクションは色バッチ（白）が作る**
+計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。**次の一手：バッチ1（赤・紫＋P069/P070）の解釈一覧をユーザーに確認**。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 

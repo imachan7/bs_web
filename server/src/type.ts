@@ -620,6 +620,10 @@ export interface CardInstance {
     pendingDestroyContext?: DestroyContext
     pendingDestroyAllowSuspend?: true
     skipReviveOnCommit?: true // 消滅（維持コア割れ）・skipRevive 指定の破壊では「フィールドに残る」を見ない印
+    // 破壊待機状態の間だけ持つ、破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の控え。
+    // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
+    // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
+    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
     cantBlockThisBattle?: true // このバトルの間ブロックできない（markCantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーター）
     unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
@@ -826,6 +830,8 @@ export interface BattleState {
         sourcePid: PlayerId
         sourceColors: Color[]
     }[]
+    lifeDamagers?: string[] // このバトルで相手のライフを減らしたスピリットのinstanceId（アタックで減らすたびに積む）。
+    // event:"ownLifeDamaged"のバースト発動時、GameState.burstEventLifeDamagerIdへ引き継ぐ材料（BS16バッチ0：080用の器）
 }
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
@@ -1023,6 +1029,11 @@ export interface PendingChoice {
         alsoDraw?: true // alsoDrawIfDestroyedColor（docs/design/BURST.md）：宣言時点でeventColorsを判定済みのbool。承認後にactionと同時に自分は1枚ドローする（BS14-X02）
         toHand?: true // returnSelfToHandAfter（docs/design/BURST.md）：finishBurstActivationの行き先をトラッシュでなく手札にする（BS14-X02）
         burstEventCost?: number // BS15共通器：GameState.burstEventCostへ引き継ぐ値（EffectCounter "burstEventCost"。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
+        // BS16バッチ0：破壊後バーストが「破壊されたスピリット複数体のうちコストが割れている」場合、
+        // 発動者が1体ぶんのコストを選ぶ（pending.optionsと同じ並びの候補値）。選んだ値がburstEventCostへ入る
+        burstEventCostOptions?: number[]
+        burstEventColors?: Color[] // BS16バッチ0：GameState.burstEventColorsへ引き継ぐ値（条件{burstDestroyedColor}用）
+        burstEventLifeDamagerId?: string // BS16バッチ0：GameState.burstEventLifeDamagerIdへ引き継ぐ値
     }
     burstThenPay?: {
         // burstActivate の thenPay：解決後にコストを支払って本来のメイン/フラッシュ効果を追加発揮するかの確認待ち。
@@ -1284,6 +1295,21 @@ export interface GameState {
     // （perDestroyed指定の効果は対象外。公式Q&A Q22359。docs/design/TIMING_CHART.md）。
     // 中断・入れ子の破壊に備え、destroyTargetsBatch/resumeDestroyBatch が退避・復元する
     destroyGroup?: { id: string; memberIds: string[]; used: string[] }
+    // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）が発火を待つ列。
+    // commitPendingDestructionが確定のたびに1件積み、ブレイヴの「残す/残さない」まで決着した後
+    // （handleAction末尾のfireQueuedDestroyBursts）でgroupKey+pid単位にまとめて1回だけ発火する
+    pendingBurstDestroyQueue?: {
+        pid: PlayerId
+        groupKey: string // 同じ破壊（同時破壊グループのid、または単体破壊ならinstanceId）をまとめる単位
+        cardId: string
+        colors: Color[]
+        hostCost: number // ホスト自身のコスト（合体中のブレイヴぶんは含まない。braves側で別途足す）
+        braves: { instanceId: string; cost: number }[] // 破壊時に合体していたブレイヴ。トラッシュへ行った分だけ発火時にhostCostへ加算する
+        byOpponentEffect: boolean
+        destroyedBp: number
+    }[]
+    burstEventColors?: Color[] // 破壊後バースト発動時、破壊された全メンバーの色の和集合（burstEventCostと同じ寿命）。条件{burstDestroyedColor}が読む
+    burstEventLifeDamagerId?: string // event:"ownLifeDamaged"のバースト発動時、ライフを減らしたスピリットのinstanceId（burstEventCostと同じ寿命。取れなければundefined）
     // 直前の「破壊される代わりに復活できる」の確認で、**結局その個体が破壊されたか**。
     // 破壊バッチ（destroyBatch フレーム）が中断から再開したときに、中断の原因になった1体を
     // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。
