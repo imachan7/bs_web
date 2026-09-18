@@ -150,7 +150,7 @@ function mainStepMoves(state: GameState, pid: PlayerId): AiMove[] {
         ...abilityMoves(state, pid),
         ...coreMoves(state, pid),
     ]
-    moves.push({ action: { type: "nextPhase" }, reason: "アタックステップへ進む" })
+    if (!state.extraMainStep) moves.push({ action: { type: "nextPhase" }, reason: "アタックステップへ進む" })
     if (validateEndTurn(state, pid) === null) {
         moves.push({ action: { type: "endTurn" }, reason: "ターンを終了する" })
     }

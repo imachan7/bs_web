@@ -57,7 +57,7 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToHand, spiritMillFreeSummonOrConfirm } from "./removal"
+import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToDeckBottom, returnSpiritToHand, spiritMillFreeSummonOrConfirm } from "./removal"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -80,6 +80,7 @@ import {
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
+    magicEffectiveColors,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 import {
@@ -131,6 +132,7 @@ import {
     isEndStepLocked,
     instIsCombined,
     isOnFieldAnyZone,
+    opponentFieldColorCount,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -245,6 +247,18 @@ function millCapFor(state: GameState, pid: PlayerId): number {
             cap = Math.min(cap, effect.constraint.maxCount)
         }
     }
+    // BS15共通器：bothSides指定のエントリは、pidの相手フィールドにあってもpid自身のデッキを守る
+    // （BS15-069太陰の宮廷：「お互いのデッキは、相手の…効果では」。mutualと違い、あくまで
+    // 「相手の効果によるミル」だけが対象＝呼び出し元のbyOpponentゲートは従来どおり）
+    for (const source of effectSources(state, opponentOf(pid))) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            cap = Math.min(cap, effect.constraint.maxCount)
+        }
+    }
     return cap
 }
 
@@ -283,6 +297,17 @@ function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
+            if (!effect.constraint.perTurn) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
+        }
+    }
+    // BS15共通器：millCapForのbothSidesと同じ考え方（BS15-069太陰の宮廷）
+    for (const source of effectSources(state, opponentOf(pid))) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
             if (!effect.constraint.perTurn) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
@@ -607,6 +632,11 @@ export function refreshSpirit(
     ) {
         return
     }
+    // BS15共通器：BS15-072渦巻く大海峡「疲労状態のスピリットすべては、リフレッシュステップ以外で回復できない」。
+    // sourceType が渡る（＝リフレッシュステップ以外の呼び出し）ときだけ止める
+    if (sourceType !== undefined && hasGlobalConstraint(state, "noRefreshByAnyEffect")) {
+        return
+    }
     if (!inst.isRested) return
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
@@ -825,9 +855,16 @@ function findDeckMillNegate(
             // 「相手の**スピリット**の効果で」。種別が渡っていない呼び出しでは、
             // onMilledFromDeck と同じく限定を緩めない側に倒して発火させない
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue
+            // 見出しの『相手のターン』限定（BS15-028／030／042）。自分のターン中の破棄は無効にできない
+            if (effect.turn === "opponent" && state.turnPlayer === pid) continue
             // 「【粉砕】以外の」（【粉砕】は resolveFunsai だけが cause.funsai を立てる）
             if (effect.exceptFunsai && cause?.funsai === true) continue
-            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            if ("ownLifeToReserve" in effect.cost) {
+                if (state.players[pid].life < effect.cost.ownLifeToReserve) continue
+                if (lifeCostBlockedByFloor(state, pid, effect.cost.ownLifeToReserve)) continue
+            } else {
+                if (source.isRested) continue
+            }
             return { source, effect }
         }
     }
@@ -854,14 +891,20 @@ function trySuspendDeckMillNegate(
     if (state.pendingChoice) return false
     const found = findDeckMillNegate(state, pid, cause)
     if (!found) return false
+    // BS15共通器：thenReturnCauseToDeckBottom用。この破棄を起こした発生源インスタンスを、
+    // 確認の再入をまたいで持ち回るため今のうちに控える（EFFECT_SOURCE_CONTEXT.md）
+    const causingInstanceId = found.effect.thenReturnCauseToDeckBottom ? state.currentEffectSource?.instanceId : undefined
     if (!state.interactiveTargets) {
-        payDeckMillNegateCost(state, pid, found.source, found.effect)
+        payDeckMillNegateCost(state, pid, found.source, found.effect, causingInstanceId)
         return true
     }
     suspend(state, {
         pid,
         kind: "option",
-        prompt: `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`,
+        prompt:
+            "ownLifeToReserve" in found.effect.cost
+                ? `${getCard(found.source.cardId).name}：ライフのコア1個をリザーブに置いて、デッキの破棄を無効にしますか？`
+                : `${getCard(found.source.cardId).name}：このスピリットを疲労させて、デッキの破棄を無効にしますか？`,
         candidates: [],
         options: ["無効にする"],
         optional: true,
@@ -873,6 +916,7 @@ function trySuspendDeckMillNegate(
             count,
             actorPid,
             ...(cause?.sourceType ? { sourceType: cause.sourceType } : {}),
+            ...(causingInstanceId !== undefined ? { causingInstanceId } : {}),
         },
         action: { type: "noop" },
         selfInstanceId: found.source.instanceId,
@@ -886,15 +930,31 @@ function payDeckMillNegateCost(
     pid: PlayerId,
     source: CardInstance,
     effect: Extract<EffectDef, { kind: "deckMillNegate" }>,
+    causingInstanceId?: string,
 ): void {
     const player = state.players[pid]
-    const paid = effect.costOwnLifeToReserve
-    player.life -= paid
-    player.reserve += paid
-    log(
-        state,
-        `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
-    )
+    if ("ownLifeToReserve" in effect.cost) {
+        const paid = effect.cost.ownLifeToReserve
+        player.life -= paid
+        player.reserve += paid
+        log(
+            state,
+            `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
+        )
+    } else {
+        exhaustSpirit(state, pid, source)
+        log(state, `${getCard(source.cardId).name}：${player.name}はこのスピリットを疲労させ、デッキの破棄を無効にした。`)
+    }
+    // BS15共通器：thenReturnCauseToDeckBottom（BS15-042オリンピアの天使アラトロンLv2）
+    if (effect.thenReturnCauseToDeckBottom && causingInstanceId !== undefined) {
+        const causePid = pid === "p1" ? "p2" : "p1"
+        const cause = state.players[causePid].field.spirits.find((s) => s.instanceId === causingInstanceId)
+        if (cause) {
+            returnSpiritToDeckBottom(state, causePid, cause, getCard(source.cardId).name)
+        } else {
+            log(state, `${getCard(source.cardId).name}：破棄を起こしたスピリットは既に場にいなかった。`)
+        }
+    }
 }
 
 // 保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
@@ -910,11 +970,20 @@ export function applyDeckMillNegate(
                   e.kind === "deckMillNegate" && e.id === entry.effectId,
           )
         : undefined
-    if (!source || !effect || state.players[entry.pid].life < effect.costOwnLifeToReserve) {
+    if (!source || !effect) {
         declineDeckMillNegate(state, entry)
         return
     }
-    payDeckMillNegateCost(state, entry.pid, source, effect)
+    const canPay =
+        "ownLifeToReserve" in effect.cost
+            ? state.players[entry.pid].life >= effect.cost.ownLifeToReserve &&
+              !lifeCostBlockedByFloor(state, entry.pid, effect.cost.ownLifeToReserve)
+            : !source.isRested
+    if (!canPay) {
+        declineDeckMillNegate(state, entry)
+        return
+    }
+    payDeckMillNegateCost(state, entry.pid, source, effect, entry.causingInstanceId)
 }
 
 // 同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
@@ -930,6 +999,63 @@ export function declineDeckMillNegate(
         entry.sourceType ? { sourceType: entry.sourceType } : undefined,
         { skipNegate: true },
     )
+}
+
+// kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
+// 入ろうとしているプレイヤー）から見た相手の手札に、この特殊タイミングで使えるマジックがあり、
+// かつコストを払えるときだけ確認を出す。出した（＝アタックステップへの遷移を保留した）なら true。
+// 非対話（smoke）では確認を出さず、払えるなら自動で使用する。
+// 戻り値：確認を出した＝"suspended"／自動で使用した＝"used"／何もしなかった＝null。
+// endTurnIfDeclined はメインから直接ターン終了した経路（使わなければそのままターン終了を続ける）
+export function offerOpponentMainEndMagic(
+    state: GameState,
+    attackingPid: PlayerId,
+    endTurnIfDeclined?: true,
+): "suspended" | "used" | null {
+    const holderPid = opponentOf(attackingPid)
+    const player = state.players[holderPid]
+    const cardId = player.hand.find((id) => {
+        const card = getCard(id)
+        return card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd)
+    })
+    if (cardId === undefined) return null
+    const cost = effectiveCost(state, holderPid, getCard(cardId))
+    if (player.reserve < cost) return null
+    if (!state.interactiveTargets) {
+        applyProvocationUse(state, { pid: holderPid, cardId })
+        return "used"
+    }
+    suspend(state, {
+        pid: holderPid,
+        kind: "option",
+        prompt: `${getCard(cardId).name}：コスト${cost}を支払って使用しますか？`,
+        candidates: [],
+        options: ["使用する"],
+        optional: true,
+        confirm: true,
+        provocationUse: { pid: holderPid, cardId, ...(endTurnIfDeclined ? { endTurnIfDeclined } : {}) },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+    return "suspended"
+}
+
+// プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
+export function applyProvocationUse(state: GameState, entry: NonNullable<PendingChoice["provocationUse"]>): void {
+    const player = state.players[entry.pid]
+    const handIndex = player.hand.indexOf(entry.cardId)
+    if (handIndex === -1) return
+    const card = getCard(entry.cardId)
+    const cost = effectiveCost(state, entry.pid, card)
+    if (player.reserve < cost) return
+    player.reserve -= cost
+    player.hand.splice(handIndex, 1)
+    player.trashCards.push(entry.cardId)
+    log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
+    const effect = card.effects.find(
+        (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
+    )
+    if (effect) resolveAction(state, entry.pid, null, effect.action)
 }
 
 // 破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
@@ -984,11 +1110,21 @@ function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
             if (effect.kind !== "funsaiBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            // BS15共通器：phaseTurn（発生源の持ち主基準のステップ・turn条件。BS15-071巨人の足跡湖）
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (state.phase !== phase) continue
+                if (turn === "own" && ownerPid !== state.turnPlayer) continue
+                if (turn === "opponent" && ownerPid === state.turnPlayer) continue
+            }
             // amountPerSymbolColor（BS08神造巨兵オリハルコン・ゴレム）：固定amountの代わりに、
             // 持ち主のフィールドが持つ指定色のシンボル総数を動的に加算する
+            // BS15共通器：amountPerBurstCount（BS15-071巨人の足跡湖）：自分と相手のバースト1つにつき+1
             total += effect.amountPerSymbolColor
                 ? countSymbols(state.players[ownerPid], [effect.amountPerSymbolColor])
-                : (effect.amount ?? 0)
+                : effect.amountPerBurstCount
+                  ? (state.players[ownerPid].burstSet ? 1 : 0) + (state.players[opponentOf(ownerPid)].burstSet ? 1 : 0)
+                  : (effect.amount ?? 0)
         }
     }
     return total
@@ -1172,6 +1308,26 @@ export function tryLifeDamageMillGuard(
 // 自分のライフは0にならない」（globalConstraint "ownLifeFloor" の costSelfToTrash 版）。
 // 呼び出し側が life<=0 を検知した直後（勝敗確定の直前）に呼ぶ。払わない理由が無い（払わなければ即敗北）ため
 // 対話確認を省いた自動払いの簡略化。支払えたら true を返し、life を floor まで戻す（0にはならない）
+// 「自分のライフは0にならない」（BS14-084永久凍土の王都）が働いている間は、
+// **ライフのコアをコストとして払って0にすることもできない**（2026-09-16 ユーザー確定）。
+// 払えばライフが0になる＝床の効果が止めるので、コストを完全に支払えない。
+// COST_MODEL.md の一般則「AとBの両方が完全に解決できるときだけ発揮できる」により、その効果は発揮できない。
+// 対象は「自分のライフのコアN個を置くことで」を持つ4枚（太陽石の神殿／星鳥クージャ／神獣バーロン／鳳翼の聖剣）
+export function lifeCostBlockedByFloor(state: GameState, pid: PlayerId, amount = 1): boolean {
+    const player = state.players[pid]
+    for (const source of effectSources(state, pid)) {
+        if (!player.field.nexuses.some((n) => n.instanceId === source.instanceId)) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint") continue
+            if (effect.constraint.type !== "ownLifeFloor") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (player.life - amount < effect.constraint.floor) return true
+        }
+    }
+    return false
+}
+
 export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean {
     const player = state.players[pid]
     for (const source of effectSources(state, pid)) {
@@ -1470,13 +1626,16 @@ export function resolveFunsai(
         let spirits = 0
         let nexuses = 0
         let magics = 0
+        let costAtLeast4 = 0
         for (const cardId of milledCardIds) {
-            const type = getCard(cardId).type
-            if (type === "spirit") spirits++
-            else if (type === "nexus") nexuses++
-            else if (type === "magic") magics++
+            const card = getCard(cardId)
+            if (card.type === "spirit") spirits++
+            else if (card.type === "nexus") nexuses++
+            else if (card.type === "magic") magics++
+            // BS15共通器：BS15-053コジロンド・ゴレムLv2-3「コスト4以上のカードを破棄したとき」用
+            if (card.cost >= 4) costAtLeast4++
         }
-        state.lastFunsai = { total: actual, spirits, nexuses, magics }
+        state.lastFunsai = { total: actual, spirits, nexuses, magics, costAtLeast4 }
         fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
     }
 }
@@ -2290,6 +2449,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 加算は重ねられる（同名を2体並べたら+2）。維持コア割れの掃除は
                     // GameEngine.handleAction の事後フック（sweepLevelCostDepletion）が行う
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.target === "opponentNexusesAll") {
+                        // BS15-015吸血令嬢エサルフリーダ：相手のネクサスすべての「Lvコスト」を+amount
+                        for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
+                            nexus.levelCostBonusContinuous = (nexus.levelCostBonusContinuous ?? 0) + effect.amount
+                        }
+                        continue
+                    }
                     const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
                     for (const spirit of state.players[targetPid].field.spirits) {
                         spirit.levelCostBonusContinuous =
@@ -2550,6 +2716,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     } else if ("ownBurstSet" in effect.condition) {
                         // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
                         if (!player.burstSet) continue
+                    } else if ("ownLifeAtLeast" in effect.condition) {
+                        // BS15-016闇騎士ガウェイン：自分のライフが3以上の間だけ有効
+                        if (player.life < effect.condition.ownLifeAtLeast) continue
+                    } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                        // BS15共通器：BS15-047パンクマウス
+                        if (
+                            opponentFieldColorCount(state, pid, effect.condition.spiritsOnly === true) <
+                            effect.condition.opponentFieldColorsAtLeast
+                        ) {
+                            continue
+                        }
                     } else {
                         // 斬竜刀のガイ：自分か相手のどちらかのフィールドに指定色のスピリットがいる間有効
                         const color = effect.condition.anyFieldHasColorSpirit
@@ -3006,7 +3183,11 @@ export function finishBurstActivation(
     const player = state.players[pid]
     // burstDestroyThenSummonSelf（BS14-X01）はsummonBurstCardFreeへ内部委譲して自身を召喚するため、
     // 同じ扱いにする（そうしないと召喚済みのカードIDがトラッシュにも二重に積まれる）
-    if (actionType !== "summonBurstCardFree" && actionType !== "burstDestroyThenSummonSelf") {
+    if (
+        actionType !== "summonBurstCardFree" &&
+        actionType !== "burstDestroyThenSummonSelf" &&
+        actionType !== "millPerThenSummonSelfIfBurstMilled"
+    ) {
         if (player.burst === cardId) {
             player.burst = null
             player.burstSet = false
@@ -3056,7 +3237,8 @@ function tryBurstThenPay(
     }
     player.reserve -= cost
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
-    resolveAction(state, pid, null, entry.action, undefined, card.colors, "magic", undefined, undefined, cardId)
+    // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
+    resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
 }
 
 // バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
@@ -3424,6 +3606,8 @@ export function countEffectCounter(
     }
     if (counter === "ownReserve") return state.players[owner].reserve
     if (counter === "ownLife") return state.players[owner].life
+    if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
+    if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
     if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
     if (counter === "ownNexuses") return state.players[owner].field.nexuses.length
     if (counter === "allNexuses") {
@@ -3462,6 +3646,7 @@ export function countEffectCounter(
     }
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
+    if (counter === "burstEventCost") return state.burstEventCost ?? 0
     // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
     if (counter === "selfCores") return self?.cores ?? 0
     // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
@@ -3734,6 +3919,8 @@ export function resolveAction(
         pid: owner,
         ...(srcType !== undefined ? { type: srcType } : {}),
         ...(srcColors !== undefined ? { colors: srcColors } : {}),
+        // BS15共通器：selfが確定しているときだけ発生源インスタンスを載せる（BS15-042オリンピアの天使アラトロンLv2）
+        ...(self !== null && self !== undefined ? { instanceId: self.instanceId } : {}),
     }
     // 「効果でコアが置かれた」の検出用スナップショット。**一番外側の効果でだけ**取る
     // （ネストで取ると同じ配置を二重に数える）。監視するカードが場に無ければ何もしない
@@ -3762,6 +3949,8 @@ export function requestActivationConfirm(
     prompt: string,
     action: EffectAction,
     self: CardInstance | null,
+    // 断ったときに「ターンに1回」の消費を戻す対象（oncePerTurn を持つ triggered / fieldEvent。2026-09-16）
+    revertTriggered?: { instanceId: string; effectId: string },
 ): void {
     suspend(state, {
         pid,
@@ -3773,6 +3962,7 @@ export function requestActivationConfirm(
         confirm: true,
         action,
         selfInstanceId: self ? self.instanceId : null,
+        ...(revertTriggered ? { revertTriggered } : {}),
     })
 }
 
@@ -3917,6 +4107,7 @@ export {
     applyMagicRepeatChoice,
     applyMagicNegateChoice,
     declineMagicNegateChoice,
+    revertOncePerTurn,
 } from "./triggers"
 
 // ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----

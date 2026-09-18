@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, DestroyContext, EffectAction, EffectDef, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -20,11 +20,11 @@ import {
     suspend,
     resumeTriggerBatch,
 } from "./GameState"
-import { driveTurnStart, endTurn, toAttackPhase } from "./PhaseManager"
+import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -47,6 +47,8 @@ import {
     applyMagicRepeatChoice,
     applyHandFreeSummon,
     applyDeckMillNegate,
+    applyProvocationUse,
+    offerOpponentMainEndMagic,
     applyReviveConfirm,
     declineDeckMillNegate,
     declineReviveConfirm,
@@ -60,6 +62,7 @@ import {
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
     fireTrigger,
+    revertOncePerTurn,
     hasArmorAgainst,
     resistanceAgainst,
     findSpiritAny,
@@ -114,7 +117,9 @@ import {
     validateSetNexus,
     validateSummon,
     validateTakeLife,
+    validateUseHandAbility,
 } from "./RuleValidator"
+import { magicEffectiveColors } from "../../../shared/cost"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -274,6 +279,8 @@ function dispatchAction(
                 action.paySources,
                 action.fromTegamoto,
             )
+        case "useHandAbility":
+            return doUseHandAbility(state, pid, action.handIndex, action.effectId)
         case "moveCore":
             return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete)
         case "combineBrave":
@@ -300,12 +307,25 @@ function dispatchAction(
             if (state.battle) return "バトル中です"
             // 「お互い、アタックステップは行えず」（BS10-108 ルナティックシール）
             if (isEndStepLocked(state, "attackStep")) return "効果により、アタックステップは行えません"
+            if (state.extraMainStep) return "追加のメインステップの後は、アタックステップへ進めません"
+            // 器CA：「相手のメインステップ終了時に使用できる」マジック（BS15-079プロボケイション）の確認を挟む
+            if (offerOpponentMainEndMagic(state, pid) === "suspended") return null
             toAttackPhase(state)
             return null
         }
         case "endTurn": {
             const error = validateEndTurn(state, pid)
             if (error) return error
+            // メインから直接ターン終了しても「相手のメインステップ終了時」は来る（BS15-079プロボケイション）。
+            // 使われたらアタックステップで止め、ターンプレイヤーへ返す
+            if (state.phase === "main" && !state.extraMainStep && !isEndStepLocked(state, "attackStep")) {
+                const offered = offerOpponentMainEndMagic(state, pid, true)
+                if (offered === "suspended") return null
+                if (offered === "used") {
+                    toAttackPhase(state)
+                    return null
+                }
+            }
             endTurn(state)
             return null
         }
@@ -773,6 +793,36 @@ function doCastMagic(
         }
     }
     if (state.winner) state.battle = null
+    return null
+}
+
+// 011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）。マジックではないので
+// 「マジックを使用したとき」系の誘発は出さず、【氷壁】の対象にもならない（resolveMagic経由ではないため）。
+// 解決には srcColors=このカードの色／srcType="spirit" を必ず渡す（装甲・効果耐性が効くように。
+// anySideの候補集めがこれを見て判定する。BS15_PLAN.md §7.2）
+function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, effectId: string): string | null {
+    const error = validateUseHandAbility(state, pid, handIndex, effectId)
+    if (error) return error
+
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const effect = card.effects.find(
+        (e): e is Extract<EffectDef, { kind: "handActivated" }> => e.kind === "handActivated" && e.id === effectId,
+    )
+    if (!effect) return "効果が見つかりません"
+
+    // コスト：手札にあるこのカード自身を破棄する（現状これのみ対応）
+    if (effect.cost.discardSelf) {
+        player.hand.splice(handIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札の${card.name}を破棄して効果を発動した。`)
+    }
+
+    resolveAction(state, pid, null, effect.action, undefined, card.colors, "spirit", undefined, undefined, cardId)
+    // バトル中のフラッシュで使用したら優先権を相手へ移す（フラッシュマジック・神速召喚・覚醒と共通。passFlashPriority）
+    passFlashPriority(state, pid)
     return null
 }
 
@@ -1387,12 +1437,19 @@ function revertActivatedUse(inst: CardInstance, effectId: string): void {
     inst.activatedUsedTurn = rest
 }
 
-// 選択を「やめた」ときに、起動能力の「ターンに1回」を巻き戻す（PendingChoice.revertActivated）
+// 選択を「やめた」ときに、「ターンに1回」を巻き戻す
+// （起動能力＝PendingChoice.revertActivated／誘発＝revertTriggered。2026-09-16）
 function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): void {
     const r = pending.revertActivated
-    if (!r) return
-    const inst = findInstanceAnywhere(state, r.instanceId)
-    if (inst) revertActivatedUse(inst, r.effectId)
+    if (r) {
+        const inst = findInstanceAnywhere(state, r.instanceId)
+        if (inst) revertActivatedUse(inst, r.effectId)
+    }
+    const t = pending.revertTriggered
+    if (t) {
+        const inst = findInstanceAnywhere(state, t.instanceId)
+        if (inst) revertOncePerTurn(inst, t.effectId)
+    }
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1477,6 +1534,32 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（${getCard(chosen.cardId).name}を疲労）`,
         )
+    } else if ("discardHandOne" in effect.cost) {
+        // BS15-003ファイアファンサウル：手札1枚（決定的簡略化：末尾）を破棄し、このスピリット自身を疲労させる
+        const cardId = player.hand.pop()!
+        player.trashCards.push(cardId)
+        exhaustSpirit(state, pid, host)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄し、このスピリットを疲労）`,
+        )
+    } else if ("discardHandKeyword" in effect.cost) {
+        // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカード1枚（コスト最大を自動選択）を破棄する
+        const keyword = effect.cost.discardHandKeyword
+        const indices = player.hand
+            .map((_, i) => i)
+            .filter((i) => getCard(player.hand[i]!).type === "spirit" && hasKeyword(player.hand[i]!, keyword))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
     } else {
         const n = effect.cost.reserveToTrash
         player.reserve -= n
@@ -1496,10 +1579,10 @@ function doActivateAbility(
     // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
-    delete state.activationFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
+    delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
     resolveAction(state, pid, host, effect.action)
     if (effect.oncePerTurn && cancelable) {
-        if (state.activationFizzled) {
+        if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
             revertActivatedUse(inst, effectId)
         } else if (state.pendingChoice) {
@@ -1507,7 +1590,7 @@ function doActivateAbility(
             state.pendingChoice.revertActivated = { instanceId, effectId }
         }
     }
-    delete state.activationFizzled
+    delete state.effectFizzled
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す
     if (state.battle) passFlashPriority(state, pid)
     return null
@@ -1659,7 +1742,10 @@ function doResolveChoice(
         }
         const info = pending.fushiSummon
         state.pendingChoice = null
-        if (option !== undefined) {
+        if (option === "魔門を疲労させて無償で召喚する") {
+            // BS15-064冥府へ続く魔門Lv2：未疲労の魔門を疲労させ、コストを支払わずに召喚する（召喚時効果は発揮されない）
+            applyFushiSummon(state, info, true)
+        } else if (option !== undefined) {
             applyFushiSummon(state, info)
         } else {
             log(state, `${getCard(info.cardId).name}：【不死】で召喚しなかった。`)
@@ -1707,6 +1793,37 @@ function doResolveChoice(
             declineDeckMillNegate(state, entry)
         }
         if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 「相手のメインステップ終了時に使用できる」マジックの使用確認（BS15-079プロボケイション）。
+    // action は解決せず、選べば使用してからアタックステップへ、選ばなくてもそのままアタックステップへ進む
+    // アタックステップ終了後に行うステップの選択（BS15-X04 機獣要塞ナウマンガルド Lv2）。断れない
+    if (pending.extraStepChoice) {
+        if (option === undefined || !(EXTRA_STEP_OPTIONS as readonly string[]).includes(option)) {
+            return "行うステップを選んでください"
+        }
+        state.pendingChoice = null
+        runExtraStep(state, option)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    if (pending.provocationUse) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.provocationUse
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyProvocationUse(state, entry)
+        } else {
+            log(state, `${getCard(entry.cardId).name}：使用しなかった。`)
+        }
+        if (state.winner) return null
+        // 使わなかった直接ターン終了は endTurn に任せる（phase が main なのでアタックステップを経由する）
+        if (option === undefined && entry.endTurnIfDeclined) endTurn(state)
+        else toAttackPhase(state)
         return finishChoiceResolution(state, pending.pid)
     }
 
@@ -1805,8 +1922,9 @@ function doResolveChoice(
                     const info = pending.burstThenPay
                     state.players[info.pid].reserve -= info.cost
                     log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）
-                    resolveAction(state, actor, self, pending.action, undefined, getCard(info.cardId).colors, "magic", undefined, undefined, info.cardId)
+                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
+                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
+                    resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
@@ -1815,9 +1933,13 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
-                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）
+                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
+                    if (info.burstEventCost !== undefined) state.burstEventCost = info.burstEventCost
+                    else delete state.burstEventCost
+                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
+                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, burstCard.colors, burstCard.type, undefined, undefined, info.cardId)
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId)
                     delete state.resolvingBurstPid
                     if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
                     if (!state.pendingChoice) {
@@ -1825,7 +1947,11 @@ function doResolveChoice(
                         if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
                     }
                 } else {
+                    delete state.effectFizzled
                     resolveAction(state, actor, self, pending.action)
+                    // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
+                    if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
+                    delete state.effectFizzled
                 }
             } else {
                 resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
@@ -1833,6 +1959,8 @@ function doResolveChoice(
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
             log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
+            // 「〜できる」を断った＝発揮していないので「ターンに1回」を戻す（2026-09-16）
+            revertActivatedIfSkipped(state, pending)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
@@ -1924,7 +2052,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "turnStart") {
             // 中断していたターン開始処理を続きのステップから再開する
             // （百識の谷Lv1のドローステップ破棄選択など）
-            driveTurnStart(state, frame.step)
+            driveTurnStart(state, frame.step, frame.until)
             continue
         }
         if (frame.kind === "destroyBatch") {
@@ -2143,6 +2271,12 @@ function resolveBattle(state: GameState): void {
             state,
             `${getCard(attacker.cardId).name}は${getCard(blocker.cardId).name}と同じLv以上のため、BPを比べずブロックされなかったものとして扱う。`,
         )
+        resolveLifeDamage(state)
+        return
+    }
+    // BS15-045虚獣帝スフィン・クロス：action:"unblockedByVoidSelfCore" がonBlocked時に立てる印
+    if (state.battle.treatAsUnblockedByCost) {
+        log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
         resolveLifeDamage(state)
         return
     }

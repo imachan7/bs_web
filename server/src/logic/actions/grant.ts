@@ -313,12 +313,28 @@ const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action)
             log(state, `${getCard(self.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
             return
         }
+        // BS15-038アルカナビースト・ジャック：fixedTarget:"self"指定時は第1段階（対象選択）を飛ばし、
+        // 発生源自身を対象に固定する（第2段階＝色選択から始める）
+        if (action.fixedTarget === "self") {
+            if (!self) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+            requestChoice(state, owner, "与える色を選んでください", [], false, action, self, "option", allColors.map((c) => COLOR_LABELS[c]))
+            return
+        }
         if (targetInstanceId === undefined) {
-            // 第1段階：色を与える対象スピリットを選ぶ（両陣営のフィールド全体）
-            const candidates = [
-                ...state.players.p1.field.spirits,
-                ...state.players.p2.field.spirits,
-            ].map((s) => s.instanceId)
+            // 第1段階：色を与える対象スピリットを選ぶ（targetSide:"opponent"指定時は相手のフィールドだけ）
+            const candidates = (
+                action.targetSide === "opponent"
+                    ? state.players[opp].field.spirits
+                    : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits]
+            ).map((s) => s.instanceId)
+            if (candidates.length === 0) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
             requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
             return
         }

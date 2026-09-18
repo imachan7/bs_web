@@ -312,9 +312,9 @@ const __covEid = (e: unknown): string =>
     // costMod（加算）: 実際にコストへ加算する時点
     patch(
         f.replace("rules.ts", "cost.ts"),
-        `                total += effect.amount`,
+        `                total += amt`,
         `                __covRec2C("cont\t" + __covEid2C(effect))
-                total += effect.amount`,
+                total += amt`,
     )
     // costMod（置換 mode:"set"）: 採用値を決める時点
     // （2026-08-14: setToCounter の追加で置換値の計算が1行増えたためアンカーを追随させた）
@@ -499,12 +499,33 @@ const __covEid = (e: unknown): string =>
     patch(
         f,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             return true`,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
+    // target:"bothAll" の自分側（BS15-034ミブロック・ジーナス）
+    patch(
+        f,
+        `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "bothAll") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            return true`,
+        `            if (effect.kind !== "nexusEffectsDisabled") continue
+            if (effect.target !== "bothAll") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
     )
@@ -1461,9 +1482,13 @@ process.on("exit", () => {
         // deckMillNegate（BS08鳳翼の聖剣Lv2）：無効化できる発生源として確定した時点
         patch(
             em,
-            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            `            } else {
+                if (source.isRested) continue
+            }
             return { source, effect }`,
-            `            if (state.players[pid].life < effect.costOwnLifeToReserve) continue
+            `            } else {
+                if (source.isRested) continue
+            }
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return { source, effect }`,
         )

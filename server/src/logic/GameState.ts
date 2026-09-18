@@ -461,6 +461,8 @@ export function clearBattle(state: GameState): void {
             if (inst.battleBpBuff) inst.battleBpBuff = 0
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
             delete inst.battleBpFixed
+            // BS15共通器：battleBpAs（このバトル限定・単体対象の「Lv◯BPを◯として扱う」）も同じ寿命
+            delete inst.battleBpAs
             // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
             delete inst.battleSymbolsAdded
             // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
@@ -670,6 +672,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
         ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],

@@ -63,6 +63,7 @@ import {
     findMagicFreeGrantSource,
     hasMagicRestriction,
     isSelfInBattle,
+    magicEffectiveColors,
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 import {
@@ -113,6 +114,8 @@ import {
     combinedBraveColorsOk,
     hostsOf,
     cardHasColor,
+    opponentFieldColorCount,
+    ownFieldOnlyColor,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -225,6 +228,13 @@ export function fireSummonTrigger(
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi)
     if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+}
+
+// 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
+export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
+    if (!inst.triggeredUsedTurn) return
+    const { [effectId]: _removed, ...rest } = inst.triggeredUsedTurn
+    inst.triggeredUsedTurn = rest
 }
 
 export function fireTrigger(
@@ -465,6 +475,14 @@ export function fireTrigger(
                 // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）。
                 // false指定時は**セットしていない**間だけ発火（SD06-009キジ・トリアLv2）
                 if (state.players[owner].burstSet !== effect.condition.ownBurstSet) return false
+            } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                // BS15共通器：持ち主から見た相手フィールドの色の種類数がこれ以上のときのみ発火
+                const { opponentFieldColorsAtLeast, spiritsOnly } = effect.condition
+                if (opponentFieldColorCount(state, owner, spiritsOnly === true) < opponentFieldColorsAtLeast) return false
+            } else if ("ownFieldOnlyColor" in effect.condition) {
+                // BS15共通器：発生源の持ち主のフィールドが指定色1色だけのときのみ発火
+                const { ownFieldOnlyColor: color, spiritsOnly } = effect.condition
+                if (!ownFieldOnlyColor(state, owner, color, spiritsOnly === true)) return false
             }
         }
         return true
@@ -500,9 +518,12 @@ export function fireTrigger(
         const entry = entries[i]
         const effect = entry?.effect
         if (!entry || !effect || !matches(effect, entry.src)) continue
-        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）
+        // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
+        // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
+        // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
         if (effect.oncePerTurn === true) {
             entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            delete state.effectFizzled
         }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
         // interactiveTargets=false（テスト）では従来どおり常に発動する
@@ -513,6 +534,7 @@ export function fireTrigger(
                 `${getCard(entry.src.cardId).name}の効果を発動しますか？`,
                 effect.action,
                 selfInstance,
+                effect.oncePerTurn === true ? { instanceId: entry.src.instanceId, effectId: effect.id } : undefined,
             )
         } else {
             // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く
@@ -523,6 +545,11 @@ export function fireTrigger(
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
+        }
+        // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
+        if (effect.oncePerTurn === true && state.effectFizzled) {
+            revertOncePerTurn(entry.src, effect.id)
+            delete state.effectFizzled
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
@@ -718,6 +745,10 @@ export function fireBattleWonTriggers(
             if (effect.winnerCombinedOnly && !instIsCombined(winnerInst)) {
                 continue
             }
+            // BS15-005虚獣チャンプボンゴル：勝利したスピリットがこの色を持つときのみ発火
+            if (effect.winnerColorFilter !== undefined && !instHasColor(winnerInst, effect.winnerColorFilter)) {
+                continue
+            }
             // BS13-050輝竜シャイン・ブレイザー【合体時】：敗北して破壊された側の実効BPがこれ以上のときのみ発火
             // （state.lastBattleDestroyedBpは破壊直前に測った実効BP。GameEngine.resolveBattleが記録する）
             if (effect.loserMinBp !== undefined && state.lastBattleDestroyedBp < effect.loserMinBp) {
@@ -725,6 +756,13 @@ export function fireBattleWonTriggers(
             }
             // BS14-060ティンダロ・ハウンドLv2：破壊された側のコストがこれ以下のときのみ発火
             if (effect.loserCostAtMost !== undefined && state.lastBattleDestroyedCost > effect.loserCostAtMost) {
+                continue
+            }
+            // BS15-066廃寺の無限階段：発生源の持ち主のフィールドが指定色1色だけのときのみ発火
+            if (
+                effect.condition?.ownFieldOnlyColor !== undefined &&
+                !ownFieldOnlyColor(state, winnerPid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)
+            ) {
                 continue
             }
             firing.push({ inst, effect })
@@ -916,6 +954,14 @@ export function fireStepTriggers(
                     // SD06-009キジ・トリアLv2：自分がバーストをセットしている／していない間だけ発火
                     if (state.players[pid].burstSet !== effect.condition.ownBurstSet) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "opponentBurstSet" in effect.condition) {
+                    // BS15-065大河と絶壁Lv2：相手がバーストをセットしている／していない間だけ発火
+                    if (state.players[opponentOf(pid)].burstSet !== effect.condition.opponentBurstSet) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "noAttacksThisTurn" in effect.condition) {
+                    // BS15-067雪の結晶樹：このターンまだ1度もアタックが行われていないときのみ発火
+                    if (state.attacksThisTurn > 0) continue
+                }
                 if (effect.condition && typeof effect.condition === "object" && "ownNameIncludesCountAtLeast" in effect.condition) {
                     // 郵便ペンタン：カード名にいずれかの文字列を含む自分のスピリットが合計count体以上いるときのみ発火
                     const { names, count } = effect.condition.ownNameIncludesCountAtLeast
@@ -929,7 +975,11 @@ export function fireStepTriggers(
                     if (total < count) continue
                 }
                 // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
-                if (effect.cost?.exhaustSelf && inst.isRested) continue
+                if (effect.cost && "exhaustSelf" in effect.cost && inst.isRested) continue
+                // cost:{reserveToTrash}（BS15-032スノーフレイクンLv1）：リザーブが足りなければ払えないので発火しない
+                if (effect.cost && "reserveToTrash" in effect.cost && state.players[pid].reserve < effect.cost.reserveToTrash) continue
+                // cost:{selfCoresToTrash}（BS15-023タケノ・サイガーLv2）：発生源自身のコアが足りなければ発火しない
+                if (effect.cost && "selfCoresToTrash" in effect.cost && inst.cores < effect.cost.selfCoresToTrash) continue
                 firing.push({ pid, inst, effect })
             }
         }
@@ -944,8 +994,19 @@ export function fireStepTriggers(
             }
             // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
             // interactiveTargetsの確認を断った場合も疲労する簡略化）
-            if (e.effect.cost?.exhaustSelf) {
+            if (e.effect.cost && "exhaustSelf" in e.effect.cost) {
                 exhaustSpirit(state, e.pid, e.inst)
+            }
+            if (e.effect.cost && "reserveToTrash" in e.effect.cost) {
+                const player = state.players[e.pid]
+                const paid = e.effect.cost.reserveToTrash
+                player.reserve -= paid
+                player.trashCores += paid
+            }
+            if (e.effect.cost && "selfCoresToTrash" in e.effect.cost) {
+                const paid = e.effect.cost.selfCoresToTrash
+                e.inst.cores -= paid
+                state.players[e.pid].trashCores += paid
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
@@ -1030,6 +1091,26 @@ function burstConditionMet(
         const { cardType, count } = condition.ownTrashCardTypeCountAtLeast
         return player.trashCards.filter((id) => getCard(id).type === cardType).length >= count
     }
+    // BS15-017エンプレス・ヨウクィーン：自分の手札が5枚以上のとき
+    if ("ownHandAtLeast" in condition) return player.hand.length >= condition.ownHandAtLeast
+    // BS15-026軍師鳥ショカツリョー：自分と相手のフィールドに疲労状態のスピリットが合計でこれ以上いるとき
+    if ("bothFieldsRestedSpiritsAtLeast" in condition) {
+        const restedCount = (p: typeof player) => p.field.spirits.filter((s) => s.isRested).length
+        return restedCount(player) + restedCount(state.players[opponentOf(pid)]) >= condition.bothFieldsRestedSpiritsAtLeast
+    }
+    // BS15共通器：BS15-043ショーグンペンタン「自分の黄のスピリットが3体以上いるとき」
+    if ("ownColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownColorCountAtLeast
+        return player.field.spirits.filter((s) => instHasColor(s, color)).length >= count
+    }
+    // BS15共通器：BS15-053コジロンド・ゴレム「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」
+    if ("ownFieldHasKeywordAny" in condition) {
+        return player.field.spirits.some((s) => condition.ownFieldHasKeywordAny.some((k) => spiritHasKeyword(state, pid, s, k)))
+    }
+    // BS15共通器：BS15-083秘剣燕返「相手の手札が5枚以上のとき」
+    if ("opponentHandAtLeast" in condition) {
+        return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
+    }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1052,6 +1133,8 @@ export function fireFieldEventTriggers(
         byBattle?: boolean
         // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったか（attackerOnly の判定に使う）
         wasAttacker?: boolean
+        // event: "ownSpiritDestroyed" 限定：破壊されたスピリットの実効BP（破壊直前の近似値。kind:"burst".destroyedMinBpの判定に使う。BS15-034ミブロック・ジーナス）
+        destroyedBp?: number
         // event: "ownNexusDestroyed" 限定：**相手の**スピリット/ネクサス/マジックの効果による破壊か
         // （destroyNexus が DestroyContext から求めて渡す。byOpponentEffectOnly の判定に使う）
         // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
@@ -1132,6 +1215,8 @@ export function fireFieldEventTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             // selfOnly：発生源自身が破壊されたときだけ（ownSpiritDestroyed 限定。BS13-010 スカルザード）
             if (effect.selfOnly && inst.instanceId !== selfOverride?.inst.instanceId) continue
+            // excludeSelfSubject（BS15-009虚龍帝カタストロフドラゴン）：イベントの主体が発生源自身のときは発火しない
+            if (effect.excludeSelfSubject && inst.instanceId === selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
             // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
             // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
@@ -1210,6 +1295,9 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            // 「相手によって破壊されたとき」（BS15-061幼竜の揺り籠Lv2）：相手の効果による破壊 **または**
+            // バトルのBP比較による破壊（reviveOnDestroy.when.byOpponentと同じ判定。byOpponentEffectOnlyより広い）
+            if (effect.byOpponentOnly && !(eventInfo?.byOpponentEffect || eventInfo?.byBattle)) continue
             // 「相手のスピリットの効果で破壊されたとき」（BS10-012アントイーター/BS10-014闇騎士マリス）
             if (effect.byOpponentSpiritEffectOnly && !eventInfo?.bySpiritEffect) continue
             // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別で絞る（BS14-085賛美するパイプオルガン：
@@ -1360,6 +1448,9 @@ export function fireFieldEventTriggers(
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
                     if ((state.lastFunsai?.spirits ?? 0) === 0) continue
+                } else if ("lastFunsaiHasCostAtLeast4" in effect.condition) {
+                    // BS15共通器：BS15-053コジロンド・ゴレムLv2-3「コスト4以上のカードを破棄したとき」
+                    if ((state.lastFunsai?.costAtLeast4 ?? 0) === 0) continue
                 } else if ("opponentHandAtLeastOwnHand" in effect.condition) {
                     // BS13-042ナイト・ゴーンLv2：相手の手札枚数が自分の手札枚数以上のときのみ
                     if (state.players[opponentOf(pid)].hand.length < state.players[pid].hand.length) continue
@@ -1389,10 +1480,13 @@ export function fireFieldEventTriggers(
             const repeatTimes = effect.repeatPerCount
                 ? effect.countMode === "cores" && eventInfo?.coresRemoved !== undefined
                     ? eventInfo.coresRemoved
-                    : eventCount
-                      ? eventCount
-                      : 1
+                    : effect.countMode === "funsaiSpirits"
+                      ? (state.lastFunsai?.spirits ?? 0)
+                      : eventCount
+                        ? eventCount
+                        : 1
                 : 1
+            // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
             firing.push({ inst, effect, repeatTimes })
         }
@@ -1465,9 +1559,20 @@ export function fireFieldEventTriggers(
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
             if (e.effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(state, c.actionPid, activationPrompt(e.inst), e.effect.action, c.actionSelf)
+                requestActivationConfirm(
+                    state,
+                    c.actionPid,
+                    activationPrompt(e.inst),
+                    e.effect.action,
+                    c.actionSelf,
+                    e.effect.oncePerTurn ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined,
+                )
             } else {
+                delete state.effectFizzled
                 resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+                // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す（2026-09-16）
+                if (e.effect.oncePerTurn && state.effectFizzled) revertOncePerTurn(e.inst, e.effect.id)
+                delete state.effectFizzled
             }
         },
         frame: (e) => {
@@ -1514,16 +1619,36 @@ export function fireFieldEventTriggers(
         const holder = state.players[holderPid]
         const burstCardId = holder.burst
         if (burstCardId === null) continue
-        const effect = getCard(burstCardId).effects.find(
+        let effect = getCard(burstCardId).effects.find(
             (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
         )
+        // BS15共通器：globalConstraint "burstAltEventFromOpponentSummon"（発生源=holder自身）が
+        // 効いている間、event:"opponentSummonEffectResolved"のバーストは"ownLifeDamaged"でも拾う
+        // （BS15-069太陰の宮廷Lv2）
+        const hasBurstAltEvent = effectSources(state, holderPid).some((src) => {
+            const srcLevel = currentLevel(src).level
+            return getCard(src.cardId).effects.some(
+                (e) =>
+                    e.kind === "globalConstraint" &&
+                    e.constraint.type === "burstAltEventFromOpponentSummon" &&
+                    effectActiveAtLevel(e.levels, srcLevel),
+            )
+        })
+        if (!effect && event === "ownLifeDamaged" && hasBurstAltEvent) {
+            effect = getCard(burstCardId).effects.find(
+                (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === "opponentSummonEffectResolved",
+            )
+        }
         if (!effect) continue
+        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
+        if (state.battle?.burstBlockedForPid === holderPid) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
         // byOpponentEffectOnly / destroyedColorFilter：fieldEvent の同名軸と同じ判定（event: "ownSpiritDestroyed" 限定）
         if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
         if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
+        if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
         const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
@@ -1548,6 +1673,9 @@ export function fireFieldEventTriggers(
                     ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
                     ...(alsoDraw ? { alsoDraw: true as const } : {}),
                     ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+                    // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
+                    // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
+                    ...(eventInfo?.costs?.[0] !== undefined ? { burstEventCost: eventInfo.costs[0] } : {}),
                 }
             }
             return
@@ -1555,9 +1683,24 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
-        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）
+        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
+        if (eventInfo?.costs?.[0] !== undefined) state.burstEventCost = eventInfo.costs[0]
+        else delete state.burstEventCost
+        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
+        // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
         const burstCard = getCard(burstCardId)
-        resolveAction(state, holderPid, null, actionToRun, destroyedCardId ?? targetInstanceId, burstCard.colors, burstCard.type, undefined, undefined, burstCardId)
+        resolveAction(
+            state,
+            holderPid,
+            null,
+            actionToRun,
+            destroyedCardId ?? targetInstanceId,
+            magicEffectiveColors(state, holderPid, burstCard),
+            burstCard.type,
+            undefined,
+            undefined,
+            burstCardId,
+        )
         delete state.resolvingBurstPid
         if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
         finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
@@ -1979,8 +2122,14 @@ export function findMagicNegateSource(
             const turn = isHyoheki && turnOverride !== undefined ? turnOverride : effect.turn
             if (turn === "own" && defenderPid !== state.turnPlayer) continue
             if (turn === "opponent" && defenderPid === state.turnPlayer) continue
-            // 【氷壁：赤】＝赤のマジックのみ無効にできる
-            if (effect.colors !== undefined && !effect.colors.some((c) => card.colors.includes(c))) continue
+            // 【氷壁：赤】＝赤のマジックのみ無効にできる。色はmagicEffectiveColorsを通す
+            // （BS15-015吸血令嬢エサルフリーダ「自分が使用する紫のマジックカードの色を無いものとして扱う」が
+            // 【氷壁】の色判定もすり抜ける。BS15_PLAN.md §7.3）
+            if (
+                effect.colors !== undefined &&
+                !effect.colors.some((c) => magicEffectiveColors(state, casterPid, card).includes(c))
+            )
+                continue
             if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
             // コストを払えないなら発動できない。
             // 【氷壁】はネクサスの疲労で肩代わりできる（ノルンの泉）。**代替できるときはそちらを優先**して
@@ -2510,6 +2659,13 @@ function runMagicActions(
                     log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
                     continue
                 }
+            } else if ("opponentFieldColorsAtLeast" in effect.condition) {
+                // BS15-078飛雷震之計：相手のフィールドの色の種類数がこれ以上ないと使用できない
+                const { opponentFieldColorsAtLeast: minColors, spiritsOnly } = effect.condition
+                if (opponentFieldColorCount(state, owner, spiritsOnly) < minColors) {
+                    log(state, `${card.name}：相手のフィールドの色が${minColors}色未満のため発動しなかった。`)
+                    continue
+                }
             } else {
                 // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
                 const minColors = effect.condition.ownFieldSymbolColorsAtLeast
@@ -2540,14 +2696,15 @@ function runMagicActions(
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
         setTargetRedirect(state, owner, targetInstanceId, effect.action)
         // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
-        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）
+        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）。
+        // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
         resolveAction(
             state,
             owner,
             null,
             effect.action,
             targetInstanceId,
-            card.colors,
+            magicEffectiveColors(state, owner, card),
             "magic",
             undefined,
             undefined,

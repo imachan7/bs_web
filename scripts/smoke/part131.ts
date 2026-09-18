@@ -62,9 +62,11 @@ console.log("=== 虚神サイクル：BS06-010が場にいると手札のX21・X
     const s = createGame("t131-kyoshin", { p1: "red", p2: "red" }, { p1: "red", p2: "red" })
     runTurnStart(s)
     put(s, "p1", "BS06-010", 1) // Lv1
+    // コスト6に固定したあとも軽減できる（2026-09-16 ユーザー確定）。X21 の軽減は赤なので、
+    // 場の赤いアポロディノスのシンボル1つぶん軽減されて5になる
     assert(
-        effectiveCost(s, "p1", getCard("BS06-X21")) === 6,
-        `X21がコスト6になる（実際: ${String(effectiveCost(s, "p1", getCard("BS06-X21")))}）`,
+        effectiveCost(s, "p1", getCard("BS06-X21")) === 5,
+        `X21がコスト6に固定され、赤シンボル1つで軽減されて5になる（実際: ${String(effectiveCost(s, "p1", getCard("BS06-X21")))}）`,
     )
     assert(
         effectiveCost(s, "p1", getCard("BS06-X23")) === 6,

@@ -543,6 +543,14 @@ function onBurstSetClick(handIndex: number): void {
     send({ type: "setBurst", handIndex })
 }
 
+// 手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
+// 対象選択はサーバー側の bpBuff.anySide の既存経路（対話ならPendingChoice）に任せるので、
+// クライアントは useHandAbility を送るだけでよい
+function onHandAbilityClick(handIndex: number, effectId: string): void {
+    if (!view) return
+    send({ type: "useHandAbility", handIndex, effectId })
+}
+
 function onHandClick(handIndex: number): void {
     if (!view) return
     // 選択待ち中は通常の手札操作（召喚等）をすべて抑止する。自分宛のkind:"card"・cardZone:"hand"
@@ -1181,10 +1189,15 @@ async function init(): Promise<void> {
     })
 
     byId("hand").addEventListener("click", (e) => {
-        // バーストセットのバッジが先（カード本体のクリックと区別する）
+        // バーストセット・手札から使う効果のバッジが先（カード本体のクリックと区別する）
         const burstBtn = closestData(e, "data-burst-set")
         if (burstBtn) {
             onBurstSetClick(Number(burstBtn.dataset.burstSet))
+            return
+        }
+        const abilityBtn = closestData(e, "data-hand-ability")
+        if (abilityBtn) {
+            onHandAbilityClick(Number(abilityBtn.dataset.handAbility), String(abilityBtn.dataset.handAbilityEffectId))
             return
         }
         const el = closestData(e, "data-hand-index")

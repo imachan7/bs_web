@@ -1,7 +1,7 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, Keyword, PlayerId, TargetFilter } from "../../type"
+import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
 import {
     canExhaustNexus,
@@ -24,6 +24,7 @@ import {
     hasBofuChooserSelf,
     bofuCountFor,
     continuousKeywordGrantCount,
+    lifeCostBlockedByFloor,
 } from "../EffectModules"
 import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -38,6 +39,18 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // costReserveToTrashFromBofu（BS15-026軍師鳥ショカツリョーLv2）：実効【暴風】指定数ぶんのコストを
+        // 先に払う。払えなければ不発（countFromBofuの解決より前に見る）
+        if (action.costReserveToTrashFromBofu) {
+            const bofuForCost = self ? bofuCountFor(state, owner, self) : 0
+            if (bofuForCost === 0 || state.players[owner].reserve < bofuForCost) {
+                log(state, `${sourceName}：コストを支払えないため発動しなかった。`)
+                return
+            }
+            state.players[owner].reserve -= bofuForCost
+            state.players[owner].trashCores += bofuForCost
+            log(state, `${sourceName}：リザーブのコア${bofuForCost}個をトラッシュに置いた。`)
+        }
         // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
         // 実効指定数（静的 count ＋ bofuCountBonus）で解決し直す。BS08ゲラン准将Lv2 の
         // 「自分のスピリットすべての【暴風】の指定数を+1する」はこの経路でだけ届く
@@ -420,6 +433,28 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
 
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
     const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
+        // eventTargetOnly（BS15-067雪の結晶樹Lv2）：誘発が渡すtargetInstanceIdだけを対象にする
+        // （selfMode:"source"＋attackerAsTarget等でtargetを固定するfieldEvent用。選択の余地なし）
+        if (action.eventTargetOnly) {
+            const chosen = targetInstanceId !== undefined
+                ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                : undefined
+            if (!chosen || !chosen.isRested) {
+                log(state, `${sourceName}の回復：対象がいなかった。`)
+                return
+            }
+            if (action.costSelfCoresToTrash !== undefined) {
+                if (!self || self.cores < action.costSelfCoresToTrash) {
+                    log(state, `${sourceName}：コアが足りず発動しなかった。`)
+                    return
+                }
+                self.cores -= action.costSelfCoresToTrash
+                state.players[owner].trashCores += action.costSelfCoresToTrash
+            }
+            refreshSpirit(state, owner, chosen, srcType)
+            log(state, `${getCard(chosen.cardId).name}は回復した。`)
+            return
+        }
         // 絞り込みは共通の TargetFilter に一本化（keyword/color/vanilla/family/excludeSelf の5軸。
         // 旧フィールドは normalizeFilter が畳み込むためデータは無変更）
         const filter = normalizeFilter(ctx, action)
@@ -451,6 +486,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
                 return
             }
             refreshSpirit(state, owner, chosen, srcType)
+            if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
             return
         }
@@ -485,8 +521,17 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         )
         refreshSpirit(state, owner, target, srcType)
+        if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, target)
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
+}
+
+// BS15共通器：refreshOne.thenLevelUpThisTurn用（BS15-084爆砕轟神掌）。levelUpThisTurnと同じ計算
+function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
+    const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
+    const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
+    target.levelOverrideThisTurn = nextLevel
+    log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 
 // このスピリットが**カードに静的に持つ**指定キーワードエントリの count（レベル有効なもの）。
@@ -877,6 +922,13 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             const ownerPlayer = state.players[owner]
             if (ownerPlayer.life < action.costOwnLifeToReserve) {
                 log(state, `${sourceName}：ライフが足りず発動しなかった。`)
+                state.effectFizzled = true
+                return
+            }
+            // 「ライフは0にならない」が働いている間は、払って0にすることもできない（2026-09-16 ユーザー確定）
+            if (lifeCostBlockedByFloor(state, owner, action.costOwnLifeToReserve)) {
+                log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
+                state.effectFizzled = true
                 return
             }
             ownerPlayer.life -= action.costOwnLifeToReserve
