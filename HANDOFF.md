@@ -30,6 +30,18 @@
 **次の本線は BS16「覇王編 第3弾：爆烈の覇道」90種＋プロモ3枚**（ブランチ `feat/bs16-import`。staging 取り込み済み・解釈 §2.1 確定済み）。
 計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。**次の一手：§2.5 の2問をユーザーに確認 → バッチ1（赤・紫＋P069/P070）の解釈一覧（既存の器／新しい器）を出す**。
 
+### BS16 バッチ2（緑・白＋P071）の器（2026-09-22 確定・実装中）— **名前を変えない**
+
+解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は調査役が `docs/design/BS16_HOOKS.md` に書く（バッチ完了時に消す）。
+A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）／
+継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
+turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
+068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
+B群（バトル・誘発）：fieldEvent `opponentHandIncreased` とアクション `discardOpponentBurst`（X04 合体時）／
+アクションの対象絞り込み `sameIceWallColorAs: "attacker"`（036）と付与 `unblockableByIceWallColor`（079）／
+誘発 `opponentSpiritDestroyedDuringOwnAttack` とアクション `exhaustOpponentSameFamilyAll`（027）／
+アクション `millThenCoreIfBurst { count: number }`（P071）／アクション `destroyLifeDamager`（080。thisBattle／burstEvent を使用時に選ぶ）
+
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
 - BS12-052 デス・ヘイズの「好きなだけ破壊」（`destroyOwnFreelyThenDrawHandler`）は独自ループのまま＝同時破壊グループに入らない（`suppressOnDestroy` をバッチに通す改修が要る）
