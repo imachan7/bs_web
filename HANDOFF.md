@@ -32,14 +32,14 @@
 
 ### BS16 バッチ2（緑・白＋P071）の器（2026-09-22 確定・実装中）— **名前を変えない**
 
-解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は調査役が `docs/design/BS16_HOOKS.md` に書く（バッチ完了時に消す）。
+解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は `docs/design/BS16_HOOKS_A.md`・`_B.md`（バッチ完了時に消す）。
 A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）／
 継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
 turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
 068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
-B群（バトル・誘発）：fieldEvent `opponentHandIncreased` とアクション `discardOpponentBurst`（X04 合体時）／
+B群（バトル・誘発）：既存 fieldEvent `opponentHandAdded` を流用し、アクション `discardOpponentBurst`（X04 合体時）／
 アクションの対象絞り込み `sameIceWallColorAs: "attacker"`（036）と付与 `unblockableByIceWallColor`（079）／
-誘発 `opponentSpiritDestroyedDuringOwnAttack` とアクション `exhaustOpponentSameFamilyAll`（027）／
+既存の相手スピリット破壊の誘発に軸 `duringSelfAttack: true` を足し、アクション `exhaustOpponentSameFamilyAll`（027）／
 アクション `millThenCoreIfBurst { count: number }`（P071）／アクション `destroyLifeDamager`（080。thisBattle／burstEvent を使用時に選ぶ）
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
