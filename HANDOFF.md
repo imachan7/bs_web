@@ -33,7 +33,8 @@
 ### BS16 バッチ2（緑・白＋P071）の器（2026-09-22 確定・実装中）— **名前を変えない**
 
 解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は `docs/design/BS16_HOOKS_A.md`・`_B.md`（バッチ完了時に消す）。
-A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）／
+A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）。
+  置き先の選択は新しい PendingChoice `distributeCores { remaining: number; destinations: ("reserve" | instanceId)[]; summoningCardId }`（1個ずつ／一括。召喚するスピリット自身も置き先。非対話は全部このスピリット）／
 継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
 turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
 068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
