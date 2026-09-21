@@ -114,6 +114,7 @@ import {
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
     validatePass,
+    validateResshinsokuSummon,
     validateSetBurst,
     validateSetNexus,
     validateSummon,
@@ -271,6 +272,8 @@ function dispatchAction(
     switch (action.type) {
         case "summon":
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
+        case "resshinsokuSummon":
+            return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
@@ -575,6 +578,136 @@ function doSummon(
     }
     placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
+    passFlashPriority(state, pid)
+    if (state.winner) state.battle = null
+    return null
+}
+
+// 【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
+type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
+
+// 【烈神速】：トラッシュのコアをすべて自分のフィールド/リザーブに好きに置くことで、
+// コストを支払わずに手札から召喚する（BS16-X03）。置き先は1個ずつ選ばせる（docs/design/INTERRUPTION_POINTS.md パターンA）
+function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const error = validateResshinsokuSummon(state, pid, handIndex)
+    if (error) return error
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]!
+    const total = player.trashCores
+    player.trashCores = 0
+    const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
+    // 非対話（AI・自動応答）は全部このスピリットに置く（2026-09-22 ユーザー確定）
+    if (!state.interactiveTargets) {
+        info.selfCores = total
+        info.remaining = 0
+        return finishResshinsokuSummon(state, pid, info)
+    }
+    requestResshinsokuDestination(state, pid, info)
+    return null
+}
+
+// コアの置き先を1個ぶん聞く。残り1回で最低限必要な数（Lv1維持コア）に届かないときは
+// 選択肢を「このスピリットに置く」だけに絞り、必ず維持コアが足りる状態で召喚できるようにする
+function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: ResshinsokuInfo): void {
+    if (info.remaining <= 0) {
+        finishResshinsokuSummon(state, pid, info)
+        return
+    }
+    const player = state.players[pid]
+    const card = getCard(info.cardId)
+    const need = minLevelCores(card) - info.selfCores
+    const forceSelf = need >= info.remaining
+    const targets = [...player.field.spirits, ...player.field.nexuses]
+    const destinations: string[] = forceSelf ? ["self"] : ["reserve", ...targets.map((t) => t.instanceId), "self"]
+    const options: string[] = forceSelf
+        ? [`${card.name}（このスピリット）に置く`]
+        : [
+              "リザーブに置く",
+              ...targets.map((t) => `${getCard(t.cardId).name}（Lv${String(currentLevel(t).level)}）に置く`),
+              `${card.name}（このスピリット）に置く`,
+          ]
+    if (!forceSelf && info.remaining > 1) {
+        destinations.push("reserve_all", "self_all")
+        options.push("残り全部をリザーブに置く", "残り全部をこのスピリットに置く")
+    }
+    suspend(state, {
+        pid,
+        kind: "option",
+        prompt: `【烈神速】：トラッシュのコア（残り${String(info.remaining)}個）の置き先を選んでください`,
+        candidates: [],
+        options,
+        optional: false,
+        action: { type: "noop" },
+        selfInstanceId: null,
+        distributeCores: {
+            remaining: info.remaining,
+            selfCores: info.selfCores,
+            destinations,
+            handIndex: info.handIndex,
+            cardId: info.cardId,
+        },
+    })
+}
+
+// distributeCores の選択を1件適用し、残りがあれば続けて聞く
+function applyResshinsokuDestination(
+    state: GameState,
+    pid: PlayerId,
+    info: ResshinsokuInfo,
+    destination: string,
+): void {
+    const player = state.players[pid]
+    if (destination === "reserve_all") {
+        player.reserve += info.remaining
+        log(state, `${player.name}はトラッシュのコア${String(info.remaining)}個をリザーブに置いた。`)
+        requestResshinsokuDestination(state, pid, { ...info, remaining: 0 })
+        return
+    }
+    if (destination === "self_all") {
+        log(state, `${player.name}はトラッシュのコア${String(info.remaining)}個をこのスピリットに置いた。`)
+        requestResshinsokuDestination(state, pid, { ...info, selfCores: info.selfCores + info.remaining, remaining: 0 })
+        return
+    }
+    if (destination === "reserve") {
+        player.reserve += 1
+        requestResshinsokuDestination(state, pid, { ...info, remaining: info.remaining - 1 })
+        return
+    }
+    if (destination === "self") {
+        requestResshinsokuDestination(state, pid, { ...info, selfCores: info.selfCores + 1, remaining: info.remaining - 1 })
+        return
+    }
+    const target = findSpirit(player, destination) ?? findNexus(player, destination)
+    if (target) {
+        target.cores += 1
+        requestResshinsokuDestination(state, pid, { ...info, remaining: info.remaining - 1 })
+        return
+    }
+    // 対象が選択中に場からいなくなっていた場合の安全網：残りをリザーブへ
+    player.reserve += info.remaining
+    requestResshinsokuDestination(state, pid, { ...info, remaining: 0 })
+}
+
+// コアの配置がすべて終わったところで、実際にスピリットを場に出す。
+// 通常の doSummon と違い、コストも維持コアの支払いも発生しない
+// （維持コアぶんは distributeCores で「このスピリット」に置かれたコアがそのまま兼ねる）
+function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo): string | null {
+    const player = state.players[pid]
+    const at = player.hand[info.handIndex] === info.cardId ? info.handIndex : player.hand.lastIndexOf(info.cardId)
+    if (at === -1) return null
+    player.hand.splice(at, 1)
+    const card = getCard(info.cardId)
+    const inst = createInstance(info.cardId, state.turn, info.selfCores)
+    if (summonExhausted(state, card)) inst.isRested = true
+    const logText = `${player.name}は【烈神速】でコストを支払わずに${card.name}を召喚した。`
+    state.summoningInstanceId = inst.instanceId
+    state.summoningFromHand = true
+    if (!state.winner) resolveTensho(state, pid, inst)
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "placeSummon", pid, inst, reserveDelta: 0, logText, cardName: card.name }])
+        return null
+    }
+    placeSummonedSpirit(state, pid, inst, 0, logText, card.name)
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
     return null
@@ -1802,6 +1935,21 @@ function doResolveChoice(
         state.pendingChoice = null
         state.destroyOrderPick = picked
         return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 【烈神速】：トラッシュのコアの置き先を1個ぶん選ぶ（BS16-X03）。action は解決せず、
+    // 選んだ置き先へ1個（一括なら残り全部）置いてから、残っていればまた同じ選択を出す
+    if (pending.distributeCores) {
+        const options = pending.options ?? []
+        if (option === undefined) return "コアの置き先を選んでください"
+        const index = options.indexOf(option)
+        const destination = pending.distributeCores.destinations[index]
+        if (index < 0 || destination === undefined) return "選択できない候補です"
+        const info = pending.distributeCores
+        state.pendingChoice = null
+        applyResshinsokuDestination(state, pid, info, destination)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pid)
     }
 
     // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、

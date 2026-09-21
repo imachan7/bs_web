@@ -1433,6 +1433,13 @@ function renderHand(view: GameView, ui: UiState): void {
                 tempSokuCardIds.has(cardId) ||
                 hasHandKeywordGrant(view, view.you, m, "soku"))
 
+        // 【烈神速】：トラッシュのコア5個以上ならコストを支払わず召喚できる（BS16-X03）。
+        // コストはトラッシュのコアから賄うので、reserve >= need の判定は通さない
+        const resshinsokuReady =
+            m.type === "spirit" &&
+            hasKeyword(cardId, "resshinsoku") &&
+            view.players[view.you].trashCores >= 5
+
         // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
         // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）
         const magicColorLocked =
@@ -1443,10 +1450,10 @@ function renderHand(view: GameView, ui: UiState): void {
         const fieldCores = payableFieldCores(view, cardId)
         const isTimingValid =
             (myMainFree) ||
-            (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable))
+            (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable || resshinsokuReady))
 
         const isUsableState = !view.pendingChoice && !magicColorLocked && isTimingValid
-        const usable = isUsableState && reserve >= need
+        const usable = isUsableState && (resshinsokuReady || reserve >= need)
         const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
         const unusable = !usable && !usableField
 

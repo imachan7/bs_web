@@ -246,6 +246,8 @@ export type FieldEvent =
 // カードデータには名前だけを持たせ、挙動は EffectModules のレジストリで解決する。
 export type Keyword =
     | "soku" // 神速：手札からフラッシュタイミングで召喚できる
+    | "resshinsoku" // 烈神速：お互いのアタックステップ、自分のトラッシュのコアが5個以上のとき、
+    // それを自分のフィールド/リザーブに置くことでコストを支払わずに召喚できる（BS16-X03）。【神速】とは別枠
     | "awaken" // 覚醒：フラッシュタイミングで自分のスピリットのコアを集められる
     | "superAwaken" // 超覚醒：【覚醒】＋**コアを置いたとき、このスピリットは回復する**（BS10-X01 幻羅星龍ガイ・アスラ）。
     // ⚠️ **【覚醒】とは別枠のキーワードにする**（2026-08-25 ユーザー確認）。将来「【超覚醒】を持つ〜」を
@@ -958,6 +960,16 @@ export interface PendingChoice {
         // options は「ドローステップ／リフレッシュステップ／メインステップ」。断れない
         sourceInstanceId: string
     }
+    distributeCores?: {
+        // 【烈神速】：トラッシュのコアを1個ずつ好きな場所へ置く待ち（BS16-X03）。action は解決しない。
+        // destinations は options と同順の置き先トークン："reserve"/"self"（このスピリット自身。まだ場にいない）／
+        // 自分のスピリット・ネクサスの instanceId／一括用の "reserve_all"/"self_all"
+        remaining: number // まだ置いていないコアの残数
+        selfCores: number // ここまでに「このスピリット」へ置いた数（召喚時にそのままコアになる）
+        destinations: string[]
+        handIndex: number
+        cardId: string
+    }
     provocationUse?: {
         // 「相手のメインステップ終了時に使用できる」マジックの使用確認待ち（BS15-079プロボケイション）。
         // action は解決しない。選べばコストを払って使用し、選ばなければ何もせずアタックステップへ進む
@@ -1465,6 +1477,7 @@ export interface GameView {
 
 export type GameAction =
     | { type: "summon"; handIndex: number; level?: number; paySources?: PaySource[]; substituteInstanceId?: string; discardHandIndices?: number[]; braveTargetInstanceId?: string; altSummonNexusInstanceIds?: string[] } // braveTargetInstanceId指定時は**ダイレクトブレイヴ**＝そのスピリットに合体した状態でブレイヴを召喚する（維持コアを置かない。docs/design/BRAVE.md §5）。省略時、ブレイヴは単体のスピリットとして召喚される // discardHandIndices指定時は、その手札を破棄して**1枚につきコスト1**を支払う（BS08ビクティム）。省略時は従来どおり「コアで足りない分を自動で手札破棄に回す」（非対話・旧クライアント互換） // 召喚（神速持ちはフラッシュ時も可）。level指定時はそのレベルに必要なコア数をリザーブから置いて召喚する（省略時はLv1）。substituteInstanceId指定時は kind:"battleSwapSummon" の召喚＝バトル中の自分のスピリット1体を手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ（召喚コストは通常どおり必要。発動可否は shared/rules.ts の canBattleSwapSummon で判定できる。BS07ブラックカラカロッサム） // altSummonNexusInstanceIds指定時は kind:"altSummonFromHand" の代替召喚＝指定したネクサス（自分の色一致・cost.countぶん）を自分のデッキの下に戻すことを支払いとし、召喚コストは支払わない（維持コアはリザーブから通常どおり置く。発動可否は shared/rules.ts の canAltSummonFromHand で判定できる。BS10-058水星神龍メルクリウス・サーペント）
+    | { type: "resshinsokuSummon"; handIndex: number } // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上を自分のフィールド/リザーブに好きに置くことで、コストを支払わずに召喚する（BS16-X03）。置き先は distributeCores の選択で1個ずつ決める
     | { type: "setBurst"; handIndex: number } // バーストのセット。自分のターンのメインステップ限定・ターン1回（docs/design/BURST.md）。既にセット済みなら旧カードをトラッシュへ送ってから新しいものをセットする
     | { type: "setNexus"; handIndex: number; level?: number; paySources?: PaySource[]; millPay?: number } // millPayは配置コストの支払い方法の選択（BS04栄光の表彰台）。0＝コアで払う／実効コストと同じ値＝その枚数だけデッキを上から破棄して払う。**中間の枚数は不可**（併用できない）。省略時は「コアで足りるならコア、足りなければ全額デッキ破棄」 // 配置。level指定時はそのレベルに必要なコア数をリザーブから置いて配置する（省略時はLv1）
     | { type: "castMagic"; handIndex: number; targetInstanceId?: string; paySources?: PaySource[]; fromTegamoto?: boolean } // fromTegamoto指定時はhandIndexが手元(tegamoto)のインデックスを指す（手元からの無償使用。ミカファールLv2）

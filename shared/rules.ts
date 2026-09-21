@@ -37,6 +37,7 @@ export interface KeywordInfo {
 // キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
 export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     soku: { id: "soku", label: "神速" },
+    resshinsoku: { id: "resshinsoku", label: "烈神速" },
     awaken: { id: "awaken", label: "覚醒" },
     superAwaken: { id: "superAwaken", label: "超覚醒" },
     clash: { id: "clash", label: "激突" },

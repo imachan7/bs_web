@@ -640,6 +640,13 @@ function onHandClick(handIndex: number): void {
             tryPlay(handIndex, card, undefined)
             return
         }
+
+        // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上でコストを支払わず召喚する
+        // （置き先はサーバーが立てる distributeCores の選択で1個ずつ聞かれる。BS16-X03）
+        if (hasKeyword(cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
+            send({ type: "resshinsokuSummon", handIndex })
+            return
+        }
     }
 
     if (card.type === "magic" && (myMainFree || (inFlash && card.flash))) {

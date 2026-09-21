@@ -375,6 +375,31 @@ function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, ca
     return null
 }
 
+// 【烈神速】：お互いのアタックステップのフラッシュタイミングで、トラッシュのコア5個以上を
+// 自分のフィールド/リザーブに好きに置くことで、コストを支払わず手札から召喚する（BS16-X03）。
+// 【神速】とは別のキーワードなので validateSummon の flashSummon 判定には乗せず、専用の検証にする
+export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const banned = handCardBanned(state, pid, cardId)
+    if (banned) return banned
+    if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+    if (!hasKeyword(cardId, "resshinsoku")) return "【烈神速】を持っていません"
+    if (!state.isFlashTiming || state.phase !== "attack") {
+        return "お互いのアタックステップのフラッシュタイミングでのみ使用できます"
+    }
+    const flashError = validateHandFlash(state, pid)
+    if (flashError) return flashError
+    if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
+    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
+    if (summonLimitError) return summonLimitError
+    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
+    if (summonLimitByEffectError) return summonLimitByEffectError
+    return null
+}
+
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
 // カードに存在しないレベルや、Lv1のコア数を下回るレベル指定を弾く
 function validateSummonLevel(card: CardData, level?: number): string | null {

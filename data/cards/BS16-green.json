@@ -1,0 +1,62 @@
+[
+  {
+    "cardId": "BS16-X03",
+    "name": "烈の覇王セイリュービ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 7,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "覇皇",
+      "華兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": true,
+    "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、このスピリットカードを召喚する。\nフラッシュ【烈神速】『お互いのアタックステップ』\n自分のトラッシュのコアが5個以上のとき、自分のトラッシュのコアすべてを自分のフィールド/リザーブに好きなように置くことで、手札にあるこのスピリットカードを、コストを支払わずに召喚する。",
+    "effects": [
+      {
+        "id": "BS16-X03-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "condition": {
+          "ownLifeAtMost": 3
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-X03-e2",
+        "kind": "keyword",
+        "keyword": "resshinsoku",
+        "levels": null
+      }
+    ]
+  }
+]
