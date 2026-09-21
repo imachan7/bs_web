@@ -99,6 +99,15 @@ const restrictActionsToColorThisTurnHandler: ActionHandler<"restrictActionsToCol
     log(state, `${sourceName}：このターンの間、${COLOR_LABELS[action.color]}以外のスピリットすべてはアタック/ブロックできない。`)
 }
 
+// BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない
+// （バーストの発動自体は止めない＝summonBurstCardFreeHandlerが召喚だけ止める）
+const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSummonThisTurn"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) return
+    state.turnConstraints.push({ type: "noBurstSpiritSummonThisTurn" })
+    log(state, `${sourceName}：このターンの間、お互い、バースト効果でスピリットを召喚できない。`)
+}
+
 // BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
 const grantUnblockableByLevelThisTurnHandler: ActionHandler<"grantUnblockableByLevelThisTurn"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
@@ -2431,6 +2440,7 @@ const handlers = {
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
     restrictActionsToColorThisTurn: restrictActionsToColorThisTurnHandler,
+    blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,

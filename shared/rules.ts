@@ -2870,6 +2870,48 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
     return allowed
 }
 
+// kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
+// 【神速】召喚時、疲労させることで召喚コストのうち effect.cost 分を支払ったものとして扱える（任意）。
+// サーバー validateSummon/doSummon とクライアントの支払いUIが共用する
+export function shinsokuAssistCandidates(board: Board, pid: PlayerId): { instanceId: string; discount: number }[] {
+    const result: { instanceId: string; discount: number }[] = []
+    const player = board.players[pid]
+    for (const inst of player.field.spirits) {
+        if (inst.isRested) continue
+        const level = currentLevel(inst).level
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "shinsokuPayAssist") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            result.push({ instanceId: inst.instanceId, discount: effect.cost })
+            break
+        }
+    }
+    return result
+}
+
+// kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
+// 「自分のリザーブのコアをトラッシュへ置く」個数の合計。発生源はpidの**相手**フィールドにある。
+// サーバー validateSetBurst とクライアントの canSetBurst 表示が共用する
+export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
+    const opp = pid === "p1" ? "p2" : "p1"
+    let total = 0
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "burstSetCost") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && opp !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && opp === board.turnPlayer) continue
+            }
+            total += effect.reserveToTrash
+        }
+    }
+    return total
+}
+
 // pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
 // 通常の instanceId とは衝突しない固定文字列（BS03-075 犬人マードック：
 // 「相手のフィールド/リザーブから」コアをトラッシュへ置く）

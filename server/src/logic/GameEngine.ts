@@ -24,7 +24,7 @@ import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhas
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -271,7 +271,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds)
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
@@ -480,8 +480,9 @@ function doSummon(
     discardHandIndices?: number[],
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
     altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
+    shinsokuAssistInstanceIds?: string[], // 指定時は kind:"shinsokuPayAssist"（BS16-021）：疲労させることで召喚コストの一部を肩代わりする
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds)
     if (error) return error
 
     const player = state.players[pid]
@@ -501,7 +502,19 @@ function doSummon(
     if (altSummonNexusInstanceIds !== undefined) {
         for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
     }
-    const cost = altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)
+    // kind:"shinsokuPayAssist"（BS16-021）：指定したスピリットを疲労させ、召喚コストの一部を肩代わりする
+    // （検証済み＝validateSummonがcandidatesと重複を確認済み）
+    let shinsokuDiscount = 0
+    if (shinsokuAssistInstanceIds !== undefined && shinsokuAssistInstanceIds.length > 0) {
+        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        for (const id of shinsokuAssistInstanceIds) {
+            const inst = player.field.spirits.find((s) => s.instanceId === id)
+            if (inst) inst.isRested = true
+            shinsokuDiscount += candidates.get(id) ?? 0
+        }
+        log(state, `${player.name}は自分のスピリットを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
+    }
+    const cost = Math.max(0, (altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
@@ -721,6 +734,13 @@ function doSetBurst(state: GameState, pid: PlayerId, handIndex: number): string 
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
+    // BS16-067氷聖女の塔Lv2：セットのたびにリザーブのコアをトラッシュへ置く（validateSetBurstで足りることは確認済み）
+    const required = burstSetCoresRequired(state, pid)
+    if (required > 0) {
+        player.reserve -= required
+        player.trashCores += required
+        log(state, `${player.name}は相手の効果により、バーストのセットにリザーブのコア${required}個をトラッシュへ置いた。`)
+    }
     player.hand.splice(handIndex, 1)
     placeBurst(state, pid, cardId)
     player.burstSetThisTurn = true

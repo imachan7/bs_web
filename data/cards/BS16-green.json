@@ -58,5 +58,142 @@
         "levels": null
       }
     ]
+  },
+  {
+    "cardId": "BS16-021",
+    "name": "ノウゼンサーバル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "剣獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n【神速】で自分の手札にあるスピリットカードを召喚するとき、このスピリットを疲労させることで、自分のリザーブから2コストまでを支払ったものとして扱う。",
+    "effects": [
+      {
+        "id": "BS16-021-e1",
+        "kind": "shinsokuPayAssist",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": 2,
+        "phase": "attack"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-065",
+    "name": "誓いの桃園",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n【神速】で自分の手札にあるスピリットカードを召喚するとき、召喚コストの支払いと上に置くコアをフィールドからも使用できる。\nLv2\n自分の[烈の覇王セイリュービ]/[クマタカンウ]/[バーバリ・チョウヒ]すべてに“『このスピリットのバトル時』相手はバーストを発動できない”を与える。",
+    "effects": [
+      {
+        "id": "BS16-065-e1",
+        "kind": "sokuPaySourceGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "anyField",
+        "phase": "attack"
+      },
+      {
+        "id": "BS16-065-e2",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "烈の覇王セイリュービ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      },
+      {
+        "id": "BS16-065-e3",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "クマタカンウ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      },
+      {
+        "id": "BS16-065-e4",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "バーバリ・チョウヒ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      }
+    ]
   }
 ]

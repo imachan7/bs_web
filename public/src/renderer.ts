@@ -51,6 +51,8 @@ import {
     boardResistanceAgainst,
     isEndStepLocked,
     bravesOf,
+    burstSetCoresRequired,
+    shinsokuAssistCandidates,
 } from "../../shared/rules"
 export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -180,7 +182,11 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
-    const need = cost + maintain - Math.min(alt.used, cost)
+    // kind:"shinsokuPayAssist"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
+    // 召喚コストを肩代わりする（置くコアには使えない）
+    const shinsokuDiscount = payingShinsokuAssistDiscount(view, paying)
+    const costAfterDiscounts = Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount)
+    const need = costAfterDiscounts + maintain
     const reserve = view.players[view.you].reserve
     return Math.max(need - reserve - assignedTotal, 0)
 }
@@ -274,6 +280,9 @@ export interface PayingState {
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
     millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）
+    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
+    // （【神速】召喚のみ。任意で選ぶ。省略/空配列＝使わない）
+    shinsokuAssistInstanceIds?: string[]
 }
 
 // この支払いで使える代替コストの種類と上限。
@@ -317,6 +326,19 @@ export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
         return { kind: "mill", used: paying.millPay, max: cost }
     }
     return { kind: null, used: 0, max: 0 }
+}
+
+// kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
+export function payingShinsokuAssistCandidates(view: GameView, paying: PayingState): { instanceId: string; discount: number }[] {
+    const card = payingCardId(view, paying)
+    if (card === undefined || master(card).type !== "spirit" || !view.isFlashTiming) return []
+    return shinsokuAssistCandidates(view, view.you)
+}
+
+// 選択済みの肩代わり候補ぶんの合計割引
+export function payingShinsokuAssistDiscount(view: GameView, paying: PayingState): number {
+    const candidates = new Map(payingShinsokuAssistCandidates(view, paying).map((c) => [c.instanceId, c.discount]))
+    return (paying.shinsokuAssistInstanceIds ?? []).reduce((sum, id) => sum + (candidates.get(id) ?? 0), 0)
 }
 
 export interface UiState {
@@ -693,6 +715,19 @@ export function render(view: GameView, ui: UiState): void {
                 (on ? "（コアは置くコアぶんだけ必要です）" : "")
         } else {
             $("targeting-info").textContent = base
+        }
+        // kind:"shinsokuPayAssist"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
+        const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
+        if (shinsokuCandidates.length > 0) {
+            const buttons = shinsokuCandidates
+                .map((c) => {
+                    const inst = view.players[view.you].field.spirits.find((s) => s.instanceId === c.instanceId)
+                    const name = inst ? master(inst.cardId).name : c.instanceId
+                    const on = (ui.paying!.shinsokuAssistInstanceIds ?? []).includes(c.instanceId)
+                    return `<button data-shinsokuassist="${c.instanceId}">${on ? "☑" : "☐"} ${name}を疲労させてコスト${c.discount}を肩代わり</button>`
+                })
+                .join(" ")
+            $("targeting-info").innerHTML += `<br>${buttons}`
         }
     } else if (ui.awakenTarget !== null) {
         const awakenInst = view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
@@ -1585,14 +1620,19 @@ function renderHand(view: GameView, ui: UiState): void {
         // カード本体のクリックとは独立したバッジボタンとして重ねる
         if (m.effects.some((e) => e.kind === "burst")) {
             const burstSetThisTurn = view.players[view.you].burstSetThisTurn
-            const canSetBurst = myMainFree && !view.pendingChoice && !burstSetThisTurn
+            // BS16-067氷聖女の塔Lv2：相手の効果でリザーブのコアが足りなければセットできない
+            const burstCoresRequired = burstSetCoresRequired(view, view.you)
+            const burstCoresShort = burstCoresRequired > 0 && view.players[view.you].reserve < burstCoresRequired
+            const canSetBurst = myMainFree && !view.pendingChoice && !burstSetThisTurn && !burstCoresShort
             const badge = document.createElement("button")
             badge.className = "burst-set-badge" + (canSetBurst ? "" : " disabled")
             badge.dataset.burstSet = String(index)
             badge.textContent = "バーストセット"
             badge.title = burstSetThisTurn
                 ? "このターンはすでにバーストをセットしています"
-                : "バーストエリアに伏せてセットする"
+                : burstCoresShort
+                  ? `相手の効果により、セットにはリザーブのコアが${burstCoresRequired}個必要です`
+                  : "バーストエリアに伏せてセットする"
             badge.disabled = !canSetBurst
             el.appendChild(badge)
         }

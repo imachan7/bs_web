@@ -2444,6 +2444,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         ) {
                             continue
                         }
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) {
+                            continue
+                        }
                         ;(spirit.grantedMagicNegate ??= []).push(effect.granted)
                     }
                     continue

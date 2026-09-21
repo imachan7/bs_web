@@ -252,6 +252,14 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "shinsokuPayAssist" // 発生源が場にありレベル有効の間、持ち主の【神速】召喚時、発生源自身を疲労させることを追加コストに、召喚コストのうちcostまでを支払ったものとして扱う（BS16-021ノウゼンサーバル：疲労がコストなので発生源が回復状態でなければ使えない。任意発動）。
+          // GameAction.summon.shinsokuAssistInstanceIds が使用するインスタンスを指定し、RuleValidator.validateSummon / GameEngine.doSummon が discount と疲労を処理する
+          levels: number[] | null
+          cost: number // 肩代わりする召喚コストの上限（021＝2）
+          phase?: Phase // 指定時はこのステップ中のみ有効（021＝アタックステップ）
+      }
+    | {
+          id: string
           kind: "magicTargetRedirect" // 発生源が場にありレベル有効の間、**相手が使用したマジック**が発生源を対象に含むとき、そのマジックの効果の対象を発生源のみにする（＝持ち主の他のスピリットは、そのマジックの効果を受けない）。EffectModules.resolveMagic が GameState.magicRedirectTo を立て、isEffectBlocked が参照する（BS04アルカナソルジャー・サンクLv2）
           levels: number[] | null
           turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効（own=『自分のターン』。BS06細剣の猫騎士ケット・シー）
@@ -294,6 +302,17 @@ export type EffectDef =
           // （「その後」＝前後関係なので、支払いではなく結果。無効にしなければ戻らない。
           //  2026-08-16 ユーザー確認。SD02-014 魔法監視塔Lv2＝使い捨てのカウンター）
           oncePerTurn?: true // 発生源1つにつきターン1回だけ（CardInstance.magicNegateUsedTurn で管理。鏡の回廊Lv2）
+      }
+    | {
+          id: string
+          kind: "burstSetCost" // 発生源が場にありレベル有効の間、**相手**がバーストをセットするには、
+          // 相手のリザーブのコアreserveToTrash個を相手のトラッシュに置かなければならない（セットのたびに支払う。
+          // 複数あれば合算。リザーブが足りなければセット自体ができない＝手札に残る。BS16-067氷聖女の塔Lv2）
+          // shared/rules.burstSetCoresRequired が集計し、RuleValidator.validateSetBurst とクライアントの
+          // セット可否表示（canSetBurst）が共用する
+          levels: number[] | null
+          reserveToTrash: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // own/opponent は発生源の持ち主基準（氷聖女の塔＝opponent＝『相手のメインステップ』）
       }
     | {
           id: string
@@ -893,6 +912,7 @@ export type EffectDef =
           levels: number[] | null
           target: "ownAll"
           keywordFilterAny?: Keyword[] // 対象がこのいずれかのキーワードを持つスピリットのみ（OR。BS12-068＝armor/heavyArmor）
+          familyFilter?: FamilyFilter // 対象がこの系統（配列＝OR）を持つスピリットのみ（matchesFamilyFilterで判定。BS16-067氷聖女の塔＝覇皇/雄将）
           granted: Extract<EffectDef, { kind: "magicNegate" }> // 付与するエントリ本体（levelsは常に有効扱い）
       }
     | {

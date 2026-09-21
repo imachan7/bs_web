@@ -174,6 +174,7 @@ export type EffectAction =
     | { type: "blockTriggersAsAttackOwnThisTurn" } // このターンの間、**発生源の持ち主の**スピリットすべての『このスピリットのブロック時』効果を『このスピリットのアタック時』に発揮させる（両陣営版 blockTriggersAsAttackAllThisTurn の自分限定。BS10-072 セイバーシャーク）
     | { type: "grantUnblockableByLevelThisTurn"; levels: number[] } // このターンの間、発生源の持ち主のスピリットすべては、currentLevel が levels に含まれる相手のスピリットからブロックされない（BS10-073 エンジェドール＝Lv2）
     | { type: "restrictActionsToColorThisTurn"; color: Color } // このターンの間、指定色**以外**のスピリットすべて（両陣営とも）はアタック/ブロックできない（GameState.turnConstraintsに"cantActExceptColor"を積む）。BS15-082神閃月下フラッシュ：「このターンの間、黄以外のスピリットすべてはアタック/ブロックできない」
+    | { type: "blockBurstSpiritSummonThisTurn" } // このターンの間、お互い、バースト効果でスピリットを召喚できない（GameState.turnConstraintsに"noBurstSpiritSummonThisTurn"を積む。バーストの発動自体は止めない＝発動条件は満たすがスピリットは場に出さずトラッシュへ送る。ブレイヴのバースト召喚は対象外。BS16-058サテライド・バード【このブレイヴの召喚時】）
     | { type: "setOpponentBpAsThisBattle"; levels: number[]; amount: number } // 相手のスピリット1体（targetInstanceId優先、interactiveTargets時は候補から選ばせ、非対話は実効BP最大）に、**このバトルの間**「currentLevelがlevelsに含まれるとき、基礎BPをamountとして扱う」印を付ける（CardInstance.battleBpAs。継続版kind:"bpAs"のこのバトル限定・単体対象版。効果によるBP+は印刷BPの置き換え後に通常どおり加算される。clearBattleで消える）。BS15-X05光の覇王ルナアーク・カグヤ：「このバトルの間、相手のスピリット1体のLv1/Lv2/Lv3/Lv4BPを2000として扱う」
     | { type: "extraAttackStep" } // アタックステップとエンドステップを順番にもう1回ずつ行う（GameState.extraAttackStepPending を立てる。BS10-008 火星神龍アレス・ドラグーン）。既に立っていれば何もしない
     | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない。妖機妃ソール）

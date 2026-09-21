@@ -129,6 +129,15 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
         log(state, `${sourceName}：このカードは召喚できない。`)
         return
     }
+    // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
+    // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
+    if (card.type === "spirit" && state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) {
+        player.burst = null
+        player.burstSet = false
+        player.trashCards.push(cardId)
+        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${card.name}をトラッシュへ置いた。`)
+        return
+    }
     // 器BS16（P069/P070）：ブレイヴカードのバースト召喚は、合体条件を満たすホストが自分のフィールドに
     // いれば**直接合体するように**召喚する（ダイレクトブレイヴ＝維持コア0。summonFreeFromHandIndexの
     // braveTargetInstanceId経路と同じ考え方）。候補が無ければ通常どおりスピリット状態で召喚する。

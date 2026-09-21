@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -133,6 +133,9 @@ export function validateSummon(
     // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058）：召喚コストを支払わず、
     // 指定したネクサスをデッキの下に戻すことがコストになる
     altSummonNexusInstanceIds?: string[],
+    // 指定時は kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：疲労させることを追加コストに、
+    // 召喚コストのうち一部を支払ったものとして扱う。【神速】召喚以外では使えない（任意）
+    shinsokuAssistInstanceIds?: string[],
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -231,6 +234,22 @@ export function validateSummon(
         }
     }
 
+    // kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：【神速】召喚時のみ、疲労させることを
+    // 追加コストに召喚コストの一部を肩代わりできる（任意）
+    let shinsokuDiscount = 0
+    if (shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0) {
+        if (!flashSummon) return "【神速】での召喚以外では使えません"
+        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        const seen = new Set<string>()
+        for (const id of shinsokuAssistInstanceIds) {
+            if (seen.has(id)) return "同じスピリットを重複して指定しています"
+            seen.add(id)
+            const discount = candidates.get(id)
+            if (discount === undefined) return "指定したスピリットはこの効果を使えません"
+            shinsokuDiscount += discount
+        }
+    }
+
     // kind:"altSummonFromHand"（BS10-058）：召喚コストを支払わず、指定したネクサスを
     // 自分のデッキの下に戻すことがコスト。COST_MODEL.md §1＝支払いと召喚の両方が成立するときだけ発揮できる
     let altSummon: AltSummonFromHandOption | null = null
@@ -252,7 +271,7 @@ export function validateSummon(
         }
         altSummon = result
     }
-    const cost = altSummon !== null ? 0 : effectiveCost(state, pid, card)
+    const cost = Math.max(0, (altSummon !== null ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
@@ -464,6 +483,12 @@ export function validateSetBurst(state: GameState, pid: PlayerId, handIndex: num
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     if (!getCard(cardId).effects.some((e) => e.kind === "burst")) return "バースト効果を持たないカードです"
+    // BS16-067氷聖女の塔Lv2：相手はリザーブのコアを指定数トラッシュへ置かなければセットできない
+    // （リザーブが足りなければセット自体が不可＝手札に残る）
+    const required = burstSetCoresRequired(state, pid)
+    if (required > 0 && player.reserve < required) {
+        return `相手の効果により、バーストのセットにはリザーブのコアが${required}個必要です`
+    }
     return null
 }
 
