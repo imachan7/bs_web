@@ -724,6 +724,12 @@ export function millDeck(
         log(state, `${state.players[pid].name}のデッキは、メインステップのため破棄されなかった。`)
         return 0
     }
+    // 器BS16：「このターンの間、自分のデッキは破棄されない」（**自分の効果も含め**）。
+    // noDeckMillForPidThisTurnと違いbyOpponentを問わず止める（BS16-002パイルドラコ）
+    if (state.turnConstraints.some((c) => c.type === "noDeckMillAtAllForPidThisTurn" && c.pid === pid)) {
+        log(state, `${state.players[pid].name}のデッキは、このターンの間破棄されない。`)
+        return 0
+    }
     let effectiveCount = count
     const byOpponent = actorPid !== undefined && actorPid !== pid
     // 「自分のデッキは破棄されない」（BS06ディスコンティニュー／BS08鳳翼の聖剣）。
@@ -746,14 +752,26 @@ export function millDeck(
     // （BS13-026キグナ・スワンMk-II：「お互いのデッキは〜ターンに3枚までしか破棄されない」）
     effectiveCount = Math.min(effectiveCount, mutualMillCapRemainingFor(state, pid))
     const player = state.players[pid]
-    const actual = Math.min(effectiveCount, player.deck.length)
+    const plannedCount = Math.min(effectiveCount, player.deck.length)
     const milled: string[] = []
-    for (let i = 0; i < actual; i++) {
+    for (let i = 0; i < plannedCount; i++) {
         const cardId = player.deck.shift()
         if (cardId === undefined) break
         player.trashCards.push(cardId)
         milled.push(cardId)
+        // 器BS16：then:"destroyMillSource"（BS16-002パイルドラコ）は**破棄された瞬間**に発揮し、
+        // その回の破棄の残りを打ち切る。byOpponentのときだけ判定する（自分自身のミルでは発火しない）
+        if (byOpponent) {
+            const stops = getCard(cardId).effects.some(
+                (e) =>
+                    e.kind === "onMilledFromDeck" &&
+                    e.then === "destroyMillSource" &&
+                    (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
+            )
+            if (stops) break
+        }
     }
+    const actual = milled.length
     // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
     if (actual > 0) {
         state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + actual
@@ -1081,6 +1099,26 @@ function resolveMilledFromDeck(
                 spiritMillFreeSummonOrConfirm(state, pid, idx)
                 break
             }
+            // 器BS16：destroyMillSource / voidOpponentLife はどちらも**カード自身は破棄されたまま
+            // トラッシュに残る**（マジック/ネクサスのように場へ出ないため splice しない）
+            if (effect.then === "destroyMillSource") {
+                const causer = state.currentEffectSource
+                const causerInst =
+                    causer?.instanceId !== undefined
+                        ? state.players[opponentOf(pid)].field.spirits.find((s) => s.instanceId === causer.instanceId)
+                        : undefined
+                if (causerInst) {
+                    resolveAction(state, pid, null, { type: "destroy", count: 1 }, causerInst.instanceId, getCard(cardId).colors, "spirit")
+                }
+                if (effect.thenBlockAllDeckMillThisTurn) {
+                    state.turnConstraints.push({ type: "noDeckMillAtAllForPidThisTurn", pid })
+                }
+                break
+            }
+            if (effect.then === "voidOpponentLife") {
+                resolveAction(state, pid, null, { type: "lifeCrush", count: 1, dest: "void" }, undefined, getCard(cardId).colors, "spirit")
+                break
+            }
             player.trashCards.splice(idx, 1)
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {
@@ -1139,6 +1177,22 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "millCapBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount
+        }
+    }
+    return total
+}
+
+// 器BS16：発生源の持ち主（ownerPid）のスピリット/マジックの効果による「BP◯以下を破壊する」判定の
+// 閾値ボーナス合計（kind:"destroyBpThresholdBonus"。BS16-061暗雲射す鬼ヶ島）。ブレイヴ自身の効果・
+// ネクサスの効果には効かないので、呼び出し側がsrcType（"spirit"|"magic"）のときだけ呼ぶこと
+export function destroyBpThresholdBonusFor(state: GameState, ownerPid: PlayerId): number {
+    let total = 0
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "destroyBpThresholdBonus") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             total += effect.amount
         }
@@ -2213,6 +2267,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
         ]) {
             delete inst.levelAsContinuous
             delete inst.bpAsContinuous
+            delete inst.bpEqualizeContinuous
             delete inst.levelAsEffectsOnly
             delete inst.levelCostBonusContinuous
             delete inst.namesAsContinuous
@@ -2554,9 +2609,15 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // condition.ownFieldHasBraveInSpiritState（BS13-006炎獣ファイオリックLv2-3）：
                     // 持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効
                     if (
-                        effect.condition?.ownFieldHasBraveInSpiritState &&
+                        effect.condition &&
+                        "ownFieldHasBraveInSpiritState" in effect.condition &&
                         !player.field.spirits.some((sp) => getCard(sp.cardId).type === "brave")
                     ) {
+                        continue
+                    }
+                    // 器BS16：condition.ownBurstSet（BS16-063釣魂台）：発生源の持ち主が自分の
+                    // バーストエリアにカードをセットしている間だけ有効
+                    if (effect.condition && "ownBurstSet" in effect.condition && !player.burstSet) {
                         continue
                     }
                     if (effect.phaseTurn) {
@@ -2677,6 +2738,23 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         spirit.bpAsContinuous = effect.amount
+                    }
+                    continue
+                }
+                if (effect.kind === "bpEqualizeFamily") {
+                    // 器BS16：他の同系統スピリットのLv別BPを、発生源自身の**現在の実効BP**と同じとして
+                    // 扱う（全面上書き。対象側のBP+は加算されない）。BS16-009百地ダイル
+                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (effect.phaseTurn) {
+                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
+                        if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
+                    }
+                    const sourceBp = effectiveBp(state, pid, source)
+                    for (const spirit of player.field.spirits) {
+                        if (spirit.instanceId === source.instanceId) continue
+                        if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        spirit.bpEqualizeContinuous = sourceBp
                     }
                     continue
                 }
@@ -3366,7 +3444,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true },
 ): void {
     const player = state.players[owner]
     // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
@@ -3396,6 +3474,8 @@ export function summonFreeFromTrashIndex(
     player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain)
     player.field.spirits.push(inst)
+    // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
+    if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
     log(
         state,
         `${player.name}は${sourceName}の効果で、トラッシュから${card.name}を` +

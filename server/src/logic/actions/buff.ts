@@ -121,6 +121,30 @@ const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, 
         return
 }
 
+// 器BS16：自分のスピリット1体（filter絞り込み）の持つシンボルを、このバトルの間だけ上書きする（BS16-005）
+const symbolOverrideThisBattleHandler: ActionHandler<"symbolOverrideThisBattle"> = (ctx, action) => {
+    const { state, owner, targetInstanceId, sourceName } = ctx
+    const target = pickBpBuffTarget(
+        state,
+        owner,
+        targetInstanceId,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        action.filter?.family,
+    )
+    if (!target) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    target.symbolsOverrideThisBattle = new Array(action.count).fill(action.color)
+    log(
+        state,
+        `${getCard(target.cardId).name}は、このバトルの間シンボルを${COLOR_LABELS[action.color]}${action.count}つとして扱う。`,
+    )
+}
+
 const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット自身を「カウント値×amountPer」だけBP+
@@ -795,6 +819,7 @@ const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     selfBuff,
     colorlessSelfThisBattle,
+    symbolOverrideThisBattle: symbolOverrideThisBattleHandler,
     selfBuffPer,
     bpBuff,
     bpBuffAll,

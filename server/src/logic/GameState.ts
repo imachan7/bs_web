@@ -465,6 +465,8 @@ export function clearBattle(state: GameState): void {
             delete inst.battleBpAs
             // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
             delete inst.battleSymbolsAdded
+            // 器BS16：「このバトルの間」のシンボル上書き（action:"symbolOverrideThisBattle"。BS16-005）も同じ寿命
+            delete inst.symbolsOverrideThisBattle
             // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
             delete inst.colorlessThisBattle
         }

@@ -15,7 +15,9 @@ import {
     applyReviveEntry,
     fushiSummonOrConfirm,
     applyDestroyBatchAfter,
+    destroyBpThresholdBonusFor,
     fireTrigger,
+    lifeCostBlockedByFloor,
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
@@ -146,6 +148,12 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
         const filter = normalizeFilter(ctx, action)
+        // 器BS16：destroyBpThresholdBonus（BS16-061暗雲射す鬼ヶ島）。自分のスピリット/マジックの
+        // 効果による破壊のときだけ、「BP◯以下を破壊する」の閾値に加算する（ブレイヴ・ネクサスの効果には効かない）
+        if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) {
+            const bonus = destroyBpThresholdBonusFor(state, owner)
+            if (bonus > 0) filter.maxBp += bonus
+        }
         // costDiscardOwnBurst：自分のバースト1つを破棄（トラッシュへ）することがコスト（BS14-015トウダーLv2）。
         // bpBuff.costDiscardOwnBurst と同じ考え方。対象条件を満たす相手のスピリットが1体もいなければ
         // バーストも破棄しない（COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮する）
@@ -257,6 +265,28 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             player.trashCards.push(cardId)
             log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
             const { costHandDiscardOne: _chd2, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
+        // 器BS16：costOwnLifeToVoid（BS16-008ダークナイト・ドラゴン）。「〜することで〜する」は
+        // 両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、対象条件を満たす
+        // 相手のスピリットが1体もいなければライフも払わない
+        if (action.costOwnLifeToVoid !== undefined && filter !== SELF_REQUIRED) {
+            const player = state.players[owner]
+            const amount = action.costOwnLifeToVoid
+            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+            if (player.life < amount || lifeCostBlockedByFloor(state, owner, amount) || !hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいない、またはライフが足りないため発動しなかった。`)
+                return
+            }
+            player.life -= amount
+            log(state, `${player.name}は${sourceName}のコストとして、ライフのコア${amount}個をボイドに置いた。（残りライフ${player.life}）`)
+            if (player.life <= 0 && !state.winner) {
+                state.winner = opp
+                log(state, `${state.players[opp].name}の勝利！`)
+                return
+            }
+            const { costOwnLifeToVoid: _colv, ...rest } = action
             ctx.resolve(rest)
             return
         }

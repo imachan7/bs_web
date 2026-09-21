@@ -291,6 +291,17 @@ const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx,
         return
 }
 
+// 器BS16：現在のバトルにフラグを立て、解決時の勝敗を反転させる（P070カオティック・リクゴー）
+const battleInvertBpWinnerHandler: ActionHandler<"battleInvertBpWinner"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル外のため不発。`)
+        return
+    }
+    state.battle.invertBpWinner = true
+    log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
+}
+
 const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx, action) => {
     const { state, sourceName } = ctx
         // イマジンフィールド：現在のバトルにフラグを立て、解決時にBPの代わりにコアの数を比較させる
@@ -1294,6 +1305,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
+            ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: action.destroyAtBattleEnd } : {}),
         }
         // costReserveCoreToTrash（BS13-075スネイクスレイヴ）：自分のリザーブのコア1個を自分のトラッシュに
         // 置くことがコスト。「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する
@@ -2437,6 +2449,7 @@ const handlers = {
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
     battleCompareByLevel: battleCompareByLevelHandler,
+    battleInvertBpWinner: battleInvertBpWinnerHandler,
     battleCompareByCores: battleCompareByCoresHandler,
     battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,

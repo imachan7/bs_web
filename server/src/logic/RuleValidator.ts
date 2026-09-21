@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -928,6 +928,11 @@ export function validateActivateAbility(
             const hasCard = state.players[pid].hand.some(
                 (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
             )
+            if (!hasCard) return "破棄できるカードが手札にありません"
+        } else if ("discardHandColor" in effect.cost) {
+            // 器BS16：手札に指定色のカード（種別を問わない）が無ければ発動できない（BS16-005）
+            const color = effect.cost.discardHandColor
+            const hasCard = state.players[pid].hand.some((cardId) => cardHasColor(getCard(cardId), color))
             if (!hasCard) return "破棄できるカードが手札にありません"
         } else if ("exhaustOwnFamilyOne" in effect.cost) {
             // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリットが自分のフィールドに無ければ発動できない

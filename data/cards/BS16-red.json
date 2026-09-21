@@ -1,0 +1,920 @@
+[
+  {
+    "cardId": "BS16-001",
+    "name": "ノデッポ",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "皇獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のバーストをセットしているとき、BP3000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS16-001-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "condition": {
+          "ownBurstSet": true
+        },
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 3000
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-002",
+    "name": "パイルドラコ",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "爬獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "相手のスピリットの効果によって自分のデッキからこのスピリットカードが破棄されたとき、そのスピリットを破壊する。\nさらに、このターンの間、自分のデッキは破棄されない。",
+    "effects": [
+      {
+        "id": "BS16-002-e1",
+        "kind": "onMilledFromDeck",
+        "levels": null,
+        "by": "opponentSpiritEffect",
+        "then": "destroyMillSource",
+        "thenBlockAllDeckMillThisTurn": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-003",
+    "name": "カマパゴス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "雄将",
+      "爬獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2･Lv3『このスピリットのアタック時』\n回復状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+    "effects": [
+      {
+        "id": "BS16-003-e1",
+        "kind": "constraint",
+        "levels": [
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "recovered"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-004",
+    "name": "アシガリュー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "竜人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS16-005",
+    "name": "ゴエモン・シーフ・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "覇皇",
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき、このスピリットカードを召喚する。\nLv2･Lv3：フラッシュ『自分のアタックステップ』\n自分の手札にある赤のカード1枚を破棄することで、このバトルの間、系統：「覇皇」/「雄将」を持つ自分のスピリット1体の持つシンボルを、赤のシンボル2つにする。",
+    "effects": [
+      {
+        "id": "BS16-005-e1",
+        "kind": "burst",
+        "event": "opponentSummonEffectResolved",
+        "condition": {
+          "ownFamilyCountAtLeast": {
+            "family": [
+              "覇皇",
+              "雄将"
+            ],
+            "count": 1
+          }
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-005-e2",
+        "kind": "activated",
+        "timing": "flash",
+        "levels": [
+          2,
+          3
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "cost": {
+          "discardHandColor": "red"
+        },
+        "action": {
+          "type": "symbolOverrideThisBattle",
+          "count": 2,
+          "color": "red",
+          "filter": {
+            "family": [
+              "覇皇",
+              "雄将"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-006",
+    "name": "アーチャー・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。\nLv2･Lv3：フラッシュ『お互いのアタックステップ』\nこのスピリットのコア2個を自分のトラッシュに置くことで、BP4000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS16-006-e1",
+        "kind": "keyword",
+        "keyword": "awaken",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS16-006-e2",
+        "kind": "activated",
+        "timing": "flash",
+        "levels": [
+          2,
+          3
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "both"
+        },
+        "cost": {
+          "selfCoresToTrash": 2
+        },
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 4000
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-007",
+    "name": "オーガ・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "雄将",
+      "翼竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から3枚オープンできる。\nその中のバースト効果を持つカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2『自分のアタックステップ』\nカード名に「ドラゴン」と入っている自分のスピリットすべてをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS16-007-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "revealTopBurstOneToHandRestBottom",
+          "count": 3
+        }
+      },
+      {
+        "id": "BS16-007-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "bpBuffAll",
+          "amount": 2000,
+          "filter": {
+            "nameContains": "ドラゴン"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-008",
+    "name": "ダークナイト・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のライフのコア1個をボイドに置くことで、BP6000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS16-008-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 6000
+          },
+          "costOwnLifeToVoid": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-009",
+    "name": "爬獣使い百地ダイル",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 7,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "雄将",
+      "爬獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 9000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 12000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n[爬獣使い百地ダイル]以外の系統：「爬獣」を持つ自分のスピリットすべてのLv1/Lv2/Lv3BPを、このスピリットのBPと同じとして扱う。\nLv2･Lv3『自分のバースト発動後』\n自分のトラッシュにある系統：「爬獣」を持つスピリットカードを好きなだけ、コストを支払わずに召喚する。",
+    "effects": [
+      {
+        "id": "BS16-009-e1",
+        "kind": "bpEqualizeFamily",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "familyFilter": "爬獣",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        }
+      },
+      {
+        "id": "BS16-009-e2",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "summonFromTrashFree",
+          "count": 99,
+          "familyFilter": "爬獣"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-055",
+    "name": "アームストロンガー",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "翼竜",
+      "機竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのアタック時』\n自分のトラッシュにあるバースト効果を持たない赤のスピリットカード1枚を手札に戻し、相手のネクサス1つを破壊する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS16-055-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "recoverSpiritFromTrash",
+              "count": 1,
+              "colorFilter": "red",
+              "excludeBurst": true
+            },
+            {
+              "type": "destroyNexus",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    }
+  },
+  {
+    "cardId": "BS16-061",
+    "name": "暗雲射す鬼ヶ島",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n自分のスピリット/マジックの効果で相手のスピリットを破壊するとき、その効果で破壊できるBPを+1000する。\nLv2\n系統：「戦竜」を持つ自分のスピリットすべては、アタックするとき相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+    "effects": [
+      {
+        "id": "BS16-061-e1",
+        "kind": "destroyBpThresholdBonus",
+        "levels": [
+          1,
+          2
+        ],
+        "amount": 1000
+      },
+      {
+        "id": "BS16-061-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "familyFilter": "戦竜",
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-062",
+    "name": "天下眺める絶景門",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このネクサスの配置時』\n手札から配置したとき、BP5000以下の相手のスピリット1体を破壊する。\nLv2『自分のドローステップ』\nドローの枚数を+1枚する。",
+    "effects": [
+      {
+        "id": "BS16-062-e1",
+        "kind": "triggered",
+        "trigger": "onDeploy",
+        "levels": [
+          1,
+          2
+        ],
+        "fromHandOnly": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 5000
+          }
+        }
+      },
+      {
+        "id": "BS16-062-e2",
+        "kind": "step",
+        "step": "draw",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-073",
+    "name": "アグレッシブレイジ",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体に“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。",
+    "effects": [
+      {
+        "id": "BS16-073-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "grantKeyword",
+          "keyword": "clash"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-074",
+    "name": "爆覇炎神剣",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n自分はデッキから1枚ドローし、BP6000以下の相手のスピリット1体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、系統：「覇皇」を持つ自分のスピリット1体に“『このスピリットのアタック時』BPを比べ相手のスピリットだけを破壊したとき、このスピリットが持つシンボルと同じ数、相手のライフのコアを相手のリザーブに置く”を与える。",
+    "effects": [
+      {
+        "id": "BS16-074-e1",
+        "kind": "burst",
+        "event": "opponentSummonEffectResolved",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "maxBp": 6000
+              }
+            }
+          ]
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "BS16-074-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "grantEffectToTargetThisTurn",
+          "trigger": "onBattleWin",
+          "filter": {
+            "family": [
+              "覇皇"
+            ]
+          },
+          "action": {
+            "type": "lifeCrush",
+            "count": 0,
+            "countCounter": "selfSymbols"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-X01",
+    "name": "爆炎の覇王ロード・ドラゴン・バゼル",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 7,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "覇皇",
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 12000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "【バースト：自分のライフ減少後】\nこのカードをコストを支払わずに召喚する。\nLv2･Lv3『このスピリットのアタック時』\n自分のバースト1つをオープンできる。\nそのカードのバースト条件が【相手の『このスピリット/ブレイヴの召喚時』発揮後】のとき発動させる。\n他のバースト条件のときはデッキの下に戻す。\nLv3『自分のバースト発動後』\nこのスピリットは回復する。",
+    "effects": [
+      {
+        "id": "BS16-X01-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-X01-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "openOwnBurstActivateIfSummonCond"
+        }
+      },
+      {
+        "id": "BS16-X01-e3",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          3
+        ],
+        "selfMode": "source",
+        "action": {
+          "type": "refreshSelf"
+        }
+      }
+    ]
+  }
+]

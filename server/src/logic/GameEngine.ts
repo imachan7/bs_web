@@ -24,7 +24,7 @@ import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhas
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -635,7 +635,7 @@ function doSetNexus(
     // データはtrigger:"onSummon"で書かれているのに、doSetNexusがfireSummonTriggerを呼んでいなかった）。
     // fireSummonSequenceのownSpiritSummonedフィールドイベントはfield.spiritsだけが対象で、
     // ネクサスには意図的に効かないため、スピリットのplaceSummonedSpiritとは別の経路になっている
-    fireNexusDeployed(state, pid, nexusInst)
+    fireNexusDeployed(state, pid, nexusInst, true)
     return null
 }
 
@@ -1528,6 +1528,22 @@ function doActivateAbility(
             state,
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
         )
+    } else if ("discardHandColor" in effect.cost) {
+        // 器BS16：手札の指定色のカード（種別を問わない）1枚を破棄する（BS16-005ゴエモン・シーフ・ドラゴンLv2-3）。
+        // discardHandFamilyと同じく候補2枚以上ならコスト最大を自動選択する簡略化（validateActivateが存在を保証済み）
+        const color = effect.cost.discardHandColor
+        const indices = player.hand.map((_, i) => i).filter((i) => cardHasColor(getCard(player.hand[i]!), color))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
     } else if ("exhaustOwnFamilyOne" in effect.cost) {
         // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリット1体を疲労させる。
         // 候補2体以上は実効BP最小を自動選択する簡略化（reviveOnDestroy.cost.exhaustOwnFamilyOneと同型）
@@ -2350,13 +2366,21 @@ function resolveBattle(state: GameState): void {
     // 敗者が生き残っても発揮する）
     // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
     // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
-    const outcome: BattleOutcome = state.battle.skipBpCompare
+    const rawOutcome: BattleOutcome = state.battle.skipBpCompare
         ? "none"
         : attackerValue > blockerValue
             ? "attackerWins"
             : attackerValue < blockerValue
               ? "blockerWins"
               : "mutual"
+    // 器BS16：invertBpWinner（P070カオティック・リクゴー）＝勝敗を反転し、値が高い方を破壊する
+    // （同値の相打ちはそのまま。BPそのものではなくcompareBy*の代替比較にも同じく効く）
+    const outcome: BattleOutcome =
+        state.battle.invertBpWinner && (rawOutcome === "attackerWins" || rawOutcome === "blockerWins")
+            ? rawOutcome === "attackerWins"
+                ? "blockerWins"
+                : "attackerWins"
+            : rawOutcome
     if (state.battle.skipBpCompare) {
         log(state, "バトル解決：BPを比べずにバトルを終了させる。")
     }
@@ -2636,6 +2660,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                         survivingAttacker.instanceId,
                     )
                 }
+                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
+                if (!state.winner && survivingAttacker.destroyAtBattleEnd && findSpirit(state.players[attackerPid], survivingAttacker.instanceId)) {
+                    destroySpirit(state, attackerPid, survivingAttacker.instanceId)
+                }
             }
             return
         }
@@ -2653,6 +2681,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                         instColors(survivingBlocker),
                         survivingBlocker.instanceId,
                     )
+                }
+                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
+                if (!state.winner && survivingBlocker.destroyAtBattleEnd && findSpirit(state.players[defenderPid], survivingBlocker.instanceId)) {
+                    destroySpirit(state, defenderPid, survivingBlocker.instanceId)
                 }
             }
             return

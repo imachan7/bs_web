@@ -2488,6 +2488,26 @@ function bouncesToDeckTop(state: GameState): boolean {
     return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === pid)
 }
 
+// 器BS16：globalConstraint "allSpiritsCantBounce"（BS16-012金狐角）。両陣営のeffectSourcesを
+// 走査し、kind:"globalConstraint"のphase/turnフィールド（発生源の持ち主基準）も見る
+// （hasGlobalConstraintは汎用関数のためphase/turnを見ない＝battlingCoresProtected等と同じく専用関数を書く）
+function allSpiritsCantBounceActive(state: GameState): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "allSpiritsCantBounce") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
@@ -2498,6 +2518,7 @@ export function markBounce(
     const player = state.players[ownerPid]
     if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
     if (inst.pendingBounce) return
+    if (allSpiritsCantBounceActive(state)) return
     // 器AO：いま解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは
     // 持ち主のデッキの上に戻る」を張っていれば、手札への戻しをデッキの上へ振り替える
     // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
