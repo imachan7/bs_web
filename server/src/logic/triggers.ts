@@ -1165,6 +1165,12 @@ export function burstConditionMet(
         const { family, count } = condition.ownFamilyCountAtLeast
         return player.field.spirits.filter((s) => matchesFamilyFilter(state, pid, s, family)).length >= count
     }
+    // ownFamilyCountAtLeastの相手版（BS16-027：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
+    if ("opponentFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.opponentFamilyCountAtLeast
+        const oppPlayer = state.players[opponentOf(pid)]
+        return oppPlayer.field.spirits.filter((s) => matchesFamilyFilter(state, opponentOf(pid), s, family)).length >= count
+    }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
     const fieldCores =
@@ -1358,6 +1364,8 @@ export function fireFieldEventTriggers(
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
+            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ
+            if (effect.duringSelfAttack && state.battle?.attackerInstanceId !== inst.instanceId) continue
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue

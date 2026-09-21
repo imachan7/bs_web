@@ -195,5 +195,98 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS16-027",
+    "name": "コーカサス・リョフ・ビートル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 9,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "覇皇",
+      "華兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 11000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【バースト：相手による自分のスピリット破壊後】\n系統：「覇皇」/「雄将」を持つ相手のスピリットがいるとき、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+10000する。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリットが破壊されたとき、そのスピリットと同じ系統を持つ相手のスピリットすべてを疲労させる。",
+    "effects": [
+      {
+        "id": "BS16-027-e1",
+        "kind": "burst",
+        "event": "ownSpiritDestroyed",
+        "byOpponentEffectOnly": true,
+        "subjectSide": "own",
+        "condition": {
+          "opponentFamilyCountAtLeast": {
+            "family": [
+              "覇皇",
+              "雄将"
+            ],
+            "count": 1
+          }
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-027-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "selfBuff",
+          "amount": 10000
+        }
+      },
+      {
+        "id": "BS16-027-e3",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "duringSelfAttack": true,
+        "action": {
+          "type": "exhaustOpponentSameFamilyAll"
+        },
+        "selfMode": "source"
+      }
+    ]
   }
 ]

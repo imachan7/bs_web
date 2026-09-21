@@ -593,6 +593,59 @@ const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet
     return
 }
 
+// BS16-080次元断のフラッシュ効果：「このバトルの間、自分のライフを減らした相手のスピリット1体を破壊する。
+// または、このバースト発動時に自分のライフを減らした相手のスピリット1体を破壊する」。
+// 両方に対象がいれば使用者がどちらか選ぶ（orReserveと同型のoption選択）。片方だけなら自動でそちらを使う
+const DESTROY_LIFE_DAMAGER_OPTION_BATTLE = "このバトルの間"
+const DESTROY_LIFE_DAMAGER_OPTION_BURST = "このバースト発動時"
+const destroyLifeDamagerHandler: ActionHandler<"destroyLifeDamager"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption, destroyContext } = ctx
+    const battleId = state.battle?.lifeDamagers?.at(-1)
+    const burstId = state.burstEventLifeDamagerId
+    const battleFound = battleId !== undefined ? findSpiritAny(state, battleId) : null
+    const burstFound = burstId !== undefined ? findSpiritAny(state, burstId) : null
+    if (!battleFound && !burstFound) {
+        log(state, `${sourceName}：自分のライフを減らした相手のスピリットがいないため発動しなかった。`)
+        return
+    }
+    let targetId: string
+    if (battleFound && burstFound && battleId !== burstId) {
+        if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BURST) {
+            targetId = burstId!
+        } else if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BATTLE || !state.interactiveTargets) {
+            // 非対話時は既定で「このバトルの間」側を使う（両方あって差が無いときの自動選択）
+            targetId = battleId!
+        } else {
+            suspend(state, {
+                pid: owner,
+                kind: "option",
+                prompt: `${sourceName}：どちらの相手のスピリットを破壊しますか？`,
+                candidates: [],
+                options: [DESTROY_LIFE_DAMAGER_OPTION_BATTLE, DESTROY_LIFE_DAMAGER_OPTION_BURST],
+                optional: false,
+                action,
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+    } else {
+        targetId = (battleFound ? battleId : burstId)!
+    }
+    const found = findSpiritAny(state, targetId)
+    if (!found) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const destroyAttempt = attemptOf(ctx, "destroy", "targeted")
+    if (askPayToNegateIfNeeded(state, found.pid, found.inst, destroyAttempt, action, self, sourceName)) return
+    const resisted = resistanceAgainst(state, found.pid, found.inst, destroyAttempt)
+    if (resisted) {
+        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+        return
+    }
+    destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
+}
+
 // ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
 // 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroyAll では表現できない。
 // 免疫まわりの扱いは destroyAll と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
@@ -2231,6 +2284,7 @@ const handlers = {
     destroyAll: destroyAllHandler,
     destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
+    destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,

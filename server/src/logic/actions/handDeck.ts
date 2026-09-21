@@ -3214,6 +3214,22 @@ const millPerThenSummonSelfIfBurstMilledHandler: ActionHandler<"millPerThenSummo
     ctx.resolve({ type: "summonBurstCardFree" })
 }
 
+// P071サイゴード・アームズ【合体時】：相手のデッキを上からcount枚破棄し、破棄した中に【バースト】効果を
+// 持つカードが1枚でもあればボイドからコア1個をこのスピリット上に置く（合体中はselfがホストなのでホストに置かれる）
+const millThenCoreIfBurstHandler: ActionHandler<"millThenCoreIfBurst"> = (ctx, action) => {
+    const { state, owner, srcType } = ctx
+    const targetPid = opponentOf(owner)
+    const beforeLen = state.players[targetPid].trashCards.length
+    const actual = millDeck(state, targetPid, action.count, owner, srcType ? { sourceType: srcType } : undefined)
+    state.lastMillHadBurst =
+        actual > 0 &&
+        state.players[targetPid].trashCards
+            .slice(beforeLen, beforeLen + actual)
+            .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (!state.lastMillHadBurst) return
+    ctx.resolve({ type: "voidCoreToSelf", count: 1 })
+}
+
 const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
     const { state, owner, sourceName, srcType } = ctx
         // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
@@ -4521,6 +4537,7 @@ const handlers = {
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
     millPerThenSummonSelfIfBurstMilled: millPerThenSummonSelfIfBurstMilledHandler,
+    millThenCoreIfBurst: millThenCoreIfBurstHandler,
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,

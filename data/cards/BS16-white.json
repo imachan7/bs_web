@@ -381,5 +381,45 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "BS16-080",
+  "name": "次元断",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\n相手のスピリット1体を手札に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのバトルの間、自分のライフを減らした相手のスピリット1体を破壊する。\nまたは、このバースト発動時に自分のライフを減らした相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS16-080-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "BS16-080-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroyLifeDamager"
+    }
+   }
+  ]
  }
 ]

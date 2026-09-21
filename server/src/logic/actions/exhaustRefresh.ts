@@ -416,6 +416,26 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
     )
 }
 
+// BS16-027コーカサス・リョフ・ビートル：「相手のスピリットが破壊されたとき（このスピリットのアタック中）、
+// そのスピリットと同じ系統を持つ相手のスピリットすべてを疲労させる」。系統は removal.ts が発火直前に
+// GameState.lastOpponentSpiritDestroyedFamilies へ控えたものを読む
+const exhaustOpponentSameFamilyAllHandler: ActionHandler<"exhaustOpponentSameFamilyAll"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const families = state.lastOpponentSpiritDestroyedFamilies
+    if (families.length === 0) {
+        log(state, `${sourceName}：破壊されたスピリットの系統が分からず発動しなかった。`)
+        return
+    }
+    let exhausted = 0
+    for (const s of [...state.players[opp].field.spirits]) {
+        if (!matchesFamilyFilter(state, opp, s, families)) continue
+        if (isResisted(state, opp, s, attemptOf(ctx, "exhaust", "area"))) continue
+        exhaustSpirit(state, opp, s, undefined, owner, ctx.srcType)
+        exhausted++
+    }
+    log(state, `${sourceName}：同じ系統の相手のスピリット${exhausted}体を疲労させた。`)
+}
+
 const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // セイムタイアード：自分の疲労スピリット数と同数になるまで相手のスピリットを疲労させる。
@@ -1382,6 +1402,7 @@ const handlers = {
     exhaustAllByLevel: exhaustAllByLevelHandler,
     exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
+    exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
     refreshAllByKeyword: refreshAllByKeywordHandler,
     refreshSelfByDestroyFamily: refreshSelfByDestroyFamilyHandler,

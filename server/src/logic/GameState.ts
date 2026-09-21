@@ -208,6 +208,7 @@ export function createGame(
         lastBattleDestroyedLevel: 0,
         lastBattleDestroyedColors: [],
         lastBattleDestroyedFamilies: [],
+        lastOpponentSpiritDestroyedFamilies: [],
         lastBattleDestroyedBp: 0,
         lastBattleDestroyedCost: 0,
         bofuExhaustedThisBattle: [],

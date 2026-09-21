@@ -167,6 +167,7 @@ export type EffectDef =
               | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上（BS15共通器。BS15-083秘剣燕返：「相手の手札が5枚以上のとき」）
               | { burstDestroyedColor: Color } // event: "ownSpiritDestroyed" 限定：このバースト発動時に破壊された（同時破壊なら全メンバーの）色の中にこの色が含まれるとき（GameState.burstEventColorsで判定。destroyedColorFilterはバースト自体の発動可否を絞るのに対し、こちらはactionの内側の条件分岐に使う。BS16共通器）
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるとき（triggered.conditionの同名軸と同じ判定。BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）
+              | { opponentFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 器BS16：ownFamilyCountAtLeastの相手版。発生源の持ち主から見た**相手**のフィールドに指定系統のスピリットがcount体以上いるとき（BS16-027コーカサス・リョフ・ビートル：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
           // 「〜のとき、このスピリットカードを召喚する」等の発動条件。
           // **バーストの宣言自体はeventの時点で成立している**ので、これを満たさないときはactionの解決だけを飛ばす（噛み合わせはBURST.md §1参照）。
           // 既存の triggered.condition / shared/cost.ts の同名軸を流用（BS14-X01：ownLifeAtMost、BS14-064：ownNexusAtLeast）
@@ -496,6 +497,7 @@ export type EffectDef =
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
           // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
+          duringSelfAttack?: true // event: "opponentSpiritDestroyed" 限定：**発生源自身が現在のバトルのアタッカー**のときだけ発火する（「このスピリットのアタック時」限定。手段は問わない＝バトル・効果いずれの破壊でも発火。BS16-027コーカサス・リョフ・ビートル）
           excludeSelfSubject?: true // イベントの主体が発生源自身のときは発火しない（selfOnlyのちょうど逆。「このスピリット**以外**の」の限定。BS15-009虚龍帝カタストロフドラゴン：「このスピリット以外の【激突】を持つ自分のスピリットがアタックしたとき」）
           selfOnly?: true // event: "ownSpiritDestroyed" 限定：**発生源自身が破壊されたとき**だけ発火する（同じ持ち主の他のスピリットの破壊では発火しない）。
           // 破壊された個体は effectSources から消えているので、removal.ts の fireOwnSpiritDestroyed が extraSources に自分自身を渡している。

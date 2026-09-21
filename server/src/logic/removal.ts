@@ -812,6 +812,8 @@ function fireOwnSpiritDestroyed(
     }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestructionが積み、fireQueuedDestroyBurstsがトラッシュ行き確定後に発火させる。BS16バッチ0）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
     // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
+    // exhaustOpponentSameFamilyAll（BS16-027）が読む橋渡し。発火直前の系統で上書きする
+    state.lastOpponentSpiritDestroyedFamilies = master.family
     fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         byBattle,
         bySpiritEffect,
