@@ -436,7 +436,9 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
         // 下限までは減る。srcType（この効果の発生源の種別）で絞る
-        const floor = lifeFloorByEffect(state, opp, srcType)
+        // neverZero（BS16-X04魁の覇王ミブロック・ブレイヴァー）：この効果自身によっては0にしない（下限1）。
+        // ターン全体制約のlifeFloorByEffectと違いこのアクションだけの下限なので、両者の高い方を使う
+        const floor = Math.max(lifeFloorByEffect(state, opp, srcType), action.neverZero ? 1 : 0)
         // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」：
         // 発生源がスピリットの効果によるライフ減少も合計に含める（BS15共通器）
         const perSpiritLimit = srcType === "spirit" && self ? lifeDamagePerSpiritRemaining(state, self) : Number.POSITIVE_INFINITY

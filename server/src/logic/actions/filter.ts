@@ -12,7 +12,7 @@
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
-import { effectiveBp } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 
@@ -56,7 +56,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, maxCostAsSelf, maxLv1BpOfSelf, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsSelf, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -111,6 +111,15 @@ export function normalizeFilter(
         if (!ctx.self) return SELF_REQUIRED
         const cost = getCard(ctx.self.cardId).cost
         resolved.cost = { max: cost }
+    }
+
+    // self が持つ【氷壁】と同じ色（複数色ならOR。BS16-036氷聖女ジャンヌダルク【合体時】：
+    // 「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）。fieldEventではselfにイベント対象（アタックしたスピリット）が入る
+    if (sameIceWallColorAs) {
+        if (!ctx.self) return SELF_REQUIRED
+        const colors = iceWallColorsOf(ctx.state, ctx.owner, ctx.self)
+        if (colors.length === 0) return SELF_REQUIRED
+        resolved.colorAny = colors
     }
 
     // self のカードのLv1BP以下（実効BPでなく印刷値。fieldEventではselfにイベント対象＝召喚された

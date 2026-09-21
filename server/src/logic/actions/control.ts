@@ -8,7 +8,8 @@ import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { effectiveBp } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, spiritHasKeyword } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -398,11 +399,69 @@ const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSort
     }
 }
 
+// BS16-X04魁の覇王ミブロック・ブレイヴァー【合体時】Lv2･Lv3：「相手の手札が増えたとき、相手のバースト1つを破棄する」。
+// fieldEvent event:"opponentHandAdded"と組み合わせて使う。セットしていなければno-op
+const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const opp = opponentOf(owner)
+    const player = state.players[opp]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：${player.name}はバーストをセットしていなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    player.trashCards.push(cardId)
+    log(state, `${sourceName}：${player.name}のバーストを破棄した。`)
+}
+
+// BS16-079ムーンボウクロークのメイン効果：【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、
+// そのスピリットが持つ【氷壁】と同じ色の相手のスピリットからブロックされないようにする。
+// 色は指定した時点のiceWallColorsOfを固定値として保存する（後で【氷壁】が無効化されても保持。Q25026〜Q25028）
+const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockableByIceWallColorThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const candidates = state.players[owner].field.spirits.filter((inst) => spiritHasKeyword(state, owner, inst, "hyoheki"))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：【氷壁】を持つ自分のスピリットがいなかった。`)
+        return
+    }
+    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：指定するスピリットを選んでください`,
+            candidates.map((s) => s.instanceId),
+            false,
+            { type: "markUnblockableByIceWallColorThisTurn" },
+            self,
+        )
+        return
+    }
+    const chosen = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
+    if (!chosen) {
+        log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
+        return
+    }
+    const colors = iceWallColorsOf(state, owner, chosen)
+    if (colors.length === 0) {
+        log(state, `${sourceName}：${getCard(chosen.cardId).name}は【氷壁】の色を持たなかった。`)
+        return
+    }
+    chosen.unblockableColorsThisTurn = colors
+    log(
+        state,
+        `${sourceName}：${getCard(chosen.cardId).name}は、このターンの間${colors.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされない。`,
+    )
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
+    discardOpponentBurst: discardOpponentBurstHandler,
+    markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
     burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
     summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,

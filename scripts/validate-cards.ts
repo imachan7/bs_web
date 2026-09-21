@@ -291,6 +291,7 @@ const VALID_FILTER_KEYS = new Set([
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
     "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
+    "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

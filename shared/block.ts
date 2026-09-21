@@ -134,6 +134,14 @@ export function canBlock(
         ) {
             return `このスピリットはLv${attackerInst.unblockableLevelsThisBattle.join("/")}のスピリットにブロックされません`
         }
+        // このターンの間、指定色の相手からブロックされない（markUnblockableByIceWallColorThisTurnが固定値として保存。
+        // 【氷壁】が後で無効化されても保持する。BS16-079ムーンボウクローク）
+        if (
+            attackerInst.unblockableColorsThisTurn !== undefined &&
+            attackerInst.unblockableColorsThisTurn.some((c) => instHasColor(blockerInst, c))
+        ) {
+            return `このスピリットは${attackerInst.unblockableColorsThisTurn.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされません`
+        }
         // このターンの間、指定Lvの相手からブロックされない（BS10-073 エンジェドール＝Lv2）。
         // アタッカーの持ち主にかかっているターン制約を見る
         for (const c of board.turnConstraints) {

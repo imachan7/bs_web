@@ -742,6 +742,24 @@ export function spiritHasKeyword(
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
 
+// 【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
+// 現在レベルで有効なエントリすべての色を合わせて返す（OR）。合体しているブレイヴの【氷壁】もホストへ合流させる
+// （spiritHasKeywordと同じホスト合流パターン）。無効化されていても「持っている」扱いにするため
+// magicNegate自体が発揮できるか（コスト等）は見ない＝levels一致だけで判定する（Q3703／Q25026〜Q25028）
+export function iceWallColorsOf(board: Board, ownerPid: PlayerId, inst: CardInstance): Color[] {
+    if (instEffectsSuppressed(inst)) return []
+    const colors = new Set<Color>()
+    for (const src of [inst, ...bravesOf(board.players[ownerPid], inst)]) {
+        const level = currentLevel(src).level
+        for (const effect of card(src.cardId).effects) {
+            if (effect.kind !== "magicNegate") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            for (const c of effect.colors ?? []) colors.add(c)
+        }
+    }
+    return [...colors]
+}
+
 // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
 // 効果でコアが0個になったとき、最高Lvとして破壊される」を持つか。destroySpiritが cause:"deplete" の
 // 直前にこれを見て、通常の維持コア割れ（消滅・onDestroy不発火）ではなく破壊（onDestroy誘発あり・最大Lv扱い）に切り替える
@@ -1640,6 +1658,7 @@ export function matchesTarget(
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
