@@ -140,6 +140,13 @@ BS14・BS15 と同じ覇王編なので【バースト】が主題。**系統「
 | 2 | 緑・白（15+15）＋ P071 | 【烈神速】（X03）、【神速】支払い補助（021/065）、バースト制限（058/065/067）、X04、ネクサスのシンボル上書き（068） |
 | 3 | 黄・青（15+15） | 創造の原典（070）、Lv1ネクサス封じ（041）、大量破棄の戻し（039）、ネクサス残し（047）、オズ（X05） |
 
+### 4.1 バッチ1で新設した器（2026-09-22 完了・smoke part350）
+
+`onMilledFromDeck` の then `destroyMillSource`・`thenBlockAllDeckMillThisTurn`（002）（`millDeck` の中で即時に打ち切る）／then `voidOpponentLife`（014。既定の「破棄し終えてから」で発火）、
+`symbolOverrideThisBattle`（005）、`bpEqualizeFamily`（009）、条件 `selfSummonedByFushi`（013）、`destroyBpThresholdBonus`（061）、
+条件 `ownBurstSet` のシンボル追加（063）、fieldEvent の `subjectHasTrigger:"onSummon"`・`subjectMaxCost`（064）、`destroyAtBattleEnd`（075）、`openOwnBurstActivateIfSummonCond`（X01）、
+`battleInvertBpWinner`（P070）。定義は `server/src/types/effectDef.ts`・`effectAction.ts` をこの名前で grep する。
+
 ## 5. 検証・出し方
 
 BS15_PLAN §5・§6 と同じ（定型1行 → `coverage:effects` / `audit:choices` / `audit:semantics` / `audit:parity`）。
