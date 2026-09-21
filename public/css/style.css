@@ -1407,8 +1407,19 @@ button:active {
     }
 }
 
+/* スマホではカードが64pxに縮み、縦1列のボタン（最大4個で約140px）が下へはみ出して
+   ライフ・リザーブ表示や次の段のスピリットを覆う。はみ出す分だけ下に余白を取る */
+@media (hover: none) and (max-width: 768px) {
+    .spirit-zone .card:has(.core-buttons) {
+        margin-bottom: 80px;
+    }
+}
+
 /* ---- レスポンシブ: タブレット ---- */
 @media (max-width: 768px) {
+    :root {
+        --action-col-width: 104px;
+    }
     #status-bar {
         padding: 8px 12px;
         gap: 8px;
@@ -1474,21 +1485,29 @@ button:active {
         font-size: 10px;
     }
 
+    /* 縦画面ではボタンを手札の右に縦1列で置き、手札側はその幅だけ空ける（手札と重ならない） */
     #action-buttons-container {
         position: fixed;
         bottom: 8px;
         right: 8px;
         top: auto;
         transform: none;
+        width: var(--action-col-width);
+        max-height: 45vh;
+        overflow-y: auto;
     }
     #action-buttons {
-        flex-direction: row;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: 6px;
     }
     #action-buttons button {
-        padding: 8px 14px;
+        padding: 8px 6px;
         font-size: 13px;
+        width: 100%;
+        white-space: normal;
+    }
+    .my-hand-area {
+        padding-right: calc(var(--action-col-width) + 8px);
     }
     #log-panel, #trash-panel, #tegamoto-panel {
         width: 260px;
@@ -1569,15 +1588,8 @@ button:active {
     #trash-panel, #tegamoto-panel {
         right: 8px;
     }
-    #action-buttons-container {
-        left: 8px;
-        right: 8px;
-    }
-    #action-buttons {
-        justify-content: center;
-    }
     #action-buttons button {
-        padding: 8px 10px;
+        padding: 8px 4px;
         font-size: 12px;
     }
     .awaken-badge, .activate-badge, .pay-badge {
