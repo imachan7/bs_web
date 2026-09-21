@@ -32,7 +32,7 @@
 
 ### BS16 バッチ1（赤・紫＋P069/P070）の器（2026-09-21 確定・実装中）— **名前を変えない**
 
-データは `data/staging/BS16-red.json` / `BS16-purple.json`、P069/P070 は `data/staging/PROMO.json`。解釈は BS16_PLAN §2.2・§2.4・§2.6。
+データは staging から `data/cards/BS16-red.json` / `BS16-purple.json` に書き出し、P069/P070 は `data/cards/PROMO.json`。解釈は BS16_PLAN §2.2・§2.4・§2.6。
 1. `onMilledFromDeck` に then `"destroyMillSource"`（破棄させたスピリットを破壊。**即時**に止める＝残りの破棄も中止）と
    `thenBlockAllDeckMillThisTurn?: true`（turnConstraints `{ type:"noDeckMillAtAllForPidThisTurn"; pid }`＝**自分の効果も含め**破棄不可。002）
 2. `onMilledFromDeck` に `timing?: "afterMill"`（破棄し終わってから1枚につき1回）と then `"voidOpponentLife"`（014）
