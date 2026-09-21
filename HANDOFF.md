@@ -30,6 +30,18 @@
 **次の本線は BS16「覇王編 第3弾：爆烈の覇道」90種＋プロモ3枚**（ブランチ `feat/bs16-import`。staging 取り込み済み・解釈 §2.1 確定済み）。
 計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。**次の一手：§2.5 の2問をユーザーに確認 → バッチ1（赤・紫＋P069/P070）の解釈一覧（既存の器／新しい器）を出す**。
 
+### BS16 バッチ1（赤・紫＋P069/P070）の器（2026-09-21 確定・実装中）— **名前を変えない**
+
+データは `data/staging/BS16-red.json` / `BS16-purple.json`、P069/P070 は `data/staging/PROMO.json`。解釈は BS16_PLAN §2.2・§2.4・§2.6。
+1. `onMilledFromDeck` に then `"destroyMillSource"`（破棄させたスピリットを破壊。**即時**に止める＝残りの破棄も中止）と
+   `thenBlockAllDeckMillThisTurn?: true`（turnConstraints `{ type:"noDeckMillAtAllForPidThisTurn"; pid }`＝**自分の効果も含め**破棄不可。002）
+2. `onMilledFromDeck` に `timing?: "afterMill"`（破棄し終わってから1枚につき1回）と then `"voidOpponentLife"`（014）
+3. アクション `symbolOverrideThisBattle { count: number; color: Color; familyFilter? }`（色は変えない。005）
+4. `bpEqualizeFamily`（継続 kind。他の同系統の Lv別BP＝発生源の現在BP、対象側の BP+ は足さない。009 Lv1）。009 Lv2 は既存 `summonFromTrashFree` の複数体を**召喚1回**として扱う（転召の祭壇 +1 は1回だけ）
+5. 召喚時の条件 `{ summonedByUndying: true }`（013）／継続 kind `destroyBpThresholdBonus { amount: number }`（スピリット/マジック効果の `maxBp` と BP合計上限に加算・重ねがけ。061）
+6. ネクサスのシンボル追加の条件に `{ ownBurstSet: true }`（063）／破壊時フィルタ `hasOnSummonEffect?: true`・コストはブレイヴ込み（064 Lv2）
+7. `summonFromTrashFree` に `destroyAtBattleEnd?: true`（075）／アクション `openOwnBurstActivateIfSummonCond`（X01。条件外はデッキの下）／継続 kind `battleHigherBpDestroyed`（P070。同BPは両方破壊・【装甲】無視）
+
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
 - BS12-052 デス・ヘイズの「好きなだけ破壊」（`destroyOwnFreelyThenDrawHandler`）は独自ループのまま＝同時破壊グループに入らない（`suppressOnDestroy` をバッチに通す改修が要る）
