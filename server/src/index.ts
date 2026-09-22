@@ -110,7 +110,7 @@ app.get("/api/changelog", (_req, res) => {
 })
 
 // ---- バグ報告フォーム ----
-// 保存先はデプロイの上書きで消えないよう環境変数で外に逃がせる（Azureでは BUG_REPORT_DIR=/home/bugreports を設定）
+// ファイルは /api/bug-reports で直近の報告を見るためのもの（Cloud Run ではデプロイで消える。正本はログ）
 const BUG_REPORT_DIR = process.env.BUG_REPORT_DIR || path.resolve(__dirname, "../../data")
 const BUG_REPORT_FILE = path.join(BUG_REPORT_DIR, "bug-reports.jsonl")
 const BUG_CATEGORIES = ["対戦（ルール・効果）", "対戦（画面・操作）", "デッキビルダー", "その他"]
@@ -249,6 +249,13 @@ app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
         attachedGame: attachedGame ?? undefined,
         attachError: gameId !== "" && !attachedGame ? "該当する対戦が見つかりませんでした（終了済み・再起動後など）" : undefined,
     }
+    // Cloud Run のディスクはデプロイで消えるので、Cloud Logging に残るログを正本にする（1行のJSONは構造化ログとして取り込まれる）。
+    // 読み方は docs/ops/DEPLOY_CLOUDRUN.md §4.3
+    console.log(JSON.stringify({
+        severity: "NOTICE",
+        message: `バグ報告を受信: [${category}] ${summary}${attachedGame ? "（対戦ログ添付あり）" : ""}`,
+        bugReport: entry,
+    }))
     try {
         fs.mkdirSync(BUG_REPORT_DIR, { recursive: true })
         fs.appendFileSync(BUG_REPORT_FILE, JSON.stringify(entry) + "\n")
@@ -257,7 +264,6 @@ app.post("/api/bug-report", express.json({ limit: "32kb" }), (req, res) => {
         res.status(500).json({ ok: false, error: "保存に失敗しました。時間をおいて再送してください" })
         return
     }
-    console.log(`バグ報告を受信: [${category}] ${summary}${attachedGame ? "（対戦ログ添付あり）" : ""}`)
     res.json({ ok: true })
 })
 
