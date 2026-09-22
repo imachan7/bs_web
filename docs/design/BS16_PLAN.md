@@ -157,3 +157,16 @@ BS14・BS15 と同じ覇王編なので【バースト】が主題。**系統「
 BS15_PLAN §5・§6 と同じ（定型1行 → `coverage:effects` / `audit:choices` / `audit:semantics` / `audit:parity`）。
 **PR は弾ごと1つ**（`feat/bs16-import`。着手時に draft で立てる）。既存カードのバグ修正・監査ツールの改良は別 PR。
 入れ終わったら `data/announcements.json` に1行。
+
+### 4.2 バッチ2で新設した器（2026-09-22 完了・smoke part351〜355）
+
+解釈は BS16_PLAN §2.2・§2.4・§2.6。
+A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）。
+  置き先の選択は新しい PendingChoice `distributeCores { remaining: number; destinations: ("reserve" | instanceId)[]; summoningCardId }`（1個ずつ／一括。召喚するスピリット自身も置き先。非対話は全部このスピリット）／
+継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
+turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
+068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
+B群（バトル・誘発）：既存 fieldEvent `opponentHandAdded` を流用し、アクション `discardOpponentBurst`（X04 合体時）／
+アクションの対象絞り込み `sameIceWallColorAs: "attacker"`（036）と付与 `unblockableByIceWallColor`（079）／
+既存の相手スピリット破壊の誘発に軸 `duringSelfAttack: true` を足し、アクション `exhaustOpponentSameFamilyAll`（027）／
+アクション `millThenCoreIfBurst { count: number }`（P071）／アクション `destroyLifeDamager`（080。thisBattle／burstEvent を使用時に選ぶ）

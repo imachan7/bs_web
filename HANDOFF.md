@@ -33,19 +33,6 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
-### BS16 バッチ2（緑・白＋P071）の器（2026-09-22 確定・実装中）— **名前を変えない**
-
-解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は `docs/design/BS16_HOOKS_A.md`・`_B.md`（バッチ完了時に消す）。
-A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）。
-  置き先の選択は新しい PendingChoice `distributeCores { remaining: number; destinations: ("reserve" | instanceId)[]; summoningCardId }`（1個ずつ／一括。召喚するスピリット自身も置き先。非対話は全部このスピリット）／
-継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
-turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
-068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
-B群（バトル・誘発）：既存 fieldEvent `opponentHandAdded` を流用し、アクション `discardOpponentBurst`（X04 合体時）／
-アクションの対象絞り込み `sameIceWallColorAs: "attacker"`（036）と付与 `unblockableByIceWallColor`（079）／
-既存の相手スピリット破壊の誘発に軸 `duringSelfAttack: true` を足し、アクション `exhaustOpponentSameFamilyAll`（027）／
-アクション `millThenCoreIfBurst { count: number }`（P071）／アクション `destroyLifeDamager`（080。thisBattle／burstEvent を使用時に選ぶ）
-
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
 - BS12-052 デス・ヘイズの「好きなだけ破壊」（`destroyOwnFreelyThenDrawHandler`）は独自ループのまま＝同時破壊グループに入らない（`suppressOnDestroy` をバッチに通す改修が要る）
