@@ -29,7 +29,7 @@
 | :-- | :-- | :-- | :-- | :-- |
 | R1 | **差し込み先の手順書** `docs/design/WHERE_TO_ADD.md`：変更の種類ごとに、触るファイルと関数を列挙する（下の表） | A・B・C | 小（メインループが書く） | 未着手 |
 | R2 | **ヘルパーの索引を自動生成**：`npm run codemap` → `docs/CODEMAP.md`（export 名・ファイル:行・先頭コメント1行）。CI で「生成し直すと差分が出る」なら落とす | A | 小 | 未着手 |
-| R3 | `handDeck.ts` を6ファイルに分ける（`drawDiscard` / `tegamoto` / `reveal` / `trashRecover` / `mill` / `bounce`）。中身は移すだけ | E | 小 | 決定済み |
+| R3 | **責務単位の分割**（§3）。`handDeck.ts` の6分割を最初に、名前と中身が食い違っているファイルを概念ごとに分ける | E・A | 中（移すだけ） | handDeck は決定済み。残りは §3 の案をユーザーに確認 |
 | R4 | 型3ファイルのコメント削減（CLAUDE.md「コードスタイル」の基準で） | B・E | 中（機械的） | 決定済み |
 | R5 | 器の統合（§2）。手札破棄のコスト7種は M1 に含める | 器の増殖 | 大（段階的） | §2 の確認事項をユーザーに聞いてから |
 | R6 | 誘発条件の軸を `triggers.ts` の1関数に集める（軸の一覧＝その関数を読めば分かる形にする） | D | 中 | 調査から |
@@ -69,3 +69,26 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 - M1：`then` の効果ごとの「完全に解決できる」の判定（ドロー＝デッキにある／コア除去＝相手にコアがある…）の一覧（COST_MODEL.md §1）
 - M2：「〜とき」「そうしたとき」などの接続詞ごとに、`ifLast` で書いてよいか（CONJUNCTION.md）
 - 移行で**自動選択の挙動が揃う**（捨てる手札が末尾か先頭か、など）。AIとテストの挙動だけが変わるが、変えてよいか
+
+## 3. 責務単位の分割（R3）
+
+**方針**：ファイルを**ゲームの概念**（キーワード能力・マジック・ブレイヴ・バトル・選択の再開…）で切る。
+「【転召】の処理はどこ」が**ファイル名で分かる**状態にし、grep で探さなくて済むようにする。行数を揃えるための分割はしない。
+中身は移すだけ（挙動を変えない）。1ファイル＝1PR か、関連する2〜3ファイルで1PR。
+
+**いま名前と中身が食い違っているもの**（2026-09-22 の関数一覧から）
+
+| ファイル | 行 | 名前に無い責務（切り出し先の案） |
+| :-- | --: | :-- |
+| `actions/handDeck.ts` | 4566 | ドロー・破棄・公開・トラッシュ回収・デッキ破棄・バウンス・手元が同居 → `drawDiscard`／`tegamoto`／`reveal`／`trashRecover`／`mill`／`bounce`（決定済み） |
+| `EffectModules.ts` | 4239 | 【転召】（`tenshoSpecOf`〜`applyTenshoSubstitute*`）、【粉砕】【呪撃】【暴風】【強襲】など**キーワードごとの判定**、デッキ破棄（`millDeck`・破棄無効）、疲労・回復（`exhaustSpirit`・`refreshSpirit`） → `keywords/tensho.ts`・`keywords/<キーワード>.ts`・`zones/mill.ts`・`state/exhaust.ts` |
+| `triggers.ts` | 2911 | 後半の約800行（`resolveMagic`〜`runMagicActions`）は**マジックの使用・無効化・対象の変更・再使用** → `magic.ts`。「お互い」の対象振り替え → `redirect.ts` |
+| `removal.ts` | 2879 | ブレイヴの合体・分離・維持（`attachBrave`〜`takeBraveKeep`）、復活・【不死】（`queueReviveConfirm`〜`tryReviveOnDestroy`） → `brave.ts`・`revive.ts`。ネクサス破壊は残す |
+| `GameEngine.ts` | 2877 | `doResolveChoice`（約450行）＝選択の解決と再開 → `choice.ts`。バトル解決（`resolveBattle`〜`runBattleStep`） → `battle.ts`。【烈神速】 → 召喚側へ |
+| `shared/rules.ts` | 3330 | クライアントと共有する判定の全部入り → `shared/rules/`（レベルとブレイヴ／色と系統／BP とオーラ／対象の絞り込み）に分け、`shared/rules.ts` は再エクスポートだけにする（import 側は変えない） |
+
+**再発を防ぐ**：`npm run validate:size`（仮）を定型に足す。`server/src`・`shared`・`public/src` の1ファイルが
+**2000行**を超えたら落とす（型3ファイルは行が長いので KB で見て 120KB）。基準を超えたら「どの概念を切り出すか」を決めてから足す。
+
+**順番**：handDeck → EffectModules（キーワード）→ triggers（マジック）→ removal（ブレイヴ・復活）→ GameEngine（選択・バトル）→ shared/rules。
+R1（差し込み先の手順書）は分割後のファイル名で書くので、**R1 と R3 は同時に進める**（分割1つごとに手順書の該当行を更新する）。
