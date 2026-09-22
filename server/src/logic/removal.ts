@@ -812,8 +812,8 @@ function fireOwnSpiritDestroyed(
     }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestructionが積み、fireQueuedDestroyBurstsがトラッシュ行き確定後に発火させる。BS16バッチ0）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
     // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
-    // exhaustOpponentSameFamilyAll（BS16-027）が読む橋渡し。発火直前の系統で上書きする
-    state.lastOpponentSpiritDestroyedFamilies = master.family
+    // exhaustOpponentSameFamilyAll（BS16-027）が読む橋渡し。同時破壊なら破壊待機の全員の系統
+    state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? master.family
     fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         byBattle,
         bySpiritEffect,
@@ -1526,7 +1526,14 @@ export function destroyTargetsBatch(
     // 同時破壊グループ（他カードの「破壊されたとき」を1回にする単位）。入れ子の破壊に備え、
     // このバッチが始まる前の値を退避して完了時に戻す（docs/design/TIMING_CHART.md）
     const prevGroup = state.destroyGroup
-    state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [] }
+    // 破壊待機のスピリットすべての系統を持ち主ごとに控える（BS16-027 は1回の誘発で全員を参照する。2026-09-22 ユーザー確認）
+    const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
+    for (const t of targets) {
+        const inst = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
+        if (!inst) continue
+        familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...getCard(inst.cardId).family])]
+    }
+    state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid }
     const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
     if (stoppedAt < targets.length) {
         pushResumeFrames(state, [{
