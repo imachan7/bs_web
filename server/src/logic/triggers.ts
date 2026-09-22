@@ -94,6 +94,7 @@ import {
     instEffectsSuppressed,
     instHasColor,
     instHasCost,
+    instHasTriggerEffect,
     isUntargetableByOpponent,
     instIsVanilla,
     isVirtualSource,
@@ -142,6 +143,7 @@ export {
     instColors,
     instHasColor,
     instHasCost,
+    instHasTriggerEffect,
     isUntargetableByOpponent,
     isVirtualSource,
     cardNameContains,
@@ -257,6 +259,7 @@ export function fireTrigger(
     targetInstanceId?: string,
     byFushi?: boolean, // 【不死】の効果で召喚されたときの召喚か（onSummon限定。condition.selfSummonedByFushi の判定に使う。BS13-014 闇騎士アグラヴェイン）
     byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
+    fromHand?: boolean, // 器BS16：onDeploy限定：手札から配置されたか（effect.fromHandOnly の判定に使う。BS16-062天下眺める絶景門）
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -331,6 +334,8 @@ export function fireTrigger(
             return false
         }
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
+        // 器BS16：fromHandOnly（trigger:"onDeploy"限定。BS16-062／BS16-064）
+        if (effect.fromHandOnly && !fromHand) return false
         // turn（BS13-010スカルザードLv2＝『相手のターン』）：発生源の持ち主基準でown/opponentを絞る
         if (effect.turn === "own" && owner !== state.turnPlayer) return false
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false
@@ -991,6 +996,16 @@ export function fireStepTriggers(
                 if (effect.cost && "reserveToTrash" in effect.cost && state.players[pid].reserve < effect.cost.reserveToTrash) continue
                 // cost:{selfCoresToTrash}（BS15-023タケノ・サイガーLv2）：発生源自身のコアが足りなければ発火しない
                 if (effect.cost && "selfCoresToTrash" in effect.cost && inst.cores < effect.cost.selfCoresToTrash) continue
+                // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）：手札に指定系統のスピリットカードが無ければ発火しない
+                if (effect.cost && "discardHandFamily" in effect.cost) {
+                    const wanted = Array.isArray(effect.cost.discardHandFamily)
+                        ? effect.cost.discardHandFamily
+                        : [effect.cost.discardHandFamily]
+                    const hasCard = state.players[pid].hand.some(
+                        (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
+                    )
+                    if (!hasCard) continue
+                }
                 firing.push({ pid, inst, effect })
             }
         }
@@ -1018,6 +1033,24 @@ export function fireStepTriggers(
                 const paid = e.effect.cost.selfCoresToTrash
                 e.inst.cores -= paid
                 state.players[e.pid].trashCores += paid
+            }
+            // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）。候補2枚以上ならコスト最大を自動選択する簡略化
+            if (e.effect.cost && "discardHandFamily" in e.effect.cost) {
+                const player = state.players[e.pid]
+                const wanted = Array.isArray(e.effect.cost.discardHandFamily)
+                    ? e.effect.cost.discardHandFamily
+                    : [e.effect.cost.discardHandFamily]
+                const indices = player.hand
+                    .map((_, i) => i)
+                    .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
+                let bestIdx = indices[0]!
+                for (const i of indices) {
+                    if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+                }
+                const cardId = player.hand[bestIdx]!
+                player.hand.splice(bestIdx, 1)
+                player.trashCards.push(cardId)
+                log(state, `${player.name}は${getCard(e.inst.cardId).name}のコストとして手札の${getCard(cardId).name}を破棄した。`)
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
@@ -1085,7 +1118,7 @@ export interface FieldEventExtraItem {
 }
 
 // kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
-function burstConditionMet(
+export function burstConditionMet(
     state: GameState,
     pid: PlayerId,
     condition: Extract<EffectDef, { kind: "burst" }>["condition"],
@@ -1121,6 +1154,22 @@ function burstConditionMet(
     // BS15共通器：BS15-083秘剣燕返「相手の手札が5枚以上のとき」
     if ("opponentHandAtLeast" in condition) {
         return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
+    }
+    // BS16共通器：このバースト発動時に破壊された（同時破壊なら全メンバーの）色にこの色が含まれるか
+    if ("burstDestroyedColor" in condition) {
+        return (state.burstEventColors ?? []).includes(condition.burstDestroyedColor)
+    }
+    // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるか
+    // （BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）
+    if ("ownFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.ownFamilyCountAtLeast
+        return player.field.spirits.filter((s) => matchesFamilyFilter(state, pid, s, family)).length >= count
+    }
+    // ownFamilyCountAtLeastの相手版（BS16-027：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
+    if ("opponentFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.opponentFamilyCountAtLeast
+        const oppPlayer = state.players[opponentOf(pid)]
+        return oppPlayer.field.spirits.filter((s) => matchesFamilyFilter(state, opponentOf(pid), s, family)).length >= count
     }
     // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
     // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
@@ -1194,6 +1243,10 @@ export function fireFieldEventTriggers(
     // 「発動開始時点で場にいた発生源にだけ発火させる」ために、summonBurstCardFreeで新しく場に出た
     // 個体をここで除く
     excludeInstanceIds?: string[],
+    // BS16バッチ0：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）は、破壊待機中のこの走査では
+    // 判定しない（トラッシュ行き確定の後に fireQueuedDestroyBursts が1回だけ判定する。TIMING_CHART.md ＞６）。
+    // trueのときはこの関数末尾のバースト走査を丸ごと飛ばす
+    skipBurst?: true,
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1299,10 +1352,20 @@ export function fireFieldEventTriggers(
                     : [effect.subjectKeywordFilter]
                 if (!needs.some((kw) => spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, kw))) continue
             }
+            // 器BS16：subjectMaxCost / subjectHasTrigger（BS16-064宙吊りの五行山Lv2）。
+            // 主体の実体（selfOverride）で判定する＝subjectKeywordFilterと同じ考え方
+            if (effect.subjectMaxCost !== undefined) {
+                if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { max: effect.subjectMaxCost })) continue
+            }
+            if (effect.subjectHasTrigger !== undefined) {
+                if (selfOverride === undefined || !instHasTriggerEffect(selfOverride.inst, effect.subjectHasTrigger)) continue
+            }
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
+            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ
+            if (effect.duringSelfAttack && state.battle?.attackerInstanceId !== inst.instanceId) continue
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
@@ -1639,10 +1702,40 @@ export function fireFieldEventTriggers(
     })
 
     // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
-    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。同時に条件を満たした場合は
-    // 防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
-    // （2026-09-11 ユーザー確認）。上の解決で選択待ちが残っている間は割り込まない
-    if (state.pendingChoice) return
+    // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
+    // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
+    // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
+    if (state.pendingChoice || skipBurst) return
+    fireBurstOnEvent(
+        state,
+        pid,
+        event,
+        selfOverride ? { pid: selfOverride.pid, cardId: selfOverride.inst.cardId } : undefined,
+        eventColors,
+        targetInstanceId,
+        eventInfo,
+    )
+}
+
+// kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+// BS16バッチ0：破壊後バースト（event:"ownSpiritDestroyed"）はトラッシュ行き確定後に
+// removal.ts の fireQueuedDestroyBursts が単独で呼ぶ（selfOverrideは{pid, cardId}の軽量版でよい。
+// 破壊済みの個体はもうCardInstance実体が無いため）
+export function fireBurstOnEvent(
+    state: GameState,
+    pid: PlayerId,
+    event: FieldEvent,
+    selfOverride: { pid: PlayerId; cardId?: string } | undefined,
+    eventColors: Color[] | undefined,
+    targetInstanceId: string | undefined,
+    eventInfo?: {
+        byOpponentEffect?: boolean
+        destroyedBp?: number
+        costs?: number[]
+    },
+): void {
+    // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
+    // （2026-09-11 ユーザー確認）
     const order: PlayerId[] = [opponentOf(state.turnPlayer), state.turnPlayer]
     for (const holderPid of order) {
         const holder = state.players[holderPid]
@@ -1683,13 +1776,34 @@ export function fireFieldEventTriggers(
         const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
-        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.inst.cardId : undefined
+        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
         // alsoDrawIfDestroyedColor（BS14-X02）：eventColorsはここでしか手に入らないため、宣言時点でbool化しておく
         const alsoDraw = effect.alsoDrawIfDestroyedColor !== undefined && (eventColors ?? []).includes(effect.alsoDrawIfDestroyedColor)
+        // BS16バッチ0：破壊後バーストのコストが1つの値に決まらない（同時破壊で複数体・値違い）ときは、
+        // 発動者が使う値を1つ選ぶ（対話：選択肢／非対話：最大値。1つだけ・全部同じならそのまま）
+        const costs = eventInfo?.costs ?? []
+        const distinctCosts = [...new Set(costs)]
+        // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
+        const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
-            requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
+            if (distinctCosts.length > 1) {
+                // コストの選択肢つき確認（「発動する」の代わりに「コストNで発動する」を並べる）
+                suspend(state, {
+                    pid: holderPid,
+                    kind: "option",
+                    prompt: `${getCard(burstCardId).name}のバーストを発動しますか？`,
+                    candidates: [],
+                    options: distinctCosts.map((c) => `コスト${c}で発動する`),
+                    optional: true,
+                    confirm: true,
+                    action: actionToRun,
+                    selfInstanceId: null,
+                })
+            } else {
+                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
+            }
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
             // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
@@ -1704,7 +1818,13 @@ export function fireFieldEventTriggers(
                     ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
                     // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
                     // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
-                    ...(eventInfo?.costs?.[0] !== undefined ? { burstEventCost: eventInfo.costs[0] } : {}),
+                    ...(distinctCosts.length > 1
+                        ? { burstEventCostOptions: distinctCosts }
+                        : costs[0] !== undefined
+                          ? { burstEventCost: costs[0] }
+                          : {}),
+                    ...(eventColors && eventColors.length > 0 ? { burstEventColors: eventColors } : {}),
+                    ...(lifeDamagerId !== undefined ? { burstEventLifeDamagerId: lifeDamagerId } : {}),
                 }
             }
             return
@@ -1712,9 +1832,14 @@ export function fireFieldEventTriggers(
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
-        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
-        if (eventInfo?.costs?.[0] !== undefined) state.burstEventCost = eventInfo.costs[0]
+        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
+        if (distinctCosts.length > 0) state.burstEventCost = Math.max(...distinctCosts)
         else delete state.burstEventCost
+        // BS16共通器：条件{burstDestroyedColor}用
+        if (eventColors && eventColors.length > 0) state.burstEventColors = eventColors
+        else delete state.burstEventColors
+        if (lifeDamagerId !== undefined) state.burstEventLifeDamagerId = lifeDamagerId
+        else delete state.burstEventLifeDamagerId
         // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
         // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
         const burstCard = getCard(burstCardId)
@@ -1796,13 +1921,14 @@ function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: PlayerId): v
 // 経路ごとに2行書くと同じ呼び忘れが再発するので、配置の経路はすべてこの1本を通す。
 // **破壊されたネクサスの復活（destroy.ts）とスピリット化の解除（PhaseManager）は「配置」ではない**ので、
 // ここは通さず notifyNexusDeployed だけを呼ぶ（2026-08-28 ユーザー判断）
-export function fireNexusDeployed(state: GameState, ownerPid: PlayerId, inst: CardInstance): void {
+export function fireNexusDeployed(state: GameState, ownerPid: PlayerId, inst: CardInstance, fromHand?: boolean): void {
     // ネクサスの『このネクサスの配置時』は `onDeploy`。スピリットの『召喚時』（onSummon）とは
     // **別のカテゴリ**なので分けている（SEMANTICS_AUDIT.md §3.17）。
     // `fireSummonTrigger` を通さないのは、そこで見ている noSummonTriggerByCost（コストの低い
     // **スピリット**の召喚時効果を止める）も resolvingSummonTriggerPid（「相手の**スピリット**の
     // 召喚時効果を受けない」）も、どちらもスピリット限定の規則だから
-    fireTrigger(state, ownerPid, inst, "onDeploy")
+    // 器BS16：fromHand（手札から配置したときのみ発火する条件。effect.fromHandOnly）
+    fireTrigger(state, ownerPid, inst, "onDeploy", undefined, undefined, undefined, undefined, fromHand === true)
     notifyNexusDeployed(state, ownerPid)
 }
 

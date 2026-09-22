@@ -37,6 +37,7 @@ export interface KeywordInfo {
 // キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
 export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     soku: { id: "soku", label: "神速" },
+    resshinsoku: { id: "resshinsoku", label: "烈神速" },
     awaken: { id: "awaken", label: "覚醒" },
     superAwaken: { id: "superAwaken", label: "超覚醒" },
     clash: { id: "clash", label: "激突" },
@@ -576,6 +577,10 @@ export function instanceSymbolCount(inst: CardInstance): number {
     const addedBattle = inst.battleSymbolsAdded?.length ?? 0
     // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
     const lost = symbolLossCountOf(inst)
+    // 器BS16：symbolsOverrideThisBattle（このバトルの間だけのシンボル上書き）はsymbolsOverrideContinuousより優先する
+    if (inst.symbolsOverrideThisBattle) {
+        return inst.symbolsOverrideThisBattle.length + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
+    }
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
@@ -630,6 +635,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // **加算分は必ず足す**（instanceSymbolCountと同じ規則。2026-09-04ユーザー確認）
         const cardSymbols = [
             ...((forSummon ? inst.symbolsForSummonReduction : undefined) ??
+                inst.symbolsOverrideThisBattle ??
                 inst.symbolsOverrideContinuous ??
                 (inst.braveComposite === undefined
                     ? card(inst.cardId).symbol
@@ -734,6 +740,24 @@ export function spiritHasKeyword(
     }
     if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// 【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
+// 現在レベルで有効なエントリすべての色を合わせて返す（OR）。合体しているブレイヴの【氷壁】もホストへ合流させる
+// （spiritHasKeywordと同じホスト合流パターン）。無効化されていても「持っている」扱いにするため
+// magicNegate自体が発揮できるか（コスト等）は見ない＝levels一致だけで判定する（Q3703／Q25026〜Q25028）
+export function iceWallColorsOf(board: Board, ownerPid: PlayerId, inst: CardInstance): Color[] {
+    if (instEffectsSuppressed(inst)) return []
+    const colors = new Set<Color>()
+    for (const src of [inst, ...bravesOf(board.players[ownerPid], inst)]) {
+        const level = currentLevel(src).level
+        for (const effect of card(src.cardId).effects) {
+            if (effect.kind !== "magicNegate") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            for (const c of effect.colors ?? []) colors.add(c)
+        }
+    }
+    return [...colors]
 }
 
 // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
@@ -1561,6 +1585,9 @@ export function effectiveBp(
     // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）：実効BPそのものを固定値へ上書きする。
     // 既存battleBpAsLevel（バトルのBP比較のときだけ）より広く、対象条件（「BP◯以下」）の判定にも効く
     if (inst.battleBpFixed !== undefined) return inst.battleBpFixed
+    // 器BS16：継続的な「他のBPを発生源自身の現在BPと同じとして扱う」全面上書き（kind:"bpEqualizeFamily"）。
+    // battleBpFixedと同じく対象側の tempBpBuff 等は加算しない（BS16-009百地ダイル）
+    if (inst.bpEqualizeContinuous !== undefined) return inst.bpEqualizeContinuous
     // 継続的な「BPを◯として扱う」（器Q。BS13-X011）：効果文が「Lv1/Lv2/Lv3**BP**を12000として扱う」と
     // 印刷BPを名指ししているので、**基礎BPだけを置き換える**（battleBpFixedのような全上書きではない）。
     // このあとのBP+（ブレイヴの合体時BP+・オーラ・一時BP+）は通常どおり上に乗る
@@ -1631,6 +1658,7 @@ export function matchesTarget(
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
@@ -2861,6 +2889,48 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
     return allowed
 }
 
+// kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
+// 【神速】召喚時、疲労させることで召喚コストのうち effect.cost 分を支払ったものとして扱える（任意）。
+// サーバー validateSummon/doSummon とクライアントの支払いUIが共用する
+export function shinsokuAssistCandidates(board: Board, pid: PlayerId): { instanceId: string; discount: number }[] {
+    const result: { instanceId: string; discount: number }[] = []
+    const player = board.players[pid]
+    for (const inst of player.field.spirits) {
+        if (inst.isRested) continue
+        const level = currentLevel(inst).level
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "shinsokuPayAssist") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            result.push({ instanceId: inst.instanceId, discount: effect.cost })
+            break
+        }
+    }
+    return result
+}
+
+// kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
+// 「自分のリザーブのコアをトラッシュへ置く」個数の合計。発生源はpidの**相手**フィールドにある。
+// サーバー validateSetBurst とクライアントの canSetBurst 表示が共用する
+export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
+    const opp = pid === "p1" ? "p2" : "p1"
+    let total = 0
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "burstSetCost") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phaseTurn) {
+                if (board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && opp !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && opp === board.turnPlayer) continue
+            }
+            total += effect.reserveToTrash
+        }
+    }
+    return total
+}
+
 // pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
 // 通常の instanceId とは衝突しない固定文字列（BS03-075 犬人マードック：
 // 「相手のフィールド/リザーブから」コアをトラッシュへ置く）
@@ -3125,6 +3195,14 @@ function activatableAbilityOf(
             if (!hasCard) continue
             return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
         }
+        if ("discardHandColor" in e.cost) {
+            // 器BS16：手札に指定色のカードが無ければ発動できない（BS16-005）
+            const color = e.cost.discardHandColor
+            const hasCard = (board.players[pid].hand ?? []).some((cardId) => cardHasColor(card(cardId), color))
+            if (!hasCard) continue
+            return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
+        }
+        if (!("reserveToTrash" in e.cost)) continue
         if (board.players[pid].reserve < e.cost.reserveToTrash) continue
         return { effectId: e.id, costLabel: `コア${e.cost.reserveToTrash}個を払って効果を発動` }
     }

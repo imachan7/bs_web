@@ -405,6 +405,7 @@ export function endTurn(state: GameState): void {
             delete inst.attackTriggersAsBlockThisTurn
             delete inst.blockTriggersAsAttackThisTurn
             delete inst.unblockableOnceThisTurn
+            delete inst.unblockableColorsThisTurn
             delete inst.countAsThisTurn
             delete inst.tempGrantedTriggers
             delete inst.tempSymbolLoss

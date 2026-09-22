@@ -21,10 +21,10 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -114,6 +114,7 @@ import {
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
     validatePass,
+    validateResshinsokuSummon,
     validateSetBurst,
     validateSetNexus,
     validateSummon,
@@ -159,6 +160,10 @@ export function handleAction(
     requestPendingReviveConfirm(state)
     // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
     endBattleIfAttackerLeftField(state)
+    // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）：破壊の確定・ブレイヴの「残す/残さない」・
+    // 【光芒】等のバトル終了処理まで**すべて決着した**この地点でまとめて発火する
+    // （TIMING_CHART.md ＞６：破壊時効果・破壊されたとき効果 → 破壊後バースト。BS16バッチ0）
+    if (!state.pendingChoice) fireQueuedDestroyBursts(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
     checkNoMutationAfterSuspend(state)
     return result
@@ -266,7 +271,9 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds)
+        case "resshinsokuSummon":
+            return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
@@ -473,8 +480,9 @@ function doSummon(
     discardHandIndices?: number[],
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
     altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
+    shinsokuAssistInstanceIds?: string[], // 指定時は kind:"shinsokuPayAssist"（BS16-021）：疲労させることで召喚コストの一部を肩代わりする
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds)
     if (error) return error
 
     const player = state.players[pid]
@@ -494,7 +502,19 @@ function doSummon(
     if (altSummonNexusInstanceIds !== undefined) {
         for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
     }
-    const cost = altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)
+    // kind:"shinsokuPayAssist"（BS16-021）：指定したスピリットを疲労させ、召喚コストの一部を肩代わりする
+    // （検証済み＝validateSummonがcandidatesと重複を確認済み）
+    let shinsokuDiscount = 0
+    if (shinsokuAssistInstanceIds !== undefined && shinsokuAssistInstanceIds.length > 0) {
+        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        for (const id of shinsokuAssistInstanceIds) {
+            const inst = player.field.spirits.find((s) => s.instanceId === id)
+            if (inst) inst.isRested = true
+            shinsokuDiscount += candidates.get(id) ?? 0
+        }
+        log(state, `${player.name}は自分のスピリットを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
+    }
+    const cost = Math.max(0, (altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
@@ -576,6 +596,136 @@ function doSummon(
     return null
 }
 
+// 【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
+type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
+
+// 【烈神速】：トラッシュのコアをすべて自分のフィールド/リザーブに好きに置くことで、
+// コストを支払わずに手札から召喚する（BS16-X03）。置き先は1個ずつ選ばせる（docs/design/INTERRUPTION_POINTS.md パターンA）
+function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const error = validateResshinsokuSummon(state, pid, handIndex)
+    if (error) return error
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]!
+    const total = player.trashCores
+    player.trashCores = 0
+    const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
+    // 非対話（AI・自動応答）は全部このスピリットに置く（2026-09-22 ユーザー確定）
+    if (!state.interactiveTargets) {
+        info.selfCores = total
+        info.remaining = 0
+        return finishResshinsokuSummon(state, pid, info)
+    }
+    requestResshinsokuDestination(state, pid, info)
+    return null
+}
+
+// コアの置き先を1個ぶん聞く。残り1回で最低限必要な数（Lv1維持コア）に届かないときは
+// 選択肢を「このスピリットに置く」だけに絞り、必ず維持コアが足りる状態で召喚できるようにする
+function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: ResshinsokuInfo): void {
+    if (info.remaining <= 0) {
+        finishResshinsokuSummon(state, pid, info)
+        return
+    }
+    const player = state.players[pid]
+    const card = getCard(info.cardId)
+    const need = minLevelCores(card) - info.selfCores
+    const forceSelf = need >= info.remaining
+    const targets = [...player.field.spirits, ...player.field.nexuses]
+    const destinations: string[] = forceSelf ? ["self"] : ["reserve", ...targets.map((t) => t.instanceId), "self"]
+    const options: string[] = forceSelf
+        ? [`${card.name}（このスピリット）に置く`]
+        : [
+              "リザーブに置く",
+              ...targets.map((t) => `${getCard(t.cardId).name}（Lv${String(currentLevel(t).level)}）に置く`),
+              `${card.name}（このスピリット）に置く`,
+          ]
+    if (!forceSelf && info.remaining > 1) {
+        destinations.push("reserve_all", "self_all")
+        options.push("残り全部をリザーブに置く", "残り全部をこのスピリットに置く")
+    }
+    suspend(state, {
+        pid,
+        kind: "option",
+        prompt: `【烈神速】：トラッシュのコア（残り${String(info.remaining)}個）の置き先を選んでください`,
+        candidates: [],
+        options,
+        optional: false,
+        action: { type: "noop" },
+        selfInstanceId: null,
+        distributeCores: {
+            remaining: info.remaining,
+            selfCores: info.selfCores,
+            destinations,
+            handIndex: info.handIndex,
+            cardId: info.cardId,
+        },
+    })
+}
+
+// distributeCores の選択を1件適用し、残りがあれば続けて聞く
+function applyResshinsokuDestination(
+    state: GameState,
+    pid: PlayerId,
+    info: ResshinsokuInfo,
+    destination: string,
+): void {
+    const player = state.players[pid]
+    if (destination === "reserve_all") {
+        player.reserve += info.remaining
+        log(state, `${player.name}はトラッシュのコア${String(info.remaining)}個をリザーブに置いた。`)
+        requestResshinsokuDestination(state, pid, { ...info, remaining: 0 })
+        return
+    }
+    if (destination === "self_all") {
+        log(state, `${player.name}はトラッシュのコア${String(info.remaining)}個をこのスピリットに置いた。`)
+        requestResshinsokuDestination(state, pid, { ...info, selfCores: info.selfCores + info.remaining, remaining: 0 })
+        return
+    }
+    if (destination === "reserve") {
+        player.reserve += 1
+        requestResshinsokuDestination(state, pid, { ...info, remaining: info.remaining - 1 })
+        return
+    }
+    if (destination === "self") {
+        requestResshinsokuDestination(state, pid, { ...info, selfCores: info.selfCores + 1, remaining: info.remaining - 1 })
+        return
+    }
+    const target = findSpirit(player, destination) ?? findNexus(player, destination)
+    if (target) {
+        target.cores += 1
+        requestResshinsokuDestination(state, pid, { ...info, remaining: info.remaining - 1 })
+        return
+    }
+    // 対象が選択中に場からいなくなっていた場合の安全網：残りをリザーブへ
+    player.reserve += info.remaining
+    requestResshinsokuDestination(state, pid, { ...info, remaining: 0 })
+}
+
+// コアの配置がすべて終わったところで、実際にスピリットを場に出す。
+// 通常の doSummon と違い、コストも維持コアの支払いも発生しない
+// （維持コアぶんは distributeCores で「このスピリット」に置かれたコアがそのまま兼ねる）
+function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo): string | null {
+    const player = state.players[pid]
+    const at = player.hand[info.handIndex] === info.cardId ? info.handIndex : player.hand.lastIndexOf(info.cardId)
+    if (at === -1) return null
+    player.hand.splice(at, 1)
+    const card = getCard(info.cardId)
+    const inst = createInstance(info.cardId, state.turn, info.selfCores)
+    if (summonExhausted(state, card)) inst.isRested = true
+    const logText = `${player.name}は【烈神速】でコストを支払わずに${card.name}を召喚した。`
+    state.summoningInstanceId = inst.instanceId
+    state.summoningFromHand = true
+    if (!state.winner) resolveTensho(state, pid, inst)
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "placeSummon", pid, inst, reserveDelta: 0, logText, cardName: card.name }])
+        return null
+    }
+    placeSummonedSpirit(state, pid, inst, 0, logText, card.name)
+    passFlashPriority(state, pid)
+    if (state.winner) state.battle = null
+    return null
+}
+
 // バーストのセット（docs/design/BURST.md）。既にセット済みなら旧カードをトラッシュへ送ってから
 // 新しいものをセットする。セット成立後は ownBurstSet を発火する
 function doSetBurst(state: GameState, pid: PlayerId, handIndex: number): string | null {
@@ -584,6 +734,13 @@ function doSetBurst(state: GameState, pid: PlayerId, handIndex: number): string 
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
+    // BS16-067氷聖女の塔Lv2：セットのたびにリザーブのコアをトラッシュへ置く（validateSetBurstで足りることは確認済み）
+    const required = burstSetCoresRequired(state, pid)
+    if (required > 0) {
+        player.reserve -= required
+        player.trashCores += required
+        log(state, `${player.name}は相手の効果により、バーストのセットにリザーブのコア${required}個をトラッシュへ置いた。`)
+    }
     player.hand.splice(handIndex, 1)
     placeBurst(state, pid, cardId)
     player.burstSetThisTurn = true
@@ -631,7 +788,7 @@ function doSetNexus(
     // データはtrigger:"onSummon"で書かれているのに、doSetNexusがfireSummonTriggerを呼んでいなかった）。
     // fireSummonSequenceのownSpiritSummonedフィールドイベントはfield.spiritsだけが対象で、
     // ネクサスには意図的に効かないため、スピリットのplaceSummonedSpiritとは別の経路になっている
-    fireNexusDeployed(state, pid, nexusInst)
+    fireNexusDeployed(state, pid, nexusInst, true)
     return null
 }
 
@@ -1388,6 +1545,8 @@ function resolveLifeDamage(state: GameState): void {
         )
     }
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
+    // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
+    if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
 
     if (defender.life <= 0) {
         // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
@@ -1511,6 +1670,22 @@ function doActivateAbility(
         const indices = player.hand
             .map((_, i) => i)
             .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
+        let bestIdx = indices[0]!
+        for (const i of indices) {
+            if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
+        }
+        const cardId = player.hand[bestIdx]!
+        player.hand.splice(bestIdx, 1)
+        player.trashCards.push(cardId)
+        log(
+            state,
+            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
+        )
+    } else if ("discardHandColor" in effect.cost) {
+        // 器BS16：手札の指定色のカード（種別を問わない）1枚を破棄する（BS16-005ゴエモン・シーフ・ドラゴンLv2-3）。
+        // discardHandFamilyと同じく候補2枚以上ならコスト最大を自動選択する簡略化（validateActivateが存在を保証済み）
+        const color = effect.cost.discardHandColor
+        const indices = player.hand.map((_, i) => i).filter((i) => cardHasColor(getCard(player.hand[i]!), color))
         let bestIdx = indices[0]!
         for (const i of indices) {
             if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
@@ -1782,6 +1957,21 @@ function doResolveChoice(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 【烈神速】：トラッシュのコアの置き先を1個ぶん選ぶ（BS16-X03）。action は解決せず、
+    // 選んだ置き先へ1個（一括なら残り全部）置いてから、残っていればまた同じ選択を出す
+    if (pending.distributeCores) {
+        const options = pending.options ?? []
+        if (option === undefined) return "コアの置き先を選んでください"
+        const index = options.indexOf(option)
+        const destination = pending.distributeCores.destinations[index]
+        if (index < 0 || destination === undefined) return "選択できない候補です"
+        const info = pending.distributeCores
+        state.pendingChoice = null
+        applyResshinsokuDestination(state, pid, info, destination)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pid)
+    }
+
     // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、
     // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
     if (pending.deckMillNegate) {
@@ -1936,9 +2126,21 @@ function doResolveChoice(
                     const before = fieldInstanceIdsOf(state, info.pid)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
-                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）
-                    if (info.burstEventCost !== undefined) state.burstEventCost = info.burstEventCost
-                    else delete state.burstEventCost
+                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
+                    // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う
+                    if (info.burstEventCostOptions !== undefined) {
+                        const idx = (pending.options ?? []).indexOf(option)
+                        state.burstEventCost = info.burstEventCostOptions[idx] ?? Math.max(...info.burstEventCostOptions)
+                    } else if (info.burstEventCost !== undefined) {
+                        state.burstEventCost = info.burstEventCost
+                    } else {
+                        delete state.burstEventCost
+                    }
+                    // BS16共通器：条件{burstDestroyedColor}用
+                    if (info.burstEventColors !== undefined) state.burstEventColors = info.burstEventColors
+                    else delete state.burstEventColors
+                    if (info.burstEventLifeDamagerId !== undefined) state.burstEventLifeDamagerId = info.burstEventLifeDamagerId
+                    else delete state.burstEventLifeDamagerId
                     // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
                     // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)
@@ -2332,13 +2534,21 @@ function resolveBattle(state: GameState): void {
     // 敗者が生き残っても発揮する）
     // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
     // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
-    const outcome: BattleOutcome = state.battle.skipBpCompare
+    const rawOutcome: BattleOutcome = state.battle.skipBpCompare
         ? "none"
         : attackerValue > blockerValue
             ? "attackerWins"
             : attackerValue < blockerValue
               ? "blockerWins"
               : "mutual"
+    // 器BS16：invertBpWinner（P070カオティック・リクゴー）＝勝敗を反転し、値が高い方を破壊する
+    // （同値の相打ちはそのまま。BPそのものではなくcompareBy*の代替比較にも同じく効く）
+    const outcome: BattleOutcome =
+        state.battle.invertBpWinner && (rawOutcome === "attackerWins" || rawOutcome === "blockerWins")
+            ? rawOutcome === "attackerWins"
+                ? "blockerWins"
+                : "attackerWins"
+            : rawOutcome
     if (state.battle.skipBpCompare) {
         log(state, "バトル解決：BPを比べずにバトルを終了させる。")
     }
@@ -2618,6 +2828,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                         survivingAttacker.instanceId,
                     )
                 }
+                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
+                if (!state.winner && survivingAttacker.destroyAtBattleEnd && findSpirit(state.players[attackerPid], survivingAttacker.instanceId)) {
+                    destroySpirit(state, attackerPid, survivingAttacker.instanceId)
+                }
             }
             return
         }
@@ -2635,6 +2849,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                         instColors(survivingBlocker),
                         survivingBlocker.instanceId,
                     )
+                }
+                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
+                if (!state.winner && survivingBlocker.destroyAtBattleEnd && findSpirit(state.players[defenderPid], survivingBlocker.instanceId)) {
+                    destroySpirit(state, defenderPid, survivingBlocker.instanceId)
                 }
             }
             return

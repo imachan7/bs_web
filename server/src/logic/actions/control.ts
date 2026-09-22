@@ -1,11 +1,15 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import type { EffectDef } from "../../type"
+import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
+import { attachBrave, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
-import { effectiveCost } from "../../../../shared/cost"
-import { effectiveBp } from "../../../../shared/rules"
+import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
+import { braveCombineCandidates } from "../../../../shared/summon"
+import { effectiveBp, iceWallColorsOf, spiritHasKeyword } from "../../../../shared/rules"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -122,11 +126,26 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
         fireNexusDeployed(state, owner, inst)
         return
     }
-    if (card.type !== "spirit") {
+    if (card.type !== "spirit" && card.type !== "brave") {
         log(state, `${sourceName}：このカードは召喚できない。`)
         return
     }
-    const maintain = minLevelCores(card)
+    // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
+    // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
+    if (card.type === "spirit" && state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) {
+        player.burst = null
+        player.burstSet = false
+        player.trashCards.push(cardId)
+        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${card.name}をトラッシュへ置いた。`)
+        return
+    }
+    // 器BS16（P069/P070）：ブレイヴカードのバースト召喚は、合体条件を満たすホストが自分のフィールドに
+    // いれば**直接合体するように**召喚する（ダイレクトブレイヴ＝維持コア0。summonFreeFromHandIndexの
+    // braveTargetInstanceId経路と同じ考え方）。候補が無ければ通常どおりスピリット状態で召喚する。
+    // 候補が複数あっても選択UIは設けず先頭を自動選択する（バーストは確認1回で完結させる簡略化）
+    const combineHostId =
+        card.type === "brave" ? braveCombineCandidates(state, owner, cardId)[0] : undefined
+    const maintain = combineHostId !== undefined ? 0 : minLevelCores(card)
     // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     const cost = action.payCost ? effectiveCost(state, owner, card) : 0
@@ -139,10 +158,16 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     player.reserve -= maintain + cost
     player.trashCores += cost
     const inst = createInstance(cardId, state.turn, maintain)
-    player.field.spirits.push(inst)
+    const combineHost = combineHostId !== undefined ? findSpiritAny(state, combineHostId)?.inst : undefined
+    if (combineHost !== undefined) {
+        attachBrave(state, owner, combineHost, inst)
+    } else {
+        player.field.spirits.push(inst)
+    }
     log(
         state,
-        `${player.name}はバーストとして${card.name}を` + (action.payCost ? `コスト${cost}を支払って召喚した。` : "召喚した。"),
+        `${player.name}はバーストとして${combineHost !== undefined ? `${getCard(combineHost.cardId).name}に合体させて` : ""}${card.name}を` +
+            (action.payCost ? `コスト${cost}を支払って召喚した。` : "召喚した。"),
     )
     if (!state.winner) resolveTensho(state, owner, inst)
     if (!state.winner) fireSummonSequence(state, owner, inst)
@@ -183,6 +208,47 @@ const summonBurstCardFreeIfCoresAtLeastHandler: ActionHandler<"summonBurstCardFr
         return
     }
     ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+// 器BS16（BS16-018太骨望）：このバースト発動時に破壊された自分のスピリットの色にactionの色が
+// 含まれるときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastの同型）
+const summonBurstCardFreeIfDestroyedColorHandler: ActionHandler<"summonBurstCardFreeIfDestroyedColor"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    if (!(state.burstEventColors ?? []).includes(action.color)) {
+        log(state, `${sourceName}：条件を満たさなかったため召喚しなかった。`)
+        return
+    }
+    ctx.resolve({ type: "summonBurstCardFree" })
+}
+
+// 器BS16（BS16-X01爆炎の覇王ロード・ドラゴン・バゼル）：自分のバースト1つをオープンし、
+// 条件が【相手の『このスピリット/ブレイヴの召喚時』発揮後】なら強制発動、それ以外はデッキの下へ戻す
+const openOwnBurstActivateIfSummonCondHandler: ActionHandler<"openOwnBurstActivateIfSummonCond"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：セットしているバーストがなかった。`)
+        return
+    }
+    const card = getCard(cardId)
+    const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst")
+    log(state, `${player.name}は${sourceName}の効果でバーストの${card.name}をオープンした。`)
+    if (!effect || effect.event !== "opponentSummonEffectResolved") {
+        player.burst = null
+        player.burstSet = false
+        player.deck.push(cardId)
+        log(state, `${card.name}は発動条件を満たさないため、デッキの下に戻った。`)
+        return
+    }
+    const actionToRun = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" as const }
+    const before = fieldInstanceIdsOf(state, owner)
+    state.resolvingBurstPid = owner
+    resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
+    delete state.resolvingBurstPid
+    finishBurstActivation(state, owner, cardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
+    if (state.pendingChoice || state.winner) return
+    fireOwnBurstActivated(state, owner, before, cardId)
 }
 
 // バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
@@ -333,14 +399,74 @@ const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSort
     }
 }
 
+// BS16-X04魁の覇王ミブロック・ブレイヴァー【合体時】Lv2･Lv3：「相手の手札が増えたとき、相手のバースト1つを破棄する」。
+// fieldEvent event:"opponentHandAdded"と組み合わせて使う。セットしていなければno-op
+const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const opp = opponentOf(owner)
+    const player = state.players[opp]
+    const cardId = player.burst
+    if (cardId === null) {
+        log(state, `${sourceName}：${player.name}はバーストをセットしていなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    player.trashCards.push(cardId)
+    log(state, `${sourceName}：${player.name}のバーストを破棄した。`)
+}
+
+// BS16-079ムーンボウクロークのメイン効果：【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、
+// そのスピリットが持つ【氷壁】と同じ色の相手のスピリットからブロックされないようにする。
+// 色は指定した時点のiceWallColorsOfを固定値として保存する（後で【氷壁】が無効化されても保持。Q25026〜Q25028）
+const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockableByIceWallColorThisTurn"> = (ctx) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const candidates = state.players[owner].field.spirits.filter((inst) => spiritHasKeyword(state, owner, inst, "hyoheki"))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：【氷壁】を持つ自分のスピリットがいなかった。`)
+        return
+    }
+    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：指定するスピリットを選んでください`,
+            candidates.map((s) => s.instanceId),
+            false,
+            { type: "markUnblockableByIceWallColorThisTurn" },
+            self,
+        )
+        return
+    }
+    const chosen = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
+    if (!chosen) {
+        log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
+        return
+    }
+    const colors = iceWallColorsOf(state, owner, chosen)
+    if (colors.length === 0) {
+        log(state, `${sourceName}：${getCard(chosen.cardId).name}は【氷壁】の色を持たなかった。`)
+        return
+    }
+    chosen.unblockableColorsThisTurn = colors
+    log(
+        state,
+        `${sourceName}：${getCard(chosen.cardId).name}は、このターンの間${colors.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされない。`,
+    )
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
+    discardOpponentBurst: discardOpponentBurstHandler,
+    markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
     burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
     summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,
+    summonBurstCardFreeIfDestroyedColor: summonBurstCardFreeIfDestroyedColorHandler,
+    openOwnBurstActivateIfSummonCond: openOwnBurstActivateIfSummonCondHandler,
     summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
     burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,

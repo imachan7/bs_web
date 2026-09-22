@@ -15,7 +15,9 @@ import {
     applyReviveEntry,
     fushiSummonOrConfirm,
     applyDestroyBatchAfter,
+    destroyBpThresholdBonusFor,
     fireTrigger,
+    lifeCostBlockedByFloor,
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
@@ -146,6 +148,12 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
         const filter = normalizeFilter(ctx, action)
+        // 器BS16：destroyBpThresholdBonus（BS16-061暗雲射す鬼ヶ島）。自分のスピリット/マジックの
+        // 効果による破壊のときだけ、「BP◯以下を破壊する」の閾値に加算する（ブレイヴ・ネクサスの効果には効かない）
+        if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) {
+            const bonus = destroyBpThresholdBonusFor(state, owner)
+            if (bonus > 0) filter.maxBp += bonus
+        }
         // costDiscardOwnBurst：自分のバースト1つを破棄（トラッシュへ）することがコスト（BS14-015トウダーLv2）。
         // bpBuff.costDiscardOwnBurst と同じ考え方。対象条件を満たす相手のスピリットが1体もいなければ
         // バーストも破棄しない（COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮する）
@@ -257,6 +265,28 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             player.trashCards.push(cardId)
             log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
             const { costHandDiscardOne: _chd2, ...rest } = action
+            ctx.resolve(rest)
+            return
+        }
+        // 器BS16：costOwnLifeToVoid（BS16-008ダークナイト・ドラゴン）。「〜することで〜する」は
+        // 両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、対象条件を満たす
+        // 相手のスピリットが1体もいなければライフも払わない
+        if (action.costOwnLifeToVoid !== undefined && filter !== SELF_REQUIRED) {
+            const player = state.players[owner]
+            const amount = action.costOwnLifeToVoid
+            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+            if (player.life < amount || lifeCostBlockedByFloor(state, owner, amount) || !hasEligibleTarget) {
+                log(state, `${sourceName}：対象がいない、またはライフが足りないため発動しなかった。`)
+                return
+            }
+            player.life -= amount
+            log(state, `${player.name}は${sourceName}のコストとして、ライフのコア${amount}個をボイドに置いた。（残りライフ${player.life}）`)
+            if (player.life <= 0 && !state.winner) {
+                state.winner = opp
+                log(state, `${state.players[opp].name}の勝利！`)
+                return
+            }
+            const { costOwnLifeToVoid: _colv, ...rest } = action
             ctx.resolve(rest)
             return
         }
@@ -561,6 +591,59 @@ const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet
     if (state.winner) return
     applyDestroyBatchAfter(state, owner, destroyed, {})
     return
+}
+
+// BS16-080次元断のフラッシュ効果：「このバトルの間、自分のライフを減らした相手のスピリット1体を破壊する。
+// または、このバースト発動時に自分のライフを減らした相手のスピリット1体を破壊する」。
+// 両方に対象がいれば使用者がどちらか選ぶ（orReserveと同型のoption選択）。片方だけなら自動でそちらを使う
+const DESTROY_LIFE_DAMAGER_OPTION_BATTLE = "このバトルの間"
+const DESTROY_LIFE_DAMAGER_OPTION_BURST = "このバースト発動時"
+const destroyLifeDamagerHandler: ActionHandler<"destroyLifeDamager"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption, destroyContext } = ctx
+    const battleId = state.battle?.lifeDamagers?.at(-1)
+    const burstId = state.burstEventLifeDamagerId
+    const battleFound = battleId !== undefined ? findSpiritAny(state, battleId) : null
+    const burstFound = burstId !== undefined ? findSpiritAny(state, burstId) : null
+    if (!battleFound && !burstFound) {
+        log(state, `${sourceName}：自分のライフを減らした相手のスピリットがいないため発動しなかった。`)
+        return
+    }
+    let targetId: string
+    if (battleFound && burstFound && battleId !== burstId) {
+        if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BURST) {
+            targetId = burstId!
+        } else if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BATTLE || !state.interactiveTargets) {
+            // 非対話時は既定で「このバトルの間」側を使う（両方あって差が無いときの自動選択）
+            targetId = battleId!
+        } else {
+            suspend(state, {
+                pid: owner,
+                kind: "option",
+                prompt: `${sourceName}：どちらの相手のスピリットを破壊しますか？`,
+                candidates: [],
+                options: [DESTROY_LIFE_DAMAGER_OPTION_BATTLE, DESTROY_LIFE_DAMAGER_OPTION_BURST],
+                optional: false,
+                action,
+                selfInstanceId: self ? self.instanceId : null,
+            })
+            return
+        }
+    } else {
+        targetId = (battleFound ? battleId : burstId)!
+    }
+    const found = findSpiritAny(state, targetId)
+    if (!found) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const destroyAttempt = attemptOf(ctx, "destroy", "targeted")
+    if (askPayToNegateIfNeeded(state, found.pid, found.inst, destroyAttempt, action, self, sourceName)) return
+    const resisted = resistanceAgainst(state, found.pid, found.inst, destroyAttempt)
+    if (resisted) {
+        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+        return
+    }
+    destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
 }
 
 // ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
@@ -2201,6 +2284,7 @@ const handlers = {
     destroyAll: destroyAllHandler,
     destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
+    destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,

@@ -1453,6 +1453,36 @@ const revealAndSummonAllByKeywordHandler: ActionHandler<"revealAndSummonAllByKey
 
 // BS12-074 スターリードロー：デッキ上からcount枚をオープンし、系統一致のスピリット/（includeBraves時は）
 // ブレイヴカードすべてを手札に加える。残りはトラッシュへ破棄する（召喚せず手札に加えるだけの版）
+// 器BS16（BS16-007オーガ・ドラゴンLv1-2）：デッキ上からcount枚をオープンし、バースト効果を
+// 持つカード1枚だけを手札に加える（複数あれば公開順の先頭。決定的簡略化）。残りは公開順のまま
+// デッキの下へ戻す（「好きな順番で」は結果に影響しないため順番選択UIは持たない）
+const revealTopBurstOneToHandRestBottomHandler: ActionHandler<"revealTopBurstOneToHandRestBottom"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const revealed = player.deck.splice(0, action.count)
+    if (revealed.length === 0) {
+        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        return
+    }
+    log(
+        state,
+        `${player.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`,
+    )
+    const burstIndex = revealed.findIndex((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (burstIndex === -1) {
+        log(state, `${sourceName}：バースト効果を持つカードがなかった。`)
+    } else {
+        const cardId = revealed.splice(burstIndex, 1)[0]!
+        player.hand.push(cardId)
+        log(state, `${player.name}は${sourceName}の効果で、${getCard(cardId).name}を手札に加えた。`)
+        notifyHandGained(state, owner, 1)
+    }
+    if (revealed.length > 0) {
+        player.deck.push(...revealed)
+        log(state, `${player.name}は残り${revealed.length}枚をデッキの下に戻した。`)
+    }
+}
+
 const revealTopFamilyToHandHandler: ActionHandler<"revealTopFamilyToHand"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
@@ -1851,9 +1881,12 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             action.costAtMostOrHasBurst === undefined ||
             getCard(cardId).cost <= action.costAtMostOrHasBurst ||
             getCard(cardId).effects.some((e) => e.kind === "burst")
+        // excludeBurst（BS16-055アームストロンガー）：kind:"burst"エントリを持つカードを除外する
+        const burstExcludeOk = (cardId: string): boolean =>
+            !action.excludeBurst || !getCard(cardId).effects.some((e) => e.kind === "burst")
         const isRecoverable = (cardId: string): boolean =>
             typeOk(cardId) && braveOrColorOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
-            costOk(cardId) && costOrBurstOk(cardId) && !isTrashCardProtected(cardId)
+            costOk(cardId) && costOrBurstOk(cardId) && burstExcludeOk(cardId) && !isTrashCardProtected(cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -3181,6 +3214,22 @@ const millPerThenSummonSelfIfBurstMilledHandler: ActionHandler<"millPerThenSummo
     ctx.resolve({ type: "summonBurstCardFree" })
 }
 
+// P071サイゴード・アームズ【合体時】：相手のデッキを上からcount枚破棄し、破棄した中に【バースト】効果を
+// 持つカードが1枚でもあればボイドからコア1個をこのスピリット上に置く（合体中はselfがホストなのでホストに置かれる）
+const millThenCoreIfBurstHandler: ActionHandler<"millThenCoreIfBurst"> = (ctx, action) => {
+    const { state, owner, srcType } = ctx
+    const targetPid = opponentOf(owner)
+    const beforeLen = state.players[targetPid].trashCards.length
+    const actual = millDeck(state, targetPid, action.count, owner, srcType ? { sourceType: srcType } : undefined)
+    state.lastMillHadBurst =
+        actual > 0 &&
+        state.players[targetPid].trashCards
+            .slice(beforeLen, beforeLen + actual)
+            .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
+    if (!state.lastMillHadBurst) return
+    ctx.resolve({ type: "voidCoreToSelf", count: 1 })
+}
+
 const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
     const { state, owner, sourceName, srcType } = ctx
         // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
@@ -4456,6 +4505,7 @@ const handlers = {
     revealAndSummonAllByFamily: revealAndSummonAllByFamilyHandler,
     revealAndSummonAllByKeyword: revealAndSummonAllByKeywordHandler,
     revealTopFamilyToHand: revealTopFamilyToHandHandler,
+    revealTopBurstOneToHandRestBottom: revealTopBurstOneToHandRestBottomHandler,
     revealTopToHandThenRefreshOwn: revealTopToHandThenRefreshOwnHandler,
     revealTopToHandIfColorSpiritElseReturnToDeck: revealTopToHandIfColorSpiritElseReturnToDeckHandler,
     discardHandAnyThenCoreRemove: discardHandAnyThenCoreRemoveHandler,
@@ -4487,6 +4537,7 @@ const handlers = {
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
     millPer: millPerHandler,
     millPerThenSummonSelfIfBurstMilled: millPerThenSummonSelfIfBurstMilledHandler,
+    millThenCoreIfBurst: millThenCoreIfBurstHandler,
     millPerLoserCost: millPerLoserCostHandler,
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,

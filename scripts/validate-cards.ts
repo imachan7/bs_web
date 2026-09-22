@@ -77,7 +77,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
-    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "shinsokuPayAssist", "burstSetCost",
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
@@ -86,6 +86,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
+    "bpEqualizeFamily", "destroyBpThresholdBonus",
 ])
 
 export interface ValidationIssue {
@@ -290,6 +291,7 @@ const VALID_FILTER_KEYS = new Set([
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
     "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
+    "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

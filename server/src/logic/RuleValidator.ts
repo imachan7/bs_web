@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -133,6 +133,9 @@ export function validateSummon(
     // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058）：召喚コストを支払わず、
     // 指定したネクサスをデッキの下に戻すことがコストになる
     altSummonNexusInstanceIds?: string[],
+    // 指定時は kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：疲労させることを追加コストに、
+    // 召喚コストのうち一部を支払ったものとして扱う。【神速】召喚以外では使えない（任意）
+    shinsokuAssistInstanceIds?: string[],
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -231,6 +234,22 @@ export function validateSummon(
         }
     }
 
+    // kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：【神速】召喚時のみ、疲労させることを
+    // 追加コストに召喚コストの一部を肩代わりできる（任意）
+    let shinsokuDiscount = 0
+    if (shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0) {
+        if (!flashSummon) return "【神速】での召喚以外では使えません"
+        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        const seen = new Set<string>()
+        for (const id of shinsokuAssistInstanceIds) {
+            if (seen.has(id)) return "同じスピリットを重複して指定しています"
+            seen.add(id)
+            const discount = candidates.get(id)
+            if (discount === undefined) return "指定したスピリットはこの効果を使えません"
+            shinsokuDiscount += discount
+        }
+    }
+
     // kind:"altSummonFromHand"（BS10-058）：召喚コストを支払わず、指定したネクサスを
     // 自分のデッキの下に戻すことがコスト。COST_MODEL.md §1＝支払いと召喚の両方が成立するときだけ発揮できる
     let altSummon: AltSummonFromHandOption | null = null
@@ -252,7 +271,7 @@ export function validateSummon(
         }
         altSummon = result
     }
-    const cost = altSummon !== null ? 0 : effectiveCost(state, pid, card)
+    const cost = Math.max(0, (altSummon !== null ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
@@ -375,6 +394,31 @@ function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, ca
     return null
 }
 
+// 【烈神速】：お互いのアタックステップのフラッシュタイミングで、トラッシュのコア5個以上を
+// 自分のフィールド/リザーブに好きに置くことで、コストを支払わず手札から召喚する（BS16-X03）。
+// 【神速】とは別のキーワードなので validateSummon の flashSummon 判定には乗せず、専用の検証にする
+export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number): string | null {
+    const player = state.players[pid]
+    const cardId = player.hand[handIndex]
+    if (cardId === undefined) return "手札にカードがありません"
+    const card = getCard(cardId)
+    const banned = handCardBanned(state, pid, cardId)
+    if (banned) return banned
+    if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
+    if (!hasKeyword(cardId, "resshinsoku")) return "【烈神速】を持っていません"
+    if (!state.isFlashTiming || state.phase !== "attack") {
+        return "お互いのアタックステップのフラッシュタイミングでのみ使用できます"
+    }
+    const flashError = validateHandFlash(state, pid)
+    if (flashError) return flashError
+    if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
+    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
+    if (summonLimitError) return summonLimitError
+    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
+    if (summonLimitByEffectError) return summonLimitByEffectError
+    return null
+}
+
 // 召喚／配置のレベル指定を検証する（未指定＝Lv1は常に有効）。
 // カードに存在しないレベルや、Lv1のコア数を下回るレベル指定を弾く
 function validateSummonLevel(card: CardData, level?: number): string | null {
@@ -439,6 +483,12 @@ export function validateSetBurst(state: GameState, pid: PlayerId, handIndex: num
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     if (!getCard(cardId).effects.some((e) => e.kind === "burst")) return "バースト効果を持たないカードです"
+    // BS16-067氷聖女の塔Lv2：相手はリザーブのコアを指定数トラッシュへ置かなければセットできない
+    // （リザーブが足りなければセット自体が不可＝手札に残る）
+    const required = burstSetCoresRequired(state, pid)
+    if (required > 0 && player.reserve < required) {
+        return `相手の効果により、バーストのセットにはリザーブのコアが${required}個必要です`
+    }
     return null
 }
 
@@ -928,6 +978,11 @@ export function validateActivateAbility(
             const hasCard = state.players[pid].hand.some(
                 (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
             )
+            if (!hasCard) return "破棄できるカードが手札にありません"
+        } else if ("discardHandColor" in effect.cost) {
+            // 器BS16：手札に指定色のカード（種別を問わない）が無ければ発動できない（BS16-005）
+            const color = effect.cost.discardHandColor
+            const hasCard = state.players[pid].hand.some((cardId) => cardHasColor(getCard(cardId), color))
             if (!hasCard) return "破棄できるカードが手札にありません"
         } else if ("exhaustOwnFamilyOne" in effect.cost) {
             // BS14-051 アルカナビーストクィーン：指定系統の回復状態スピリットが自分のフィールドに無ければ発動できない

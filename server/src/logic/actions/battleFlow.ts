@@ -99,6 +99,15 @@ const restrictActionsToColorThisTurnHandler: ActionHandler<"restrictActionsToCol
     log(state, `${sourceName}：このターンの間、${COLOR_LABELS[action.color]}以外のスピリットすべてはアタック/ブロックできない。`)
 }
 
+// BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない
+// （バーストの発動自体は止めない＝summonBurstCardFreeHandlerが召喚だけ止める）
+const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSummonThisTurn"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) return
+    state.turnConstraints.push({ type: "noBurstSpiritSummonThisTurn" })
+    log(state, `${sourceName}：このターンの間、お互い、バースト効果でスピリットを召喚できない。`)
+}
+
 // BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
 const grantUnblockableByLevelThisTurnHandler: ActionHandler<"grantUnblockableByLevelThisTurn"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
@@ -291,6 +300,17 @@ const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx,
         return
 }
 
+// 器BS16：現在のバトルにフラグを立て、解決時の勝敗を反転させる（P070カオティック・リクゴー）
+const battleInvertBpWinnerHandler: ActionHandler<"battleInvertBpWinner"> = (ctx) => {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル外のため不発。`)
+        return
+    }
+    state.battle.invertBpWinner = true
+    log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
+}
+
 const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx, action) => {
     const { state, sourceName } = ctx
         // イマジンフィールド：現在のバトルにフラグを立て、解決時にBPの代わりにコアの数を比較させる
@@ -416,7 +436,9 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
         // 下限までは減る。srcType（この効果の発生源の種別）で絞る
-        const floor = lifeFloorByEffect(state, opp, srcType)
+        // neverZero（BS16-X04魁の覇王ミブロック・ブレイヴァー）：この効果自身によっては0にしない（下限1）。
+        // ターン全体制約のlifeFloorByEffectと違いこのアクションだけの下限なので、両者の高い方を使う
+        const floor = Math.max(lifeFloorByEffect(state, opp, srcType), action.neverZero ? 1 : 0)
         // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」：
         // 発生源がスピリットの効果によるライフ減少も合計に含める（BS15共通器）
         const perSpiritLimit = srcType === "spirit" && self ? lifeDamagePerSpiritRemaining(state, self) : Number.POSITIVE_INFINITY
@@ -1294,6 +1316,7 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
+            ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: action.destroyAtBattleEnd } : {}),
         }
         // costReserveCoreToTrash（BS13-075スネイクスレイヴ）：自分のリザーブのコア1個を自分のトラッシュに
         // 置くことがコスト。「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する
@@ -2419,6 +2442,7 @@ const handlers = {
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
     restrictActionsToColorThisTurn: restrictActionsToColorThisTurnHandler,
+    blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     markCantBlockThisBattle: markCantBlockThisBattleHandler,
@@ -2437,6 +2461,7 @@ const handlers = {
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
     battleCompareByLevel: battleCompareByLevelHandler,
+    battleInvertBpWinner: battleInvertBpWinnerHandler,
     battleCompareByCores: battleCompareByCoresHandler,
     battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,

@@ -197,18 +197,20 @@ function sendPlay(
     millPay?: number,
     braveTargetInstanceId?: string,
     altSummonNexusInstanceIds?: string[],
+    shinsokuAssistInstanceIds?: string[],
 ): void {
     // ブレイヴは単体で場に出すとスピリットとして扱われるので、召喚はこちらを通る（BRAVE.md §1.1）
     if (isSummonableCardType(cardType)) {
-        send({ 
-            type: "summon", 
-            handIndex, 
-            ...(paySources ? { paySources } : {}), 
+        send({
+            type: "summon",
+            handIndex,
+            ...(paySources ? { paySources } : {}),
             ...(level !== undefined ? { level } : {}),
             ...(substituteInstanceId ? { substituteInstanceId } : {}),
             ...(discardHandIndices ? { discardHandIndices } : {}),
             ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
-            ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {})
+            ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}),
+            ...(shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0 ? { shinsokuAssistInstanceIds } : {})
         })
     } else if (cardType === "nexus") {
         send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}), ...(millPay !== undefined ? { millPay } : {}) })
@@ -311,6 +313,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
         assigned: {}, 
         discardHandIndices: [],
         millPay: 0,
+        shinsokuAssistInstanceIds: [],
         ...(level !== undefined ? { level } : {}),
         ...(substituteInstanceId ? { substituteInstanceId } : {}),
         ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
@@ -379,6 +382,7 @@ function submitPaying(): void {
         pay.millPay > 0 ? pay.millPay : undefined,
         pay.braveTargetInstanceId,
         pay.altSummonNexusInstanceIds,
+        pay.shinsokuAssistInstanceIds,
     )
     ui.paying = null
 }
@@ -526,6 +530,7 @@ function startChoicePaying(cardIndex: number): boolean {
         assigned: {},
         discardHandIndices: [],
         millPay: 0,
+        shinsokuAssistInstanceIds: [],
     }
     rerender()
     return true
@@ -638,6 +643,13 @@ function onHandClick(handIndex: number): void {
 
         if (canSoku) {
             tryPlay(handIndex, card, undefined)
+            return
+        }
+
+        // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上でコストを支払わず召喚する
+        // （置き先はサーバーが立てる distributeCores の選択で1個ずつ聞かれる。BS16-X03）
+        if (hasKeyword(cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
+            send({ type: "resshinsokuSummon", handIndex })
             return
         }
     }
@@ -1263,7 +1275,7 @@ async function init(): Promise<void> {
                 ui.targeting = null
                 ui.awakenTarget = null
                 ui.combineBrave = null
-                ui.paying = { handIndex: -1, forDetachBraveInstanceId: braveInstanceId, assigned: {}, discardHandIndices: [], millPay: 0 }
+                ui.paying = { handIndex: -1, forDetachBraveInstanceId: braveInstanceId, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
                 rerender()
             }
             return
@@ -1403,6 +1415,17 @@ async function init(): Promise<void> {
         if (!btn) return
         changeAltPay(String(btn.dataset.altpay) === "dec" ? -1 : 1)
     })
+    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
+    byId("targeting-info").addEventListener("click", (e) => {
+        const btn = closestData(e, "data-shinsokuassist")
+        if (!btn || !ui.paying) return
+        const id = String(btn.dataset.shinsokuassist)
+        const list = (ui.paying.shinsokuAssistInstanceIds ??= [])
+        const at = list.indexOf(id)
+        if (at !== -1) list.splice(at, 1)
+        else list.push(id)
+        rerender()
+    })
     byId("btn-cancel-target").addEventListener("click", () => {
         ui.targeting = null
         ui.awakenTarget = null
@@ -1458,6 +1481,7 @@ async function init(): Promise<void> {
                     assigned: {},
                     discardHandIndices: [],
                     millPay: 0,
+                    shinsokuAssistInstanceIds: [],
                 }
                 rerender()
                 return

@@ -1622,6 +1622,26 @@ const coreTradeToOpponentTrashHandler: ActionHandler<"coreTradeToOpponentTrash">
         return
 }
 
+// 器BS16（BS16-056シフゲイターLv1）：相手のスピリットすべての上から、コアをcount個ずつ相手の
+// リザーブ（既定）／dest指定時はボイド・トラッシュへ（範囲効果。coreToTrashAllByCostのコスト限定を外した全体版）
+const coreRemoveAllOpponentHandler: ActionHandler<"coreRemoveAllOpponent"> = (ctx, action) => {
+    const { state, owner, opp, sourceName } = ctx
+    const targets = state.players[opp].field.spirits.filter(
+        (s) => !isResisted(state, opp, s, attemptOf(ctx, "coreRemove", "area")),
+    )
+    if (targets.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const t of targets) {
+        const n = Math.min(action.count, t.cores)
+        if (n <= 0) continue
+        if (action.dest === "void") removeCoresToVoid(state, opp, t, n, owner)
+        else if (action.dest === "trash") removeCoresToTrash(state, opp, t, n, owner)
+        else removeCores(state, opp, t, n, owner)
+    }
+}
+
 const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 相手のコストmaxCost以下のスピリットすべての上から、コア1個ずつを相手のトラッシュへ
@@ -2778,6 +2798,7 @@ const handlers = {
     voidCoreToTarget: voidCoreToTargetHandler,
     coreTradeToOpponentTrash: coreTradeToOpponentTrashHandler,
     coreToTrashAllByCost: coreToTrashAllByCostHandler,
+    coreRemoveAllOpponent: coreRemoveAllOpponentHandler,
     coreRemovePerHandDiscard: coreRemovePerHandDiscardHandler,
     opponentCoresToTrash: opponentCoresToTrashHandler,
     destroyerCoresToTrash: destroyerCoresToTrashHandler,

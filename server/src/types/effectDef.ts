@@ -79,6 +79,7 @@ export type EffectDef =
           oncePerTurn?: true // 「この効果はターンに1回しか使えない」。**発生源1体につき**ターン1回（同名が2体いればそれぞれ1回）。
           // 消費は CardInstance.triggeredUsedTurn に effectId ごとのターン番号で記録する（activatedUsedTurn / stepUsedTurn と同型。BS11-032 天王神獣スレイ・ウラノス）
           battleRole?: "attacker" | "blocker" // onBattleWin：勝利したときの自分の役割がこれと一致する場合のみ発火。onBattleEnd：GameEngineが生存アタッカー/ブロッカーそれぞれの発火点で"attacker"/"blocker"を渡すので、同じ軸で「アタッカーとして生き残ったときだけ」等を絞れる（BS13-004フォボス・ドラグーンLv3：『このスピリットのアタック時』の続きとしてのバトル終了時＝アタッカー限定）。省略時は従来通り常に発火
+          fromHandOnly?: true // 器BS16：trigger:"onDeploy"限定：**手札から**配置されたときのみ発火（トラッシュからの無償配置等では発火しない。fireNexusDeployedのfromHand引数で判定。BS16-062天下眺める絶景門／BS16-064宙吊りの五行山：「手札から配置したとき」）
           turn?: "own" | "opponent" // 指定時、発生源の持ち主基準でこのturn条件のときのみ発火（own=『自分の◯◯時』が持ち主のターン限定、opponent=『相手のターン』。fieldEvent.turnと同じ意味。BS13-010スカルザードLv2：「Lv2『相手のターン』相手によってこのスピリットが破壊されたとき」）
           condition?:
               | { opponentNexusColorsAtLeast: number } // 指定時、持ち主から見て相手フィールドのネクサスの色数（重複除く）がこれ以上のときのみ発火（溶海竜プレシオスLv3）
@@ -164,6 +165,9 @@ export type EffectDef =
               | { ownColorCountAtLeast: { color: Color; count: number } } // 自分の指定色のスピリットが合計count体以上いるとき（instHasColorで判定。BS15共通器。BS15-043ショーグンペンタン：「自分の黄のスピリットが3体以上いるとき」）
               | { ownFieldHasKeywordAny: Keyword[] } // 自分のフィールドに、指定キーワード（配列＝いずれかでOR）を持つスピリットが1体以上いるとき（spiritHasKeywordで判定。BS15共通器。BS15-053コジロンド・ゴレム：「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」）
               | { opponentHandAtLeast: number } // 発生源の持ち主から見た相手の手札枚数がこれ以上（BS15共通器。BS15-083秘剣燕返：「相手の手札が5枚以上のとき」）
+              | { burstDestroyedColor: Color } // event: "ownSpiritDestroyed" 限定：このバースト発動時に破壊された（同時破壊なら全メンバーの）色の中にこの色が含まれるとき（GameState.burstEventColorsで判定。destroyedColorFilterはバースト自体の発動可否を絞るのに対し、こちらはactionの内側の条件分岐に使う。BS16共通器）
+              | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるとき（triggered.conditionの同名軸と同じ判定。BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）
+              | { opponentFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 器BS16：ownFamilyCountAtLeastの相手版。発生源の持ち主から見た**相手**のフィールドに指定系統のスピリットがcount体以上いるとき（BS16-027コーカサス・リョフ・ビートル：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
           // 「〜のとき、このスピリットカードを召喚する」等の発動条件。
           // **バーストの宣言自体はeventの時点で成立している**ので、これを満たさないときはactionの解決だけを飛ばす（噛み合わせはBURST.md §1参照）。
           // 既存の triggered.condition / shared/cost.ts の同名軸を流用（BS14-X01：ownLifeAtMost、BS14-064：ownNexusAtLeast）
@@ -195,7 +199,7 @@ export type EffectDef =
           levels: number[] | null
           action: EffectAction
           optional?: true // 「〜できる」= 任意。triggered.optional と同じく、interactiveTargets では発動確認を出す（BS02皇帝アンプルール：リザーブのコアを払う任意コスト）
-          cost?: { exhaustSelf: true } | { reserveToTrash: number } | { selfCoresToTrash: number } // 「ステップ開始時、このスピリットを疲労させることで〜」（COST_MODEL.md）。既に疲労状態なら発火しない（払えない）。fireStepTriggersが発火が確定した時点で疲労させる（interactiveTargetsの確認を断った場合も疲労する簡略化。BS12-043大地の狩人コンドラッドLv1）。reserveToTrash=持ち主のリザーブのコアをこの数だけトラッシュへ置く（足りなければ発火しない。BS15-032スノーフレイクンLv1：「自分のリザーブのコア1個を自分のトラッシュに置くことで」）。selfCoresToTrash=**発生源自身**の上のコアをこの数だけ持ち主のトラッシュへ（足りなければ発火しない＝維持コアを割っても止めない単純な残量チェック。BS15-023タケノ・サイガーLv2：「このスピリットのコア1個を自分のトラッシュに置くことで」）
+          cost?: { exhaustSelf: true } | { reserveToTrash: number } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } // 「ステップ開始時、このスピリットを疲労させることで〜」（COST_MODEL.md）。既に疲労状態なら発火しない（払えない）。fireStepTriggersが発火が確定した時点で疲労させる（interactiveTargetsの確認を断った場合も疲労する簡略化。BS12-043大地の狩人コンドラッドLv1）。reserveToTrash=持ち主のリザーブのコアをこの数だけトラッシュへ置く（足りなければ発火しない。BS15-032スノーフレイクンLv1：「自分のリザーブのコア1個を自分のトラッシュに置くことで」）。selfCoresToTrash=**発生源自身**の上のコアをこの数だけ持ち主のトラッシュへ（足りなければ発火しない＝維持コアを割っても止めない単純な残量チェック。BS15-023タケノ・サイガーLv2：「このスピリットのコア1個を自分のトラッシュに置くことで」）。discardHandFamily=器BS16：自分の手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄する（kind:"activated".cost.discardHandFamilyの器版。無ければ発火しない。候補2枚以上ならコスト最大を自動選択する同じ簡略化。BS16-063釣魂台Lv2：「自分の手札にある系統：「無魔」を持つスピリットカード1枚を破棄することで」）
           beforeStepAction?: true // step:"draw" | "core" 限定：そのステップの**本体の動き**（ドロー／リザーブへのコア置き）より前に発火する。「ドローしないことで〜する」「コアを置かないことで〜する」＝本体の動き自体を支払いに使う効果のために要る（BS07常闇の聖堂Lv2／BS10-087戦場に息づく命）。指定が無い step:"draw" は従来どおりドローの後（引いたカードを破棄の対象にできる百識の谷Lv1などが依存している）。// 2026-08-27 に beforeDraw から改名。コアステップにも同じ規則が要るのに「ドローの前」という名前のままだと規則が2つに割れるため
           condition?:
               | "handNotGreaterThanOpponent" // 持ち主の手札枚数が相手以下（主無き古城Lv2）
@@ -249,6 +253,14 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "shinsokuPayAssist" // 発生源が場にありレベル有効の間、持ち主の【神速】召喚時、発生源自身を疲労させることを追加コストに、召喚コストのうちcostまでを支払ったものとして扱う（BS16-021ノウゼンサーバル：疲労がコストなので発生源が回復状態でなければ使えない。任意発動）。
+          // GameAction.summon.shinsokuAssistInstanceIds が使用するインスタンスを指定し、RuleValidator.validateSummon / GameEngine.doSummon が discount と疲労を処理する
+          levels: number[] | null
+          cost: number // 肩代わりする召喚コストの上限（021＝2）
+          phase?: Phase // 指定時はこのステップ中のみ有効（021＝アタックステップ）
+      }
+    | {
+          id: string
           kind: "magicTargetRedirect" // 発生源が場にありレベル有効の間、**相手が使用したマジック**が発生源を対象に含むとき、そのマジックの効果の対象を発生源のみにする（＝持ち主の他のスピリットは、そのマジックの効果を受けない）。EffectModules.resolveMagic が GameState.magicRedirectTo を立て、isEffectBlocked が参照する（BS04アルカナソルジャー・サンクLv2）
           levels: number[] | null
           turn?: "own" | "opponent" // 指定時、発生源の持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効（own=『自分のターン』。BS06細剣の猫騎士ケット・シー）
@@ -291,6 +303,17 @@ export type EffectDef =
           // （「その後」＝前後関係なので、支払いではなく結果。無効にしなければ戻らない。
           //  2026-08-16 ユーザー確認。SD02-014 魔法監視塔Lv2＝使い捨てのカウンター）
           oncePerTurn?: true // 発生源1つにつきターン1回だけ（CardInstance.magicNegateUsedTurn で管理。鏡の回廊Lv2）
+      }
+    | {
+          id: string
+          kind: "burstSetCost" // 発生源が場にありレベル有効の間、**相手**がバーストをセットするには、
+          // 相手のリザーブのコアreserveToTrash個を相手のトラッシュに置かなければならない（セットのたびに支払う。
+          // 複数あれば合算。リザーブが足りなければセット自体ができない＝手札に残る。BS16-067氷聖女の塔Lv2）
+          // shared/rules.burstSetCoresRequired が集計し、RuleValidator.validateSetBurst とクライアントの
+          // セット可否表示（canSetBurst）が共用する
+          levels: number[] | null
+          reserveToTrash: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // own/opponent は発生源の持ち主基準（氷聖女の塔＝opponent＝『相手のメインステップ』）
       }
     | {
           id: string
@@ -469,9 +492,12 @@ export type EffectDef =
           selfMode?: "source" // 指定時、resolveActionのselfにイベント対象（アタックしたスピリット等）でなく発生源インスタンス自身を渡す（battleWonのselfModeと同じ。BS04鎧装獣ヘイズ・ルーン＝自身が回復する）
           vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "anySpiritAttacked" | "ownSpiritDeclaredBlock" 限定：破壊/召喚/アタック/ブロックしたスピリットがカードに効果の記述を持たない（バニラ）ときのみ発火（運命分かつ岐路／BS10-080炎の結晶石Lv2／BS10-085浮遊する岩塊／BS10-088天貫く塔の城）。// 破壊・召喚は主体が既にフィールドを離れているため呼び出し側の eventInfo.vanilla で、anySpiritAttacked / ownSpiritDeclaredBlock は主体が場に残るため selfOverride の instIsVanilla で判定する（継続付与の「バニラとしても扱う」も見る）
           subjectKeywordFilter?: Keyword | Keyword[] // イベントの主体（破壊されたスピリット等）がこのキーワードを持つときのみ発火（配列＝OR。静的・一時付与・継続付与を考慮）。**主体の実体（selfOverride）で判定する**ので、破壊のように場を離れるイベントでも破壊待機中の個体をそのまま見る（BS11-069 黄金の鐘楼Lv2＝【聖命】を持つ自分のスピリットが破壊されたとき）
+          subjectMaxCost?: number // 器BS16：イベントの主体のコストがこれ以下のときのみ発火（instMatchesCostFilterで判定＝付与コストも見る。主体の実体＝selfOverrideで判定。subjectKeywordFilterのコスト版。BS16-064宙吊りの五行山Lv2：コスト5以下）
+          subjectHasTrigger?: TriggerEvent // 器BS16：イベントの主体が指定トリガーの誘発効果を現在のレベルで静的に持つときのみ発火（instHasTriggerEffectで判定。TargetFilter.hasTriggerの主体版。BS16-064宙吊りの五行山Lv2：「『召喚時』効果を持つ」）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火（運命分かつ岐路）
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルの**アタッカー**だったときのみ発火（＝ブロッカーとして破壊された場合は発火しない）。
           // 「**アタックした**自分のスピリットが破壊されるたび」の限定（BS06ベリアルドロー）。state.battle.attackerInstanceId と一致するかで判定するので byBattleOnly と併用する
+          duringSelfAttack?: true // event: "opponentSpiritDestroyed" 限定：**発生源自身が現在のバトルのアタッカー**のときだけ発火する（「このスピリットのアタック時」限定。手段は問わない＝バトル・効果いずれの破壊でも発火。BS16-027コーカサス・リョフ・ビートル）
           excludeSelfSubject?: true // イベントの主体が発生源自身のときは発火しない（selfOnlyのちょうど逆。「このスピリット**以外**の」の限定。BS15-009虚龍帝カタストロフドラゴン：「このスピリット以外の【激突】を持つ自分のスピリットがアタックしたとき」）
           selfOnly?: true // event: "ownSpiritDestroyed" 限定：**発生源自身が破壊されたとき**だけ発火する（同じ持ち主の他のスピリットの破壊では発火しない）。
           // 破壊された個体は effectSources から消えているので、removal.ts の fireOwnSpiritDestroyed が extraSources に自分自身を渡している。
@@ -592,9 +618,10 @@ export type EffectDef =
           // そこから取り除いて解決するため、破棄されたカードはトラッシュに残らない
           levels: null // デッキのカードにレベルは無いので常に null
           by: "opponentEffect" | "opponentSpiritEffect" // 破棄の発生源の限定。opponentSpiritEffect は「相手の**スピリット**の効果で」（BS08鳳翼の聖剣）
-          then: "castThisMagicFree" | "deployThisNexusFree" | "summonThisSpiritFree" // castThisMagicFree=このマジックの効果をコストを支払わず即時に発揮（BS06ディスコンティニュー）／deployThisNexusFree=このネクサスをコストを支払わず配置（BS08鳳翼の聖剣）／summonThisSpiritFree=器AR：このスピリットカードをコストを支払わず召喚する（BS13-034ミノガメン）
+          then: "castThisMagicFree" | "deployThisNexusFree" | "summonThisSpiritFree" | "destroyMillSource" | "voidOpponentLife" // castThisMagicFree=このマジックの効果をコストを支払わず即時に発揮（BS06ディスコンティニュー）／deployThisNexusFree=このネクサスをコストを支払わず配置（BS08鳳翼の聖剣）／summonThisSpiritFree=器AR：このスピリットカードをコストを支払わず召喚する（BS13-034ミノガメン）／destroyMillSource=器BS16：**破棄された瞬間**に、この破棄を引き起こした相手のスピリット（GameState.currentEffectSource.instanceId）を破壊する。カード自身はトラッシュに残る。このカードが破棄された時点で**millDeckの残りの破棄を打ち切る**（destroyMillSourceで最初に見つかった1枚がその回のミルを止める。同時に複数枚が対象でも1枚しか止められない＝2026-09-21ユーザー確認。BS16-002パイルドラコ「相手のスピリットの効果によって自分のデッキからこのスピリットカードが破棄されたとき、そのスピリットを破壊する」）／voidOpponentLife=器BS16：resolveActionへ{type:"lifeCrush",count:1,dest:"void"}を委譲し、相手のライフのコア1個をボイドに置く（milled後の通常タイミング＝BS16-014オカピエン「相手のライフのコア1個をボイドに置く」。複数枚破棄されたら破棄された枚数ぶん発火する）
           optional?: true // 器AR：「〜できる」＝任意。interactiveTargetsでは確認を出す（PendingChoice.spiritMillFreeSummon。非対話は自動で召喚する）。summonThisSpiritFree専用
           thenProtectDeckThisTurn?: true // 器AR：この召喚が成立したときだけ、このターンの間、持ち主のデッキは（相手の効果では）破棄されなくなる（GameState.turnConstraintsにnoDeckMillForPidThisTurnを積む。BS13_PLAN.md §1 #27＝「召喚しなければデッキ破棄防止も付かない」）
+          thenBlockAllDeckMillThisTurn?: true // then:"destroyMillSource"専用：破壊が解決した後、このターンの間**自分の効果も含め**持ち主のデッキは破棄されなくなる（turnConstraintsに"noDeckMillAtAllForPidThisTurn"を積む。noDeckMillForPidThisTurnと違い相手の効果限定ではない。BS16-002：「このターンの間、自分のデッキは破棄されない」）
       }
     | {
           id: string
@@ -706,7 +733,7 @@ export type EffectDef =
           // 発動コスト。reserveToTrash=リザーブからトラッシュへ置くコア数／
           // exhaustSelf=このスピリット自身を疲労させる（既に疲労していれば発動不可。BS07桜の妖精オウカ）。
           // **省略時は追加コストなし**（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけでコストの記載が無い）
-          cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } // selfCoresToTrash=**発生源自身**の上のコアをこの数だけ持ち主のトラッシュへ（足りなければ発動不可。BS11-067 白き楯の長城Lv2＝このネクサスのコア3個）。discardHandFamily=自分の手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄する（払えなければ発動不可。候補2枚以上ならinteractiveTargetsで選ばせ、非対話はコスト最大の1枚を自動選択。BS13-062光り輝く大銀河Lv2：神星/光導）。exhaustOwnFamilyOne=持ち主のフィールドの指定系統（配列＝OR）を持つ回復状態スピリット1体を疲労させる（reviveOnDestroy.cost.exhaustOwnFamilyOneの起動能力版。候補が無ければ発動不可、非対話は実効BP最小を自動選択。BS14-051アルカナビーストクィーンLv2-3：「四道」を持つ自分のスピリット1体を疲労させることで）。{ discardHandOne: true; exhaustSelf: true }=自分の手札1枚（決定的簡略化：手札末尾）を破棄し、かつこのスピリット自身を疲労させる（discardHandFamilyと違い破棄する手札に色・系統の絞り込みはない。BS15-003ファイアファンサウル：「自分の手札1枚を破棄し、このスピリットを疲労させることで」）。{ discardHandKeyword: Keyword }=指定キーワードエントリを静的に持つ自分の手札のスピリットカード1枚を破棄する（discardHandFamilyのキーワード版。候補が無ければ発動不可、非対話はコスト最大の1枚を自動選択。BS15-017エンプレス・ヨウクィーンLv2：「自分の手札にある【不死】を持つスピリットカード1枚を破棄することで」）
+          cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } | { discardHandColor: Color } // 器BS16：discardHandColor=自分の手札にある指定色のカード（種別を問わない）1枚を破棄する（discardHandFamilyのスピリット限定を外した色版。候補2枚以上ならコスト最大を自動選択＝discardHandFamilyと同じ簡略化。BS16-005ゴエモン・シーフ・ドラゴンLv2-3：「自分の手札にある赤のカード1枚を破棄することで」） // selfCoresToTrash=**発生源自身**の上のコアをこの数だけ持ち主のトラッシュへ（足りなければ発動不可。BS11-067 白き楯の長城Lv2＝このネクサスのコア3個）。discardHandFamily=自分の手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄する（払えなければ発動不可。候補2枚以上ならinteractiveTargetsで選ばせ、非対話はコスト最大の1枚を自動選択。BS13-062光り輝く大銀河Lv2：神星/光導）。exhaustOwnFamilyOne=持ち主のフィールドの指定系統（配列＝OR）を持つ回復状態スピリット1体を疲労させる（reviveOnDestroy.cost.exhaustOwnFamilyOneの起動能力版。候補が無ければ発動不可、非対話は実効BP最小を自動選択。BS14-051アルカナビーストクィーンLv2-3：「四道」を持つ自分のスピリット1体を疲労させることで）。{ discardHandOne: true; exhaustSelf: true }=自分の手札1枚（決定的簡略化：手札末尾）を破棄し、かつこのスピリット自身を疲労させる（discardHandFamilyと違い破棄する手札に色・系統の絞り込みはない。BS15-003ファイアファンサウル：「自分の手札1枚を破棄し、このスピリットを疲労させることで」）。{ discardHandKeyword: Keyword }=指定キーワードエントリを静的に持つ自分の手札のスピリットカード1枚を破棄する（discardHandFamilyのキーワード版。候補が無ければ発動不可、非対話はコスト最大の1枚を自動選択。BS15-017エンプレス・ヨウクィーンLv2：「自分の手札にある【不死】を持つスピリットカード1枚を破棄することで」）
           oncePerTurn?: true // 「ターンに1回」。**発生源のスピリット1体につき**ターン1回（同名が2体いればそれぞれ1回使える）。
           // 消費は CardInstance.activatedUsedTurn に effectId ごとのターン番号で記録する（BS08帝竜騎サイクル6枚）
           condition?: "selfInBattle" // 発動条件（self が現在のバトルの当事者＝attacker/blocker）
@@ -887,6 +914,7 @@ export type EffectDef =
           levels: number[] | null
           target: "ownAll"
           keywordFilterAny?: Keyword[] // 対象がこのいずれかのキーワードを持つスピリットのみ（OR。BS12-068＝armor/heavyArmor）
+          familyFilter?: FamilyFilter // 対象がこの系統（配列＝OR）を持つスピリットのみ（matchesFamilyFilterで判定。BS16-067氷聖女の塔＝覇皇/雄将）
           granted: Extract<EffectDef, { kind: "magicNegate" }> // 付与するエントリ本体（levelsは常に有効扱い）
       }
     | {
@@ -1041,6 +1069,26 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "destroyBpThresholdBonus" // 器BS16：発生源が場にありレベル有効の間、持ち主の**スピリット/マジックの効果**（srcType）による
+          // 「BP◯以下を破壊する」判定（TargetFilter.maxBp）の閾値に amount を加算する（destroy.destroyHandlerが読む。
+          // 重ねがけで加算。ブレイヴ自身の効果・ネクサスの効果には効かない＝srcTypeがspirit/magicのときだけ。
+          // 「同じBPを破壊」（exactBp）には効かない。BS16-061暗雲射す鬼ヶ島：「自分のスピリット/マジックの効果で
+          // 相手のスピリットを破壊するとき、その効果で破壊できるBPを+1000する」。公式Q&A Q22378〜Q22382）
+          levels: number[] | null
+          amount: number
+      }
+    | {
+          id: string
+          kind: "bpEqualizeFamily" // 器BS16：発生源が場にありレベル有効の間、指定系統を持つ**発生源以外**の自分のスピリットすべてのLv別BPを、
+          // 発生源自身の**現在の実効BP**（合体時BP+込み）と同じとして扱う（全面上書き。対象側が受けるBP+は加算されない
+          // ＝bpAsと違い基礎BPだけの置換ではなくbattleBpFixedと同じ全面上書き。CardInstance.bpEqualizeContinuous。
+          // BS16-009爬獣使い百地ダイル：「[爬獣使い百地ダイル]以外の系統：「爬獣」を持つ自分のスピリットすべてのLv1/Lv2/Lv3BPを、このスピリットのBPと同じとして扱う」）
+          levels: number[] | null
+          familyFilter: FamilyFilter
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時はこのステップかつturn条件のときのみ有効（BS16-009：『自分のアタックステップ』限定）
+      }
+    | {
+          id: string
           kind: "nexusAsSpiritDuringAttackStep" // 器BJ：発生源が場にありレベル有効の間、条件に合う自分のネクサスを
           // **お互いのアタックステップの間だけ**スピリットとして扱う（treatOwnNexusesAsSpiritsThisTurn＝BS03ゴーレムクラフトの
           // ターン限定版に対する、アタックステップ限定版。field.nexuses→field.spiritsへ**同じインスタンスのまま**移し、
@@ -1082,7 +1130,7 @@ export type EffectDef =
           count?: number // 省略時1
           counter?: EffectCounter // 指定時はcountを無視し、カウント値ぶん追加する（0なら追加しない）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
-          condition?: { ownFieldHasBraveInSpiritState: true } // 指定時は持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効（BS13-006炎獣ファイオリックLv2-3：「自分のフィールドにスピリット状態のブレイヴがいる間、このスピリットに赤のシンボル1つを追加する」）
+          condition?: { ownFieldHasBraveInSpiritState: true } | { ownBurstSet: true } // 指定時は持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効（BS13-006炎獣ファイオリックLv2-3：「自分のフィールドにスピリット状態のブレイヴがいる間、このスピリットに赤のシンボル1つを追加する」）。ownBurstSet＝発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ有効（triggered.conditionの同名軸と同じ判定。器BS16。BS16-063釣魂台：「自分のバーストをセットしている間、このネクサスに紫のシンボル1つを追加する」）
       }
     | {
           id: string

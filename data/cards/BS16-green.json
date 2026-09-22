@@ -1,0 +1,613 @@
+[
+  {
+    "cardId": "BS16-X03",
+    "name": "烈の覇王セイリュービ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 7,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "覇皇",
+      "華兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": true,
+    "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、このスピリットカードを召喚する。\nフラッシュ【烈神速】『お互いのアタックステップ』\n自分のトラッシュのコアが5個以上のとき、自分のトラッシュのコアすべてを自分のフィールド/リザーブに好きなように置くことで、手札にあるこのスピリットカードを、コストを支払わずに召喚する。",
+    "effects": [
+      {
+        "id": "BS16-X03-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "condition": {
+          "ownLifeAtMost": 3
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-X03-e2",
+        "kind": "keyword",
+        "keyword": "resshinsoku",
+        "levels": null
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-021",
+    "name": "ノウゼンサーバル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "剣獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n【神速】で自分の手札にあるスピリットカードを召喚するとき、このスピリットを疲労させることで、自分のリザーブから2コストまでを支払ったものとして扱う。",
+    "effects": [
+      {
+        "id": "BS16-021-e1",
+        "kind": "shinsokuPayAssist",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": 2,
+        "phase": "attack"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-065",
+    "name": "誓いの桃園",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n【神速】で自分の手札にあるスピリットカードを召喚するとき、召喚コストの支払いと上に置くコアをフィールドからも使用できる。\nLv2\n自分の[烈の覇王セイリュービ]/[クマタカンウ]/[バーバリ・チョウヒ]すべてに“『このスピリットのバトル時』相手はバーストを発動できない”を与える。",
+    "effects": [
+      {
+        "id": "BS16-065-e1",
+        "kind": "sokuPaySourceGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "anyField",
+        "phase": "attack"
+      },
+      {
+        "id": "BS16-065-e2",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "烈の覇王セイリュービ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      },
+      {
+        "id": "BS16-065-e3",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "クマタカンウ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      },
+      {
+        "id": "BS16-065-e4",
+        "kind": "effectGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": "バーバリ・チョウヒ",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "disableOpponentBurstThisBattle"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-027",
+    "name": "コーカサス・リョフ・ビートル",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 9,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "覇皇",
+      "華兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 11000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【バースト：相手による自分のスピリット破壊後】\n系統：「覇皇」/「雄将」を持つ相手のスピリットがいるとき、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+10000する。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリットが破壊されたとき、そのスピリットと同じ系統を持つ相手のスピリットすべてを疲労させる。",
+    "effects": [
+      {
+        "id": "BS16-027-e1",
+        "kind": "burst",
+        "event": "ownSpiritDestroyed",
+        "byOpponentEffectOnly": true,
+        "subjectSide": "own",
+        "condition": {
+          "opponentFamilyCountAtLeast": {
+            "family": [
+              "覇皇",
+              "雄将"
+            ],
+            "count": 1
+          }
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-027-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "selfBuff",
+          "amount": 10000
+        }
+      },
+      {
+        "id": "BS16-027-e3",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "duringSelfAttack": true,
+        "action": {
+          "type": "exhaustOpponentSameFamilyAll"
+        },
+        "selfMode": "source"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-019",
+    "name": "ヤナドクガー",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "reduction": [],
+    "family": [
+      "怪虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 2000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2『このスピリットのアタック時』\nコアが1個の相手のスピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS16-019-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "filter": {
+            "cores": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-020",
+    "name": "ゾウガオムシ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "reduction": [
+      "green"
+    ],
+    "family": [
+      "怪虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS16-023",
+    "name": "コノハズクロー",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "爪鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS16-023-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS16-023-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "attacker",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-024",
+    "name": "バーバリ・チョウヒ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "雄将",
+      "華兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\nこのスピリットのコア1個につき、このスピリットをBP+1000する。\nLv2『自分のアタックステップ』\n系統：「覇皇」/「雄将」を持つ自分のスピリットは、BPを比べ相手のスピリットだけを破壊したとき回復する。",
+    "effects": [
+      {
+        "id": "BS16-024-e1",
+        "kind": "step",
+        "step": "attack",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "selfBuffPer",
+          "counter": "selfCores",
+          "amountPer": 1000
+        }
+      },
+      {
+        "id": "BS16-024-e2",
+        "kind": "battleWon",
+        "role": "any",
+        "levels": [
+          2
+        ],
+        "turn": "own",
+        "winnerFamilyFilter": [
+          "覇皇",
+          "雄将"
+        ],
+        "action": {
+          "type": "refreshSelf"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-025",
+    "name": "タランドーズ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 6,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "殻人"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green",
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS16-057",
+    "name": "コテツ・ティーガー",
+    "type": "brave",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "green",
+      "green",
+      "white",
+      "white"
+    ],
+    "family": [
+      "剣獣",
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ【神速】\n手札にあるこのブレイヴカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n合体条件：コスト5以上\n【合体時】『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
+    "braveCondition": {
+      "minCost": 5
+    },
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": [
+      {
+        "id": "BS16-057-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "BS16-057-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "opponentLifeToReserve",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  }
+]
