@@ -323,11 +323,11 @@ git に載せていた頃に起きたこと:
   > まず次の1行で既存の器の索引を作り、それを見て使う器を決めること:
   >
   > ```
-  > { grep -o 'kind: "[a-zA-Z0-9_]*"' server/src/type.ts; grep -o 'type: "[a-zA-Z0-9_]*"' server/src/type.ts; } | sort -u
+  > { grep -ho 'kind: "[a-zA-Z0-9_]*"' server/src/type.ts server/src/types/*.ts; grep -ho 'type: "[a-zA-Z0-9_]*"' server/src/type.ts server/src/types/*.ts; } | sort -u
   > ```
   >
-  > 104 の `kind` と 384 の `EffectAction.type` が 13.6KB（約4千トークン）で全部出る。
-  > 定義の中身が要るものだけ `grep -n '"その名前"' server/src/type.ts` で行番号を出し、
+  > `kind` と `type` が約570個出る（⚠️ 09-12の分割後もしばらく `type.ts` だけを見ていて、4分の3が漏れていた）。
+  > 定義の中身が要るものだけ `grep -n '"その名前"' server/src/type.ts server/src/types/*.ts` で行番号を出し、
   > `sed -n '開始,終了p'` で**その範囲だけ**読む。ハンドラも同様に
   > `grep -rn '"その名前"' server/src/logic/*.ts` → `sed -n` で該当箇所だけ
   > （EffectModules は `case` ではなく `effect.kind === "..."` 形式なので `case` で引くと空振りする）。
