@@ -30,24 +30,8 @@
 **次の本線は BS16「覇王編 第3弾：爆烈の覇道」90種＋プロモ3枚**（ブランチ `feat/bs16-import`。staging 取り込み済み・解釈 §2.1 確定済み）。
 計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。バッチ1・2の器は実装済み。
 
-**進め方（2026-09-22 ユーザー決定）**：①バッチ2のデータ役（約17枚）→統合検証→ PR #79 を「赤・紫・緑・白＋プロモ3枚」に改題して Ready（黄・青は staging に残す。お知らせは黄・青が入ってから）
-（①の対象は既存の器だけで書ける緑・白14枚：019/020/023/024/025/028/029/030/031/032/033/034/035/057。
-**新しい器が要る 022・026・066・068・077・078 の6枚は staging に残し、③で黄・青と一緒に設計する**
-＝ 足りない部品だけ作り、残りは既存の器で組む：026・066 `pay`／077 `ifLast`／068 Lv1「このターン終了時に」のタイミング部品（中身は `refreshAllOwn`）／078 手札からコストを払って召喚するアクション／022 召喚時の条件の軸「アタックステップ中」）
-②マージ後、main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
-
-### BS16 バッチ2（緑・白＋P071）の器（2026-09-22 確定・実装中）— **名前を変えない**
-
-解釈は BS16_PLAN §2.2・§2.4・§2.6。差し込み先は `docs/design/BS16_HOOKS_A.md`・`_B.md`（バッチ完了時に消す）。
-A群（召喚・バースト）：キーワード `resshinsoku`（X03。トラッシュのコア5個以上・全部を好きに置いて無償召喚。【神速】とは別）。
-  置き先の選択は新しい PendingChoice `distributeCores { remaining: number; destinations: ("reserve" | instanceId)[]; summoningCardId }`（1個ずつ／一括。召喚するスピリット自身も置き先。非対話は全部このスピリット）／
-継続 kind `shinsokuPayAssist { mode: "exhaustSelfAs2" | "fieldCores" }`（021・065 Lv1。【神速】召喚のときだけ）／
-turnConstraint `noBurstSpiritSummonThisTurn`（058。お互い・スピリットだけ）／継続 kind `burstSetCost { reserveToTrash: number }`（067 Lv2。重ねがけ）／
-068 Lv2 は既存 `symbolFix` の `summonReductionOnly` を流用（白3つ）
-B群（バトル・誘発）：既存 fieldEvent `opponentHandAdded` を流用し、アクション `discardOpponentBurst`（X04 合体時）／
-アクションの対象絞り込み `sameIceWallColorAs: "attacker"`（036）と付与 `unblockableByIceWallColor`（079）／
-既存の相手スピリット破壊の誘発に軸 `duringSelfAttack: true` を足し、アクション `exhaustOpponentSameFamilyAll`（027）／
-アクション `millThenCoreIfBurst { count: number }`（P071）／アクション `destroyLifeDamager`（080。thisBattle／burstEvent を使用時に選ぶ）
+**進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
+②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
