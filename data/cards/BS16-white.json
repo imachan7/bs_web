@@ -421,5 +421,461 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "BS16-028",
+  "name": "フロウ・ザッコ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "空魚"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS16-029",
+  "name": "ミブロック・パトロール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nカード名に「ミブロック」と入っている自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS16-029-e1",
+    "kind": "battleWon",
+    "role": "blocker",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "winnerNameContains": "ミブロック",
+    "action": {
+     "type": "voidCoreToTarget",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-030",
+  "name": "セリザワンド・ダック",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS16-030-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "returnToHand",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-031",
+  "name": "ジル・ド・レ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【氷壁：赤/青】『相手のターン』\n相手が赤/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS16-031-e1",
+    "kind": "magicNegate",
+    "levels": [
+     1,
+     2
+    ],
+    "cost": {
+     "exhaustSelf": true
+    },
+    "colors": [
+     "red",
+     "blue"
+    ],
+    "turn": "opponent"
+   },
+   {
+    "id": "BS16-031-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "blocker",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshSelf"
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-032",
+  "name": "ラ・イール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【氷壁：白/黄】『相手のターン』\n相手が白/黄のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv2\n自分の白のスピリットすべてをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS16-032-e1",
+    "kind": "magicNegate",
+    "levels": [
+     1,
+     2
+    ],
+    "cost": {
+     "exhaustSelf": true
+    },
+    "colors": [
+     "white",
+     "yellow"
+    ],
+    "turn": "opponent"
+   },
+   {
+    "id": "BS16-032-e2",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 1000
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-033",
+  "name": "ミブロック・ザ・ワン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "雄将",
+   "機人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3【重装甲：赤/白/黄】\nこのスピリットは、相手の赤/白/黄のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS16-033-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summonFromHandFree",
+     "bravesOnly": true
+    }
+   },
+   {
+    "id": "BS16-033-e2",
+    "kind": "keyword",
+    "keyword": "heavyArmor",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "colors": [
+     "red",
+     "white",
+     "yellow"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-034",
+  "name": "ブロンタール",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のバーストをセットしているとき、相手のスピリット1体を疲労させる。\nLv2『相手のスタートステップ』\n系統：「機獣」を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS16-034-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "ownBurstSet": true
+    },
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    },
+    "optional": false
+   },
+   {
+    "id": "BS16-034-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "opponent",
+    "levels": [
+     2
+    ],
+    "action": {
+     "type": "refreshOne",
+     "filter": {
+      "family": [
+       "機獣"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS16-035",
+  "name": "樹氷竜シルバー・ライム",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "甲竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "white",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
  }
 ]
