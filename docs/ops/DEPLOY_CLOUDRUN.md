@@ -158,14 +158,17 @@ socket.io は自動で再接続するが、**このアプリは座席を `socket
 直すなら「join 時にクライアントが `localStorage` の再接続トークンを送り、座席にトークンを持たせ、
 同じトークンなら `connected:false` の席に座り直せる」。20行程度。**未着手。**
 
-### 4.3 バグ報告のファイルが消える
+### 4.3 バグ報告はログに残す（2026-09-22 対応）
 
-`fs.appendFileSync(BUG_REPORT_FILE, ...)`（`server/src/index.ts:254`）はコンテナのローカルディスクに
-書くので、**デプロイやインスタンス再作成で消える**。Azure では `BUG_REPORT_DIR=/home/bugreports` に
-逃がしていたが、Cloud Run に永続ディスクは無い。
+`/api/bug-report` は報告を**1行のJSONで標準出力にも出す**（`severity: NOTICE`、本文は `jsonPayload.bugReport`）。
+Cloud Run のディスクはデプロイで消えるので、**正本は Cloud Logging**。ファイル（`bug-reports.jsonl`）と
+管理画面 `https://bs-web-battle.app/api/bug-reports?key=<BUG_REPORT_KEY>` は、最後のデプロイ以降の分しか見えない。
 
-対処は「同じ内容を `console.log` にも出す」の1行（Cloud Logging に残り、`gcloud logging read` で拾える）。
-`/api/bug-reports` の画面は使えなくなる。**未着手。**
+```
+gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.bugReport:*' --limit=20 --format=json
+```
+
+ゆくゆくは Discord の Webhook へも送り、チャンネルで読めるようにしたい（ユーザー希望。未着手）。
 
 ## 5. ロビーのタブ放置に注意（コストの主因）
 
