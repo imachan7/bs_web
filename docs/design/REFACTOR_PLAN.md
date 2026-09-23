@@ -56,7 +56,7 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 | # | 何をまとめるか | 数 | 入れる器 | 既にあるもの |
 | :-- | :-- | --: | :-- | :-- |
 | M1 | 「〜することで〜する」のコストと効果を1つにした type（`cost*`・`discardHand*Then*`・`costOwnSpiritCoresToTrashThenOpponent` など） | 約15 | `pay { cost, then }`。「両方が完全に解決できるときだけ発揮」を1か所で判定する | ステップの `cost` は kind ごとに別々の union（`effectDef.ts:143,202`） |
-| M2 | 直前の結果で分岐する type（`millThenCoreIfBurst`・`destroyIfLastMillHadBurst`・`summonBurstCardFreeIf*`・`*IfFamily` など） | 約20 | `ifLast { cond, then }`。`lastMillHadBurst` のような一時フィールドを条件として読む | `sequence`（「その後」）はある。16か所で使用 |
+| M2 | 直前の結果で分岐する type（`millThenCoreIfBurst`・`destroyIfLastMillHadBurst`・`summonBurstCardFreeIf*`・`*IfFamily` など） | 約20 | `if { cond, then }`（ACTION_VOCABULARY §3.1。`cond` は直前の結果／いまの盤面／きっかけの出来事） | `sequence`（「その後」）はある。16か所で使用 |
 | M3 | 「〜1体につき」を名前に入れた `*Per` 型 | 17 | 元の type の `count` に `EffectCounter` も書けるようにする | `countCounter` フィールドで同じことをしている type が10種ある（**書き方が2通り並存している**） |
 | M4 | 対象の絞り込みを名前に入れた type（`exhaustAllByColor`・`exhaustAllByLevel`・`refreshAllByCost`／`ByKeyword`／`ByFamily` など） | 約15 | 元の type ＋ `TargetFilter` | `filter?: TargetFilter` を持つ type が23種ある |
 | M5 | 公開系（`reveal*` 17種のうち15種が1枚だけ） | 17 | `reveal { from, count, pick, dest, rest }` | なし |
@@ -69,7 +69,7 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 
 **別のアクションにするのはルール上の処理が違うときだけ**（待機状態の種類など）。片方にだけ反応するカードがあるものは、
 アクションを分けずに軸（`from`・`to`・`cause`）の値で誘発・耐性を書き分ける（2026-09-23 ユーザー決定。当初案の「反応があれば分ける」を置き換えた）。
-**①〜③は済み → [ACTION_VOCABULARY.md](./ACTION_VOCABULARY.md)。次は④。**
+**①〜③は済み → [ACTION_VOCABULARY.md](./ACTION_VOCABULARY.md)。④は名前からの下書きまで → [ACTION_DECOMPOSITION.md](./ACTION_DECOMPOSITION.md)。**
 
 2026-09-22 の試算（全カードの効果文）：破壊されたとき／破壊時 399・ライフ減少 93・召喚されたとき 68・疲労したとき 31・
 破棄されたとき 29・ドローしたとき 14 → 分ける。手札に戻されたとき 0 → 移動の一種。**消滅した 2・回復したとき 1 → 境界（中身を見て確認）**。
@@ -81,9 +81,29 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 **進め方**：1項目＝1PR。①統合した器を作る → ②既存カードを移す（smoke の結果が変わらないことが完了条件）→
 ③使われなくなった旧 type を消す。M3 と M4 は機械的なので先にやる。M1 と M2 はルールの解釈が絡む。
 
+### 2.2 PR の単位（2026-09-23。ACTION_DECOMPOSITION.md から数えた）
+
+**器を作る PR と、カードを移す PR を分ける**（2026-09-23 ユーザー決定）。
+
+- 器の PR（実装役 Sonnet）：器とテストだけを書き、カードデータには触らない
+- 移行の PR（データ役 Haiku）：カードの JSON を新しい器に書き換え、使われなくなった旧 type を消す。完了条件は smoke の結果が変わらないこと
+- **1つの type が複数の器を使う場合**（例：`millPerThenSummonSelfIfBurstMilled` は `countCounter` と `if` の両方）、**移すのはその type が使う器が全部そろってから**
+
+| 順 | 器 | 対象 | 器の PR の中身 | 確認が要ること |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | M3 `countCounter` の統一 | 24種・延べ90枚 | 量の軸に `EffectCounter` を書けるようにする（`*Per` と `countCounter` の2通りの書き方を1つに） | なし（機械的） |
+| 2 | M4 `filter` の統一 | 36種・延べ125枚 | `ByColor`・`ByLevel`・`All` などを元のアクション＋`TargetFilter` で書く | なし（機械的） |
+| 3 | M1 `pay` | 18種・延べ44枚 | `pay { cost, then }` と「完全に解決できる」の判定 | 判定の一覧（下記） |
+| 4 | M2 `if`・`forEach`・マジックの使用 | 18＋2＋3種 | `if { cond: last／state／event }`、`forEach`、`マジックの使用 { from, コスト }` | 接続詞ごとの読み（下記） |
+| 5 | M5 オープン | 17種・延べ36枚 | `オープン { from, 枚数, 選ぶ, 行き先, 残り }` | |
+| 6 | M8 期間つき継続効果（既存の内容あり） | 51種・延べ95枚 | 器「継続効果を期間つきで置く」＋期間の値。内容は既存の継続効果の語彙をそのまま使う | |
+| 7 | M8 期間つき継続効果（内容を新設） | 37種・延べ136枚 | 新しい内容（効果の付け替え・比較基準・ブロックの追加コスト・シンボル・「として扱う」） | 内容ごとに分けて複数 PR にする |
+
+1〜2 は確認なしで進められる。3・4 は着手前に下の確認を取る。
+
 **着手前にユーザーへ確認すること**
 - M1：`then` の効果ごとの「完全に解決できる」の判定（ドロー＝デッキにある／コア除去＝相手にコアがある…）の一覧（COST_MODEL.md §1）
-- M2：「〜とき」「そうしたとき」などの接続詞ごとに、`ifLast` で書いてよいか（CONJUNCTION.md）
+- M2：「〜とき」「そうしたとき」などの接続詞ごとに、`if` で書いてよいか（CONJUNCTION.md）
 - 移行で**自動選択の挙動が揃う**（捨てる手札が末尾か先頭か、など）。AIとテストの挙動だけが変わるが、変えてよいか
 
 ## 3. 責務単位の分割（R3）
