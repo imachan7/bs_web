@@ -346,7 +346,7 @@ git に載せていた頃に起きたこと:
   > `kind` と `type` が約570個出る（⚠️ 09-12の分割後もしばらく `type.ts` だけを見ていて、4分の3が漏れていた）。
   > 定義の中身が要るものだけ `grep -n '"その名前"' server/src/type.ts server/src/types/*.ts` で行番号を出し、
   > `sed -n '開始,終了p'` で**その範囲だけ**読む。ハンドラも同様に
-  > `grep -rn '"その名前"' server/src/logic/*.ts` → `sed -n` で該当箇所だけ
+  > `grep -rn '"その名前"' server/src/logic` → `sed -n` で該当箇所だけ
   > （EffectModules は `case` ではなく `effect.kind === "..."` 形式なので `case` で引くと空振りする）。
 
 - **カードデータも丸読みさせない**（`data/cards/BS0N.json` は各 100〜150KB）。
