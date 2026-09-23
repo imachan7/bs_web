@@ -27,7 +27,7 @@ npm run dev     # サーバーとクライアントを同時起動
 - サーバー: Node.js / TypeScript / Socket.io
 - クライアント: TypeScript（esbuild でバンドル）/ Vanilla DOM
 - 開発実行: tsx
-- 本番: Google Cloud Run（`main` へのマージで GitHub Actions が自動デプロイ）
+- 本番: Google Cloud Run（GitHub Actions の「Run workflow」で main を手動デプロイ）
 
 **ルール判定はサーバーとクライアントで同じ実装を共有します**（`shared/`）。
 二重に書くとズレて「押せるのに弾かれるボタン」が生まれるためです。
