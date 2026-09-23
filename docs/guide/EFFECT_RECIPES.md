@@ -77,7 +77,7 @@ grep -n "ダークスカルデーモン" data/cards/*.json
         ↓
 ② server/src/logic/actions/*.ts        ハンドラを書く。種類別のファイルへ:
                                          destroy / cores / drawDiscard / reveal / trashRecover /
-                                         mill / bounce / tegamoto / magic / buff / grant /
+                                         mill / bounce / tegamoto / buff / grant /
                                          battleFlow / exhaustRefresh / control / filter
         ↓
 ③ data/cards/BS0N.json                 カードに書く
