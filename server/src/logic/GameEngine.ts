@@ -122,6 +122,7 @@ import {
     validateUseHandAbility,
 } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
+import { doCastMagic } from "./magic/cast"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -343,7 +344,7 @@ function dispatchAction(
 
 // バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
 // （フラッシュマジック・神速召喚・覚醒で共通）
-function passFlashPriority(state: GameState, pid: PlayerId): void {
+export function passFlashPriority(state: GameState, pid: PlayerId): void {
     if (state.battle && state.isFlashTiming) {
         state.priorityPlayer = opponentOf(pid)
         state.flashCount = 0
@@ -801,158 +802,7 @@ export const MAGIC_FREE_OPTIONS = ["コストを支払わずに使用する", "�
 // コアの個数（coreCharge＝BS01アウェイクンはコア3個までを1体に置く）や、
 // 「何体分として数えるか」（countAsMultipleThisTurn＝BS05スリーカードは1体を3体分に数える）を
 // 体数と読み違えると、正しく渡された対象まで捨ててしまう
-const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "returnToHand", "returnToDeckTop"])
-
-// クライアントが**先に選んだ対象**をそのまま使ってよいかを見る（2026-08-21 利用者確定）。
-//
-// マジックだけは「クライアントが対象を選んでから castMagic を送る」作りになっており、
-// 送られる対象が効果の条件を満たしているとは限らない。対象選択はサーバー側（pendingChoice）へ
-// 一本化するのが本筋だが、クライアントが追いつくまでの間、ここで受け口を絞って壊れないようにする:
-//
-//   - 効果の filter を満たさない対象 → 捨てる（従来は「対象条件を満たさない」でマジックだけ消費されていた）
-//   - count が2以上＝**複数体が対象** → 捨てる（1体だけ渡されると残りの体数ぶんが失われる）
-//   - chooserIsTarget＝**選ぶのは相手** → 捨てる（使用者が選ぶと相手の選択権を奪う）
-//
-// 捨てたときは「対象未指定」として解決へ進むので、サーバー側が正しい候補を出して選ばせる。
-// なお anySide（自分か相手のどちらでも選べる）は、片側しか選べないのがクライアント側の制限で、
-// サーバーには届かないため、ここでは救済できない（UI側の修正が要る）
-function usableMagicTarget(
-    state: GameState,
-    cardId: string,
-    timing: "main" | "flash",
-    targetInstanceId: string | undefined,
-): string | undefined {
-    if (targetInstanceId === undefined) return undefined
-    const effect = getCard(cardId).effects.find((e) => e.kind === "magic" && e.timing === timing)
-    if (!effect || effect.kind !== "magic") return targetInstanceId
-    const action = effect.action as EffectAction & {
-        count?: number
-        chooserIsTarget?: true
-        filter?: Record<string, unknown>
-    }
-    if (action.chooserIsTarget) return undefined
-    if (typeof action.count === "number" && action.count > 1 && COUNT_IS_BODIES.has(action.type)) {
-        return undefined
-    }
-    if (action.filter === undefined) return targetInstanceId
-    const found = findInstanceAnywhere(state, targetInstanceId)
-    if (!found) return targetInstanceId // 見つからない対象は validateCastMagic 側の判定に任せる
-    const ownerPid = state.players.p1.field.spirits.some((sp) => sp.instanceId === targetInstanceId)
-        ? "p1"
-        : "p2"
-    // filter は self 相対の軸（"selfBp" 等）を持たない前提（マジックには発生源スピリットがいない）。
-    // 判定できない軸が来た場合も matchesTarget が false を返すので、捨てる側に倒れる
-    return matchesTarget(state, ownerPid, found, action.filter as never) ? targetInstanceId : undefined
-}
-
-function doCastMagic(
-    state: GameState,
-    pid: PlayerId,
-    handIndex: number,
-    targetInstanceId?: string,
-    paySources?: PaySource[],
-    fromTegamoto?: boolean,
-    // undefined＝まだ聞いていない / true＝無償で使う / false＝あえてコストを払う。
-    // 確認から戻ってきたときだけ true/false が入る
-    freeChoice?: boolean,
-): string | null {
-    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto)
-    if (error) return error
-
-    const player = state.players[pid]
-    const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
-    if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
-    const card = getCard(cardId)
-
-    // マジック無償化（kind:"magicFreeGrant"）の使用時確認（2026-08-15 ユーザー確認）。
-    // 無償化を持つカードすべてで毎回聞く。**あえてコストを払う**道を残すのは、
-    // 無償化の枠が1枚きりのカード（大天使イスフィール）で枠を温存できるようにするため。
-    // **払える見込みがあるときだけ**聞く（払えないなら無償で使う以外に道がなく、聞いても意味がない）。
-    // 見込みはリザーブだけで見る簡略化（フィールドのコアで払う場合は確認が出ないが、
-    // その場合も無償で使えることに変わりはないので不利益にならない）
-    const paidCost = effectiveCost(state, pid, card, true)
-    const isFree = paidCost > 0 && effectiveCost(state, pid, card) === 0
-    if (freeChoice === undefined && state.interactiveTargets && isFree && player.reserve >= paidCost) {
-        suspend(state, {
-            pid,
-            kind: "option",
-            prompt: `${card.name}：コストを支払わずに使用しますか？（支払う場合のコストは${paidCost}）`,
-            candidates: [],
-            options: MAGIC_FREE_OPTIONS,
-            optional: false,
-            magicFreeChoice: {
-                handIndex,
-                ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
-                ...(paySources !== undefined ? { paySources } : {}),
-                ...(fromTegamoto !== undefined ? { fromTegamoto } : {}),
-            },
-            action: { type: "noop" },
-            selfInstanceId: null,
-        })
-        return null
-    }
-    // あえて払うことを選んだ場合だけ無償化を無視する。
-    // resolveMagic は magicFreeDeclined を見て oncePerBattle の枠を消費しない
-    const declinedFree = isFree && freeChoice === false
-    const cost = effectiveCost(state, pid, card, declinedFree)
-    if (declinedFree) state.magicFreeDeclined = true
-
-    payCost(state, pid, cost, paySources)
-    if (fromTegamoto) {
-        player.tegamoto.splice(handIndex, 1)
-        // 手元の使用権（BS06混迷する魔法実験場Lv2）も1件ぶん消費する。
-        // cardId の多重集合として持っているので、同名が複数あってもどれを消しても等価
-        const playableIdx = player.tegamotoPlayable.indexOf(cardId)
-        if (playableIdx !== -1) player.tegamotoPlayable.splice(playableIdx, 1)
-    } else {
-        player.hand.splice(handIndex, 1)
-    }
-    player.trashCards.push(cardId)
-    log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
-    // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
-    state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
-
-    // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
-    // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
-    // （clearBattleでバトルごとにクリアされる。BS08マジックミラー）。
-    // **resolveMagicの後で、かつ解決中に書き換わっていなければ**記録すること：
-    // この使用自体がマジックミラーだった場合、マジックミラー自身の解決（action:"magicMirrorRepeat"）が
-    // 「直前に使用されたマジック」を読んでからここと同じ場所を書き換える。先に（resolveMagicの前に）
-    // 記録すると自分自身を読んでしまい、後で（無条件に）書き換えるとマジックミラー側の記録を潰してしまう
-    const beforeLastMagicCast = state.lastMagicCast
-    if (state.battle) {
-        // クライアントが先に選んだ対象は、効果の条件に合うものだけ採用する（usableMagicTarget）
-        const target = usableMagicTarget(state, cardId, "flash", targetInstanceId)
-        resolveMagic(state, pid, cardId, "flash", target)
-        if (state.lastMagicCast === beforeLastMagicCast) {
-            state.lastMagicCast = {
-                pid,
-                cardId,
-                timing: "flash",
-                ...(target !== undefined ? { targetInstanceId: target } : {}),
-            }
-        }
-        // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
-        passFlashPriority(state, pid)
-    } else {
-        const hasMain = card.effects.some(
-            (e) => e.kind === "magic" && e.timing === "main",
-        )
-        const timing = hasMain ? "main" : "flash"
-        const target = usableMagicTarget(state, cardId, timing, targetInstanceId)
-        resolveMagic(state, pid, cardId, timing, target)
-        if (state.lastMagicCast === beforeLastMagicCast) {
-            state.lastMagicCast = {
-                pid,
-                cardId,
-                timing,
-                ...(target !== undefined ? { targetInstanceId: target } : {}),
-            }
-        }
-    }
-    if (state.winner) state.battle = null
-    return null
-}
+export const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "returnToHand", "returnToDeckTop"])
 
 // 011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）。マジックではないので
 // 「マジックを使用したとき」系の誘発は出さず、【氷壁】の対象にもならない（resolveMagic経由ではないため）。

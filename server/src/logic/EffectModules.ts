@@ -144,6 +144,7 @@ export { hasKoboOnBlock, resolveKoboOnBattleEnd } from "./keywords/kobo"
 export { millDeck, applyDeckMillNegate, declineDeckMillNegate } from "./zones/mill"
 export { checkExhaustOnCoreChange, exhaustSpirit, refreshSpirit, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
 import { checkExhaustOnCoreChange, exhaustSpirit } from "./state/exhaust"
+export { offerOpponentMainEndMagic, applyProvocationUse } from "./magic/cast"
 export {
     activeConstraints,
     auraAmount,
@@ -463,63 +464,6 @@ export function consumeSummonHandDiscardPay(state: GameState, pid: PlayerId): vo
     if (index === -1) return
     log(state, `${getCard(list[index]!.cardId).name}の効果は使い切られた。`)
     list.splice(index, 1)
-}
-
-// kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
-// 入ろうとしているプレイヤー）から見た相手の手札に、この特殊タイミングで使えるマジックがあり、
-// かつコストを払えるときだけ確認を出す。出した（＝アタックステップへの遷移を保留した）なら true。
-// 非対話（smoke）では確認を出さず、払えるなら自動で使用する。
-// 戻り値：確認を出した＝"suspended"／自動で使用した＝"used"／何もしなかった＝null。
-// endTurnIfDeclined はメインから直接ターン終了した経路（使わなければそのままターン終了を続ける）
-export function offerOpponentMainEndMagic(
-    state: GameState,
-    attackingPid: PlayerId,
-    endTurnIfDeclined?: true,
-): "suspended" | "used" | null {
-    const holderPid = opponentOf(attackingPid)
-    const player = state.players[holderPid]
-    const cardId = player.hand.find((id) => {
-        const card = getCard(id)
-        return card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd)
-    })
-    if (cardId === undefined) return null
-    const cost = effectiveCost(state, holderPid, getCard(cardId))
-    if (player.reserve < cost) return null
-    if (!state.interactiveTargets) {
-        applyProvocationUse(state, { pid: holderPid, cardId })
-        return "used"
-    }
-    suspend(state, {
-        pid: holderPid,
-        kind: "option",
-        prompt: `${getCard(cardId).name}：コスト${cost}を支払って使用しますか？`,
-        candidates: [],
-        options: ["使用する"],
-        optional: true,
-        confirm: true,
-        provocationUse: { pid: holderPid, cardId, ...(endTurnIfDeclined ? { endTurnIfDeclined } : {}) },
-        action: { type: "noop" },
-        selfInstanceId: null,
-    })
-    return "suspended"
-}
-
-// プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
-export function applyProvocationUse(state: GameState, entry: NonNullable<PendingChoice["provocationUse"]>): void {
-    const player = state.players[entry.pid]
-    const handIndex = player.hand.indexOf(entry.cardId)
-    if (handIndex === -1) return
-    const card = getCard(entry.cardId)
-    const cost = effectiveCost(state, entry.pid, card)
-    if (player.reserve < cost) return
-    player.reserve -= cost
-    player.hand.splice(handIndex, 1)
-    player.trashCards.push(entry.cardId)
-    log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
-    const effect = card.effects.find(
-        (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
-    )
-    if (effect) resolveAction(state, entry.pid, null, effect.action)
 }
 
 // 器BS16：発生源の持ち主（ownerPid）のスピリット/マジックの効果による「BP◯以下を破壊する」判定の

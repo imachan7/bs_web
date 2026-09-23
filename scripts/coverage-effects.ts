@@ -198,11 +198,13 @@ function loadEntries(): EffectEntry[] {
 let DRY_RUN = false
 const DRY_ERRORS: string[] = []
 
-// EffectModules.ts から概念ごとのファイルへ移した関数も、元の名前で差し込めるようにする。
+// 概念ごとのファイルへ移した関数も、元のファイル名で差し込めるようにする。
 // 候補のうち needle を含むファイルがちょうど1つのときだけ、そのファイルへ差し込む
+const SPLIT_DIRS = ["keywords", "zones", "state", "magic"]
+
 function effectModulesFiles(tree: string): string[] {
     const logic = path.join(tree, "server/src/logic")
-    const split = ["keywords", "zones", "state"].flatMap((d) => {
+    const split = SPLIT_DIRS.flatMap((d) => {
         const dir = path.join(logic, d)
         return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".ts")).map((f) => path.join(dir, f)) : []
     })
@@ -210,7 +212,11 @@ function effectModulesFiles(tree: string): string[] {
 }
 
 function patch(files: string | string[], needle: string, replacement: string): void {
-    const candidates = typeof files === "string" ? [files] : files
+    // triggers.ts・GameEngine.ts などから分割先へ移した関数も探す
+    const candidates =
+        typeof files !== "string"
+            ? files
+            : [files, ...effectModulesFiles(files.slice(0, files.indexOf("server/src/logic/"))).slice(1)]
     const found = candidates.filter((f) => fs.readFileSync(f, "utf-8").includes(needle))
     const file = found.length === 1 ? found[0]! : candidates[0]!
     const body = fs.readFileSync(file, "utf-8")
