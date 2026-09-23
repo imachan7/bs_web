@@ -31,7 +31,7 @@
 計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。バッチ1・2の器は実装済み。
 
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
-②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
+②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（R3 は handDeck・EffectModules・magic まで分割済み。**§2.1 の④が進行中**：[ACTION_DECOMPOSITION.md](./docs/design/ACTION_DECOMPOSITION.md) の「要確認」83行と一覧に無い種類を調査役が定義を読んで埋める。ブランチ `docs/action-decomposition`） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
