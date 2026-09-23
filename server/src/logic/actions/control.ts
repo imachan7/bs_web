@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectDef } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { attachBrave, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { attachBrave, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -455,6 +455,42 @@ const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockab
     )
 }
 
+// BS08-055 竜騎集う円卓Lv2「系統：「龍帝」/「竜騎」を持つ自分のスピリットすべては、
+// 相手のスピリットの効果の対象になるたび、自分の手札1枚を破棄することで、その効果を受けない」の**確認専用**。
+//
+// 耐性の判定（resistanceAgainst）は装甲と同じ**同期の述語**なので、その場では選択を挟めない。
+// そこで「対象が確定してから適用するまで」の間に**先に守る側へ聞き**、答えを
+// state.payNegateDecision に置いてから元のアクション（resume）を解決し直す。
+// 破棄はこの時点で済ませるので、resistanceAgainst 側は答えを読むだけでよい。
+//
+// **スキップ＝効果を受ける**（resolveOnSkip で cardIndex なしでもここへ戻ってくる）。
+const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) => {
+    const { state, chosenCardIndex } = ctx
+    const found = findSpiritAny(state, action.targetInstanceId)
+    if (!found) {
+        // 聞いている間に対象が場を離れた。払わせずに元の処理へ戻す（そちらが「対象がいない」を出す）
+        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+        return
+    }
+    const defender = state.players[found.pid]
+    if (chosenCardIndex !== undefined && chosenCardIndex < defender.hand.length) {
+        const discarded = defender.hand.splice(chosenCardIndex, 1)
+        defender.trashCards.push(...discarded)
+        const names = discarded.map((id) => getCard(id).name).join("、")
+        log(
+            state,
+            `${action.sourceName}：${defender.name}は手札「${names}」を破棄し、${getCard(found.inst.cardId).name}は効果を受けなかった。`,
+        )
+        state.payNegateDecision = { targetInstanceId: action.targetInstanceId, paid: true }
+    } else {
+        state.payNegateDecision = { targetInstanceId: action.targetInstanceId, paid: false }
+    }
+    // **対象を明示的に渡し直す**（ctx.resolve は targetInstanceId を暗黙には引き継がない。
+    // 渡さないと元のアクションが「対象指定なし」の経路に落ちて、別のスピリットを巻き込む）
+    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+    return
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
@@ -471,6 +507,7 @@ const handlers = {
     burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
     costSetBurstThenDraw: costSetBurstThenDrawHandler,
+    payNegateDecide: payNegateDecideHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

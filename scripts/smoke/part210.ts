@@ -1,7 +1,7 @@
 // smoke パート210（効果文と実装の意味照合＝S7「誰が選ぶか」で見つかった食い違い）
 //
 // `discardOpponent` は**選択者が「破棄される相手本人」に焼き込まれている**
-// （type.ts の定義／handDeck.ts の tryInteractiveCardChoice(state, targetPid, …)）。
+// （type.ts の定義／drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, …)）。
 // これは「相手は、相手の手札1枚を破棄する」には正しいが、
 // 主語が「自分は」の効果に使うと**相手が最も不要なカードを差し出せる**＝印刷より弱くなる。
 //

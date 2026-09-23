@@ -21,7 +21,7 @@
 | B | 型がどのファイルにあるか | `type.ts`／`types/effectDef.ts`／`types/effectAction.ts` を行き来した。CLAUDE.md の索引1行が `type.ts` しか見ておらず、570個中144個しか出ていなかった（09-22 に修正済み） |
 | C | クライアントとサーバーの二重実装 | ②のコスト支払いが `shared/rules.ts`・`RuleValidator.ts`・`GameEngine.ts`・`public/src/main.ts`・`renderer.ts` の5ファイルにまたがった |
 | D | 誘発条件の軸がどこで判定されているか | `triggers.ts` の `effect.attackerOnly` などが散らばっている（`effect.X` の参照が381か所） |
-| E | 巨大なファイルの中の位置 | `handDeck.ts` 4566行など |
+| E | 巨大なファイルの中の位置 | `handDeck.ts` 4566行（09-23 に分割済み）など |
 
 ## 1. 項目（上から順に着手する）
 
@@ -29,7 +29,7 @@
 | :-- | :-- | :-- | :-- | :-- |
 | R1 | **差し込み先の手順書** `docs/design/WHERE_TO_ADD.md`：変更の種類ごとに、触るファイルと関数を列挙する（下の表） | A・B・C | 小（メインループが書く） | 未着手 |
 | R2 | **ヘルパーの索引を自動生成**：`npm run codemap` → `docs/CODEMAP.md`（export 名・ファイル:行・先頭コメント1行）。CI で「生成し直すと差分が出る」なら落とす | A | 小 | 未着手 |
-| R3 | **責務単位の分割**（§3）。`handDeck.ts` の6分割を最初に、名前と中身が食い違っているファイルを概念ごとに分ける | E・A | 中（移すだけ） | handDeck は決定済み。残りは §3 の案をユーザーに確認 |
+| R3 | **責務単位の分割**（§3）。`handDeck.ts` の6分割を最初に、名前と中身が食い違っているファイルを概念ごとに分ける | E・A | 中（移すだけ） | handDeck は分割済み（09-23）。残りは §3 の案をユーザーに確認 |
 | R4 | 型3ファイルのコメント削減（CLAUDE.md「コードスタイル」の基準で） | B・E | 中（機械的） | 決定済み |
 | R5 | 器の統合（§2）。手札破棄のコスト7種は M1 に含める | 器の増殖 | 大（段階的） | §2 の確認事項をユーザーに聞いてから |
 | R6 | 誘発条件の軸を `triggers.ts` の1関数に集める（軸の一覧＝その関数を読めば分かる形にする） | D | 中 | 調査から |
@@ -96,7 +96,7 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 
 | ファイル | 行 | 名前に無い責務（切り出し先の案） |
 | :-- | --: | :-- |
-| `actions/handDeck.ts` | 4566 | ドロー・破棄・公開・トラッシュ回収・デッキ破棄・バウンス・手元が同居 → `drawDiscard`／`tegamoto`／`reveal`／`trashRecover`／`mill`／`bounce`（決定済み） |
+| `actions/handDeck.ts` | 4566 | ドロー・破棄・公開・トラッシュ回収・デッキ破棄・バウンス・手元が同居 → `drawDiscard`／`tegamoto`／`reveal`／`trashRecover`／`mill`／`bounce`＋`magic`（09-23 分割済み。`familyChoiceThenBpBuffAll` は buff、`payNegateDecide` は control へ） |
 | `EffectModules.ts` | 4239 | 【転召】（`tenshoSpecOf`〜`applyTenshoSubstitute*`）、【粉砕】【呪撃】【暴風】【強襲】など**キーワードごとの判定**、デッキ破棄（`millDeck`・破棄無効）、疲労・回復（`exhaustSpirit`・`refreshSpirit`） → `keywords/tensho.ts`・`keywords/<キーワード>.ts`・`zones/mill.ts`・`state/exhaust.ts` |
 | `triggers.ts` | 2911 | 後半の約800行（`resolveMagic`〜`runMagicActions`）は**マジックの使用・無効化・対象の変更・再使用** → `magic.ts`。「お互い」の対象振り替え → `redirect.ts` |
 | `removal.ts` | 2879 | ブレイヴの合体・分離・維持（`attachBrave`〜`takeBraveKeep`）、復活・【不死】（`queueReviveConfirm`〜`tryReviveOnDestroy`） → `brave.ts`・`revive.ts`。ネクサス破壊は残す |

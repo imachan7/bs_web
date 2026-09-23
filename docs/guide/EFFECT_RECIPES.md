@@ -76,7 +76,8 @@ grep -n "ダークスカルデーモン" data/cards/*.json
 ① server/src/type.ts                  EffectAction に1行足す（説明コメントと実例カード名を必ず添える）
         ↓
 ② server/src/logic/actions/*.ts        ハンドラを書く。種類別のファイルへ:
-                                         destroy / cores / handDeck / buff / grant /
+                                         destroy / cores / drawDiscard / reveal / trashRecover /
+                                         mill / bounce / tegamoto / magic / buff / grant /
                                          battleFlow / exhaustRefresh / control / filter
         ↓
 ③ data/cards/BS0N.json                 カードに書く

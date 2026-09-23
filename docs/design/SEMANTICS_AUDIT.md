@@ -168,7 +168,7 @@ S4 は「候補を出して人が見る」道具として使い、対応付け�
 
 `chooserIsTarget` を書かなくても、実装側で相手に選ばせる type がある。
 代表は `discardOpponent`（「interactiveTargets 時は選択式（選択者は破棄される相手本人）」＝
-`type.ts` の定義コメント。`handDeck.ts` が `tryInteractiveCardChoice(state, targetPid, …)` を呼ぶ）。
+`type.ts` の定義コメント。`drawDiscard.ts` が `tryInteractiveCardChoice(state, targetPid, …)` を呼ぶ）。
 `forcedTargetPid` は選択式の再突入用の内部フィールドで、**cards.json には書かない**。
 
 このため「相手は、相手の手札1枚を破棄する」（マッチュラ／ツクシンモア／忍者サルトベ）は

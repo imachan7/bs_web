@@ -307,7 +307,7 @@ batch 化すると、誤った数え方を固定してしまう）。
 
 **移行しないもの（ルール②に基づく。＝これが正しい挙動）**:
 
-`handDeck.ts` ×2 / `battleFlow.ts` ×2 / `exhaustRefresh.ts` ×1 / `destroy.ts` の
+手札・デッキ系（旧 `handDeck.ts`）×2 / `battleFlow.ts` ×2 / `exhaustRefresh.ts` ×1 / `destroy.ts` の
 `destroyOwnByCost`・`destroyThenMillByCost` は、いずれも
 **「自分の〜を破壊する“ことで”」型＝②の同時発揮**。
 派生効果（フィールドに残る）の解決は恩恵の**後**なので、

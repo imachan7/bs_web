@@ -28,7 +28,7 @@ import {
     spiritHasKeyword,
     returnSpiritToHand,
 } from "../EffectModules"
-import { canDiscardHand, instFamilies, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { canDiscardHand, instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
@@ -815,6 +815,40 @@ const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, acti
         return
 }
 
+// BS15-073五輪転生炎フラッシュ：自分のフィールドのスピリットが持つ系統（重複除く）から1つ指定し、
+// このターンの間、合体していない指定した系統を持つ自分のスピリットすべてをBP+amountする
+const familyChoiceThenBpBuffAllHandler: ActionHandler<"familyChoiceThenBpBuffAll"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenOption } = ctx
+    const player = state.players[owner]
+    const candidateFamilies = Array.from(new Set(player.field.spirits.flatMap((s) => getCard(s.cardId).family)))
+    const applyBuff = (family: string): void => {
+        const targets = player.field.spirits.filter(
+            (s) => matchesFamilyFilter(state, owner, s, family) && (!action.uncombinedOnly || !instIsCombined(s)),
+        )
+        for (const t of targets) t.tempBpBuff += action.amount
+        log(state, `${sourceName}：系統「${family}」を持つ自分のスピリットすべてをBP+${action.amount}（ターン終了時まで）。`)
+    }
+    if (chosenOption !== undefined && candidateFamilies.includes(chosenOption)) {
+        applyBuff(chosenOption)
+        return
+    }
+    if (candidateFamilies.length === 0) {
+        log(state, `${sourceName}：指定できる系統がないため発動しなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：系統を1つ指定してください`, [], false, action, self, "option", candidateFamilies)
+        return
+    }
+    // 非対話：対象数が最大になる系統を選ぶ（プレイヤー選択の決定的簡略化）
+    const countFor = (family: string) =>
+        player.field.spirits.filter(
+            (s) => matchesFamilyFilter(state, owner, s, family) && (!action.uncombinedOnly || !instIsCombined(s)),
+        ).length
+    const best = candidateFamilies.reduce((a, b) => (countFor(b) > countFor(a) ? b : a))
+    applyBuff(best)
+}
+
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     selfBuff,
@@ -829,6 +863,7 @@ const handlers = {
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,
     selfBuffByHandDiscard,
+    familyChoiceThenBpBuffAll: familyChoiceThenBpBuffAllHandler,
 } satisfies Partial<ActionRegistry>
 
 // 古代闘技場Lv1（kind:"bpBuffSuppression"）：相手の「BPを+する」効果は発揮されない。
