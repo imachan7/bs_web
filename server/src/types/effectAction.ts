@@ -160,7 +160,8 @@ export type EffectAction =
     | { type: "markUnblockableThisTurn"; minBp: number; target?: "self" } // target:"self"指定時は発生源自身に印を付ける（BP最大の自動選択をしない。『このスピリットの召喚時：このターンの間、このスピリットはブロックされない』。BS07天使長トロン）// 実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける（CardInstance.unblockableOnceThisTurn。印は次のバトルの終了時に消える。候補2体以上ならinteractiveTargetsでプレイヤーに選ばせ、非対話時は実効BP最大を自動選択。BS04強者統べる大地Lv2）
     | { type: "discardHandNexusToVoidCoreSelf"; count: number } // 自分の手札のネクサスカード1枚を破棄することで、ボイドからコアcount個をこのスピリット上に置く。手札にネクサスが無ければ不発（BS04機織のハーフェレシテLv1）
     | { type: "discardHandNexusesThenDraw" } // 自分の手札にあるネクサスカードをすべて破棄し、破棄した枚数ぶんデッキから引く（「好きなだけ」を全部破棄に決定的簡略化。BS03ネクサスレジスター）
-    | { type: "discardSelfChoose"; count: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄（BS01ストームドロー）
+    | { type: "discardSelfChoose"; count: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[] } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄（BS01ストームドロー）。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）
+    | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
     | { type: "costDiscardHandTypeThenCoreRemove"; cardTypes: CardType[]; count: number } // 自分の手札にある指定種別のカード1枚を破棄することで、相手のスピリットのコアcount個を相手のリザーブに置く（COST_MODEL.md §1：破棄できないときは発揮しない）。BS11-075 トーテンタンツ＝スピリットカードかブレイヴカード1枚
     | { type: "costDiscardHandThenDraw"; discardCount: number; drawCount: number } // 「自分の手札discardCount枚を破棄することで、自分はデッキからdrawCount枚ドローする」（COST_MODEL.md §1：コストと効果の両方が完全に解決できるときだけ発揮できる）。
     | { type: "costDiscardHandThenDiscardOpponentMagic" } // 「自分の手札1枚を破棄することで、相手の手札すべてを見て、その中のマジックカード1枚を破棄する」。costDiscardHandThenDrawの兄弟で、効果側が discardOpponent（count:1, cardTypeFilter:"magic"）に委譲される。COST_MODEL.md §1：自分の手札が1枚以上、かつ相手の手札にマジックカードが1枚以上あるときだけ発揮する（片方でも欠けたら不発。何も破棄しない）。BS13-044吟遊詩人のオルフェ
