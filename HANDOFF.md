@@ -90,7 +90,7 @@ negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデ
 - **委譲は2色で1エージェント**（色ごとに1体を立てない。BS14 の4色並列で5時間制限に達した）
 - **サブに全 smoke と build:client を回させない**（typecheck と自分の part だけ。統合検証はメインループ1回）
 - **PR は1つの作業単位**で出す（弾の取り込みは弾ごと1つでよい）
-- **`main` へのマージで Cloud Run へ自動デプロイされる**。手で `gcloud run deploy` を打たない
+- **デプロイは Actions の「Run workflow」で手動**（main へのマージでは出ない。2026-09-23）。手で `gcloud run deploy` を打たない
 - 新しい監査は「**既知のバグをわざと戻して検出できること**」を確かめるまで信用しない
 
 ### 済んでいること（参照先を消さないこと）
