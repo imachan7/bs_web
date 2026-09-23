@@ -1,4 +1,3 @@
-// デッキを公開して、手札に加える・召喚する・配置する・戻すアクション。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"

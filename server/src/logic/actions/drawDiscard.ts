@@ -1,4 +1,3 @@
-// 手札を増減させるアクション（ドロー・手札の破棄・手札からデッキへ戻す）。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"

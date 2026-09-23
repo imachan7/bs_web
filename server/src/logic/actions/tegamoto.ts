@@ -1,4 +1,3 @@
-// 手元（テガモト）に置く・手元から使う・相手の手元を破棄するアクション。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { draw, getCard, log } from "../GameState"

@@ -1,4 +1,3 @@
-// デッキ破棄（デッキの上からトラッシュへ置く）と、その結果で分岐するアクション。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { GameState, PlayerId } from "../../type"
 import { getCard, log, opponentOf } from "../GameState"
@@ -67,8 +66,6 @@ const millThenDestroyByCardTypeHandler: ActionHandler<"millThenDestroyByCardType
     }
 }
 
-// BS09-084ドラゴニックハウル：自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の
-// 相手のスピリットすべてを破壊する。デッキが0枚なら破棄できないので不発
 const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
     const { state, owner, sourceName, srcColors, srcType } = ctx
     const player = state.players[owner]

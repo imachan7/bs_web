@@ -1,4 +1,3 @@
-// フィールドのスピリット・ネクサスを手札・デッキへ戻すアクション（バウンス）。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"

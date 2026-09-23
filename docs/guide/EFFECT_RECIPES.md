@@ -73,7 +73,7 @@ grep -n "ダークスカルデーモン" data/cards/*.json
 ## 4. 既存の語彙で足りないとき（3層で足す）
 
 ```
-① server/src/type.ts                  EffectAction に1行足す（説明コメントと実例カード名を必ず添える）
+① server/src/types/effectAction.ts     EffectAction に1行足す（コメントは裁定・簡略化・理由だけ。カード名や効果文は書かない）
         ↓
 ② server/src/logic/actions/*.ts        ハンドラを書く。種類別のファイルへ:
                                          destroy / cores / drawDiscard / reveal / trashRecover /

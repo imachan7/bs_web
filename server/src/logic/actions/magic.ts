@@ -1,4 +1,3 @@
-// 使用済みのマジックをもう一度発揮するアクション。
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log } from "../GameState"
 import { resolveMagic } from "../EffectModules"

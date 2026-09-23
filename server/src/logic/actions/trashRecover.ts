@@ -1,4 +1,3 @@
-// トラッシュのカードを手札・デッキへ戻す、トラッシュから召喚・使用するアクション。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { Color } from "../../type"
 import { getCard, log, suspend } from "../GameState"
