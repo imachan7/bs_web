@@ -198,7 +198,21 @@ function loadEntries(): EffectEntry[] {
 let DRY_RUN = false
 const DRY_ERRORS: string[] = []
 
-function patch(file: string, needle: string, replacement: string): void {
+// EffectModules.ts から概念ごとのファイルへ移した関数も、元の名前で差し込めるようにする。
+// 候補のうち needle を含むファイルがちょうど1つのときだけ、そのファイルへ差し込む
+function effectModulesFiles(tree: string): string[] {
+    const logic = path.join(tree, "server/src/logic")
+    const split = ["keywords", "zones", "state"].flatMap((d) => {
+        const dir = path.join(logic, d)
+        return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".ts")).map((f) => path.join(dir, f)) : []
+    })
+    return [path.join(logic, "EffectModules.ts"), ...split]
+}
+
+function patch(files: string | string[], needle: string, replacement: string): void {
+    const candidates = typeof files === "string" ? [files] : files
+    const found = candidates.filter((f) => fs.readFileSync(f, "utf-8").includes(needle))
+    const file = found.length === 1 ? found[0]! : candidates[0]!
     const body = fs.readFileSync(file, "utf-8")
     const hits = body.split(needle).length - 1
     if (hits !== 1) {
@@ -213,7 +227,13 @@ function patch(file: string, needle: string, replacement: string): void {
         throw new Error(message)
     }
     if (DRY_RUN) return
-    fs.writeFileSync(file, body.replace(needle, replacement))
+    let out = body.replace(needle, replacement)
+    // 分割先のファイルは __covRecord を import していないので足す（EffectModules.ts は (5) で足す）
+    if (replacement.includes("__covRecord") && path.basename(file) !== "EffectModules.ts" && !out.includes("import { __covRecord }")) {
+        const gs = path.relative(path.dirname(file), path.join(file.slice(0, file.indexOf("server/src/logic/") + "server/src/logic/".length), "GameState"))
+        out = `import { __covRecord } from "${gs}"\n` + out
+    }
+    fs.writeFileSync(file, out)
 }
 
 // 差し込み先が今も1箇所ずつ存在するかを、**worktree も smoke も使わずに**検査する。
@@ -737,7 +757,7 @@ process.on("exit", () => {
 
         // (3) resolveAction: どの効果エントリ由来の action かを記録する
         patch(
-            path.join(tree, "server/src/logic/EffectModules.ts"),
+            effectModulesFiles(tree),
             `    const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void`,
             `    // [計測] この action がどの効果エントリ由来か
     __covRecord("act\\t" + String((action as unknown as Record<string, unknown>)["__eid"] ?? "?") + "\\t" + action.type)
@@ -823,7 +843,7 @@ process.on("exit", () => {
         //     materialize する別経路なので、そこにも計測点を入れる（片方だけだと
         //     「侵されざる聖域／白夜の虚空の装甲付与が一度も適用されていない」という誤検出が出る）
         patch(
-            path.join(tree, "server/src/logic/EffectModules.ts"),
+            effectModulesFiles(tree),
             `                        if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []`,
@@ -835,7 +855,7 @@ process.on("exit", () => {
         //     ※ 読む側（hasArmorAgainst の granted 分岐）は keywordGrant 由来と区別できないため、
         //       ここだけは「相手フィールドにシンボルがある状態で場に居た」で実行済みとする
         patch(
-            path.join(tree, "server/src/logic/EffectModules.ts"),
+            effectModulesFiles(tree),
             `                        if (!source.armorColorsGranted) source.armorColorsGranted = []`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         if (!source.armorColorsGranted) source.armorColorsGranted = []`,
@@ -867,7 +887,7 @@ process.on("exit", () => {
         // (5a) EffectModules.ts 内の残り継続 kind（2026-07-30 拡張）。
         //     いずれも「.some()/.filter() に載った時点」ではなく「その効果固有の条件を
         //     すべて通過して値/挙動に反映される時点」に置く（aura の total += auraAmount と同じ基準）
-        const em = path.join(tree, "server/src/logic/EffectModules.ts")
+        const em = effectModulesFiles(tree)
         // globalConstraint「ownNexusIndestructible」: hasOwnNexusIndestructible の true 判定
         patch(
             // ※ 2026-08-10: この処理は EffectModules.ts から removal.ts へ移設された
@@ -1379,23 +1399,23 @@ process.on("exit", () => {
         // bofuChooserSelf（BS07ワールウィンド／BS09緑翼の大樹Lv2）
         patch(
             em,
-            `            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            `            // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             return true
         }
     }
     return false
 }
-
-// 召喚が済んだ後にまとめて走る処理`,
-            `            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+`,
+            `            // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
             return true
         }
     }
     return false
 }
-
-// 召喚が済んだ後にまとめて走る処理`,
+`,
         )
         // lifeDamageMillGuard（BS07六花の司書長サーガ）：実際にデッキを1枚削った時点
         patch(
