@@ -56,7 +56,7 @@
 「印が無い＝適合」ではない。
 
 代表が `discardOpponent`：**選択者は破棄される相手本人**に固定されている
-（`type.ts` の定義コメント／`handDeck.ts` の `tryInteractiveCardChoice(state, targetPid, …)`）。
+（`type.ts` の定義コメント／`drawDiscard.ts` の `tryInteractiveCardChoice(state, targetPid, …)`）。
 `forcedTargetPid` は選択式の再突入用の内部フィールドで、**cards.json には書かない**。
 
 | 効果文の形 | 選ぶ人 | 実装 |

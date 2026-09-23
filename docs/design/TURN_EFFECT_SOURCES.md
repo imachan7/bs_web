@@ -34,7 +34,7 @@
 | `shared/cost.ts` | 5 |
 | `server/src/logic/RuleValidator.ts` | 2 |
 | `server/src/logic/PhaseManager.ts` | 1 |
-| `server/src/logic/actions/handDeck.ts` | 1 |
+| `server/src/logic/actions/`（旧 handDeck.ts） | 1 |
 
 ### ⚠️⚠️ 分類は「関数単位」ではなく「**その走査が何を問うているか**」で決める
 

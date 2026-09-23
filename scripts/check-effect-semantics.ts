@@ -721,7 +721,7 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
 // 「相手は」側では等価表現（適合）、「自分は」側では**食い違い**になる。
 const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     // 選択者は破棄される相手本人（type.ts の discardOpponent 定義コメント／
-    // handDeck.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）
+    // drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）
     "discardOpponent",
     "discardOpponentDownTo",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
@@ -768,7 +768,7 @@ const S7_VERIFIED: Record<string, string> = {
     // （cores.ts coresDownToLimitHandler「選ぶのはコアを失う側」）。効果文の「相手は」と一致
     "BS10-019-e2": "ハンドラが chooserPid にコアを失う側を渡している（2026-09-13 確認）",
     // ハンドラが分岐先の destroy / destroyNexus に chooserIsTarget:true を渡している
-    // （handDeck.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
+    // （mill.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
     "BS14-111-e1": "ハンドラが chooserIsTarget:true を渡している（2026-09-13 確認）",
     // fieldEvent の actionPid が相手になる＝効果文の「相手は」と一致（S6 でも確認済み）
     "BS11-063-e1": "効果文の主語が「相手は」で、actionPid も相手になる（2026-09-13 確認）",

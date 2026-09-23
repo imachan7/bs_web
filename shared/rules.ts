@@ -2769,7 +2769,7 @@ export function hasMagicImmunity(
 
 // 発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
 // （returnToHand/returnAllToHand）を受けない（kind:"immunityGrant" against:"bounce"。BS06恐竜姫ジュラ）。
-// 呼び出し側（handDeck.tsのbounceガード）は自分自身の効果には適用しない（対象の持ち主==効果の持ち主なら呼ばない）
+// 呼び出し側（bounce.tsのバウンスガード）は自分自身の効果には適用しない（対象の持ち主==効果の持ち主なら呼ばない）
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function hasBounceImmunity(

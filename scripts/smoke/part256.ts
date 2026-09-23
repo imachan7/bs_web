@@ -2,7 +2,7 @@
 // オリオンパワー／エリダヌスフラッドの4枚を新規構造化。2026-08-28）
 //
 // 新設した機構: recoverMagicFromTrashのネクサス版アクション「recoverNexusFromTrash」
-// （server/src/logic/actions/handDeck.ts）。それ以外はすべて既存の器
+// （server/src/logic/actions/trashRecover.ts）。それ以外はすべて既存の器
 // （constraintGrant canBlockWhileRested targetMaxCost／levelAs treatAs:{plus:1}／
 // deployNexus from:"trash"／lendSelfThisTurn + fieldEvent ownSpiritDealtLife familyFilter／
 // TargetFilter.combined／bpBuff anySide）で書けた。
