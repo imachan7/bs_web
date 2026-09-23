@@ -51,12 +51,14 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
   --role=roles/cloudbuild.builds.builder --condition=None
 ```
 
-## 1.2 GitHub Actions はデプロイしない
+## 1.2 デプロイは手動で起動する（2026-09-23）
 
-`.github/workflows/ci.yml` は **typecheck / カードデータ検査 / smoke / E2E を回すだけ**。
-デプロイは下の `gcloud run deploy` を手元から叩く運用（GitHub に GCP の資格情報を
-置く判断をしていないため）。自動デプロイにするなら Workload Identity Federation を
-設定して `google-github-actions/deploy-cloudrun` を足す。
+`.github/workflows/ci.yml` は、main への push と PR では **typecheck / カードデータ検査 / smoke / E2E を回すだけ**。
+本番へ出すのは、GitHub の Actions 画面で「Run workflow」を押して **main** を選んだときだけ（`deploy` ジョブ）。
+認証は Workload Identity Federation。
+
+マージのたびに出さないのは、部屋の状態がメモリ上にあり、**デプロイで対戦中の試合が消える**ため。
+いくつかの PR をまとめてから、対戦が少ない時間を選んで出す。
 
 Azure 時代の `azure-deploy.yml` は 2026-09-12 に `ci.yml` へ改名し、
 Azure へのデプロイ手順を落とした（クレジット切れで宛先が死んでいたため）。

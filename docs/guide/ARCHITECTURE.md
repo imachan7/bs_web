@@ -83,7 +83,7 @@
 | `server/src/index.ts` | HTTP と Socket.IO の入口。ルーム管理、`/api/cards` などのエンドポイント | 435 |
 | `server/src/type.ts` | **型定義のすべて**。効果の語彙（`EffectAction` 198種・`EffectDef` の kind 89種）もここ | 2,168 |
 | `server/src/logic/` | エンジン本体（下表） | 約12,000 |
-| `server/src/logic/actions/` | 効果アクションの実装を種類別に分割（destroy / cores / drawDiscard / reveal / trashRecover / mill / bounce / tegamoto / magic / buff / grant / battleFlow / exhaustRefresh / control / filter） | 約9,000 |
+| `server/src/logic/actions/` | 効果アクションの実装を種類別に分割（destroy / cores / drawDiscard / reveal / trashRecover / mill / bounce / tegamoto / buff / grant / battleFlow / exhaustRefresh / control / filter） | 約9,000 |
 | `shared/` | **サーバーとクライアントの両方が使う判定**（rules / cost / block / summon / board） | 約2,500 |
 | `data/` | カードデータ（`cards/BS01〜BS09.json` 他）と定数・ローダー | — |
 | `public/src/` | クライアント（main / renderer / deck / bugreport）。**UI担当の担当領域** | 約4,000 |
