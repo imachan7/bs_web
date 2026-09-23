@@ -466,6 +466,20 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
 // 自分の手札から count 枚を破棄する。実対戦（interactiveTargets）では1枚ずつ選ばせ、
 // 残りぶんを queue に積んで同じアクションへ戻ってくる（discardSelfOne の選択機構を count 回ぶん繰り返す形）。
 // 非interactive時は既存の決定的簡略化に合わせて手札の末尾から順に破棄する
+// discardSelfChoose の cardType/keyword 絞り込み一致判定。両方省略時は手札全カードが対象（従来どおり）。
+// pay.ts の判定表からも使う
+export const discardSelfChooseEligible = (cardId: string, action: Extract<EffectAction, { type: "discardSelfChoose" }>): boolean => {
+    if (action.cardType !== undefined) {
+        const wanted = Array.isArray(action.cardType) ? action.cardType : [action.cardType]
+        if (!wanted.includes(getCard(cardId).type)) return false
+    }
+    if (action.keyword !== undefined) {
+        const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
+        if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false
+    }
+    return true
+}
+
 const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
@@ -478,7 +492,7 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
     // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残りは queue 側が処理する）
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
+        if (cardId === undefined || !discardSelfChooseEligible(cardId, action)) {
             log(state, `${sourceName}の手札破棄：対象がいなかった。`)
             return
         }
@@ -487,12 +501,12 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
         log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
         return
     }
-    if (player.hand.length === 0) {
+    const indices = player.hand.map((_, i) => i).filter((i) => discardSelfChooseEligible(player.hand[i]!, action))
+    if (indices.length === 0) {
         log(state, `${sourceName}の手札破棄：手札がなかった。`)
         return
     }
     if (state.interactiveTargets) {
-        const indices = player.hand.map((_, i) => i)
         if (
             tryInteractiveCardChoice(
                 state,
@@ -501,20 +515,29 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
                 `${sourceName}の手札破棄：破棄するカードを選んでください（残り${action.count}枚）`,
                 "hand",
                 indices,
-                { type: "discardSelfChoose", count: 1 },
-                action.count > 1 ? { type: "discardSelfChoose", count: action.count - 1 } : null,
+                { type: "discardSelfChoose", count: 1, ...(action.cardType !== undefined ? { cardType: action.cardType } : {}), ...(action.keyword !== undefined ? { keyword: action.keyword } : {}) },
+                action.count > 1
+                    ? {
+                          type: "discardSelfChoose",
+                          count: action.count - 1,
+                          ...(action.cardType !== undefined ? { cardType: action.cardType } : {}),
+                          ...(action.keyword !== undefined ? { keyword: action.keyword } : {}),
+                      }
+                    : null,
             )
         ) {
             return
         }
     }
-    // 決定的自動選択（テスト等）：手札末尾から count 枚を破棄する
+    // 決定的自動選択（テスト等）：条件に合う候補の末尾から count 枚を破棄する
     for (let i = 0; i < action.count; i++) {
-        const cardId = player.hand.pop()
-        if (cardId === undefined) {
+        const at = indices.pop()
+        if (at === undefined) {
             log(state, `${sourceName}の手札破棄：手札がなかった。`)
             return
         }
+        const cardId = player.hand[at]!
+        player.hand.splice(at, 1)
         player.trashCards.push(cardId)
         log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
     }

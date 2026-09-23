@@ -14,12 +14,14 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
 import ACTION_HANDLERS from "../server/src/logic/actions/index"
+import { PAYABLE_TYPES } from "../server/src/logic/actions/pay"
 import { KEYWORDS } from "../shared/rules"
 import { COLOR_LABELS } from "../data/constants"
 import type { CardData } from "../server/src/type"
 import { loadAllCards } from "../data/loadCards"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
+const VALID_PAY_TYPES = new Set<string>(PAYABLE_TYPES)
 const VALID_KEYWORDS = new Set(Object.keys(KEYWORDS))
 const VALID_COLORS = new Set(Object.keys(COLOR_LABELS))
 const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
@@ -342,6 +344,27 @@ function checkTargetFilters(
     }
 }
 
+// pay の cost/then は判定表（PAYABLE_TYPES）にある type しか実際には解決できない
+// （actions/pay.ts の CHECKERS に無い type は canPayResolve が false を返し不発になる）。
+// カードデータの段階で落とす
+function checkPayActions(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkPayActions(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    if (obj["type"] === "pay") {
+        for (const side of ["cost", "then"] as const) {
+            const t = (obj[side] as { type?: unknown } | undefined)?.type
+            if (typeof t !== "string" || !VALID_PAY_TYPES.has(t)) {
+                add(cardId, `pay の ${side} に判定表に無い type "${String(t)}" がある（不発になる。対応は ${[...VALID_PAY_TYPES].join(" / ")} のみ）`)
+            }
+        }
+    }
+    for (const v of Object.values(obj)) checkPayActions(cardId, v, add)
+}
+
 export function validateCards(cards: CardData[]): ValidationIssue[] {
     const issues: ValidationIssue[] = []
     const add = (cardId: string, message: string): void => {
@@ -526,6 +549,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         // --- TargetFilter（旧フィールド残存・未知の軸・無視される軸）の検査 ---
         checkTargetFilters(id, actions, add)
 
+        // --- pay の cost/then が判定表にある type か ---
+        checkPayActions(id, c.effects, add)
+
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
 
@@ -558,6 +584,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）
     ["extraAttackStep", "BS10-008 火星神龍アレス・ドラグーンが使う。BS10 は data/staging にあり data/cards 未投入のため、仕組みだけ先行（2026-08-25）"],
     ["endStepLock", "BS10-108 ルナティックシールが使う。同上（2026-08-25）"],
+    ["pay", "「〜することで〜する」の汎用の器を先行導入（PAY_HOOKS.md）。既存12種からの移行は別バッチで、移行が終わったらカードが使うのでこの行を消すこと（2026-09-24）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

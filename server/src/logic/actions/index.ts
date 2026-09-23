@@ -13,6 +13,7 @@ import drawDiscard from "./drawDiscard"
 import exhaustRefresh from "./exhaustRefresh"
 import grant from "./grant"
 import mill from "./mill"
+import pay from "./pay"
 import reveal from "./reveal"
 import tegamoto from "./tegamoto"
 import trashRecover from "./trashRecover"
@@ -29,6 +30,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...grant,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     ...mill,
+    ...pay,
     ...reveal,
     ...tegamoto,
     ...trashRecover,
