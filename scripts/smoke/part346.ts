@@ -338,7 +338,7 @@ console.log("=== 081 ローヤルバイブル：コスト2の自分のスピリ�
     two.isRested = true
     const other = put(s, "p1", "BS15-041", 1) // コスト4
     other.isRested = true
-    resolveAction(s, "p1", null, { type: "refreshAllOwnByFilter", filter: { cost: { max: 2, min: 2 } } })
+    resolveAction(s, "p1", null, { type: "refreshOne", all: true, filter: { cost: { max: 2, min: 2 } } })
     assert(!two.isRested, "コスト2は回復する")
     assert(other.isRested, "コスト2以外は回復しない")
 }

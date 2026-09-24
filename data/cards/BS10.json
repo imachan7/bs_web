@@ -1572,9 +1572,11 @@
         "whileCombined": true,
         "oncePerTurn": true,
         "action": {
-          "type": "refreshAllByKeyword",
-          "keyword": "clash",
-          "side": "own"
+          "type": "refreshOne",
+          "all": true,
+          "filter": {
+            "keyword": "clash"
+          }
         }
       },
       {
@@ -4495,7 +4497,8 @@
         "subjectSide": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshAllOwnByFilter",
+          "type": "refreshOne",
+          "all": true,
           "filter": {
             "vanilla": true
           }

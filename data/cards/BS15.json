@@ -5230,7 +5230,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshAllOwnByFilter",
+     "type": "refreshOne",
+     "all": true,
      "filter": {
       "cost": {
        "max": 2,

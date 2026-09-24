@@ -2515,12 +2515,14 @@
      3
     ],
     "action": {
-     "type": "refreshByFamily",
-     "familyFilter": [
-      "龍帝",
-      "虚神"
-     ],
-     "count": 99
+     "type": "refreshOne",
+     "all": true,
+     "filter": {
+      "family": [
+       "龍帝",
+       "虚神"
+      ]
+     }
     }
    }
   ]

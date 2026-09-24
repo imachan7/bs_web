@@ -7798,8 +7798,12 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshAllByKeyword",
-     "keyword": "soku"
+     "type": "refreshOne",
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "keyword": "soku"
+     }
     }
    }
   ]
