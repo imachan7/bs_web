@@ -17,8 +17,7 @@ import {
     hasArmorAgainst,
     resolveAction,
     runTurnStart,
-    spiritHasKeyword,
-} from "./helpers"
+    spiritHasKeyword, bpBuffOf } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
 import { instHasCost } from "../../shared/rules"
 
@@ -106,7 +105,7 @@ console.log("=== BS02-056 アルカナビースト・ケン e1：Lv3でアルカ
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: panDoll.instanceId }) === null, "アルカナドール・パンでブロック")
-    assert(panDoll.tempBpBuff === 2000, "ケンLv3の付与効果でブロック時+2000")
+    assert(bpBuffOf(s, panDoll) === 2000, "ケンLv3の付与効果でブロック時+2000")
 }
 
 console.log("--- 非アルカナ名はブロックしても+2000されない ---")

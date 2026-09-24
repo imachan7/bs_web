@@ -8,7 +8,7 @@
 //     BS04エンジン拡張バッチ2でメイン行も構造化されたため、バトル外キャストはメイン効果を優先する
 //     ようになった。ここではバトル中のフラッシュ優先権下でキャストしてflash効果を検証する）
 //   - BS04-X14 魔界七将パンデミウム：battleRole省略のためブロッカー勝利でもドロー1枚（onBattle）
-import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, effectiveBp, runTurnStart, bpBuffOf } from "./helpers"
 
 console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2 selfBuff（アタック時BP+1000） ===")
 {
@@ -38,7 +38,7 @@ console.log("=== BS04-002 カメレウィップ: Lv1 cantBlock（制約） / Lv2
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     cham.cores = 3 // Lv2へ（cantBlockは対象外・selfBuffが有効化）
     assert(act(s, "p1", { type: "attack", instanceId: cham.instanceId }) === null, "Lv2のカメレウィップでアタック")
-    assert(cham.tempBpBuff === 1000, "アタック時効果（selfBuff）でBP+1000")
+    assert(bpBuffOf(s, cham) === 1000, "アタック時効果（selfBuff）でBP+1000")
 }
 
 console.log("=== BS04-006 骸竜ゾン・サウル: e1オーラ（自分のアタックステップ中のみ紫+1000）/ e2 destroyExhausted（Lv3） ===")

@@ -391,9 +391,9 @@ export {
     takeLifeAndResolve,
     runTurnStart,
 }
-// その個体に乗っている「ターン終了時まで」の BP+。量が可変の BP+ は個体の tempBpBuff ではなくルールとして持つので両方を足す
+// その個体に乗っている期間つきの BP+（ターン終了時まで・バトルの間の両方）。量が可変の BP+ は個体ではなくルールとして持つので足す
 export function bpBuffOf(state: GameState, inst: CardInstance): number {
     const pid = state.players.p1.field.spirits.includes(inst) ? "p1" : "p2"
-    return inst.tempBpBuff + timedRuleBp(state, pid, inst)
+    return inst.tempBpBuff + (inst.battleBpBuff ?? 0) + timedRuleBp(state, pid, inst)
 }
 export type { GameAction, GameState, PlayerId }

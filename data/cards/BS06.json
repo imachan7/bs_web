@@ -384,7 +384,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -481,7 +481,7 @@
        "amount": 4000
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -1871,7 +1871,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -2472,7 +2472,7 @@
        "amountCounter": "ownExhausted"
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -2737,7 +2737,7 @@
        "amount": 4000
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -2800,7 +2800,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false
@@ -3372,7 +3372,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     },
     "optional": false

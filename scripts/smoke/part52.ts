@@ -4,7 +4,7 @@
 //   - BS01-098 燃えさかる戦場 Lv2: ターン最初のアタックに対して相手は必ずブロック（firstAttackOnly）
 //   - BS04-024 ダックル: ターン最初のアタック時にBP+2000（triggered condition firstAttackOfTurn）
 // 「可能ならば」の判定は validateBlock を通す（実際にブロックできる相手がいるときだけ強制）
-import { assert, act, takeLifeAndResolve, createGame, createInstance, runTurnStart } from "./helpers"
+import { assert, act, takeLifeAndResolve, createGame, createInstance, runTurnStart, bpBuffOf } from "./helpers"
 
 console.log("=== BS04-076 Lv2: 翼竜のアタックはライフで受けられない（強制ブロック） ===")
 {
@@ -90,7 +90,7 @@ console.log("=== BS04-024 ダックル: ターン最初のアタックのとき�
     s.players.p1.field.spirits.push(duck2)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: duck1.instanceId }) === null, "1体目のダックルでアタック")
-    assert(duck1.tempBpBuff === 2000, "ターン最初のアタックなのでBP+2000")
+    assert(bpBuffOf(s, duck1) === 2000, "ターン最初のアタックなのでBP+2000")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")

@@ -143,7 +143,12 @@ function collectSelfBuffActions(node: unknown, out: OldSelfBuff[]): void {
         if (obj.type === "timedEffect" && obj.target === "self" && content?.length === 1 && content[0]!.type === "bp") {
             const bp = content[0]!
             const old: OldSelfBuff = { type: "selfBuff", amount: bp.amount, ...(bp.amountCounter !== undefined ? { amountCounter: bp.amountCounter } : {}) }
-            assert(canonical(toTimedEffect(old)) === canonical(obj), `データの書き方は確定スキーマの変換どおり（${JSON.stringify(obj)}）`)
+            // 期間は『アタック時』『ブロック時』なら battle、それ以外は turn（ACTION_VOCABULARY §4）。ここでは形だけを比べる
+            assert(
+                (obj.duration === "turn" || obj.duration === "battle") &&
+                    canonical({ ...(toTimedEffect(old) as Record<string, unknown>), duration: obj.duration }) === canonical(obj),
+                `データの書き方は確定スキーマの変換どおり（${JSON.stringify(obj)}）`,
+            )
             out.push(old)
         }
         for (const key of Object.keys(obj)) collectSelfBuffActions(obj[key], out)

@@ -1901,7 +1901,7 @@
        "amountCounter": "opponentFieldSpiritColors"
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "side": "own"
     },
     "optional": false
@@ -2229,7 +2229,7 @@
        "amountCounter": "opponentFieldColors"
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "side": "own"
     },
     "optional": false

@@ -38,8 +38,7 @@ import {
     assert,
     act,
     takeLifeAndResolve,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState } from "./helpers"
 
 console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
@@ -72,7 +71,7 @@ console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
     assert(act(s, "p2", { type: "endTurn" }) === null, "p2がターン終了")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: jassei.instanceId }) === null, "ドラグノ突撃兵でアタック")
-    assert(jassei.tempBpBuff === 2000, "アタック時効果（selfBuff）でBP+2000")
+    assert(bpBuffOf(s, jassei) === 2000, "アタック時効果（selfBuff）でBP+2000")
 }
 {
     console.log("--- BS02-017 マミーラ：召喚時に相手スピリット上のコア1個をリザーブへ ---")

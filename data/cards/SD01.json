@@ -207,7 +207,7 @@
               "amount": 2000
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       }
@@ -1021,7 +1021,7 @@
               "amount": 2000
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       }
@@ -1228,7 +1228,7 @@
               "amount": 3000
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         },
         "optional": false

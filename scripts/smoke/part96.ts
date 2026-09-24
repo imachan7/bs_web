@@ -6,7 +6,7 @@
 // - BS01-149 アタックシフト：blockTriggersAsAttackAllThisTurn（attackTriggersAsBlockThisTurnの逆方向・全体版）
 // - BS03-143 ブリッツ：effectGrant(lentOnly) + 新action voidCoreToOwnTrash
 // いずれも既存の lendSelfThisTurn（マジック自身をこのターンだけ仮想発生源として場に置く器）を使う。
-import { act, assert, createGame, createInstance, currentLevel, effectiveBp, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, currentLevel, effectiveBp, runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -104,7 +104,7 @@ console.log("=== BS01-149 アタックシフト：『ブロック時』効果が
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(attacker.tempBpBuff === 0, "アタック宣言前はまだ+0")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタックを宣言する")
-    assert(attacker.tempBpBuff === 4000, "『ブロック時』のBP+4000がアタック時に発揮される")
+    assert(bpBuffOf(s, attacker) === 4000, "『ブロック時』のBP+4000がアタック時に発揮される")
 }
 
 console.log("--- アタックシフト適用中は『ブロック時』には発揮されない ---")
@@ -134,7 +134,7 @@ console.log("--- マジックを使わなければ従来どおりブロック時
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
-    assert(blocker.tempBpBuff === 4000, "マジック未使用ではブロック時に通常どおりBP+4000する")
+    assert(bpBuffOf(s, blocker) === 4000, "マジック未使用ではブロック時に通常どおりBP+4000する")
 }
 
 console.log("=== BS03-143 ブリッツ：【粉砕】持ちのアタック時、ボイドからコア1個を自分のトラッシュに置く ===")
