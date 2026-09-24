@@ -37,16 +37,16 @@ const VOLCANO = CARDS.find((c) =>
 const SWEEP = CARDS.find((c) =>
     (c.effects ?? []).some((e) => {
         const a = e["action"] as Record<string, unknown> | undefined
-        return a?.["type"] === "returnAllToHand" && a["side"] === "both" && a["costFilter"] !== undefined
+        return a?.["type"] === "returnToHand" && a["all"] === true && a["anySide"] === true && (a["filter"] as Record<string, unknown> | undefined)?.["cost"] !== undefined
     }),
 )
 if (!VOLCANO || !SWEEP) throw new Error("検証用のカード（手札戻し誘発ネクサス／まとめ戻しマジック）が見つかりません")
 
 const SWEEP_ENTRY = (SWEEP.effects ?? []).find(
-    (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnAllToHand",
+    (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnToHand" && (e["action"] as Record<string, unknown>)["all"] === true,
 )!
 const SWEEP_MAX_COST = Number(
-    ((SWEEP_ENTRY["action"] as Record<string, unknown>)["costFilter"] as Record<string, unknown>)["max"],
+    (((SWEEP_ENTRY["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["cost"] as Record<string, unknown>)["max"],
 )
 const VOLCANO_ENTRY = (VOLCANO.effects ?? []).find((e) => e["event"] === "ownSpiritReturnedToHand")!
 const VOLCANO_FAMILY = String(VOLCANO_ENTRY["familyFilter"])

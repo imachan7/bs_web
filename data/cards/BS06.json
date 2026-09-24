@@ -4011,7 +4011,9 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "cost": {
        "max": 4,
@@ -4085,7 +4087,9 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "anySide": true,
      "filter": {
       "cost": {
@@ -6582,8 +6586,9 @@
      3
     ],
     "action": {
-     "type": "returnAllToHand",
-     "side": "opponent",
+     "type": "returnToHand",
+     "count": 1,
+     "all": true,
      "filter": {
       "maxBp": 4000
      }

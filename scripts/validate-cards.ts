@@ -278,14 +278,14 @@ const LEGACY_FILTER_FIELDS = [
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
 // 新しく filter へ移すアクションを増やしたらここに追記する
 const FILTER_ACTIONS = new Set([
-    "destroy", "destroyAll", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
+    "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
 ])
 
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested", "refreshed",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser",
     "sameCostAsEventTarget", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
@@ -295,7 +295,6 @@ const VALID_FILTER_KEYS = new Set([
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
-    exhaustAll: ["cores", "excludeSelf", "cost", "sameCostAsEventTarget"], // BS05双剣虎ジェン・フー／SD02-002 ミザール（同じコスト）。他の軸は exhaustAll ハンドラが見ない
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
     bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla"],

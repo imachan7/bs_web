@@ -864,7 +864,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "anySide": true,
      "filter": {
       "rested": true,
@@ -883,7 +885,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "anySide": true,
      "filter": {
       "rested": true,
@@ -1572,8 +1576,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "exhaustAll",
-     "side": "both",
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "cores": 1,
       "excludeSelf": true
@@ -2893,7 +2899,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "anySide": true,
      "filter": {
       "cost": {
@@ -4153,7 +4161,9 @@
      "魔界七将"
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "anySide": true,
      "filter": {
       "rested": true

@@ -660,7 +660,6 @@ function destroyAllTargets(
         return
 }
 
-const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => destroyAllTargets(ctx, action)
 
 // BS12-X06海賊王レヴィアダン『召喚時』：自分の familyFilter 一致スピリット（self自身も含む）の
 // コストの集合に、コストが一致する相手のスピリットすべてを破壊する（器BH）
@@ -758,8 +757,8 @@ const destroyLifeDamagerHandler: ActionHandler<"destroyLifeDamager"> = (ctx, act
 }
 
 // ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
-// 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroyAll では表現できない。
-// 免疫まわりの扱いは destroyAll と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
+// 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroy{all} では表現できない。
+// 免疫まわりの扱いは destroy{all} と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
 const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyThenWipeEnemy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
     const ownTargets = state.players[owner].field.spirits
@@ -1179,7 +1178,7 @@ const destroyAllByChosenCostHandler: ActionHandler<"destroyAllByChosenCost"> = (
     if (chosenOption !== undefined) {
         const n = parseInt(chosenOption, 10)
         if (!Number.isFinite(n)) return
-        ctx.resolve({ type: "destroyAll", filter: { cost: { min: n, max: n } } })
+        ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: n, max: n } } })
         return
     }
     const options = Array.from({ length: action.maxCost + 1 }, (_, i) => String(i))
@@ -1191,7 +1190,7 @@ const destroyAllByChosenCostHandler: ActionHandler<"destroyAllByChosenCost"> = (
     const countFor = (cost: number): number => state.players[opp].field.spirits.filter((s) => instAllCosts(s).includes(cost)).length
     let best = 0
     for (let c = 1; c <= action.maxCost; c++) if (countFor(c) > countFor(best)) best = c
-    ctx.resolve({ type: "destroyAll", filter: { cost: { min: best, max: best } } })
+    ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: best, max: best } } })
 }
 
 const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
@@ -2319,7 +2318,6 @@ const handlers = {
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,
-    destroyAll: destroyAllHandler,
     destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyLifeDamager: destroyLifeDamagerHandler,

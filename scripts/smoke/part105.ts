@@ -221,7 +221,7 @@ console.log("=== BS04-043 ワルキューレ・ヒルド：Lv1-2 相手のスピ
     )
     // 範囲効果（destroyAll）でも無力にならないことを確認
     const other = put(s, "p1", "BS01-001", 1) // 免疫を持たない自分のスピリット
-    resolveAction(s, "p2", p2Source, { type: "destroyAll" })
+    resolveAction(s, "p2", p2Source, { type: "destroy", count: 1, all: true })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === hild.instanceId),
         "範囲破壊（destroyAll）でもヒルドは残る",

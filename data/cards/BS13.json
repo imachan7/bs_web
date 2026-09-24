@@ -6009,7 +6009,9 @@
      }
     },
     "action": {
-     "type": "destroyAll"
+     "type": "destroy",
+     "count": 1,
+     "all": true
     }
    },
    {

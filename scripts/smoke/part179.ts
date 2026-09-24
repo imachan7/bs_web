@@ -164,7 +164,7 @@ console.log("=== 「この効果で破壊した1体につき」の枚数は、�
     const handBefore = s.players.p1.hand.length
     const oppBefore = s.players.p2.field.spirits.length
 
-    resolveAction(s, "p1", null, { type: "destroyAll", anySide: false, drawPerDestroyed: true })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, drawPerDestroyed: true })
 
     const actuallyDestroyed = oppBefore - s.players.p2.field.spirits.length
     const drawn = s.players.p1.hand.length - handBefore

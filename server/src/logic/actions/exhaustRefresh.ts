@@ -266,41 +266,6 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
     log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
 
-const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 指定側のスピリットをBP範囲で疲労させる（相手側のみ装甲・疲労免疫を尊重）
-        // filter.sameCostAsEventTarget（SD02-002 ミザール＝「アタックしている相手と同じコスト」）は
-        // normalizeFilter が cost 軸へ解決するので、ここで解決してから costFilter と同じ扱いで使う
-        const resolved = action.filter ? normalizeFilter(ctx, action) : undefined
-        if (resolved === SELF_REQUIRED) {
-            log(state, `${sourceName}：コストの参照元がいなかった。`)
-            return
-        }
-        const costFilter = action.costFilter ?? resolved?.cost
-        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
-        let exhausted = 0
-        for (const pid of sides) {
-            for (const s of [...state.players[pid].field.spirits]) {
-                if (s.isRested) continue
-                const bp = effectiveBp(state, pid, s)
-                if (action.minBp !== undefined && bp < action.minBp) continue
-                if (action.maxBp !== undefined && bp > action.maxBp) continue
-                // costFilter：対象のコストで絞る（道化師クランの付与コストも見る。
-                // returnAllToHand と同じ形。SD01-017 重装蟲キャタバルガ＝コスト1以下）
-                if (!instMatchesCostFilter(s, costFilter)) continue
-                // filter は cores / excludeSelf / cost（sameCostAsEventTarget 経由を含む）に対応
-                // （BS05双剣虎ジェン・フー：コア1個のみ・自分以外／SD02-002 ミザール：同じコスト）
-                if (action.filter?.cores !== undefined && s.cores !== action.filter.cores) continue
-                if (action.filter?.excludeSelf && self && s.instanceId === self.instanceId) continue
-                if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s, undefined, owner, srcType)
-                exhausted++
-            }
-        }
-        log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
-        return
-}
-
 // BS10-074 きぐるみクマッター：相手のネクサスすべてを疲労させる
 const exhaustAllOpponentNexusesHandler: ActionHandler<"exhaustAllOpponentNexuses"> = (ctx) => {
     const { state, opp, sourceName } = ctx
@@ -339,31 +304,6 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
         return
     }
     log(state, `${sourceName}：相手のスピリット/ネクサス合計${exhausted}個を疲労させた。`)
-}
-
-const exhaustAllByLevelHandler: ActionHandler<"exhaustAllByLevel"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 両陣営のcurrentLevelが一致するスピリットをすべて疲労させる（疲労済みはno-op、範囲効果）。
-        // "lastBattleDestroyed"指定時は直前のバトル解決で破壊されたブロッカーのLvを使用（0=まだ発生していない=不発。魔界伯爵ヴィール）
-        const level =
-            action.level === "lastBattleDestroyed" ? state.lastBattleDestroyedLevel : action.level
-        if (level === 0) {
-            log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいないため発動しなかった。`)
-            return
-        }
-        let count = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const s of [...state.players[pid].field.spirits]) {
-                if (currentLevel(s).level !== level) continue
-                if (s.isRested) continue
-                // 疲労させる側（owner）と持ち主が異なるときのみ装甲・疲労免疫・範囲免疫を判定（トランプの王国）
-                if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
-                exhaustSpirit(state, pid, s, undefined, owner, srcType)
-                count++
-            }
-        }
-        log(state, `${sourceName}：Lv${level}のスピリット${count}体を疲労させた。`)
-        return
 }
 
 const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, action) => {
@@ -1253,10 +1193,8 @@ const handlers = {
     markSuppressTriggerThisTurn: markSuppressTriggerThisTurnHandler,
     banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
-    exhaustAll: exhaustAllHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
     exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
-    exhaustAllByLevel: exhaustAllByLevelHandler,
     exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
     exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,

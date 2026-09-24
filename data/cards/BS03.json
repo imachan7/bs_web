@@ -515,11 +515,13 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 2000
-     },
-     "anySide": true
+     }
     },
     "optional": false
    }
@@ -1137,8 +1139,13 @@
     ],
     "optional": false,
     "action": {
-     "type": "exhaustAllByLevel",
-     "level": "lastBattleDestroyed"
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "sameLevelAsBattleLoser": true
+     }
     }
    }
   ]
@@ -6801,9 +6808,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "exhaustAll",
-     "side": "both",
-     "maxBp": 2000
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "maxBp": 2000
+     }
     }
    }
   ]

@@ -2867,7 +2867,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyAll",
+          "type": "destroy",
+          "count": 1,
+          "all": true,
           "filter": {
             "keyword": "kyoshu"
           }
@@ -4626,7 +4628,9 @@
           ]
         },
         "action": {
-          "type": "destroyAll",
+          "type": "destroy",
+          "count": 1,
+          "all": true,
           "filter": {
             "rested": true,
             "keywordExclude": "tensho"
@@ -5362,8 +5366,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "exhaustAll",
-          "side": "opponent"
+          "type": "exhaust",
+          "count": 1,
+          "all": true
         }
       },
       {

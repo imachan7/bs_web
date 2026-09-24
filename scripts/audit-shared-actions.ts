@@ -40,7 +40,7 @@ const VERIFIED = new Map<string, string>([
         "誤検出。BS01-X02 デスペラードの「このスピリット以外」は別ブロック（coreSqueezeAll）のもので、coreSqueezeOne の節にその記載は無い",
     ],
     [
-        "exhaustAll:excludeSelf",
+        "exhaust:excludeSelf",
         "正しい実装。BS05-027 ジェン・フーは filter.excludeSelf:true を持つ（TargetFilter 側で除外を表現している）",
     ],
     [

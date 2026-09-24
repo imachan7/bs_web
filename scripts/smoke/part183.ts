@@ -247,7 +247,7 @@ console.log("=== BS09-072 シャドウブレイド：赤と紫がそろってい
     const src = put(s, "p1", PLAIN, 1)
     const rested = put(s, "p2", PLAIN, 3)
     rested.isRested = true
-    resolveAction(s, "p1", src, { type: "destroyAll", filter: { rested: true, keywordExclude: "tensho" } })
+    resolveAction(s, "p1", src, { type: "destroy", count: 1, all: true, filter: { rested: true, keywordExclude: "tensho" } })
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === rested.instanceId), "疲労状態で【転召】を持たない相手は破壊される")
 }
 {
@@ -255,7 +255,7 @@ console.log("=== BS09-072 シャドウブレイド：赤と紫がそろってい
     runTurnStart(s)
     const tensho = put(s, "p2", "BS09-018", 3)
     tensho.isRested = true
-    resolveAction(s, "p1", null, { type: "destroyAll", filter: { rested: true, keywordExclude: "tensho" } })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, filter: { rested: true, keywordExclude: "tensho" } })
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === tensho.instanceId), "【転召】持ちは破壊されない")
 }
 

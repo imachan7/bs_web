@@ -42,7 +42,7 @@ console.log("=== §A exhaustAll（BS04-099 グラウンドハウリング：BP40
     if (immuneInst) immuneInst.immuneToOpponentThisTurn = true
 
     // 実カード（BS04-099-e1）の action をそのまま解決
-    resolveAction(s, "p1", null, { type: "exhaustAll", side: "opponent", minBp: 4000 }, undefined, ["green"], "magic")
+    resolveAction(s, "p1", null, { type: "exhaust", count: 1, all: true, filter: { minBp: 4000 } }, undefined, ["green"], "magic")
 
     assert(spiritOf(s, "p2", immune)?.isRested === false, "exhaustAll：免疫スピリットは疲労しない")
     assert(spiritOf(s, "p2", control)?.isRested === true, "exhaustAll：免疫を持たない対照は疲労する")
@@ -84,7 +84,7 @@ console.log("=== §C exhaustAllByLevel（BS04-100 ジャングルロウのaction
     // BS01-018 リザードマン Lv2（cores2）：無防備な対照
     const control = put(s, "p2", "BS01-018", 2)
 
-    resolveAction(s, "p1", null, { type: "exhaustAllByLevel", level: 2 }, undefined, ["green"], "magic")
+    resolveAction(s, "p1", null, { type: "exhaust", count: 1, all: true, anySide: true, filter: { level: [2] } }, undefined, ["green"], "magic")
 
     assert(spiritOf(s, "p2", armored)?.isRested === false, "exhaustAllByLevel：装甲（緑）を持つスピリットは疲労しない")
     assert(spiritOf(s, "p2", immune)?.isRested === false, "exhaustAllByLevel：免疫スピリットは疲労しない")
@@ -106,7 +106,7 @@ console.log("=== §D returnAllToHand（BS04-102 ドリームハンド：コス�
         s,
         "p1",
         null,
-        { type: "returnAllToHand", side: "both", costFilter: { max: 1 } },
+        { type: "returnToHand", count: 1, all: true, anySide: true, filter: { cost: { max: 1 } } },
         undefined,
         ["white"],
         "magic",

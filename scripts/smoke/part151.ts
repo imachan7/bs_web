@@ -67,13 +67,14 @@ const CHAGA_CORES = CHAGA.levels?.[CHAGA_LEVEL - 1]?.cores ?? 3
 const WIPE = findByEffect(
     (e, c) =>
         c.type === "magic" &&
-        (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyAll" &&
+        (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" &&
+        (e["action"] as Record<string, unknown>)["all"] === true &&
         ((e["action"] as Record<string, unknown>)["filter"] as Record<string, unknown> | undefined)?.["maxBp"] !==
             undefined &&
         (e["action"] as Record<string, unknown>)["anySide"] === true,
 )
 const WIPE_MAXBP = Number(
-    ((entryOf(WIPE, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyAll")[
+    ((entryOf(WIPE, (e) => (e["action"] as Record<string, unknown> | undefined)?.["all"] === true)[
         "action"
     ] as Record<string, unknown>)["filter"] as Record<string, unknown>)["maxBp"],
 )
