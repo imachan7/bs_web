@@ -278,7 +278,7 @@ const LEGACY_FILTER_FIELDS = [
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
 // 新しく filter へ移すアクションを増やしたらここに追記する
 const FILTER_ACTIONS = new Set([
-    "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "bpBuffAll",
+    "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "timedEffect",
 ])
 
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）

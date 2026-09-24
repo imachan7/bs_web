@@ -296,6 +296,7 @@ export type Keyword =
 
 // 常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
 export type AuraCounter =
+    | "ownLife" // 自分のライフのコア数
     | "ownReserve" // 自分のリザーブのコア数
     | "ownNexuses" // 自分のネクサス数
     | "allNexuses" // 両者のネクサス数の合計
@@ -1403,9 +1404,13 @@ export interface GameState {
     lastMagicCast?: { pid: PlayerId; cardId: string; timing: "main" | "flash"; targetInstanceId?: string } // 直前にプレイヤー自身が手札/手元から使用したマジック（doCastMagic・castMagicFromTrashByColorが記録。action:"magicMirrorRepeat"が参照する。**フラッシュタイミングが閉じた時点**でクリアされ、それより前の使用は対象にならない＝フラッシュ①で使われたマジックをフラッシュ②で写すことはできない。バトル終了時（clearBattle）にもクリアする。BS08マジックミラー）
 }
 
+// 期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）
+export type TimedContent = { type: "cantAttack" } | { type: "cantBlock" } | { type: "bp"; amount: number; amountCounter?: EffectCounter }
+
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
-    | { type: "timedRule"; content: ("cantAttack" | "cantBlock")[]; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // timedEffect の all:true。宣言のたびに照合するので、解決後に場に出たスピリットにも効く
+    // timedEffect の all:true。判定のたびに照合するので、解決後に場に出たスピリットにも効く。ownerPid＝効果を出した側、pid＝効く陣営（省略は両方）
+    | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string }
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）

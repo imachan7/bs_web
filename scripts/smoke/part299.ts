@@ -229,9 +229,11 @@ console.log("=== M: 系統AND（familyAll。BS13-061戴冠する活火山 Lv2）
     const volcano = createInstance("BS13-061", s.turn, 1)
     p1.field.nexuses.push(volcano)
     resolveAction(s, "p1", volcano, {
-        type: "bpBuffAll",
-        amountCounter: "ownLife",
-        amount: 1000,
+        type: "timedEffect",
+        content: [{ type: "bp", amount: 1000, amountCounter: "ownLife" }],
+        duration: "turn",
+        all: true,
+        side: "own",
         filter: { familyAll: ["地竜", "竜人"] },
     })
     assert(effectiveBp(s, "p1", both) === 2000 + 3000, "両方の系統を持つスピリットだけがライフ3個ぶんBP+3000された")

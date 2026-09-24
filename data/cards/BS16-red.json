@@ -412,8 +412,16 @@
           2
         ],
         "action": {
-          "type": "bpBuffAll",
-          "amount": 2000,
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "all": true,
+          "side": "own",
           "filter": {
             "nameContains": "ドラゴン"
           }

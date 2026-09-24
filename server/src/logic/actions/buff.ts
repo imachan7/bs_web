@@ -427,38 +427,6 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
         return
 }
 
-const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 絞り込みは共通の TargetFilter に一本化（family 軸）
-        const allFilter = normalizeFilter(ctx, action)
-        if (allFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
-            return
-        }
-        const amount =
-            action.amountCounter !== undefined
-                ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType)
-                : action.amount
-        if (action.amountCounter !== undefined && amount === 0) {
-            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
-            return
-        }
-        const spirits = state.players[owner].field.spirits.filter((s) =>
-            matchesTarget(state, owner, s, allFilter, self?.instanceId),
-        )
-        for (const s of spirits) {
-            s.tempBpBuff += amount
-        }
-        const family = action.filter?.family
-        const familyLabel = family ? (Array.isArray(family) ? family.join("/") : family) : ""
-        log(
-            state,
-            `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${amount}（ターン終了時まで）。`,
-        )
-        return
-}
-
-
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
 const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action) => {
@@ -695,7 +663,6 @@ const handlers = {
     colorlessSelfThisBattle,
     symbolOverrideThisBattle: symbolOverrideThisBattleHandler,
     bpBuff,
-    bpBuffAll,
     bpBuffAllByBofuCount,
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,

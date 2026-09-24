@@ -728,9 +728,17 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 1000,
-     "amountCounter": "ownLife",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "ownLife"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own",
      "filter": {
       "familyAll": [
        "地竜",
@@ -3313,14 +3321,22 @@
      "exhaustSelf": true
     },
     "action": {
-     "type": "bpBuffAll",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own",
      "filter": {
       "family": [
        "光導",
        "星魂"
       ]
-     },
-     "amount": 3000
+     }
     },
     "phaseTurn": {
      "phase": "attack",

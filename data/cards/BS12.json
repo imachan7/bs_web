@@ -206,11 +206,19 @@
         ],
         "optional": false,
         "action": {
-          "type": "bpBuffAll",
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "all": true,
+          "side": "own",
           "filter": {
             "braveInSpiritState": true
-          },
-          "amount": 3000
+          }
         }
       }
     ]
@@ -2488,7 +2496,18 @@
           3
         ],
         "optional": false,
-        "action": { "type": "timedEffect", "content": [{ "type": "cantBlock" }], "duration": "turn", "countCounter": { "ownFamily": "天霊" } }
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "cantBlock"
+            }
+          ],
+          "duration": "turn",
+          "countCounter": {
+            "ownFamily": "天霊"
+          }
+        }
       },
       {
         "id": "BS12-038-e2",

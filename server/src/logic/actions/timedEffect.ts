@@ -1,6 +1,6 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, EffectAction, ResolvedTargetFilter } from "../../type"
+import type { AuraCounter, CardInstance, EffectAction, EffectCounter, ResolvedTargetFilter } from "../../type"
 import { getCard, log } from "../GameState"
 import { pickEnemyCandidates, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, matchesTarget } from "../../../../shared/rules"
@@ -12,10 +12,12 @@ type Content = TimedEffect["content"][number]
 
 // 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
+    if (content.type === "bp") return null
     if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
     return duration === "turn" ? "cantAttackThisTurn" : null
 }
 
+// BP は重ねがけできるので「既に持つ」とは見ない
 function has(inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
         const flag = flagOf(c, action.duration)
@@ -29,13 +31,18 @@ function apply(inst: CardInstance, action: TimedEffect): string {
         if (flag !== null) inst[flag] = true
     }
     const period = action.duration === "turn" ? "このターン" : "このバトル"
-    const what = action.content.map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック")).join("も")
-    return `${getCard(inst.cardId).name}は、${period}の間${what}できない。`
+    return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
 
 function contentLabel(action: TimedEffect): string {
-    return action.content.map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック")).join("と")
+    const cant = action.content.filter((c) => c.type !== "bp").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
+    const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : [])].join("、")
 }
+
+// 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
+// ponytail: 必要になったカウンタだけ並べている。足すときは countAuraCounter が数えられるか確かめてからここへ
+const RULE_COUNTERS = ["ownExhausted", "ownLife"] as const satisfies readonly (AuraCounter & EffectCounter)[]
 
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
@@ -44,16 +51,29 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
         return
     }
+    for (const c of action.content) {
+        if (c.type !== "bp") continue
+        // BP を条件にした絞り込みは effectiveBp → matchesTarget → effectiveBp と循環する
+        if (filter.maxBp !== undefined || filter.minBp !== undefined || filter.exactBp !== undefined) {
+            log(state, `${sourceName}：BPを条件にしたBP変更は未対応のため発揮しなかった。`)
+            return
+        }
+        if (c.amountCounter !== undefined && !(RULE_COUNTERS as readonly unknown[]).includes(c.amountCounter)) {
+            log(state, `${sourceName}：この数え方は未対応のため発揮しなかった。`)
+            return
+        }
+    }
     const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
     state.turnConstraints.push({
         type: "timedRule",
-        content: action.content.map((c) => c.type),
+        content: action.content,
+        ownerPid: owner,
         ...(pid !== undefined ? { pid } : {}),
         filter,
         ...(self ? { selfInstanceId: self.instanceId } : {}),
     })
     const who = pid === undefined ? "" : `${state.players[pid].name}の`
-    log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}ができない。`)
+    log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }
 
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
@@ -65,6 +85,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (action.all) {
         placeRule(ctx, action, filter)
+        return
+    }
+    if (action.content.some((c) => c.type === "bp")) {
+        log(state, `${sourceName}：1体を指定するBP変更は未対応のため発揮しなかった。`)
         return
     }
     const candidates = pickEnemyCandidates(
@@ -95,7 +119,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
             state,
             owner,
             self,
-            `${sourceName}：${action.content.map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック")).join("も")}できなくする相手のスピリットを選んでください${count > 1 ? `（残り${count}体）` : ""}`,
+            `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください${count > 1 ? `（残り${count}体）` : ""}`,
             candidates,
             { ...rest, count: 1 },
             count > 1 ? { ...rest, count: count - 1 } : null,
