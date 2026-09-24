@@ -651,9 +651,10 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
     const guard = createInstance("BS01-001", s2.turn, 1)
     s2.players.p2.field.spirits.push(guard)
     resolveAction(s2, "p2", null, {
-        type: "grantKeyword",
-        keyword: "armor",
-        colors: ["red", "purple", "green", "blue"],
+        type: "timedEffect",
+        content: [{ type: "keyword", keyword: "armor", colors: ["red", "purple", "green", "blue"] }],
+        duration: "turn",
+        side: "own",
     }, guard.instanceId)
     // p1の赤ソースの破壊効果は装甲で対象に取れない
     resolveAction(s2, "p1", null, { type: "destroy", count: 1 }, undefined, ["red"])

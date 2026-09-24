@@ -29,7 +29,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores: number): string
 
 // アタッカーに【激突】をこのターンだけ付与する（静的に持つカードが未収録のため）
 function grantClash(s: GameState, instanceId: string): void {
-    resolveAction(s, "p1", null, { type: "grantKeyword", keyword: "clash" }, instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "keyword", keyword: "clash" }], duration: "turn", side: "own" }, instanceId)
 }
 
 console.log("=== §A 激突: ブロックできるスピリットがいるならライフで受けられない ===")

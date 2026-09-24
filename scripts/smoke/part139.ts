@@ -301,8 +301,9 @@ console.log("=== BS07 赤：『自分のアタックステップ』限定の継�
 }
 {
     // keywordGrant に turn:"own" を持つカード（龍星皇メテオヴルム）
-    const grantor = findByEffect((e) => e["kind"] === "keywordGrant" && e["turn"] === "own")
-    const entry = entryOf(grantor, (e) => e["kind"] === "keywordGrant" && e["turn"] === "own")
+    const isFamilyGrant = (e: Record<string, unknown>) => e["kind"] === "keywordGrant" && e["turn"] === "own" && e["familyFilter"] !== undefined
+    const grantor = findByEffect(isFamilyGrant)
+    const entry = entryOf(grantor, isFamilyGrant)
     const keyword = String(entry["keyword"])
     const needFamily = String(entry["familyFilter"])
     const level = (entry["levels"] as number[])[0]!

@@ -772,8 +772,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "grantKeyword",
-          "keyword": "clash"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "keyword",
+              "keyword": "clash"
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       }
     ]
