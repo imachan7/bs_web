@@ -474,6 +474,8 @@ export function clearBattle(state: GameState): void {
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []
+    // timedEffect の1体指定＋可変量（duration:"battle"）はここで切れる（ターン終了までのturnConstraintsとは寿命が別）
+    state.turnConstraints = state.turnConstraints.filter((c) => !(c.type === "timedRule" && c.until === "battle"))
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer

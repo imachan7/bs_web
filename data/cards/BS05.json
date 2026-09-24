@@ -4008,8 +4008,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -4057,8 +4064,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -4120,8 +4134,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4177,8 +4198,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4451,8 +4479,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4504,8 +4539,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4581,8 +4623,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4634,8 +4683,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4736,8 +4792,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {

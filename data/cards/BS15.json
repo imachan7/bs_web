@@ -690,9 +690,15 @@
     },
     "asSpiritEffect": true,
     "action": {
-     "type": "bpBuff",
-     "amount": 2000,
-     "anySide": true
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
     }
    }
   ]
@@ -1887,9 +1893,16 @@
      2
     ],
     "action": {
-     "type": "bpBuff",
-     "amount": 2000,
-     "amountCounter": "opponentFieldSpiritColors"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000,
+       "amountCounter": "opponentFieldSpiritColors"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     },
     "optional": false
    },
@@ -2208,9 +2221,16 @@
      2
     ],
     "action": {
-     "type": "bpBuff",
-     "amount": 3000,
-     "amountCounter": "opponentFieldColors"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000,
+       "amountCounter": "opponentFieldColors"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     },
     "optional": false
    },
@@ -4999,9 +5019,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000,
-     "anySide": true
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
     }
    }
   ]

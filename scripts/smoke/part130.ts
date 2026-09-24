@@ -229,15 +229,18 @@ console.log("=== BS06-099 サベージパワー：シンボル1つで+2000、2�
     const s = createGame("t130-savage-1", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s)
     const target = put(s, "p1", "BS01-001", 1) // ゴラドン（シンボル1つ）
+    const before = effectiveBp(s, "p1", target)
     resolveMagic(s, "p1", "BS06-099", "flash", target.instanceId)
-    assert(target.tempBpBuff === 2000, `シンボル1つでBP+2000（実際: ${String(target.tempBpBuff)}）`)
+    // 量が可変（amountCounter "targetSymbols"）のためtimedEffectはtempBpBuffではなくturnConstraintsに積む。BP差で見る
+    assert(effectiveBp(s, "p1", target) - before === 2000, `シンボル1つでBP+2000（実際: ${String(effectiveBp(s, "p1", target) - before)}）`)
 }
 {
     const s = createGame("t130-savage-2", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s)
     const target = put(s, "p1", "BS04-010", 1) // 雷帝エール・クレル（シンボル2つ）
+    const before = effectiveBp(s, "p1", target)
     resolveMagic(s, "p1", "BS06-099", "flash", target.instanceId)
-    assert(target.tempBpBuff === 4000, `シンボル2つでBP+4000（実際: ${String(target.tempBpBuff)}）`)
+    assert(effectiveBp(s, "p1", target) - before === 4000, `シンボル2つでBP+4000（実際: ${String(effectiveBp(s, "p1", target) - before)}）`)
 }
 
 console.log("=== BS06-101 ミストラルコア：フラッシュでBP+2000 ===")

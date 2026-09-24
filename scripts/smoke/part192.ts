@@ -75,13 +75,17 @@ const BUFF_MAGIC = CARDS.find(
             (e) =>
                 e["kind"] === "magic" &&
                 e["timing"] === "flash" &&
-                (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
-                (e["action"] as Record<string, unknown>)["filter"] === undefined,
+                (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+                (e["action"] as Record<string, unknown>)["all"] === undefined &&
+                (e["action"] as Record<string, unknown>)["filter"] === undefined &&
+                ((e["action"] as Record<string, unknown>)["content"] as { type: string; amountCounter?: unknown }[]).every(
+                    (c) => c.type === "bp" && c.amountCounter === undefined,
+                ),
         ) &&
         (c.cost ?? 0) > 0,
 )
 if (!BUFF_MAGIC) throw new Error("検証用のフラッシュBP+マジックが見つかりません")
-const BUFF_AMOUNT = Number(((BUFF_MAGIC.effects ?? [])[0]!["action"] as Record<string, unknown>)["amount"])
+const BUFF_AMOUNT = Number((((BUFF_MAGIC.effects ?? [])[0]!["action"] as Record<string, unknown>)["content"] as { amount: number }[])[0]!.amount)
 const BUFF_COST = BUFF_MAGIC.cost ?? 0
 
 console.log("=== パート192：マジックの無償化と再発揮を使用者に選ばせる ===")

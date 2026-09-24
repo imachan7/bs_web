@@ -239,9 +239,9 @@ console.log("=== BS07 赤：自分のスピリット1体を青としても扱い
         ] as Record<string, unknown>)["color"],
     )
     const buffAmount = Number(
-        (entryOf(meteor, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff")[
+        ((entryOf(meteor, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect")[
             "action"
-        ] as Record<string, unknown>)["amount"],
+        ] as Record<string, unknown>)["content"] as { amount: number }[])[0]!.amount,
     )
     const s = base("meteor-fall")
     const target = put(s, "p1", FILLER.cardId, 1)

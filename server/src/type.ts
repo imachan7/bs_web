@@ -311,6 +311,10 @@ export type AuraCounter =
     | { ownColor: Color } // 自分フィールドの指定色スピリット数（発生源自身も含む。AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定。BS14-041バスター・フェンリルキャノン：「自分の白のスピリット1体につき」）
     | "opponentFieldColors" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（shared/rules.opponentFieldColorCount。BS15共通器）
     | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（BS15共通器）
+    | "exhaustedEnemies" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（相手フィールドの疲労状態スピリット数）
+    | "targetSymbols" // AuraCounter版＝継続オーラ用。timedRuleBp の対象（第4引数targetInst）が持つシンボル数
+    | "ownRestedNexuses" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（自分の疲労状態のネクサス数）
+    | "targetSameFamilyOwn" // AuraCounter版＝継続オーラ用。対象（targetInst）と系統を1つ以上共有する自分のスピリット数（対象自身も数える）
 
 // 常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
 export type AuraCondition =
@@ -1410,7 +1414,9 @@ export type TimedContent = { type: "cantAttack" } | { type: "cantBlock" } | { ty
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
     // timedEffect の all:true。判定のたびに照合するので、解決後に場に出たスピリットにも効く。ownerPid＝効果を出した側、pid＝効く陣営（省略は両方）
-    | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string }
+    // instanceId指定時（timedEffect の1体指定＋可変量）は filter/pid ではなくこの1体だけに効く（「〜1体につき」を計算のたびに数え直すため）
+    // until:"battle"指定時はターン終了ではなくclearBattleで消える（timedEffectのduration:"battle"）
+    | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）
