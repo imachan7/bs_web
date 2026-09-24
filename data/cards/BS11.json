@@ -1768,10 +1768,7 @@
      2
     ],
     "optional": true,
-    "action": {
-     "type": "banAttackTargetThisTurn",
-     "combinedOnly": true
-    }
+    "action": { "type": "timedEffect", "content": [{ "type": "cantAttack" }], "duration": "turn", "filter": { "combined": true } }
    }
   ]
  },

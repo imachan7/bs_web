@@ -16,6 +16,7 @@ import mill from "./mill"
 import pay from "./pay"
 import reveal from "./reveal"
 import tegamoto from "./tegamoto"
+import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 
 const ACTION_HANDLERS: ActionRegistry = {
@@ -33,6 +34,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...pay,
     ...reveal,
     ...tegamoto,
+    ...timedEffect,
     ...trashRecover,
 }
 

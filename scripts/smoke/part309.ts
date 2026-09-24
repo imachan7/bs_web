@@ -1,6 +1,6 @@
 // smoke パート309（SD06 スターターデッキ「陽昇ハジメデッキ バーストヒーローズ」17種）
 // 今回足した4つの器（AuraDef.uncombinedFilter／globalConstraint ownLifeDamageCapPerSourcePerTurn／
-// banAttackTargetThisTurn.alsoCantBlock／ownNexusIndestructible.nameIncludes）と、
+// timedEffect の cantAttack＋cantBlock／ownNexusIndestructible.nameIncludes）と、
 // SD06-003/005/007/009/010/011/012の効果解釈を確認する
 import {
     act,
@@ -92,7 +92,7 @@ console.log("=== 器: globalConstraint ownLifeDamageCapPerSourcePerTurn（SD06-0
     assert(a1.lifeDealtThisTurn === undefined, "ターン終了でlifeDealtThisTurnはリセットされる")
 }
 
-console.log("=== 器: banAttackTargetThisTurn.alsoCantBlock（SD06-012英雄皇の御盾 Lv1） ===")
+console.log("=== 器: timedEffect の cantAttack＋cantBlock（SD06-012英雄皇の御盾 Lv1） ===")
 {
     const s = game("also-cant-block")
     const shield = createInstance("SD06-012", s.turn, 0)

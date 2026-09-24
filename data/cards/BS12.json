@@ -2488,12 +2488,7 @@
           3
         ],
         "optional": false,
-        "action": {
-          "type": "markCantBlockThisTurn",
-          "counter": {
-            "ownFamily": "天霊"
-          }
-        }
+        "action": { "type": "timedEffect", "content": [{ "type": "cantBlock" }], "duration": "turn", "countCounter": { "ownFamily": "天霊" } }
       },
       {
         "id": "BS12-038-e2",

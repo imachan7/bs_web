@@ -2807,9 +2807,7 @@
           3
         ],
         "optional": false,
-        "action": {
-          "type": "markCantBlockThisBattle"
-        }
+        "action": { "type": "timedEffect", "content": [{ "type": "cantBlock" }], "duration": "battle" }
       }
     ]
   },

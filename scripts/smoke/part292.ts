@@ -1,7 +1,7 @@
 // smoke パート292（BS12 黄バッチ5：新しく足した7つの器を1件ずつ発火させる）
 // J=setBattleBpFixed（バトル中の実効BPそのものを2000に）／N=destroyAsMaxLevelGrant（コア0で最高Lv破壊）／
 // V=reviveOnDestroy when.byOpponent（相手によって＝効果もバトルも）／YA=globalConstraint ownLifeFloor／
-// YB=markCantBlockThisTurn（体数はカウンタ）／YC=EffectCounter battlingOpponentCombinedSymbols／
+// YB=timedEffect（体数はカウンタ）／YC=EffectCounter battlingOpponentCombinedSymbols／
 // YD=globalConstraint opponentCantAttackByCost（コスト完全一致の配列）
 import {
     assert,
@@ -140,7 +140,7 @@ console.log("=== YA: globalConstraint ownLifeFloor（ライフ1で下げ止ま�
     assert(ownLifeFloorContinuous(s, "p1") === 0, "天霊が4体では下限が働かない")
 }
 
-console.log("=== YB: markCantBlockThisTurn（このターンの間ブロックできない） ===")
+console.log("=== YB: timedEffect（このターンの間ブロックできない） ===")
 {
     const s = game("yb-cantblock")
     const faleg = createInstance(FALEG, s.turn, 1)
@@ -148,7 +148,7 @@ console.log("=== YB: markCantBlockThisTurn（このターンの間ブロック�
     const enemy = createInstance("BS01-002", s.turn, 1)
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", faleg, { type: "markCantBlockThisTurn", counter: { ownFamily: "天霊" } })
+    resolveAction(s, "p1", faleg, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "turn", countCounter: { ownFamily: "天霊" } })
     assert(enemy.cantBlockThisTurn === true, "指定された相手のスピリットはこのターン ブロックできない")
     const attacker = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(attacker)

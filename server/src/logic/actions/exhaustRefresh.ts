@@ -979,48 +979,6 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
     )
 }
 
-// 相手のスピリット1体を指定し、このターンの間アタックできなくする（BS11-030 ドルフィング）。
-// 指定するのは発生源の持ち主（2026-09-02 の一般則。PROCEDURES_AUDIT §5）
-const banAttackTargetThisTurnHandler: ActionHandler<"banAttackTargetThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName } = ctx
-    const candidates = state.players[opp].field.spirits.filter(
-        (s) =>
-            (!action.combinedOnly || instIsCombined(s)) &&
-            !s.cantAttackThisTurn &&
-            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
-    )
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
-        return
-    }
-    if (
-        ctx.targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：このターンアタックできなくするスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target =
-        (ctx.targetInstanceId !== undefined
-            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
-            : undefined) ??
-        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    target.cantAttackThisTurn = true
-    if (action.alsoCantBlock) {
-        target.cantBlockThisTurn = true
-        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間バトルできない）`)
-    } else {
-        log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（このターンの間アタックできない）`)
-    }
-}
-
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
 // 印は対象自身に付け、そのリフレッシュステップで消費する（PhaseManager）
 const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, action) => {
@@ -1099,7 +1057,6 @@ const markSuppressTriggerThisTurnHandler: ActionHandler<"markSuppressTriggerThis
 const handlers = {
     markSkipNextRefresh: markSkipNextRefreshHandler,
     markSuppressTriggerThisTurn: markSuppressTriggerThisTurnHandler,
-    banAttackTargetThisTurn: banAttackTargetThisTurnHandler,
     exhaust: exhaustHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
     exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,

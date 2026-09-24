@@ -2174,45 +2174,6 @@ const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnbloc
     log(state, `${sourceName}：ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。`)
 }
 
-// BS09-042妖精騎士ピーターLv2-3：相手のスピリット1体を指定し、このバトルの間ブロックさせない。
-// 指定するのは効果の持ち主（効果文の主語が「（自分が）指定する」。CHOOSER_RULES.md）
-const markCantBlockThisBattleHandler: ActionHandler<"markCantBlockThisBattle"> = (ctx) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    if (targetInstanceId !== undefined) {
-        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-        if (!found) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        found.cantBlockThisBattle = true
-        log(state, `${getCard(found.cardId).name}は、このバトルの間ブロックできない。`)
-        return
-    }
-    const candidates: CardInstance[] = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    if (state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：ブロックできなくする相手のスピリットを選んでください`,
-            candidates.map((s: CardInstance) => s.instanceId),
-            false,
-            { type: "markCantBlockThisBattle" },
-            self,
-        )
-        return
-    }
-    // 非対話時は実効BP最大を自動選択（プレイヤー選択の決定的簡略化）
-    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
-        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-    )
-    chosen.cantBlockThisBattle = true
-    log(state, `${getCard(chosen.cardId).name}は、このバトルの間ブロックできない。`)
-}
-
 // BS15-X05光の覇王ルナアーク・カグヤ：相手のスピリット1体に、このバトルの間
 // 「currentLevelがlevelsに含まれるとき基礎BPをamountとして扱う」印を付ける
 const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle"> = (ctx, action) => {
@@ -2277,65 +2238,6 @@ const setBattleBpFixedHandler: ActionHandler<"setBattleBpFixed"> = (ctx, action)
     }
     inst.battleBpFixed = action.amount
     log(state, `${getCard(inst.cardId).name}のBPは、このバトルの間${action.amount}として扱う。`)
-}
-
-// BS12-038オリンピアの天使ファレグ：markCantBlockThisBattleの**ターン限定・複数体版**（器YB）。
-// counterで体数を解決し、1体選ぶたびにremainingを1減らして自分自身へ再帰する（対話時はrequestChoiceが
-// 選択結果を持ってこのハンドラをtargetInstanceId付きで再開する。markCantBlockThisBattleの単発版を繰り返しに拡張した形）
-const markCantBlockThisTurnHandler: ActionHandler<"markCantBlockThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    // targetInstanceIdが渡された＝直前のrequestChoiceで1体選ばれた
-    if (targetInstanceId !== undefined) {
-        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-        if (found) {
-            found.cantBlockThisTurn = true
-            log(state, `${getCard(found.cardId).name}は、このターンの間ブロックできない。`)
-        } else {
-            log(state, `${sourceName}：対象がいなかった。`)
-        }
-        const rest = (action.remaining ?? 1) - 1
-        if (rest > 0) {
-            ctx.resolve(
-                { type: "markCantBlockThisTurn", counter: action.counter, remaining: rest },
-                { sourceColors: srcColors, sourceType: srcType },
-            )
-        }
-        return
-    }
-    const remaining = action.remaining ?? countEffectCounter(state, owner, self, action.counter, srcType)
-    if (remaining <= 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    const candidates = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    if (state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：ブロックできなくする相手のスピリットを選んでください（残り${remaining}体）`,
-            candidates.map((s: CardInstance) => s.instanceId),
-            false,
-            { type: "markCantBlockThisTurn", counter: action.counter, remaining },
-            self,
-        )
-        return
-    }
-    // 非対話時は実効BP最大を自動選択（プレイヤー選択の決定的簡略化）
-    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
-        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-    )
-    chosen.cantBlockThisTurn = true
-    log(state, `${getCard(chosen.cardId).name}は、このターンの間ブロックできない。`)
-    if (remaining > 1) {
-        ctx.resolve(
-            { type: "markCantBlockThisTurn", counter: action.counter, remaining: remaining - 1 },
-            { sourceColors: srcColors, sourceType: srcType },
-        )
-    }
 }
 
 const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
@@ -2446,9 +2348,7 @@ const handlers = {
     blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
-    markCantBlockThisBattle: markCantBlockThisBattleHandler,
     unblockableAboveBpThisBattle: unblockableAboveBpThisBattleHandler,
-    markCantBlockThisTurn: markCantBlockThisTurnHandler,
     setBattleBpFixed: setBattleBpFixedHandler,
     markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,

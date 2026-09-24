@@ -2,7 +2,7 @@
 //
 // 新しく足した器の確認:
 //   対象の付け替え（magicTargetRedirect）を**スピリットの効果にも**効かせた（2026-08-14 ユーザー確認）/
-//   costDiscardNamedThenPeek（探偵ペンタン）/ markCantBlockThisBattle（妖精騎士ピーター）/
+//   costDiscardNamedThenPeek（探偵ペンタン）/ timedEffect（妖精騎士ピーター）/
 //   treatAsUnblockedIfBlockerLevel1（ハマ・ドリュアス）/ reviveOnDestroy.cost.oneCoreToTrash（花の宮殿）/
 //   opponentNexusesUnexhaustable（花の宮殿Lv2）/ ownSeimeiLifeCharged（天駆ける方舟）/
 //   familySuppression.target:"opponentAll"（キャラクターロスト）/ EffectCounter restedEnemyNexuses
@@ -84,7 +84,7 @@ console.log("=== BS09-042 妖精騎士ピーター：指定した相手はこの
     const blocker = put(s, "p2", PLAIN, 1)
     s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
     assert(canBlock(s, "p2", blocker, "p1", peter) === null, "前提：指定前はブロックできる")
-    resolveAction(s, "p1", peter, { type: "markCantBlockThisBattle" })
+    resolveAction(s, "p1", peter, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "battle" })
     assert(canBlock(s, "p2", blocker, "p1", peter) !== null, "指定後はブロックできない")
 }
 

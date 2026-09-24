@@ -39,13 +39,6 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
-### M8 期間つき継続効果：試行（ブランチ `feat/timed-continuous`。2026-09-24 確定スキーマ）
-
-`{ type: "timedEffect"; content: ({ type: "cantAttack" } | { type: "cantBlock" })[]; duration: "turn" | "battle"; count?: number; countCounter?: EffectCounter; filter?: TargetFilter }`。
-対象＝相手のスピリット、選ぶのは発生源の持ち主、非対話は実効BP最大、**内容をすべて既に持つ個体は候補から外す**（旧 `markCantBlockThisTurn` は同じ個体を2回選べた）。
-置き場は既存の印（`cantAttackThisTurn`・`cantBlockThisTurn`・`cantBlockThisBattle`）。試行の範囲は `banAttackTargetThisTurn`・`markCantBlockThisBattle`・`markCantBlockThisTurn`（4か所）。
-`banActByCostThisTurn` は「後から出たスピリットにも効く」全体ルール（turnConstraints）なので対象外。
-
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。
