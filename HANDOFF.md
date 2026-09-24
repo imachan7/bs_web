@@ -118,9 +118,9 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-**M8「Lv を〜として扱う」（§A の4種・11か所。2026-09-24 調査のみ・未着手）**
+**M8「Lv を〜として扱う」の「すべて」2種（2026-09-24。1体指定の2種は移行済み）**
 - 「すべて」を扱う2種（`levelOverrideOpponentSpiritsAllThisTurn`＝BS14-110 天災之禍風、`levelMaxAllOwnThisTurn`＝BS04-069 幻影士のミラージ）は、解決時にいた個体の `levelOverrideThisTurn` に書くだけ。「すべては後から出たスピリットにも効く」規則に合わせるなら、レベルの計算に盤面のルールを入れる必要があるが、`currentLevel(inst)` は盤面を受け取らず呼び出しが209か所ある。案：(a) `currentLevel` に盤面を渡す大改修、(b) スピリットが場に出た時点で有効なレベルのルールを個体に書き込む（差し込み先は場に出る処理の1か所）。**ユーザーに「Lv として扱う すべて」も後から出たものに効くかを確認してから選ぶ**
-- 1体を指定する2種（`levelOverrideTarget` 7か所＝候補の先頭を自動選択、`levelUpThisTurn` 2か所＝`pickSingleTarget`・実効BP最大）は `timedEffect` の内容 `level` で移せる。対象の決め方が2通りあるので、それぞれ旧と同じにする
+- 1体を指定する2種（`levelOverrideTarget`・`levelUpThisTurn`、9か所）は `timedEffect` の内容 `level`（`set`／`up`）へ移行済み（ブランチ `feat/timed-level`）
 - 作業ブランチ `feat/timed-level` は #110（`feat/timed-keyword`）の上に積んである。#110 のマージ後に main へ合わせ直す
 
 

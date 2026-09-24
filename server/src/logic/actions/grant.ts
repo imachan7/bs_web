@@ -398,81 +398,6 @@ const levelOverrideOpponentSpiritsAllThisTurnHandler: ActionHandler<"levelOverri
     return
 }
 
-const levelOverrideTargetHandler: ActionHandler<"levelOverrideTarget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 花の子リップ：対象（targetInstanceId＝ブロックした相手スピリット）の
-        // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
-        // 未指定時は自分のフィールドの候補から選ばせる（マッシブアップ）。
-        // targetInstanceId が入っているのは誘発がイベント対象を渡してきた経路（花の子リップ）。
-        // side:"opponent" 指定時は相手のフィールドから選ばせる（BS14-051アルカナビーストクィーン）
-        const ownCandidates = state.players[action.side === "opponent" ? opp : owner].field.spirits.filter(
-            (s) =>
-                (action.colorFilter === undefined || instHasColor(s, action.colorFilter)) &&
-                (!action.requireLevelExists ||
-                    getCard(s.cardId).levels.some((l) => l.level === action.level)),
-        )
-        if (
-            targetInstanceId === undefined &&
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：Lv${action.level}として扱うスピリットを選んでください`,
-                ownCandidates,
-                action,
-                null,
-            )
-        ) {
-            return
-        }
-        const found = targetInstanceId
-            ? findSpiritAny(state, targetInstanceId)
-            : // 非対話（テスト・AI）と候補1体のときは先頭を自動選択（決定的簡略化）
-              (ownCandidates[0] ? { pid: action.side === "opponent" ? opp : owner, inst: ownCandidates[0] } : null)
-        if (!found) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        // 対象フィルタ（色・そのレベルをカードが持つか）を満たさない対象には効果がない
-        if (action.colorFilter !== undefined && !instHasColor(found.inst, action.colorFilter)) {
-            log(state, `${sourceName}：対象の色が条件と合わなかった。`)
-            return
-        }
-        if (
-            action.requireLevelExists &&
-            !getCard(found.inst.cardId).levels.some((l) => l.level === action.level)
-        ) {
-            log(state, `${sourceName}：対象はLv${action.level}を持っていなかった。`)
-            return
-        }
-        found.inst.levelOverrideThisTurn = action.level
-        log(
-            state,
-            `${sourceName}：${getCard(found.inst.cardId).name}はこのターンの間Lv${action.level}として扱われる。`,
-        )
-        return
-}
-
-const levelUpThisTurnHandler: ActionHandler<"levelUpThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象スピリットのLvをこのターンの間1つ上として扱う（最大Lvでキャップ。anySide指定で両陣営から選べる。ビルドアップ）
-        const picked = pickSingleTarget(ctx, action, `${sourceName}：Lvを上げるスピリットを選んでください`)
-        if (picked === "pending") return
-        const target = picked
-        if (!target) {
-            log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
-            return
-        }
-        const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
-        const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
-        target.levelOverrideThisTurn = nextLevel
-        log(
-            state,
-            `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`,
-        )
-        return
-}
-
 const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のスピリットすべてを、各カードの最高Lvとして扱う（このターンの間。levelOverrideThisTurnはターン終了でリセット）
@@ -1379,8 +1304,6 @@ const handlers = {
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelOverrideOpponentSpiritsAllThisTurn: levelOverrideOpponentSpiritsAllThisTurnHandler,
-    levelOverrideTarget: levelOverrideTargetHandler,
-    levelUpThisTurn: levelUpThisTurnHandler,
     levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
     addSymbolPermanent: addSymbolPermanentHandler,

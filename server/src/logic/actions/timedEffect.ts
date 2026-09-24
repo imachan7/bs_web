@@ -1,7 +1,7 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { getCard, log } from "../GameState"
+import { currentLevel, getCard, log } from "../GameState"
 import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -12,7 +12,7 @@ type Content = TimedEffect["content"][number]
 
 // 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
-    if (content.type === "bp" || content.type === "keyword") return null
+    if (content.type === "bp" || content.type === "keyword" || content.type === "level") return null
     if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
     return duration === "turn" ? "cantAttackThisTurn" : null
 }
@@ -258,8 +258,71 @@ function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
     log(state, `${getCard(target.cardId).name}に【${KEYWORDS[content.keyword].label}】を付与した。`)
 }
 
+// 1体の Lv を「このターンの間」として扱う。自動選択は旧 type のまま2通り（set＝候補の先頭、up＝実効BP最大）
+function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")
+    if (!content) return
+    if (action.duration !== "turn") {
+        log(state, `${sourceName}：「このバトルの間」Lvを変える効果は未対応のため発揮しなかった。`)
+        return
+    }
+    const maxLevelOf = (s: CardInstance) => getCard(s.cardId).levels.reduce((m, l) => Math.max(m, l.level), 1)
+    if (content.set !== undefined) {
+        const level = content.set
+        const pid = action.side === "own" ? owner : opp
+        const passes = (s: CardInstance, sPid: PlayerId) =>
+            matchesTarget(state, sPid, s, filter, self?.instanceId) &&
+            (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === level))
+        const candidates = state.players[pid].field.spirits.filter((s) => passes(s, pid))
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(state, owner, self, `${sourceName}：Lv${level}として扱うスピリットを選んでください`, candidates, action, null)
+        ) {
+            return
+        }
+        const found = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : candidates[0] ? { pid, inst: candidates[0] } : null
+        if (!found) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        if (!passes(found.inst, found.pid)) {
+            log(state, `${sourceName}：対象が条件を満たさなかった。`)
+            return
+        }
+        found.inst.levelOverrideThisTurn = level
+        log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこのターンの間Lv${level}として扱われる。`)
+        return
+    }
+    let target: CardInstance | undefined
+    if (targetInstanceId !== undefined) {
+        target = findSpiritAny(state, targetInstanceId)?.inst
+    } else {
+        const candidates =
+            action.side === "both" ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType) : state.players[owner].field.spirits.slice()
+        if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：Lvを上げるスピリットを選んでください`, candidates, action, null)) return
+        target = candidates.reduce<CardInstance | undefined>(
+            (best, s) => (!best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best),
+            undefined,
+        )
+    }
+    if (!target) {
+        log(state, `${sourceName}：Lvを上げる対象がいなかった。`)
+        return
+    }
+    const next = Math.min(currentLevel(target).level + (content.up ?? 1), maxLevelOf(target))
+    target.levelOverrideThisTurn = next
+    log(state, `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${next}として扱う。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "level")) {
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        placeLevel(ctx, action, filter)
+        return
+    }
     if (action.content.some((c) => c.type === "keyword")) {
         placeKeyword(ctx, action)
         return

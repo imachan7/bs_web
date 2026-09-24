@@ -111,9 +111,9 @@ console.log("=== BS03-141 ビルドアップ：対象のLvを+1する（最大Lv
     runTurnStart(s)
     const spirit = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1（最大Lv2）
     s.players.p1.field.spirits.push(spirit)
-    resolveAction(s, "p1", null, { type: "levelUpThisTurn" }, spirit.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "own" }, spirit.instanceId, undefined, "magic")
     assert(currentLevel(spirit).level === 2, "Lv1からLv2として扱われる")
-    resolveAction(s, "p1", null, { type: "levelUpThisTurn" }, spirit.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "own" }, spirit.instanceId, undefined, "magic")
     assert(currentLevel(spirit).level === 2, "最大Lv2でキャップされる（Lv3にはならない）")
     endTurn(s)
     assert(currentLevel(spirit).level === 1, "ターン終了でlevelOverrideThisTurnがリセットされ元のLvに戻る")

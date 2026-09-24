@@ -3034,8 +3034,15 @@
         "phase": "attack",
         "turn": "own",
         "action": {
-          "type": "levelOverrideTarget",
-          "level": 1
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "level",
+              "set": 1
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       }
     ]
