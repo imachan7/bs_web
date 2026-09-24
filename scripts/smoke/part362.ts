@@ -148,4 +148,30 @@ console.log("=== 9. BP を条件にしたBP変更は循環するので発揮し�
     assert(s.turnConstraints.length === 0 && s.log.at(-1)?.includes("未対応") === true, "ルールを置かずに未対応と記録する")
 }
 
+console.log("=== 10. 古代闘技場：発揮する時点でだけ止める（発揮し終わった BP+ は止めない。2026-09-24 ユーザー確認） ===")
+{
+    const ARENA = "BS04-086"
+    assert(getCard(ARENA).name === "古代闘技場", "ARENAは古代闘技場")
+    const buff: EffectAction = { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", all: true, side: "own" }
+
+    const s = board()
+    const own = s.players.p1.field.spirits[0]!
+    const before = effectiveBp(s, "p1", own)
+    s.players.p2.field.nexuses.push(createInstance(ARENA, 1, 0))
+    s.phase = "attack" // 古代闘技場の抑止は持ち主（p2）のアタックステップの間だけ
+    s.turnPlayer = "p2"
+    refreshLevelAsOverrides(s)
+    resolveAction(s, "p1", null, buff)
+    assert(effectiveBp(s, "p1", own) === before && s.turnConstraints.length === 0, "相手に古代闘技場があれば発揮されない")
+
+    const t = board()
+    const mine = t.players.p1.field.spirits[0]!
+    resolveAction(t, "p1", null, buff)
+    t.players.p2.field.nexuses.push(createInstance(ARENA, 1, 0))
+    t.phase = "attack"
+    t.turnPlayer = "p2"
+    refreshLevelAsOverrides(t)
+    assert(effectiveBp(t, "p1", mine) === before + 1000, "発揮した後に出た古代闘技場は、乗った BP+ を止めない")
+}
+
 console.log("すべてのチェックに合格しました 🎉（part362）")

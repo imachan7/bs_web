@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, EffectAction, EffectCounter, ResolvedTargetFilter } from "../../type"
 import { getCard, log } from "../GameState"
 import { pickEnemyCandidates, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 
@@ -62,6 +62,11 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
             log(state, `${sourceName}：この数え方は未対応のため発揮しなかった。`)
             return
         }
+    }
+    // 「BPを+する効果は発揮されない」（古代闘技場）は発揮する時点でだけ見る（2026-09-24 ユーザー確認）
+    if (action.content.some((c) => c.type === "bp" && c.amount > 0) && isBpBuffSuppressed(state, owner)) {
+        log(state, `${sourceName}：BPを+する効果は発揮されなかった。`)
+        return
     }
     const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
     state.turnConstraints.push({
