@@ -5973,8 +5973,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 5000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }

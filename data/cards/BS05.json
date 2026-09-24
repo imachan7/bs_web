@@ -452,8 +452,15 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -1595,11 +1602,18 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownKeyword": "soku"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownKeyword": "soku"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -2007,8 +2021,15 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    },
    {

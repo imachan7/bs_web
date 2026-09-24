@@ -70,7 +70,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     const s = game("case1d")
     const me = put(s, "p1", ARMOR, 1)
     s.players.p1.hand = [NEXUS, VANILLA]
-    resolveAction(s, "p1", me, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: "nexus" }, then: { type: "selfBuff", amount: 2000 } })
+    resolveAction(s, "p1", me, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: "nexus" }, then: { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", target: "self" } })
     assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === VANILLA, "ネクサスだけが破棄された")
     assert(me.tempBpBuff === 2000, "自身がBP+2000された")
 }

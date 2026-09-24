@@ -4,7 +4,7 @@
 //       BS03-084 巨猫ブリンクス／BS03-100 武器コレクターのゴドフリー／BS04-039 宝石虫スカラベール／
 //       BS04-084 奇跡の丘／BS05-059 緑眼の虚空（+BS05-065青嵐の虚空のcosts修正）／
 //       BS04-043 ワルキューレ・ヒルド／BS03-024 吸血騎士ノスフェラト／BS05-016 吸血女王カーミラ
-import {
+import { bpBuffOf,
     act,
     assert,
     createGame,
@@ -136,7 +136,7 @@ console.log("=== BS03-100 武器コレクターのゴドフリー：Lv2-3『ア�
     putNexus(s, "p1", "BS03-114", 0) // 青のネクサス
     putNexus(s, "p1", "BS01-098", 0) // 赤のネクサス（対象外）
     fireTrigger(s, "p1", godfrey, "onAttack")
-    assert(godfrey.tempBpBuff === 2000, "青のネクサス2つぶんBP+2000（赤ネクサスはカウントしない）")
+    assert(bpBuffOf(s, godfrey) === 2000, "青のネクサス2つぶんBP+2000（赤ネクサスはカウントしない）")
 }
 
 console.log("=== BS04-039 宝石虫スカラベール：Lv2『自分のアタックステップ』神速持ちがバトル破壊時、コア1個でトラッシュから手札へ ===")

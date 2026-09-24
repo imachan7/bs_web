@@ -303,7 +303,7 @@ export type AuraCounter =
     | "ownExhausted" // 自分の疲労スピリット数
     | "targetArmorColors" // **対象自身**（発生源ではない）が持つ【装甲】の指定色数。静的・一時付与・継続付与を合算・重複除く（BS05アイシクルアサルト）
     | "targetReductionSymbols" // **対象自身**の軽減シンボルの数（カード静的な reduction の個数。SD01-038 エメラルドブースト＝軽減シンボル1つにつきBP+1000）
-    | { ownFamily: string } // 自分フィールドの指定系統を持つスピリット数（発生源自身も含む）
+    | { ownFamily: string | string[] } // 自分フィールドの指定系統を持つスピリット数（発生源自身も含む）。配列＝いずれかの系統でOR（EffectCounterの同名軸と同じ）
     | { ownNameIncludes: string } // 自分フィールドでカード名にこの文字列を含むスピリット数（発生源自身も含む。アルカナプリンス・オベロ）
     | { ownCost: number } // 自分フィールドの指定コストのスピリット数（発生源自身も含む。instHasCostで判定＝付与コストも考慮。BS06細剣の猫騎士ケット・シー）
     | "ownHand" // 自分の手札枚数（BS10-049妖精神官アンドロメダ：「自分の手札1枚につき、このスピリットをBP+1000する」）
@@ -315,6 +315,16 @@ export type AuraCounter =
     | "targetSymbols" // AuraCounter版＝継続オーラ用。timedRuleBp の対象（第4引数targetInst）が持つシンボル数
     | "ownRestedNexuses" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（自分の疲労状態のネクサス数）
     | "targetSameFamilyOwn" // AuraCounter版＝継続オーラ用。対象（targetInst）と系統を1つ以上共有する自分のスピリット数（対象自身も数える）
+    | "readyEnemies" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（相手フィールドの回復状態スピリット数）
+    | "opponentTrashCores" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（相手のトラッシュのコア数。selfBuff由来はowner基準で対象に依らない）
+    | "ownBraveSpirits" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（自分フィールドのスピリット状態のブレイヴ数）
+    | "selfCores" // AuraCounter版＝継続オーラ用。**対象自身**（targetInst）の上に置かれているコア数（timedEffect の target:"self" 経由でのみ使う＝targetInstは常に発生源自身）
+    | "battlingOpponentSymbols" // AuraCounter版＝継続オーラ用。**対象自身**（targetInst）が参加しているバトルの相手側のシンボル数
+    | "battlingOpponentCombinedSymbols" // battlingOpponentSymbolsの合体スピリット限定版
+    | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（EffectCounterの同名軸と同じ判定）
+    | { ownNexusColor: Color } // 自分フィールドの指定色ネクサス数（EffectCounterの同名軸と同じ判定）
+    | { ownKeyword: Keyword } // 自分フィールドで指定キーワードを持つスピリット数（EffectCounterの同名軸と同じ判定）
+    | { enemyCost: { max?: number; min?: number } } // 相手フィールドのコスト条件を満たすスピリット数（EffectCounterの同名軸と同じ判定）
 
 // 常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
 export type AuraCondition =
@@ -1408,8 +1418,9 @@ export interface GameState {
     lastMagicCast?: { pid: PlayerId; cardId: string; timing: "main" | "flash"; targetInstanceId?: string } // 直前にプレイヤー自身が手札/手元から使用したマジック（doCastMagic・castMagicFromTrashByColorが記録。action:"magicMirrorRepeat"が参照する。**フラッシュタイミングが閉じた時点**でクリアされ、それより前の使用は対象にならない＝フラッシュ①で使われたマジックをフラッシュ②で写すことはできない。バトル終了時（clearBattle）にもクリアする。BS08マジックミラー）
 }
 
-// 期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）
-export type TimedContent = { type: "cantAttack" } | { type: "cantBlock" } | { type: "bp"; amount: number; amountCounter?: EffectCounter }
+// 期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
+// countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
+export type TimedContent = { type: "cantAttack" } | { type: "cantBlock" } | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =

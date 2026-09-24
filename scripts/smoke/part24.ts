@@ -5,7 +5,7 @@
 //   - BS03-094 偉大なる鍛冶師バギン：アタック時、Lv1は自分のネクサス数、Lv2は両者のネクサス数×1000で自身+BP（selfBuffPer）
 //   - BS03-098 戦闘竜ワイヴァーン：Lv1はブロック不可（cantBlock）、Lv1･Lv2はLv1以下にブロックされない（unblockableBy levelFilter）
 //   - BS03-142 サルベージ：メインで山札上5枚からネクサスを回収（deckReveal）、フラッシュでBP+3000
-import {
+import { bpBuffOf,
     act,
     assert,
     createGame,
@@ -65,7 +65,7 @@ console.log("=== BS03-094 偉大なる鍛冶師バギン：アタック時にネ
     s.players.p2.field.nexuses.push(createInstance("BS03-114", s.turn, 0))
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: bagin.instanceId }) === null, "バギンでアタック")
-    assert(bagin.tempBpBuff === 1000, "Lv1は自分のネクサス数（1）×1000でBP+1000")
+    assert(bpBuffOf(s, bagin) === 1000, "Lv1は自分のネクサス数（1）×1000でBP+1000")
 
     const s2 = createGame(
         "bs03-094-lv2-test",
@@ -79,7 +79,7 @@ console.log("=== BS03-094 偉大なる鍛冶師バギン：アタック時にネ
     s2.players.p2.field.nexuses.push(createInstance("BS03-114", s2.turn, 0))
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s2, "p1", { type: "attack", instanceId: bagin2.instanceId }) === null, "バギンでアタック")
-    assert(bagin2.tempBpBuff === 2000, "Lv2は両者のネクサス数合計（2）×1000でBP+2000")
+    assert(bpBuffOf(s2, bagin2) === 2000, "Lv2は両者のネクサス数合計（2）×1000でBP+2000")
 }
 
 console.log("=== BS03-098 戦闘竜ワイヴァーン：Lv1はブロック不可、Lv1以下にブロックされない ===")

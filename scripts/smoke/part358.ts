@@ -59,7 +59,7 @@ console.log("=== 2. 量の規則：(count ?? 1) × 値、countMax で頭打ち =
     resolveAction(r3.s, "p1", r3.self, { type: "draw", count: 2, countCounter: "exhaustedEnemies" }, undefined, undefined, "spirit")
     assert(r3.s.players.p1.hand.length === hand + 4, "draw count:2 × 相手の疲労2体＝4枚")
     const r4 = board("rule4")
-    resolveAction(r4.s, "p1", r4.self, { type: "selfBuff", amount: 1000, amountCounter: "opponentHand" }, undefined, undefined, "spirit")
+    resolveAction(r4.s, "p1", r4.self, { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: "opponentHand" }], duration: "turn", target: "self" }, undefined, undefined, "spirit")
     assert(r4.self.tempBpBuff === 4000, "amount:1000 × 相手の手札4枚＝BP+4000")
 }
 

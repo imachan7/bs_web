@@ -40,11 +40,18 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownColor": "red"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownColor": "red"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]

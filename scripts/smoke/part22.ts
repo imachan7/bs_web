@@ -1,5 +1,5 @@
 // smoke パート22（第三弾 BS03 エンジン拡張バッチ：EffectCounter統一・colorFilter付与・exhaust levelFilter）
-import {
+import { bpBuffOf,
     act,
     assert,
     createGame,
@@ -22,7 +22,7 @@ console.log("=== BS03-031 黒風のパンター：selfBuffPer counter=ownReserve
     s.players.p1.reserve = 3
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: panther.instanceId }) === null, "パンターでアタック")
-    assert(panther.tempBpBuff === 3000, "リザーブ3個×1000でBP+3000")
+    assert(bpBuffOf(s, panther) === 3000, "リザーブ3個×1000でBP+3000")
 }
 
 console.log("--- BS03-031：リザーブ0なら増加しない ---")
@@ -38,7 +38,7 @@ console.log("--- BS03-031：リザーブ0なら増加しない ---")
     s.players.p1.reserve = 0
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: panther.instanceId }) === null, "パンターでアタック")
-    assert(panther.tempBpBuff === 0, "リザーブ0なら増加しない")
+    assert(bpBuffOf(s, panther) === 0, "リザーブ0なら増加しない")
 }
 
 console.log("=== BS03-046 一角獣アインホルン：selfBuffPer counter=ownNexuses（ブロック時） ===")
@@ -62,7 +62,7 @@ console.log("=== BS03-046 一角獣アインホルン：selfBuffPer counter=ownN
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: horn.instanceId }) === null, "アインホルンでブロック")
-    assert(horn.tempBpBuff === 2000, "自分のネクサス2つ×1000でBP+2000")
+    assert(bpBuffOf(s, horn) === 2000, "自分のネクサス2つ×1000でBP+2000")
 }
 
 console.log("=== BS03-036 神鳥ピーゴッド：selfBuffPer counter={ownFamily:爪鳥}（アタック時） ===")
@@ -79,7 +79,7 @@ console.log("=== BS03-036 神鳥ピーゴッド：selfBuffPer counter={ownFamily
     s.players.p1.field.spirits.push(ally)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: piigod.instanceId }) === null, "ピーゴッドでアタック")
-    assert(piigod.tempBpBuff === 2000, "自身含む「爪鳥」2体×1000でBP+2000")
+    assert(bpBuffOf(s, piigod) === 2000, "自身含む「爪鳥」2体×1000でBP+2000")
 }
 
 console.log("=== BS03-048 鎧蛇竜ミッドガルズ：selfBuffPer counter={ownFamily:巨獣}（ブロック時・未構造化分の追加） ===")
@@ -99,7 +99,7 @@ console.log("=== BS03-048 鎧蛇竜ミッドガルズ：selfBuffPer counter={own
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: midgard.instanceId }) === null, "ミッドガルズでブロック")
-    assert(midgard.tempBpBuff === 1000, "自身が「巨獣」1体分でBP+1000（Lv2破壊耐性のonBattleと共存）")
+    assert(bpBuffOf(s, midgard) === 1000, "自身が「巨獣」1体分でBP+1000（Lv2破壊耐性のonBattleと共存）")
 }
 
 console.log("=== BS03-030 調教師ライナ兄弟：voidCoreToSelfPer counter=ownNexuses（召喚時） ===")

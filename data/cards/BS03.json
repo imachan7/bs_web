@@ -74,8 +74,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -421,8 +428,15 @@
      "targetSameLevelAsSelf": true
     },
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -1639,9 +1653,16 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "ownReserve"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "ownReserve"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -1915,11 +1936,18 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "爪鳥"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "爪鳥"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -2373,8 +2401,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 5000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2425,9 +2460,16 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "ownNexuses"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "ownNexuses"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2536,11 +2578,18 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "巨獣"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "巨獣"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -2649,8 +2698,15 @@
     ],
     "condition": "selfIsAttacking",
     "action": {
-     "type": "selfBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -3592,11 +3648,18 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownNameIncludes": "アルカナ"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownNameIncludes": "アルカナ"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -3945,8 +4008,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -4649,8 +4719,15 @@
       "cardType": "nexus"
      },
      "then": {
-      "type": "selfBuff",
-      "amount": 5000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 5000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     },
     "optional": true
@@ -4837,8 +4914,15 @@
       "cardType": "nexus"
      },
      "then": {
-      "type": "selfBuff",
-      "amount": 5000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 5000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     },
     "optional": true
@@ -4897,8 +4981,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -4948,9 +5039,16 @@
      1
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "ownNexuses"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "ownNexuses"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -4962,9 +5060,16 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "allNexuses"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "allNexuses"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -5335,11 +5440,18 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownNexusColor": "blue"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownNexusColor": "blue"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -8003,8 +8115,15 @@
     "granted": {
      "trigger": "onBlock",
      "action": {
-      "type": "selfBuff",
-      "amount": 2000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 2000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     }
    },

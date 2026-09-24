@@ -13,7 +13,7 @@
 //   Y10: battleCompareByCores（BPの代わりにコア数を比較）
 //   その他: reviveOnDestroy.colorFilter/condition・magicTargetRedirect.turn:"own"/protectCost・
 //     magicBuffBonus.target:"ownAll"・AuraCounter { ownCost }
-import {
+import { bpBuffOf,
     act,
     assert,
     createGame,
@@ -167,7 +167,7 @@ console.log("=== Y5: EffectCounter anyNameIncludes（BS06-058 アルカナナイ
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: hex.instanceId }) === null, "ヘクスでアタック")
     assert(
-        hex.tempBpBuff === 3000,
+        bpBuffOf(s, hex) === 3000,
         "「アルカナ」を含む両陣営3体（自身＋自陣営1体＋相手陣営1体）ぶんBP+3000",
     )
 }
@@ -294,12 +294,13 @@ console.log("--- Lv2：コスト5の自分のスピリットすべてを「ア�
     const probe = put(s, "p1", "BS02-049", 1)
     refreshLevelAsOverrides(s) // nameAsGrant等の継続付与（CardInstance.namesAsContinuous）を反映
     resolveAction(s, "p1", probe, {
-        type: "selfBuff",
-        amountCounter: { ownNameIncludes: "アルカナ" },
-        amount: 1000,
+        type: "timedEffect",
+        content: [{ type: "bp", amount: 1000, amountCounter: { ownNameIncludes: "アルカナ" } }],
+        duration: "turn",
+        target: "self",
     })
     assert(
-        probe.tempBpBuff === 2000,
+        bpBuffOf(s, probe) === 2000,
         "カール自身＋コスト5のケット・シーの2体ぶんBP+2000（Lv2のnameAsGrantでケット・シーも「アルカナ」扱い）",
     )
 }
@@ -311,9 +312,10 @@ console.log("--- Lv2：コスト5の自分のスピリットすべてを「ア�
     const probe = put(s, "p1", "BS02-049", 1)
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", probe, {
-        type: "selfBuff",
-        amountCounter: { ownNameIncludes: "アルカナ" },
-        amount: 1000,
+        type: "timedEffect",
+        content: [{ type: "bp", amount: 1000, amountCounter: { ownNameIncludes: "アルカナ" } }],
+        duration: "turn",
+        target: "self",
     })
-    assert(probe.tempBpBuff === 1000, "Lv1ではnameAsGrantが無いため、カール自身の1体分のみ")
+    assert(bpBuffOf(s, probe) === 1000, "Lv1ではnameAsGrantが無いため、カール自身の1体分のみ")
 }

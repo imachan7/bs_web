@@ -269,8 +269,15 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 10000
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 10000
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       },
       {
@@ -488,9 +495,16 @@
           2
         ],
         "action": {
-          "type": "selfBuff",
-          "amount": 1000,
-          "amountCounter": "selfCores"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 1000,
+              "amountCounter": "selfCores"
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       },
       {

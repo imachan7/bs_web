@@ -6,7 +6,7 @@
 // 拡張4: destroyAll の anySide/colorExclude — BS04-X13 魔龍帝ジークフリードLv3
 // ついでに: destroyNexus の all（相手ネクサスすべて破壊）／refreshOne の excludeSelf・
 //           selfBuffPer の新カウンタ opponentTrashCores・coreToTrashAllByCost も本パートでまとめて検証
-import { assert, act, createGame, createInstance, runTurnStart } from "./helpers"
+import { bpBuffOf, assert, act, createGame, createInstance, runTurnStart } from "./helpers"
 
 console.log("=== BS04-011 風龍王フージャオス: onSummon destroyNexus(all) ===")
 {
@@ -165,7 +165,7 @@ console.log("=== BS04-021 吸血鬼ダンピール: onSummon coreToTrashAllByCos
     dampiru.cores = 4 // Lv2へ引き上げ（selfBuffPerの検証用）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: dampiru.instanceId }) === null, "ダンピールでアタック宣言")
-    assert(dampiru.tempBpBuff === 2000, "相手トラッシュのコア2個ぶんBP+2000（selfBuffPer opponentTrashCores）")
+    assert(bpBuffOf(s, dampiru) === 2000, "相手トラッシュのコア2個ぶんBP+2000（selfBuffPer opponentTrashCores）")
 }
 
 console.log("=== BS04-022 王蛇ケツァルカトル: onAttack coreRemovePerHandDiscard（非interactiveの決定的動作） ===")

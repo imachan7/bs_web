@@ -1339,6 +1339,32 @@ export function countAuraCounter(
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
+    if (counter === "readyEnemies") {
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return countSpiritsWeighted(board, sourcePid, opp, (s) => !s.isRested, countingSourceType)
+    }
+    if (counter === "opponentTrashCores") {
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return board.players[opp].trashCores
+    }
+    if (counter === "ownBraveSpirits") {
+        return board.players[sourcePid].field.spirits.filter((s) => card(s.cardId).type === "brave").length
+    }
+    // selfCores／battlingOpponent* は timedEffect の target:"self" 経由でのみ使うため、targetInst は常に発生源自身
+    if (counter === "selfCores") return targetInst?.cores ?? 0
+    if (counter === "battlingOpponentSymbols" || counter === "battlingOpponentCombinedSymbols") {
+        if (!board.battle || !targetInst) return 0
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        const otherId =
+            board.battle.attackerInstanceId === targetInst.instanceId
+                ? board.battle.blockerInstanceId
+                : board.battle.attackerInstanceId
+        if (!otherId) return 0
+        const otherInst = board.players[opp].field.spirits.find((s) => s.instanceId === otherId)
+        if (!otherInst) return 0
+        if (counter === "battlingOpponentCombinedSymbols" && !instIsCombined(otherInst)) return 0
+        return instanceSymbolCount(otherInst)
+    }
     // **対象自身**の軽減シンボル数（カード静的な reduction の個数。SD01-038 エメラルドブースト）。
     // targetArmorColors と同じく発生源ではなく対象基準
     if (counter === "targetReductionSymbols") {
@@ -1373,6 +1399,32 @@ export function countAuraCounter(
             (s) => instHasColor(s, counter.ownColor),
             countingSourceType,
         )
+    }
+    // { anyNameIncludes: string }：両陣営のフィールドで、カード名に指定文字列を含むスピリット数
+    if ("anyNameIncludes" in counter) {
+        return (
+            countSpiritsWeighted(board, sourcePid, "p1", (s) => cardNameContains(s, counter.anyNameIncludes), countingSourceType) +
+            countSpiritsWeighted(board, sourcePid, "p2", (s) => cardNameContains(s, counter.anyNameIncludes), countingSourceType)
+        )
+    }
+    // { ownNexusColor: Color }：自分フィールドの指定色ネクサス数
+    if ("ownNexusColor" in counter) {
+        return board.players[sourcePid].field.nexuses.filter((n) => instHasColor(n, counter.ownNexusColor)).length
+    }
+    // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数
+    if ("ownKeyword" in counter) {
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => spiritHasKeyword(board, sourcePid, s, counter.ownKeyword),
+            countingSourceType,
+        )
+    }
+    // { enemyCost: {max,min} }：相手フィールドのコスト条件を満たすスピリット数
+    if ("enemyCost" in counter) {
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return countSpiritsWeighted(board, sourcePid, opp, (s) => instMatchesCostFilter(s, counter.enemyCost), countingSourceType)
     }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return countSpiritsWeighted(
@@ -1660,7 +1712,7 @@ export function effectiveBp(
 // 全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
 // （解決後に場に出たスピリットにも効き、「1体につき」の数も変わる。2026-09-24 ユーザー確認）。
 // 古代闘技場の抑止はここでは見ない：発揮を止める効果は、発揮し終わって続いている効果を止めない（置くときだけ見る）
-function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
+export function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
     let total = 0
     for (const c of board.turnConstraints) {
         if (c.type !== "timedRule" || (c.pid !== undefined && c.pid !== ownerPid)) continue

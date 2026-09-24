@@ -192,9 +192,16 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 2000,
-          "amountCounter": "ownBraveSpirits"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000,
+              "amountCounter": "ownBraveSpirits"
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       },
       {
@@ -392,8 +399,15 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 10000
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 10000
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       }
     ]
@@ -556,11 +570,18 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 3000,
-          "amountCounter": {
-            "ownFamily": "古竜"
-          }
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000,
+              "amountCounter": {
+                "ownFamily": "古竜"
+              }
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       }
     ]
@@ -2361,9 +2382,16 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 3000,
-          "amountCounter": "battlingOpponentCombinedSymbols"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000,
+              "amountCounter": "battlingOpponentCombinedSymbols"
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       }
     ]
