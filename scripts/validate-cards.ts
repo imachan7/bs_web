@@ -546,9 +546,13 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
             }
-            // suppressTriggerThisTurn.trigger も同様に検証する（未登録は無言で何も抑止しない）
-            if (a.type === "suppressTriggerThisTurn" && (typeof a.trigger !== "string" || !VALID_TRIGGERS.has(a.trigger))) {
-                add(id, `未知の trigger（suppressTriggerThisTurn）: ${String(a.trigger)}`)
+            // timedEffect の suppressTrigger.trigger も同様に検証する（未登録は無言で何も抑止しない）
+            if (a.type === "timedEffect") {
+                for (const x of (a as { content?: { type?: unknown; trigger?: unknown }[] }).content ?? []) {
+                    if (x.type === "suppressTrigger" && (typeof x.trigger !== "string" || !VALID_TRIGGERS.has(x.trigger))) {
+                        add(id, `未知の trigger（suppressTrigger）: ${String(x.trigger)}`)
+                    }
+                }
             }
         }
 

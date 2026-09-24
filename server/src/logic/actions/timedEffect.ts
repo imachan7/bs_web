@@ -22,6 +22,7 @@ function flagOf(content: Content, duration: TimedEffect["duration"]) {
 // BP は重ねがけできるので「既に持つ」とは見ない
 function has(inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
+        if (c.type === "suppressTrigger") return inst.suppressedTriggersThisTurn?.includes(c.trigger) === true
         const flag = flagOf(c, action.duration)
         return flag !== null && inst[flag] === true
     })
@@ -29,6 +30,7 @@ function has(inst: CardInstance, action: TimedEffect): boolean {
 
 function apply(inst: CardInstance, action: TimedEffect): string {
     for (const c of action.content) {
+        if (c.type === "suppressTrigger") inst.suppressedTriggersThisTurn = [...(inst.suppressedTriggersThisTurn ?? []), c.trigger]
         const flag = flagOf(c, action.duration)
         if (flag !== null) inst[flag] = true
     }
@@ -40,7 +42,8 @@ function contentLabel(action: TimedEffect): string {
     const cant = action.content.filter((c) => c.type === "cantAttack" || c.type === "cantBlock").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
     const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must].join("、")
+    const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -464,6 +467,26 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
 }
 
+// 陣営のスピリットすべての指定トリガーを発揮させない。判定のたびに見るので後から出たスピリットにも効く。絞り込みは持たない
+function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    if (action.duration !== "turn" || action.filter !== undefined) {
+        log(state, `${sourceName}：この期間・絞り込みの指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const pids: PlayerId[] = action.side === "both" ? [owner, opp] : [action.side === "own" ? owner : opp]
+    for (const c of action.content) {
+        if (c.type !== "suppressTrigger") continue
+        for (const pid of pids) {
+            if (!state.triggerSuppressionThisTurn.some((e) => e.pid === pid && e.trigger === c.trigger)) {
+                state.triggerSuppressionThisTurn.push({ pid, trigger: c.trigger })
+            }
+        }
+    }
+    const who = action.side === "both" ? "お互い" : state.players[pids[0]!].name
+    log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
+}
+
 // このバトルの解決方法を変える印（BattleState に置く）
 function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, sourceName } = ctx
@@ -635,6 +658,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         if (filter === SELF_REQUIRED) return
         if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
         else placeSymbolOrCost(ctx, action, filter)
+        return
+    }
+    if (action.all && action.content.some((c) => c.type === "suppressTrigger")) {
+        placeTriggerSuppressionRule(ctx, action)
         return
     }
     if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner")) {

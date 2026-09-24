@@ -277,17 +277,6 @@ const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, act
     return
 }
 
-const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ユーサネイジア：このターンの間、相手のスピリットの指定トリガーを発揮させない
-        const already = state.triggerSuppressionThisTurn.some(
-            (e) => e.pid === opp && e.trigger === action.trigger,
-        )
-        if (!already) state.triggerSuppressionThisTurn.push({ pid: opp, trigger: action.trigger })
-        log(state, `${sourceName}：このターンの間、${state.players[opp].name}のスピリットの誘発効果は発揮されない。`)
-        return
-}
-
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
@@ -884,7 +873,6 @@ const handlers = {
     grantBlockRequiresMagicDiscardThisTurn: grantBlockRequiresMagicDiscardThisTurnHandler,
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
-    suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
