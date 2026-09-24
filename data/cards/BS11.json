@@ -1768,7 +1768,18 @@
      2
     ],
     "optional": true,
-    "action": { "type": "timedEffect", "content": [{ "type": "cantAttack" }], "duration": "turn", "filter": { "combined": true } }
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantAttack"
+      }
+     ],
+     "duration": "turn",
+     "filter": {
+      "combined": true
+     }
+    }
    }
   ]
  },
@@ -3449,14 +3460,23 @@
     ],
     "optional": false,
     "action": {
-     "type": "banActByCostThisTurn",
-     "costs": [
-      4,
-      6,
-      8
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantBlock"
+      }
      ],
-     "blockOnly": true,
-     "side": "opponent"
+     "duration": "turn",
+     "all": true,
+     "filter": {
+      "cost": {
+       "in": [
+        4,
+        6,
+        8
+       ]
+      }
+     }
     }
    }
   ],
@@ -4798,9 +4818,20 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "banActByCostThisTurn",
-     "side": "opponent",
-     "nonVanillaOnly": true
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantAttack"
+      },
+      {
+       "type": "cantBlock"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "filter": {
+      "vanilla": false
+     }
     }
    },
    {

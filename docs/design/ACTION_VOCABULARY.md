@@ -84,6 +84,7 @@
 - 「〜すべて」は元のアクションに `all: true`（対象すべて）を付けて書き、`destroyAll` のような専用 type は作らない。`all: true` は範囲の効果として耐性を判定する（1体を対象に取る場合と違う）。両陣営は `anySide`。`coreRemove` の `all` だけは「そのスピリットのコアすべて」の意味（2026-09-24）
 - 「〜1体につき」の量は `countCounter`（量＝`(count ?? 1) × 値`、`countMax` で上限）か `amountCounter`（量＝`amount × 値`）で書き、`*Per` のような専用 type は作らない。計算は `server/src/logic/counted.ts` の1か所（対象に依存する数え方もここ）。2026-09-24
 - 期間つきの継続効果は `timedEffect { content, duration, count／countCounter, filter }` で書く。対象は相手のスピリット、選ぶのは発生源の持ち主、**内容をすべて既に持つ個体は候補にしない**（「1体につき1体を指定」で同じ個体を重ねない）。いまの内容は `cantAttack`・`cantBlock`、期間は `turn`・`battle` で、置き場は既存の印（2026-09-24）
+- `timedEffect` の `all: true` は個体を選ばず `turnConstraints` に `timedRule`（内容・陣営・解決済みの `filter`）を積み、宣言のたびに `shared/rules.ts` の `cantActByTimedRule` が `matchesTarget` で照合する。陣営は `side`（相手＝既定／`own`／`both`）。いまは期間 `turn` だけ（2026-09-24）
 - 「このターンの間、〜のスピリットすべては〜できない」は、効果の解決後に場に出たスピリットや、後から条件に合うようになったスピリットにも効く（判定のたびに条件を照合する全体ルール。2026-09-24 ユーザー確認）。「〜1体を指定し」は解決時に選んだ個体にだけ効く
 - 「この効果で消滅したスピリット1体につき」（BS10-X02）は、直前の結果を数える形（`if` の `last`／カウンタ）で読む
 - 破壊・戻すなどの対象は、陣営を軸 `side`（相手＝既定／`own`／`both`）で指定する。「自分のスピリット1体を破壊することで」は `side: "own"` の破壊（2026-09-24 ユーザー確認）

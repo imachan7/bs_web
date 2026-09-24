@@ -18,7 +18,7 @@ import {
     returnSpiritToHand,
     tryInteractiveTargetChoice,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, cantActByCost, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, cantActByTimedRule, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -641,30 +641,6 @@ const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> =
         )
         if (!already) state.triggerSuppressionThisTurn.push({ pid: opp, trigger: action.trigger })
         log(state, `${sourceName}：このターンの間、${state.players[opp].name}のスピリットの誘発効果は発揮されない。`)
-        return
-}
-
-const banActByCostThisTurnHandler: ActionHandler<"banActByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ヘビィゲート：このターンの間、コストがmaxCost以下のスピリットはすべてアタック/ブロック不可。
-        // side:"opponent" / nonVanillaOnly で対象を絞れる（BS11-082 ウィッグバインド）
-        state.turnConstraints.push({
-            type: "cantActByCost",
-            ...(action.maxCost !== undefined ? { maxCost: action.maxCost } : {}),
-            ...(action.costs !== undefined ? { costs: action.costs } : {}),
-            ...(action.blockOnly ? { blockOnly: true as const } : {}),
-            ...(action.side === "opponent" ? { pid: opp } : {}),
-            ...(action.nonVanillaOnly ? { nonVanillaOnly: true as const } : {}),
-        })
-        const who = action.side === "opponent" ? `${state.players[opp].name}の` : ""
-        const what = action.nonVanillaOnly ? "効果の記述を持つスピリット" : "スピリット"
-        const cost = action.costs !== undefined
-            ? `コスト${action.costs.join("/")}の`
-            : action.maxCost !== undefined
-              ? `コスト${action.maxCost}以下の`
-              : ""
-        const verb = action.blockOnly ? "ブロックができない" : "アタックとブロックができない"
-        log(state, `${sourceName}：このターンの間、${cost}${who}${what}は${verb}。`)
         return
 }
 
@@ -1463,7 +1439,6 @@ const handlers = {
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
-    banActByCostThisTurn: banActByCostThisTurnHandler,
     banHandCardsThisTurn: banHandCardsThisTurnHandler,
     capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
     lifeImmuneThisTurn: lifeImmuneThisTurnHandler,

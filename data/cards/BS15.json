@@ -5290,8 +5290,21 @@
      "spiritsOnly": true
     },
     "action": {
-     "type": "restrictActionsToColorThisTurn",
-     "color": "yellow"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantAttack"
+      },
+      {
+       "type": "cantBlock"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "both",
+     "filter": {
+      "colorExclude": "yellow"
+     }
     }
    }
   ]

@@ -1,6 +1,7 @@
 // smoke パート362（M8 試行：期間つき継続効果の器 timedEffect。カードデータの4か所が旧 type と同じ結果になるか。REFACTOR_PLAN §2.2）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { GameState } from "./helpers"
+import { cantActByTimedRule } from "../../shared/rules"
 import type { EffectAction } from "../../server/src/type"
 
 const FAREG = "BS12-038"
@@ -82,6 +83,47 @@ console.log("=== 4. 内容をすべて既に持つ個体しかいなければ何
     assert(s.players.p2.field.spirits.filter((i) => i.cantBlockThisTurn).length === 1, "アタックだけ持つ個体には、足りないブロックを付けられる")
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }], duration: "turn" })
     assert(s.log.at(-1)?.includes("対象がいなかった") === true, "全員が既に持っていれば対象なし")
+}
+
+console.log("=== 5. all:true：解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認） ===")
+{
+    const s = board()
+    resolveAction(s, "p1", null, cardAction("BS02-110")) // ヘビィゲート：コスト1以下すべて・両陣営
+    const later = createInstance(VANILLA, 1, 1)
+    s.players.p2.field.spirits.push(later)
+    refreshLevelAsOverrides(s)
+    assert(cantActByTimedRule(s, later) && cantActByTimedRule(s, later, "block"), "解決後に出たコスト1もアタック・ブロックできない")
+    assert(cantActByTimedRule(s, s.players.p1.field.spirits[0]!) === false, "コスト1より大きい自分のスピリットは止まらない")
+    assert(later.cantAttackThisTurn === false && later.cantBlockThisTurn !== true, "個体には印を書かない")
+}
+
+console.log("=== 6. all:true の陣営：既定は相手／own は自分／both は両方 ===")
+{
+    const make = (side?: "own" | "both") => {
+        const s = board()
+        resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }], duration: "turn", all: true, ...(side ? { side } : {}) })
+        return [cantActByTimedRule(s, s.players.p1.field.spirits[0]!), cantActByTimedRule(s, s.players.p2.field.spirits[0]!)]
+    }
+    assert(make().join() === "false,true", "既定は相手だけ")
+    assert(make("own").join() === "true,false", "own は自分だけ")
+    assert(make("both").join() === "true,true", "both は両方")
+}
+
+console.log("=== 7. 絞り込み：cost.in と vanilla:false、内容 cantBlock だけ ===")
+{
+    const s = board()
+    resolveAction(s, "p1", null, cardAction("BS11-057")) // バタホルン：コスト4/6/8の相手はブロックできない
+    const opp = s.players.p2.field.spirits[0]!
+    assert(!cantActByTimedRule(s, opp, "block"), "コスト1は止まらない")
+    opp.tempAlsoCosts.push(4)
+    assert(cantActByTimedRule(s, opp, "block") && !cantActByTimedRule(s, opp), "コスト4としても扱うならブロックだけ止まる")
+
+    const t = board()
+    resolveAction(t, "p1", null, cardAction("BS11-082")) // ウィッグバインド：効果の記述を持つ相手
+    assert(!cantActByTimedRule(t, t.players.p2.field.spirits[0]!), "バニラの相手は止まらない")
+    const withText = createInstance(FAREG, 1, 1)
+    t.players.p2.field.spirits.push(withText)
+    assert(cantActByTimedRule(t, withText), "効果の記述を持つ相手は止まる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part362）")

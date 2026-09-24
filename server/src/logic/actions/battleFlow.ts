@@ -93,13 +93,6 @@ const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAtt
     log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
 }
 
-// BS15-082神閃月下フラッシュ：このターンの間、指定色以外のスピリットすべて（両陣営）はアタック/ブロックできない
-const restrictActionsToColorThisTurnHandler: ActionHandler<"restrictActionsToColorThisTurn"> = (ctx, action) => {
-    const { state, sourceName } = ctx
-    state.turnConstraints.push({ type: "cantActExceptColor", color: action.color })
-    log(state, `${sourceName}：このターンの間、${COLOR_LABELS[action.color]}以外のスピリットすべてはアタック/ブロックできない。`)
-}
-
 // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない
 // （バーストの発動自体は止めない＝summonBurstCardFreeHandlerが召喚だけ止める）
 const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSummonThisTurn"> = (ctx) => {
@@ -2344,7 +2337,6 @@ const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
-    restrictActionsToColorThisTurn: restrictActionsToColorThisTurnHandler,
     blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
