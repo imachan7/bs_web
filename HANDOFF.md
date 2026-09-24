@@ -31,7 +31,13 @@
 計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。バッチ1・2の器は実装済み。
 
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
-②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（R3 は handDeck・EffectModules・magic まで分割済み。**§2.1 の④が進行中**：[ACTION_DECOMPOSITION.md](./docs/design/ACTION_DECOMPOSITION.md) の「要確認」83行と一覧に無い種類を調査役が定義を読んで埋める。ブランチ `docs/action-decomposition`。期間つき付与は「対象（プレイヤー含む）・内容・期間」の1つの器に寄せる＝ACTION_VOCABULARY §3） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
+②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
+
+### 次の一手：R4 の残り（effectAction.ts・type.ts のコメント削減）
+
+effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファイルずつ Sonnet に任せる。**1回目の指示で次を明示する**（effectDef.ts では1回目が29%減で止まり、2回目で45%減になった）：
+意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
+検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
@@ -114,8 +120,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 **バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
 **テストの方針（検討中・未決定）**：場面テスト（本物の操作だけで進めて左右反転も見る）と、AI対戦＋Haiku 審判。**もう少し検討してから決める** → [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md)。
-
-**委譲の呼び出し上限（120回）が守られない**：実装役②④が 203・209回で、1体17〜18%。プロンプトの指示では止まらないので、フックで呼び出し回数も数えて止める案がある（`~/.claude/bin/usage-guard.sh`）。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
