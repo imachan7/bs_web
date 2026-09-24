@@ -95,7 +95,7 @@ for (const [id, suffix] of [["BS07-061", "e1"], ["BS08-065", "e1"]] as const) {
     // 効果の対象になる駒（回復させる／コアを置く）を自分側に用意する
     const actFams = new Set<string>()
     const action = entry["action"] as Record<string, unknown>
-    const famRaw = action["familyFilter"]
+    const famRaw = action["familyFilter"] ?? (action["filter"] as Record<string, unknown> | undefined)?.["family"]
     if (typeof famRaw === "string") actFams.add(famRaw)
     else if (Array.isArray(famRaw)) for (const x of famRaw) actFams.add(String(x))
     let mine: ReturnType<typeof createInstance> | null = null

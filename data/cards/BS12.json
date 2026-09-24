@@ -1519,9 +1519,11 @@
         "byOpponentEffectOnly": true,
         "optional": false,
         "action": {
-          "type": "refreshAllByKeyword",
-          "keyword": "bofu",
-          "side": "own"
+          "type": "refreshOne",
+          "all": true,
+          "filter": {
+            "keyword": "bofu"
+          }
         }
       }
     ]

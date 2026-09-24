@@ -159,12 +159,10 @@ console.log("=== BS07 緑：ネクサス破壊で、選んだ色の「相手だ�
 
 console.log("=== BS07 緑：【暴風：1】を持つ自分のスピリットだけを回復させる（突風侯爵コカトリーフ） ===")
 {
-    const cocka = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["keywordCount"] !== undefined,
-    )
-    const action = entryOf(cocka, (e) => (e["action"] as Record<string, unknown> | undefined)?.["keywordCount"] !== undefined)[
-        "action"
-    ] as Record<string, unknown>
+    const filterOf = (e: Record<string, unknown>) =>
+        ((e["action"] as Record<string, unknown> | undefined)?.["filter"] as Record<string, unknown> | undefined)
+    const cocka = findByEffect((e) => filterOf(e)?.["keywordCount"] !== undefined)
+    const action = filterOf(entryOf(cocka, (e) => filterOf(e)?.["keywordCount"] !== undefined))!
     const wantCount = Number(action["keywordCount"])
     const keyword = String(action["keyword"])
     const bofuWith = (n: number): CardRow | undefined =>
@@ -186,10 +184,9 @@ console.log("=== BS07 緑：【暴風：1】を持つ自分のスピリットだ
     a.isRested = true
     b.isRested = true
     resolveAction(s, "p1", src, {
-        type: "refreshAllByKeyword",
-        keyword: keyword as never,
-        side: "own",
-        keywordCount: wantCount,
+        type: "refreshOne",
+        all: true,
+        filter: { keyword: keyword as never, keywordCount: wantCount },
     })
     assert(!a.isRested, `【${keyword}：${wantCount}】の${match.name}が回復する`)
     assert(b.isRested, `対照実験：【${keyword}：${wantCount + 1}】の${other.name}は回復しない`)

@@ -4023,12 +4023,14 @@
           2
         ],
         "action": {
-          "type": "refreshByFamily",
-          "familyFilter": [
-            "巨獣",
-            "戯狩"
-          ],
-          "count": 99
+          "type": "refreshOne",
+          "all": true,
+          "filter": {
+            "family": [
+              "巨獣",
+              "戯狩"
+            ]
+          }
         }
       }
     ]
@@ -4749,9 +4751,11 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "refreshAllByKeyword",
-          "keyword": "bofu",
-          "side": "own"
+          "type": "refreshOne",
+          "all": true,
+          "filter": {
+            "keyword": "bofu"
+          }
         }
       }
     ]

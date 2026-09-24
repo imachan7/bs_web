@@ -5712,8 +5712,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshAllByCost",
-     "cost": 2
+     "type": "refreshOne",
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "cost": {
+       "min": 2,
+       "max": 2
+      }
+     }
     }
    }
   ]
