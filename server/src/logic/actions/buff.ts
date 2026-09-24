@@ -32,6 +32,7 @@ import { canDiscardHand, instFamilies, instIsCombined, isBpBuffSuppressed, match
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
+import { countedAmount } from "../counted"
 
 
 // スリーカード：対象スピリット1体に「このターンの間、使用者の効果では count 体分として数える」印を付ける。
@@ -65,10 +66,18 @@ const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> =
 const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
-        self.tempBpBuff += action.amount
+        const amount =
+            action.amountCounter !== undefined
+                ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType)
+                : action.amount
+        if (action.amountCounter !== undefined && amount === 0) {
+            log(state, `${sourceName}：カウントが0のため増加しなかった。`)
+            return
+        }
+        self.tempBpBuff += amount
         log(
             state,
-            `${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
+            `${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
         )
         return
 }
@@ -392,10 +401,18 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             applyMagicBuffBonus(state, target, srcType, srcColors)
             return
         }
-        addBuff(target, action.amount)
+        const amount =
+            action.amountCounter !== undefined
+                ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType, undefined, target)
+                : action.amount
+        if (action.amountCounter !== undefined && amount === 0) {
+            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+            return
+        }
+        addBuff(target, amount)
         log(
             state,
-            `${getCard(target.cardId).name}はBP+${action.amount}（${untilLabel}）。`,
+            `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`,
         )
         applyMagicBuffBonus(state, target, srcType, srcColors)
         // thenAddSymbolThisBattle（BS13-062光り輝く大銀河Lv2）：BP増加に続けて、このバトルの間だけ
@@ -439,17 +456,25 @@ const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
             log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
             return
         }
+        const amount =
+            action.amountCounter !== undefined
+                ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType)
+                : action.amount
+        if (action.amountCounter !== undefined && amount === 0) {
+            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+            return
+        }
         const spirits = state.players[owner].field.spirits.filter((s) =>
             matchesTarget(state, owner, s, allFilter, self?.instanceId),
         )
         for (const s of spirits) {
-            s.tempBpBuff += action.amount
+            s.tempBpBuff += amount
         }
         const family = action.filter?.family
         const familyLabel = family ? (Array.isArray(family) ? family.join("/") : family) : ""
         log(
             state,
-            `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${action.amount}（ターン終了時まで）。`,
+            `${state.players[owner].name}の${familyLabel ? `【${familyLabel}】` : ""}スピリットすべてがBP+${amount}（ターン終了時まで）。`,
         )
         return
 }

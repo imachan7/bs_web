@@ -42,6 +42,7 @@ import { displayLevel, effectiveBp, instAllCosts, instColors, instHasColor, inst
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { countedAmount } from "../counted"
 
 // side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
 // 判定と実際の対象がずれないようにする
@@ -409,8 +410,9 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
         // countPerOpponentTrashMagicColors指定時はcountを無視し、相手のトラッシュのマジックカード
         // の色の種類数を対象数として使う（BS05超獣王ベヒードス）
+        // countCounter指定時はcount×EffectCounterの値を破壊数として使う
         const resolvedCount = action.countCounter !== undefined
-            ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+            ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
             : action.countPerOpponentTrashMagicColors
             ? distinctOpponentTrashMagicColors(state, opp)
             : action.count

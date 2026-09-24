@@ -2429,6 +2429,17 @@ export function countEffectCounter(
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
+    if (counter === "lastBattleDestroyedCost") return state.lastBattleDestroyedCost
+    // selfBofuCount：selfの【暴風】静的keywordの指定数のみ（ボーナス・ブレイヴ合流は見ない。
+    // 旧voidCoreToSelfPerBofuCountHandlerと同じ値に揃える。bofuCountFor（実効指定数）とは別軸）
+    if (counter === "selfBofuCount") {
+        if (!self) return 0
+        const level = currentLevel(self).level
+        const entry = getCard(self.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "bofu" && effectActiveAtLevel(e.levels, level),
+        )
+        return entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+    }
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
     if (counter === "selfSymbols") {

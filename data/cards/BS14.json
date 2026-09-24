@@ -1214,7 +1214,7 @@
     ],
     "action": {
      "type": "draw",
-     "count": 0,
+     "count": 1,
      "countCounter": "selfLevel"
     }
    }

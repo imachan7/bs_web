@@ -44,6 +44,7 @@ import {
 } from "../EffectModules"
 import { KEYWORDS, OPPONENT_RESERVE_TARGET, canDiscardHand, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { countedAmount } from "../counted"
 
 // pay の判定表（coreRemove）が使う候補。spread＝候補の合計コア数、all＝候補数（0/1）、
 // それ以外＝count個以上持つ候補の有無を、呼び出し側が比較できるよう「達成できる最大量」を返す。
@@ -95,9 +96,9 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             ctx.resolve(rest)
             return
         }
-        // countCounter指定時はcountを無視し、EffectCounterの値を除去枚数として使う
+        // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
-        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+        const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
         if (count === 0 && !action.all) {
             log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
             return
@@ -653,7 +654,7 @@ const capOpponentTrashCoreReturnNextRefreshHandler: ActionHandler<"capOpponentTr
 }
 
 const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
-    const { state, owner, self, sourceName, destroyContext, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, srcType, destroyContext, targetInstanceId } = ctx
         if (voidCorePlacementBlocked(state)) {
             log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
             return
@@ -696,10 +697,18 @@ const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
             log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
             destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
         }
-        player.reserve += action.count
+        const count =
+            action.countCounter !== undefined
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+                : action.count
+        if (action.countCounter !== undefined && count === 0) {
+            log(state, `${sourceName}：カウントが0のため獲得しなかった。`)
+            return
+        }
+        player.reserve += count
         log(
             state,
-            `${player.name}はボイドからコア${action.count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
+            `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
         )
         return
 }
@@ -764,7 +773,7 @@ const trashCoresToReserveHandler: ActionHandler<"trashCoresToReserve"> = (ctx, a
 }
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenOption } = ctx
+    const { state, owner, self, sourceName, srcType, chosenOption } = ctx
         // costDiscardOwnBurst（BS15-022アナグマッド・デビル）：自分のバースト1つを破棄することがコスト。
         // バーストをセットしていなければ不発
         if (action.costDiscardOwnBurst) {
@@ -790,20 +799,28 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
             log(state, `${sourceName}：コアを置く対象がいなかった。`)
             return
         }
+        const count =
+            action.countCounter !== undefined
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+                : action.count
+        if (action.countCounter !== undefined && count === 0) {
+            log(state, `${sourceName}：カウントが0のためコアを置かなかった。`)
+            return
+        }
         // orReserve（BS12-077/BS12-X03）：「自分のリザーブか、このスピリット上か」を効果の使用者が毎回選ぶ
         if (action.orReserve) {
             if (chosenOption === "このスピリット上に置く") {
                 // 下の通常経路（スピリット上に置く）へ落ちる
             } else if (chosenOption === "リザーブに置く" || !state.interactiveTargets) {
                 const player = state.players[owner]
-                player.reserve += action.count
-                log(state, `${player.name}はボイドからコア${action.count}個をリザーブに置いた。（リザーブ${player.reserve}）`)
+                player.reserve += count
+                log(state, `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`)
                 return
             } else {
                 suspend(state, {
                     pid: owner,
                     kind: "option",
-                    prompt: `${sourceName}：ボイドからコア${action.count}個を、自分のリザーブか、このスピリット上のどちらに置きますか？`,
+                    prompt: `${sourceName}：ボイドからコア${count}個を、自分のリザーブか、このスピリット上のどちらに置きますか？`,
                     candidates: [],
                     options: ["リザーブに置く", "このスピリット上に置く"],
                     optional: false,
@@ -815,9 +832,9 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
         }
         log(
             state,
-            `${getCard(self.cardId).name}は、ボイドからコア${action.count}個を自身の上に置いた。`,
+            `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
         )
-        placeCoresOnSpirit(state, self, action.count, owner)
+        placeCoresOnSpirit(state, self, count, owner)
         return
 }
 
@@ -2039,8 +2056,8 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         }
         // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
         if (action.from === "void") {
-            // countCounter（BS13-040金星神龍ヴィーナ・フェーザー）：EffectCounterの値を枚数として使う（0ならログのみ）
-            const voidCount = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+            // countCounter（BS13-040金星神龍ヴィーナ・フェーザー）：count×EffectCounterの値を枚数として使う（0ならログのみ）
+            const voidCount = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
             if (voidCount <= 0) {
                 log(state, `${sourceName}：対象がいないため発動しなかった。`)
                 return

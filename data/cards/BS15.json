@@ -200,7 +200,7 @@
      "actions": [
       {
        "type": "destroy",
-       "count": 0,
+       "count": 1,
        "countCounter": "opponentFieldColors",
        "filter": {
         "cores": 1
@@ -498,7 +498,7 @@
     "optional": false,
     "action": {
      "type": "draw",
-     "count": 0,
+     "count": 1,
      "countCounter": "opponentFieldColors"
     }
    }
@@ -807,7 +807,7 @@
     "optional": false,
     "action": {
      "type": "coreRemove",
-     "count": 0,
+     "count": 1,
      "countCounter": "opponentFieldColors"
     }
    }
@@ -2223,7 +2223,7 @@
     ],
     "action": {
      "type": "exhaust",
-     "count": 0,
+     "count": 1,
      "countCounter": "opponentFieldColors"
     },
     "optional": false
@@ -4263,7 +4263,7 @@
     "optional": false,
     "action": {
      "type": "draw",
-     "count": 0,
+     "count": 1,
      "countCounter": "opponentFieldColors"
     }
    },

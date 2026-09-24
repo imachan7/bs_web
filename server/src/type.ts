@@ -177,6 +177,8 @@ export type EffectCounter =
     | { enemyCost: { max?: number; min?: number } } // 持ち主から見た相手フィールドの、コスト条件を満たすスピリット数（instMatchesCostFilterで判定＝付与コストも見る。BS07バジリザード：コスト3以下の相手1体につき）
     | "opponentFieldColors" // 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く。多色は複数色、合体中ブレイヴの色も数える。shared/rules.opponentFieldColorCount。BS15共通器）
     | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（ネクサスを含めない。BS15共通器）
+    | "lastBattleDestroyedCost" // 直前のバトルで破壊されたスピリットのコスト
+    | "selfBofuCount" // self の【暴風】の指定数（ブレイヴ合流・ボーナスは見ない）
 
 // 誘発イベント（data.md 5.1 のイベント層）。
 // ルール追加時はまず既存イベントで表現できるか検討する。

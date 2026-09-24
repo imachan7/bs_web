@@ -4533,7 +4533,7 @@
      },
      "action": {
       "type": "lifeCrush",
-      "count": 0,
+      "count": 1,
       "countCounter": "selfSymbols"
      }
     }

@@ -44,6 +44,7 @@ import {
 import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeDamagePerSpiritRemaining, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
+import { countedAmount } from "../counted"
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -414,7 +415,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             // 以前は払ってからカウントを見ていたため、減らせないときも払い損になっていた
             const costCount =
                 action.countCounter !== undefined
-                    ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+                    ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
                     : action.count
             if (costCount <= 0 || state.players[opp].life <= 0) {
                 log(state, `${sourceName}：減らせるライフがないため発動しなかった。`)
@@ -428,8 +429,8 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
-        // countCounter指定時はcountを無視しEffectCounterの値を個数として使う（BS08メテオストーム）
-        const count = action.countCounter !== undefined ? countEffectCounter(state, owner, self, action.countCounter, srcType) : action.count
+        // countCounter指定時はcount×EffectCounterの値を個数として使う（BS08メテオストーム）
+        const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
         if (count <= 0) {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return
@@ -1377,11 +1378,11 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             )
             return
         }
-        // BS15-018霊獣皇テン・クー：countCounter指定時はcountを無視しEffectCounterの値を召喚できる
+        // BS15-018霊獣皇テン・クー：countCounter指定時はcount(??1)×EffectCounterの値を召喚できる
         // 最大枚数として使う（0なら不発）。count分岐と異なり、この効果は「発揮されない」の記載が無いため
         // 召喚時効果を通常どおり発揮する（fireSummonSequenceを呼ぶ）。コスト最大から貪欲に選ぶ決定的簡略化
         if (action.countCounter !== undefined) {
-            let remaining = countEffectCounter(state, owner, self, action.countCounter, undefined)
+            let remaining = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, undefined)
             const summonedNames: string[] = []
             while (remaining > 0) {
                 let bestIndex = -1
@@ -1932,11 +1933,11 @@ const removeOneOfAnyTypeHandler: ActionHandler<"removeOneOfAnyType"> = (ctx, act
         else if (action.mode === "toDeckBottom") returnNexusToDeckBottom(state, opp, chosen.instanceId)
         else returnNexusToHand(state, opp, chosen.instanceId)
     }
-    // count/countCounter（器：BS13-X06巨人勇者ペルセウス「自分のネクサス1つにつき」）：countCounter優先、
-    // どちらも無ければ1回。0なら不発（候補が尽きたぶんは不発＝COST_MODEL.mdの「あるだけ処理」）
+    // count/countCounter（器：BS13-X06巨人勇者ペルセウス「自分のネクサス1つにつき」）：
+    // countCounter指定時はcount(??1)×EffectCounterの値、無指定なら1回。0なら不発（候補が尽きたぶんは不発＝COST_MODEL.mdの「あるだけ処理」）
     const resolvedCount =
         action.countCounter !== undefined
-            ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+            ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
             : (action.count ?? 1)
     if (resolvedCount === 0) {
         log(state, `${sourceName}：カウントが0のため発動しなかった。`)
@@ -2400,12 +2401,12 @@ const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> =
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
     const { state, owner, self, srcType } = ctx
     // all指定時はcountを無視し、各自の手札すべて（枚数は各自バラバラ）を破棄する（BS10-111ハンドタイフーン）
-    // countCounter指定時はcountを無視しEffectCounterの値を破棄枚数として使う
+    // countCounter指定時はcount×EffectCounterの値を破棄枚数として使う
     // （BS10-X02双魚賊神ピスケガレオン：系統「光導」/「星魂」を持つ自分のスピリット数）
     const count = action.all
         ? 0
         : action.countCounter !== undefined
-          ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+          ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
           : action.count
     if (!action.all && count <= 0) {
         if (action.countCounter !== undefined) {

@@ -2736,7 +2736,7 @@
         "optional": false,
         "action": {
           "type": "coreRemove",
-          "count": 0,
+          "count": 1,
           "countCounter": {
             "ownFamily": "星魂"
           }
@@ -3107,7 +3107,7 @@
         "optional": false,
         "action": {
           "type": "discardBothHands",
-          "count": 0,
+          "count": 1,
           "countCounter": {
             "ownFamily": [
               "光導",
