@@ -2599,12 +2599,23 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "grantColorChoice",
-       "fixedTarget": "self"
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "color"
+        }
+       ],
+       "duration": "turn",
+       "target": "self"
       },
       {
-       "type": "grantColorChoice",
-       "targetSide": "opponent"
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "color"
+        }
+       ],
+       "duration": "turn"
       }
      ]
     }

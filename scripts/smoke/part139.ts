@@ -228,19 +228,14 @@ console.log("=== BS07 赤：トラッシュ回収したカードが「勇傑」�
 
 console.log("=== BS07 赤：自分のスピリット1体を青としても扱い、あわせてBP+する（メテオフォール） ===")
 {
-    const meteor = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantColorThisTurn",
-    )
-    const color = String(
-        (entryOf(meteor, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantColorThisTurn")[
-            "action"
-        ] as Record<string, unknown>)["color"],
-    )
-    const buffAmount = Number(
-        ((entryOf(meteor, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect")[
-            "action"
-        ] as Record<string, unknown>)["content"] as { amount: number }[])[0]!.amount,
-    )
+    // 色を与える・BP+ はどちらも timedEffect なので、内容の種類で見分ける
+    const contentOf = (e: Record<string, unknown>) =>
+        ((e["action"] as { type?: string; content?: Record<string, unknown>[] } | undefined)?.content ?? [])[0]
+    const isColor = (e: Record<string, unknown>) => contentOf(e)?.["type"] === "color" && contentOf(e)?.["color"] !== undefined
+    const isBp = (e: Record<string, unknown>) => contentOf(e)?.["type"] === "bp"
+    const meteor = findByEffect(isColor)
+    const color = String(contentOf(entryOf(meteor, isColor))!["color"])
+    const buffAmount = Number(contentOf(entryOf(meteor, isBp))!["amount"])
     const s = base("meteor-fall")
     const target = put(s, "p1", FILLER.cardId, 1)
     put(s, "p2", FILLER.cardId, 1)

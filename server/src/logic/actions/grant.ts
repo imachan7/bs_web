@@ -232,84 +232,6 @@ const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAs
         return
 }
 
-const grantColorThisTurnHandler: ActionHandler<"grantColorThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-        // BS07メテオフォール：自分のスピリット1体を、このターンの間その色としても扱う（色は固定）。
-        // 対象の選び方は grantKeyword と同じ（指定優先→バトル中→フィールド先頭）
-        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
-        if (!target) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        if (!target.tempColors.includes(action.color)) target.tempColors.push(action.color)
-        log(
-            state,
-            `${getCard(target.cardId).name}に色「${COLOR_LABELS[action.color]}」が与えられた（ターン終了時まで）。`,
-        )
-        return
-}
-
-const grantColorChoiceHandler: ActionHandler<"grantColorChoice"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 第3段階を先に判定する：doResolveChoiceのoption応答はtargetInstanceIdを渡さず
-        // （selfに退避済みの対象を積んでchosenOptionだけを渡す）resolveActionを呼ぶため、
-        // 「targetInstanceId未指定なら第1段階」という判定を先にしてしまうと
-        // 第3段階に到達できず第1段階の選択要求へ戻ってしまう。そのためchosenOptionの有無を最優先で見る。
-        if (chosenOption !== undefined) {
-            // 第3段階：選ばれた色を対象（第2段階でselfとして退避したもの）のtempColorsへ反映
-            if (!self) return
-            const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
-                ([, label]) => label === chosenOption,
-            )
-            if (!colorEntry) return
-            const [color] = colorEntry
-            if (!self.tempColors.includes(color)) self.tempColors.push(color)
-            log(state, `${getCard(self.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
-            return
-        }
-        // BS15-038アルカナビースト・ジャック：fixedTarget:"self"指定時は第1段階（対象選択）を飛ばし、
-        // 発生源自身を対象に固定する（第2段階＝色選択から始める）
-        if (action.fixedTarget === "self") {
-            if (!self) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-            requestChoice(state, owner, "与える色を選んでください", [], false, action, self, "option", allColors.map((c) => COLOR_LABELS[c]))
-            return
-        }
-        if (targetInstanceId === undefined) {
-            // 第1段階：色を与える対象スピリットを選ぶ（targetSide:"opponent"指定時は相手のフィールドだけ）
-            const candidates = (
-                action.targetSide === "opponent"
-                    ? state.players[opp].field.spirits
-                    : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits]
-            ).map((s) => s.instanceId)
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
-            return
-        }
-        // 第2段階：色を選ぶ。対象のinstanceIdをselfとして退避し、次の選択（kind:"option"）へ引き継ぐ
-        const target = findInstanceAnywhere(state, targetInstanceId)
-        if (!target) return
-        const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-        requestChoice(
-            state,
-            owner,
-            "与える色を選んでください",
-            [],
-            false,
-            action,
-            target,
-            "option",
-            allColors.map((c) => COLOR_LABELS[c]),
-        )
-        return
-}
-
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
     const { state, owner, self, sourceCardId, sourceName, chosenOption } = ctx
         if (!self) return
@@ -1270,8 +1192,6 @@ const handlers = {
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
-    grantColorChoice: grantColorChoiceHandler,
-    grantColorThisTurn: grantColorThisTurnHandler,
     blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,

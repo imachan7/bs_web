@@ -4383,8 +4383,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantColorThisTurn",
-     "color": "blue"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "color",
+       "color": "blue"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
