@@ -26,7 +26,7 @@ import {
     continuousKeywordGrantCount,
     lifeCostBlockedByFloor,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, staticKeywordCount, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../removal"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -449,17 +449,26 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             log(state, `${sourceName}の回復：BP参照元がいなかった。`)
             return
         }
+        // all 指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）。
+        // anySide は両陣営。封印された魔導書の片側への変更（bothSidesPids）は通さない：回復は受ける側に得な効果で、
+        // どちら側を残すかが未決のため（旧 refreshAllByCost・refreshAllByKeyword の挙動のまま）
+        if (action.all) {
+            let refreshed = 0
+            for (const pid of action.anySide ? (["p1", "p2"] as PlayerId[]) : [owner]) {
+                for (const s of [...state.players[pid].field.spirits]) {
+                    if (!s.isRested || !matchesTarget(state, pid, s, filter, self?.instanceId)) continue
+                    refreshSpirit(state, pid, s, srcType)
+                    refreshed++
+                }
+            }
+            log(state, refreshed === 0 ? `${sourceName}の回復：対象がいなかった。` : `${sourceName}：条件を満たすスピリット${refreshed}体を回復させた。`)
+            return
+        }
         const candidates = state.players[owner].field.spirits.filter(
             (s) => s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}の回復：対象がいなかった。`)
-            return
-        }
-        // all指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）
-        if (action.all) {
-            for (const c of candidates) refreshSpirit(state, owner, c, srcType)
-            log(state, `${sourceName}：条件を満たすスピリット${candidates.length}体を回復させた。`)
             return
         }
         // 選択の解決：選ばれた1体だけ回復する（count 指定の残りは resume スタックが持っている）。
@@ -519,18 +528,6 @@ function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
     target.levelOverrideThisTurn = nextLevel
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
-}
-
-// このスピリットが**カードに静的に持つ**指定キーワードエントリの count（レベル有効なもの）。
-// 【暴風：1】と【暴風：2】を区別する用途。付与キーワードは count を持たないため対象外
-function staticKeywordCount(inst: CardInstance, keyword: Keyword): number | undefined {
-    const level = currentLevel(inst).level
-    for (const effect of getCard(inst.cardId).effects) {
-        if (effect.kind !== "keyword" || effect.keyword !== keyword) continue
-        if (!effectActiveAtLevel(effect.levels, level)) continue
-        return effect.count ?? 1
-    }
-    return undefined
 }
 
 const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {

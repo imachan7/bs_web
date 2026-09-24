@@ -84,6 +84,17 @@ export function instHasTriggerEffect(inst: CardInstance, trigger: TriggerEvent):
 // ---- レベル・基本述語 ----
 
 // 効果の levels 指定が現在のレベルで有効か（null = レベル不問）
+// カードに静的に書かれたキーワードエントリの指定数（【暴風：1】の1）。付与されたキーワードは指定数を持たないので見ない
+export function staticKeywordCount(inst: CardInstance, keyword: Keyword): number | undefined {
+    const level = currentLevel(inst).level
+    for (const effect of card(inst.cardId).effects) {
+        if (effect.kind !== "keyword" || effect.keyword !== keyword) continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        return effect.count ?? 1
+    }
+    return undefined
+}
+
 export function effectActiveAtLevel(levels: number[] | null, level: number): boolean {
     return levels === null || levels.includes(level)
 }
@@ -1676,6 +1687,7 @@ export function matchesTarget(
     // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく
     if (filter.braveInSpiritState === true && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
     if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
+    if (filter.keywordCount !== undefined && (filter.keyword === undefined || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
     // 継続的な制約（unblockableBy）とターン限定の印（unblockableOnceThisTurn）の両方を見る
