@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
-import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
+import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -228,6 +228,22 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         return
     }
     const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
+    if (action.content.some((c) => c.type === "level")) {
+        state.turnConstraints.push({
+            type: "timedRule",
+            content: action.content,
+            ownerPid: owner,
+            ...(pid !== undefined ? { pid } : {}),
+            filter,
+            ...(self ? { selfInstanceId: self.instanceId } : {}),
+            appliedIds: [],
+        })
+        refreshLevelAsOverrides(state)
+        const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
+        const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
+        log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
+        return
+    }
     state.turnConstraints.push({
         type: "timedRule",
         content: action.content,
@@ -317,7 +333,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
 
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    if (action.content.some((c) => c.type === "level")) {
+    if (!action.all && action.content.some((c) => c.type === "level")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         placeLevel(ctx, action, filter)

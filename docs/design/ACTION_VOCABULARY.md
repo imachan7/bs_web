@@ -97,6 +97,7 @@
   - 「このスピリットの【粉砕】で破棄したカード1枚につき」は、そのアタックの【粉砕】で破棄したカードだけを数える（解決時に固定。2026-09-24 ユーザー確認）
 - 「このスピリットをBP+」は `timedEffect` の `target: "self"`（対象は発生源自身。filter・side・count は見ない）。過去の出来事を数えるもの（【粉砕】で破棄した数）は内容に `countOnce: true` を書いて解決時に固定する。共有層（`countAuraCounter`）で数えられない数え方は実行時に解決時固定へ落ちるので、可変のつもりなら `validate:cards` が落とす（2026-09-24）
 - 「このターンの間、自分のスピリット1体にキーワードを与える」は `timedEffect` の内容 `{ type: "keyword"; keyword; colors? }`（`side: "own"`）。対象の決め方は旧 `grantKeyword` と同じで、個体の `tempKeywords` に書く。見出しの継続効果で与えるものは `keywordGrant`（`phase`・`turn` でステップを限定）で書く（2026-09-24）
+- 「このターンの間、〜のスピリットすべてを Lv◯（最高Lv）として扱う」も解決後に場に出たスピリットに効く（2026-09-24 ユーザー確認）。`timedEffect` の内容 `level`（`set`／`max`）＋ `all: true` は `timedRule` に `appliedIds` を持たせて置き、`refreshLevelAsOverrides` がまだ書いていない個体（後から場に出たもの）にだけ `levelOverrideThisTurn` を書く。書いた後は上書きしない（後から使われた1体の Lv 変更が勝つ）。1体指定は `set`／`up`
 - `timedEffect` の `all: true` は個体を選ばず `turnConstraints` に `timedRule`（内容・陣営・解決済みの `filter`）を積み、宣言のたびに `shared/rules.ts` の `cantActByTimedRule` が `matchesTarget` で照合する。陣営は `side`（相手＝既定／`own`／`both`）。いまは期間 `turn` だけ（2026-09-24）
 - 「このターンの間、〜のスピリットすべては〜できない」は、効果の解決後に場に出たスピリットや、後から条件に合うようになったスピリットにも効く（判定のたびに条件を照合する全体ルール。2026-09-24 ユーザー確認）。「〜1体を指定し」は解決時に選んだ個体にだけ効く
 - 「この効果で消滅したスピリット1体につき」（BS10-X02）は、直前の結果を数える形（`if` の `last`／カウンタ）で読む

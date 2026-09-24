@@ -3983,7 +3983,16 @@
      2
     ],
     "action": {
-     "type": "levelMaxAllOwnThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "max": true
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own"
     },
     "optional": false
    }
