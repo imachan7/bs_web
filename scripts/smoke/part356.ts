@@ -144,6 +144,19 @@ console.log("=== 5. 対話モード：costの選択で中断し、選んだあ�
     assert(s.players.p1.trashCards.length === 1, "costの破棄が実行された")
 }
 
+console.log("=== 5b. 対話モード：2枚破棄のcostは2枚目の選択を挟んでからthenへ進む ===")
+{
+    const s = game("case5b", true)
+    s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    act(s, "p1", { type: "resolveChoice", cardIndex: s.pendingChoice?.cardIndices?.[0] ?? 0 })
+    assert(s.pendingChoice?.kind === "card", "2枚目の選択で止まっている")
+    assert(s.players.p1.deck.length === 40, "2枚目を選ぶ前にはドローしていない")
+    act(s, "p1", { type: "resolveChoice", cardIndex: s.pendingChoice?.cardIndices?.[0] ?? 0 })
+    assert(s.pendingChoice === null, "2枚目を選ぶと中断が解ける")
+    assert(s.players.p1.trashCards.length === 2 && s.players.p1.deck.length === 37 && s.players.p1.hand.length === 4, "破棄2枚のあとドロー3枚")
+}
+
 console.log("=== 6. 判定表に無いtypeを書いたら何も動かない ===")
 {
     const s = game("case6")

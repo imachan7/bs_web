@@ -463,10 +463,6 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
         return
 }
 
-// 自分の手札から count 枚を破棄する。実対戦（interactiveTargets）では1枚ずつ選ばせ、
-// 残りぶんを queue に積んで同じアクションへ戻ってくる（discardSelfOne の選択機構を count 回ぶん繰り返す形）。
-// 非interactive時は既存の決定的簡略化に合わせて手札の末尾から順に破棄する
-// discardSelfChoose の cardType/keyword 絞り込み一致判定。両方省略時は手札全カードが対象（従来どおり）。
 // pay.ts の判定表からも使う
 export const discardSelfChooseEligible = (cardId: string, action: Extract<EffectAction, { type: "discardSelfChoose" }>): boolean => {
     if (action.cardType !== undefined) {
@@ -480,6 +476,8 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
     return true
 }
 
+// 実対戦（interactiveTargets）では1枚ずつ選ばせ、残りぶんを queue に積んで同じアクションへ戻ってくる。
+// 非interactive時は条件に合う候補の末尾から破棄する（決定的簡略化）
 const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
