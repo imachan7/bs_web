@@ -1646,7 +1646,8 @@ export function effectiveBp(
 }
 
 // 全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
-// （解決後に場に出たスピリットにも効き、「1体につき」の数も変わる。2026-09-24 ユーザー確認）
+// （解決後に場に出たスピリットにも効き、「1体につき」の数も変わる。2026-09-24 ユーザー確認）。
+// 古代闘技場の抑止はここでは見ない：発揮を止める効果は、発揮し終わって続いている効果を止めない（置くときだけ見る）
 function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
     let total = 0
     for (const c of board.turnConstraints) {
@@ -1658,7 +1659,6 @@ function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): numb
                 x.amountCounter === undefined
                     ? x.amount
                     : x.amount * countAuraCounter(board, c.ownerPid, x.amountCounter as AuraCounter)
-            if (amount > 0 && isBpBuffSuppressed(board, c.ownerPid)) continue
             total += amount
         }
     }
