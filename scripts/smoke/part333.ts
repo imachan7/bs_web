@@ -246,7 +246,7 @@ console.log("=== BS15-X03 鳥武帝スザクロス・ソウソー：バトル時
     s.players.p1.field.spirits.push(suzaku)
     refreshLevelAsOverrides(s)
     s.battle = { attackerInstanceId: suzaku.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false } as never
-    resolveAction(s, "p1", suzaku, { type: "disableOpponentBurstThisBattle" })
+    resolveAction(s, "p1", suzaku, { type: "timedEffect", content: [{ type: "battleLock", lock: "burst" }], duration: "battle" })
     assert((s.battle as unknown as { burstBlockedForPid?: string }).burstBlockedForPid === "p2", "相手のバーストがこのバトルの間無効化された")
 }
 

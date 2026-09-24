@@ -5016,7 +5016,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "lockFlash"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "flash"
+      }
+     ],
+     "duration": "battle"
     }
    },
    {
@@ -5028,7 +5035,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "lockFlash"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "flash"
+      }
+     ],
+     "duration": "battle"
     }
    }
   ]

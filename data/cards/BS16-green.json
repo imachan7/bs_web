@@ -160,7 +160,14 @@
         "granted": {
           "trigger": "onBattleStart",
           "action": {
-            "type": "disableOpponentBurstThisBattle"
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "battleLock",
+                "lock": "burst"
+              }
+            ],
+            "duration": "battle"
           }
         }
       },
@@ -175,7 +182,14 @@
         "granted": {
           "trigger": "onBattleStart",
           "action": {
-            "type": "disableOpponentBurstThisBattle"
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "battleLock",
+                "lock": "burst"
+              }
+            ],
+            "duration": "battle"
           }
         }
       },
@@ -190,7 +204,14 @@
         "granted": {
           "trigger": "onBattleStart",
           "action": {
-            "type": "disableOpponentBurstThisBattle"
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "battleLock",
+                "lock": "burst"
+              }
+            ],
+            "duration": "battle"
           }
         }
       }

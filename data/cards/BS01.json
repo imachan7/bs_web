@@ -6399,7 +6399,14 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lockFlash"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "flash"
+      }
+     ],
+     "duration": "battle"
     }
    }
   ]

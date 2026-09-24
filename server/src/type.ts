@@ -1429,6 +1429,7 @@ export type TimedContent =
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
     | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
     | { type: "unblockable"; fromMinBp?: number } // 相手のスピリットにブロックされない。fromMinBp＝実効BPがこれ以上の相手からだけ（期間は battle のみ）
+    | { type: "battleLock"; lock: "flash" | "burst" } // このバトルの間、プレイヤーはフラッシュで手札のカードを使えない／バーストを発動できない（期間は battle のみ）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 
