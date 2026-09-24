@@ -5860,8 +5860,23 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "banActByCostThisTurn",
-     "maxCost": 1
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantAttack"
+      },
+      {
+       "type": "cantBlock"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "both",
+     "filter": {
+      "cost": {
+       "max": 1
+      }
+     }
     }
    }
   ]

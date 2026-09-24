@@ -83,11 +83,11 @@ export interface TargetFilter {
     colorExclude?: Color // この色を持つものを除外
     family?: FamilyFilter // 系統（配列＝いずれかでOR。付与系統も考慮）
     familyAll?: string[] // 指定した系統すべてを持つ（AND。familyのOR配列とは別軸。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
-    cost?: { max?: number; min?: number }
+    cost?: { max?: number; min?: number; in?: number[] } // in＝いずれかのコストと一致
     level?: number[] // currentLevel がこれに含まれる
     minLevel?: number // currentLevel がこれ以上（levelの完全一致とは別軸。BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」）
     keyword?: Keyword // 指定キーワード持ち（一時付与・継続付与も考慮）
-    vanilla?: true // 効果テキストを持たないカードのみ
+    vanilla?: boolean // true＝効果の記述を持たない／false＝持つ
     minSymbols?: number // シンボル数がこれ以上
     symbolCount?: number // シンボル数が**これと完全一致**（minSymbols＝以上とは別軸。「シンボル1つを持つ相手のスピリット」「シンボル2つを持つ相手の合体スピリット」。instanceSymbolCountで判定＝合体しているブレイヴのシンボルも数える。BS12初出）
     excludeSelf?: boolean // 発生源自身を対象から外す
@@ -1405,7 +1405,7 @@ export interface GameState {
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
-    | { type: "cantActByCost"; maxCost?: number; costs?: number[]; blockOnly?: true; pid?: PlayerId; nonVanillaOnly?: true } // コストがmaxCost以下（costs指定時はそのいずれかと一致）のスピリットはすべてアタック/ブロック不可（ヘビィゲート）。blockOnly指定時はブロックだけを止める（BS11-057 バタホルン＝コスト4/6/8の相手はブロックできない）。**maxCost省略時はコストを問わない**。pid指定時はそのプレイヤーのスピリットだけ、nonVanillaOnly指定時は効果の記述を持つスピリットだけに効く（BS11-082 ウィッグバインド＝「効果の記述を持つ相手のスピリットすべて」）
+    | { type: "timedRule"; content: ("cantAttack" | "cantBlock")[]; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // timedEffect の all:true。宣言のたびに照合するので、解決後に場に出たスピリットにも効く
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
     | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）
@@ -1429,7 +1429,6 @@ export type TurnConstraintDef =
     | { type: "nexusEffectsDisabledForPid"; pid: PlayerId } // 器BC：このターンの間、この pid（＝相手側）のネクサスすべての効果は発揮されない（action:"opponentNexusEffectsDisabledThisTurn"が積む。nexusEffectsDisabledFor が読む。BS13-039神獣バーロン）
     | { type: "noDeckMillForPidThisTurn"; pid: PlayerId } // 器AR：このターンの間、この pid のデッキは**相手の効果では**破棄されない（globalConstraint "noDeckMillByOpponent" のターン限定版。isDeckMillBlockedが読む。BS13-034ミノガメン：デッキ破棄効果で破棄され無償召喚したときだけ付く）
     | { type: "noDeckMillAtAllForPidThisTurn"; pid: PlayerId } // 器BS16：このターンの間、この pid のデッキは**自分の効果も含め**一切破棄されない（noDeckMillForPidThisTurnの相手限定を外した全面版。millDeckの冒頭でbyOpponentを問わず判定する。BS16-002パイルドラコ：「このターンの間、自分のデッキは破棄されない」）
-    | { type: "cantActExceptColor"; color: Color } // BS15共通器：このターンの間、指定色**以外**のスピリットすべて（両陣営とも）はアタック/ブロックできない（cantActByCostが判定。BS15-082神閃月下フラッシュ：「このターンの間、黄以外のスピリットすべてはアタック/ブロックできない」）
     | { type: "noBurstSpiritSummonThisTurn" } // このターンの間、お互い、バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴのバースト召喚は対象外。summonBurstCardFreeHandlerが判定。BS16-058サテライド・バード）
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----

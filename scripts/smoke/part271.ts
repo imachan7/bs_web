@@ -6,7 +6,7 @@
 import { act, assert, createGame, createInstance, destroyNexus, destroySpirit, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { cantActByCost, noSummonTriggerByCost } from "../../shared/rules"
+import { cantActByTimedRule, noSummonTriggerByCost } from "../../shared/rules"
 import { validateCastMagic } from "../../server/src/logic/RuleValidator"
 
 const byName = (n: string) => {
@@ -311,9 +311,9 @@ console.log("=== §L ウィッグバインド：効果持ちの相手はアタ�
     const oppVanilla = put(s, "p2", vanilla!.cardId, 3)
     const mineWith = put(s, "p1", withEffect!.cardId, 3)
     resolveAction(s, "p1", null, banAct!)
-    assert(cantActByCost(s, oppWith), "効果の記述を持つ相手はアタック/ブロックできない")
-    assert(!cantActByCost(s, oppVanilla), "バニラの相手は止まらない")
-    assert(!cantActByCost(s, mineWith), "自分のスピリットは止まらない（「相手の」限定）")
+    assert(cantActByTimedRule(s, oppWith), "効果の記述を持つ相手はアタック/ブロックできない")
+    assert(!cantActByTimedRule(s, oppVanilla), "バニラの相手は止まらない")
+    assert(!cantActByTimedRule(s, mineWith), "自分のスピリットは止まらない（「相手の」限定）")
 
     // 手札の色制限：黄だけ使える
     resolveAction(s, "p1", null, banHand!)

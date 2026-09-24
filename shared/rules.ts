@@ -1711,7 +1711,7 @@ export function matchesTarget(
     // keywords（BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）：いずれか1つでも持てばよい
     if (filter.keywords !== undefined && !filter.keywords.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
     if (filter.keywordExclude !== undefined && spiritHasKeyword(board, ownerPid, inst, filter.keywordExclude)) return false
-    if (filter.vanilla !== undefined && !instIsVanilla(inst)) return false
+    if (filter.vanilla !== undefined && instIsVanilla(inst) !== filter.vanilla) return false
     // hasBurst：effectsに kind:"burst" を持つカードだけ（docs/design/BURST.md）。false指定時は持たないものだけ
     if (filter.hasBurst !== undefined) {
         const has = card(inst.cardId).effects.some((e) => e.kind === "burst")
@@ -1760,8 +1760,9 @@ export function trashCardNameMatches(cardId: string, needle: string): boolean {
 
 // コスト範囲の判定（TargetFilter.cost）。
 // 従来 EffectModules 側にあった matchesCostFilter をここへ移し、matchesTarget から使う
-export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number }): boolean {
+export function matchesCostFilter(cost: number, costFilter?: { max?: number; min?: number; in?: number[] }): boolean {
     if (!costFilter) return true
+    if (costFilter.in !== undefined && !costFilter.in.includes(cost)) return false
     if (costFilter.max !== undefined && cost > costFilter.max) return false
     if (costFilter.min !== undefined && cost < costFilter.min) return false
     return true
@@ -1774,7 +1775,7 @@ export function matchesCostFilter(cost: number, costFilter?: { max?: number; min
 // 無言で対象を取り落とす
 export function instMatchesCostFilter(
     inst: CardInstance,
-    costFilter?: { max?: number; min?: number },
+    costFilter?: { max?: number; min?: number; in?: number[] },
 ): boolean {
     if (!costFilter) return true
     // 実コストは instBaseCost 経由で見る（asSpiritThisTurn の置き換えと instCostDelta の増減を含む）
@@ -2846,25 +2847,17 @@ function hasImmunityAgainst(
     return false
 }
 
-// このターン限りの全体制約（turnConstraints）により、指定スピリットがアタック/ブロックできないか（ヘビィゲート）
-export function cantActByCost(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
-    // BS15共通器：BS15-082神閃月下フラッシュ「このターンの間、黄以外のスピリットすべてはアタック/ブロックできない」
-    if (board.turnConstraints.some((c) => c.type === "cantActExceptColor" && !instHasColor(inst, c.color))) {
-        return true
-    }
-    // 道化師クランの tempAlsoCosts（一時付与）／alsoCostsContinuous（継続付与）も判定対象に含める：
-    // 実コスト・付与コストのいずれかがmaxCost以下なら対象
-    // （2026-08-02修正：以前はalsoCostsContinuousを見ておらず、クラン常設中でも判定に反映されないバグがあった）
-    return board.turnConstraints.some((c) =>
-        c.type === "cantActByCost" &&
-            // blockOnly（BS11-057 バタホルン）：ブロックだけを止める
-            (c.blockOnly !== true || act === "block") &&
-            (c.costs === undefined || instAllCosts(inst).some((cost) => c.costs!.includes(cost))) &&
-            (c.maxCost === undefined || instAllCosts(inst).some((cost) => cost <= (c.maxCost ?? 0))) &&
-            (c.pid === undefined ||
-                board.players[c.pid].field.spirits.some((sp) => sp.instanceId === inst.instanceId)) &&
-            // 「効果の記述を持つ」は instIsVanilla の裏（継続付与の「バニラとしても扱う」も考慮する）
-            (c.nonVanillaOnly !== true || !instIsVanilla(inst)),
+// このターン限りの全体ルール（timedEffect の all:true）により、指定スピリットがアタック/ブロックできないか。
+// 宣言のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
+export function cantActByTimedRule(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
+    const pid: PlayerId = board.players.p1.field.spirits.includes(inst) ? "p1" : "p2"
+    const needed = act === "attack" ? "cantAttack" : "cantBlock"
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "timedRule" &&
+            c.content.includes(needed) &&
+            (c.pid === undefined || c.pid === pid) &&
+            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
     )
 }
 

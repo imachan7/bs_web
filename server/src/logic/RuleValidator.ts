@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByCost, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimedRule, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -1058,7 +1058,7 @@ export function validateAttack(
         return "このスピリットはアタックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタックできない
-    if (cantActByCost(state, inst)) {
+    if (cantActByTimedRule(state, inst)) {
         return "このターンの間、このスピリットはアタックできません"
     }
     // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
@@ -1131,7 +1131,7 @@ export function validateBlock(
         return "手札にマジックカードがないためブロックできません"
     }
     // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
-    if (cantActByCost(state, inst, "block")) {
+    if (cantActByTimedRule(state, inst, "block")) {
         return "このターンの間、このスピリットはブロックできません"
     }
 
@@ -1204,7 +1204,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
         if (instCantAttackByCost(state, inst)) continue
         // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
-        if (cantActByCost(state, inst)) continue
+        if (cantActByTimedRule(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
         // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
         if (constraints.some((c) => c.type === "cantAttack")) continue

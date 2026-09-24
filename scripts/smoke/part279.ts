@@ -73,7 +73,7 @@ console.log("=== §C BS11-057：コスト4/6/8の相手のスピリットはブ�
     const b5 = createInstance(cost5!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(b4, b5)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "banActByCostThisTurn", costs: [4, 6, 8], blockOnly: true, side: "opponent" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "turn", all: true, filter: { cost: { in: [4, 6, 8] } } })
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
@@ -87,7 +87,7 @@ console.log("=== §C BS11-057：コスト4/6/8の相手のスピリットはブ�
     const mine = createInstance(cost4.cardId, s.turn, 2)
     s.players.p1.field.spirits.push(mine)
     refreshLevelAsOverrides(s)
-    s.turnConstraints.push({ type: "cantActByCost", costs: [4], blockOnly: true, pid: "p1" })
+    s.turnConstraints.push({ type: "timedRule", content: ["cantBlock"], pid: "p1", filter: { cost: { in: [4] } } })
     assert(act(s, "p1", { type: "attack", instanceId: mine.instanceId }) === null, "アタックは止まらない")
 }
 
