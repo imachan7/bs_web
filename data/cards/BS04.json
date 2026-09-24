@@ -5169,7 +5169,9 @@
     "winnerNameContains": "ジーク",
     "lentOnly": true,
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "sameFamilyAsBattleLoser": true
      }
@@ -5554,9 +5556,12 @@
      "ownFieldHasMinSymbolSpirit": 2
     },
     "action": {
-     "type": "exhaustAll",
-     "side": "opponent",
-     "minBp": 4000
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "filter": {
+      "minBp": 4000
+     }
     }
    },
    {
@@ -5598,8 +5603,15 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "exhaustAllByLevel",
-     "level": 1
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    },
    {
@@ -5668,10 +5680,14 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnAllToHand",
-     "side": "both",
-     "costFilter": {
-      "max": 1
+     "type": "returnToHand",
+     "count": 1,
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "cost": {
+       "max": 1
+      }
      }
     }
    }
@@ -6274,12 +6290,14 @@
      3
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 4000,
       "colorExclude": "red"
-     },
-     "anySide": true
+     }
     },
     "optional": false
    }

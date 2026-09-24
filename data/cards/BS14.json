@@ -1561,10 +1561,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "exhaustAll",
-     "side": "both",
-     "costFilter": {
-      "max": 3
+     "type": "exhaust",
+     "count": 1,
+     "all": true,
+     "anySide": true,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
      }
     }
    }
@@ -5600,11 +5604,13 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 3000
-     },
-     "anySide": true
+     }
     },
     "thenPay": "main"
    },

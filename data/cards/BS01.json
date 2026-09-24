@@ -1142,11 +1142,13 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 3000
-     },
-     "anySide": true
+     }
     },
     "optional": false
    },
@@ -5548,11 +5550,13 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 3000
-     },
-     "anySide": true
+     }
     }
    }
   ]

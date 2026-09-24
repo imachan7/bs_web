@@ -556,7 +556,7 @@ const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHea
 }
 
 // 「すべて」を戻すのは範囲の効果（attempt が "area"）。returnToHand{all} もここを通す。
-// 1体版と違って noHandGainByEffect を見ていない（旧 returnAllToHand の挙動のまま）
+// 1体版と違って noHandGainByEffect を見ていない（範囲版は以前から見ていない。挙動を変えないためそのまま）
 function returnAllTargetsToHand(
     ctx: ActionCtx,
     action: { side: "opponent" | "both"; costFilter?: { max?: number; min?: number }; filter?: TargetFilter },
@@ -591,7 +591,6 @@ function returnAllTargetsToHand(
         return
 }
 
-const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => returnAllTargetsToHand(ctx, action)
 
 // グラシアルブレス：自分のスピリットcount体をデッキの下へ戻すことをコストに、
 // 相手のスピリットcount体もデッキの下へ戻す。自分がcount体戻せないなら不発。
@@ -640,7 +639,7 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
             const inst = state.players[rec.pid].field.spirits.find((sp) => sp.instanceId === rec.instanceId)
             if (!inst) continue // 既に場から居ない個体は飛ばす
             // **対象を記録から引いているので、他のハンドラのように候補選びの中で耐性を弾けない**。
-            // 相手側スピリットへの範囲効果として、returnAllToHand と同じ耐性判定をここで行う
+            // 相手側スピリットへの範囲効果として、returnToHand{all} と同じ耐性判定をここで行う
             const resisted = resistanceAgainst(state, rec.pid, inst, attemptOf(ctx, "bounce", "area"))
             if (resisted) {
                 if (firstPass) {
@@ -905,7 +904,6 @@ const handlers = {
     returnToHandCostBudget: returnToHandCostBudgetHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnOwnSpiritToHand: returnOwnSpiritToHandHandler,
-    returnAllToHand: returnAllToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,

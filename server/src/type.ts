@@ -770,7 +770,7 @@ export interface PlayerState {
         nexuses: CardInstance[]
         combinedBraves: CardInstance[] // 合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3・§2.4）。
         // **フィールド走査の対象に入れない**（spirits に置くと合体スピリットが2体に数えられ、
-        // シンボルの二重計上・destroyAll の二重ヒット・コア0での維持コア割れ消滅が起きる）
+        // シンボルの二重計上・destroy{all} の二重ヒット・コア0での維持コア割れ消滅が起きる）
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 手札のカードに一時付与されたキーワード（grantKeywordToHandCard。ターン終了でリセット。ビートプリースト）
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。

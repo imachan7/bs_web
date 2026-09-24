@@ -3058,7 +3058,9 @@
      3
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "cost": {
        "min": 1,
@@ -3579,7 +3581,9 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "maxBp": 3000
      }
@@ -4266,7 +4270,9 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "cost": {
        "max": 3
@@ -4349,7 +4355,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "maxBp": 2000
      }

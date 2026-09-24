@@ -2269,7 +2269,7 @@ function resolveBattle(state: GameState): void {
 
     // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGain countCounter "lastBattleDestroyedCores"）
     state.lastBattleDestroyedCores = 0
-    // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaustAllByLevel level "lastBattleDestroyed"）
+    // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaust の filter.sameLevelAsBattleLoser）
     state.lastBattleDestroyedLevel = 0
     // 「BPを比べ相手のスピリットだけを破壊した」ときの破壊された側の色・系統
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）

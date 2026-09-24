@@ -217,7 +217,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
     const { s, blocker } = setupBlocked("immunity-range")
     resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
     // 範囲効果（destroyAll）も受けない＝untargetableByOpponent との違い
-    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 99999 } })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, filter: { maxBp: 99999 } })
     assert(
         findSpiritById(s, "p2", blocker) !== undefined,
         "免疫中は範囲効果（destroyAll）でも破壊されない",

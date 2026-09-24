@@ -830,10 +830,14 @@
         ],
         "optional": false,
         "action": {
-          "type": "exhaustAll",
-          "side": "both",
-          "costFilter": {
-            "max": 1
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "anySide": true,
+          "filter": {
+            "cost": {
+              "max": 1
+            }
           }
         }
       }
@@ -1054,10 +1058,13 @@
         ],
         "optional": false,
         "action": {
-          "type": "returnAllToHand",
-          "side": "opponent",
-          "costFilter": {
-            "max": 1
+          "type": "returnToHand",
+          "count": 1,
+          "all": true,
+          "filter": {
+            "cost": {
+              "max": 1
+            }
           }
         }
       }
@@ -1318,8 +1325,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "returnAllToHand",
-          "side": "both",
+          "type": "returnToHand",
+          "count": 1,
+          "all": true,
+          "anySide": true,
           "filter": {
             "maxBp": 3000
           }

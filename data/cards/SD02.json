@@ -96,8 +96,10 @@
           2
         ],
         "action": {
-          "type": "exhaustAll",
-          "side": "both",
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "anySide": true,
           "filter": {
             "sameCostAsEventTarget": true
           }

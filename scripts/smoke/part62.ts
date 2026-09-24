@@ -22,7 +22,7 @@ console.log("=== ① exhaustAll filter: cores一致・excludeSelf ===")
     const enemy1 = createInstance("BS01-001", s.turn, 1) // 相手・コア1個（対象）
     const enemy2 = createInstance("BS01-001", s.turn, 2) // 相手・コア2個（対象外）
     s.players.p2.field.spirits.push(enemy1, enemy2)
-    resolveAction(s, "p1", self, { type: "exhaustAll", side: "both", filter: { cores: 1, excludeSelf: true } })
+    resolveAction(s, "p1", self, { type: "exhaust", count: 1, all: true, anySide: true, filter: { cores: 1, excludeSelf: true } })
     assert(self.isRested === false, "self（コア1個）は excludeSelf で対象外のまま回復状態")
     assert(ownOther1.isRested === true, "自分・コア1個は疲労した")
     assert(ownOther2.isRested === false, "自分・コア2個は対象外のまま")

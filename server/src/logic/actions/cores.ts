@@ -1627,7 +1627,7 @@ const coreRemoveAllOpponentHandler: ActionHandler<"coreRemoveAllOpponent"> = (ct
 const coreToTrashAllByCostHandler: ActionHandler<"coreToTrashAllByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 相手のコストmaxCost以下のスピリットすべての上から、コア1個ずつを相手のトラッシュへ
-        // （範囲効果。destroyAllと同様に装甲・マジック効果耐性・immuneToOpponentThisTurnを除外。BS04風龍王フージャオス）
+        // （範囲効果。destroy{all}と同様に装甲・マジック効果耐性・immuneToOpponentThisTurnを除外。BS04風龍王フージャオス）
         const targets = state.players[opp].field.spirits.filter(
             (s) =>
                 instMatchesCostFilter(s, { max: action.maxCost }) &&

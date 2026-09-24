@@ -5,7 +5,7 @@ import { resolveMagicEffects } from "./resolve"
 
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
 // 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
-// bothSidesCoreToVoid / exhaustAll side:"both" / returnAllToHand side:"both" / nexusCoresToTrash side:"both" /
+// bothSidesCoreToVoid / exhaust{all, anySide} / returnToHand{all, anySide} / nexusCoresToTrash side:"both" /
 // draw side:"both" / discardBothHands）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
 // beneficial=true は「受ける側にとって得な効果」（ドロー）で、そのときだけ相手を外す。
 // マジック以外の発生源（スピリット・ネクサスの効果）は対象外なので、そのまま両陣営を返す

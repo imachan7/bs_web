@@ -1077,8 +1077,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "exhaustAll",
-          "side": "opponent"
+          "type": "exhaust",
+          "count": 1,
+          "all": true
         }
       }
     ]
@@ -3151,7 +3152,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyAll",
+          "type": "destroy",
+          "count": 1,
+          "all": true,
           "filter": {
             "cost": {
               "max": 11

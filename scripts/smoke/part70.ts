@@ -85,7 +85,7 @@ console.log("--- destroyAll の maxBp（BS03-010 黒竜ヴリトラ: BP2000以�
     putEnemy(s, "BS01-001", 1) // BP1000（対象）
     const survivor = putEnemy(s, "BS01-025", 3) // BP10000（対象外）
 
-    resolveAction(s, "p1", null, { type: "destroyAll", filter: { maxBp: 2000 } })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, filter: { maxBp: 2000 } })
     const remain = enemyIds(s)
     assert(remain.length === 1 && remain[0] === survivor, "BP2000以下だけが全破壊され、超過は残る")
 }
@@ -287,7 +287,7 @@ console.log("=== anySide 軸: 両陣営が対象（BS05-016 吸血女王カー�
     for (const x of [...s.players.p1.field.spirits, ...s.players.p2.field.spirits]) x.isRested = true
 
     resolveAction(s, "p1", null, {
-        type: "destroyAll",
+        type: "destroy", count: 1, all: true,
         anySide: true,
         filter: { rested: true, cost: { max: 1 } },
     })

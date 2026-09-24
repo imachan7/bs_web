@@ -1,44 +1,11 @@
-// smoke パート359（M4 filter の統一：destroyAll／exhaustAll／exhaustAllByLevel／returnAllToHand の全使用箇所が、
-// 元のアクション＋all:true＋filter で同じ結果になる。移行後にこのパートの比較節は消す）
+// smoke パート359（TargetFilter.sameLevelAsBattleLoser：直前のバトルで破壊された側と同じLv。記録が0なら対象なし）
 import { assert, createGame, createInstance, resolveAction } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import type { CardData, CardInstance, EffectAction } from "../../server/src/type"
 import { loadAllCards } from "../../data/loadCards"
 
 const CARDS = loadAllCards() as CardData[]
-const OLD = new Set(["destroyAll", "exhaustAll", "exhaustAllByLevel", "returnAllToHand"])
-
-// 移行スクリプトと同じ変換
-function convert(a: Record<string, unknown>): EffectAction {
-    const { type, ...rest } = a
-    if (type === "destroyAll") {
-        const { anySide, ...others } = rest
-        return { type: "destroy", count: 1, all: true, ...(anySide ? { anySide: true } : {}), ...others } as EffectAction
-    }
-    if (type === "exhaustAll") {
-        const { side, minBp, maxBp, costFilter, filter } = rest as Record<string, never>
-        const f = { ...(filter ?? {}), ...(minBp !== undefined ? { minBp } : {}), ...(maxBp !== undefined ? { maxBp } : {}), ...(costFilter !== undefined ? { cost: costFilter } : {}) }
-        return { type: "exhaust", count: 1, all: true, ...(side === "both" ? { anySide: true } : {}), ...(Object.keys(f).length ? { filter: f } : {}) } as EffectAction
-    }
-    if (type === "exhaustAllByLevel") {
-        const level = rest["level"]
-        const filter = level === "lastBattleDestroyed" ? { sameLevelAsBattleLoser: true } : { level: [level] }
-        return { type: "exhaust", count: 1, all: true, anySide: true, filter } as EffectAction
-    }
-    const { side, costFilter, filter } = rest as Record<string, never>
-    const f = { ...(filter ?? {}), ...(costFilter !== undefined ? { cost: costFilter } : {}) }
-    return { type: "returnToHand", count: 1, all: true, ...(side === "both" ? { anySide: true } : {}), ...(Object.keys(f).length ? { filter: f } : {}) } as EffectAction
-}
-
-const uses: { cardId: string; srcType: CardData["type"]; action: Record<string, unknown> }[] = []
-const walk = (o: unknown, card: CardData): void => {
-    if (Array.isArray(o)) return o.forEach((x) => walk(x, card))
-    if (o === null || typeof o !== "object") return
-    const rec = o as Record<string, unknown>
-    if (typeof rec["type"] === "string" && OLD.has(rec["type"])) uses.push({ cardId: card.cardId, srcType: card.type, action: rec })
-    Object.values(rec).forEach((v) => walk(v, card))
-}
-CARDS.forEach((c) => walk(c.effects, c))
+const CARDS_OK = CARDS.length > 0
 
 // バニラのスピリットをコスト順に並べ、色・BP・コストがばらけるように拾う
 const vanillas = CARDS.filter((c) => c.type === "spirit" && c.effects.length === 0 && c.levels.length >= 2)
@@ -47,7 +14,7 @@ for (const c of vanillas) if (!byCost.has(c.cost)) byCost.set(c.cost, c)
 const pool = [...byCost.values()].sort((a, b) => a.cost - b.cost).slice(0, 6)
 
 console.log("=== 前提 ===")
-assert(uses.length >= 50, `旧4種の使用箇所を集められる（${uses.length}か所）`)
+assert(CARDS_OK, "カードデータを読める")
 assert(pool.length === 6 && new Set(pool.map((c) => c.cost)).size === 6, `コストの違うバニラを6枚拾える（${pool.map((c) => `${c.cardId}:${c.cost}`).join(" ")}）`)
 
 function board(): { s: GameState; self: CardInstance; eventTarget: CardInstance } {
@@ -82,19 +49,6 @@ function snapshot(s: GameState): string {
     }
     return JSON.stringify([side("p1"), side("p2")])
 }
-
-console.log("=== 1. 旧4種の全使用箇所が、元のアクション＋all:true で同じ結果 ===")
-let moved = 0
-for (const u of uses) {
-    const a = board()
-    const b = board()
-    const before = snapshot(a.s)
-    resolveAction(a.s, "p1", a.self, u.action as unknown as EffectAction, a.eventTarget.instanceId, undefined, u.srcType)
-    resolveAction(b.s, "p1", b.self, convert(u.action), b.eventTarget.instanceId, undefined, u.srcType)
-    if (snapshot(a.s) !== before) moved++
-    assert(snapshot(a.s) === snapshot(b.s), `${u.cardId} ${String(u.action["type"])}：旧と新で同じ結果`)
-}
-assert(moved >= uses.length * 0.8, `比べた盤面の大半で旧の書き方が実際に盤面を動かしている（${moved}/${uses.length}）`)
 
 console.log("=== 2. sameLevelAsBattleLoser：記録が0なら対象なし ===")
 {

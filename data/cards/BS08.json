@@ -415,7 +415,9 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "maxBp": 5000,
       "hasTrigger": "onSummon"
@@ -567,11 +569,13 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "keyword": "soku"
-     },
-     "anySide": true
+     }
     },
     "optional": false
    },
@@ -1177,7 +1181,9 @@
      3
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
      "filter": {
       "cost": {
        "max": 4
@@ -3646,11 +3652,13 @@
      2
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "keywordExclude": "tensho"
-     },
-     "anySide": true
+     }
     },
     "optional": false
    }
@@ -4481,11 +4489,13 @@
      "竜騎"
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 3000
      },
-     "anySide": true,
      "drawPerDestroyed": true
     }
    },
@@ -5048,7 +5058,9 @@
      ]
     },
     "action": {
-     "type": "destroyAll"
+     "type": "destroy",
+     "count": 1,
+     "all": true
     }
    },
    {
@@ -5871,11 +5883,13 @@
      3
     ],
     "action": {
-     "type": "destroyAll",
+     "type": "destroy",
+     "count": 1,
+     "all": true,
+     "anySide": true,
      "filter": {
       "maxBp": 3000
      },
-     "anySide": true,
      "voidCoreToSelfPerDestroyed": true
     },
     "optional": false

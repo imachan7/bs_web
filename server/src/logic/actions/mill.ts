@@ -82,7 +82,7 @@ const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> =
     }
     const cost = getCard(top).cost
     log(state, `${sourceName}：破棄したのは${getCard(top).name}（コスト${String(cost)}）。`)
-    ctx.resolve({ type: "destroyAll", filter: { cost: { min: cost, max: cost } } }, {
+    ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: cost, max: cost } } }, {
         sourceColors: srcColors,
         sourceType: srcType,
     })
