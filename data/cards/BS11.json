@@ -158,8 +158,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -1443,8 +1450,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -5091,8 +5105,15 @@
      "battleOpponentCombined": true
     },
     "action": {
-     "type": "selfBuff",
-     "amount": 10000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 10000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    },
    {

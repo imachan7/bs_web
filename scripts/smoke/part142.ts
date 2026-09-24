@@ -78,6 +78,15 @@ const FILLER = CARDS.find(
     (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.levels?.[0]?.cores ?? 99) === 1,
 )!
 
+// 「このスピリットをBP+」（量が固定）は timedEffect（target:"self"）の内容 bp に移してある
+function isSelfBpFixed(e: Record<string, unknown>): boolean {
+    const a = e["action"] as { type?: string; target?: string; content?: { type: string; amountCounter?: unknown }[] } | undefined
+    return a?.type === "timedEffect" && a.target === "self" && a.content?.[0]?.type === "bp" && a.content[0].amountCounter === undefined
+}
+function selfBpAmount(e: Record<string, unknown>): number {
+    return Number(((e["action"] as { content: { amount: number }[] }).content)[0]!.amount)
+}
+
 console.log("=== BS07 白：デッキを1枚破棄し、白のマジックならライフが減らない（六花の司書長サーガ） ===")
 {
     const saga = findByEffect((e) => e["kind"] === "lifeDamageMillGuard")
@@ -157,11 +166,11 @@ console.log("=== BS07 白：『ブロック時』効果をアタック時に発�
             families.some((f) => (c.family ?? []).includes(f)) &&
             e["kind"] === "triggered" &&
             e["trigger"] === "onBlock" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "selfBuff",
+            isSelfBpFixed(e),
     )
     const bufferEntry = entryOf(blockBuffer, (e) => e["kind"] === "triggered" && e["trigger"] === "onBlock")
     const bufferLevel = ((bufferEntry["levels"] as number[] | null) ?? [1])[0]!
-    const amount = Number((bufferEntry["action"] as Record<string, unknown>)["amount"])
+    const amount = selfBpAmount(bufferEntry)
 
     const s = base("giga-shift")
     put(s, "p1", giga.cardId, coresFor(giga, 1))
@@ -194,11 +203,11 @@ console.log("=== BS07 白：指定した1体の『ブロック時』効果をア
             c.type === "spirit" &&
             e["kind"] === "triggered" &&
             e["trigger"] === "onBlock" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "selfBuff",
+            isSelfBpFixed(e),
     )
     const bufferEntry = entryOf(blockBuffer, (e) => e["kind"] === "triggered" && e["trigger"] === "onBlock")
     const bufferLevel = ((bufferEntry["levels"] as number[] | null) ?? [1])[0]!
-    const amount = Number((bufferEntry["action"] as Record<string, unknown>)["amount"])
+    const amount = selfBpAmount(bufferEntry)
 
     const s = base("maclean")
     const attacker = put(s, "p1", blockBuffer.cardId, coresFor(blockBuffer, bufferLevel))

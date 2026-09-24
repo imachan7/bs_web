@@ -49,7 +49,26 @@ const RULE_COUNTERS = [
     "targetSymbols",
     "ownRestedNexuses",
     "targetSameFamilyOwn",
+    "readyEnemies",
+    "ownReserve",
+    "ownNexuses",
+    "allNexuses",
+    "opponentTrashCores",
+    "ownBraveSpirits",
+    "selfCores",
+    "battlingOpponentSymbols",
+    "battlingOpponentCombinedSymbols",
+    "opponentFieldColors",
+    "opponentFieldSpiritColors",
 ] as const satisfies readonly (AuraCounter & EffectCounter)[]
+
+// RULE_COUNTERS は文字列軸だけなので、オブジェクト形の軸（{ownFamily}等）はキー名で許可する
+const RULE_COUNTER_KEYS = ["ownFamily", "ownNameIncludes", "anyNameIncludes", "ownColor", "ownNexusColor", "ownKeyword", "enemyCost"] as const
+
+export function isAllowedRuleCounter(counter: EffectCounter): boolean {
+    if (typeof counter === "string") return (RULE_COUNTERS as readonly string[]).includes(counter)
+    return (RULE_COUNTER_KEYS as readonly string[]).some((k) => k in counter)
+}
 
 // 1体指定モードの対象選択：battle中は対象を持つ battling 個体を優先し、無ければ先頭（旧 pickBpBuffTarget と同じ順序）
 function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTargetFilter, selfInstanceId?: string): CardInstance | null {
@@ -113,6 +132,19 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
     }
+    // 解決時に数えて固定する：countOnce と、共有層で数えられない数え方（数え直せないので旧 bpBuff と同じ扱い）
+    if (content.countOnce || !isAllowedRuleCounter(content.amountCounter)) {
+        const amount = countedAmount(state, owner, self, content.amount, content.amountCounter, srcType, undefined, target)
+        if (amount === 0) {
+            log(state, `${sourceName}：カウントが0のため増加しなかった。`)
+            return
+        }
+        if (action.duration === "battle") target.battleBpBuff = (target.battleBpBuff ?? 0) + amount
+        else target.tempBpBuff += amount
+        log(state, `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`)
+        applyMagicBuffBonus(state, target, srcType, srcColors)
+        return
+    }
     // 量が可変（amountCounter あり）：個体には書かず全体ルールと同じ器（turnConstraints）に積み、
     // 「1体につき」の数は計算のたびに数え直す（timedRuleBp。2026-09-24 ユーザー確認）。解決時に0でも置く
     state.turnConstraints.push({
@@ -126,6 +158,49 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, target)
     log(state, `${getCard(target.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
     applyMagicBuffBonus(state, target, srcType, srcColors)
+}
+
+// target:"self"：「このスピリット自身をBP+」（旧 selfBuff の置き換え。対象は常に発生源自身で、filter/side/count/targetInstanceIdは見ない）
+function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, self, sourceName, srcType } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "bp" }> => c.type === "bp")
+    if (!content || !self) return
+    if (content.amount > 0 && isBpBuffSuppressed(state, owner)) {
+        log(state, `${sourceName}：BPを+する効果は発揮されなかった。`)
+        return
+    }
+    const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
+    const addBp = (amount: number) => {
+        if (action.duration === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + amount
+        else self.tempBpBuff += amount
+    }
+    if (content.amountCounter === undefined) {
+        addBp(content.amount)
+        log(state, `${getCard(self.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
+        return
+    }
+    // countOnce：解決時に固定する（lastFunsaiSpirits のように数え直すと意味が変わるカウンタ用。旧 selfBuff と同じ挙動）
+    if (content.countOnce || !isAllowedRuleCounter(content.amountCounter)) {
+        const amount = countedAmount(state, owner, self, content.amount, content.amountCounter, srcType)
+        if (amount === 0) {
+            log(state, `${sourceName}：カウントが0のため増加しなかった。`)
+            return
+        }
+        addBp(amount)
+        log(state, `${getCard(self.cardId).name}はBP+${amount}（${untilLabel}）。`)
+        return
+    }
+    // 可変：1体指定の timedRule と同じ器に積み、量は判定のたびに数え直す（2026-09-24 ユーザー確認）。解決時に0でも置く
+    state.turnConstraints.push({
+        type: "timedRule",
+        content: [content],
+        ownerPid: owner,
+        instanceId: self.instanceId,
+        filter: {},
+        ...(action.duration === "battle" ? { until: "battle" as const } : {}),
+    })
+    const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, self)
+    log(state, `${getCard(self.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
 }
 
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
@@ -142,7 +217,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
             log(state, `${sourceName}：BPを条件にしたBP変更は未対応のため発揮しなかった。`)
             return
         }
-        if (c.amountCounter !== undefined && !(RULE_COUNTERS as readonly unknown[]).includes(c.amountCounter)) {
+        if (c.amountCounter !== undefined && !isAllowedRuleCounter(c.amountCounter)) {
             log(state, `${sourceName}：この数え方は未対応のため発揮しなかった。`)
             return
         }
@@ -167,6 +242,10 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
 
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.target === "self") {
+        placeSelfBp(ctx, action)
+        return
+    }
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
         log(state, `${sourceName}：対象がいなかった。`)

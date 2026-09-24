@@ -13,7 +13,7 @@ import {
 } from "../../server/src/logic/GameState"
 import { runTurnStart as engineRunTurnStart, endTurn } from "../../server/src/logic/PhaseManager"
 // 色判定は必ず述語経由にする（多色カード対応。MULTICOLOR.md）
-import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores } from "../../shared/rules"
+import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedRuleBp } from "../../shared/rules"
 
 // テスト用ラッパー: 1ターン目固有ルール（コアステップなし・アタック不可）の影響を受けずに
 // 既存テストを動かすため、ターン数を3（先攻の2ターン目相当）へ進めて通常ターンとして処理する。
@@ -50,7 +50,7 @@ import {
     spiritHasKeyword,
 } from "../../server/src/logic/EffectModules"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
-import type { GameAction, GameState, PlayerId } from "../../server/src/type"
+import type { CardInstance, GameAction, GameState, PlayerId } from "../../server/src/type"
 import { DECK_RECIPES, DECK_MIN_SIZE, DECK_SIZE } from "../../data/constants"
 
 let failed = 0
@@ -390,5 +390,10 @@ export {
     declareBlock,
     takeLifeAndResolve,
     runTurnStart,
+}
+// その個体に乗っている「ターン終了時まで」の BP+。量が可変の BP+ は個体の tempBpBuff ではなくルールとして持つので両方を足す
+export function bpBuffOf(state: GameState, inst: CardInstance): number {
+    const pid = state.players.p1.field.spirits.includes(inst) ? "p1" : "p2"
+    return inst.tempBpBuff + timedRuleBp(state, pid, inst)
 }
 export type { GameAction, GameState, PlayerId }

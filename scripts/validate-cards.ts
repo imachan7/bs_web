@@ -17,7 +17,8 @@ import ACTION_HANDLERS from "../server/src/logic/actions/index"
 import { PAYABLE_TYPES } from "../server/src/logic/actions/pay"
 import { KEYWORDS } from "../shared/rules"
 import { COLOR_LABELS } from "../data/constants"
-import type { CardData } from "../server/src/type"
+import type { CardData, EffectCounter } from "../server/src/type"
+import { isAllowedRuleCounter } from "../server/src/logic/actions/timedEffect"
 import { loadAllCards } from "../data/loadCards"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
@@ -116,7 +117,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // 仮想発生源は場に存在せず resolveAction に self=null が渡るため、これらは不発か誤動作になる
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
-    "selfBuff",
     "refreshSelf",
     "destroySelf",
     "returnSelfToHand",
@@ -188,10 +188,10 @@ function checkLentEffects(
         // triggers.ts collectGrantedTriggerActions/fireTrigger）なので self は常に非null になる
         // （BS12-077インセクトオーラ：voidCoreToSelf を effectGrant 経由でアタックしたスピリットに渡す）
         if (e.kind !== "effectGrant") {
-            const lent: { type?: unknown }[] = []
+            const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {
-                if (typeof a.type === "string" && SELF_REFERENCING_ACTIONS.has(a.type)) {
+                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (a.type === "timedEffect" && a.target === "self"))) {
                     add(
                         c.cardId,
                         `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
@@ -359,6 +359,26 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
         }
     }
     for (const v of Object.values(obj)) checkPayActions(cardId, v, add)
+}
+
+// timedEffect の BP の「〜1体につき」は判定のたびに共有層で数え直す。共有層で数えられない数え方は
+// 実行時に解決時固定へ落ちるので、可変のつもりで書いたものはここで落とす（固定にしたいなら countOnce を書く）
+function checkTimedCounters(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkTimedCounters(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    if (obj["type"] === "timedEffect") {
+        for (const c of (obj["content"] as Record<string, unknown>[] | undefined) ?? []) {
+            const counter = c["amountCounter"] as EffectCounter | undefined
+            if (c["type"] === "bp" && counter !== undefined && c["countOnce"] !== true && !isAllowedRuleCounter(counter)) {
+                add(cardId, `timedEffect の BP の数え方 ${JSON.stringify(counter)} は共有層で数え直せない（shared/rules.ts の countAuraCounter に足すか、countOnce を書く）`)
+            }
+        }
+    }
+    for (const v of Object.values(obj)) checkTimedCounters(cardId, v, add)
 }
 
 export function validateCards(cards: CardData[]): ValidationIssue[] {
@@ -547,6 +567,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
+        checkTimedCounters(id, c.effects, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }

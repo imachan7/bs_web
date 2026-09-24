@@ -10,8 +10,7 @@ import {
     refreshLevelAsOverrides,
     refreshSpirit,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState } from "./helpers"
 
 function game(seed: string): GameState {
@@ -243,8 +242,8 @@ console.log("=== 既存の器で書けるもの：selfBuffPer / coreGainPer（01
     const other = createInstance("BS13-017", s.turn, 1)
     s.players.p1.field.spirits.push(other)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", koske, { type: "selfBuff", amount: 1000, amountCounter: { ownFamily: "遊精" } })
-    assert(koske.tempBpBuff === 2000, "系統「遊精」2体（自身を含む）ぶんBP+2000（017）")
+    resolveAction(s, "p1", koske, { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: { ownFamily: "遊精" } }], duration: "turn", target: "self" })
+    assert(bpBuffOf(s, koske) === 2000, "系統「遊精」2体（自身を含む）ぶんBP+2000（017）")
 
     const yanoga = createInstance("BS13-022", s.turn, 4) // Lv3
     resolveAction(s, "p1", yanoga, { type: "coreGain", count: 1, countCounter: "selfLevel" })

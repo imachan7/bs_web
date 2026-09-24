@@ -109,7 +109,7 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
         }
         const obj = node as Record<string, unknown>
         const content = obj.content as { type: string; amount: number; amountCounter?: unknown }[] | undefined
-        if (obj.type === "timedEffect" && obj.all === undefined && content?.length === 1 && content[0]!.type === "bp") {
+        if (obj.type === "timedEffect" && obj.all === undefined && obj.target === undefined && content?.length === 1 && content[0]!.type === "bp") {
             const bp = content[0]!
             const old = {
                 type: "bpBuff",

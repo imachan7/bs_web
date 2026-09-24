@@ -78,15 +78,13 @@ if (!FILLER) throw new Error("バニラが見つかりません")
 
 console.log("=== BS07 赤：相手のコスト3以下の体数ぶんBP+する（バジリザード） ===")
 {
+    // 「このスピリットをBP+」は timedEffect の内容 bp に移したので、量と数え方は content[0] にある
+    const bpOf = (e: Record<string, unknown>) =>
+        ((e["action"] as { content?: Record<string, unknown>[] } | undefined)?.content ?? [])[0]
     const basi = findByEffect(
-        (e) =>
-            ((e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] as Record<string, unknown> | undefined)?.[
-                "enemyCost"
-            ] !== undefined,
+        (e) => (bpOf(e)?.["amountCounter"] as Record<string, unknown> | undefined)?.["enemyCost"] !== undefined,
     )
-    const action = entryOf(basi, (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined)[
-        "action"
-    ] as Record<string, unknown>
+    const action = bpOf(entryOf(basi, (e) => bpOf(e)?.["amountCounter"] !== undefined))!
     const enemyCost = (action["amountCounter"] as Record<string, unknown>)["enemyCost"] as { max: number }
     const amountPer = Number(action["amount"])
     const cheap = CARDS.find(

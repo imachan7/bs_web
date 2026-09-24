@@ -2282,11 +2282,18 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "遊精"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "遊精"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -2439,9 +2446,16 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "selfCores"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "selfCores"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -3743,13 +3757,20 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 2000,
-     "amountCounter": {
-      "ownFamily": [
-       "甲竜"
-      ]
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000,
+       "amountCounter": {
+        "ownFamily": [
+         "甲竜"
+        ]
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -3965,9 +3986,16 @@
     ],
     "whileCombined": true,
     "action": {
-     "type": "selfBuff",
-     "amount": 5000,
-     "amountCounter": "battlingOpponentSymbols"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000,
+       "amountCounter": "battlingOpponentSymbols"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ],

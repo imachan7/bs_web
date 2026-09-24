@@ -134,13 +134,20 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "enemyCost": {
-       "max": 3
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "enemyCost": {
+         "max": 3
+        }
+       }
       }
-     }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -450,11 +457,18 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "勇傑"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "勇傑"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -1922,8 +1936,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2214,8 +2235,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -3969,8 +3997,15 @@
     "granted": {
      "trigger": "onBlock",
      "action": {
-      "type": "selfBuff",
-      "amount": 2000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 2000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     }
    }

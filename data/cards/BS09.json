@@ -214,8 +214,15 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuff",
-          "amount": 2000
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "target": "self"
         }
       },
       {

@@ -40,8 +40,7 @@ import {
     assert,
     act,
     takeLifeAndResolve,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState } from "./helpers"
 
 console.log("=== battleRole: onBattleの役割限定（キングタウロス大公） ===")
@@ -477,7 +476,7 @@ console.log("=== selfBuffPer：スケルトン・ジョウ（BS01-016、アタ�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: jaw.instanceId }) === null, "スケルトン・ジョウでアタック")
-    assert(jaw.tempBpBuff === 2000, "相手の回復状態2体でBP+2000")
+    assert(bpBuffOf(s, jaw) === 2000, "相手の回復状態2体でBP+2000")
     assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトル終了")
 
     console.log("--- 相手が全疲労なら増加0 ---")
@@ -487,7 +486,7 @@ console.log("=== selfBuffPer：スケルトン・ジョウ（BS01-016、アタ�
     s.players.p1.field.spirits.push(jaw2)
     const logLen = s.log.length
     assert(act(s, "p1", { type: "attack", instanceId: jaw2.instanceId }) === null, "2体目のジョウでアタック")
-    assert(jaw2.tempBpBuff === 0, "相手が全疲労ならBP増加なし")
+    assert(bpBuffOf(s, jaw2) === 0, "相手が全疲労ならBP増加なし")
     assert(s.log.length > logLen, "カウント0のログが出る")
 }
 

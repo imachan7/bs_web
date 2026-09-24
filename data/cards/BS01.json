@@ -159,8 +159,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -440,8 +447,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -765,9 +779,16 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "readyEnemies"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "readyEnemies"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -929,8 +950,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -3655,8 +3683,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -3758,8 +3793,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -4422,8 +4464,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 6000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 6000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }

@@ -45,8 +45,15 @@
      "ownFieldHasKeyword": "awaken"
     },
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -104,8 +111,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -393,8 +407,15 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -449,8 +470,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 5000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -1266,9 +1294,16 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "opponentTrashCores"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "opponentTrashCores"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -1434,8 +1469,15 @@
      "firstAttackOfTurn": true
     },
     "action": {
-     "type": "selfBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2368,8 +2410,15 @@
      "targetSameLevelAsSelf": true
     },
     "action": {
-     "type": "selfBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2947,8 +2996,15 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "selfBuff",
-      "amount": 2000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 2000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     }
    }
@@ -3579,9 +3635,17 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "lastFunsaiSpirits"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "lastFunsaiSpirits",
+       "countOnce": true
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     }
    }
   ]
@@ -3832,8 +3896,15 @@
       "cardType": "nexus"
      },
      "then": {
-      "type": "selfBuff",
-      "amount": 4000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 4000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     },
     "optional": true
@@ -3853,8 +3924,15 @@
       "cardType": "nexus"
      },
      "then": {
-      "type": "selfBuff",
-      "amount": 4000
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 4000
+       }
+      ],
+      "duration": "turn",
+      "target": "self"
      }
     },
     "optional": true

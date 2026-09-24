@@ -63,25 +63,6 @@ const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> =
     )
 }
 
-const selfBuff: ActionHandler<"selfBuff"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (!self) return
-        const amount =
-            action.amountCounter !== undefined
-                ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType)
-                : action.amount
-        if (action.amountCounter !== undefined && amount === 0) {
-            log(state, `${sourceName}：カウントが0のため増加しなかった。`)
-            return
-        }
-        self.tempBpBuff += amount
-        log(
-            state,
-            `${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-        )
-        return
-}
-
 const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
         if (!self) return
@@ -659,7 +640,6 @@ const familyChoiceThenBpBuffAllHandler: ActionHandler<"familyChoiceThenBpBuffAll
 
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
-    selfBuff,
     colorlessSelfThisBattle,
     symbolOverrideThisBattle: symbolOverrideThisBattleHandler,
     bpBuff,

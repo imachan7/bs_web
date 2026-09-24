@@ -13,7 +13,7 @@ import { countedAmount } from "../counted"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
-    "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "selfBuff",
+    "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "refreshSelf", "nexusCoresToTrash",
 ] as const
 
@@ -46,7 +46,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
-    selfBuff: (_state, _owner, self) => self !== null,
+    // いまは「このスピリットをBP+」（target:"self"）だけを後半に置ける。他の形を置くなら判定を足す
+    timedEffect: (_state, _owner, self, action) => action.type === "timedEffect" && action.target === "self" && self !== null,
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
         return destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count

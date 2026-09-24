@@ -6,7 +6,7 @@
 //   - BS03-066 天使アルケー：自分の黄マジック/手札の黄スピリットに軽減シンボル[黄][黄]を付与（reductionGrant）
 //   - BS03-067 アルカナプリンセス・アン：アタック時、名前に「アルカナ」を含む自分のスピリット数×1000で自身+BP（selfBuffPer counter:ownNameIncludes）
 //   - BS03-110 星降る巡礼地：相手のアタックステップ中のみ、【光芒】持ちの自分のスピリットすべて+2000（aura keywordFilter:kobo）
-import {
+import { bpBuffOf,
     act,
     assert,
     createGame,
@@ -128,7 +128,7 @@ console.log("=== BS03-067 アルカナプリンセス・アン：アタック時
     s.players.p1.field.spirits.push(arcanaAlly)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: anne.instanceId }) === null, "アンでアタック")
-    assert(anne.tempBpBuff === 2000, "「アルカナ」を含む自分2体（アン自身＋オベロ）ぶんBP+2000")
+    assert(bpBuffOf(s, anne) === 2000, "「アルカナ」を含む自分2体（アン自身＋オベロ）ぶんBP+2000")
 }
 
 console.log("=== BS03-110 星降る巡礼地：相手のアタックステップ中のみ【光芒】持ちすべて+2000 ===")

@@ -374,11 +374,18 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "地竜"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "地竜"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -467,8 +474,15 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -1847,11 +1861,18 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownFamily": "樹魔"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownFamily": "樹魔"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2443,9 +2464,16 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": "ownExhausted"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": "ownExhausted"
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2702,8 +2730,15 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    }
@@ -2755,11 +2790,18 @@
      2
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "ownKeyword": "armor"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "ownKeyword": "armor"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
@@ -3320,11 +3362,18 @@
      3
     ],
     "action": {
-     "type": "selfBuff",
-     "amount": 1000,
-     "amountCounter": {
-      "anyNameIncludes": "アルカナ"
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000,
+       "amountCounter": {
+        "anyNameIncludes": "アルカナ"
+       }
+      }
+     ],
+     "duration": "turn",
+     "target": "self"
     },
     "optional": false
    },
