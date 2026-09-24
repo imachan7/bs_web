@@ -721,29 +721,22 @@
    },
    {
     "id": "BS13-061-e2",
-    "kind": "step",
-    "step": "attack",
-    "turn": "own",
+    "kind": "aura",
     "levels": [
      2
     ],
-    "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "bp",
-       "amount": 1000,
-       "amountCounter": "ownLife"
-      }
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyAllFilter": [
+      "地竜",
+      "竜人"
      ],
-     "duration": "turn",
-     "all": true,
-     "side": "own",
-     "filter": {
-      "familyAll": [
-       "地竜",
-       "竜人"
-      ]
+     "amountPer": 1000,
+     "counter": "ownLife",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
      }
     }
    }

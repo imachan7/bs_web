@@ -487,24 +487,20 @@
     "effects": [
       {
         "id": "BS16-024-e1",
-        "kind": "step",
-        "step": "attack",
-        "turn": "own",
+        "kind": "aura",
         "levels": [
           1,
           2
         ],
-        "action": {
-          "type": "timedEffect",
-          "content": [
-            {
-              "type": "bp",
-              "amount": 1000,
-              "amountCounter": "selfCores"
-            }
-          ],
-          "duration": "turn",
-          "target": "self"
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amountPer": 1000,
+          "counter": "selfCores",
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
         }
       },
       {

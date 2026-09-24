@@ -1602,6 +1602,9 @@ export function auraAppliesTo(
     ) {
         return false
     }
+    if (aura.familyAllFilter !== undefined && !aura.familyAllFilter.every((f) => spiritHasFamily(board, targetOwnerPid, targetInst, f))) {
+        return false
+    }
     if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
         return false
     }
