@@ -4128,8 +4128,13 @@
      2
     ],
     "action": {
-     "type": "forceAttackThisTurn",
-     "side": "opponent",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "mustAttack"
+      }
+     ],
+     "duration": "turn",
      "count": 1
     }
    },

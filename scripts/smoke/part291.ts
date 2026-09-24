@@ -156,14 +156,13 @@ console.log("=== §I AD forceAttackThisTurn count:\"any\"＋requireOwnNameInclud
     s.players.p2.field.spirits.push(oppA, oppB)
     // 前提を満たさない場合：不発
     resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", count: "any", requireOwnNameIncludes: "ストライク" }, undefined, undefined, "magic")
-    assert(s.turnConstraints.length === 0, "カード名に「ストライク」を含む自分のスピリットがいなければ不発")
+    assert(!oppA.mustAttackThisTurn && !oppB.mustAttackThisTurn, "カード名に「ストライク」を含む自分のスピリットがいなければ不発")
     // 前提を満たす場合：非対話は候補すべてに課す
     const striker = createInstance("BS12-X04", s.turn, 1) // 名前に「ストライク」が入っている自分のスピリット
     s.players.p1.field.spirits.push(striker)
     resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", count: "any", requireOwnNameIncludes: "ストライク" }, undefined, undefined, "magic")
     assert(
-        s.turnConstraints.some((c) => c.type === "mustAttackByInstance" && c.instanceId === oppA.instanceId) &&
-            s.turnConstraints.some((c) => c.type === "mustAttackByInstance" && c.instanceId === oppB.instanceId),
+        oppA.mustAttackThisTurn === true && oppB.mustAttackThisTurn === true,
         "非対話では相手のスピリットすべてに強制アタックを課す",
     )
 }

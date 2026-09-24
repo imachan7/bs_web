@@ -185,7 +185,7 @@ console.log("=== BS15-032 スノーフレイクン：相手のアタックステ
     fireStepTriggers(s, "attack")
     assert(s.players.p2.reserve === 4, "リザーブのコア1個をトラッシュに置いた")
     assert(
-        s.turnConstraints.some((c) => c.type === "mustAttackByInstance" && c.instanceId === target.instanceId),
+        target.mustAttackThisTurn === true,
         "指定した相手のスピリットは必ずアタックする",
     )
     assert(currentLevel(snow).level === 1, "前提：Lv1で開始")

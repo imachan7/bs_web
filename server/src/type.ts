@@ -658,6 +658,7 @@ export interface CardInstance {
     unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
     cantBlockThisTurn?: true // このターンの間ブロックできない（timedEffect。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
+    mustAttackThisTurn?: true // このターンの間、可能ならば必ずアタックする（timedEffect。PhaseManagerのターン終了処理で消える）
     suppressedTriggersThisTurn?: TriggerEvent[] // このターンの間、この個体自身の指定トリガーが発揮されない（markSuppressTriggerThisTurn。triggerSuppressionThisTurnの個体版＝1体だけを指定する。PhaseManagerのターン終了処理で消える。BS14-043月光姫マーニLv2）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
@@ -1424,6 +1425,7 @@ export interface GameState {
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
 export type TimedContent =
     | { type: "cantAttack" }
+    | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
@@ -1453,8 +1455,6 @@ export type TurnConstraintDef =
     | { type: "timedRule"; appliedIds?: string[]; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
-    | { type: "mustAttackByCost"; pid: PlayerId; maxCost: number } // このターンの間、pidのコストがmaxCost以下のスピリットは可能ならば必ずアタックする（action:"forceAttackThisTurn"のmaxCost版が積む。BS08アンブッシュブロッカー）
-    | { type: "mustAttackByInstance"; pid: PlayerId; instanceId: string } // このターンの間、pidの指定インスタンスは可能ならば必ずアタックする（action:"forceAttackThisTurn"のcount版が積む。BS08獣機合神セイ・ドリガン）
     | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない
     | { type: "freeFushiSummonForPid"; pid: PlayerId } // このターンの**最初の**【不死】召喚だけコストが0になる（維持コアは通常どおり要る）。applyFushiSummon が使ったら自分でこの制約を取り除く（BS14-098ダークリボーン）
     // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**

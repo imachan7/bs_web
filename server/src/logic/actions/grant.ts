@@ -358,136 +358,64 @@ const grantHostUnblockableThisTurnHandler: ActionHandler<"grantHostUnblockableTh
     log(state, `${sourceName}：このターンの間、このブレイヴと合体しているスピリットはブロックされない。`)
 }
 
+// BS12-079 アブソリュートストライク専用（好きなだけ指定＋使用条件）。1体・すべては timedEffect の内容 mustAttack
 const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        // requireOwnNameIncludes（BS12-079アブソリュートストライク）：**使用宣言の時点**で自分のフィールドに
-        // カード名にこの文字列を含むスピリットがいなければ不発（撃った後に場を離れても効果は継続する。2026-09-07 ユーザー確認）
-        if (
-            action.requireOwnNameIncludes !== undefined &&
-            !action.choosing &&
-            !state.players[owner].field.spirits.some((s) => getCard(s.cardId).name.includes(action.requireOwnNameIncludes!))
-        ) {
-            log(state, `${sourceName}：カード名に「${action.requireOwnNameIncludes}」と入っているスピリットがいないため使用できない。`)
-            return
-        }
-        // count:"any"（BS12-079）：好きなだけ指定する。トグル選択（budgetToggleDestroyと同型）
-        if (action.count === "any") {
-            const onField = (id: string): CardInstance | undefined =>
-                state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
-            const combinedOk = (s: CardInstance) => !action.excludeCombined || !instIsCombined(s)
-            let chosen = [...(action.chosenIds ?? [])]
-            if (action.choosing && targetInstanceId !== undefined) {
-                chosen = chosen.includes(targetInstanceId)
-                    ? chosen.filter((id) => id !== targetInstanceId)
-                    : [...chosen, targetInstanceId]
-            }
-            chosen = chosen.filter((id) => onField(id) !== undefined)
-            if (state.interactiveTargets) {
-                if (!(action.choosing && targetInstanceId === undefined)) {
-                    const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
-                    if (candidates.length > 0) {
-                        suspend(state, {
-                            pid: owner,
-                            kind: "target",
-                            prompt: `${sourceName}：必ずアタックさせる相手のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
-                            candidates: candidates.map((sp) => sp.instanceId),
-                            selectedIds: chosen,
-                            skipLabel: chosen.length > 0 ? `これで確定する（${chosen.length}体）` : "指定しない",
-                            optional: true,
-                            resolveOnSkip: true,
-                            action: { ...action, choosing: true as const, chosenIds: chosen },
-                            selfInstanceId: self ? self.instanceId : null,
-                        })
-                        return
-                    }
-                }
-                if (chosen.length === 0) {
-                    log(state, `${sourceName}：対象がいなかった。`)
-                    return
-                }
-                for (const id of chosen) {
-                    const target = onField(id)
-                    if (!target) continue
-                    state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
-                    log(state, `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`)
-                }
+    // **使用宣言の時点**で自分のフィールドにカード名にこの文字列を含むスピリットがいなければ不発（撃った後に場を離れても効果は継続する。2026-09-07 ユーザー確認）
+    if (
+        action.requireOwnNameIncludes !== undefined &&
+        !action.choosing &&
+        !state.players[owner].field.spirits.some((s) => getCard(s.cardId).name.includes(action.requireOwnNameIncludes!))
+    ) {
+        log(state, `${sourceName}：カード名に「${action.requireOwnNameIncludes}」と入っているスピリットがいないため使用できない。`)
+        return
+    }
+    // トグル選択（budgetToggleDestroyと同型）
+    const onField = (id: string): CardInstance | undefined => state.players[opp].field.spirits.find((sp) => sp.instanceId === id)
+    let chosen = [...(action.chosenIds ?? [])]
+    if (action.choosing && targetInstanceId !== undefined) {
+        chosen = chosen.includes(targetInstanceId) ? chosen.filter((id) => id !== targetInstanceId) : [...chosen, targetInstanceId]
+    }
+    chosen = chosen.filter((id) => onField(id) !== undefined)
+    if (state.interactiveTargets) {
+        if (!(action.choosing && targetInstanceId === undefined)) {
+            const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+            if (candidates.length > 0) {
+                suspend(state, {
+                    pid: owner,
+                    kind: "target",
+                    prompt: `${sourceName}：必ずアタックさせる相手のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
+                    candidates: candidates.map((sp) => sp.instanceId),
+                    selectedIds: chosen,
+                    skipLabel: chosen.length > 0 ? `これで確定する（${chosen.length}体）` : "指定しない",
+                    optional: true,
+                    resolveOnSkip: true,
+                    action: { ...action, choosing: true as const, chosenIds: chosen },
+                    selfInstanceId: self ? self.instanceId : null,
+                })
                 return
             }
-            // 非対話：候補すべてに課す
-            const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            for (const target of candidates) {
-                state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
-            }
-            log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
-            return
         }
-        // maxCost指定時：コスト条件を満たす相手スピリットすべてに一括で課す（BS08アンブッシュブロッカー）
-        if (action.maxCost !== undefined) {
-            state.turnConstraints.push({ type: "mustAttackByCost", pid: opp, maxCost: action.maxCost })
-            log(
-                state,
-                `${sourceName}：このターンの間、${state.players[opp].name}のコスト${action.maxCost}以下のスピリットは可能ならば必ずアタックする。`,
-            )
-            return
-        }
-        // 対象指定時：その1体に課す（targetInstanceId優先→interactiveTargets時はpendingChoice→自動時は実効BP最大。BS08獣機合神セイ・ドリガン）
-        if (targetInstanceId) {
-            const found = findSpiritAny(state, targetInstanceId)
-            if (!found || found.pid !== opp) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: found.inst.instanceId })
-            log(
-                state,
-                `${sourceName}：${getCard(found.inst.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
-            )
-            return
-        }
-        const count = action.count ?? 1
-        const combinedOk = (s: CardInstance) => !action.excludeCombined || !instIsCombined(s)
-        const candidates = pickEnemyCandidates(state, opp, Infinity, combinedOk, srcColors, srcType)
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：必ずアタックさせる相手のスピリットを選んでください`,
-                candidates,
-                action,
-                count > 1 ? { ...action, count: count - 1 } : null,
-            )
-        ) {
-            return
-        }
-        const chosenIds = new Set<string>()
-        let marked = 0
-        for (let i = 0; i < count; i++) {
-            const target = pickEnemyByBp(
-                state,
-                opp,
-                Infinity,
-                (s) => !chosenIds.has(s.instanceId) && combinedOk(s),
-                srcColors,
-                srcType,
-            )
-            if (!target) break
-            chosenIds.add(target.instanceId)
-            state.turnConstraints.push({ type: "mustAttackByInstance", pid: opp, instanceId: target.instanceId })
-            log(
-                state,
-                `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`,
-            )
-            marked++
-        }
-        if (marked === 0) {
+        if (chosen.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        for (const id of chosen) {
+            const target = onField(id)
+            if (!target) continue
+            target.mustAttackThisTurn = true
+            log(state, `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`)
         }
         return
+    }
+    // 非対話：候補すべてに課す
+    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const target of candidates) target.mustAttackThisTurn = true
+    log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
 }
 
 const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsThisTurn"> = (ctx, action) => {

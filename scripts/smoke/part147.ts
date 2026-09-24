@@ -1,7 +1,7 @@
 // smoke パート147（第八弾「戦嵐」白15枚：新規エンジン拡張の経路確認）
 //
 // BS08の白15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
-//   action"forceAttackThisTurn"（GameState.turnConstraints。maxCost版=BS08アンブッシュブロッカー／
+//   timedEffect の内容 mustAttack（すべて＝timedRule。BS08アンブッシュブロッカー／
 //   count版=BS08獣機合神セイ・ドリガン）／
 //   action"grantCanBlockWhileRestedThisTurn"（GameState.turnConstraints。BS08インフィニティシールド）／
 //   constraint"canBlockWhileRested".targetKeywordExclude（BS08一角魚モノケロック）／
@@ -28,6 +28,8 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import { fireSummonTrigger, resolveTensho } from "../../server/src/logic/EffectModules"
+import type { EffectAction } from "../../server/src/type"
+import { mustAttackThisTurn } from "../../shared/rules"
 import { validateEndTurn } from "../../server/src/logic/RuleValidator"
 
 interface CardRow {
@@ -79,28 +81,27 @@ function putNexus(s: GameState, pid: PlayerId, cardId: string, cores: number): R
     return inst
 }
 
-console.log("=== BS08アンブッシュブロッカー：action forceAttackThisTurn（maxCost版。GameState.turnConstraints） ===")
+console.log("=== BS08アンブッシュブロッカー：timedEffect mustAttack（コスト以下すべて） ===")
 {
     const ambush = findByEffect(
         (e) =>
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "forceAttackThisTurn" &&
-            (e["action"] as Record<string, unknown>)["maxCost"] !== undefined,
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+            (e["action"] as Record<string, unknown>)["all"] === true &&
+            JSON.stringify(e["action"]).includes('"mustAttack"'),
     )
+    assert(ambush.cardId === "BS08-076" && ambush.name === "アンブッシュブロッカー", "コスト以下すべてはアンブッシュブロッカー")
     const entry = entryOf(
         ambush,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "forceAttackThisTurn",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect",
     )
-    const action = entry["action"] as Record<string, unknown>
-    const maxCost = Number(action["maxCost"])
+    const action = entry["action"] as EffectAction
+    const maxCost = Number(((action as { filter?: { cost?: { max?: number } } }).filter?.cost?.max))
     const cheap = CARDS.find((c) => c.type === "spirit" && (c.cost ?? 99) <= maxCost)!
 
     const s = base("ambush-maxcost")
     const marked = put(s, "p2", cheap.cardId, coresFor(cheap, 1))
-    resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", maxCost })
-    assert(
-        s.turnConstraints.some((c) => c.type === "mustAttackByCost" && c.pid === "p2" && c.maxCost === maxCost),
-        "p2側にコスト条件つきの強制アタックが積まれる",
-    )
+    resolveAction(s, "p1", null, action)
+    assert(mustAttackThisTurn(s, "p2", marked), "p2側のコスト条件に合うスピリットに強制アタックが掛かる")
     s.turnPlayer = "p2"
     s.phase = "attack"
     assert(validateEndTurn(s, "p2") !== null, "対象スピリットが未アタックの間はターン終了を拒否")
@@ -109,26 +110,26 @@ console.log("=== BS08アンブッシュブロッカー：action forceAttackThisT
     assert(validateEndTurn(s, "p2") === null, "アタック済みなのでターン終了できる")
 }
 
-console.log("=== BS08獣機合神セイ・ドリガン：action forceAttackThisTurn（count版。実効BP最大を自動選択） ===")
+console.log("=== BS08獣機合神セイ・ドリガン：timedEffect mustAttack（1体。実効BP最大を自動選択） ===")
 {
     const seidorigan = findByEffect(
         (e) =>
             e["kind"] === "step" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "forceAttackThisTurn" &&
-            (e["action"] as Record<string, unknown>)["maxCost"] === undefined,
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+            JSON.stringify(e["action"]).includes('"mustAttack"'),
     )
     const filler = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
 
     const s = base("seidorigan-count")
     const weak = put(s, "p2", filler.cardId, coresFor(filler, 1))
     const strong = put(s, "p2", filler.cardId, coresFor(filler, 1) + 2) // 実効BPを変えて自動選択を決定的にする
-    resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", count: 1 })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "mustAttack" }], duration: "turn", count: 1 })
     assert(
-        s.turnConstraints.some((c) => c.type === "mustAttackByInstance" && c.pid === "p2" && c.instanceId === strong.instanceId),
+        strong.mustAttackThisTurn === true,
         "実効BP最大の相手スピリットが強制アタック対象に指定される",
     )
     assert(
-        !s.turnConstraints.some((c) => c.type === "mustAttackByInstance" && c.instanceId === weak.instanceId),
+        weak.mustAttackThisTurn !== true,
         "BPが低い方は対象にならない",
     )
     s.turnPlayer = "p2"
@@ -422,7 +423,7 @@ console.log("=== BS08アンブッシュブロッカー／インフィニティ�
     const shield = CARDS.find((c) => c.cardId === "BS08-077")!
     const ambushAction = entryOf(ambush, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
     const shieldAction = entryOf(shield, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
-    const maxCost = Number(ambushAction["maxCost"])
+    const maxCost = Number((ambushAction["filter"] as { cost: { max: number } }).cost.max)
     const families = shieldAction["familyFilter"] as string[]
     // カードIDの取り違えを防ぐため、名前も突き合わせておく（cardId は過去に全面的にズレた事故がある）
     assert(ambush.name === "アンブッシュブロッカー", "BS08-076 はアンブッシュブロッカー")
@@ -445,10 +446,7 @@ console.log("=== BS08アンブッシュブロッカー／インフィニティ�
         act(s, "p1", { type: "castMagic", handIndex: s.players.p1.hand.length - 1 }) === null,
         "アンブッシュブロッカーをフラッシュで使用",
     )
-    assert(
-        s.turnConstraints.some((c) => c.type === "mustAttackByCost" && c.pid === "p2" && c.maxCost === maxCost),
-        `カード記述どおりコスト${maxCost}以下の相手に強制アタックが積まれる`,
-    )
+    assert(mustAttackThisTurn(s, "p2", marked), `カード記述どおりコスト${maxCost}以下の相手に強制アタックが掛かる`)
     assert(marked.cardId === cheap.cardId, "対象となるコスト以下のスピリットが場にいる")
 
     const s2 = base("shield-via-card")
